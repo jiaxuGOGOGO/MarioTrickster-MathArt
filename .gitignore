@@ -32,3 +32,4 @@ coverage.xml
 # Distillation artifacts
 distilled_rules.json
 param_spaces.json
+stagnation_reports/

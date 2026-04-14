@@ -1,0 +1,33 @@
+{
+  "iteration": 8,
+  "consecutive_count": 2,
+  "score_history": [
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5
+  ],
+  "phash_distances": [
+    64,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "cause": "generator_invariant",
+  "cause_explanation": "All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.",
+  "escalation": "human_required",
+  "verdict": "stop_report",
+  "verdict_reasoning": "Automated recovery and AI arbitration both failed or deferred. Human review required.",
+  "recommended_action": "Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.",
+  "timestamp": "2026-04-14T15:59:15.358104"
+}

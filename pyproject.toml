@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mathart"
-version = "0.3.0"
+version = "0.4.0"
 description = "MarioTrickster Math-Driven Art Pipeline — procedural pixel art generation via OKLAB color science, SDF effects, programmatic skeletal animation, WFC level generation, L-System plants, and knowledge distillation."
 readme = "README.md"
 license = {text = "MIT"}
@@ -31,6 +31,7 @@ mathart-export = "mathart.export.cli:main"
 mathart-level = "mathart.level.cli:main"
 mathart-distill = "mathart.distill.cli:main"
 mathart-evolve = "mathart.evolution.cli:main"
+mathart-mine = "mathart.evolution.paper_miner:_cli_entry"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
