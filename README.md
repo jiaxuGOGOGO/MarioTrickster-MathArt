@@ -1,204 +1,109 @@
 # MarioTrickster-MathArt
 
-**数学驱动程序化像素美术管线** — 为 [MarioTrickster](https://github.com/jiaxuGOGOGO/MarioTrickster) 游戏项目提供可复现、可自动化的美术资产生产工具。
+**自进化数学驱动美术生产大脑** — 为 [MarioTrickster](https://github.com/jiaxuGOGOGO/MarioTrickster) 游戏项目提供可复现、可自动化的美术资产生产工具。
 
 ---
 
-## 核心理念
+## 🌟 核心特性：三层自进化架构
 
-> **knowledge/ 是项目的大脑。每一本书、每一份教程被蒸馏后，知识沉淀在这里。代码模块读取大脑中的知识，越来越接近那些教程想教会你的东西。**
+本项目不仅是一个生成工具，更是一个**能够自我学习和进化的美术生产大脑**。系统分为三个核心循环：
 
-```
-用户上传 PDF/书籍/教程 → AI 蒸馏提炼 → knowledge/ 知识沉淀 + 代码改动 → git push → 用户 pull → 项目进化
-```
+### 1. 内循环：质量驱动的参数优化（Inner Loop）
+通过 `AssetEvaluator` 自动评估生成图像的质量（清晰度、对比度、调色板贴合度、风格一致性），并使用遗传算法（`EvolutionaryOptimizer`）在约束空间内自动寻找最优参数组合。
+- **无需人工调参**：系统自动迭代直到达到质量阈值。
+- **多维度评估**：包含 pHash 风格一致性检测和 OKLAB 色彩和谐度分析。
 
-本项目通过**持续蒸馏**美术、动画、透视、色彩、游戏设计等领域的专业知识，将其转化为数学公式和代码算法，让程序化生成的质量不断逼近手绘水准。
+### 2. 外循环：外部知识蒸馏（Outer Loop）
+通过 `OuterLoopDistiller` 将外部的 PDF 书籍、Markdown 笔记或论文（如解剖学、色彩理论、物理动画公式）蒸馏为结构化的数学约束和规则。
+- **知识沉淀**：提取的规则自动追加到 `knowledge/*.md` 文件中。
+- **代码映射**：规则被编译为 `ParameterSpace`，直接约束内循环的生成边界。
 
----
-
-## 定位
-
-| 仓库 | 职责 |
-|------|------|
-| **MarioTrickster** | 游戏主仓库：关卡逻辑、物理系统、Level Studio |
-| **MarioTrickster-Art** | 旧美术管线：LoRA / ComfyUI / WAN 2.2（已归档为探索记录） |
-| **MarioTrickster-MathArt**（本仓库） | 新美术管线：数学驱动 + 知识蒸馏持续进化 |
-
-本仓库产出标准 PNG / Sprite Sheet，直接拖入主仓库 `Assets/Art/` 目录即可被 `TA_AssetValidator` 和 `AI_SpriteSlicer` 自动接收。
+### 3. 数学引擎：模型注册表（Math Registry）
+维护所有参与生成的数学模型（如 FABRIK IK、弹簧阻尼系统、WFC、L-System），并跟踪其能力边界。
+- **能力发现**：系统知道自己能做什么，缺少什么。
+- **持续扩展**：支持接入新的数学模型（如可微渲染）。
 
 ---
 
-## 六大模块
+## 📦 安装与使用
 
-### 1. OKLAB 调色板生成器 (`mathart.oklab`)
+### 环境要求
+- Python 3.10+
+- 推荐使用虚拟环境
 
-基于 Björn Ottosson 的 OKLAB 感知均匀色彩空间，生成像素画专用限色调色板。
-
-- 6 种色彩和谐模式：互补、类似、三角、分裂互补、暖光冷影、色调阶梯
-- 一键生成 `LevelThemeProfile` 全套配色
-- sRGB 色域自动钳制（二分搜索降饱和度）
-- 图像量化器：支持 Floyd-Steinberg 抖动
-
-```bash
-mathart-palette generate --harmony warm_cool_shadow --count 8 --hue 120 -o palette.json
-mathart-palette theme --name grassland --seed 42 -o ./palettes/
-mathart-palette quantize input.png palette.json -o output.png --dither
-```
-
-### 2. SDF 特效生成器 (`mathart.sdf`)
-
-用 2D 有符号距离场程序化生成游戏特效精灵。
-
-- 基础图元：圆、矩形、线段、三角形、星形、环形
-- 布尔运算：并集、交集、差集、光滑混合
-- 游戏特效预设：地刺、火焰、锯片、电弧、发光
-- 支持输出静态精灵和动画 Sprite Sheet
-
-```bash
-mathart-sdf spike -o spike.png --size 32
-mathart-sdf flame -o flame_sheet.png --size 32 --frames 8
-```
-
-### 3. L-系统植物生成器 (`mathart.sdf.lsystem`)
-
-基于 Lindenmayer 系统的程序化植物生成，用数学文法描述植物生长规则。
-
-- 支持确定性和随机文法规则
-- 分支深度追踪、自动粗细衰减
-- 5 种预设植物：橡树、灌木、藤蔓、蕨类、花卉
-- 像素渲染带深度感知着色
-
-```python
-from mathart.sdf.lsystem import PlantPresets
-oak = PlantPresets.oak_tree(seed=42)
-oak.generate(iterations=4)
-img = oak.render(64, 64)
-img.save("oak.png")
-```
-
-### 4. 程序化骨骼动画 (`mathart.animation`)
-
-基于蒸馏的解剖学知识（关节可动域、拮抗肌联动、挤压拉伸）生成角色动画。
-
-- 人形骨骼系统：16 个关节、12 根骨骼、ROM 约束
-- 动画曲线：ease-in-out、弹簧、正弦波、贝塞尔、弹跳
-- 预设动画：idle / run / jump / fall / hit
-
-```bash
-mathart-anim run -o run_sheet.png --size 32 --frames 8
-mathart-anim idle -o idle_sheet.png --frames 8
-```
-
-### 5. WFC 关卡生成器 (`mathart.level`)
-
-基于波函数坍缩（Wave Function Collapse）算法，从经典片段库学习邻接规则，自动生成合法关卡布局。
-
-- 19 种游戏元素映射，与主项目 Level Studio ASCII 系统完全对齐
-- 从经典片段库自动学习邻接约束
-- 支持结构约束：确保地面、出生点、目标点
-- 批量生成多个关卡变体
-
-```bash
-mathart-level generate --width 22 --height 7 --seed 42 -o level.txt
-mathart-level batch --count 10 --width 22 --height 7 -o ./levels/
-```
-
-### 6. 导出桥接层 (`mathart.export`)
-
-强制执行 Unity 约束，生成元数据 JSON，一键批量导出。
-
-```bash
-mathart-export --generate-demo --output-dir ./output --style Style_MathArt
-```
-
----
-
-## 安装
-
+### 安装
 ```bash
 git clone https://github.com/jiaxuGOGOGO/MarioTrickster-MathArt.git
 cd MarioTrickster-MathArt
 pip install -e ".[dev]"
-pytest tests/ -v
 ```
 
-**依赖**：仅 `numpy`、`Pillow`、`scipy`，无需 GPU，无需 ComfyUI。
+### 命令行工具
 
-**更新**（每次蒸馏后）：
+项目提供了一系列 CLI 工具：
 
-```bash
-git pull
-pip install -e ".[dev]"
-pytest tests/ -v
-```
+1. **自进化引擎**：
+   ```bash
+   # 查看系统状态和能力缺口
+   mathart-evolve status
+   
+   # 从新书籍/论文中蒸馏知识
+   mathart-evolve distill path/to/new_book.pdf
+   
+   # 查看数学模型注册表
+   mathart-evolve registry
+   
+   # 评估单张图像质量
+   mathart-evolve eval image.png
+   ```
+
+2. **基础生成工具**：
+   ```bash
+   mathart-palette --hue 30 --harmony complementary
+   mathart-sdf --effect fire --intensity 1.5
+   mathart-anim --preset run --frames 8
+   ```
+
+3. **知识编译**：
+   ```bash
+   mathart-distill parse --input knowledge/
+   mathart-distill compile
+   ```
 
 ---
 
-## 与主项目衔接
+## 🧠 知识库结构 (`knowledge/`)
 
-产出物通过 `mathart-export` 导出后，按以下路径放入主仓库：
-
-```
-MarioTrickster/
-  Assets/Art/Style_MathArt/
-    Characters/    ← mario_idle_a_sheet_v01.png + .meta.json
-    Enemies/
-    Environment/   ← ground_tile_a_v01.png + L-系统植物
-    Hazards/       ← spike_trap_a_v01.png, fire_trap_a_sheet_v01.png
-    VFX/
-    Levels/        ← WFC 生成的关卡 ASCII 文本
-```
+`knowledge/` 目录包含了驱动整个系统的"大脑记忆"：
+- `anatomy.md`：解剖学比例与关节约束
+- `color_science.md`：OKLAB 色彩科学与调色板生成规则
+- `physics_sim.md`：弹簧阻尼与二次动画物理参数
+- `pcg_math.md`：程序化生成（噪声、WFC、L-System）数学基础
+- `sdf_math.md`：符号距离场与光线行进公式
+- `pbr_math.md`：物理基础渲染降维应用
+- `procedural_animation.md`：程序化动画与缓动函数
+- `unity_rules.md`：Unity 约束（PPU/Filter/Pivot/命名）
 
 ---
 
-## 知识蒸馏大脑 (`knowledge/`)
+## 🚀 进化路线图
 
-这是项目的核心竞争力。每一次蒸馏都让项目更"懂"美术。
-
-```
-knowledge/
-  anatomy.md       ← 人体解剖：关节可动域、头身比、肌肉联动
-  perspective.md   ← 透视法则：深度暗示、消失点、前缩
-  color_light.md   ← 色彩光影：暖光冷影、色阶系统、环境光
-  animation.md     ← 动画原理：12 法则数学映射、关键帧约定
-  unity_rules.md   ← Unity 约束：PPU/Filter/Pivot/命名
-  （持续扩展中...）
-```
-
-### 蒸馏工作流
-
-```
-你上传 PDF/书籍 → AI 阅读理解
-                      ↓
-              knowledge/*.md ← 知识沉淀（大脑长期记忆）
-              mathart/*.py   ← 代码改动（知识落地执行）
-              tests/*.py     ← 测试保障（确保不退化）
-                      ↓
-              git push → 你 git pull → 项目进化一步
-```
-
-每次蒸馏记录在 [`DISTILL_LOG.md`](DISTILL_LOG.md) 中，完整规范见 [`DISTILL_WORKFLOW.md`](DISTILL_WORKFLOW.md)。
-
-### 大脑的成长路径
-
-| 阶段 | 状态 | 目标 |
-|------|------|------|
-| 第 1 阶段 | **当前** | 基础知识骨架：每个领域 30 行核心规则 |
-| 第 2 阶段 | 进行中 | 深化：每个领域 300+ 行，多来源交叉验证 |
-| 第 3 阶段 | 规划中 | 交叉：领域间产生关联（透视影响动画前缩、色彩影响深度感知） |
-| 第 4 阶段 | 远期 | 推理：从已有知识推导出教程没有直接教的规则 |
+1. **当前阶段**：基于遗传算法的 CPU 内循环优化 + LLM 文本知识蒸馏。
+2. **近期目标**：引入有限差分梯度近似，提升内循环优化速度。
+3. **中期目标**：集成 PyTorch 和 nvdiffrast，实现 GPU 加速的完整 2D 可微渲染。
+4. **远期目标**：接入多模态视觉模型，实现对参考图的逆向工程（Image-to-Math）。
 
 ---
 
 ## 测试
 
-167 个测试覆盖全部模块，每次 push 自动运行 GitHub Actions CI：
+241 个测试覆盖全部模块，每次 push 自动运行 GitHub Actions CI：
 
 ```bash
 pytest tests/ -v                          # 全部测试
-pytest tests/test_level.py -v             # WFC 关卡生成
-pytest tests/test_lsystem.py -v           # L-系统植物
-pytest tests/test_distill.py -v           # 蒸馏管道
+pytest tests/test_evolution.py -v         # 自进化引擎测试
+pytest tests/test_evaluator.py -v         # 质量评估器测试
+pytest tests/test_physics.py -v           # 物理动画测试
 pytest tests/ --cov=mathart               # 覆盖率报告
 ```
 
