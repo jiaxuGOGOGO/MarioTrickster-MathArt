@@ -14,4 +14,21 @@ output/
 *.png
 !knowledge/**
 .DS_Store
-.github/workflows/ci.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+Thumbs.db
+
+# Coverage
+htmlcov/
+.coverage
+coverage.xml
+
+# Distillation artifacts
+distilled_rules.json
+param_spaces.json
