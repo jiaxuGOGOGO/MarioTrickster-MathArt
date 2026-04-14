@@ -125,7 +125,8 @@ class TestKnowledgeParser:
         parser = KnowledgeParser()
         rules = parser.parse_markdown(sample_md)
         modules = {r.target_module for r in rules}
-        assert TargetModule.ANIMATION in modules
+        # "肩关节"/"肘关节"/"髋关节" match ANATOMY ("\u5173\u8282") more strongly
+        assert TargetModule.ANATOMY in modules
         assert TargetModule.EXPORT in modules
 
     @pytest.mark.unit
@@ -161,9 +162,90 @@ class TestKnowledgeParser:
         assert "by_type" in summary
 
     @pytest.mark.unit
+    def test_parse_game_design_keywords(self, tmp_path):
+        """Parser should route game design keywords to GAME_DESIGN module."""
+        content = """# 游戏设计
+
+## 核心循环与机制设计
+
+| 参数 | 值 | 说明 |
+|---|---|---|
+| 反馈延迟 | 100-300 | 游戏设计中的反馈循环延迟毫秒 |
+"""
+        filepath = tmp_path / "game_design.md"
+        filepath.write_text(content, encoding="utf-8")
+        parser = KnowledgeParser()
+        rules = parser.parse_markdown(filepath)
+        modules = {r.target_module for r in rules}
+        assert TargetModule.GAME_DESIGN in modules
+
+    @pytest.mark.unit
+    def test_parse_game_feel_keywords(self, tmp_path):
+        """Parser should route game feel keywords to GAME_FEEL module."""
+        content = """# 游戏手感
+
+## 输入缓冲
+
+| 参数 | 值 | 说明 |
+|---|---|---|
+| 土狼时间 | 4-8 | 帧数 |
+"""
+        filepath = tmp_path / "game_feel.md"
+        filepath.write_text(content, encoding="utf-8")
+        parser = KnowledgeParser()
+        rules = parser.parse_markdown(filepath)
+        modules = {r.target_module for r in rules}
+        assert TargetModule.GAME_FEEL in modules
+
+    @pytest.mark.unit
+    def test_parse_level_design_keywords(self, tmp_path):
+        """Parser should route level design keywords to LEVEL_DESIGN module."""
+        content = """# 关卡设计
+
+## 空间语言
+
+| 参数 | 值 | 说明 |
+|---|---|---|
+| 平台最小宽度 | 3-5 | 格子 |
+"""
+        filepath = tmp_path / "level_design.md"
+        filepath.write_text(content, encoding="utf-8")
+        parser = KnowledgeParser()
+        rules = parser.parse_markdown(filepath)
+        modules = {r.target_module for r in rules}
+        assert TargetModule.LEVEL_DESIGN in modules
+
+    @pytest.mark.unit
+    def test_parse_programming_keywords(self, tmp_path):
+        """Parser should route programming keywords to PROGRAMMING module."""
+        content = """# 程序架构
+
+## 状态机
+
+| 参数 | 值 | 说明 |
+|---|---|---|
+| 状态数量 | 5-12 | FSM 状态数 |
+"""
+        filepath = tmp_path / "programming.md"
+        filepath.write_text(content, encoding="utf-8")
+        parser = KnowledgeParser()
+        rules = parser.parse_markdown(filepath)
+        modules = {r.target_module for r in rules}
+        assert TargetModule.PROGRAMMING in modules
+
+    @pytest.mark.unit
+    def test_all_target_modules_have_keywords(self):
+        """Every TargetModule should have keyword mappings in the parser."""
+        parser = KnowledgeParser()
+        for module in TargetModule:
+            assert module in parser._MODULE_KEYWORDS, (
+                f"TargetModule.{module.name} has no keyword mapping in parser"
+            )
+
+    @pytest.mark.unit
     def test_parse_real_knowledge_directory(self):
         """Parse the actual project knowledge directory if it exists."""
-        knowledge_dir = Path("mathart/knowledge")
+        knowledge_dir = Path("knowledge")
         if knowledge_dir.exists():
             parser = KnowledgeParser()
             rules = parser.parse_directory(knowledge_dir)
@@ -317,6 +399,61 @@ class TestRuleCompiler:
         assert c is not None
         assert c.is_hard
         assert c.default_value == 32
+
+    @pytest.mark.unit
+    def test_compile_game_feel_rule(self):
+        """Compiler should map game feel params correctly."""
+        rules = [
+            KnowledgeRule(
+                id="gf_001",
+                description="Coyote time",
+                rule_type=RuleType.SOFT_DEFAULT,
+                target_module=TargetModule.GAME_FEEL,
+                target_param="土狼时间",
+                constraint={"type": "range", "min": 4, "max": 8},
+            )
+        ]
+        compiler = RuleCompiler()
+        space = compiler.compile(rules, "game_feel")
+        assert space.dimensions == 1
+        ranges = space.get_ranges()
+        assert "game_feel.input.coyote_frames" in ranges
+
+    @pytest.mark.unit
+    def test_compile_level_design_rule(self):
+        """Compiler should map level design params correctly."""
+        rules = [
+            KnowledgeRule(
+                id="ld_001",
+                description="Platform min width",
+                rule_type=RuleType.SOFT_DEFAULT,
+                target_module=TargetModule.LEVEL_DESIGN,
+                target_param="平台最小宽度",
+                constraint={"type": "range", "min": 3, "max": 5},
+            )
+        ]
+        compiler = RuleCompiler()
+        space = compiler.compile(rules, "level_design")
+        ranges = space.get_ranges()
+        assert "level_design.platform.min_width" in ranges
+
+    @pytest.mark.unit
+    def test_compile_programming_rule(self):
+        """Compiler should map programming params correctly."""
+        rules = [
+            KnowledgeRule(
+                id="prog_001",
+                description="FSM state count",
+                rule_type=RuleType.SOFT_DEFAULT,
+                target_module=TargetModule.PROGRAMMING,
+                target_param="状态数量",
+                constraint={"type": "range", "min": 5, "max": 12},
+            )
+        ]
+        compiler = RuleCompiler()
+        space = compiler.compile(rules, "programming")
+        ranges = space.get_ranges()
+        assert "programming.fsm.state_count" in ranges
 
     @pytest.mark.unit
     def test_compile_by_module(self):

@@ -10,6 +10,13 @@ documents) into structured ``KnowledgeRule`` objects. Each rule captures:
 
 The parser understands the table-based format used in ``knowledge/*.md`` files
 and can also extract rules from free-form text via pattern matching.
+
+Supported knowledge domains (not limited to art):
+- Art fundamentals: anatomy, perspective, color/light, pixel art, VFX
+- Animation: skeletal, procedural, physics simulation
+- Game design: mechanics, level design, narrative, difficulty curves
+- Technical: PBR/shaders, procedural generation, math/physics
+- Production: Unity integration, asset pipeline, naming conventions
 """
 from __future__ import annotations
 
@@ -30,13 +37,43 @@ class RuleType(str, Enum):
 
 
 class TargetModule(str, Enum):
-    """Modules that can be affected by distilled knowledge."""
+    """Modules that can be affected by distilled knowledge.
 
-    ANIMATION = "animation"
-    OKLAB = "oklab"
-    SDF = "sdf"
-    EXPORT = "export"
-    LEVEL = "level"
+    This enum covers all current and planned code modules, plus a GENERAL
+    catch-all for cross-domain knowledge that doesn't map to a single module.
+    New modules can be added as the project evolves.
+    """
+
+    # ── Core rendering ──
+    ANIMATION = "animation"       # Skeletal animation, FK/IK, curves, presets
+    OKLAB = "oklab"               # Color science, palette generation, quantization
+    SDF = "sdf"                   # Signed distance fields, effects, L-system plants
+    EXPORT = "export"             # Unity bridge, asset validation, naming
+
+    # ── Procedural generation ──
+    LEVEL = "level"               # WFC level generation, tile constraints
+    LSYSTEM = "lsystem"          # L-system plant grammar (subset of SDF)
+
+    # ── Game design & feel ──
+    GAME_DESIGN = "game_design"   # Mechanics, difficulty curves, systems design
+    LEVEL_DESIGN = "level_design" # Spatial language, platform constraints, pacing
+    GAME_FEEL = "game_feel"       # Input buffering, motion curves, hit-stop, juice
+
+    # ── Art & visual ──
+    PIXEL_ART = "pixel_art"       # Pixel art techniques, dithering, sub-pixel
+    PBR = "pbr"                   # PBR lighting, normal maps, BRDF
+    VFX = "vfx"                   # Particle systems, visual effects
+    PERSPECTIVE = "perspective"   # Perspective rules, depth cues, projection
+    ANATOMY = "anatomy"           # Human anatomy, proportions, joint ROM
+
+    # ── Technical ──
+    PHYSICS = "physics"           # Spring-damper, collision, rigid body, cloth
+    PROGRAMMING = "programming"   # FSM, data-driven, PCG architecture, patterns
+    SHADER = "shader"             # Shader math, GPU techniques
+    NARRATIVE = "narrative"       # Story structure, pacing, world building
+
+    # ── Catch-all ──
+    GENERAL = "general"           # Cross-domain or uncategorized knowledge
 
 
 @dataclass
@@ -96,10 +133,14 @@ class KnowledgeParser:
     - JSON rule files (for machine-generated rules).
     - Plain text with pattern-based extraction.
 
+    The parser automatically detects the target module based on keyword
+    matching across 16 knowledge domains. It is designed to absorb
+    knowledge from ANY type of source — not limited to art books.
+
     Usage::
 
         parser = KnowledgeParser()
-        rules = parser.parse_directory("mathart/knowledge/")
+        rules = parser.parse_directory("knowledge/")
         parser.save_rules(rules, "rules.json")
     """
 
@@ -109,29 +150,156 @@ class KnowledgeParser:
     _SOURCE_RE = re.compile(r"来源[：:]\s*(.+?)(?:\n|$)", re.IGNORECASE)
     _SECTION_RE = re.compile(r"^##\s+(.+)$", re.MULTILINE)
 
-    # Module keyword mapping
+    # ── Module keyword mapping ──────────────────────────────────────
+    # Each module has Chinese + English keywords for broad matching.
+    # When a PDF is distilled, the section text is matched against these
+    # keywords to auto-route knowledge to the correct module.
     _MODULE_KEYWORDS = {
         TargetModule.ANIMATION: [
-            "关节", "骨骼", "动画", "帧", "ROM", "角度", "运动",
-            "joint", "skeleton", "animation", "frame", "motion",
-            "弹簧", "阻尼", "spring", "damping",
+            "动画", "帧", "运动", "缓动", "关键帧", "时间轴", "循环",
+            "animation", "frame", "motion", "easing", "keyframe", "timeline",
+            "squash", "stretch", "anticipation", "follow-through",
+            "12法则", "twelve principles",
+        ],
+        TargetModule.ANATOMY: [
+            "关节", "骨骼", "肌肉", "人体", "头身比", "解剖", "ROM",
+            "joint", "skeleton", "muscle", "anatomy", "proportion",
+            "torso", "limb", "松岡", "伯里曼",
         ],
         TargetModule.OKLAB: [
             "色彩", "调色", "色相", "饱和", "明度", "暖光", "冷影",
+            "配色", "色阶", "色温", "互补", "邻近色", "三角配色",
             "color", "palette", "hue", "saturation", "lightness",
+            "OKLAB", "OKLCH", "gamut", "harmony",
         ],
         TargetModule.SDF: [
-            "SDF", "距离场", "特效", "粒子", "形状", "轮廓",
-            "effect", "shape", "outline", "glow",
+            "SDF", "距离场", "形状", "轮廓", "布尔运算",
+            "signed distance", "shape", "outline", "boolean",
+            "smooth union", "smooth subtraction",
         ],
         TargetModule.EXPORT: [
-            "PPU", "Unity", "导出", "pivot", "filter",
-            "export", "sprite",
+            "PPU", "Unity", "导出", "pivot", "filter", "资产",
+            "export", "sprite", "atlas", "import settings",
+            "命名规范", "目录结构", "naming convention",
         ],
         TargetModule.LEVEL: [
-            "关卡", "地形", "布局", "WFC", "生成",
-            "level", "terrain", "layout", "tile",
+            "关卡", "地形", "布局", "WFC", "波函数坍缩", "地图",
+            "level", "terrain", "layout", "tile", "tilemap",
+            "wave function collapse", "adjacency",
         ],
+        TargetModule.LSYSTEM: [
+            "L-系统", "L-system", "植物", "分形", "文法",
+            "plant", "fractal", "grammar", "branching",
+            "树", "藤蔓", "蕨类", "tree", "vine", "fern",
+        ],
+        TargetModule.GAME_DESIGN: [
+            "游戏设计", "机制", "系统设计", "难度曲线", "心流",
+            "反馈循环", "奖励", "惩罚", "玩家体验", "交互",
+            "涌现", "乘法式", "game design", "mechanics", "systems",
+            "difficulty", "flow", "feedback loop", "reward",
+            "emergence", "multiplicative",
+            "MDA", "游戏循环", "core loop",
+        ],
+        TargetModule.LEVEL_DESIGN: [
+            "关卡设计", "空间语言", "平台跳跃", "四步教学法",
+            "安全区域", "危险区域", "秘密区域", "节奏",
+            "紧张", "放松", "引导线", "视觉引导",
+            "level design", "spatial language", "platform",
+            "kishōtenketsu", "safe zone", "danger zone",
+            "pacing", "tension", "release", "breadcrumb",
+            "任天堂", "Nintendo", "Miyamoto",
+        ],
+        TargetModule.GAME_FEEL: [
+            "手感", "打击感", "顿帧", "击退", "屏幕震动",
+            "输入缓冲", "土狼时间", "加速度", "滑行",
+            "挤压拉伸", "果汁感", "反馈",
+            "game feel", "juice", "hitstop", "knockback",
+            "screen shake", "input buffer", "coyote time",
+            "squash stretch", "acceleration", "deceleration",
+            "responsiveness", "weight", "impact",
+        ],
+        TargetModule.PIXEL_ART: [
+            "像素", "像素画", "抖动", "子像素", "限色",
+            "pixel art", "dithering", "sub-pixel", "limited palette",
+            "RotSprite", "anti-alias", "cluster", "jaggies",
+            "像素风格", "8bit", "16bit", "retro",
+        ],
+        TargetModule.PBR: [
+            "PBR", "法线贴图", "BRDF", "Cook-Torrance", "菲涅尔",
+            "金属度", "粗糙度", "环境光遮蔽", "AO",
+            "physically based", "normal map", "metallic", "roughness",
+            "fresnel", "specular", "diffuse", "albedo",
+            "光照模型", "lighting model",
+        ],
+        TargetModule.PHYSICS: [
+            "物理", "弹簧", "阻尼", "碰撞", "刚体", "重力",
+            "弹性", "摩擦", "惯性", "加速度", "速度",
+            "physics", "spring", "damping", "collision", "rigid body",
+            "gravity", "elasticity", "friction", "inertia",
+            "verlet", "euler", "runge-kutta",
+        ],
+        TargetModule.VFX: [
+            "特效", "粒子", "爆炸", "火焰", "烟雾", "闪电",
+            "拖尾", "光晕", "残影",
+            "VFX", "particle", "explosion", "flame", "smoke",
+            "lightning", "trail", "glow", "afterimage",
+        ],
+        TargetModule.SHADER: [
+            "着色器", "shader", "GLSL", "HLSL", "GPU",
+            "顶点", "片元", "渲染管线", "光线行进",
+            "vertex", "fragment", "render pipeline", "ray marching",
+            "compute shader", "post-processing",
+        ],
+        TargetModule.NARRATIVE: [
+            "叙事", "故事", "剧情", "世界观", "角色设定",
+            "节奏", "三幕式", "英雄之旅", "伏笔",
+            "narrative", "story", "plot", "worldbuilding",
+            "pacing", "three-act", "hero's journey", "foreshadowing",
+            "对话", "dialogue", "lore",
+        ],
+        TargetModule.PERSPECTIVE: [
+            "透视", "消失点", "地平线", "前缩", "深度",
+            "一点透视", "两点透视", "三点透视", "鱼眼",
+            "perspective", "vanishing point", "horizon", "foreshortening",
+            "depth cue", "overlap", "projection",
+            "OCHABI", "吉田誠治", "Scott Robertson",
+        ],
+        TargetModule.PROGRAMMING: [
+            "程序", "状态机", "数据驱动", "程序化生成",
+            "设计模式", "架构", "ECS", "FSM",
+            "对象池", "事件系统", "性能优化",
+            "programming", "state machine", "data-driven",
+            "procedural generation", "PCG", "design pattern",
+            "architecture", "object pool", "event system",
+            "component", "entity", "system",
+        ],
+        TargetModule.GENERAL: [
+            # GENERAL is the fallback; these keywords boost its score
+            # only when no other module matches well
+            "数学", "算法", "优化", "工具", "管线", "工作流",
+            "math", "algorithm", "optimization", "pipeline", "workflow",
+        ],
+    }
+
+    # ── Filename-to-module hint ─────────────────────────────────────
+    # When parsing a knowledge file, the filename provides a strong hint
+    _FILENAME_MODULE_HINT = {
+        "anatomy": TargetModule.ANATOMY,
+        "animation": TargetModule.ANIMATION,
+        "color_light": TargetModule.OKLAB,
+        "perspective": TargetModule.PERSPECTIVE,
+        "unity_rules": TargetModule.EXPORT,
+        "pixel_art": TargetModule.PIXEL_ART,
+        "game_design": TargetModule.GAME_DESIGN,
+        "plant_botany": TargetModule.LSYSTEM,
+        "vfx": TargetModule.VFX,
+        "pbr_lighting": TargetModule.PBR,
+        "shader_math": TargetModule.SHADER,
+        "physics_sim": TargetModule.PHYSICS,
+        "narrative": TargetModule.NARRATIVE,
+        "level_design": TargetModule.LEVEL_DESIGN,
+        "game_feel": TargetModule.GAME_FEEL,
+        "programming": TargetModule.PROGRAMMING,
     }
 
     def __init__(self):
@@ -153,9 +321,11 @@ class KnowledgeParser:
         text = filepath.read_text(encoding="utf-8")
         filename_stem = filepath.stem  # e.g., "anatomy", "color_light"
 
+        # Resolve filename hint for module detection bias
+        self._current_file_hint = self._FILENAME_MODULE_HINT.get(filename_stem)
+
         rules = []
         current_source = ""
-        current_section = ""
 
         # Extract source attribution
         source_match = self._SOURCE_RE.search(text)
@@ -167,20 +337,20 @@ class KnowledgeParser:
         for i in range(1, len(sections), 2):
             section_title = sections[i].strip()
             section_body = sections[i + 1] if i + 1 < len(sections) else ""
-            current_section = section_title
 
             # Extract rules from tables
             table_rules = self._extract_table_rules(
-                section_body, filename_stem, current_section, current_source
+                section_body, filename_stem, section_title, current_source
             )
             rules.extend(table_rules)
 
             # Extract rules from bullet points and paragraphs
             text_rules = self._extract_text_rules(
-                section_body, filename_stem, current_section, current_source
+                section_body, filename_stem, section_title, current_source
             )
             rules.extend(text_rules)
 
+        self._current_file_hint = None
         return rules
 
     def _extract_table_rules(
@@ -283,17 +453,32 @@ class KnowledgeParser:
         return rules
 
     def _detect_module(self, text: str) -> TargetModule:
-        """Detect which module a rule applies to based on keyword matching."""
-        scores = {}
+        """Detect which module a rule applies to based on keyword matching.
+
+        Uses a scoring system with filename hints as tiebreakers.
+        """
+        scores: dict[TargetModule, int] = {}
         text_lower = text.lower()
         for module, keywords in self._MODULE_KEYWORDS.items():
             score = sum(1 for kw in keywords if kw.lower() in text_lower)
             scores[module] = score
 
         best = max(scores, key=scores.get)
-        if scores[best] > 0:
-            return best
-        return TargetModule.ANIMATION  # Default fallback
+        best_score = scores[best]
+
+        # If no keywords matched, use filename hint or fallback to GENERAL
+        if best_score == 0:
+            hint = getattr(self, "_current_file_hint", None)
+            if hint is not None:
+                return hint
+            return TargetModule.GENERAL
+
+        # If there's a tie, prefer the filename hint if it's among the tied
+        hint = getattr(self, "_current_file_hint", None)
+        if hint is not None and scores.get(hint, 0) == best_score:
+            return hint
+
+        return best
 
     def _parse_constraint(self, value_str: str) -> dict:
         """Parse a value string into a structured constraint."""

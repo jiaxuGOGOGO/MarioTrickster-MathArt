@@ -15,13 +15,15 @@ The pipeline reads from ``knowledge/*.md`` files and PDF sources, and outputs
 parameter configurations that drive the OKLAB, SDF, Animation, and Level modules.
 """
 
-from .parser import KnowledgeParser, KnowledgeRule
+from .parser import KnowledgeParser, KnowledgeRule, RuleType, TargetModule
 from .compiler import RuleCompiler, ParameterSpace, Constraint
 from .optimizer import EvolutionaryOptimizer, FitnessResult
 
 __all__ = [
     "KnowledgeParser",
     "KnowledgeRule",
+    "RuleType",
+    "TargetModule",
     "RuleCompiler",
     "ParameterSpace",
     "Constraint",

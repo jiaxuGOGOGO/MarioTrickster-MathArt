@@ -45,10 +45,14 @@ knowledge/ 是项目的大脑。
 | `color_light.md` | 色彩与光影 | `oklab/palette.py` 和谐规则 | Color and Light、像素画配色理论 |
 | `animation.md` | 动画原理 | `animation/presets.py` 缓动/预设 | Animator's Survival Kit、Disney 12法则 |
 | `unity_rules.md` | Unity 约束 | `export/` 导出校验 | 主项目 TA_AssetValidator |
-| `pixel_art.md` | 像素画技法 | `sdf/` 抖动、子像素 | Pixel Logic、像素画专著 |
-| `game_design.md` | 游戏设计 | `level/wfc.py` 关卡约束 | 关卡设计理论、游戏机制 |
-| `vfx.md` | 特效设计 | `sdf/effects.py` 特效预设 | VFX 参考、粒子系统理论 |
-| `plant_botany.md` | 植物形态学 | `sdf/lsystem.py` 文法规则 | 植物学、分形几何 |
+| `pixel_art.md` | 像素画技法 | `sdf/` 抖动、子像素、线条、RotSprite | Pixel Logic、像素画专著 |
+| `game_design.md` | 游戏设计机制 | `level/wfc.py` 关卡约束、难度曲线 | 乘法式设计、心流理论、核心循环 ||
+| `level_design.md` | 关卡设计理论 | `level/wfc.py` 空间语言、平台约束 | 任天堂四步法、跳跃距离、秘密区域 |
+| `game_feel.md` | 游戏手感 | `animation/presets.py` 响应参数 | Game Feel、输入缓冲、打击感 |
+| `vfx.md` | 视觉特效 | `sdf/effects.py` 粒子、震动、闪烁 | VFX 参考、粒子系统理论 |
+| `plant_botany.md` | 植物形态学 | `sdf/lsystem.py` 文法规则、分支参数 | 植物学、分形几何、叶序理论 |
+| `physics_sim.md` | 物理模拟 | `animation/skeleton.py` 弹簧阻尼、布料绳索 | 物理引擎、Verlet 积分、约束求解 |
+| `programming.md` | 游戏程序技术 | 全局架构、状态机、PCG 模式 | 数据驱动、性能优化、程序化生成 |
 
 ### 知识文件格式
 
@@ -128,22 +132,32 @@ distill(pixel_art): add dithering patterns from Pixel Logic
 ## 大脑的成长路径
 
 ```
-第 1 阶段（当前）：基础知识骨架
+第 1 阶段（已完成）：基础知识骨架 × 5
   anatomy.md ← 关节约束
   color_light.md ← 暖光冷影
   animation.md ← 12 法则
   unity_rules.md ← 导出约束
   perspective.md ← 透视法则
 
-第 2 阶段：深化每个领域
+第 2 阶段（当前）：扩展知识版图 × 12
+  + game_design.md ← 核心循环、难度曲线、乘法式设计、心流
+  + level_design.md ← 空间语言、四步教学法、跳跃约束
+  + game_feel.md ← 输入缓冲、运动曲线、打击感
+  + pixel_art.md ← 抖动、子像素、线条、RotSprite
+  + plant_botany.md ← 分支规律、叶序、环境适应
+  + physics_sim.md ← 弹簧阻尼、积分方法、布料模拟
+  + vfx.md ← 粒子系统、像素特效、屏幕震动
+  + programming.md ← 状态机、数据驱动、PCG 架构
+
+第 3 阶段：深化每个领域
   每个文件从 30 行 → 300+ 行
   更多参数、更精确的范围、更多来源交叉验证
 
-第 3 阶段：领域交叉
+第 4 阶段：领域交叉
   知识之间产生关联（如：透视影响动画的前缩、色彩影响深度感知）
   代码模块之间产生联动
 
-第 4 阶段：自主推理
+第 5 阶段：自主推理
   积累足够多的知识后，可以推导出教程没有直接教的规则
   例如：从"暖光冷影"+"环境光反射"推导出"草地关卡的角色阴影应偏绿"
 ```
