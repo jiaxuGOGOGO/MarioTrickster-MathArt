@@ -8,5 +8,26 @@ and produces new, structurally valid level variations.
 
 from .wfc import WFCGenerator, AdjacencyRules
 from .templates import CLASSIC_FRAGMENTS, ELEMENT_MAP
+from .spec_bridge import (
+    LevelSpecBridge,
+    LevelSpec,
+    AssetSpec,
+    SpriteSpec,
+    LevelTheme,
+    AssetCategory,
+    RenderMode,
+)
 
-__all__ = ["WFCGenerator", "AdjacencyRules", "CLASSIC_FRAGMENTS", "ELEMENT_MAP"]
+__all__ = [
+    "WFCGenerator",
+    "AdjacencyRules",
+    "CLASSIC_FRAGMENTS",
+    "ELEMENT_MAP",
+    "LevelSpecBridge",
+    "LevelSpec",
+    "AssetSpec",
+    "SpriteSpec",
+    "LevelTheme",
+    "AssetCategory",
+    "RenderMode",
+]
