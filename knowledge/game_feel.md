@@ -1,7 +1,8 @@
 # 游戏手感 (Game Feel)
-> 来源汇总：待蒸馏
 
-## 输入响应（来源：待蒸馏）
+> 来源：MarioTrickster-Art/PROMPT_RECIPES（松岡エフェクトグラフィックス/Telecom Bible）+ Game Feel 理论
+
+## 输入响应
 
 游戏手感的核心是输入到反馈的即时性和精确性。
 
@@ -14,7 +15,7 @@
 ### 蒸馏洞察
 > 缓冲窗口和土狼时间是数学参数，直接影响玩家对"操控精确度"的感知。
 
-## 运动曲线（来源：待蒸馏）
+## 运动曲线
 
 角色运动的加速度曲线决定了操控手感。
 
@@ -28,7 +29,7 @@
 ### 蒸馏洞察
 > Mario 式手感的秘密：加速快（0.1s）、减速有滑行（0.15s）、空中控制力高（0.7）。这些参数可以作为 WFC 关卡生成的物理约束。
 
-## 视觉反馈层（来源：待蒸馏）
+## 视觉反馈层
 
 视觉反馈强化玩家对操作的感知。
 
@@ -38,11 +39,12 @@
 | 速度线 | 高速移动 | 持续 | `sdf/effects.py` speed_lines |
 | 拖影 | 冲刺 | 3-8 帧 | `sdf/effects.py` afterimage |
 | 粒子尾迹 | 移动/跳跃 | 持续 | `sdf/effects.py` trail_particles |
+| 集中線 | 高速移動/衝撃 | 2-6 帧 | `sdf/effects.py` speed_line_count |
 
 ### 蒸馏洞察
 > 每种视觉反馈都可以参数化：挤压拉伸是缩放曲线，拖影是透明度衰减曲线，粒子是发射参数。全部可以数学驱动。
 
-## 打击感（来源：待蒸馏）
+## 打击感
 
 打击感是动作游戏的核心体验。
 
@@ -52,6 +54,33 @@
 | 击退距离 | 1-4 格 | 被击中后的位移距离 | 主项目战斗系统 |
 | 闪白帧数 | 1-3 帧 | 受击时全白闪烁的帧数 | `animation/presets.py` flash_frames |
 | 震动幅度 | 1-4 px | 屏幕震动的像素幅度 | 主项目相机系统 |
+| ヒットスパーク | 2-4 帧 | 命中時の火花エフェクト | `sdf/effects.py` hit_spark |
 
 ### 蒸馏洞察
-> 打击感 = 顿帧 + 击退 + 闪白 + 震动的四维参数空间，可以用遗传算法搜索最优组合。
+> 打击感 = 顿帧 + 击退 + 闪白 + 震动 + ヒットスパーク的五维参数空间。
+
+## エフェクトキャラ相互作用（松岡エフェクトグラフィックス）
+
+| 相互作用タイプ | 説明 | 代码映射 |
+|----------------|------|----------|
+| 攻撃エフェクト追従 | エフェクトがキャラの攻撃方向に追従 | `sdf/effects.py` effect_follow_attack |
+| 被弾エフェクト方向 | ダメージ方向からエフェクト発生 | `sdf/effects.py` effect_damage_dir |
+| 環境エフェクト反応 | キャラの位置に応じた環境エフェクト | `sdf/effects.py` effect_env_react |
+
+### 蒸馏洞察
+> エフェクトの方向はキャラの facing_direction と attack_direction から自動計算。
+
+## 打击感の数学モデル
+
+打击感の各要素は独立した数学関数で表現可能：
+
+| 要素 | 数学モデル | パラメータ |
+|------|------------|------------|
+| 顿帧 | `time_scale = 0 for N frames` | N = hitstop_frames |
+| 击退 | `pos += knockback_dir * distance * ease_out(t)` | distance, direction |
+| 闪白 | `color = lerp(original, white, flash_curve(t))` | flash_duration |
+| 震动 | `offset = A * e^(-bt) * sin(ωt)` | amplitude, decay, frequency |
+| ヒットスパーク | `particle_burst(pos, count, speed, lifetime)` | count, speed, lifetime |
+
+### 蒸馏洞察
+> 5 つの要素を同時に発動させることで「ジューシー」な打击感を実現。各パラメータは独立チューニング可能。

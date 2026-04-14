@@ -160,11 +160,25 @@ class KnowledgeParser:
             "animation", "frame", "motion", "easing", "keyframe", "timeline",
             "squash", "stretch", "anticipation", "follow-through",
             "12法则", "twelve principles",
+            # PROMPT_RECIPES distillation additions
+            "コマ打ち", "予備動作", "フォロースルー",
+            "オーバーシュート", "歩行周期", "跳歩周期",
+            "体積保存", "セルレイヤー", "タイムシート",
+            "koma_uchi", "walk cycle", "run cycle",
+            "overshoot", "volume preservation",
         ],
         TargetModule.ANATOMY: [
             "关节", "骨骼", "肌肉", "人体", "头身比", "解剖", "ROM",
             "joint", "skeleton", "muscle", "anatomy", "proportion",
             "torso", "limb", "松岡", "伯里曼",
+            # PROMPT_RECIPES distillation additions
+            "顔パーツ", "目の位置", "手の描画",
+            "足の描画", "シワ", "髪", "耳",
+            "ミトン", "筋肉影", "直線曲線",
+            "ジェスチャー", "模写",
+            "face thirds", "eye position", "wrinkle",
+            "hand", "foot", "hair", "ear",
+            "みにまる", "室井",
         ],
         TargetModule.OKLAB: [
             "色彩", "调色", "色相", "饱和", "明度", "暖光", "冷影",
@@ -243,6 +257,14 @@ class KnowledgeParser:
             "拖尾", "光晕", "残影",
             "VFX", "particle", "explosion", "flame", "smoke",
             "lightning", "trail", "glow", "afterimage",
+            # PROMPT_RECIPES distillation additions
+            "エフェクト", "爆発", "雷", "放電", "ビーム",
+            "魔法陣", "水しぶき", "風", "破砕", "煙",
+            "雲", "キラキラ", "星", "炎", "衰撃波",
+            "集中線", "モーションブラー",
+            "beam", "magic circle", "shockwave", "debris",
+            "splash", "ripple", "sparkle", "speed lines",
+            "tornado", "vortex", "discharge",
         ],
         TargetModule.SHADER: [
             "着色器", "shader", "GLSL", "HLSL", "GPU",
@@ -263,6 +285,12 @@ class KnowledgeParser:
             "perspective", "vanishing point", "horizon", "foreshortening",
             "depth cue", "overlap", "projection",
             "OCHABI", "吉田誠治", "Scott Robertson",
+            # PROMPT_RECIPES distillation additions
+            "空気遠近法", "箱パース", "投影図法",
+            "中線偏移", "重なり", "四面不等大",
+            "標準画角", "衰撃波グリッド",
+            "aerial perspective", "box perspective",
+            "orthographic", "center offset",
         ],
         TargetModule.PROGRAMMING: [
             "程序", "状态机", "数据驱动", "程序化生成",
