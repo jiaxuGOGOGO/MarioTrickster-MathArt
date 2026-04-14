@@ -1,10 +1,17 @@
 """ArtMathQualityController — the central quality brain of the pipeline.
 
-This controller runs at four checkpoints and ensures that:
-  1. Art knowledge rules are active constraints, not post-hoc filters
-  2. Math models guide parameter generation, not just validate results
-  3. Sprite references provide living benchmarks that evolve with the library
-  4. Stagnation is detected early and escalated appropriately
+**v0.6 upgrade**: Fixed critical bugs and added dual-mode support.
+
+Bug fixes:
+  - _load_math_registry() now correctly uses MathModelRegistry API
+    (was calling nonexistent .list_models()/.get_model()/.param_ranges)
+  - Math constraints now actually extracted from ModelEntry.params[*]["range"]
+  - Stagnation guard now respects run mode (autonomous vs assisted)
+
+New features:
+  - Dual-mode: autonomous (never blocks on AI) vs assisted (uses LLM)
+  - Graceful degradation: every checkpoint wraps errors, never stops iteration
+  - Sprite library constraints use union ranges (widest), not averages
 
 Architecture:
   ┌─────────────────────────────────────────────────────────────────┐
@@ -20,11 +27,15 @@ Architecture:
   │  SpriteLibrary  ──► post_generation() ──► reference similarity  │
   │                                                                 │
   │  StagnationGuard ──► iteration_end() ──► continue/escalate      │
+  │                                                                 │
+  │  Mode: AUTONOMOUS — never blocks, always continues              │
+  │  Mode: ASSISTED   — uses LLM arbitration when available         │
   └─────────────────────────────────────────────────────────────────┘
 """
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Optional
@@ -40,6 +51,8 @@ from mathart.quality.checkpoint import (
     MathViolation,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class ArtMathQualityController:
     """Central quality controller that runs at all four pipeline checkpoints.
@@ -52,6 +65,9 @@ class ArtMathQualityController:
         Minimum combined score to consider an asset passing (default 0.60).
     target_score : float
         Score at which to stop iterating (default 0.80).
+    use_llm : bool
+        Whether to use LLM for stagnation arbitration (default False).
+        Set to True only in ASSISTED mode with available API.
     verbose : bool
         Print checkpoint results to stdout.
     """
@@ -61,11 +77,13 @@ class ArtMathQualityController:
         project_root: Optional[Path] = None,
         pass_threshold: float = 0.60,
         target_score: float = 0.80,
+        use_llm: bool = False,
         verbose: bool = False,
     ) -> None:
         self.root           = Path(project_root) if project_root else Path.cwd()
         self.pass_threshold = pass_threshold
         self.target_score   = target_score
+        self.use_llm        = use_llm
         self.verbose        = verbose
 
         # Lazy-loaded components
@@ -110,7 +128,7 @@ class ArtMathQualityController:
                 if param in current_params:
                     val = current_params[param]
                     if val < lo or val > hi:
-                        severity = abs(val - np.clip(val, lo, hi)) / max(hi - lo, 1e-6)
+                        severity = abs(val - float(np.clip(val, lo, hi))) / max(hi - lo, 1e-6)
                         math_violations.append(MathViolation(
                             model_name=model_name,
                             param_name=param,
@@ -272,6 +290,9 @@ class ArtMathQualityController:
         """Run at the end of each iteration.
 
         Checks for stagnation and decides whether to continue or escalate.
+        In AUTONOMOUS mode (use_llm=False), stagnation detection still runs
+        but NEVER returns STOP — it returns ESCALATE instead, allowing the
+        inner loop to auto-recover (widen space) and continue.
         """
         guard = self._get_stagnation_guard()
         stagnation_event = guard.update(iteration, score, image)
@@ -279,17 +300,26 @@ class ArtMathQualityController:
         if stagnation_event is not None:
             from mathart.evolution.stagnation import EscalationLevel
             if stagnation_event.escalation == EscalationLevel.HUMAN_REQUIRED:
-                decision = CheckpointDecision.STOP
-                message  = f"Stagnation: {stagnation_event.cause.value} — human review required"
+                if self.use_llm:
+                    # In assisted mode, respect HUMAN_REQUIRED
+                    decision = CheckpointDecision.STOP
+                    message = f"Stagnation: {stagnation_event.cause.value} — human review required"
+                else:
+                    # In autonomous mode, NEVER stop — escalate instead
+                    decision = CheckpointDecision.ESCALATE
+                    message = (
+                        f"Stagnation: {stagnation_event.cause.value} — "
+                        f"autonomous mode: auto-recovering instead of stopping"
+                    )
             else:
                 decision = CheckpointDecision.ESCALATE
-                message  = f"Stagnation: {stagnation_event.cause.value} — auto-recovering"
+                message = f"Stagnation: {stagnation_event.cause.value} — auto-recovering"
         elif score >= self.target_score:
             decision = CheckpointDecision.STOP
-            message  = f"Target score reached: {score:.3f}"
+            message = f"Target score reached: {score:.3f}"
         else:
             decision = CheckpointDecision.CONTINUE
-            message  = f"Iteration {iteration} complete: score={score:.3f}"
+            message = f"Iteration {iteration} complete: score={score:.3f}"
 
         result = CheckpointResult(
             stage=CheckpointStage.ITERATION_END,
@@ -349,6 +379,7 @@ class ArtMathQualityController:
             f"- Best score: {trend.get('best_score', 0.0):.3f}",
             f"- Latest score: {trend.get('latest_score', 0.0):.3f}",
             f"- Iterations: {trend.get('iterations', 0)}",
+            f"- Mode: {'ASSISTED' if self.use_llm else 'AUTONOMOUS'}",
         ]
         return "\n".join(lines)
 
@@ -503,7 +534,10 @@ class ArtMathQualityController:
         lib = self._get_sprite_lib()
         if lib is None:
             return {}
-        return lib.export_constraints()
+        try:
+            return lib.export_constraints()
+        except Exception:
+            return {}
 
     # ── Lazy component loading ─────────────────────────────────────────────────
 
@@ -522,7 +556,10 @@ class ArtMathQualityController:
         if self._stagnation is None:
             try:
                 from mathart.evolution.stagnation import StagnationGuard
-                self._stagnation = StagnationGuard(use_llm=False, verbose=self.verbose)
+                self._stagnation = StagnationGuard(
+                    use_llm=self.use_llm,
+                    verbose=self.verbose,
+                )
                 self._stagnation.reset()
             except ImportError:
                 pass
@@ -598,15 +635,27 @@ class ArtMathQualityController:
         return rules
 
     def _load_math_registry(self) -> dict[str, dict[str, tuple[float, float]]]:
-        """Load math model constraints from the registry."""
+        """Load math model constraints from the registry.
+
+        Correctly reads MathModelRegistry.list_all() and extracts
+        parameter ranges from ModelEntry.params[*]["range"].
+        """
         registry: dict[str, dict[str, tuple[float, float]]] = {}
         try:
             from mathart.evolution.math_registry import MathModelRegistry
-            reg = MathModelRegistry(project_root=self.root)
-            for model in reg.list_models():
-                info = reg.get_model(model)
-                if info and hasattr(info, "param_ranges"):
-                    registry[model] = info.param_ranges
-        except (ImportError, Exception):
-            pass
+            reg = MathModelRegistry()
+            for model in reg.list_all():
+                param_ranges: dict[str, tuple[float, float]] = {}
+                for param_name, param_spec in model.params.items():
+                    if isinstance(param_spec, dict) and "range" in param_spec:
+                        r = param_spec["range"]
+                        if isinstance(r, (list, tuple)) and len(r) == 2:
+                            try:
+                                param_ranges[param_name] = (float(r[0]), float(r[1]))
+                            except (ValueError, TypeError):
+                                continue
+                if param_ranges:
+                    registry[model.name] = param_ranges
+        except Exception as e:
+            logger.debug("Math registry loading failed (non-fatal): %s", e)
         return registry

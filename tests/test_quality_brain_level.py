@@ -126,7 +126,7 @@ class TestProjectMemory:
     def test_initial_state(self, tmp_path):
         """Initial state should have sensible defaults."""
         mem = ProjectMemory(project_root=tmp_path)
-        assert mem.state.version == "0.5.0"
+        assert mem.state.version == "0.6.0"
         assert mem.state.best_quality_score == 0.0
         assert mem.state.total_iterations == 0
         assert mem.state.distill_session_id == "DISTILL-004"

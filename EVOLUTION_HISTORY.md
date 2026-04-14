@@ -3,7 +3,7 @@
 This file records every significant improvement to the project.
 
 
-## SESSION-005 — v0.5.0 (2026-04-14)
+## SESSION-005 — v0.6.0 (2026-04-14)
 - **Best score**: 0.000
 - **Tests**: 371
 - Added SpriteAnalyzer: extract style fingerprints from reference sprites

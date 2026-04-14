@@ -99,4 +99,28 @@
 
 ---
 
-*下一次蒸馏将从 [DISTILL-004] 继续追加...*
+## [DISTILL-004] 总工程师审计修复 + 自主迭代模式 — 2026-04-15
+
+**来源**：用户全对话需求审计 + GitHub/Reddit 优秀项目参考（genetic-lisa、restyle-sprites）
+
+**蒸馏内容**：
+- 审计本次对话全部 13 项需求的落地情况
+- 修复数学模型约束从未加载的严重 Bug
+- 修复 Sprite 约束用 mean 而非 union 的问题
+- 实现本地自主迭代永不停滞的双模式（AUTONOMOUS/ASSISTED）
+
+**代码改动**：
+- `mathart/evolution/inner_loop.py` — 重写，接入 4 检查点 + 双模式 + Sprite 约束注入
+- `mathart/evolution/engine.py` — 重写，统一 run 命令 + Brain 更新
+- `mathart/quality/controller.py` — 重写，修复 _load_math_registry() 正确调用 MathModelRegistry API
+- `mathart/sprite/library.py` — 修复 _merge_constraints() 使用 union 范围
+- `mathart/brain/memory.py` — 版本号更新到 0.6.0
+- `AUDIT_REPORT.md` — 完整审计报告
+
+**测试**：371 个测试全部通过
+
+**版本**：v0.5.0 → v0.6.0
+
+---
+
+*下一次蒸馏将从 [DISTILL-005] 继续追加...*

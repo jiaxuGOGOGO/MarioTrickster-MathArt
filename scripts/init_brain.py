@@ -21,7 +21,7 @@ def main():
     # Record the initial evolution history
     mem.record_evolution(
         session_id="SESSION-005",
-        version="0.5.0",
+        version="0.6.0",
         changes=[
             "Added SpriteAnalyzer: extract style fingerprints from reference sprites",
             "Added SpriteSheetParser: auto-cut spritesheets into frames",

@@ -302,8 +302,10 @@ class SpriteLibrary:
 
         for key in all_keys:
             values = [c[key] for c in all_constraints if key in c]
-            lo = float(np.mean([v[0] for v in values]))
-            hi = float(np.mean([v[1] for v in values]))
+            # Use true union: min of all lows, max of all highs
+            # This ensures sprite constraints BROADEN exploration
+            lo = float(min(v[0] for v in values))
+            hi = float(max(v[1] for v in values))
             merged[key] = (lo, hi)
 
         return merged

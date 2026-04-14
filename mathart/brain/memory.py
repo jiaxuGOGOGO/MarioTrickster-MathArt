@@ -364,7 +364,7 @@ class ProjectMemory:
 
         # Default initial state
         return ProjectState(
-            version="0.5.0",
+            version="0.6.0",
             last_session_id="SESSION-000",
             last_updated=self._now(),
             best_quality_score=0.0,

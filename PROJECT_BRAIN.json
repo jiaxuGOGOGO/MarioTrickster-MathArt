@@ -1,7 +1,7 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "last_session_id": "SESSION-005",
-  "last_updated": "2026-04-14T16:17:46Z",
+  "last_updated": "2026-04-14T16:35:53Z",
   "best_quality_score": 0.0,
   "total_iterations": 0,
   "distill_session_id": "DISTILL-004",
@@ -15,7 +15,7 @@
       "description": "Integrate ArtMathQualityController into the main InnerLoop pipeline",
       "priority": "high",
       "depends_on": [],
-      "created_at": "2026-04-14T16:17:46Z",
+      "created_at": "2026-04-14T16:35:53Z",
       "context": {
         "file": "mathart/evolution/inner_loop.py"
       }
@@ -25,7 +25,7 @@
       "description": "Add sprite reference upload workflow to CLI (mathart-evolve add-sprite)",
       "priority": "high",
       "depends_on": [],
-      "created_at": "2026-04-14T16:17:46Z",
+      "created_at": "2026-04-14T16:35:53Z",
       "context": {}
     },
     {
@@ -35,7 +35,7 @@
       "depends_on": [
         "TASK-001"
       ],
-      "created_at": "2026-04-14T16:17:46Z",
+      "created_at": "2026-04-14T16:35:53Z",
       "context": {}
     },
     {
@@ -43,7 +43,7 @@
       "description": "Mine math papers for WFC, OKLAB, SDF improvements",
       "priority": "medium",
       "depends_on": [],
-      "created_at": "2026-04-14T16:17:46Z",
+      "created_at": "2026-04-14T16:35:53Z",
       "context": {}
     },
     {
@@ -53,7 +53,7 @@
       "depends_on": [
         "DIFFERENTIABLE_RENDERING gap resolved"
       ],
-      "created_at": "2026-04-14T16:17:46Z",
+      "created_at": "2026-04-14T16:35:53Z",
       "context": {}
     }
   ],
@@ -83,8 +83,8 @@
   "evolution_history": [
     {
       "session_id": "SESSION-005",
-      "timestamp": "2026-04-14T16:17:46Z",
-      "version": "0.5.0",
+      "timestamp": "2026-04-14T16:35:53Z",
+      "version": "0.6.0",
       "changes": [
         "Added SpriteAnalyzer: extract style fingerprints from reference sprites",
         "Added SpriteSheetParser: auto-cut spritesheets into frames",
