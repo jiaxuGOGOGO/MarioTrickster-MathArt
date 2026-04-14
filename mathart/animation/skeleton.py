@@ -146,7 +146,7 @@ class Skeleton:
 
     def get_joint_positions(self) -> dict[str, tuple[float, float]]:
         """Get current world positions of all joints (after FK)."""
-        return {name: (j.x, j.y) for name, j in self.joints.items()}
+        return self.forward_kinematics()
 
     def apply_pose(self, pose: dict[str, float]) -> None:
         """Apply a pose (joint_name → angle) with ROM clamping."""
