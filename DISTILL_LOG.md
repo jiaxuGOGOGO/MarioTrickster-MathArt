@@ -64,3 +64,39 @@
 ---
 
 *下一次蒸馏将从这里继续追加...*
+
+---
+
+## [DISTILL-003] 自进化大脑架构蒸馏 — 2026-04-14
+
+**来源**：数学驱动统一美术生产：全网深度研究报告（Manus AI 调研报告，用户上传附件）+ 并行搜集最新数学驱动美术生产相关论文（6 个方向：可微渲染/程序化生成/物理动画/SDF/色彩科学/知识蒸馏）
+
+**蒸馏内容**：基于报告的 10 个研究维度，提取 PCG 数学、PBR 渲染、SDF 数学、色彩科学、程序化动画、可微渲染等领域的核心知识规则，并将其落地为三层自进化架构。
+
+**知识沉淀**：
+- `knowledge/pcg_math.md` — Perlin 噪声参数（octaves/persistence/lacunarity）、WFC 熵阈值、L-System 分叉角度
+- `knowledge/pbr_math.md` — Cook-Torrance BRDF 参数、材质预设表（皮肤/布料/金属/玻璃）
+- `knowledge/sdf_math.md` — SDF 基础图元公式、布尔运算（含平滑并集 smin）、光线行进参数
+- `knowledge/color_science.md` — OKLAB/OKLCH 参数范围、Floyd-Steinberg 抖动参数
+- `knowledge/procedural_animation.md` — 弹簧阻尼参数（spring_k/damping_c）、FABRIK IK 参数、缓动函数
+- `knowledge/differentiable_rendering.md` — 可微渲染升级路径、能力缺口说明
+
+**代码落地**：
+- `mathart/evaluator/` — 新增 `AssetEvaluator`（5 维质量评分：清晰度/调色板/对比度/风格/和谐度）
+- `mathart/evolution/engine.py` — `SelfEvolutionEngine`（三层自进化架构总协调器）
+- `mathart/evolution/inner_loop.py` — `InnerLoopRunner`（质量驱动遗传算法迭代）
+- `mathart/evolution/outer_loop.py` — `OuterLoopDistiller`（LLM 知识蒸馏引擎，支持跨会话连续性）
+- `mathart/evolution/math_registry.py` — `MathModelRegistry`（8 个稳定模型 + 1 个实验模型）
+- `mathart/evolution/cli.py` — `mathart-evolve` 命令行工具（status/distill/registry/eval/gaps）
+- `mathart/animation/physics.py` — `SpringDamper` + `FABRIKSolver` + `PerlinAnimator`
+- `ARCHITECTURE_EVOLUTION.md` — 完整的三层自进化架构设计文档
+
+**测试**：新增 66 个测试（test_evaluator.py 22 个 + test_evolution.py 21 个 + test_physics.py 23 个），总计 241 个测试全部通过
+
+**版本**：v0.2.0 → v0.3.0
+
+**commit**：`feat: implement self-evolution engine (inner loop, outer loop, math registry)`
+
+---
+
+*下一次蒸馏将从 [DISTILL-004] 继续追加...*
