@@ -1,7 +1,7 @@
 {
-  "version": "0.11.0",
-  "last_session_id": "SESSION-011",
-  "last_updated": "2026-04-15T04:23:23Z",
+  "version": "0.12.0",
+  "last_session_id": "SESSION-012",
+  "last_updated": "2026-04-15T05:55:13Z",
   "best_quality_score": 0.0,
   "total_iterations": 0,
   "distill_session_id": "DISTILL-008",
@@ -83,10 +83,65 @@
       "priority": "medium",
       "depends_on": [],
       "created_at": "2026-04-14T16:35:53Z",
-      "status": "not_started",
-      "notes": "Both LevelSpecBridge and ExportBridge are fully implemented, but they are currently disconnected. Need to bridge them.",
+      "status": "done",
+      "completed_at": "2026-04-15T05:55:13Z",
+      "notes": "Completed in SESSION-012. AssetExporter now accepts LevelSpecBridge-derived AssetSpec inputs, validates sprite dimensions, frame counts, palette limits, and tile sizing before export, and writes level-aware metadata into export manifests.",
       "context": {
         "file": "mathart/export/bridge.py"
+      }
+    },
+    {
+      "task_id": "TASK-012",
+      "description": "Close the math mining loop from discovery candidates to registry-backed implementation scaffolds",
+      "priority": "high",
+      "depends_on": [
+        "TASK-011"
+      ],
+      "created_at": "2026-04-15T05:55:13Z",
+      "status": "not_started",
+      "notes": "Audit gap from SESSION-012. MathPaperMiner can now search live APIs, score results, write knowledge notes, and emit registry candidates, but it still does not scaffold code/tests or promote accepted candidates into math_registry-backed implementations.",
+      "context": {
+        "files": [
+          "mathart/evolution/paper_miner.py",
+          "mathart/evolution/math_registry.py",
+          "MINE_LOG.md"
+        ]
+      }
+    },
+    {
+      "task_id": "TASK-013",
+      "description": "Add a finite-difference gradient optimizer path for CPU-only inner-loop acceleration",
+      "priority": "medium",
+      "depends_on": [
+        "TASK-010"
+      ],
+      "created_at": "2026-04-15T05:55:13Z",
+      "status": "not_started",
+      "notes": "Audit gap from SESSION-012. README and knowledge/differentiable_rendering.md define finite-difference gradients as the next no-GPU optimization upgrade, but the inner loop still relies solely on evolutionary search.",
+      "context": {
+        "files": [
+          "mathart/distill/optimizer.py",
+          "mathart/evolution/inner_loop.py",
+          "knowledge/differentiable_rendering.md"
+        ]
+      }
+    },
+    {
+      "task_id": "TASK-014",
+      "description": "Build a reference-image to parameter inference workflow (Image-to-Math bootstrap)",
+      "priority": "medium",
+      "depends_on": [
+        "TASK-002"
+      ],
+      "created_at": "2026-04-15T05:55:13Z",
+      "status": "not_started",
+      "notes": "Audit gap from SESSION-012. The project can ingest sprite references and evaluate against them, but it still lacks a workflow that infers parameter seeds or math-model hints directly from uploaded reference images.",
+      "context": {
+        "files": [
+          "mathart/evolution/cli.py",
+          "mathart/evaluator/evaluator.py",
+          "mathart/workspace/manager.py"
+        ]
       }
     },
     {
@@ -205,6 +260,14 @@
       "best_score": 0.0,
       "test_count": 58,
       "notes": "Completed TASK-011: connected MathPaperMiner to the real arXiv Atom API and GitHub Search REST API, added optional authenticated GitHub requests, retained LLM fallback behavior, and verified live-source parsing plus project-memory compatibility through regression tests."
+    },
+    {
+      "session_id": "SESSION-012",
+      "timestamp": "2026-04-15T05:55:13Z",
+      "version": "0.12.0",
+      "best_score": 0.0,
+      "test_count": 79,
+      "notes": "Completed TASK-003: connected LevelSpecBridge to AssetExporter with level-aware export validation and metadata. Also performed a comprehensive gap audit, which promoted mine-to-registry automation to the top pending task and added finite-difference plus Image-to-Math roadmap tasks."
     }
   ]
 }

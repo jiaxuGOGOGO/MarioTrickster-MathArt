@@ -3,9 +3,9 @@
 > This document is auto-generated and always reflects the latest project state.
 
 ## Project Overview
-- **Current version**: 0.11.0
-- **Last updated**: 2026-04-15T04:23:23Z
-- **Last session**: SESSION-011 (MathPaperMiner real API integration)
+- **Current version**: 0.12.0
+- **Last updated**: 2026-04-15T05:55:13Z
+- **Last session**: SESSION-012 (LevelSpecBridge ↔ ExportBridge integration + comprehensive gap audit)
 - **Best quality score achieved**: 0.000
 - **Total iterations run**: 0
 
@@ -47,10 +47,20 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 
 ## Pending Tasks (Priority Order)
 
-### [MEDIUM] `TASK-003`: Connect LevelSpecBridge to ExportBridge
+### [HIGH] `TASK-012`: Close the math mining loop from discovery candidates to registry-backed implementation scaffolds
 - **Status**: Not started
-- **Remaining Gap**: Both `LevelSpecBridge` and `ExportBridge` are fully implemented, but they are currently disconnected. Need to bridge them so that level requirements automatically dictate asset export sizing and tiling validation.
-- **File**: `mathart/export/bridge.py`
+- **Remaining Gap**: `MathPaperMiner` can now search live APIs, score results, write knowledge notes, and emit registry candidates, but it still stops at the candidate stage. The codebase does **not yet** scaffold implementation files, tests, and registry promotion steps for accepted mined models, so the third loop is still only partially closed.
+- **Files**: `mathart/evolution/paper_miner.py`, `mathart/evolution/math_registry.py`, `MINE_LOG.md`
+
+### [MEDIUM] `TASK-013`: Add a finite-difference gradient optimizer path for CPU-only inner-loop acceleration
+- **Status**: Not started
+- **Remaining Gap**: The roadmap already identifies finite-difference gradients as the next no-GPU speed upgrade, but the current inner loop still relies on evolutionary search only. There is no CPU-friendly gradient approximation path yet.
+- **Files**: `mathart/distill/optimizer.py`, `mathart/evolution/inner_loop.py`, `knowledge/differentiable_rendering.md`
+
+### [MEDIUM] `TASK-014`: Build a reference-image to parameter inference workflow (Image-to-Math bootstrap)
+- **Status**: Not started
+- **Remaining Gap**: The project can ingest sprite references and evaluate against them, but it still lacks a workflow that infers parameter seeds or math-model hints directly from uploaded reference images. This means the long-term Image-to-Math goal remains open.
+- **Files**: `mathart/evolution/cli.py`, `mathart/evaluator/evaluator.py`, `mathart/workspace/manager.py`
 
 ### [EXTERNAL] `TASK-005`: Hardware Acceleration & Unity Integration
 - **Status**: Blocked by external dependencies
@@ -61,6 +71,7 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 ### [DONE] Completed Tasks
 - `TASK-001`: Complete QC Controller Integration (`mid_generation` now wired into `InnerLoopRunner`; retry-aware progress callbacks supported; scipy-free quick quality fallback) — SESSION-009
 - `TASK-002`: Sprite reference upload workflow (CLI: add-sprite, add-sheet, sprites) — SESSION-006
+- `TASK-003`: Connect LevelSpecBridge to ExportBridge (level-aware export APIs, tile/frame/palette validation, and level metadata in export manifests) — SESSION-012
 - `TASK-004`: Noise texture generator (Perlin, Simplex, fBm, ridged, turbulence, domain warp) — SESSION-007
 - `TASK-006`: Workspace management (inbox hot folder, output classification, file picker) — SESSION-007
 - `TASK-009`: Add CLI command to run evolution loop (`mathart-evolve run` with built-in texture target and JSON metadata export) — SESSION-009
@@ -80,6 +91,14 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 ---
 
 ## Recent Evolution History (Last 5 Sessions)
+
+### SESSION-012 — v0.12.0 (2026-04-15)
+- Best score: 0.000 | Tests: 79
+  - TASK-003 DONE: connected `LevelSpecBridge` to `AssetExporter`
+  - Added level-aware export APIs that accept `AssetSpec` directly for static sprites and animated sheets
+  - Added validation for sprite dimensions, frame counts, palette limits, and tile-size-derived constraints before export
+  - Added level metadata, source sprite names, and validation payloads to export metadata and manifests
+  - Ran a comprehensive gap audit and added TASK-012, TASK-013, and TASK-014 to track remaining product gaps against the three-loop vision
 
 ### SESSION-011 — v0.11.0 (2026-04-15)
 - Best score: 0.000 | Tests: 58
@@ -116,12 +135,6 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
   - Expanded TASK-005 scope (Stable Diffusion + optional hardware)
   - Recorded core vision: three interlocking loops + quality principles + collaboration model
 
-### SESSION-007 — v0.8.0 (2026-04-15)
-- Best score: 0.000 | Tests: 424
-  - TASK-004 DONE: Noise texture generator
-  - TASK-006 DONE: Workspace management
-  - Registered noise_texture_generator in MathModelRegistry
-
 ---
 
 ## How to Talk to AI (User Guide)
@@ -138,10 +151,10 @@ Please refer to `HOW_TO_TALK_TO_AI.md` for the complete workflow on how to start
 5. **Review the Core Vision section above** to understand the three-loop architecture and quality principles.
 6. **CRITICAL — AI Greeting & Menu**: After reading this document, the AI MUST greet the user and present the following interactive menu to let the user choose the next action:
 
-   > **Welcome back! I have read the project state (v0.11.0). What would you like to do next?**
+   > **Welcome back! I have read the project state (v0.12.0). What would you like to do next?**
    > 
    > 1. **Distill Knowledge (Continuous)**: Upload a PDF, book, or Sprite image now. I will extract the math/art rules, inject them into the project, and optimize the evolution pipeline for better local generation.
-   > 2. **Continue Development**: Work on the highest priority pending task (e.g., TASK-003: Connect LevelSpecBridge to ExportBridge).
+   > 2. **Continue Development**: Work on the highest priority pending task (currently TASK-012: close the math mining loop from candidate discovery to implementation scaffolding and registry promotion).
    > 3. **Mine Math Models**: Ask me to search the web/GitHub for specific math models (e.g., fluid dynamics, procedural animation) to add to the engine.
    > 4. **Diagnose Stagnation**: If your local evolution is stuck or producing identical results, paste the logs here and I will analyze the math-art conflicts.
 
@@ -151,4 +164,4 @@ Please refer to `HOW_TO_TALK_TO_AI.md` for the complete workflow on how to start
 10. Always push changes to GitHub after completing a task so the user can `git pull` and run evolution locally.
 
 ---
-*Auto-generated by ProjectMemory at 2026-04-15T04:23:23Z*
+*Auto-generated by ProjectMemory at 2026-04-15T05:55:13Z*
