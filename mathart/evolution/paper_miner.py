@@ -578,7 +578,7 @@ def test_{candidate["name"]}_scaffold_is_callable():
         return self._fallback_results(query)
 
     def _search_real_sources(self, query: str, max_results: int) -> list[PaperResult]:
-        """Collect results from arXiv and GitHub Search APIs."""
+        """Collect results from arXiv, GitHub, and community sources."""
         results: list[PaperResult] = []
         arxiv_limit = max(1, (max_results + 1) // 2)
         github_limit = max(1, max_results // 2) if max_results > 1 else 1
@@ -594,6 +594,22 @@ def test_{candidate["name"]}_scaffold_is_callable():
         except Exception as exc:  # pragma: no cover - defensive logging
             if self.verbose:
                 print(f"[PaperMiner] GitHub search failed for '{query}': {exc}")
+
+        # TASK-017: Search community sources (Papers with Code, Shadertoy, LLM)
+        try:
+            from .community_sources import CommunitySourceRegistry
+            community = CommunitySourceRegistry(
+                project_root=self.project_root,
+                verbose=self.verbose,
+            )
+            community_limit = max(1, max_results // 3)
+            community_results = community.search_all(query, community_limit)
+            results.extend(community_results)
+            if self.verbose and community_results:
+                print(f"[PaperMiner] Community sources: {len(community_results)} results")
+        except Exception as exc:
+            if self.verbose:
+                print(f"[PaperMiner] Community source search failed: {exc}")
 
         return results
 

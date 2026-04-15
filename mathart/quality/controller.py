@@ -290,9 +290,19 @@ class ArtMathQualityController:
         """Run at the end of each iteration.
 
         Checks for stagnation and decides whether to continue or escalate.
-        In AUTONOMOUS mode (use_llm=False), stagnation detection still runs
-        but NEVER returns STOP — it returns ESCALATE instead, allowing the
-        inner loop to auto-recover (widen space) and continue.
+
+        **TASK-016 policy alignment (v0.16)**:
+        When HUMAN_REQUIRED stagnation is reached, the system now returns
+        SAFE_HALT in *both* autonomous and assisted modes. This aligns with
+        the documented quality principle: "invalid iterations must be
+        diagnosed, reported, and halted safely for review."
+
+        - AUTO_RECOVER causes → ESCALATE (system can self-fix)
+        - AI_ARBITRATE causes → ESCALATE (LLM provided a fix)
+        - HUMAN_REQUIRED causes → SAFE_HALT (diagnosed, reported, halted)
+
+        The inner loop is responsible for honoring SAFE_HALT by stopping
+        iteration and preserving the diagnostic report for the user.
         """
         guard = self._get_stagnation_guard()
         stagnation_event = guard.update(iteration, score, image)
@@ -300,18 +310,25 @@ class ArtMathQualityController:
         if stagnation_event is not None:
             from mathart.evolution.stagnation import EscalationLevel
             if stagnation_event.escalation == EscalationLevel.HUMAN_REQUIRED:
-                if self.use_llm:
-                    # In assisted mode, respect HUMAN_REQUIRED
-                    decision = CheckpointDecision.STOP
-                    message = f"Stagnation: {stagnation_event.cause.value} — human review required"
-                else:
-                    # In autonomous mode, NEVER stop — escalate instead
-                    decision = CheckpointDecision.ESCALATE
-                    message = (
-                        f"Stagnation: {stagnation_event.cause.value} — "
-                        f"autonomous mode: auto-recovering instead of stopping"
-                    )
+                # TASK-016: HUMAN_REQUIRED always triggers SAFE_HALT,
+                # regardless of mode. The system has already generated a
+                # diagnostic report (saved by StagnationGuard). We must
+                # NOT silently continue — that violates the quality rule.
+                decision = CheckpointDecision.SAFE_HALT
+                message = (
+                    f"Stagnation: {stagnation_event.cause.value} — "
+                    f"diagnosed and safely halted for human review. "
+                    f"See STAGNATION_LOG.md and stagnation_reports/ for details."
+                )
+            elif stagnation_event.escalation == EscalationLevel.AI_ARBITRATE:
+                # LLM provided a verdict — treat as recoverable
+                decision = CheckpointDecision.ESCALATE
+                message = (
+                    f"Stagnation: {stagnation_event.cause.value} — "
+                    f"AI arbitrated: {stagnation_event.recommended_action}"
+                )
             else:
+                # AUTO_RECOVER — system can self-fix
                 decision = CheckpointDecision.ESCALATE
                 message = f"Stagnation: {stagnation_event.cause.value} — auto-recovering"
         elif score >= self.target_score:

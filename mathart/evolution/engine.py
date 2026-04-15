@@ -263,7 +263,8 @@ class SelfEvolutionEngine:
                 "   Currently in AUTONOMOUS mode:",
                 "   - All iterations run locally without AI dependency",
                 "   - Quality control active but AI arbitration skipped",
-                "   - Stagnation triggers auto-recovery (space widening)",
+                "   - Auto-recoverable stagnation: space widening applied",
+                "   - Unrecoverable stagnation: SAFE HALT with diagnostic report",
                 "   - To enable AI: engine = SelfEvolutionEngine(mode=RunMode.ASSISTED)",
             ])
         else:

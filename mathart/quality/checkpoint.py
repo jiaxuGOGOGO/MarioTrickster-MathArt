@@ -21,6 +21,7 @@ class CheckpointDecision(str, Enum):
     RETRY       = "retry"          # Discard this result, retry with new params
     ESCALATE    = "escalate"       # Stagnation detected, escalate
     STOP        = "stop"           # Quality target reached, stop iterating
+    SAFE_HALT   = "safe_halt"      # Stagnation: diagnosed, reported, safely halted for review
 
 
 @dataclass

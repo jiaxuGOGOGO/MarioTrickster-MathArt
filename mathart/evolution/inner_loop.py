@@ -94,13 +94,15 @@ class InnerLoopResult:
     evaluation: Optional[EvaluationResult] = None
     elapsed_seconds: float = 0.0
     converged: bool = False
+    safe_halted: bool = False
+    safe_halt_reason: str = ""
     checkpoint_log: list = field(default_factory=list)
     adjustments_applied: int = 0
     knowledge_violations_total: int = 0
     math_violations_total: int = 0
 
     def summary(self) -> str:
-        status = "CONVERGED" if self.converged else "MAX_ITER"
+        status = "CONVERGED" if self.converged else ("SAFE_HALT" if self.safe_halted else "MAX_ITER")
         lines = [
             f"InnerLoop [{status}] score={self.best_score:.3f} "
             f"iters={self.iterations} time={self.elapsed_seconds:.1f}s",
@@ -399,10 +401,11 @@ class InnerLoopRunner:
 
         converged = False
         should_stop = False
+        safe_halted = False
 
         def on_generation(gen: int, best) -> None:
             nonlocal best_image, best_eval, best_params, best_score
-            nonlocal no_improve_count, prev_best, converged, should_stop
+            nonlocal no_improve_count, prev_best, converged, should_stop, safe_halted
 
             history.append(best.fitness)
 
@@ -441,20 +444,30 @@ class InnerLoopRunner:
                     from ..quality.checkpoint import CheckpointDecision
                     if end_result.decision == CheckpointDecision.STOP:
                         if best.fitness >= self.quality_threshold:
-                            # Genuine convergence
+                            # Genuine convergence — target reached
                             converged = True
                             should_stop = True
-                        elif self.mode == RunMode.AUTONOMOUS:
-                            # In autonomous mode, stagnation STOP means:
-                            # log it but DON'T stop — try widening space instead
-                            if self.verbose:
-                                print(f"  [QC] Stagnation detected but autonomous mode — continuing")
-                            self._try_widen_space(optimizer)
                         else:
-                            # In assisted mode, respect the STOP decision
+                            # STOP from other reasons — respect it
                             should_stop = True
+                    elif end_result.decision == CheckpointDecision.SAFE_HALT:
+                        # TASK-016: SAFE_HALT means stagnation has been
+                        # diagnosed, a report has been saved, and the system
+                        # must stop iterating for human review. This applies
+                        # in BOTH autonomous and assisted modes.
+                        should_stop = True
+                        safe_halted = True
+                        if self.verbose:
+                            print(
+                                f"  [QC] SAFE HALT: {end_result.message}\n"
+                                f"  [QC] The evolution loop has been safely stopped.\n"
+                                f"  [QC] Review stagnation_reports/ and STAGNATION_LOG.md,\n"
+                                f"  [QC] then re-run with adjusted parameters or new knowledge."
+                            )
                     elif end_result.decision == CheckpointDecision.ESCALATE:
-                        # Auto-recovery was applied, continue
+                        # Auto-recovery or AI arbitration was applied, continue
+                        # but also try widening space as an additional measure
+                        self._try_widen_space(optimizer)
                         if self.verbose:
                             print(f"  [QC] Auto-recovery applied: {end_result.message}")
                 except Exception as e:
@@ -481,6 +494,31 @@ class InnerLoopRunner:
         if final_best.fitness >= self.quality_threshold:
             converged = True
 
+        # ── TASK-013: FD gradient refinement (CPU-only acceleration) ──────
+        # After evolutionary search, refine the best individual with gradient
+        # descent using finite differences. This is the "memetic" step.
+        if not converged and not safe_halted and final_best is not None:
+            try:
+                from ..distill.fd_gradient import (
+                    FDGradientOptimizer,
+                    FDGradientConfig,
+                )
+                fd_config = FDGradientConfig(
+                    max_steps=min(20, self.max_iterations // 2),
+                    learning_rate=0.01,
+                    momentum=0.8,
+                )
+                fd_optimizer = FDGradientOptimizer(
+                    space, config=fd_config, verbose=self.verbose
+                )
+                fd_result = fd_optimizer.refine(final_best, fitness_fn)
+                if self.verbose:
+                    print(f"  [FD] {fd_result.summary()}")
+                if final_best.fitness >= self.quality_threshold:
+                    converged = True
+            except Exception as e:
+                logger.debug("FD gradient refinement skipped: %s", e)
+
         elapsed = time.time() - start_time
 
         # Final evaluation of best params
@@ -495,6 +533,16 @@ class InnerLoopRunner:
             except Exception:
                 pass
 
+        # Determine if we stopped due to SAFE_HALT
+        from ..quality.checkpoint import CheckpointDecision as _CPD
+        safe_halted = False
+        safe_halt_reason = ""
+        if checkpoint_log:
+            last_cp = checkpoint_log[-1]
+            if hasattr(last_cp, 'decision') and last_cp.decision == _CPD.SAFE_HALT:
+                safe_halted = True
+                safe_halt_reason = last_cp.message
+
         return InnerLoopResult(
             best_params=best_params if best_params else (final_best.params if final_best else {}),
             best_score=best_score if best_score > 0 else (final_best.fitness if final_best else 0.0),
@@ -504,6 +552,8 @@ class InnerLoopRunner:
             evaluation=best_eval,
             elapsed_seconds=elapsed,
             converged=converged,
+            safe_halted=safe_halted,
+            safe_halt_reason=safe_halt_reason,
             checkpoint_log=checkpoint_log,
             adjustments_applied=adjustments_applied,
             knowledge_violations_total=knowledge_violations_total,

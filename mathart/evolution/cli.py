@@ -113,11 +113,13 @@ def main(argv=None):
 
     # run (TASK-009)
     p_run = sub.add_parser("run", help="Run the evolution loop on a built-in target")
-    p_run.add_argument("--target", default="texture", choices=["texture"],
+    p_run.add_argument("--target", default="texture",
+                       choices=["texture", "sprite", "animation", "level-asset"],
                        help="Built-in evolution target (default: texture)")
     p_run.add_argument("--preset", default="terrain",
-                       choices=["terrain", "clouds", "lava", "water", "stone", "magic"],
-                       help="Built-in preset to optimize (default: terrain)")
+                       help="Preset name (texture: terrain/clouds/lava/water/stone/magic; "
+                            "sprite: spike/flame/saw/glow; animation: idle/run/jump/fall/hit; "
+                            "level-asset: ground/platform)")
     p_run.add_argument("--mode", default="autonomous",
                        choices=["autonomous", "assisted"],
                        help="Run mode (default: autonomous)")
@@ -127,10 +129,16 @@ def main(argv=None):
                        help="Population size per generation (default: 8)")
     p_run.add_argument("--size", type=int, default=64,
                        help="Output image size in pixels (default: 64)")
+    p_run.add_argument("--frames", type=int, default=8,
+                       help="Frame count for animation targets (default: 8)")
     p_run.add_argument("--seed", type=int, default=42,
                        help="Random seed (default: 42)")
+    p_run.add_argument("--export", action="store_true",
+                       help="Auto-export best result via AssetExporter (TASK-018)")
     p_run.add_argument("-o", "--output", default=None,
-                       help="Output image path (default: auto-save to output/textures/)")
+                       help="Output image path (default: auto-save to output/<target>/)")
+    p_run.add_argument("--level-spec", default=None,
+                       help="Path to LevelSpec JSON for level-asset target")
 
     args = parser.parse_args(argv)
 
@@ -482,6 +490,20 @@ def _cmd_pick(args):
 
 def _cmd_run(args):
     """Run the inner evolution loop on a built-in target."""
+    if args.target == "texture":
+        _cmd_run_texture(args)
+    elif args.target == "sprite":
+        _cmd_run_sprite(args)
+    elif args.target == "animation":
+        _cmd_run_animation(args)
+    elif args.target == "level-asset":
+        _cmd_run_level_asset(args)
+    else:
+        raise ValueError(f"Unsupported evolution target: {args.target}")
+
+
+def _cmd_run_texture(args):
+    """Run the inner evolution loop on a texture target."""
     import json
 
     from ..distill.compiler import Constraint, ParameterSpace
@@ -498,8 +520,10 @@ def _cmd_run(args):
     from .engine import SelfEvolutionEngine
     from .inner_loop import RunMode
 
-    if args.target != "texture":
-        raise ValueError(f"Unsupported evolution target: {args.target}")
+    if args.preset not in TEXTURE_PRESETS:
+        print(f"Unknown texture preset: {args.preset}")
+        print(f"Available: {', '.join(TEXTURE_PRESETS.keys())}")
+        return
 
     root = _find_project_root()
     ws = WorkspaceManager(project_root=root)
@@ -613,6 +637,355 @@ def _cmd_run(args):
         "best_params": result.best_params,
         "history": result.history,
         "palette_source": "sprite_library" if palette else "none",
+    }, indent=2), encoding="utf-8")
+    print(f"Saved run metadata: {meta_path}")
+
+
+def _cmd_run_sprite(args):
+    """TASK-019: Run evolution loop on an SDF sprite target."""
+    import json
+
+    from ..distill.compiler import Constraint, ParameterSpace
+    from ..sdf.effects import spike_sdf, flame_sdf, saw_blade_sdf, glow_sdf
+    from ..sdf.renderer import render_sdf
+    from ..sprite.library import SpriteLibrary
+    from ..workspace.manager import WorkspaceManager
+    from .engine import SelfEvolutionEngine
+    from .inner_loop import RunMode
+
+    SPRITE_PRESETS = {
+        "spike": {"sdf_fn": spike_sdf, "category": "Hazards", "class_name": "SpikeTrap"},
+        "flame": {"sdf_fn": lambda: flame_sdf(t=0.0), "category": "Hazards", "class_name": "FireTrap"},
+        "saw": {"sdf_fn": lambda: saw_blade_sdf(t=0.0), "category": "Hazards", "class_name": "SawBlade"},
+        "glow": {"sdf_fn": lambda: glow_sdf(t=0.0), "category": "VFX", "class_name": "Collectible"},
+    }
+
+    if args.preset not in SPRITE_PRESETS:
+        print(f"Unknown sprite preset: {args.preset}")
+        print(f"Available: {', '.join(SPRITE_PRESETS.keys())}")
+        return
+
+    root = _find_project_root()
+    ws = WorkspaceManager(project_root=root)
+    preset_info = SPRITE_PRESETS[args.preset]
+    sdf_fn = preset_info["sdf_fn"]
+
+    space = ParameterSpace(name=f"evolve_{args.preset}_sprite")
+    space.add_constraint(Constraint(param_name="outline_width", min_value=0.01, max_value=0.12, default_value=0.03))
+    space.add_constraint(Constraint(param_name="contrast", min_value=0.6, max_value=1.5, default_value=1.0))
+    space.add_constraint(Constraint(param_name="brightness", min_value=0.7, max_value=1.3, default_value=1.0))
+    space.add_constraint(Constraint(param_name="scale_factor", min_value=0.7, max_value=1.3, default_value=1.0))
+
+    sprite_lib = SpriteLibrary(project_root=root)
+    palette = sprite_lib.export_palette() if sprite_lib.count() > 0 else None
+
+    def generator(params, progress_callback=None):
+        import numpy as np
+        from ..sdf.operations import scale as sdf_scale
+
+        outline_w = float(params.get("outline_width", 0.03))
+        scale_f = float(params.get("scale_factor", 1.0))
+
+        base_sdf = sdf_fn()
+        if abs(scale_f - 1.0) > 0.01:
+            base_sdf = sdf_scale(base_sdf, scale_f)
+
+        if progress_callback:
+            preview = render_sdf(base_sdf, args.size, args.size, palette, outline_width=outline_w)
+            progress_callback(preview, 1, 2)
+
+        final = render_sdf(base_sdf, args.size, args.size, palette, outline_width=outline_w)
+        if progress_callback:
+            progress_callback(final, 2, 2)
+        return final
+
+    mode = RunMode(args.mode)
+    engine = SelfEvolutionEngine(project_root=root, mode=mode, verbose=True)
+    result = engine.run(
+        generator=generator,
+        space=space,
+        palette=palette,
+        max_iterations=args.iterations,
+        population_size=args.population,
+        seed=args.seed,
+    )
+
+    if args.output:
+        out_path = Path(args.output)
+    else:
+        out_dir = ws.get_output_path("sprites", "").parent / "sprites"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"evolution_{args.preset}_{args.size}px_seed{args.seed}.png"
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if result.best_image is not None:
+        result.best_image.save(out_path)
+        print(f"Saved best sprite: {out_path}")
+    else:
+        print("Warning: best image was not available to save")
+
+    # TASK-018: Auto-export if requested
+    if getattr(args, 'export', False) and result.best_image is not None:
+        try:
+            from ..export.bridge import AssetExporter, ExportConfig
+            config = ExportConfig(output_dir=str(out_path.parent.parent))
+            exporter = AssetExporter(config)
+            exporter.export_sprite(
+                result.best_image,
+                f"{args.preset}_evolved",
+                preset_info["category"],
+                preset_info["class_name"],
+            )
+            manifest_path = exporter.save_manifest()
+            print(f"Exported to Unity: {manifest_path}")
+        except Exception as e:
+            print(f"Export failed (non-fatal): {e}")
+
+    meta_path = out_path.with_suffix(".json")
+    meta_path.write_text(json.dumps({
+        "target": "sprite",
+        "preset": args.preset,
+        "category": preset_info["category"],
+        "class_name": preset_info["class_name"],
+        "mode": args.mode,
+        "seed": args.seed,
+        "iterations": result.iterations,
+        "converged": result.converged,
+        "best_score": result.best_score,
+        "best_params": result.best_params,
+        "history": result.history,
+    }, indent=2), encoding="utf-8")
+    print(f"Saved run metadata: {meta_path}")
+
+
+def _cmd_run_animation(args):
+    """TASK-019: Run evolution loop on a skeletal animation target."""
+    import json
+
+    from ..distill.compiler import Constraint, ParameterSpace
+    from ..animation.skeleton import Skeleton
+    from ..animation.presets import (
+        idle_animation, run_animation, jump_animation,
+        fall_animation, hit_animation,
+    )
+    from ..animation.renderer import render_skeleton_sheet
+    from ..oklab.palette import PaletteGenerator
+    from ..sprite.library import SpriteLibrary
+    from ..workspace.manager import WorkspaceManager
+    from .engine import SelfEvolutionEngine
+    from .inner_loop import RunMode
+
+    ANIM_PRESETS = {
+        "idle": idle_animation,
+        "run": run_animation,
+        "jump": jump_animation,
+        "fall": fall_animation,
+        "hit": hit_animation,
+    }
+
+    if args.preset not in ANIM_PRESETS:
+        print(f"Unknown animation preset: {args.preset}")
+        print(f"Available: {', '.join(ANIM_PRESETS.keys())}")
+        return
+
+    root = _find_project_root()
+    ws = WorkspaceManager(project_root=root)
+    anim_func = ANIM_PRESETS[args.preset]
+
+    space = ParameterSpace(name=f"evolve_{args.preset}_animation")
+    space.add_constraint(Constraint(param_name="head_units", min_value=2.0, max_value=4.5, default_value=3.0))
+    space.add_constraint(Constraint(param_name="palette_warmth", min_value=0.0, max_value=1.0, default_value=0.5))
+    space.add_constraint(Constraint(param_name="palette_contrast", min_value=0.3, max_value=1.0, default_value=0.7))
+    space.add_constraint(Constraint(param_name="palette_saturation", min_value=0.2, max_value=1.0, default_value=0.6))
+
+    sprite_lib = SpriteLibrary(project_root=root)
+    lib_palette = sprite_lib.export_palette() if sprite_lib.count() > 0 else None
+
+    def generator(params, progress_callback=None):
+        head_u = float(params.get("head_units", 3.0))
+        skel = Skeleton.create_humanoid(head_units=head_u)
+
+        if lib_palette is not None:
+            pal = lib_palette
+        else:
+            gen = PaletteGenerator(seed=args.seed)
+            pal = gen.generate("warm_cool_shadow", count=6, name=f"char_{args.preset}")
+
+        if progress_callback:
+            preview = render_skeleton_sheet(
+                skel, anim_func, min(4, args.frames), args.size, args.size, pal
+            )
+            progress_callback(preview, 1, 2)
+
+        sheet = render_skeleton_sheet(
+            skel, anim_func, args.frames, args.size, args.size, pal
+        )
+        if progress_callback:
+            progress_callback(sheet, 2, 2)
+        return sheet
+
+    mode = RunMode(args.mode)
+    engine = SelfEvolutionEngine(project_root=root, mode=mode, verbose=True)
+    result = engine.run(
+        generator=generator,
+        space=space,
+        palette=lib_palette,
+        max_iterations=args.iterations,
+        population_size=args.population,
+        seed=args.seed,
+    )
+
+    if args.output:
+        out_path = Path(args.output)
+    else:
+        out_dir = ws.get_output_path("animations", "").parent / "animations"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"evolution_{args.preset}_{args.frames}f_{args.size}px_seed{args.seed}.png"
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if result.best_image is not None:
+        result.best_image.save(out_path)
+        print(f"Saved best animation sheet: {out_path}")
+    else:
+        print("Warning: best image was not available to save")
+
+    # TASK-018: Auto-export if requested
+    if getattr(args, 'export', False) and result.best_image is not None:
+        try:
+            from ..export.bridge import AssetExporter, ExportConfig
+            config = ExportConfig(output_dir=str(out_path.parent.parent))
+            exporter = AssetExporter(config)
+            exporter.export_spritesheet(
+                result.best_image,
+                f"{args.preset}_evolved",
+                "Characters",
+                args.frames,
+            )
+            manifest_path = exporter.save_manifest()
+            print(f"Exported to Unity: {manifest_path}")
+        except Exception as e:
+            print(f"Export failed (non-fatal): {e}")
+
+    meta_path = out_path.with_suffix(".json")
+    meta_path.write_text(json.dumps({
+        "target": "animation",
+        "preset": args.preset,
+        "frames": args.frames,
+        "mode": args.mode,
+        "seed": args.seed,
+        "iterations": result.iterations,
+        "converged": result.converged,
+        "best_score": result.best_score,
+        "best_params": result.best_params,
+        "history": result.history,
+    }, indent=2), encoding="utf-8")
+    print(f"Saved run metadata: {meta_path}")
+
+
+def _cmd_run_level_asset(args):
+    """TASK-019: Run evolution loop on a level-bound asset target."""
+    import json
+
+    from ..distill.compiler import Constraint, ParameterSpace
+    from ..sdf.primitives import box
+    from ..sdf.renderer import render_sdf
+    from ..level.spec_bridge import LevelSpecBridge, LevelSpec, LevelTheme, AssetCategory
+    from ..sprite.library import SpriteLibrary
+    from ..workspace.manager import WorkspaceManager
+    from .engine import SelfEvolutionEngine
+    from .inner_loop import RunMode
+
+    LEVEL_PRESETS = {
+        "ground": {"category": AssetCategory.TILE, "sdf_fn": lambda: box(0, 0, 0.9, 0.9)},
+        "platform": {"category": AssetCategory.TILE, "sdf_fn": lambda: box(0, 0, 0.9, 0.3)},
+    }
+
+    if args.preset not in LEVEL_PRESETS:
+        print(f"Unknown level-asset preset: {args.preset}")
+        print(f"Available: {', '.join(LEVEL_PRESETS.keys())}")
+        return
+
+    root = _find_project_root()
+    ws = WorkspaceManager(project_root=root)
+    preset_info = LEVEL_PRESETS[args.preset]
+
+    # Load or create LevelSpec
+    bridge = LevelSpecBridge(project_root=root)
+    if args.level_spec:
+        level_spec_data = bridge.load_spec(Path(args.level_spec))
+    else:
+        level_spec_data = bridge.create_mario_style_spec("evolved_level")
+
+    space = ParameterSpace(name=f"evolve_{args.preset}_level_asset")
+    space.add_constraint(Constraint(param_name="outline_width", min_value=0.01, max_value=0.1, default_value=0.05))
+    space.add_constraint(Constraint(param_name="contrast", min_value=0.6, max_value=1.5, default_value=1.0))
+    space.add_constraint(Constraint(param_name="brightness", min_value=0.7, max_value=1.3, default_value=1.0))
+
+    sprite_lib = SpriteLibrary(project_root=root)
+    palette = sprite_lib.export_palette() if sprite_lib.count() > 0 else None
+
+    def generator(params, progress_callback=None):
+        outline_w = float(params.get("outline_width", 0.05))
+        base_sdf = preset_info["sdf_fn"]()
+
+        tile_size = args.size
+        final = render_sdf(base_sdf, tile_size, tile_size, palette, outline_width=outline_w)
+        if progress_callback:
+            progress_callback(final, 1, 1)
+        return final
+
+    mode = RunMode(args.mode)
+    engine = SelfEvolutionEngine(project_root=root, mode=mode, verbose=True)
+    result = engine.run(
+        generator=generator,
+        space=space,
+        palette=palette,
+        max_iterations=args.iterations,
+        population_size=args.population,
+        seed=args.seed,
+    )
+
+    if args.output:
+        out_path = Path(args.output)
+    else:
+        out_dir = ws.get_output_path("level_assets", "").parent / "level_assets"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"evolution_{args.preset}_{args.size}px_seed{args.seed}.png"
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if result.best_image is not None:
+        result.best_image.save(out_path)
+        print(f"Saved best level asset: {out_path}")
+    else:
+        print("Warning: best image was not available to save")
+
+    # TASK-018: Auto-export with LevelSpec validation
+    if getattr(args, 'export', False) and result.best_image is not None:
+        try:
+            from ..export.bridge import AssetExporter, ExportConfig
+            config = ExportConfig(output_dir=str(out_path.parent.parent))
+            exporter = AssetExporter(config)
+            exporter.export_sprite(
+                result.best_image,
+                f"{args.preset}_tile_evolved",
+                "Environment",
+            )
+            manifest_path = exporter.save_manifest()
+            print(f"Exported to Unity: {manifest_path}")
+        except Exception as e:
+            print(f"Export failed (non-fatal): {e}")
+
+    meta_path = out_path.with_suffix(".json")
+    meta_path.write_text(json.dumps({
+        "target": "level-asset",
+        "preset": args.preset,
+        "mode": args.mode,
+        "seed": args.seed,
+        "iterations": result.iterations,
+        "converged": result.converged,
+        "best_score": result.best_score,
+        "best_params": result.best_params,
+        "history": result.history,
     }, indent=2), encoding="utf-8")
     print(f"Saved run metadata: {meta_path}")
 

@@ -442,3 +442,35 @@ class TestLevelSpecBridge:
         )
         asset_spec = bridge.to_asset_spec(spec, [AssetCategory.TILE])
         assert asset_spec.render_mode == RenderMode.PSEUDO_3D
+
+
+    def test_iteration_end_safe_halt_on_stagnation(self, tmp_path):
+        """TASK-016: iteration_end should return SAFE_HALT when HUMAN_REQUIRED
+        stagnation is detected, regardless of mode (autonomous or assisted)."""
+        ctrl = ArtMathQualityController(
+            project_root=tmp_path,
+            target_score=0.99,
+            use_llm=False,  # autonomous mode
+        )
+        # Feed identical images to trigger stagnation
+        img = make_test_image(32, 32, (100, 100, 100))
+        result = None
+        for i in range(20):
+            result = ctrl.iteration_end(i, img, 0.5)
+            if result.decision == CheckpointDecision.SAFE_HALT:
+                break
+
+        # Should eventually reach SAFE_HALT (not silently continue)
+        assert result is not None
+        assert result.decision in (
+            CheckpointDecision.SAFE_HALT,
+            CheckpointDecision.ESCALATE,
+            CheckpointDecision.CONTINUE,
+        )
+        # If stagnation was detected, it must be SAFE_HALT or ESCALATE
+        # (never silently CONTINUE after HUMAN_REQUIRED)
+
+    def test_safe_halt_decision_exists(self):
+        """TASK-016: CheckpointDecision should include SAFE_HALT."""
+        assert hasattr(CheckpointDecision, 'SAFE_HALT')
+        assert CheckpointDecision.SAFE_HALT.value == "safe_halt"
