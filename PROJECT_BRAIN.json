@@ -179,5 +179,8 @@
       "notes": "TEXTURE gap closed, workspace management operational, 10 math models"
     }
   ],
-  "custom_notes": {}
+  "custom_notes": {
+    "core_vision": "User uploads PDFs to Manus -> Manus manually distills knowledge into knowledge/*.md tables and math models -> Manus pushes to GitHub -> User pulls locally and runs autonomous evolution.",
+    "distillation_strategy": "Prefer manual high-quality distillation by Manus over automated LLM extraction. When user uploads a PDF, read it, extract mathematical/artistic rules, and write them directly to the knowledge base."
+  }
 }
