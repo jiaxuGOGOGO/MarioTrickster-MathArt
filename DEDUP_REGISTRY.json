@@ -1,7 +1,7 @@
 {
   "version": "1.1",
   "purpose": "Prevent duplicate research, duplicate code changes, and duplicate knowledge distillation across sessions. Every new session MUST read this file before starting work.",
-  "last_updated": "SESSION-021",
+  "last_updated": "SESSION-022",
 
   "absorbed_references": {
     "description": "External resources already studied and integrated. Do NOT re-research these.",
@@ -18,7 +18,9 @@
       {"id": "REF-P010", "title": "Multi-layer compositing for pixel art (Photoshop-style layer separation)", "used_in": "mathart/sdf/renderer.py", "session": "SESSION-020"},
       {"id": "REF-P011", "title": "VFX-specific evaluation criteria (motion, energy, variance over fill/outline)", "used_in": "mathart/evaluator/evaluator.py", "session": "SESSION-020"},
       {"id": "REF-P012", "title": "SDF curvature estimation via Laplacian for adaptive outline width", "used_in": "mathart/sdf/renderer.py", "session": "SESSION-021"},
-      {"id": "REF-P013", "title": "Percentile-based normalization for curvature fields", "used_in": "mathart/sdf/renderer.py", "session": "SESSION-021"}
+      {"id": "REF-P013", "title": "Percentile-based normalization for curvature fields", "used_in": "mathart/sdf/renderer.py", "session": "SESSION-021"},
+      {"id": "REF-P014", "title": "Procedural Creature Generation and Animation for Games", "used_in": "mathart/pipeline.py", "session": "SESSION-022"},
+      {"id": "REF-P015", "title": "Programmatic multi-state 2D character animation references", "used_in": "mathart/pipeline.py", "session": "SESSION-022"}
     ],
     "tutorials": [
       {"id": "REF-T001", "title": "Pedro Medeiros pixel art tutorials", "used_in": "knowledge/pixel_art.md", "session": "SESSION-006"},
@@ -87,6 +89,15 @@
       {"change": "Shape-complexity-aware evolution params in produce_sprite(): adaptive patience/population/min_delta", "file": "mathart/pipeline.py"},
       {"change": "Full project audit: 14-module functional testing + commercial gap analysis", "file": "audit_findings.md"},
       {"change": "SESSION-021 validation suite (20 tests)", "file": "test_session021_validation.py"}
+    ],
+    "SESSION-022": [
+      {"change": "Character asset pack pipeline integration: CharacterSpec + produce_character_pack()", "files": ["mathart/pipeline.py", "tests/test_character_pipeline.py"]},
+      {"change": "produce_asset_pack() now integrates character packs", "file": "mathart/pipeline.py"},
+      {"change": "Cross-session duplicate-work guard added", "files": ["mathart/brain/session_guard.py", "mathart/brain/__init__.py", "tests/test_session_guard.py"]},
+      {"change": "Character renderer no longer hard-requires SciPy for outline dilation", "file": "mathart/animation/character_renderer.py"},
+      {"change": "Evaluator no-palette metric now skips neutrally instead of silently penalizing", "file": "mathart/evaluator/evaluator.py"},
+      {"change": "Package version aligned to pyproject metadata", "file": "mathart/__init__.py"},
+      {"change": "Full repository validation reached 491/491 pass", "files": ["SESSION_HANDOFF.md", "PROJECT_BRAIN.json"]}
     ]
   },
 
@@ -141,6 +152,20 @@
         "root_cause": "produce_vfx() used result.overall but EvaluationResult has result.overall_score",
         "fix": "Changed to result.overall_score",
         "status": "fixed_in_SESSION-019"
+      },
+      {
+        "id": "STAG-008",
+        "pattern": "Repeated broad audits and duplicate research in new conversations",
+        "root_cause": "Cross-session intent was not fingerprinted, so similar requests could trigger the same audit/research loop again",
+        "fix": "Added SessionGuard fingerprinting, duplicate-work warnings, and stricter handoff instructions",
+        "status": "fixed_in_SESSION-022"
+      },
+      {
+        "id": "STAG-009",
+        "pattern": "Character system existed but remained a disconnected demo path",
+        "root_cause": "character_renderer.py was not wired into AssetPipeline or batch production",
+        "fix": "Added produce_character_pack() and integrated character packs into produce_asset_pack()",
+        "status": "fixed_in_SESSION-022"
       }
     ]
   },
@@ -164,7 +189,10 @@
       "RULE-14: Run test_session020_validation.py to verify changes work (expect 24/24 pass)",
       "RULE-15: Run test_session021_validation.py to verify changes work (expect 20/20 pass)",
       "RULE-16: Correct class names: ShaderCodeGenerator (not ShaderGenerator), LSystem (not LSystemGenerator), AssetExporter (not ExportBridge)",
-      "RULE-17: PaletteGenerator.generate() uses harmony= parameter (not scheme=)"
+      "RULE-17: PaletteGenerator.generate() uses harmony= parameter (not scheme=)",
+      "RULE-18: Before another general audit, check whether the target subsystem changed materially; otherwise continue the current bottleneck instead of repeating the audit",
+      "RULE-19: Use SessionGuard fingerprints before broad research or restart work on a previously discussed goal",
+      "RULE-20: Character rendering is now in the pipeline; the next character milestone is evolution/search, not re-adding basic character export"
     ]
   }
 }

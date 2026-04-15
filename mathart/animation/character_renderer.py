@@ -104,6 +104,24 @@ def _apply_dither(
     return value > (threshold + (tiled - 0.5) * 0.3)
 
 
+def _binary_dilate(mask: np.ndarray, iterations: int = 1) -> np.ndarray:
+    """Dilate a boolean mask without requiring SciPy.
+
+    Uses a 3x3 neighborhood max filter implemented with NumPy only.
+    This keeps the character renderer self-contained in lean environments.
+    """
+    result = mask.astype(bool)
+    for _ in range(max(1, iterations)):
+        padded = np.pad(result, 1, mode="constant", constant_values=False)
+        neighbors = [
+            padded[y:y + result.shape[0], x:x + result.shape[1]]
+            for y in range(3)
+            for x in range(3)
+        ]
+        result = np.logical_or.reduce(neighbors)
+    return result
+
+
 def _get_part_colors(
     base_color_srgb: np.ndarray,
     light_angle: float,
@@ -224,8 +242,7 @@ def render_character_frame(
     outline_mask = np.zeros((height, width), dtype=bool)
     if enable_outline:
         # Dilate all_inside by 1px and XOR
-        from scipy.ndimage import binary_dilation
-        dilated = binary_dilation(all_inside, iterations=1)
+        dilated = _binary_dilate(all_inside, iterations=1)
         outline_mask = dilated & ~all_inside
 
     # Render parts back-to-front

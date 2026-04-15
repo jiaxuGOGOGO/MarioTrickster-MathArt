@@ -23,5 +23,12 @@ This is the "衔接" (continuity) mechanism that ensures the project
 never loses context across conversation boundaries.
 """
 from mathart.brain.memory import ProjectMemory, SessionHandoff
+from mathart.brain.session_guard import SessionGuard, TaskFingerprintRecord, TaskRegistrationResult
 
-__all__ = ["ProjectMemory", "SessionHandoff"]
+__all__ = [
+    "ProjectMemory",
+    "SessionHandoff",
+    "SessionGuard",
+    "TaskFingerprintRecord",
+    "TaskRegistrationResult",
+]

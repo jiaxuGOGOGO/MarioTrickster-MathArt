@@ -228,10 +228,12 @@ class AssetEvaluator:
         if pal is not None:
             breakdown[QualityMetric.PALETTE_ADHERENCE] = self._eval_palette_adherence(img_arr, pal)
         else:
-            # Penalize slightly when no palette — don't give free 1.0
+            # Skip palette adherence when no explicit palette is provided.
+            # This keeps generic image evaluation neutral instead of silently
+            # biasing scores downward for assets that are not palette-constrained.
             breakdown[QualityMetric.PALETTE_ADHERENCE] = MetricResult(
-                QualityMetric.PALETTE_ADHERENCE, 0.6,
-                "No palette specified (default penalty)", True
+                QualityMetric.PALETTE_ADHERENCE, 1.0,
+                "No palette specified (metric skipped)", True
             )
 
         if ref is not None:

@@ -1,13 +1,14 @@
 # SESSION HANDOFF — MarioTrickster-MathArt
 
 > **READ THIS FIRST** if you are starting a new conversation about this project.
-> This document is auto-generated and always reflects the latest project state.
+> This document is auto-generated and always reflects the latest verified project state.
 
 ## MANDATORY: Read Before Starting
 
-1. **Read `DEDUP_REGISTRY.json`** — Prevents duplicate research and code changes
-2. **Read `SESSION_PROTOCOL.md`** — Efficiency rules for every session
-3. **Read this file** — Current state and priorities
+1. **Read `DEDUP_REGISTRY.json`** — Prevents duplicate research and repeated external harvesting.
+2. **Read `SESSION_PROTOCOL.md`** — Session efficiency rules and anti-repetition process.
+3. **Read `PROJECT_BRAIN.json`** — Machine-readable global state.
+4. **Read this file** — Current priorities, verified status, and handoff guidance.
 
 ---
 
@@ -15,265 +16,184 @@
 
 | Dimension | Value |
 |-----------|-------|
-| Current version | 0.11.0 |
-| Last updated | 2026-04-15T20:00:00Z |
-| Last session | SESSION-021 |
-| Best quality score | 0.8674 (circle, validated) |
-| Validation pass rate | 44/44 = 100% (20 in S021 + 24 in S020) |
-| Total code lines | ~25,500 |
+| Current version | 0.16.1 |
+| Last updated | 2026-04-15T14:17:34Z |
+| Last session | SESSION-022 |
+| Best quality score | 0.8674 (best validated geometric sprite baseline) |
+| Validation pass rate | 491/491 = 100% |
+| Total code lines | 31,145 |
 | Knowledge rules | 12 |
 | Math models registered | 10 |
-| Project health score | 8.6/10 |
+| Project health score | 9.0/10 |
 
-## What Changed in SESSION-021
+## What Changed in SESSION-022
 
-### P0-NEW-7: Adaptive Outline Width (Curvature-Based)
+### P1-NEW-5A: Practical Character Pack Pipeline Integration
 
-Added `_compute_adaptive_outline_width()` to `sdf/renderer.py`. SDF outlines previously used a uniform width which caused gaps at sharp corners (star tips, gem facets). The new function estimates local curvature via the SDF Laplacian and adjusts outline width per-pixel: wider at high-curvature regions, narrower on flat edges. Uses percentile-based normalization to handle the wide range of curvature values. Both `render_sdf()` and `render_sdf_layered()` now accept an `adaptive_outline=True` parameter (default enabled).
+The biggest audited gap in SESSION-021 was that **`character_renderer.py` existed but was not wired into the main asset pipeline**. SESSION-022 adds a first practical bridge: `CharacterSpec`, `CHARACTER_ANIMATION_MAP`, and `AssetPipeline.produce_character_pack()` are now implemented in `mathart/pipeline.py`. The new path exports **per-state frame PNGs, state spritesheets, GIF previews, atlas packing metadata, character manifests, and palette JSON**. This turns the character system from a disconnected renderer into a usable production output path.
 
-### P0-NEW-8: Texture-Aware Layered Rendering
+### P1-NEW-4: Multi-State Character Asset Generation
 
-Added `render_textured_sdf_layered()` and `_build_texture_func()` to `sdf/renderer.py`. Previously, the layered renderer (`render_sdf_layered`) produced an empty texture layer when no explicit `texture_func` was passed. Now, when a texture style is specified (stone/wood/metal/organic/crystal), the layered pipeline automatically generates and applies procedural noise textures. The pipeline's `produce_layered_sprite()` now routes textured styles through `render_textured_sdf_layered()` for richer layer output.
+The pipeline now produces **multi-state character packs** instead of only single-shape demos. Supported states currently include `idle`, `run`, `jump`, `fall`, and `hit`, with per-state frame counts and loop overrides. `produce_asset_pack()` also now includes character packs directly, so high-level batch generation can output props, animations, textures, and characters together.
 
-### P0-NEW-9: Adaptive Evolution Convergence Acceleration
+### P0-HARDEN-1: Remove Fragile Runtime Dependence in Character Rendering Path
 
-Modified `produce_sprite()` in `pipeline.py` to use shape-complexity-aware evolution parameters. A complexity mapping (circle=1.0, star=1.8, gem=1.6, etc.) now drives three adaptive parameters: (1) patience scales with complexity so complex shapes get more generations before early-stopping, (2) population size increases for complex shapes to maintain diversity, (3) min_delta tightens for simple shapes to converge faster. This addresses the issue where circle converged at gen 13 but gem needed 120 iterations.
+`mathart/animation/character_renderer.py` no longer hard-requires SciPy for outline dilation in the character rendering path. A NumPy-only `_binary_dilate()` fallback was added so the core character pack pipeline remains operational even in lean environments.
 
-### Full Audit Conducted
+### P0-HARDEN-2: Cross-Session Duplicate-Work Guard
 
-A comprehensive project audit was performed comparing current capabilities against commercial pixel art pipeline requirements. Key findings:
-- **14 modules**, 10 fully functional end-to-end, 4 importable but not integrated into Pipeline
-- **Biggest gap**: No character sprite generation (only geometric shapes)
-- **Second gap**: WFC/Shader/Export modules exist but not wired into AssetPipeline
-- See `audit_findings.md` for the complete report
+A new module, `mathart/brain/session_guard.py`, was added and exported through `mathart/brain/__init__.py`. This introduces **task fingerprinting, duplicate session detection, repetition risk reporting, and registration records** so future sessions can identify when they are redoing the same research or implementation track. This was added specifically to reduce repeated construction, repeated audits, and low-yield conversational loops.
 
-### All SESSION-021 Changes
+### P0-HARDEN-3: Evaluation Baseline Consistency Fix
+
+`mathart/evaluator/evaluator.py` was corrected so that when no palette is provided, palette adherence is treated as a **skipped neutral metric** instead of a silent penalty. This restored agreement between evaluator semantics and the repository test suite.
+
+### Validation Outcome
+
+A full repository validation run was executed after dependency reconciliation and code fixes. Current state is **491/491 tests passing**.
+
+## SESSION-022 Deliverables
 
 | Category | Change | File(s) | Impact |
 |----------|--------|---------|--------|
-| **P0-NEW-7** | Adaptive outline width | `sdf/renderer.py` | `_compute_adaptive_outline_width()` + `adaptive_outline` param |
-| **P0-NEW-8** | Texture-aware layered rendering | `sdf/renderer.py`, `sdf/__init__.py`, `pipeline.py` | `render_textured_sdf_layered()` + `_build_texture_func()` |
-| **P0-NEW-9** | Adaptive evolution convergence | `pipeline.py` | Shape-complexity-aware patience/population/min_delta |
-| **AUDIT** | Full project audit | `audit_findings.md` | 14-module functional audit + gap analysis |
-| **TEST** | SESSION-021 validation suite | `test_session021_validation.py` | 20/20 = 100% pass rate |
+| **CHARACTER** | Multi-state character pack generation | `mathart/pipeline.py` | `CharacterSpec`, `produce_character_pack()`, atlas/manifest/frame export |
+| **ASSET PACK** | Character packs included in batch generation | `mathart/pipeline.py` | `produce_asset_pack()` now produces practical character output |
+| **ANTI-DUP** | Cross-session repetition guard | `mathart/brain/session_guard.py`, `mathart/brain/__init__.py` | Session fingerprinting, duplicate warning, reusable registration result |
+| **ROBUSTNESS** | SciPy-free outline fallback in character path | `mathart/animation/character_renderer.py` | Core character rendering no longer fails in lean runtime |
+| **EVALUATOR** | Neutral skip for missing palette | `mathart/evaluator/evaluator.py` | Full test suite restored to green |
+| **TEST** | Character pack tests | `tests/test_character_pipeline.py` | Verifies multistate output and batch integration |
+| **TEST** | Session guard tests | `tests/test_session_guard.py` | Verifies duplicate-work detection behavior |
+| **VERSION** | Align package version surface | `mathart/__init__.py` | Package-level version now matches project metadata |
+| **RESEARCH** | External notes for procedural character / animation references | `research_notes_session022.md` | Preserves harvested findings for future sessions |
 
-### Validation Results (20/20 = 100%)
+## Validation Results
 
-| Test Group | Tests | Status |
-|------------|-------|--------|
-| Adaptive Outline Width (P0-NEW-7) | 6 tests | 6/6 PASS |
-| Texture-Aware Layered Rendering (P0-NEW-8) | 6 tests | 6/6 PASS |
-| Adaptive Evolution Convergence (P0-NEW-9) | 4 tests | 4/4 PASS |
-| Regression Tests | 4 tests | 4/4 PASS |
+| Scope | Result |
+|-------|--------|
+| Character pipeline tests | PASS |
+| Session guard tests | PASS |
+| Legacy character renderer tests | PASS |
+| Full repository test suite | **491/491 PASS** |
 
-### Key Metrics
+## Current Capability Snapshot
 
-| Metric | SESSION-020 | SESSION-021 | Change |
-|--------|-------------|-------------|--------|
-| Best sprite score | 0.8674 | 0.8674 | — (maintained) |
-| Validation tests | 24 | 44 | +20 |
-| Render features | 5 layers | 5 layers + adaptive outline + textured layers | +2 features |
-| Evolution adaptivity | Fixed params | Shape-complexity-aware | New |
-| Project health | 8.4/10 | 8.6/10 | +0.2 |
+| Area | State | Notes |
+|------|-------|-------|
+| Geometric sprite generation | Strong | Evolved SDF sprites, layered rendering, texture-aware output |
+| Character rendering | Stronger than before | Now directly callable from pipeline with usable exports |
+| Character asset packaging | Implemented | Multi-state sheets, GIFs, frames, palette, atlas, manifest |
+| Character evolution/search | **Not yet implemented** | Character packs are procedural and configurable, but not yet evolved through a search loop |
+| Tile / level generation | Module exists, not integrated enough | WFC code exists but still needs high-level pipeline wiring |
+| Shader generation | Module exists, not integrated enough | Needs direct production path and export wiring |
+| Asset export bridge | Module exists, not integrated enough | Needs to become a first-class end-to-end pipeline step |
+| Cross-session anti-duplication | Implemented | Session fingerprint guard added |
+| Test reliability | Strong | Full suite green at 491 tests |
 
-## Knowledge Base Status
+## Gap Analysis: Current vs. User Goal
 
-| Category | Count | Location |
-|----------|-------|----------|
-| Distilled rules | 12 | `knowledge/rules.json` |
-| Math models | 10 | `knowledge/math_models.json` |
-| Absorbed papers | 8 | `DEDUP_REGISTRY.json` |
-| Absorbed tutorials | 3 | `DEDUP_REGISTRY.json` |
-| Absorbed repos | 2 | `DEDUP_REGISTRY.json` |
-| Research topics | 8 | `DEDUP_REGISTRY.json` |
+The project is now **meaningfully closer to producing actual art assets** because it can generate structured character asset packs rather than only geometric demos. However, the system is **not yet at the final target described by the user**, because the most important remaining difference is that character outputs are still **preset-driven procedural generation**, not yet a true iterative character evolution loop that searches morphology, silhouette, palette hierarchy, secondary motion, and per-state variation for better artistic outcomes.
+
+| Goal Dimension | Current State | Remaining Gap |
+|---------------|---------------|---------------|
+| Produce usable assets, not demos | Substantially improved | Character pack export is real, but higher-level export workflows still need integration |
+| Multi-state character output | **Done** | Needs broader state library and more anatomy diversity |
+| Continuous evolution potential | Partial | Geometric assets evolve well; character generation still lacks search / optimization loop |
+| Avoid repeated wasted sessions | Improved | Session guard added, but handoff discipline must still be followed every session |
+| Integrate best existing project modules | Partial | WFC, shader, export modules still under-integrated |
+| Minimal software sprawl / self-contained | Improved | Core path works within repo; SciPy issues mitigated in character path |
+| Output suitable for real downstream use | Partial | Need stronger exporter / packaging / content organization for engine consumption |
+
+## Biggest Remaining Gaps
+
+1. **Character evolution loop is still missing.** The project can now generate and package characters, but it still does not evolve character anatomy, pose style, motion style, palette variants, or silhouette quality through the same kind of search pressure used for geometric assets.
+2. **WFC tilemap pipeline integration remains unfinished.** The module exists but still needs a top-level `AssetPipeline` production path and package integration.
+3. **Shader and export modules remain under-integrated.** These are still not first-class pipeline outputs.
+4. **Per-frame SDF parameter animation is still absent.** Existing animation remains largely transform-driven for geometric assets.
+5. **Secondary motion and organic texture research are not yet embodied in core generators.** Spring-based overlap and reaction-diffusion texture generation remain roadmap items.
 
 ## Pending Tasks (Priority Order)
 
-### P0 — Critical Path
+### P1 — Important
 
-**All P0 tasks are now DONE.** No remaining P0 items.
-
-### P1 — Important (Do These Next)
-
-| ID | Task | Effort | Description |
-|----|------|--------|-------------|
-| P1-NEW-5 | Character sprite pipeline integration | High | Integrate character_renderer.py into evolution Pipeline; currently only geometric shapes can be evolved |
-| P1-NEW-1 | WFC tilemap pipeline integration | High | WFC module exists but needs `produce_level()` in Pipeline |
-| P1-2 | Per-frame SDF parameter animation | Medium | Each frame can have different SDF parameters for true shape animation |
-| P1-NEW-4 | Multi-state sprite generation | Medium | Multiple states per character (idle, walk, attack) sharing palette |
-| P1-NEW-6 | Shader pipeline integration | Medium | ShaderCodeGenerator exists but needs `produce_shader()` in Pipeline |
-| P1-NEW-7 | Export pipeline integration | Medium | AssetExporter exists but not connected to `produce_asset_pack()` |
-| P1-NEW-2 | Reaction-diffusion textures | Medium | Gray-Scott for organic textures (coral, lichen) |
-| P1-NEW-3 | Spring-based secondary animation | Medium | Critically-damped spring for follow-through |
-| P1-NEW-8 | Quality checkpoint mid-generation | Low | ArtMathQualityController mid_generation checkpoint not wired into evolution loop |
+| ID | Task | Status | Effort | Description |
+|----|------|--------|--------|-------------|
+| P1-NEW-9 | Character evolution / search loop | TODO | High | Add evaluator-guided search over anatomy ratios, palette variation, motion curves, silhouette metrics, and preset/style mutations for character packs. |
+| P1-NEW-1 | WFC tilemap pipeline integration | TODO | High | Add a high-level `produce_level()` path and integrate level outputs into batch production. |
+| P1-NEW-6 | Shader pipeline integration | TODO | Medium | Wire `ShaderCodeGenerator` into `AssetPipeline` with exportable shader artifacts. |
+| P1-NEW-7 | Export pipeline integration | TODO | Medium | Make exporter a first-class pipeline stage for engine-ready bundles. |
+| P1-2 | Per-frame SDF parameter animation | TODO | Medium | Support true shape animation, not only transformed static renders. |
+| P1-NEW-2 | Reaction-diffusion textures | TODO | Medium | Add Gray-Scott style organic texture generation. |
+| P1-NEW-3 | Spring-based secondary animation | TODO | Medium | Add critically damped follow-through / overlap motion to character and VFX systems. |
+| P1-NEW-8 | Quality checkpoint mid-generation | TODO | Low | Wire ArtMathQualityController mid-generation checkpoint into longer searches. |
 
 ### P2 — Nice to Have
 
-| ID | Task | Effort |
-|----|------|--------|
-| P2-1 | Sub-pixel rendering | Medium |
-| P2-4 | Multi-objective optimization (NSGA-II) | High |
-| P2-5 | Procedural outline variation | Low |
-| P2-6 | CMA-ES optimizer upgrade | Medium |
-| P2-7 | Performance benchmarks | Low |
+| ID | Task | Status | Effort |
+|----|------|--------|--------|
+| P2-1 | Sub-pixel rendering | TODO | Medium |
+| P2-4 | Multi-objective optimization (NSGA-II) | TODO | High |
+| P2-5 | Procedural outline variation | PARTIAL | Low |
+| P2-6 | CMA-ES optimizer upgrade | TODO | Medium |
+| P2-7 | Performance benchmarks | TODO | Low |
 
 ### P3 — Future
 
-| ID | Task | Effort |
-|----|------|--------|
-| P3-1 | Auto knowledge distillation | Medium |
-| P3-2 | Web preview UI | High |
-| P3-3 | Unity/Godot exporter plugin | Medium |
-| P3-4 | CI/CD + GitHub Actions | Medium |
-| P3-5 | End-to-end demo showcase script | Low |
-| P3-6 | README update for SESSION-018~021 features | Low |
+| ID | Task | Status | Effort |
+|----|------|--------|--------|
+| P3-1 | Auto knowledge distillation | PARTIAL | Medium |
+| P3-2 | Web preview UI | TODO | High |
+| P3-3 | Unity/Godot exporter plugin | TODO | Medium |
+| P3-4 | CI/CD + GitHub Actions | TODO | Medium |
+| P3-5 | End-to-end demo showcase script | TODO | Low |
+| P3-6 | README update for SESSION-018~022 features | TODO | Low |
 
 ## Completed Tasks
 
-### SESSION-021
+### SESSION-022
 
 | ID | Task | Result |
 |----|------|--------|
-| P0-NEW-7 | Adaptive outline width | `_compute_adaptive_outline_width()` + curvature-based per-pixel width |
-| P0-NEW-8 | Texture-aware layered rendering | `render_textured_sdf_layered()` + `_build_texture_func()` |
-| P0-NEW-9 | Adaptive evolution convergence | Shape-complexity-aware patience/population/min_delta |
-| AUDIT | Full project audit | 14-module functional audit + commercial gap analysis |
-
-### SESSION-020
-
-| ID | Task | Result |
-|----|------|--------|
-| P0-NEW-4 | Multi-layer render compositing | `render_sdf_layered()` + `composite_layers()` + `produce_layered_sprite()` |
-| P0-NEW-5 | Large-scale evolution (100+ iters) | 4 shapes, avg 0.8371, all positive trends, VALIDATED |
-| P0-NEW-6 | VFX evaluator tuning | `evaluate_vfx()` + `evaluate_multi_frame_vfx()`, explosion 0.24→0.66 |
-
-### SESSION-019
-
-| ID | Task | Result |
-|----|------|--------|
-| P0-NEW-1 | Integrate particles + cage deform into pipeline | `produce_vfx()` + `produce_deform_animation()` |
-| P0-NEW-2 | Run full evolution validation | 19/19 = 100% pass rate |
-| P0-NEW-3 | Palette-constrained SDF rendering | Floyd-Steinberg dither in OKLAB space |
-| BUG-019-1 | SDF primitive parameter order fix | All 16 shapes render correctly |
-| BUG-019-2 | `result.overall` → `result.overall_score` | VFX scoring works |
-
-### SESSION-018
-
-| ID | Task | Result |
-|----|------|--------|
-| P0-1 | Evaluator rewrite (12 metrics) | Real selection pressure |
-| P0-2 | CPPN enriched topology | Richer textures |
-| P0-3 | Reference/palette pipeline fix | Evaluator gets proper inputs |
-| P0-4 | gem/star visibility fix | Radii increased (root cause found in S019) |
-| P1-3 | GIF animation export | Pipeline + particles + cage deform |
-| P1-4 | Math models registered | 10 models |
-| P2-2 | Particle system | Verlet + 4 presets |
-
-## Gap Analysis: Current vs. Commercial Quality
-
-### Comparison with itch.io Standards
-
-| Aspect | itch.io Standard | Our Current State | Gap |
-|--------|-----------------|-------------------|-----|
-| Palette | 4-16 curated colors | Palette-constrained rendering (DONE) | **LOW** |
-| Outlines | 1px crisp, continuous | Adaptive outline width (DONE) | **LOW** |
-| Shading | 2-4 level ramps | 3-7 level ramps + layered control | Low |
-| Animation | Squash/stretch/anticipation | Transform + cage + particles + VFX | Low |
-| Tilemap | Seamless connecting tiles | WFC module exists, not in Pipeline | **HIGH** |
-| Characters | Multiple body parts + states | character_renderer exists, not evolved | **HIGH** |
-| Variety | Multiple states per character | Single shape per asset | Medium |
-| Internal detail | Hand-placed highlights/shadows | CPPN-evolved + noise textures + layered | Low |
-| Compositing | Layer-based workflow | Multi-layer rendering (DONE) | **LOW** |
-| VFX quality | Convincing particles/effects | VFX-tuned evaluator + 4 presets | Low |
-| Textures | Material-specific detail | 5 texture presets + layered rendering | **LOW** |
-
-### Biggest Remaining Gaps (from Audit)
-
-1. **No character sprite evolution** — character_renderer.py has 5 presets but is not integrated into the evolution Pipeline; only geometric shapes (coin/star/gem/circle) can be evolved
-2. **WFC/Shader/Export not in Pipeline** — Three modules exist but need Pipeline methods (produce_level, produce_shader, integrated export)
-3. **No multi-state sprites** — Each asset is a single shape, no idle/walk/attack variants
-4. **No per-frame SDF animation** — Animation only transforms base image, no true shape morphing
-
-## Project Health Score: 8.6/10 (up from 8.4)
-
-| Dimension | Score | Notes |
-|-----------|-------|-------|
-| Code Quality | 8/10 | ~25,500 lines, 44 validation tests, well modularized |
-| Render Quality | 9/10 | Multi-layer + adaptive outline + textured layers + palette-constrained |
-| Evolution Capability | 8/10 | 12-metric evaluator, shape-adaptive convergence, avg 0.84 score |
-| Animation Quality | 7/10 | Transform + cage deform + particles + VFX (4 presets each) |
-| Asset Output | 9/10 | PNG + GIF + spritesheet + layers + JSON metadata |
-| Knowledge Accumulation | 5/10 | 12 rules + 10 models (needs auto-distillation) |
-| Self-Evolution | 8/10 | VFX-tuned evaluator + adaptive convergence + anti-stagnation |
-| Module Integration | 6/10 | 10/14 modules fully integrated, 4 need Pipeline wiring |
+| P1-NEW-5A | Character pack pipeline integration | `CharacterSpec` + `produce_character_pack()` + manifest / atlas / frame / GIF export |
+| P1-NEW-4 | Multi-state sprite generation | Multi-state character packs with `idle`, `run`, `jump`, `fall`, `hit` |
+| P0-HARDEN-1 | Character renderer runtime hardening | NumPy outline dilation fallback added |
+| P0-HARDEN-2 | Cross-session duplicate guard | `session_guard.py` + tests |
+| P0-HARDEN-3 | Evaluator default semantic fix | No-palette metric now neutral skip |
+| VALIDATION-022 | Full repository validation | **491/491 PASS** |
 
 ## Instructions for Next AI Session
 
-1. **Read `DEDUP_REGISTRY.json`** — DO NOT re-research absorbed topics
-2. **Read `SESSION_PROTOCOL.md`** — Follow efficiency rules
-3. Read `PROJECT_BRAIN.json` for the full machine-readable state
-4. Read `audit_findings.md` for the comprehensive gap analysis
-5. **Start with P1-NEW-5** — Character sprite pipeline integration (biggest gap)
-6. Then **P1-NEW-1** — WFC tilemap pipeline integration
-7. Then **P1-NEW-6 + P1-NEW-7** — Shader + Export pipeline integration
-8. Always push changes to GitHub after completing work
-9. Always update this file and `PROJECT_BRAIN.json` before ending
+1. **Read `DEDUP_REGISTRY.json` first.**
+2. **Read `SESSION_PROTOCOL.md` second.**
+3. Read `PROJECT_BRAIN.json` and this handoff before coding.
+4. Do **not** repeat another general audit unless a specific subsystem changed materially.
+5. Start with **P1-NEW-9** if the goal is better character art quality, because the next real leap is moving from preset-driven packs to evaluator-guided character evolution.
+6. Otherwise start with **P1-NEW-1** or **P1-NEW-6/P1-NEW-7** to improve end-to-end production usefulness.
+7. Always update this file and `PROJECT_BRAIN.json` before ending.
+8. Always preserve new external findings in a session note rather than re-harvesting the same references.
 
 ## Quick Start
 
 ```python
-# Test evaluator
-from mathart.evaluator.evaluator import AssetEvaluator
-ev = AssetEvaluator()
-result = ev.evaluate(some_image)
-print(result.overall_score, result.passed, result.suggestions)
+from mathart.pipeline import AssetPipeline, AssetSpec, CharacterSpec
 
-# Evaluate VFX (SESSION-020)
-vfx_result = ev.evaluate_vfx(vfx_frame)
-multi_result = ev.evaluate_multi_frame_vfx(vfx_frames)
-
-# Produce sprite (with adaptive evolution — SESSION-021)
-from mathart.pipeline import AssetPipeline, AssetSpec
 pipeline = AssetPipeline(output_dir="output/")
-result = pipeline.produce_sprite(AssetSpec(name="coin", shape="coin"))
 
-# Produce layered sprite (SESSION-020)
-result, layered = pipeline.produce_layered_sprite(AssetSpec(name="coin", shape="coin"))
-layered.export_layers("output/coin")  # Saves 5 layer PNGs
+# Geometric sprite
+coin = pipeline.produce_sprite(AssetSpec(name="coin", shape="coin", style="metal"))
 
-# Produce textured layered sprite (SESSION-021)
-result, layered = pipeline.produce_layered_sprite(
-    AssetSpec(name="stone_gem", shape="gem", style="stone")
+# Practical character pack (SESSION-022)
+character = pipeline.produce_character_pack(
+    CharacterSpec(
+        name="mario_character",
+        preset="mario",
+        frames_per_state=6,
+        states=["idle", "run", "jump", "fall", "hit"],
+    )
 )
 
-# Adaptive outline rendering (SESSION-021)
-from mathart.sdf.renderer import render_sdf
-from mathart.sdf.primitives import star
-sdf = star(cx=0, cy=0, r_outer=0.42, r_inner=0.2, n_points=5)
-img = render_sdf(sdf, 64, 64, adaptive_outline=True)  # Default is True
-
-# Custom layer compositing (SESSION-020)
-from mathart.sdf.renderer import render_sdf_layered, composite_layers
-layered = render_sdf_layered(sdf_func, 64, 64)
-custom = composite_layers(
-    layered.base_layer,
-    lighting=layered.lighting_layer,
-    outline=layered.outline_layer,
-    lighting_opacity=0.7,
-)
-
-# Produce VFX
-vfx = pipeline.produce_vfx(name="fire", preset="fire", n_frames=12)
-
-# Produce deformation animation
-from mathart.pipeline import AnimationSpec
-spec = AssetSpec(name="bounce", shape="circle")
-deform = pipeline.produce_deform_animation(spec=spec, deform_type="squash_stretch", n_frames=8)
-
-# Run validation
-python3 test_session021_validation.py  # 20/20 PASS
-python3 test_session020_validation.py  # 24/24 PASS
+# Batch asset pack now includes character packs too
+pack = pipeline.produce_asset_pack(pack_name="game_assets")
 ```
 
 ---
-*Auto-generated by SESSION-021 at 2026-04-15T20:00:00Z*
+*Auto-generated by SESSION-022 at 2026-04-15T14:17:34Z*
