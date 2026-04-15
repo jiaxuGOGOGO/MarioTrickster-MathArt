@@ -5,12 +5,13 @@
 
 ## MANDATORY: Read Before Starting
 
-1. **Read `DEDUP_REGISTRY.json`** — Prevents duplicate research and repeated external harvesting.
-2. **Read `SESSION_PROTOCOL.md`** — Session efficiency rules, anti-repetition process, and protocol trigger logic.
-3. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`** — Default method for precise, parallel, high-value external research. Now includes SESSION-027 enhanced query construction and synthesis rules.
-4. **Read `PROJECT_BRAIN.json`** — Machine-readable global state.
-5. **Read `research_notes_session027.md`** — Latest research synthesis for the semantic genotype system.
-6. **Read this file** — Current priorities, verified status, and handoff guidance.
+1. **Read `COMMERCIAL_BENCHMARK.md`** — **MANDATORY FIRST**. Commercial pixel art standard and gap analysis. Every upgrade MUST be measured against this benchmark. If an upgrade does not shrink a percentage gap listed there, it is considered cosmetic.
+2. **Read `DEDUP_REGISTRY.json`** — Prevents duplicate research and repeated external harvesting.
+3. **Read `SESSION_PROTOCOL.md`** — Session efficiency rules, anti-repetition process, and protocol trigger logic.
+4. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`** — Default method for precise, parallel, high-value external research. Now includes SESSION-027 enhanced query construction and synthesis rules.
+5. **Read `PROJECT_BRAIN.json`** — Machine-readable global state.
+6. **Read `research_notes_session027.md`** — Latest research synthesis for the semantic genotype system.
+7. **Read this file** — Current priorities, verified status, and handoff guidance.
 
 ---
 
@@ -124,14 +125,33 @@ The character evolution system is now **architecturally complete at the 2.5 leve
 | Output suitable for real downstream use | Partial | Needs stronger benchmark definitions and engine-ready bundle closure |
 | Search quality during upgrades | **Improved and validated** | Protocol was used in practice during SESSION-027 and enhanced based on real results |
 
+## Commercial Benchmark Status (MANDATORY REFERENCE)
+
+> **See `COMMERCIAL_BENCHMARK.md` for full details.** Every upgrade MUST shrink at least one gap below.
+
+| Dimension | Commercial Standard | Current | Gap |
+|-----------|-------------------|---------|-----|
+| Character visual quality | Hand-drawn / AI-generated, pixel-precise | SDF math primitives, tech-demo level | **20%** |
+| Animation expressiveness | 8-12 fps, exaggerated motion, secondary anim | 6 fps, subtle skeletal, no secondary | **25%** |
+| Character diversity | 20+ visually distinct characters | Genotype mutations, mainly color/proportion | **15%** |
+| Environment / Tileset | Seamless tileable terrain, multi-elevation | WFC exists but disconnected from pipeline | **10%** |
+| VFX / Particles | Rich combat & environment effects | SDF VFX exists, not bound to actions | **20%** |
+| UI Elements | Buttons, health bars, icons, cursors | **Not started** | **0%** |
+| Multi-directional views | 4/8 direction or isometric | **Not started** | **0%** |
+| Engine-ready export | PNG + Aseprite + Unity/Godot metadata | Export module exists but disconnected | **15%** |
+| Style consistency | Global visual unity across all assets | OKLAB color harmony, weak shape consistency | **30%** |
+| Engineering automation | One-click generation | Strong CLI + evolution pipeline | **60%** |
+| **OVERALL** | | | **~25-30%** |
+
 ## Biggest Remaining Gaps (Based on SESSION-027 Audit)
 
-1. **Architecture Integration Gaps (P1):** The `level` (WFC), `shader`, and `export` modules exist in the codebase but are completely disconnected from the main `AssetPipeline`. They need top-level `produce_*` methods.
-2. **Production benchmark asset suites are still missing.** The repository validates correctness well, but lacks benchmark targets and acceptance thresholds.
-3. **Part registry content is narrow.** Only hat and face_accessory slots have registered parts. Torso overlays, hand items, and foot accessories need SDF functions and renderer support.
-4. **Per-frame SDF parameter animation is still absent.** Geometric animation remains largely transform-driven.
-5. **Secondary motion and organic texture systems are still roadmap items.**
-6. **Test Coverage Blind Spots:** The `shader`, `workspace`, and `quality` modules lack dedicated test files.
+1. **SDF Visual Ceiling (Fundamental):** The mathematical SDF primitive approach has an inherent expressiveness ceiling. Characters look like "tech demos" rather than game-ready sprites. This is the single biggest blocker to commercial viability.
+2. **Architecture Integration Gaps (P1):** The `level` (WFC), `shader`, and `export` modules exist in the codebase but are completely disconnected from the main `AssetPipeline`. They need top-level `produce_*` methods.
+3. **Zero coverage on UI and Multi-direction:** Two entire asset categories (UI elements and multi-directional views) have not been started at all.
+4. **Part registry content is narrow.** Only hat and face_accessory slots have registered parts. Torso overlays, hand items, and foot accessories need SDF functions and renderer support.
+5. **Per-frame SDF parameter animation is still absent.** Geometric animation remains largely transform-driven.
+6. **Secondary motion and organic texture systems are still roadmap items.**
+7. **Test Coverage Blind Spots:** The `shader`, `workspace`, and `quality` modules lack dedicated test files.
 
 ## Pending Tasks (Priority Order)
 

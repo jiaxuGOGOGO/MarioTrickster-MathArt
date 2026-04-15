@@ -12,6 +12,33 @@
   "knowledge_rule_count": 12,
   "math_model_count": 10,
   "project_health_score": 9.3,
+  "commercial_benchmark": {
+    "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
+    "reference_file": "COMMERCIAL_BENCHMARK.md",
+    "overall_completion": "25-30%",
+    "last_assessed": "SESSION-027",
+    "dimension_scores": {
+      "character_visual_quality": 20,
+      "animation_expressiveness": 25,
+      "character_diversity": 15,
+      "environment_tileset": 10,
+      "vfx_particles": 20,
+      "ui_elements": 0,
+      "multi_directional_views": 0,
+      "engine_ready_export": 15,
+      "style_consistency": 30,
+      "engineering_automation": 60
+    },
+    "fundamental_blocker": "SDF visual ceiling — math primitives cannot match hand-drawn or AI-generated pixel art expressiveness",
+    "strategic_paths": {
+      "path_a_pure_math": "Deep optimization of SDF + pipeline integration → ceiling ~45-50%",
+      "path_b_ai_hybrid": "Use math pipeline as structure generator + AI model for visual rendering → ceiling ~70-80%"
+    },
+    "commercial_references": [
+      {"name": "PixelLab", "url": "https://www.pixellab.ai/", "type": "AI SaaS tool"},
+      {"name": "Tiny Swords by Pixel Frog", "url": "https://pixelfrog-assets.itch.io/tiny-swords", "type": "itch.io top-seller asset pack"}
+    ]
+  },
   "current_focus": "SESSION-027 delivered the semantic genotype evolution system (character evolution 2.5). The CharacterGenotype layer with archetypes, body templates, part registry, and 3-layer mutation+crossover is now integrated into the pipeline. The precision research protocol was also enhanced with better query construction rules and post-search synthesis requirements. Next critical gaps: production benchmark suites, WFC pipeline closure, shader/export closure, per-frame SDF animation, and motion/material upgrades.",
   "next_reference_entrypoint": "research_notes_session027.md",
   "reference_notes_priority": [
