@@ -93,6 +93,32 @@ class TestInnerLoopRunner:
         assert "InnerLoop" in summary
         assert "score=" in summary
 
+    def test_mid_generation_checkpoint_is_invoked(self, tmp_path):
+        from mathart.evolution.inner_loop import InnerLoopRunner
+        from mathart.distill.compiler import ParameterSpace, Constraint
+        from mathart.quality.checkpoint import CheckpointStage
+
+        runner = InnerLoopRunner(
+            max_iterations=3,
+            population_size=3,
+            verbose=False,
+            project_root=tmp_path,
+        )
+        space = ParameterSpace(name="test")
+        space.add_constraint(Constraint(param_name="x", min_value=0.0, max_value=1.0))
+
+        def generator(params, progress_callback=None):
+            preview = Image.new("RGBA", (8, 8), (40, 40, 40, 255))
+            if progress_callback:
+                progress_callback(preview, 1, 2)
+            final = Image.new("RGBA", (8, 8), (200, 200, 200, 255))
+            if progress_callback:
+                progress_callback(final, 2, 2)
+            return final
+
+        result = runner.run(generator, space)
+        assert any(cp.stage == CheckpointStage.MID_GENERATION for cp in result.checkpoint_log)
+
 
 # ── Outer Loop Tests ──
 
@@ -294,3 +320,34 @@ class TestSelfEvolutionEngine:
         assert filepath.exists()
         content = json.loads(filepath.read_text())
         assert len(content) > 0
+
+
+@pytest.mark.unit
+class TestEvolutionCLI:
+    def test_run_command_saves_image_and_metadata(self, tmp_path, monkeypatch, capsys):
+        from mathart.evolution.cli import main
+
+        (tmp_path / "pyproject.toml").write_text("[project]\nname='test'\n", encoding="utf-8")
+        (tmp_path / "knowledge").mkdir()
+        monkeypatch.chdir(tmp_path)
+
+        out_path = tmp_path / "output" / "textures" / "run_cli.png"
+        main([
+            "run",
+            "--preset", "terrain",
+            "--iterations", "2",
+            "--population", "4",
+            "--size", "16",
+            "--seed", "7",
+            "--output", str(out_path),
+        ])
+
+        captured = capsys.readouterr()
+        assert "Saved best image" in captured.out
+        assert out_path.exists()
+        meta_path = out_path.with_suffix(".json")
+        assert meta_path.exists()
+
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        assert meta["preset"] == "terrain"
+        assert meta["iterations"] > 0

@@ -1,7 +1,7 @@
 {
-  "version": "0.8.0",
-  "last_session_id": "SESSION-008",
-  "last_updated": "2026-04-16T00:00:00Z",
+  "version": "0.9.0",
+  "last_session_id": "SESSION-009",
+  "last_updated": "2026-04-15T03:56:03Z",
   "best_quality_score": 0.0,
   "total_iterations": 0,
   "distill_session_id": "DISTILL-008",
@@ -31,8 +31,9 @@
       "priority": "high",
       "depends_on": [],
       "created_at": "2026-04-16T00:00:00Z",
-      "status": "not_started",
-      "notes": "InnerLoopRunner and EvolutionaryOptimizer are fully implemented, but there is no CLI command to actually start the evolution process. Need to add mathart-evolve run to cli.py.",
+      "status": "done",
+      "completed_at": "2026-04-15T03:56:03Z",
+      "notes": "Completed in SESSION-009. Added mathart-evolve run with a built-in texture evolution target, progress-aware generation, output image saving, and JSON run metadata.",
       "context": {
         "file": "mathart/evolution/cli.py"
       }
@@ -43,8 +44,9 @@
       "priority": "high",
       "depends_on": [],
       "created_at": "2026-04-14T16:35:53Z",
-      "status": "in_progress",
-      "notes": "3/4 checkpoints done. Remaining gap: mid_generation checkpoint is implemented in ArtMathQualityController but not yet called in InnerLoopRunner.",
+      "status": "done",
+      "completed_at": "2026-04-15T03:56:03Z",
+      "notes": "Completed in SESSION-009. InnerLoopRunner now detects generators that expose progress_callback, invokes the mid_generation checkpoint during multi-step generation, and honors retry decisions. Also added a scipy-free fallback for quick quality checks.",
       "context": {
         "file": "mathart/evolution/inner_loop.py"
       }
@@ -175,6 +177,14 @@
       "best_score": 0.0,
       "test_count": 424,
       "notes": "Audit & task integration: comprehensive requirement review, task deduplication, expanded scopes, added TASK-008, recorded core vision with three-loop architecture"
+    },
+    {
+      "session_id": "SESSION-009",
+      "timestamp": "2026-04-15T03:56:03Z",
+      "version": "0.9.0",
+      "best_score": 0.0,
+      "test_count": 66,
+      "notes": "Completed TASK-001 and TASK-009: added mathart-evolve run, integrated mid_generation checkpoint into InnerLoopRunner, added scipy-free QC fallback, and extended regression coverage."
     }
   ]
 }

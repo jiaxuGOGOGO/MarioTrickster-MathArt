@@ -13,6 +13,7 @@ Commands:
   mathart-evolve scan                 — Scan inbox and auto-process all files
   mathart-evolve pick                 — Open file picker to select and import files
   mathart-evolve texture [preset]     — Generate a noise texture
+  mathart-evolve run                  — Run the evolution loop on a built-in target
 """
 from __future__ import annotations
 
@@ -110,6 +111,27 @@ def main(argv=None):
     p_tex.add_argument("--all", dest="gen_all", action="store_true",
                        help="Generate all 6 presets at once")
 
+    # run (TASK-009)
+    p_run = sub.add_parser("run", help="Run the evolution loop on a built-in target")
+    p_run.add_argument("--target", default="texture", choices=["texture"],
+                       help="Built-in evolution target (default: texture)")
+    p_run.add_argument("--preset", default="terrain",
+                       choices=["terrain", "clouds", "lava", "water", "stone", "magic"],
+                       help="Built-in preset to optimize (default: terrain)")
+    p_run.add_argument("--mode", default="autonomous",
+                       choices=["autonomous", "assisted"],
+                       help="Run mode (default: autonomous)")
+    p_run.add_argument("--iterations", type=int, default=12,
+                       help="Evolution generations to run (default: 12)")
+    p_run.add_argument("--population", type=int, default=8,
+                       help="Population size per generation (default: 8)")
+    p_run.add_argument("--size", type=int, default=64,
+                       help="Output image size in pixels (default: 64)")
+    p_run.add_argument("--seed", type=int, default=42,
+                       help="Random seed (default: 42)")
+    p_run.add_argument("-o", "--output", default=None,
+                       help="Output image path (default: auto-save to output/textures/)")
+
     args = parser.parse_args(argv)
 
     if args.command == "status":
@@ -136,6 +158,8 @@ def main(argv=None):
         _cmd_pick(args)
     elif args.command == "texture":
         _cmd_texture(args)
+    elif args.command == "run":
+        _cmd_run(args)
     else:
         parser.print_help()
 
@@ -454,6 +478,143 @@ def _cmd_pick(args):
         for f in files:
             result = distiller.distill_file(str(f))
             print(f"  [DISTILL] {f.name} — {result.rules_extracted} rules")
+
+
+def _cmd_run(args):
+    """Run the inner evolution loop on a built-in target."""
+    import json
+
+    from ..distill.compiler import Constraint, ParameterSpace
+    from ..sdf.noise import (
+        TEXTURE_PRESETS,
+        domain_warp,
+        fbm,
+        render_noise_texture,
+        ridged_noise,
+        turbulence,
+    )
+    from ..sprite.library import SpriteLibrary
+    from ..workspace.manager import WorkspaceManager
+    from .engine import SelfEvolutionEngine
+    from .inner_loop import RunMode
+
+    if args.target != "texture":
+        raise ValueError(f"Unsupported evolution target: {args.target}")
+
+    root = _find_project_root()
+    ws = WorkspaceManager(project_root=root)
+    tex_preset = TEXTURE_PRESETS[args.preset]
+
+    space = ParameterSpace(name=f"evolve_{args.preset}_texture")
+
+    def _add_range(name: str, lo: float, hi: float, default: float) -> None:
+        space.add_constraint(Constraint(
+            param_name=name,
+            min_value=lo,
+            max_value=hi,
+            default_value=default,
+        ))
+
+    base = tex_preset.params
+    _add_range("scale", max(2.0, float(base.get("scale", 8.0)) * 0.5),
+               float(base.get("scale", 8.0)) * 1.75, float(base.get("scale", 8.0)))
+    _add_range("octaves", 3.0, 8.0, float(base.get("octaves", 5)))
+    if "lacunarity" in base:
+        _add_range("lacunarity", 1.5, 3.2, float(base["lacunarity"]))
+    if "persistence" in base:
+        _add_range("persistence", 0.25, 0.85, float(base["persistence"]))
+    if "gain" in base:
+        _add_range("gain", 0.2, 0.85, float(base["gain"]))
+    if "warp_strength" in base:
+        _add_range("warp_strength", 0.1, 1.2, float(base["warp_strength"]))
+    _add_range("contrast", 0.7, 1.5, 1.0)
+    _add_range("brightness", 0.75, 1.25, 1.0)
+    _add_range("transparent_below", 0.0, 0.35, 0.0)
+
+    generators = {
+        "fbm": fbm,
+        "ridged_noise": ridged_noise,
+        "turbulence": turbulence,
+        "domain_warp": domain_warp,
+    }
+
+    sprite_lib = SpriteLibrary(project_root=root)
+    palette = sprite_lib.export_palette() if sprite_lib.count() > 0 else None
+
+    def generator(params, progress_callback=None):
+        import numpy as np
+
+        def emit(stage_image, step, total_steps):
+            if progress_callback is not None:
+                progress_callback(stage_image, step, total_steps)
+
+        active = dict(tex_preset.params)
+        active.update(params)
+        active["octaves"] = max(1, int(round(active.get("octaves", 5))))
+        active["scale"] = float(active.get("scale", tex_preset.params.get("scale", 8.0)))
+        contrast = float(active.pop("contrast", 1.0))
+        brightness = float(active.pop("brightness", 1.0))
+        transparent_below = float(active.pop("transparent_below", 0.0))
+
+        generator_fn = generators[tex_preset.generator]
+        preview_params = dict(active)
+        preview_params["octaves"] = max(1, min(active["octaves"], 2))
+        preview = generator_fn(args.size, args.size, seed=args.seed, **preview_params)
+        emit(render_noise_texture(preview, colormap="gray"), 1, 3)
+
+        noise_arr = generator_fn(args.size, args.size, seed=args.seed, **active)
+        noise_arr = np.clip((noise_arr - 0.5) * contrast + 0.5, 0.0, 1.0)
+        noise_arr = np.clip(noise_arr * brightness, 0.0, 1.0)
+        emit(render_noise_texture(noise_arr, colormap=tex_preset.colormap), 2, 3)
+
+        final_img = render_noise_texture(
+            noise_arr,
+            colormap=tex_preset.colormap,
+            palette=palette,
+            transparent_below=transparent_below if transparent_below > 0 else None,
+        )
+        emit(final_img, 3, 3)
+        return final_img
+
+    mode = RunMode(args.mode)
+    engine = SelfEvolutionEngine(project_root=root, mode=mode, verbose=True)
+    result = engine.run(
+        generator=generator,
+        space=space,
+        palette=palette,
+        max_iterations=args.iterations,
+        population_size=args.population,
+        seed=args.seed,
+    )
+
+    if args.output:
+        out_path = Path(args.output)
+    else:
+        out_dir = ws.get_output_path("textures", "").parent / "textures"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"evolution_{args.preset}_{args.size}px_seed{args.seed}.png"
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if result.best_image is not None:
+        result.best_image.save(out_path)
+        print(f"Saved best image: {out_path}")
+    else:
+        print("Warning: best image was not available to save")
+
+    meta_path = out_path.with_suffix(".json")
+    meta_path.write_text(json.dumps({
+        "target": args.target,
+        "preset": args.preset,
+        "mode": args.mode,
+        "seed": args.seed,
+        "iterations": result.iterations,
+        "converged": result.converged,
+        "best_score": result.best_score,
+        "best_params": result.best_params,
+        "history": result.history,
+        "palette_source": "sprite_library" if palette else "none",
+    }, indent=2), encoding="utf-8")
+    print(f"Saved run metadata: {meta_path}")
 
 
 def _cmd_texture(args):

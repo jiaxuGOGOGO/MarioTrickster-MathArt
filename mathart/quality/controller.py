@@ -396,8 +396,22 @@ class ArtMathQualityController:
             [-1, 4, -1],
             [0, -1, 0],
         ], dtype=float)
-        from scipy.ndimage import convolve
-        response = convolve(arr, lap)
+        try:
+            from scipy.ndimage import convolve
+            response = convolve(arr, lap)
+        except ModuleNotFoundError:
+            padded = np.pad(arr, 1, mode="edge")
+            response = (
+                lap[0, 0] * padded[:-2, :-2] +
+                lap[0, 1] * padded[:-2, 1:-1] +
+                lap[0, 2] * padded[:-2, 2:] +
+                lap[1, 0] * padded[1:-1, :-2] +
+                lap[1, 1] * padded[1:-1, 1:-1] +
+                lap[1, 2] * padded[1:-1, 2:] +
+                lap[2, 0] * padded[2:, :-2] +
+                lap[2, 1] * padded[2:, 1:-1] +
+                lap[2, 2] * padded[2:, 2:]
+            )
         sharpness = float(np.clip(response.var() / 1000.0, 0, 1))
         return sharpness
 

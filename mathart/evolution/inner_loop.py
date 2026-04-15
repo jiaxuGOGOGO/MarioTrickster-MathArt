@@ -23,6 +23,7 @@ External references incorporated:
 """
 from __future__ import annotations
 
+import inspect
 import logging
 import time
 from dataclasses import dataclass, field
@@ -38,6 +39,10 @@ from ..distill.optimizer import EvolutionaryOptimizer, FitnessResult
 from ..evaluator.evaluator import AssetEvaluator, EvaluationResult
 
 logger = logging.getLogger(__name__)
+
+
+class _MidGenerationRetry(RuntimeError):
+    """Internal signal used when mid-generation QC requests a retry."""
 
 
 # ── Run mode ───────────────────────────────────────────────────────────────────
@@ -217,6 +222,52 @@ class InnerLoopRunner:
             logger.debug("Sprite constraint injection skipped: %s", e)
             return 0
 
+    def _generator_supports_progress_callback(self, generator: Callable) -> bool:
+        """Return True if the generator accepts a progress callback kwarg."""
+        try:
+            sig = inspect.signature(generator)
+        except (TypeError, ValueError):
+            return False
+
+        params = sig.parameters.values()
+        if any(p.name == "progress_callback" for p in params):
+            return True
+        return any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params)
+
+    def _generate_with_mid_checkpoint(
+        self,
+        generator: Callable,
+        params: dict,
+        iteration: int,
+        controller,
+        checkpoint_log: list,
+    ) -> Image.Image:
+        """Run the generator and invoke MID_GENERATION when progress is exposed."""
+        if controller is None or not self._generator_supports_progress_callback(generator):
+            return generator(params)
+
+        from ..quality.checkpoint import CheckpointDecision
+
+        def progress_callback(partial_image: Image.Image, step: int, total_steps: int) -> None:
+            try:
+                mid_result = controller.mid_generation(
+                    iteration=iteration,
+                    partial_image=partial_image,
+                    step=step,
+                    total_steps=total_steps,
+                )
+                checkpoint_log.append(mid_result)
+                if mid_result.decision == CheckpointDecision.RETRY:
+                    raise _MidGenerationRetry(
+                        mid_result.message or "Mid-generation checkpoint requested retry"
+                    )
+            except _MidGenerationRetry:
+                raise
+            except Exception as e:
+                logger.debug("Mid-generation QC error (non-fatal): %s", e)
+
+        return generator(params, progress_callback=progress_callback)
+
     # ── Main run method ────────────────────────────────────────────────────
 
     def run(
@@ -293,7 +344,18 @@ class InnerLoopRunner:
 
             # --- GENERATE ---
             try:
-                image = generator(active_params)
+                image = self._generate_with_mid_checkpoint(
+                    generator=generator,
+                    params=active_params,
+                    iteration=len(history),
+                    controller=controller,
+                    checkpoint_log=checkpoint_log,
+                )
+            except _MidGenerationRetry as e:
+                return FitnessResult(
+                    score=0.0,
+                    details={"retry": True, "reason": str(e), "params": active_params},
+                )
             except Exception as e:
                 return FitnessResult(score=0.0, details={"error": str(e)})
 

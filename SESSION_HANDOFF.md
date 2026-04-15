@@ -4,9 +4,9 @@
 > This document is auto-generated and always reflects the latest project state.
 
 ## Project Overview
-- **Current version**: 0.8.0
-- **Last updated**: 2026-04-16T00:00:00Z
-- **Last session**: SESSION-008 (audit & task integration)
+- **Current version**: 0.9.0
+- **Last updated**: 2026-04-15T03:56:03Z
+- **Last session**: SESSION-009 (CLI run + full QC loop integration)
 - **Best quality score achieved**: 0.000
 - **Total iterations run**: 0
 
@@ -48,16 +48,6 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 
 ## Pending Tasks (Priority Order)
 
-### [HIGH] `TASK-009`: Add CLI Command to Run Evolution Loop
-- **Status**: Not started
-- **Remaining Gap**: The `InnerLoopRunner` and `EvolutionaryOptimizer` are fully implemented, but there is no CLI command to actually start the evolution process. Need to add `mathart-evolve run` to `cli.py` so the user can watch the generation process in the terminal.
-- **File**: `mathart/evolution/cli.py`
-
-### [HIGH] `TASK-001`: Complete QC Controller Integration
-- **Status**: 3/4 checkpoints done (`pre_generation`, `post_generation`, `iteration_end` integrated)
-- **Remaining Gap**: The `mid_generation` checkpoint is implemented in `ArtMathQualityController` but not yet called in `InnerLoopRunner`. This is the final step to ensure knowledge and math models guide the generation process throughout, not just at the end.
-- **File**: `mathart/evolution/inner_loop.py`
-
 ### [MEDIUM] `TASK-010`: Upgrade Evolutionary Optimizer
 - **Status**: Basic implementation (Genetic Algorithm)
 - **Remaining Gap**: The current `EvolutionaryOptimizer` uses a basic GA (tournament selection, crossover, mutation). This is sufficient for simple parameters but will converge too slowly for high-dimensional spaces. Needs an upgrade path to CMA-ES or Bayesian Optimization.
@@ -80,9 +70,11 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 ---
 
 ### [DONE] Completed Tasks
+- `TASK-001`: Complete QC Controller Integration (`mid_generation` now wired into `InnerLoopRunner`; retry-aware progress callbacks supported; scipy-free quick quality fallback) — SESSION-009
 - `TASK-002`: Sprite reference upload workflow (CLI: add-sprite, add-sheet, sprites) — SESSION-006
 - `TASK-004`: Noise texture generator (Perlin, Simplex, fBm, ridged, turbulence, domain warp) — SESSION-007
 - `TASK-006`: Workspace management (inbox hot folder, output classification, file picker) — SESSION-007
+- `TASK-009`: Add CLI command to run evolution loop (`mathart-evolve run` with built-in texture target and JSON metadata export) — SESSION-009
 
 ---
 
@@ -97,6 +89,14 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 ---
 
 ## Recent Evolution History (Last 5 Sessions)
+
+### SESSION-009 — v0.9.0 (2026-04-15)
+- Best score: 0.000 | Tests: 66
+  - TASK-009 DONE: added `mathart-evolve run` with a built-in texture evolution target
+  - TASK-001 DONE: integrated `mid_generation` checkpoint into `InnerLoopRunner`
+  - Added retry-aware progress callback path for multi-step generators
+  - Added scipy-free fallback in quick quality check so mid-generation QC works in minimal environments
+  - Added regression tests for CLI run and mid-generation checkpoint invocation
 
 ### SESSION-008 — v0.8.0 (2026-04-16)
 - Audit & task integration session
@@ -140,10 +140,10 @@ Please refer to `HOW_TO_TALK_TO_AI.md` for the complete workflow on how to start
 5. **Review the Core Vision section above** to understand the three-loop architecture and quality principles.
 6. **CRITICAL — AI Greeting & Menu**: After reading this document, the AI MUST greet the user and present the following interactive menu to let the user choose the next action:
 
-   > **Welcome back! I have read the project state (v0.8.0). What would you like to do next?**
+   > **Welcome back! I have read the project state (v0.9.0). What would you like to do next?**
    > 
    > 1. **Distill Knowledge (Continuous)**: Upload a PDF, book, or Sprite image now. I will extract the math/art rules, inject them into the project, and optimize the evolution pipeline for better local generation.
-   > 2. **Continue Development**: Work on the highest priority pending task (e.g., TASK-001: Complete QC Controller Integration).
+   > 2. **Continue Development**: Work on the highest priority pending task (e.g., TASK-010: Upgrade Evolutionary Optimizer).
    > 3. **Mine Math Models**: Ask me to search the web/GitHub for specific math models (e.g., fluid dynamics, procedural animation) to add to the engine.
    > 4. **Diagnose Stagnation**: If your local evolution is stuck or producing identical results, paste the logs here and I will analyze the math-art conflicts.
 
@@ -153,4 +153,4 @@ Please refer to `HOW_TO_TALK_TO_AI.md` for the complete workflow on how to start
 10. Always push changes to GitHub after completing a task so the user can `git pull` and run evolution locally.
 
 ---
-*Auto-generated by ProjectMemory at 2026-04-16T00:00:00Z*
+*Auto-generated by ProjectMemory at 2026-04-15T03:56:03Z*
