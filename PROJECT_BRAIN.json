@@ -1,100 +1,110 @@
 {
   "version": "0.8.0",
-  "last_session_id": "SESSION-007",
-  "last_updated": "2026-04-15T22:00:00Z",
+  "last_session_id": "SESSION-008",
+  "last_updated": "2026-04-16T00:00:00Z",
   "best_quality_score": 0.0,
   "total_iterations": 0,
-  "distill_session_id": "DISTILL-005",
+  "distill_session_id": "DISTILL-008",
   "mine_session_id": "MINE-001",
-  "sprite_count": 0,
+  "sprite_count": 1,
   "knowledge_rule_count": 6,
   "math_model_count": 10,
+  "core_vision": {
+    "summary": "Self-evolving math-driven art engine with three interlocking loops",
+    "loop_1_internal": "Local autonomous evolution: math models + knowledge constraints guide generation throughout the entire pipeline (not just final scoring). Must run without AI (AUTONOMOUS mode) and never block on missing AI connection.",
+    "loop_2_distillation": "User uploads PDFs/books/Sprites to Manus chat -> Manus manually distills into knowledge/*.md and math constraints -> pushes to GitHub -> user pulls and runs evolution. Preferred high-quality method.",
+    "loop_3_math_mining": "Manus proactively searches academic papers, GitHub projects, Reddit for relevant math models -> converts to code -> registers in math_registry.py.",
+    "quality_principles": [
+      "No invalid iterations: detect consecutive identical outputs, diagnose root cause, report and halt safely",
+      "Knowledge permeates everything: math and art rules guide every stage of generation",
+      "Simplicity at core: external tools (GPU, Unity, SD) are optional add-ons",
+      "Pseudo-3D ready: preserve extension paths for future pseudo-3D rendering",
+      "Cross-session continuity: every new conversation picks up via SESSION_HANDOFF.md",
+      "Deduplication without loss: remove duplicates but never discard valuable knowledge"
+    ],
+    "collaboration_model": "Manus executes code/knowledge tasks -> pushes to GitHub -> User pulls, runs, reports results -> Manus optimizes. User handles local-only tasks (GPU setup, software install)."
+  },
   "pending_tasks": [
     {
       "task_id": "TASK-001",
-      "description": "Integrate ArtMathQualityController into the main InnerLoop pipeline",
+      "description": "Full-Pipeline Quality Control & Invalid Iteration Prevention",
       "priority": "high",
       "depends_on": [],
       "created_at": "2026-04-14T16:35:53Z",
-      "status": "mostly_done",
-      "notes": "3 of 4 checkpoints integrated (pre/post/iteration_end). mid_generation not invoked because current generator is single-step. Bug fixed: _try_widen_space now correctly accesses optimizer.space.",
+      "status": "in_progress",
+      "notes": "EXPANDED SCOPE: (1) Complete mid_generation checkpoint — knowledge/math guide entire generation, not just final score. (2) Enhance StagnationGuard to detect consecutive identical outputs, auto-diagnose root cause (math-art conflict, parameter exhaustion), generate structured report. (3) AUTONOMOUS mode must run stably without AI — never block iteration. (4) ASSISTED mode enables deeper AI arbitration via API proxy.",
       "context": {
-        "file": "mathart/evolution/inner_loop.py"
+        "files": ["mathart/evolution/inner_loop.py", "mathart/evolution/stagnation.py", "mathart/quality/controller.py"]
       }
     },
     {
-      "task_id": "TASK-002",
-      "description": "Add sprite reference upload workflow to CLI (mathart-evolve add-sprite)",
+      "task_id": "TASK-007",
+      "description": "External Knowledge & Math Model Continuous Injection (The Distillation Engine)",
       "priority": "high",
       "depends_on": [],
-      "created_at": "2026-04-14T16:35:53Z",
-      "status": "done",
-      "completed_at": "2026-04-15T12:00:00Z",
-      "notes": "Implemented: add-sprite, add-sheet, sprites commands. 9 new tests.",
+      "created_at": "2026-04-15T23:00:00Z",
+      "status": "ongoing",
+      "notes": "EXPANDED SCOPE: (1) PDF/Book distillation: user uploads -> Manus extracts -> writes knowledge/*.md. (2) Math paper mining: Manus searches papers/GitHub/Reddit -> converts to code -> registers models. (3) Sprite/Asset learning: analyze user Sprites for math features -> inject constraints. (4) GitHub/Reddit scouting: reference excellent projects. (5) Strict deduplication but never discard valuable knowledge. Next distill session: DISTILL-008.",
       "context": {
-        "file": "mathart/evolution/cli.py"
+        "files": ["knowledge/*.md", "mathart/distill/parser.py", "mathart/evolution/math_registry.py", "mathart/evolution/paper_miner.py"]
+      }
+    },
+    {
+      "task_id": "TASK-008",
+      "description": "Unity Shader Integration & Pseudo-3D Extension Path",
+      "priority": "medium",
+      "depends_on": [],
+      "created_at": "2026-04-16T00:00:00Z",
+      "status": "not_started",
+      "notes": "NEW TASK: (1) Study and integrate Unity Shader techniques (normal maps, lighting, post-processing). (2) Design extension interfaces for future pseudo-3D rendering (parallax layers, depth-based lighting, sprite stacking). (3) Document clear roadmap from 2D to pseudo-3D.",
+      "context": {
+        "files": ["mathart/export/bridge.py"]
       }
     },
     {
       "task_id": "TASK-003",
-      "description": "Connect LevelSpecBridge to ExportBridge for auto-sized asset export",
+      "description": "Level Generation → Asset Export Pipeline Connection",
       "priority": "medium",
-      "depends_on": [
-        "TASK-001"
-      ],
+      "depends_on": ["TASK-001"],
       "created_at": "2026-04-14T16:35:53Z",
-      "context": {}
-    },
-    {
-      "task_id": "TASK-004",
-      "description": "Implement Perlin/Simplex noise texture generator (fill TEXTURE capability gap)",
-      "priority": "high",
-      "depends_on": [],
-      "created_at": "2026-04-14T16:35:53Z",
-      "status": "done",
-      "completed_at": "2026-04-15T22:00:00Z",
-      "notes": "Implemented: mathart/sdf/noise.py with Perlin, Simplex, fBm, ridged, turbulence, domain warp. 6 presets (terrain/clouds/lava/water/stone/magic). 7 colormaps. Registered as noise_texture_generator in math registry. 44 new tests.",
+      "status": "not_started",
+      "notes": "Connect LevelSpecBridge to ExportBridge for auto-sized asset export based on level requirements.",
       "context": {
-        "files": ["mathart/sdf/noise.py", "mathart/evolution/math_registry.py"]
+        "file": "mathart/export/bridge.py"
       }
     },
     {
       "task_id": "TASK-005",
-      "description": "Add GPU-accelerated rendering path when CUDA is available",
+      "description": "External Compute & Hardware Acceleration (Optional)",
       "priority": "low",
-      "depends_on": [
-        "DIFFERENTIABLE_RENDERING gap resolved"
-      ],
+      "depends_on": [],
       "created_at": "2026-04-14T16:35:53Z",
       "status": "not_started",
+      "notes": "EXPANDED SCOPE: (1) CUDA-accelerated differentiable rendering when GPU available. (2) Stable Diffusion / AI image model API integration for higher-quality sprites. (3) All hardware acceleration is OPTIONAL — core system must always work without it.",
       "context": {
         "file": "mathart/sdf/renderer.py"
       }
     },
     {
-      "task_id": "TASK-007",
-      "description": "PDF Distillation — inject reference knowledge into the project",
-      "priority": "high",
-      "depends_on": [],
-      "created_at": "2026-04-15T23:00:00Z",
-      "status": "ongoing",
-      "notes": "Primary knowledge injection method. User uploads PDFs to Manus chat -> Manus reads and distills -> writes to knowledge/*.md -> pushes to GitHub -> user pulls and runs evolution. Next session ID: DISTILL-008.",
-      "context": {
-        "files": ["knowledge/*.md", "mathart/distill/parser.py", "mathart/evolution/math_registry.py"]
-      }
+      "task_id": "TASK-002",
+      "description": "Sprite reference upload workflow (CLI)",
+      "priority": "done",
+      "status": "done",
+      "completed_at": "2026-04-15T12:00:00Z"
+    },
+    {
+      "task_id": "TASK-004",
+      "description": "Noise texture generator",
+      "priority": "done",
+      "status": "done",
+      "completed_at": "2026-04-15T22:00:00Z"
     },
     {
       "task_id": "TASK-006",
-      "description": "Workspace management: inbox hot folder + output classification + file picker",
-      "priority": "high",
-      "depends_on": [],
-      "created_at": "2026-04-15T22:00:00Z",
+      "description": "Workspace management (inbox/output/file picker)",
+      "priority": "done",
       "status": "done",
-      "completed_at": "2026-04-15T22:00:00Z",
-      "notes": "Implemented: mathart/workspace/manager.py with WorkspaceManager (inbox/output dirs), pick_files() GUI dialog, auto-scan & process. CLI commands: init-workspace, scan, pick, texture.",
-      "context": {
-        "files": ["mathart/workspace/manager.py", "mathart/evolution/cli.py"]
-      }
+      "completed_at": "2026-04-15T22:00:00Z"
     }
   ],
   "capability_gaps": [
@@ -125,21 +135,6 @@
       "session_id": "SESSION-005",
       "timestamp": "2026-04-14T16:35:53Z",
       "version": "0.6.0",
-      "changes": [
-        "Added SpriteAnalyzer: extract style fingerprints from reference sprites",
-        "Added SpriteSheetParser: auto-cut spritesheets into frames",
-        "Added SpriteLibrary: persistent, dedup-aware sprite knowledge store",
-        "Added ArtMathQualityController: 4-checkpoint quality control across full pipeline",
-        "Added ProjectMemory: cross-session persistent brain (PROJECT_BRAIN.json)",
-        "Added SessionHandoff: seamless context continuity across conversations",
-        "Added LevelSpecBridge: translate level requirements to asset specs",
-        "Added StagnationGuard: invalid iteration detection + AI arbitration",
-        "Added DeduplicationEngine: knowledge dedup with semantic similarity",
-        "Added Unity Shader knowledge module + Pseudo3D extension skeleton",
-        "Added MathPaperMiner: automated math model paper discovery",
-        "Added 6 knowledge files: PCG, PBR, SDF, color science, procedural animation, differentiable rendering",
-        "Total: 371 tests passing, 0 failures"
-      ],
       "best_score": 0.0,
       "test_count": 371,
       "notes": "Major architecture upgrade: self-evolving brain system fully operational"
@@ -148,16 +143,6 @@
       "session_id": "SESSION-006",
       "timestamp": "2026-04-15T12:00:00Z",
       "version": "0.7.0",
-      "changes": [
-        "TASK-002 DONE: Added mathart-evolve add-sprite CLI command",
-        "TASK-002 DONE: Added mathart-evolve add-sheet CLI command (spritesheet auto-cut)",
-        "TASK-002 DONE: Added mathart-evolve sprites CLI command (library status)",
-        "BUG FIX: _try_widen_space() now correctly accesses optimizer.space (was optimizer._space)",
-        "TASK-001 PROGRESS: 3/4 checkpoints integrated; mid_generation deferred (single-step generator)",
-        "Added 9 new tests (test_cli_sprite.py): CLI add-sprite, add-sheet, sprites, widen-space fix",
-        "Updated README test count: 371 -> 380",
-        "Total: 380 tests passing, 0 failures"
-      ],
       "best_score": 0.0,
       "test_count": 380,
       "notes": "TASK-002 complete, TASK-001 bug fix, CLI sprite workflow operational"
@@ -166,36 +151,17 @@
       "session_id": "SESSION-007",
       "timestamp": "2026-04-15T22:00:00Z",
       "version": "0.8.0",
-      "changes": [
-        "TASK-004 DONE: Implemented noise texture generator (mathart/sdf/noise.py)",
-        "  - Perlin 2D noise with improved fade curve",
-        "  - Simplex 2D noise on simplex lattice",
-        "  - fBm (fractional Brownian motion) with configurable octaves/lacunarity/persistence",
-        "  - Ridged multi-fractal noise for terrain/water caustics",
-        "  - Turbulence noise for smoke/fire/magic effects",
-        "  - Domain warping for organic distortions (lava, marble)",
-        "  - 6 presets: terrain, clouds, lava, water, stone, magic",
-        "  - 7 colormaps: gray, earth, sky, lava, water, stone, magic",
-        "  - Registered as noise_texture_generator (stable) in MathModelRegistry",
-        "  - TEXTURE capability gap RESOLVED: now 9 stable + 1 experimental models",
-        "TASK-006 DONE: Workspace management system",
-        "  - inbox/ hot folder with sprites/, sheets/, knowledge/ subdirectories",
-        "  - output/ classified storage: textures/, effects/, palettes/, characters/, levels/, exports/",
-        "  - Auto-scan & process: mathart-evolve scan",
-        "  - GUI file picker: mathart-evolve pick (tkinter, falls back gracefully)",
-        "  - File picker integrated into add-sprite/add-sheet (omit path to open dialog)",
-        "  - Texture generation CLI: mathart-evolve texture [preset]",
-        "  - Workspace init CLI: mathart-evolve init-workspace",
-        "Added 44 new tests (test_noise_texture.py)",
-        "Total: 424 tests passing, 0 failures"
-      ],
       "best_score": 0.0,
       "test_count": 424,
       "notes": "TEXTURE gap closed, workspace management operational, 10 math models"
+    },
+    {
+      "session_id": "SESSION-008",
+      "timestamp": "2026-04-16T00:00:00Z",
+      "version": "0.8.0",
+      "best_score": 0.0,
+      "test_count": 424,
+      "notes": "Audit & task integration: comprehensive requirement review, task deduplication, expanded scopes, added TASK-008, recorded core vision with three-loop architecture"
     }
-  ],
-  "custom_notes": {
-    "core_vision": "User uploads PDFs to Manus -> Manus manually distills knowledge into knowledge/*.md tables and math models -> Manus pushes to GitHub -> User pulls locally and runs autonomous evolution.",
-    "distillation_strategy": "Prefer manual high-quality distillation by Manus over automated LLM extraction. When user uploads a PDF, read it, extract mathematical/artistic rules, and write them directly to the knowledge base."
-  }
+  ]
 }
