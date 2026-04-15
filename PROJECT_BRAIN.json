@@ -1,7 +1,7 @@
 {
-  "version": "0.16.0",
-  "last_session_id": "SESSION-016",
-  "last_updated": "2026-04-15T08:00:00Z",
+  "version": "0.16.1",
+  "last_session_id": "SESSION-016-Audit",
+  "last_updated": "2026-04-15T08:30:00Z",
   "best_quality_score": 0.0,
   "total_iterations": 0,
   "distill_session_id": "DISTILL-008",
@@ -114,8 +114,8 @@
       "depends_on": ["TASK-002"],
       "created_at": "2026-04-15T05:55:13Z",
       "status": "done",
-      "completed_at": "2026-04-15T08:00:00Z",
-      "notes": "Completed in SESSION-016. Created ImageToMathInference module that analyzes reference images to infer color parameters (OKLAB clustering), shape parameters (morphological analysis), character anatomy (proportion detection), and texture parameters. Generates bounded Individual seeds for the evolutionary optimizer.",
+      "completed_at": "2026-04-15T08:30:00Z",
+      "notes": "Completed in SESSION-016 and strictly fixed in Audit. Created ImageToMathInference module and added mathart-evolve infer CLI to extract constraints from reference images and optionally start evolution.",
       "context": {
         "files": [
           "mathart/sprite/image_to_math.py"
@@ -145,8 +145,8 @@
       "depends_on": ["TASK-003", "TASK-006"],
       "created_at": "2026-04-15T06:28:27Z",
       "status": "done",
-      "completed_at": "2026-04-15T08:00:00Z",
-      "notes": "Completed in SESSION-016. Added --from-level option to mathart-export CLI that reads level spec JSON, validates all referenced assets via LevelSpecBridge, and exports through AssetExporter with full metadata and manifests.",
+      "completed_at": "2026-04-15T08:30:00Z",
+      "notes": "Completed in SESSION-016 and strictly fixed in Audit. Added --from-level option to mathart-export CLI that reads level spec JSON, validates all referenced assets via LevelSpecBridge, and exports through AssetExporter with full metadata and manifests.",
       "context": {
         "files": [
           "mathart/export/cli.py"
@@ -160,8 +160,8 @@
       "depends_on": ["TASK-012"],
       "created_at": "2026-04-15T06:17:44Z",
       "status": "done",
-      "completed_at": "2026-04-15T08:00:00Z",
-      "notes": "Completed in SESSION-016. Created ScaffoldGraduator with candidate->experimental->stable lifecycle, multi-check validation (module exists, importable, callable, smoke test, valid output, no GPU dep, documented), batch graduation, demotion support, and GRADUATION_LOG.md audit trail.",
+      "completed_at": "2026-04-15T08:30:00Z",
+      "notes": "Completed in SESSION-016 and strictly fixed in Audit. Created ScaffoldGraduator and added mathart-evolve graduate CLI for candidate->experimental->stable lifecycle with batch graduation and dry-run audit.",
       "context": {
         "files": [
           "mathart/evolution/graduation.py"

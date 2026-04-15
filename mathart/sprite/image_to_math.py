@@ -25,7 +25,6 @@ References:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Optional
 
 import numpy as np
@@ -47,7 +46,7 @@ class InferenceResult:
 
     def summary(self) -> str:
         lines = [
-            f"Image-to-Math Inference Result",
+            "Image-to-Math Inference Result",
             f"  Source: {self.fingerprint.source_name} ({self.fingerprint.sprite_type})",
             f"  Parameters: {len(self.parameter_space.constraints)}",
             f"  Confidence: {self.confidence:.2f}",

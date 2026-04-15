@@ -1,9 +1,7 @@
 """Tests for scaffold graduation workflow (TASK-015)."""
 from __future__ import annotations
 
-import json
 import pytest
-from pathlib import Path
 
 from mathart.evolution.graduation import (
     ScaffoldGraduator,

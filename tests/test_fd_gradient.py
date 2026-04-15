@@ -1,7 +1,6 @@
 """Tests for the finite-difference gradient optimizer (TASK-013)."""
 from __future__ import annotations
 
-import pytest
 
 from mathart.distill.compiler import ParameterSpace, Constraint
 from mathart.distill.optimizer import Individual, FitnessResult

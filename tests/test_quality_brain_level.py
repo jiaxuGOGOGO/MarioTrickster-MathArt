@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import json
-import pytest
-from pathlib import Path
 from PIL import Image
 
 from mathart.quality.controller import ArtMathQualityController
@@ -82,7 +80,7 @@ class TestArtMathQualityController:
     def test_score_trend_improving(self, tmp_path):
         """Score trend should detect improvement."""
         ctrl = ArtMathQualityController(project_root=tmp_path, target_score=0.99)
-        img = make_test_image(32, 32)
+        make_test_image(32, 32)  # ensure image creation works
         for i, score in enumerate([0.3, 0.4, 0.5, 0.6, 0.7]):
             ctrl._score_history.append(score)
         trend = ctrl.get_score_trend()
@@ -273,7 +271,7 @@ class TestSessionHandoff:
 
     def test_summary(self, tmp_path):
         """Summary should contain key project info."""
-        mem = ProjectMemory(project_root=tmp_path)
+        ProjectMemory(project_root=tmp_path)  # side effect: creates memory files
         handoff = SessionHandoff.read(tmp_path)
         summary = handoff.summary()
         assert "MarioTrickster-MathArt" in summary

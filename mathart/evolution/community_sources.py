@@ -30,7 +30,6 @@ import os
 import re
 import textwrap
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -132,7 +131,7 @@ class PapersWithCodeSource(CommunitySource):
             quality = 0.6
             relevance = (applicability + implementability + novelty + quality) / 4.0
 
-            notes = f"Papers with Code entry. "
+            notes = "Papers with Code entry. "
             if has_code:
                 notes += f"Implementation: {repo_url}. "
             notes += f"Capabilities: {', '.join(capabilities) or 'general'}."
@@ -281,7 +280,7 @@ class ShadertoySource(CommunitySource):
             quality=0.5,
             relevance_score=0.6 if capabilities else 0.35,
             capabilities=capabilities,
-            implementation_notes=f"Shadertoy shader. GLSL code available for SDF/noise porting.",
+            implementation_notes="Shadertoy shader. GLSL code available for SDF/noise porting.",
             requires_gpu=False,  # We port to CPU Python
             requires_external="",
             metadata={"shader_id": shader_id, "username": username},

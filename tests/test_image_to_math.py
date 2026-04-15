@@ -1,7 +1,6 @@
 """Tests for Image-to-Math parameter inference (TASK-014)."""
 from __future__ import annotations
 
-import pytest
 import numpy as np
 from PIL import Image
 

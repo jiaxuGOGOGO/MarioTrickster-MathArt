@@ -33,12 +33,11 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Callable, Optional
+from typing import Optional
 
-import numpy as np
 
 from .compiler import ParameterSpace
-from .optimizer import FitnessFunction, FitnessResult, Individual
+from .optimizer import FitnessFunction, Individual
 
 
 @dataclass

@@ -23,8 +23,6 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
-import json
-import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -412,7 +410,7 @@ class ScaffoldGraduator:
 
             spec = importlib.util.spec_from_file_location(model.module_path, full_path)
             if spec is None or spec.loader is None:
-                return False, f"Cannot create import spec"
+                return False, "Cannot create import spec"
 
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)

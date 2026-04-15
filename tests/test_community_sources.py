@@ -1,10 +1,7 @@
 """Tests for community source extensions (TASK-017)."""
 from __future__ import annotations
 
-import json
 import os
-import pytest
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from mathart.evolution.community_sources import (

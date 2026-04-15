@@ -111,6 +111,28 @@ def main(argv=None):
     p_tex.add_argument("--all", dest="gen_all", action="store_true",
                        help="Generate all 6 presets at once")
 
+    # infer (TASK-014 CLI)
+    p_infer = sub.add_parser("infer", help="Infer math parameters from a reference image")
+    p_infer.add_argument("image", help="Path to reference image file")
+    p_infer.add_argument("--type", dest="sprite_type", default="character",
+                         choices=["character", "enemy", "tile", "item", "effect"],
+                         help="Sprite type hint (default: character)")
+    p_infer.add_argument("--evolve", action="store_true",
+                         help="Immediately start evolution with inferred parameters")
+    p_infer.add_argument("--iterations", type=int, default=12,
+                         help="Evolution generations if --evolve (default: 12)")
+    p_infer.add_argument("--population", type=int, default=8,
+                         help="Population size if --evolve (default: 8)")
+
+    # graduate (TASK-015 CLI)
+    p_grad = sub.add_parser("graduate", help="Run graduation checks on mined model scaffolds")
+    p_grad.add_argument("--model", default=None,
+                        help="Specific model name to graduate (default: audit all)")
+    p_grad.add_argument("--dry-run", action="store_true",
+                        help="Report graduation readiness without promoting")
+    p_grad.add_argument("--batch", action="store_true",
+                        help="Graduate all ready candidates at once")
+
     # run (TASK-009)
     p_run = sub.add_parser("run", help="Run the evolution loop on a built-in target")
     p_run.add_argument("--target", default="texture",
@@ -168,6 +190,10 @@ def main(argv=None):
         _cmd_texture(args)
     elif args.command == "run":
         _cmd_run(args)
+    elif args.command == "infer":
+        _cmd_infer(args)
+    elif args.command == "graduate":
+        _cmd_graduate(args)
     else:
         parser.print_help()
 
@@ -680,7 +706,6 @@ def _cmd_run_sprite(args):
     palette = sprite_lib.export_palette() if sprite_lib.count() > 0 else None
 
     def generator(params, progress_callback=None):
-        import numpy as np
         from ..sdf.operations import scale as sdf_scale
 
         outline_w = float(params.get("outline_width", 0.03))
@@ -889,7 +914,7 @@ def _cmd_run_level_asset(args):
     from ..distill.compiler import Constraint, ParameterSpace
     from ..sdf.primitives import box
     from ..sdf.renderer import render_sdf
-    from ..level.spec_bridge import LevelSpecBridge, LevelSpec, LevelTheme, AssetCategory
+    from ..level.spec_bridge import LevelSpecBridge, AssetCategory
     from ..sprite.library import SpriteLibrary
     from ..workspace.manager import WorkspaceManager
     from .engine import SelfEvolutionEngine
@@ -912,9 +937,9 @@ def _cmd_run_level_asset(args):
     # Load or create LevelSpec
     bridge = LevelSpecBridge(project_root=root)
     if args.level_spec:
-        level_spec_data = bridge.load_spec(Path(args.level_spec))
+        _level_spec = bridge.load_spec(Path(args.level_spec))  # noqa: F841
     else:
-        level_spec_data = bridge.create_mario_style_spec("evolved_level")
+        _level_spec = bridge.create_mario_style_spec("evolved_level")  # noqa: F841
 
     space = ParameterSpace(name=f"evolve_{args.preset}_level_asset")
     space.add_constraint(Constraint(param_name="outline_width", min_value=0.01, max_value=0.1, default_value=0.05))
@@ -1053,6 +1078,164 @@ def _pick_single_file(title: str, file_type: str) -> str | None:
         multiple=False,
     )
     return str(files[0]) if files else None
+
+
+def _cmd_infer(args):
+    """TASK-014 CLI: Infer math parameters from a reference image."""
+    from PIL import Image
+    from ..sprite.image_to_math import ImageToMathInference
+
+    image_path = Path(args.image)
+    if not image_path.exists():
+        print(f"Error: Image file not found: {image_path}")
+        return
+
+    print(f"Analyzing reference image: {image_path}")
+    img = Image.open(image_path)
+    print(f"  Size: {img.width}x{img.height}, Mode: {img.mode}")
+
+    inferrer = ImageToMathInference()
+    result = inferrer.infer_from_image(img, sprite_type=args.sprite_type)
+
+    print(f"\n{result.summary()}")
+    print(f"\nInferred parameter space: {result.parameter_space.name}")
+    print(f"  Constraints: {len(result.parameter_space.constraints)}")
+    for name, constraint in result.parameter_space.constraints.items():
+        print(f"    {name}: [{constraint.min_value:.3f}, {constraint.max_value:.3f}] "
+              f"(default={constraint.default_value:.3f})")
+
+    print(f"\nSeed individual: {len(result.seed.params)} parameters")
+    for k, v in sorted(result.seed.params.items()):
+        print(f"    {k}: {v:.4f}")
+
+    # Save inference result
+    root = _find_project_root()
+    out_dir = root / "output" / "infer"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    import json
+    result_path = out_dir / f"infer_{image_path.stem}.json"
+    result_path.write_text(json.dumps({
+        "source_image": str(image_path),
+        "sprite_type": args.sprite_type,
+        "confidence": result.confidence,
+        "parameters": {k: v for k, v in result.seed.params.items()},
+        "constraints": {
+            name: {
+                "min": c.min_value,
+                "max": c.max_value,
+                "default": c.default_value,
+            }
+            for name, c in result.parameter_space.constraints.items()
+        },
+    }, indent=2), encoding="utf-8")
+    print(f"\nSaved inference result: {result_path}")
+
+    # Optionally start evolution with inferred parameters
+    if args.evolve:
+        print(f"\nStarting evolution with inferred seed (iterations={args.iterations})...")
+        from .engine import SelfEvolutionEngine
+        from .inner_loop import RunMode
+        from ..sdf.renderer import render_sdf
+        from ..sdf.primitives import circle
+        from ..oklab.palette import PaletteGenerator
+
+        gen = PaletteGenerator(seed=42)
+        palette = gen.generate("warm_cool_shadow", count=int(result.seed.params.get("palette_size", 6)))
+
+        def generator(params, progress_callback=None):
+            size = max(16, int(params.get("width", 32)))
+            sdf_fn = circle(0, 0, float(params.get("fill_ratio", 0.4)))
+            final = render_sdf(sdf_fn, size, size, palette)
+            if progress_callback:
+                progress_callback(final, 1, 1)
+            return final
+
+        engine = SelfEvolutionEngine(project_root=root, mode=RunMode.AUTONOMOUS, verbose=True)
+        evo_result = engine.run(
+            generator=generator,
+            space=result.parameter_space,
+            palette=palette,
+            max_iterations=args.iterations,
+            population_size=args.population,
+            seed=42,
+        )
+        if evo_result.best_image is not None:
+            evo_path = out_dir / f"evolved_{image_path.stem}.png"
+            evo_result.best_image.save(evo_path)
+            print(f"Saved evolved result: {evo_path}")
+
+
+def _cmd_graduate(args):
+    """TASK-015 CLI: Run graduation checks on mined model scaffolds."""
+    from .graduation import ScaffoldGraduator
+    from .math_registry import MathModelRegistry
+
+    root = _find_project_root()
+    registry = MathModelRegistry()
+    graduator = ScaffoldGraduator(project_root=root, registry=registry)
+
+    if args.model:
+        # Graduate a specific model
+        model = registry.get(args.model)
+        if model is None:
+            print(f"Error: Model '{args.model}' not found in registry.")
+            print(f"Available models: {', '.join(m.name for m in registry.list_all())}")
+            return
+
+        if args.dry_run:
+            print(f"Dry-run graduation check for: {args.model}")
+            report = graduator.audit_all()
+            for r in report.results:
+                if r.model_name == args.model:
+                    print(f"  Status: {r.new_status or 'no change'}")
+                    print(f"  Success: {r.success}")
+                    if r.checks_passed:
+                        print(f"  Checks passed: {', '.join(r.checks_passed)}")
+                    if r.checks_failed:
+                        print(f"  Checks failed: {', '.join(r.checks_failed)}")
+                    if r.message:
+                        print(f"  Message: {r.message}")
+                    break
+            else:
+                print(f"  Model '{args.model}' not found in audit results.")
+        else:
+            print(f"Graduating model: {args.model}")
+            result = graduator.graduate_candidate(args.model)
+            print(f"  Success: {result.success}")
+            print(f"  New status: {result.new_status or 'unchanged'}")
+            if result.checks_passed:
+                print(f"  Checks passed: {', '.join(result.checks_passed)}")
+            if result.checks_failed:
+                print(f"  Checks failed: {', '.join(result.checks_failed)}")
+            if result.message:
+                print(f"  Message: {result.message}")
+    elif args.batch:
+        # Graduate all ready candidates
+        print("Batch graduating all ready candidates...")
+        report = graduator.graduate_all_ready()
+        print("\nGraduation Report:")
+        print(f"  Total checked: {report.total_checked}")
+        print(f"  Promoted: {report.promoted}")
+        print(f"  Failed: {report.failed}")
+        print(f"  Skipped: {report.skipped}")
+        for r in report.results:
+            status = "PROMOTED" if r.success else "FAILED"
+            print(f"  [{status}] {r.model_name}: {r.message}")
+    else:
+        # Default: audit all models
+        print("Auditing all registered models...")
+        report = graduator.audit_all()
+        print("\nAudit Report:")
+        print(f"  Total checked: {report.total_checked}")
+        print(f"  Ready for promotion: {report.promoted}")
+        print(f"  Not ready: {report.failed}")
+        for r in report.results:
+            status_str = r.new_status or "no change"
+            ready = "READY" if r.success else "NOT READY"
+            print(f"  [{ready}] {r.model_name} ({status_str})")
+            if r.checks_failed:
+                for check in r.checks_failed:
+                    print(f"    - Failed: {check}")
 
 
 def _find_project_root() -> Path:

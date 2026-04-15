@@ -1,6 +1,7 @@
 """CLI for batch asset export."""
 from __future__ import annotations
 import argparse
+import json
 from pathlib import Path
 from .bridge import AssetExporter, ExportConfig
 
@@ -11,6 +12,10 @@ def main(argv=None):
     parser.add_argument("--style", default="Style_MathArt")
     parser.add_argument("--version", type=int, default=1)
     parser.add_argument("--generate-demo", action="store_true", help="Generate demo assets")
+    parser.add_argument("--from-level", default=None, metavar="LEVEL_SPEC_JSON",
+                        help="Export assets from a LevelSpec JSON file")
+    parser.add_argument("--validate-only", action="store_true",
+                        help="Only validate level spec without exporting (use with --from-level)")
     args = parser.parse_args(argv)
 
     config = ExportConfig(
@@ -19,10 +24,144 @@ def main(argv=None):
         version=args.version,
     )
 
-    if args.generate_demo:
+    if args.from_level:
+        _export_from_level(config, args.from_level, args.validate_only)
+    elif args.generate_demo:
         _generate_demo(config)
     else:
-        print("Use --generate-demo to create sample assets, or import AssetExporter in your scripts.")
+        print("Usage:")
+        print("  mathart-export --generate-demo              Generate demo assets")
+        print("  mathart-export --from-level spec.json       Export from level spec")
+        print("  mathart-export --from-level spec.json --validate-only")
+
+
+def _export_from_level(config: ExportConfig, level_spec_path: str, validate_only: bool = False):
+    """Export assets from a LevelSpec JSON file using LevelSpecBridge."""
+    from ..level.spec_bridge import LevelSpecBridge
+
+    spec_path = Path(level_spec_path)
+    if not spec_path.exists():
+        print(f"Error: Level spec file not found: {spec_path}")
+        return
+
+    bridge = LevelSpecBridge()
+    print(f"Loading level spec: {spec_path}")
+
+    try:
+        asset_spec = bridge.load_spec(spec_path)
+    except Exception as exc:
+        print(f"Error loading level spec: {exc}")
+        return
+
+    print(f"  Level ID: {asset_spec.level_id}")
+    print(f"  Theme: {asset_spec.theme.value}")
+    print(f"  Render mode: {asset_spec.render_mode.value}")
+    print(f"  Sprites defined: {len(asset_spec.sprites)}")
+
+    # Validate all sprites
+    exporter = AssetExporter(config)
+    validation_results = []
+    for sprite_spec in asset_spec.sprites:
+        result = {
+            "name": sprite_spec.name,
+            "category": sprite_spec.category.value,
+            "size": f"{sprite_spec.width}x{sprite_spec.height}",
+            "frames": sprite_spec.frame_count,
+            "palette_size": sprite_spec.palette_size,
+            "status": "ok",
+        }
+        validation_results.append(result)
+        print(f"  [{sprite_spec.category.value}] {sprite_spec.name}: "
+              f"{sprite_spec.width}x{sprite_spec.height}, "
+              f"{sprite_spec.frame_count} frame(s), "
+              f"palette={sprite_spec.palette_size}")
+
+    if validate_only:
+        print(f"\nValidation complete: {len(validation_results)} sprite(s) defined.")
+        print("No assets exported (--validate-only mode).")
+
+        # Write validation report
+        report_path = Path(config.output_dir) / "validation_report.json"
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report = {
+            "level_id": asset_spec.level_id,
+            "theme": asset_spec.theme.value,
+            "render_mode": asset_spec.render_mode.value,
+            "sprite_count": len(validation_results),
+            "sprites": validation_results,
+        }
+        report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+        print(f"Validation report: {report_path}")
+        return
+
+    # Generate placeholder assets for each sprite in the spec
+    from PIL import Image
+    from ..oklab.palette import PaletteGenerator
+
+    gen = PaletteGenerator(seed=42)
+    palettes = gen.generate_theme_palette(asset_spec.theme.value)
+    fallback_pal = gen.generate("warm_cool_shadow", count=6, name="fallback")
+
+    exported_count = 0
+    for sprite_spec in asset_spec.sprites:
+        # Pick palette based on category
+        cat_key = sprite_spec.category.value
+        pal = palettes.get(cat_key, palettes.get("ground", fallback_pal))
+
+        if sprite_spec.frame_count > 1:
+            # Create a placeholder spritesheet
+            sheet_w = sprite_spec.width * sprite_spec.frame_count
+            sheet_h = sprite_spec.height
+            img = Image.new("RGBA", (sheet_w, sheet_h), (0, 0, 0, 0))
+            # Fill each frame with a slightly different shade
+            for f in range(sprite_spec.frame_count):
+                for y in range(sheet_h):
+                    for x in range(sprite_spec.width):
+                        if 2 <= x < sprite_spec.width - 2 and 2 <= y < sheet_h - 2:
+                            ci = (f * 37) % max(1, len(pal))
+                            r, g, b = pal[ci] if ci < len(pal) else (128, 128, 128)
+                            img.putpixel((f * sprite_spec.width + x, y), (r, g, b, 255))
+
+            try:
+                exporter.export_spritesheet(
+                    img, sprite_spec.name, "Environment",
+                    frame_count=sprite_spec.frame_count,
+                    level_id=asset_spec.level_id,
+                    render_mode=asset_spec.render_mode.value,
+                    source_sprite_name=sprite_spec.name,
+                    tags=sprite_spec.tags,
+                )
+                exported_count += 1
+                print(f"  Exported: {sprite_spec.name} ({sprite_spec.frame_count} frames)")
+            except Exception as exc:
+                print(f"  Error exporting {sprite_spec.name}: {exc}")
+        else:
+            # Create a placeholder static sprite
+            img = Image.new("RGBA", (sprite_spec.width, sprite_spec.height), (0, 0, 0, 0))
+            for y in range(sprite_spec.height):
+                for x in range(sprite_spec.width):
+                    if 2 <= x < sprite_spec.width - 2 and 2 <= y < sprite_spec.height - 2:
+                        ci = 0
+                        r, g, b = pal[ci] if ci < len(pal) else (128, 128, 128)
+                        img.putpixel((x, y), (r, g, b, 255))
+
+            try:
+                exporter.export_sprite(
+                    img, sprite_spec.name, "Environment",
+                    level_id=asset_spec.level_id,
+                    render_mode=asset_spec.render_mode.value,
+                    source_sprite_name=sprite_spec.name,
+                    tags=sprite_spec.tags,
+                )
+                exported_count += 1
+                print(f"  Exported: {sprite_spec.name}")
+            except Exception as exc:
+                print(f"  Error exporting {sprite_spec.name}: {exc}")
+
+    # Save manifest
+    manifest_path = exporter.save_manifest()
+    print(f"\nManifest: {manifest_path}")
+    print(f"Total assets exported: {exported_count}")
 
 
 def _generate_demo(config: ExportConfig):

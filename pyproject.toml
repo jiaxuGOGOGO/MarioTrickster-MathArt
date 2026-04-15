@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mathart"
-version = "0.16.0"
+version = "0.16.1"
 description = "MarioTrickster Math-Driven Art Pipeline — procedural pixel art generation via OKLAB color science, SDF effects, programmatic skeletal animation, WFC level generation, L-System plants, and knowledge distillation."
 readme = "README.md"
 license = {text = "MIT"}
