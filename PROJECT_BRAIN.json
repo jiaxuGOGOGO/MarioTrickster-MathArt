@@ -1,7 +1,7 @@
 {
-  "version": "0.10.0",
-  "last_session_id": "SESSION-010",
-  "last_updated": "2026-04-15T04:09:59Z",
+  "version": "0.11.0",
+  "last_session_id": "SESSION-011",
+  "last_updated": "2026-04-15T04:23:23Z",
   "best_quality_score": 0.0,
   "total_iterations": 0,
   "distill_session_id": "DISTILL-008",
@@ -70,8 +70,9 @@
       "priority": "medium",
       "depends_on": [],
       "created_at": "2026-04-16T00:00:00Z",
-      "status": "not_started",
-      "notes": "MathPaperMiner currently uses an LLM to simulate searching for papers. Needs to be connected to real external APIs (arXiv API, GitHub Search API) to find the latest research.",
+      "status": "done",
+      "completed_at": "2026-04-15T04:23:23Z",
+      "notes": "Completed in SESSION-011. MathPaperMiner now queries the real arXiv Atom API and GitHub Search REST API, derives structured relevance scores from public metadata, supports optional GitHub token auth via environment variables, keeps the LLM as a fallback path, and adds regression coverage for live-source parsing and orchestration.",
       "context": {
         "file": "mathart/evolution/paper_miner.py"
       }
@@ -88,7 +89,6 @@
         "file": "mathart/export/bridge.py"
       }
     },
-
     {
       "task_id": "TASK-005",
       "description": "Hardware Acceleration & Unity Integration",
@@ -98,7 +98,10 @@
       "status": "blocked",
       "notes": "Code skeletons for differentiable rendering, Unity Shader knowledge, and Pseudo-3D are already implemented. Deep integration requires user to provide NVIDIA GPU (CUDA 11+) and/or Unity Editor access.",
       "context": {
-        "files": ["mathart/sdf/renderer.py", "mathart/shader/pseudo3d.py"]
+        "files": [
+          "mathart/sdf/renderer.py",
+          "mathart/shader/pseudo3d.py"
+        ]
       }
     },
     {
@@ -194,6 +197,14 @@
       "best_score": 0.0,
       "test_count": 110,
       "notes": "Completed TASK-010: upgraded EvolutionaryOptimizer with adaptive GA controls, elite-guided local search, random immigrants, cma_es_like sampling, and expanded regression coverage verified across distill, evolution, and quality test suites."
+    },
+    {
+      "session_id": "SESSION-011",
+      "timestamp": "2026-04-15T04:23:23Z",
+      "version": "0.11.0",
+      "best_score": 0.0,
+      "test_count": 58,
+      "notes": "Completed TASK-011: connected MathPaperMiner to the real arXiv Atom API and GitHub Search REST API, added optional authenticated GitHub requests, retained LLM fallback behavior, and verified live-source parsing plus project-memory compatibility through regression tests."
     }
   ]
 }

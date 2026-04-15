@@ -1,12 +1,11 @@
-# SESSION HANDOFF — MarioTrickster-MathArt
 
 > **READ THIS FIRST** if you are starting a new conversation about this project.
 > This document is auto-generated and always reflects the latest project state.
 
 ## Project Overview
-- **Current version**: 0.10.0
-- **Last updated**: 2026-04-15T04:09:59Z
-- **Last session**: SESSION-010 (adaptive optimizer upgrade)
+- **Current version**: 0.11.0
+- **Last updated**: 2026-04-15T04:23:23Z
+- **Last session**: SESSION-011 (MathPaperMiner real API integration)
 - **Best quality score achieved**: 0.000
 - **Total iterations run**: 0
 
@@ -30,7 +29,7 @@ The project runs locally on the user's machine, generating art assets through ma
 The user uploads PDFs (art books, game design docs, reference materials) to the Manus chat. Manus reads, understands, and distills the knowledge into structured `knowledge/*.md` files and mathematical constraints. This is the **primary** way to improve the project. Manus also analyzes user-provided Sprite/SpriteSheet references to extract mathematical features. All injected knowledge is **deduplicated** but never at the cost of missing valuable information.
 
 ### Loop 3: Math Model Discovery (External, Manus-Driven)
-Manus proactively searches academic papers, GitHub projects, and Reddit discussions for relevant mathematical models. Useful models are converted into code and registered in the math registry. This covers: procedural generation, physics simulation, color science, animation math, shader math, and any other domain relevant to pixel art game asset creation.
+Manus proactively searches academic papers, GitHub projects, and Reddit discussions for relevant mathematical models. Useful models are converted into code and registered in the math registry. This covers procedural generation, physics simulation, color science, animation math, shader math, and any other domain relevant to pixel art game asset creation.
 
 ### Quality Principles
 - **No invalid iterations**: If consecutive outputs are identical or show no improvement, the system must detect this, analyze the root cause (e.g., math-art conflict), generate a diagnostic report, and safely halt for human review.
@@ -47,11 +46,6 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 ---
 
 ## Pending Tasks (Priority Order)
-
-### [MEDIUM] `TASK-011`: Connect MathPaperMiner to Real APIs
-- **Status**: Basic implementation (LLM simulation)
-- **Remaining Gap**: `MathPaperMiner` currently uses an LLM to "simulate" searching for papers based on its training data. It needs to be connected to real external APIs (arXiv API, GitHub Search API) to find the latest research.
-- **File**: `mathart/evolution/paper_miner.py`
 
 ### [MEDIUM] `TASK-003`: Connect LevelSpecBridge to ExportBridge
 - **Status**: Not started
@@ -71,6 +65,7 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 - `TASK-006`: Workspace management (inbox hot folder, output classification, file picker) — SESSION-007
 - `TASK-009`: Add CLI command to run evolution loop (`mathart-evolve run` with built-in texture target and JSON metadata export) — SESSION-009
 - `TASK-010`: Upgrade Evolutionary Optimizer (adaptive GA controls, diversity tracking, random immigrants, elite-guided local search, and `cma_es_like` strategy) — SESSION-010
+- `TASK-011`: Connect MathPaperMiner to Real APIs (real arXiv Atom API + GitHub Search REST API integration, optional GitHub token auth, weighted relevance scoring from public metadata, LLM fallback retained) — SESSION-011
 
 ---
 
@@ -85,6 +80,14 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 ---
 
 ## Recent Evolution History (Last 5 Sessions)
+
+### SESSION-011 — v0.11.0 (2026-04-15)
+- Best score: 0.000 | Tests: 58
+  - TASK-011 DONE: connected `MathPaperMiner` to the real arXiv Atom API and GitHub Search REST API
+  - Added capability-aware heuristic scoring over public metadata instead of LLM-only simulated search results
+  - Added optional GitHub bearer-token authentication via environment variables
+  - Preserved LLM fallback behavior for offline or failed live-search paths
+  - Added regression tests for Atom parsing, GitHub search parsing, auth headers, and live-source-first orchestration
 
 ### SESSION-010 — v0.10.0 (2026-04-15)
 - Best score: 0.000 | Tests: 110
@@ -119,18 +122,9 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
   - TASK-006 DONE: Workspace management
   - Registered noise_texture_generator in MathModelRegistry
 
-### SESSION-006 — v0.7.0 (2026-04-15)
-- Best score: 0.000 | Tests: 380
-  - TASK-002 DONE: Sprite CLI workflow
-  - BUG FIX: _try_widen_space() optimizer.space
-
-### SESSION-005 — v0.6.0 (2026-04-14)
-- Best score: 0.000 | Tests: 371
-  - Major architecture upgrade: self-evolving brain system
-
 ---
 
-## 🤖 How to Talk to AI (User Guide)
+## How to Talk to AI (User Guide)
 Please refer to `HOW_TO_TALK_TO_AI.md` for the complete workflow on how to start, collaborate, and end a session with Manus to ensure continuous evolution.
 
 ---
@@ -144,10 +138,10 @@ Please refer to `HOW_TO_TALK_TO_AI.md` for the complete workflow on how to start
 5. **Review the Core Vision section above** to understand the three-loop architecture and quality principles.
 6. **CRITICAL — AI Greeting & Menu**: After reading this document, the AI MUST greet the user and present the following interactive menu to let the user choose the next action:
 
-   > **Welcome back! I have read the project state (v0.10.0). What would you like to do next?**
+   > **Welcome back! I have read the project state (v0.11.0). What would you like to do next?**
    > 
    > 1. **Distill Knowledge (Continuous)**: Upload a PDF, book, or Sprite image now. I will extract the math/art rules, inject them into the project, and optimize the evolution pipeline for better local generation.
-   > 2. **Continue Development**: Work on the highest priority pending task (e.g., TASK-011: Connect MathPaperMiner to Real APIs).
+   > 2. **Continue Development**: Work on the highest priority pending task (e.g., TASK-003: Connect LevelSpecBridge to ExportBridge).
    > 3. **Mine Math Models**: Ask me to search the web/GitHub for specific math models (e.g., fluid dynamics, procedural animation) to add to the engine.
    > 4. **Diagnose Stagnation**: If your local evolution is stuck or producing identical results, paste the logs here and I will analyze the math-art conflicts.
 
@@ -157,4 +151,4 @@ Please refer to `HOW_TO_TALK_TO_AI.md` for the complete workflow on how to start
 10. Always push changes to GitHub after completing a task so the user can `git pull` and run evolution locally.
 
 ---
-*Auto-generated by ProjectMemory at 2026-04-15T04:09:59Z*
+*Auto-generated by ProjectMemory at 2026-04-15T04:23:23Z*
