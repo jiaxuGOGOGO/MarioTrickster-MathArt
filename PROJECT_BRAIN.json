@@ -1,7 +1,7 @@
 {
-  "version": "0.13.0",
-  "last_session_id": "SESSION-013",
-  "last_updated": "2026-04-15T06:17:44Z",
+  "version": "0.14.0",
+  "last_session_id": "SESSION-014",
+  "last_updated": "2026-04-15T06:28:27Z",
   "best_quality_score": 0.0,
   "total_iterations": 0,
   "distill_session_id": "DISTILL-008",
@@ -13,7 +13,7 @@
     "summary": "Self-evolving math-driven art engine with three interlocking loops",
     "loop_1_internal": "Local autonomous evolution: math models + knowledge constraints guide generation throughout the entire pipeline (not just final scoring). Must run without AI (AUTONOMOUS mode) and never block on missing AI connection.",
     "loop_2_distillation": "Continuous Workflow: User uploads PDFs/books/Sprites to Manus chat -> Manus manually distills into knowledge/*.md and math constraints -> Manus optimizes local evolution pipeline based on new knowledge -> pushes to GitHub -> user pulls and runs evolution.",
-    "loop_3_math_mining": "Manus proactively searches academic papers, GitHub projects, Reddit for relevant math models -> converts to code -> registers in math_registry.py.",
+    "loop_3_math_mining": "Manus proactively searches academic papers, GitHub projects, Reddit for relevant math models -> converts to code -> registers in the math registry.",
     "quality_principles": [
       "No invalid iterations: detect consecutive identical outputs, diagnose root cause, report and halt safely",
       "Knowledge permeates everything: math and art rules guide every stage of generation",
@@ -24,89 +24,27 @@
     ],
     "collaboration_model": "Manus executes code/knowledge tasks -> pushes to GitHub -> User pulls, runs, reports results -> Manus optimizes. User handles local-only tasks (GPU setup, software install)."
   },
+  "strict_completion_policy": {
+    "summary": "A task only counts as truly complete when the end-user requirement is satisfied end-to-end without hidden manual glue, placeholder implementations, or behavior that contradicts the core vision.",
+    "applied_in_session": "SESSION-014"
+  },
   "pending_tasks": [
     {
-      "task_id": "TASK-009",
-      "description": "Add CLI Command to Run Evolution Loop",
-      "priority": "high",
-      "depends_on": [],
-      "created_at": "2026-04-16T00:00:00Z",
-      "status": "done",
-      "completed_at": "2026-04-15T03:56:03Z",
-      "notes": "Completed in SESSION-009. Added mathart-evolve run with a built-in texture evolution target, progress-aware generation, output image saving, and JSON run metadata.",
-      "context": {
-        "file": "mathart/evolution/cli.py"
-      }
-    },
-    {
-      "task_id": "TASK-001",
-      "description": "Complete QC Controller Integration",
-      "priority": "high",
-      "depends_on": [],
-      "created_at": "2026-04-14T16:35:53Z",
-      "status": "done",
-      "completed_at": "2026-04-15T03:56:03Z",
-      "notes": "Completed in SESSION-009. InnerLoopRunner now detects generators that expose progress_callback, invokes the mid_generation checkpoint during multi-step generation, and honors retry decisions. Also added a scipy-free fallback for quick quality checks.",
-      "context": {
-        "file": "mathart/evolution/inner_loop.py"
-      }
-    },
-    {
-      "task_id": "TASK-010",
-      "description": "Upgrade Evolutionary Optimizer",
-      "priority": "medium",
-      "depends_on": [],
-      "created_at": "2026-04-16T00:00:00Z",
-      "status": "done",
-      "completed_at": "2026-04-15T04:09:59Z",
-      "notes": "Completed in SESSION-010. Upgraded EvolutionaryOptimizer with adaptive mutation schedules, diversity tracking, elite-guided local search, random immigrants, and a lightweight cma_es_like strategy for higher-dimensional search without external dependencies.",
-      "context": {
-        "file": "mathart/distill/optimizer.py"
-      }
-    },
-    {
-      "task_id": "TASK-011",
-      "description": "Connect MathPaperMiner to Real APIs",
-      "priority": "medium",
-      "depends_on": [],
-      "created_at": "2026-04-16T00:00:00Z",
-      "status": "done",
-      "completed_at": "2026-04-15T04:23:23Z",
-      "notes": "Completed in SESSION-011. MathPaperMiner now queries the real arXiv Atom API and GitHub Search REST API, derives structured relevance scores from public metadata, supports optional GitHub token auth via environment variables, keeps the LLM as a fallback path, and adds regression coverage for live-source parsing and orchestration.",
-      "context": {
-        "file": "mathart/evolution/paper_miner.py"
-      }
-    },
-    {
-      "task_id": "TASK-003",
-      "description": "Connect LevelSpecBridge to ExportBridge",
-      "priority": "medium",
-      "depends_on": [],
-      "created_at": "2026-04-14T16:35:53Z",
-      "status": "done",
-      "completed_at": "2026-04-15T05:55:13Z",
-      "notes": "Completed in SESSION-012. AssetExporter now accepts LevelSpecBridge-derived AssetSpec inputs, validates sprite dimensions, frame counts, palette limits, and tile sizing before export, and writes level-aware metadata into export manifests.",
-      "context": {
-        "file": "mathart/export/bridge.py"
-      }
-    },
-    {
-      "task_id": "TASK-012",
-      "description": "Close the math mining loop from discovery candidates to registry-backed implementation scaffolds",
+      "task_id": "TASK-016",
+      "description": "Align invalid-iteration handling with the documented diagnose-and-safe-halt quality principle",
       "priority": "high",
       "depends_on": [
-        "TASK-011"
+        "TASK-001"
       ],
-      "created_at": "2026-04-15T05:55:13Z",
-      "status": "done",
-      "completed_at": "2026-04-15T06:17:44Z",
-      "notes": "Completed in SESSION-013. MathPaperMiner now enriches mined candidates with registry metadata, can scaffold executable Python modules plus smoke-test files, persists promoted entries into math_models.json-compatible registry records, stores registry candidate manifests, and exposes a CLI --promote path to close the loop from accepted mined papers to runnable scaffolds.",
+      "created_at": "2026-04-15T06:28:27Z",
+      "status": "not_started",
+      "notes": "Strict audit gap from SESSION-014. The core vision says invalid iterations must be diagnosed, reported, and halted safely for review, but ArtMathQualityController.iteration_end currently auto-recovers instead of stopping when autonomous mode hits HUMAN_REQUIRED stagnation. This is a direct behavior-vs-requirement mismatch, not merely an optimization opportunity.",
       "context": {
         "files": [
-          "mathart/evolution/paper_miner.py",
-          "mathart/evolution/math_registry.py",
-          "tests/test_paper_miner.py",
-          "math_models.json"
+          "mathart/quality/controller.py",
+          "mathart/evolution/stagnation.py",
+          "mathart/evolution/inner_loop.py",
+          "SESSION_HANDOFF.md"
         ]
       }
     },
@@ -119,12 +57,30 @@
       ],
       "created_at": "2026-04-15T05:55:13Z",
       "status": "not_started",
-      "notes": "Audit gap from SESSION-012 and reconfirmed as the highest-impact remaining local-runtime upgrade in SESSION-013. README and knowledge/differentiable_rendering.md define finite-difference gradients as the next no-GPU optimization path, but the inner loop still relies solely on evolutionary search.",
+      "notes": "Strict audit reconfirmed in SESSION-014. README and knowledge/differentiable_rendering.md define finite-difference gradients as the next no-GPU optimization path, but the inner loop still relies solely on evolutionary search.",
       "context": {
         "files": [
           "mathart/distill/optimizer.py",
           "mathart/evolution/inner_loop.py",
           "knowledge/differentiable_rendering.md"
+        ]
+      }
+    },
+    {
+      "task_id": "TASK-019",
+      "description": "Generalize the evolution run workflow beyond the built-in texture demo target",
+      "priority": "high",
+      "depends_on": [
+        "TASK-009"
+      ],
+      "created_at": "2026-04-15T06:28:27Z",
+      "status": "not_started",
+      "notes": "Strict audit gap from SESSION-014. mathart-evolve run exists, but the CLI only exposes choices=[\"texture\"] and therefore does not yet represent a true end-user evolution workflow for sprites, animations, or level-bound assets. The current command is a real milestone, but still a narrow built-in demo path rather than the broader local evolution engine promised by the project vision.",
+      "context": {
+        "files": [
+          "mathart/evolution/cli.py",
+          "mathart/evolution/engine.py",
+          "mathart/evolution/inner_loop.py"
         ]
       }
     },
@@ -137,11 +93,50 @@
       ],
       "created_at": "2026-04-15T05:55:13Z",
       "status": "not_started",
-      "notes": "Audit gap from SESSION-012 and reconfirmed in SESSION-013. The project can ingest sprite references and evaluate against them, but it still lacks a workflow that infers parameter seeds or math-model hints directly from uploaded reference images.",
+      "notes": "Strict audit reconfirmed in SESSION-014. The project can ingest sprite references and evaluate against them, but it still lacks a workflow that infers parameter seeds or math-model hints directly from uploaded reference images. Uploading references is therefore not the same as satisfying the long-term Image-to-Math requirement.",
       "context": {
         "files": [
           "mathart/evolution/cli.py",
           "mathart/evaluator/evaluator.py",
+          "mathart/workspace/manager.py",
+          "mathart/sprite/analyzer.py"
+        ]
+      }
+    },
+    {
+      "task_id": "TASK-017",
+      "description": "Expand MathPaperMiner source coverage to include Reddit or equivalent community discovery channels",
+      "priority": "medium",
+      "depends_on": [
+        "TASK-011"
+      ],
+      "created_at": "2026-04-15T06:28:27Z",
+      "status": "not_started",
+      "notes": "Strict audit gap from SESSION-014. Loop 3 is documented as searching academic papers, GitHub projects, and Reddit discussions, but the live implementation currently covers arXiv and GitHub only. Real-source mining therefore remains only partially aligned with the stated discovery scope.",
+      "context": {
+        "files": [
+          "mathart/evolution/paper_miner.py",
+          "README.md",
+          "SESSION_HANDOFF.md"
+        ]
+      }
+    },
+    {
+      "task_id": "TASK-018",
+      "description": "Expose the level-aware export bridge through a true end-to-end CLI or workspace workflow",
+      "priority": "medium",
+      "depends_on": [
+        "TASK-003",
+        "TASK-006"
+      ],
+      "created_at": "2026-04-15T06:28:27Z",
+      "status": "not_started",
+      "notes": "Strict audit gap from SESSION-014. The LevelSpecBridge-to-ExportBridge connection is implemented at the API layer, but mathart-export still only supports --generate-demo or manual scripting. A real user-facing export workflow that consumes level-aware specs without custom glue code is still missing.",
+      "context": {
+        "files": [
+          "mathart/export/bridge.py",
+          "mathart/export/cli.py",
+          "mathart/level/spec_bridge.py",
           "mathart/workspace/manager.py"
         ]
       }
@@ -155,7 +150,7 @@
       ],
       "created_at": "2026-04-15T06:17:44Z",
       "status": "not_started",
-      "notes": "Audit gap from SESSION-013. The third loop now closes through registry-backed scaffolds, but promoted modules are still executable placeholders. The project still needs a workflow that turns high-value mined candidates into real mathematical implementations, evaluation hooks, and eventual stable registry graduation.",
+      "notes": "Strict audit reconfirmed in SESSION-014. The third loop now closes through registry-backed scaffolds, but promoted modules are still executable placeholders. The project still needs a workflow that turns high-value mined candidates into real mathematical implementations, evaluator hooks, and eventual stable registry graduation.",
       "context": {
         "files": [
           "mathart/evolution/paper_miner.py",
@@ -181,25 +176,135 @@
       }
     },
     {
+      "task_id": "TASK-001",
+      "description": "Complete QC Controller Integration",
+      "priority": "done",
+      "depends_on": [],
+      "created_at": "2026-04-14T16:35:53Z",
+      "status": "done",
+      "completed_at": "2026-04-15T03:56:03Z",
+      "notes": "Completed in SESSION-009. InnerLoopRunner now detects generators that expose progress_callback, invokes the mid_generation checkpoint during multi-step generation, and honors retry decisions. However, strict audit in SESSION-014 identified a follow-up requirement gap: autonomous stagnation handling still does not fully match the documented diagnose-and-safe-halt principle, which is now tracked separately as TASK-016.",
+      "context": {
+        "file": "mathart/evolution/inner_loop.py"
+      }
+    },
+    {
       "task_id": "TASK-002",
       "description": "Sprite reference upload workflow (CLI)",
       "priority": "done",
+      "depends_on": [],
+      "created_at": "2026-04-15T12:00:00Z",
       "status": "done",
-      "completed_at": "2026-04-15T12:00:00Z"
+      "completed_at": "2026-04-15T12:00:00Z",
+      "notes": "Completed in SESSION-006. The CLI can ingest sprite references and spritesheets. Strict audit in SESSION-014 keeps Image-to-Math inference open as TASK-014 because upload alone does not infer parameter seeds or model hints.",
+      "context": {
+        "files": [
+          "mathart/evolution/cli.py",
+          "mathart/sprite/library.py"
+        ]
+      }
+    },
+    {
+      "task_id": "TASK-003",
+      "description": "Connect LevelSpecBridge to ExportBridge",
+      "priority": "done",
+      "depends_on": [],
+      "created_at": "2026-04-14T16:35:53Z",
+      "status": "done",
+      "completed_at": "2026-04-15T05:55:13Z",
+      "notes": "Completed in SESSION-012. AssetExporter now accepts LevelSpecBridge-derived AssetSpec inputs, validates sprite dimensions, frame counts, palette limits, and tile sizing before export, and writes level-aware metadata into export manifests. Strict audit in SESSION-014 keeps the end-user export workflow open as TASK-018 because the CLI still exposes only demo generation or manual scripting.",
+      "context": {
+        "file": "mathart/export/bridge.py"
+      }
     },
     {
       "task_id": "TASK-004",
       "description": "Noise texture generator",
       "priority": "done",
+      "depends_on": [],
+      "created_at": "2026-04-15T22:00:00Z",
       "status": "done",
-      "completed_at": "2026-04-15T22:00:00Z"
+      "completed_at": "2026-04-15T22:00:00Z",
+      "notes": "Completed in SESSION-007.",
+      "context": {
+        "files": [
+          "mathart/sdf/noise.py"
+        ]
+      }
     },
     {
       "task_id": "TASK-006",
       "description": "Workspace management (inbox/output/file picker)",
       "priority": "done",
+      "depends_on": [],
+      "created_at": "2026-04-15T22:00:00Z",
       "status": "done",
-      "completed_at": "2026-04-15T22:00:00Z"
+      "completed_at": "2026-04-15T22:00:00Z",
+      "notes": "Completed in SESSION-007. Workspace inbox, file picker, and output classification exist. Strict audit in SESSION-014 keeps end-to-end level-aware export workflow open as TASK-018 because workspace plumbing is not yet connected to a real export command path.",
+      "context": {
+        "files": [
+          "mathart/workspace/manager.py"
+        ]
+      }
+    },
+    {
+      "task_id": "TASK-009",
+      "description": "Add CLI Command to Run Evolution Loop",
+      "priority": "done",
+      "depends_on": [],
+      "created_at": "2026-04-16T00:00:00Z",
+      "status": "done",
+      "completed_at": "2026-04-15T03:56:03Z",
+      "notes": "Completed in SESSION-009. Added mathart-evolve run with a built-in texture evolution target, progress-aware generation, output image saving, and JSON run metadata. Strict audit in SESSION-014 keeps generalized real-asset execution open as TASK-019 because the CLI currently exposes only the built-in texture target.",
+      "context": {
+        "file": "mathart/evolution/cli.py"
+      }
+    },
+    {
+      "task_id": "TASK-010",
+      "description": "Upgrade Evolutionary Optimizer",
+      "priority": "done",
+      "depends_on": [],
+      "created_at": "2026-04-16T00:00:00Z",
+      "status": "done",
+      "completed_at": "2026-04-15T04:09:59Z",
+      "notes": "Completed in SESSION-010. Upgraded EvolutionaryOptimizer with adaptive mutation schedules, diversity tracking, elite-guided local search, random immigrants, and a lightweight cma_es_like strategy for higher-dimensional search without external dependencies. Strict audit in SESSION-014 keeps finite-difference CPU acceleration open as TASK-013 because optimizer upgrades did not yet add the promised gradient-approximation path.",
+      "context": {
+        "file": "mathart/distill/optimizer.py"
+      }
+    },
+    {
+      "task_id": "TASK-011",
+      "description": "Connect MathPaperMiner to Real APIs",
+      "priority": "done",
+      "depends_on": [],
+      "created_at": "2026-04-16T00:00:00Z",
+      "status": "done",
+      "completed_at": "2026-04-15T04:23:23Z",
+      "notes": "Completed in SESSION-011. MathPaperMiner now queries the real arXiv Atom API and GitHub Search REST API, derives structured relevance scores from public metadata, supports optional GitHub token auth via environment variables, keeps the LLM as a fallback path, and adds regression coverage for live-source parsing and orchestration. Strict audit in SESSION-014 keeps broader Loop-3 source coverage open as TASK-017 because Reddit or equivalent community mining is still absent.",
+      "context": {
+        "file": "mathart/evolution/paper_miner.py"
+      }
+    },
+    {
+      "task_id": "TASK-012",
+      "description": "Close the math mining loop from discovery candidates to registry-backed implementation scaffolds",
+      "priority": "done",
+      "depends_on": [
+        "TASK-011"
+      ],
+      "created_at": "2026-04-15T05:55:13Z",
+      "status": "done",
+      "completed_at": "2026-04-15T06:17:44Z",
+      "notes": "Completed in SESSION-013. MathPaperMiner now enriches mined candidates with registry metadata, can scaffold executable Python modules plus smoke-test files, persists promoted entries into math_models.json-compatible registry records, stores registry candidate manifests, and exposes a CLI --promote path to close the loop from accepted mined papers to runnable scaffolds. Strict audit in SESSION-014 keeps scaffold-to-real-model graduation open as TASK-015 because promoted modules are still placeholders rather than concrete mathematical implementations.",
+      "context": {
+        "files": [
+          "mathart/evolution/paper_miner.py",
+          "mathart/evolution/math_registry.py",
+          "tests/test_paper_miner.py",
+          "math_models.json"
+        ]
+      }
     }
   ],
   "capability_gaps": [
@@ -225,6 +330,19 @@
       "blocked_by": []
     }
   ],
+  "strict_gap_audit": {
+    "session_id": "SESSION-014",
+    "timestamp": "2026-04-15T06:28:27Z",
+    "summary": "Applied a strict completion standard: only end-to-end user-visible fulfillment counts as complete. Existing implementation milestones that stop at demo scope, API scope, partial source coverage, or scaffold scope remain recorded as done narrowly, but their unsatisfied product requirements were promoted into explicit follow-up tasks.",
+    "highest_priority_gap": "TASK-016",
+    "key_findings": [
+      "Autonomous stagnation handling contradicts the documented safe-halt requirement when HUMAN_REQUIRED is reached.",
+      "The run CLI is still limited to a built-in texture target and does not yet represent the broader local evolution workflow promised by the project vision.",
+      "Level-aware export is connected at the API layer but not yet exposed as a true end-to-end CLI or workspace workflow.",
+      "Live math mining currently covers arXiv and GitHub only, leaving the documented Reddit/community discovery scope unimplemented.",
+      "Promoted mined candidates land in executable scaffolds, not in concrete mathematical implementations."
+    ]
+  },
   "evolution_history": [
     {
       "session_id": "SESSION-005",
@@ -297,6 +415,14 @@
       "best_score": 0.0,
       "test_count": 83,
       "notes": "Completed TASK-012: closed the math-mining loop to registry-backed scaffolds by enriching registry candidates, adding module and smoke-test scaffolding, saving promoted entries into math_models.json-compatible records, exposing a CLI promote path, and refreshing the product-gap audit to highlight finite-difference, Image-to-Math, and scaffold-to-real-model follow-up work."
+    },
+    {
+      "session_id": "SESSION-014",
+      "timestamp": "2026-04-15T06:28:27Z",
+      "version": "0.14.0",
+      "best_score": 0.0,
+      "test_count": 0,
+      "notes": "Performed a strict completion audit: only true end-to-end requirement fulfillment now counts as complete. Reframed previously over-broad interpretations into explicit follow-up tasks, added TASK-016 through TASK-019, and refreshed project state so future sessions can attack the remaining gaps one by one without mistaking milestones for finished product outcomes."
     }
   ]
 }
