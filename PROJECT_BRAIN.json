@@ -66,20 +66,12 @@
       "description": "Expand the part registry beyond hats and face accessories to include torso overlays (armor, cape, vest), hand items (sword, staff, shield), and foot accessories (boots, wings). Requires new SDF functions and renderer support for each new slot type."
     },
     {
-      "id": "P1-NEW-10",
-      "priority": "P1",
-      "title": "Production benchmark asset suite",
-      "status": "TODO",
-      "estimated_effort": "high",
-      "description": "Create benchmark characters, tiles, and VFX with structured metadata, acceptance thresholds, and automated validators so future evolution is judged against production-like targets instead of only internal heuristics."
-    },
-    {
       "id": "P1-NEW-1",
       "priority": "P1",
       "title": "WFC tilemap pipeline integration",
       "status": "TODO",
       "estimated_effort": "high",
-      "description": "Add produce_level() to AssetPipeline, integrate WFC outputs into asset packs, and include connectivity/playability checks plus metadata manifests."
+      "description": "Add produce_level() to AssetPipeline, integrate WFC outputs into asset packs, and include connectivity/playability checks plus metadata manifests. The mathart/level/wfc.py module exists but is disconnected from the main pipeline."
     },
     {
       "id": "P1-NEW-7",
@@ -87,7 +79,7 @@
       "title": "Export pipeline integration",
       "status": "TODO",
       "estimated_effort": "high",
-      "description": "Promote exporter to a first-class stage that emits engine-ready bundles with atlas indices, palette data, manifests, and reusable metadata."
+      "description": "Promote exporter to a first-class stage that emits engine-ready bundles with atlas indices, palette data, manifests, and reusable metadata. The mathart/export/bridge.py module exists but is disconnected from the main pipeline."
     },
     {
       "id": "P1-NEW-6",
@@ -95,7 +87,15 @@
       "title": "Shader pipeline integration",
       "status": "TODO",
       "estimated_effort": "medium",
-      "description": "Wire ShaderCodeGenerator into AssetPipeline and support shader-bundle export with baked textures plus runtime parameter metadata."
+      "description": "Wire ShaderCodeGenerator into AssetPipeline and support shader-bundle export with baked textures plus runtime parameter metadata. The mathart/shader/generator.py module exists but is disconnected from the main pipeline."
+    },
+    {
+      "id": "P1-NEW-10",
+      "priority": "P1",
+      "title": "Production benchmark asset suite",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Create benchmark characters, tiles, and VFX with structured metadata, acceptance thresholds, and automated validators so future evolution is judged against production-like targets instead of only internal heuristics."
     },
     {
       "id": "P1-2",
@@ -174,6 +174,14 @@
       "estimated_effort": "low"
     },
     {
+      "id": "P2-8",
+      "priority": "P2",
+      "title": "Test coverage for missing modules",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Add dedicated test files for mathart/shader, mathart/workspace, and mathart/quality modules which currently lack direct test coverage."
+    },
+    {
       "id": "P3-1",
       "priority": "P3",
       "title": "Auto knowledge distillation",
@@ -212,8 +220,9 @@
       "id": "P3-6",
       "priority": "P3",
       "title": "README update for SESSION-018~026 features",
-      "status": "TODO",
-      "estimated_effort": "low"
+      "status": "DONE",
+      "estimated_effort": "low",
+      "description": "Completed in SESSION-027 audit phase."
     }
   ],
   "completed_tasks": [

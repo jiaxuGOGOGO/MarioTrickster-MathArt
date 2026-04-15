@@ -124,14 +124,14 @@ The character evolution system is now **architecturally complete at the 2.5 leve
 | Output suitable for real downstream use | Partial | Needs stronger benchmark definitions and engine-ready bundle closure |
 | Search quality during upgrades | **Improved and validated** | Protocol was used in practice during SESSION-027 and enhanced based on real results |
 
-## Biggest Remaining Gaps
+## Biggest Remaining Gaps (Based on SESSION-027 Audit)
 
-1. **Production benchmark asset suites are still missing.** The repository validates correctness well, but lacks benchmark targets and acceptance thresholds.
-2. **Part registry content is narrow.** Only hat and face_accessory slots have registered parts. Torso overlays, hand items, and foot accessories need SDF functions and renderer support.
-3. **WFC tilemap pipeline integration remains unfinished.** The module exists but needs a top-level production path.
-4. **Shader and export modules remain under-integrated.** Not yet first-class pipeline outputs.
-5. **Per-frame SDF parameter animation is still absent.** Geometric animation remains largely transform-driven.
-6. **Secondary motion and organic texture systems are still roadmap items.**
+1. **Architecture Integration Gaps (P1):** The `level` (WFC), `shader`, and `export` modules exist in the codebase but are completely disconnected from the main `AssetPipeline`. They need top-level `produce_*` methods.
+2. **Production benchmark asset suites are still missing.** The repository validates correctness well, but lacks benchmark targets and acceptance thresholds.
+3. **Part registry content is narrow.** Only hat and face_accessory slots have registered parts. Torso overlays, hand items, and foot accessories need SDF functions and renderer support.
+4. **Per-frame SDF parameter animation is still absent.** Geometric animation remains largely transform-driven.
+5. **Secondary motion and organic texture systems are still roadmap items.**
+6. **Test Coverage Blind Spots:** The `shader`, `workspace`, and `quality` modules lack dedicated test files.
 
 ## Pending Tasks (Priority Order)
 
@@ -139,11 +139,11 @@ The character evolution system is now **architecturally complete at the 2.5 leve
 
 | ID | Task | Status | Effort | Description |
 |----|------|--------|--------|-------------|
-| P1-NEW-9C | Character evolution 3.0: expand part registry | TODO | Medium | Add torso overlays, hand items, foot accessories with new SDF functions and renderer support |
-| P1-NEW-10 | Production benchmark asset suite | TODO | High | Add benchmark characters, tiles, and VFX with structured metadata, acceptance thresholds, and automated validators |
 | P1-NEW-1 | WFC tilemap pipeline integration | TODO | High | Add `produce_level()`, connect WFC to asset packs, include playability validation |
 | P1-NEW-7 | Export pipeline integration | TODO | High | Promote exporter to first-class stage with engine-ready bundles |
 | P1-NEW-6 | Shader pipeline integration | TODO | Medium | Wire `ShaderCodeGenerator` into `AssetPipeline` |
+| P1-NEW-9C | Character evolution 3.0: expand part registry | TODO | Medium | Add torso overlays, hand items, foot accessories with new SDF functions and renderer support |
+| P1-NEW-10 | Production benchmark asset suite | TODO | High | Add benchmark characters, tiles, and VFX with structured metadata, acceptance thresholds, and automated validators |
 | P1-2 | Per-frame SDF parameter animation | TODO | Medium | Add keyframed SDF parameter tracks |
 | P1-NEW-3 | Spring-based secondary animation | TODO | Medium | Add follow-through / overlap motion |
 | P1-NEW-2 | Reaction-diffusion textures | TODO | Medium | Add Gray-Scott organic texture generation |
@@ -158,6 +158,7 @@ The character evolution system is now **architecturally complete at the 2.5 leve
 | P2-5 | Procedural outline variation | PARTIAL | Low |
 | P2-6 | CMA-ES optimizer upgrade | TODO | Medium |
 | P2-7 | Performance benchmarks | TODO | Low |
+| P2-8 | Test coverage for missing modules | TODO | Medium | Add tests for shader, workspace, and quality modules |
 
 ### P3 — Future
 
@@ -168,7 +169,6 @@ The character evolution system is now **architecturally complete at the 2.5 leve
 | P3-3 | Unity/Godot exporter plugin | TODO | Medium |
 | P3-4 | CI/CD + GitHub Actions | TODO | Medium |
 | P3-5 | End-to-end demo showcase script | TODO | Low |
-| P3-6 | README update for SESSION-018~027 features | TODO | Low |
 
 ## Completed Tasks
 
@@ -179,6 +179,7 @@ The character evolution system is now **architecturally complete at the 2.5 leve
 | P1-NEW-9B | Character evolution 2.5: semantic genotype system | **DONE** — CharacterGenotype with archetypes, body templates, part registry, 3-layer mutation, crossover, pipeline integration. 538/538 tests passing. |
 | PROTOCOL-027A | Precision research protocol enhancement | Enhanced query construction rules, dimension selection, post-search synthesis |
 | RESEARCH-027 | Semantic mutation space research | 5-dimension parallel research → implementation synthesis |
+| AUDIT-027 | Full project audit and gap analysis | **DONE** — Identified disconnected modules (WFC, shader, export), updated README, fixed pyproject.toml version, added test coverage gaps to P2. |
 
 ### SESSION-026
 

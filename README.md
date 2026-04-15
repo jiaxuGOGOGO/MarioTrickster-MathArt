@@ -29,6 +29,24 @@
 
 ---
 
+## 核心生产能力 (v0.19.0)
+
+### 角色基因型进化系统 (Character Evolution 2.5)
+系统实现了基于语义的层次化角色生成：
+- **Archetype (原型)**：定义角色的语义身份（英雄、反派、NPC、怪物）。
+- **Body Template (体型模板)**：定义身体比例和可用插槽（如 humanoid_standard, creature_round）。
+- **Part Registry (部件注册表)**：管理所有可装备部件（帽子、面部配件等）及其兼容性。
+- **3层变异算子**：支持结构变异（替换部件）、比例微调和调色板变异。
+- **精英交叉**：支持在进化过程中交换角色的优秀基因。
+
+### 资产管线 (Asset Pipeline)
+提供端到端的资产生产能力：
+- `produce_character_pack()`：生成包含多状态（idle, run, jump, fall, hit）的角色精灵图、动画 GIF 和元数据清单。
+- `produce_texture_atlas()`：将多个精灵打包为纹理图集。
+- `produce_vfx()`：生成基于 SDF 和粒子的视觉特效。
+
+---
+
 ## 安装与使用
 
 ### 环境要求
@@ -40,6 +58,28 @@
 git clone https://github.com/jiaxuGOGOGO/MarioTrickster-MathArt.git
 cd MarioTrickster-MathArt
 pip install -e ".[dev]"
+```
+
+### 快速开始：生成进化角色包
+
+```python
+from mathart.pipeline import AssetPipeline, CharacterSpec
+
+pipeline = AssetPipeline(output_dir="output/", seed=7)
+
+# 使用基因型模式生成并进化角色
+character = pipeline.produce_character_pack(
+    CharacterSpec(
+        name="evolved_mario",
+        preset="mario",
+        use_genotype=True,  # 激活语义基因型进化
+        frames_per_state=6,
+        states=["idle", "run", "jump", "fall", "hit"],
+        evolution_iterations=5,
+        evolution_population=6,
+        evolution_crossover_rate=0.25,
+    )
+)
 ```
 
 ### 命令行工具
@@ -55,24 +95,12 @@ pip install -e ".[dev]"
    mathart-evolve run --target texture --generations 50
    mathart-evolve run --target sprite --generations 30
    mathart-evolve run --target animation --generations 20
-
-   # 从新书籍/论文中蒸馏知识
-   mathart-evolve distill path/to/new_book.pdf
-
-   # 查看数学模型注册表
-   mathart-evolve registry
-
-   # 评估单张图像质量
-   mathart-evolve eval image.png
    ```
 
 2. **资产导出**：
    ```bash
    # 从关卡规格导出资产
    mathart-export --from-level level_spec.json --output-dir ./exports
-
-   # 生成演示资产
-   mathart-export --generate-demo --output-dir ./demo
    ```
 
 3. **基础生成工具**：
@@ -80,18 +108,6 @@ pip install -e ".[dev]"
    mathart-palette --hue 30 --harmony complementary
    mathart-sdf --effect fire --intensity 1.5
    mathart-anim --preset run --frames 8
-   ```
-
-4. **知识编译**：
-   ```bash
-   mathart-distill parse --input knowledge/
-   mathart-distill compile
-   ```
-
-5. **数学模型挖掘**：
-   ```bash
-   mathart-mine search "procedural pixel art SDF"
-   mathart-mine search "skeletal animation" --promote
    ```
 
 ---
@@ -117,37 +133,32 @@ pip install -e ".[dev]"
 2. **已完成**：Image-to-Math 参数推断（从参考图像推断初始参数种子）。
 3. **已完成**：多目标进化 CLI（texture / sprite / animation）。
 4. **已完成**：社区源扩展（Papers with Code / Shadertoy / LLM Advisor）。
-5. **已完成**：Scaffold 毕业工作流（candidate → experimental → stable）。
-6. **近期目标**：集成 PyTorch 和 nvdiffrast，实现 GPU 加速的完整 2D 可微渲染。
-7. **远期目标**：接入多模态视觉模型，实现更深层的逆向工程能力。
+5. **已完成**：角色包管线集成与多状态精灵生成。
+6. **已完成**：角色进化 2.5（语义基因型系统、部件注册表、交叉算子）。
+7. **近期目标**：WFC 关卡生成管线集成、着色器导出管线集成、生产基准测试套件。
+8. **远期目标**：集成 PyTorch 和 nvdiffrast，实现 GPU 加速的完整 2D 可微渲染。
 
 ---
 
-## 可选外部集成
+## AI 协作协议
 
-以下外部工具/API 是**可选加速器**，系统在没有它们的情况下也能正常运行：
-
-| 工具 | 用途 | 环境变量 | 必需？ |
-|------|------|----------|--------|
-| Claude Code | AI 辅助代码审查和进化建议 | `ANTHROPIC_API_KEY` | 否 |
-| OpenAI API | LLM 辅助知识蒸馏和技术建议 | `OPENAI_API_KEY` | 否 |
-| Shadertoy API | SDF/Shader 技术搜索 | `SHADERTOY_API_KEY` | 否 |
-| NVIDIA GPU | 可微渲染加速 | CUDA 11+ | 否 |
-| Unity Editor | Shader 实时预览 | Unity 2021.3+ LTS | 否 |
+本项目包含专门为 AI 代理设计的协作协议，以确保高效迭代：
+- `SESSION_PROTOCOL.md`：会话效率规则和防重复流程。
+- `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`：高价值外部参考的精准并行搜索机制。
+- `SESSION_HANDOFF.md`：会话交接文档，记录最新状态和优先级。
+- `PROJECT_BRAIN.json`：机器可读的全局状态和待办列表。
 
 ---
 
 ## 测试
 
-481 个测试覆盖全部模块，每次 push 自动运行 GitHub Actions CI：
+538 个测试覆盖全部模块，每次 push 自动运行 GitHub Actions CI：
 
 ```bash
 pytest tests/ -v                          # 全部测试
+pytest tests/test_genotype.py -v          # 基因型系统测试
 pytest tests/test_evolution.py -v         # 自进化引擎测试
 pytest tests/test_fd_gradient.py -v       # FD 梯度优化器测试
-pytest tests/test_image_to_math.py -v     # Image-to-Math 测试
-pytest tests/test_graduation.py -v        # 毕业工作流测试
-pytest tests/test_community_sources.py -v # 社区源测试
 pytest tests/ --cov=mathart               # 覆盖率报告
 ```
 
