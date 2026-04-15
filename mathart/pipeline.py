@@ -161,6 +161,8 @@ class CharacterSpec:
     evolution_population: int = 6
     evolution_variation_strength: float = 0.18
     evolution_preview_states: list[str] = field(default_factory=lambda: ["idle", "run", "jump"])
+    evolution_elite_size: int = 3
+    evolution_stagnation_patience: int = 2
 
 
 CHARACTER_ANIMATION_MAP: dict[str, Callable[[float], dict[str, float]]] = {
@@ -771,6 +773,113 @@ class AssetPipeline:
             metadata=metadata,
         )
 
+    def _character_candidate_vector(
+        self,
+        char_spec: CharacterSpec,
+        style: Any,
+        palette: Palette,
+    ) -> np.ndarray:
+        values: list[float] = [float(char_spec.head_units)]
+        for _, value in sorted(vars(style).items()):
+            if isinstance(value, bool):
+                values.append(1.0 if value else 0.0)
+            elif isinstance(value, (int, float, np.floating)):
+                values.append(float(value))
+            elif isinstance(value, str):
+                values.append(float(sum(ord(ch) for ch in value) % 257) / 257.0)
+        values.extend(np.asarray(palette.colors_oklab, dtype=np.float64).reshape(-1).tolist())
+        return np.asarray(values, dtype=np.float64)
+
+    def _select_diverse_character_elites(
+        self,
+        pool: list[tuple[CharacterSpec, Any, Palette, dict[str, Any]]],
+        elite_size: int,
+        min_distance: float = 0.035,
+    ) -> list[tuple[CharacterSpec, Any, Palette, dict[str, Any]]]:
+        if not pool:
+            return []
+
+        ranked = sorted(pool, key=lambda item: item[3]["score"], reverse=True)
+        selected: list[tuple[CharacterSpec, Any, Palette, dict[str, Any]]] = []
+        vectors: list[np.ndarray] = []
+
+        for candidate in ranked:
+            vector = self._character_candidate_vector(candidate[0], candidate[1], candidate[2])
+            if not vectors:
+                selected.append(candidate)
+                vectors.append(vector)
+            else:
+                distances = [float(np.mean(np.abs(vector - other))) for other in vectors]
+                if min(distances) >= min_distance:
+                    selected.append(candidate)
+                    vectors.append(vector)
+            if len(selected) >= elite_size:
+                return selected
+
+        for candidate in ranked:
+            if any(candidate is chosen for chosen in selected):
+                continue
+            selected.append(candidate)
+            if len(selected) >= elite_size:
+                break
+        return selected
+
+    def _compute_character_silhouette_metrics(self, alpha: np.ndarray) -> dict[str, float]:
+        mask = alpha > 0.05
+        height, width = mask.shape
+        coverage = float(np.mean(mask))
+        if not np.any(mask):
+            return {
+                "silhouette_score": 0.0,
+                "coverage": coverage,
+                "bbox_fill": 0.0,
+                "aspect_ratio": 0.0,
+                "centroid_x": 0.5,
+                "centroid_y": 0.5,
+            }
+
+        ys, xs = np.nonzero(mask)
+        bbox_h_px = int(ys.max() - ys.min() + 1)
+        bbox_w_px = int(xs.max() - xs.min() + 1)
+        bbox_fill = float(mask.sum()) / max(bbox_h_px * bbox_w_px, 1)
+        aspect_ratio = (bbox_h_px / max(height, 1)) / max(bbox_w_px / max(width, 1), 1e-6)
+        centroid_x = float(xs.mean() / max(width - 1, 1))
+        centroid_y = float(ys.mean() / max(height - 1, 1))
+
+        occupancy_score = max(0.0, 1.0 - min(abs(coverage - 0.22) / 0.22, 1.0))
+        aspect_score = max(0.0, 1.0 - min(abs(aspect_ratio - 1.85) / 1.1, 1.0))
+        fill_score = max(0.0, 1.0 - min(abs(bbox_fill - 0.55) / 0.35, 1.0))
+        center_offset = math.sqrt(((centroid_x - 0.50) / 0.35) ** 2 + ((centroid_y - 0.58) / 0.40) ** 2)
+        centering_score = max(0.0, 1.0 - min(center_offset, 1.0))
+        silhouette_score = 0.30 * occupancy_score + 0.25 * aspect_score + 0.20 * fill_score + 0.25 * centering_score
+
+        return {
+            "silhouette_score": float(silhouette_score),
+            "coverage": coverage,
+            "bbox_fill": float(bbox_fill),
+            "aspect_ratio": float(aspect_ratio),
+            "centroid_x": centroid_x,
+            "centroid_y": centroid_y,
+        }
+
+    def _compute_state_distinction_score(self, state_signatures: dict[str, dict[str, Any]]) -> float:
+        if len(state_signatures) < 2:
+            return 0.5
+
+        keys = list(state_signatures)
+        alpha_diffs: list[float] = []
+        centroid_diffs: list[float] = []
+        for i, left in enumerate(keys):
+            for right in keys[i + 1:]:
+                left_sig = state_signatures[left]
+                right_sig = state_signatures[right]
+                alpha_diffs.append(float(np.mean(np.abs(left_sig["alpha_signature"] - right_sig["alpha_signature"]))))
+                centroid_diffs.append(float(np.linalg.norm(np.asarray(left_sig["centroid"]) - np.asarray(right_sig["centroid"]))))
+
+        alpha_score = min((float(np.mean(alpha_diffs)) if alpha_diffs else 0.0) * 5.0, 1.0)
+        centroid_score = min((float(np.mean(centroid_diffs)) if centroid_diffs else 0.0) * 2.5, 1.0)
+        return float(0.75 * alpha_score + 0.25 * centroid_score)
+
     def _score_character_candidate(
         self,
         char_spec: CharacterSpec,
@@ -787,6 +896,8 @@ class AssetPipeline:
         frame_scores: list[float] = []
         motion_scores: list[float] = []
         coverage_scores: list[float] = []
+        silhouette_scores: list[float] = []
+        state_signatures: dict[str, dict[str, Any]] = {}
 
         for state in preview_states:
             anim_func = CHARACTER_ANIMATION_MAP[state]
@@ -794,6 +905,9 @@ class AssetPipeline:
             prev_alpha: Optional[np.ndarray] = None
             state_motion: list[float] = []
             state_coverage: list[float] = []
+            state_silhouettes: list[float] = []
+            state_alphas: list[np.ndarray] = []
+            state_centroids: list[tuple[float, float]] = []
 
             for i in range(frame_count):
                 t = i / max(frame_count - 1, 1)
@@ -813,7 +927,11 @@ class AssetPipeline:
                 frame_scores.append(float(eval_result.overall_score))
 
                 alpha = np.asarray(frame.getchannel("A"), dtype=np.float32) / 255.0
-                state_coverage.append(float(np.mean(alpha > 0.05)))
+                metrics = self._compute_character_silhouette_metrics(alpha)
+                state_coverage.append(float(metrics["coverage"]))
+                state_silhouettes.append(float(metrics["silhouette_score"]))
+                state_alphas.append(alpha)
+                state_centroids.append((float(metrics["centroid_x"]), float(metrics["centroid_y"])))
                 if prev_alpha is not None:
                     state_motion.append(float(np.mean(np.abs(alpha - prev_alpha))))
                 prev_alpha = alpha
@@ -821,17 +939,36 @@ class AssetPipeline:
             mean_coverage = float(np.mean(state_coverage)) if state_coverage else 0.0
             coverage_scores.append(max(0.0, 1.0 - min(abs(mean_coverage - 0.22) / 0.22, 1.0)))
             motion_scores.append(min((float(np.mean(state_motion)) if state_motion else 0.0) * 6.0, 1.0))
+            silhouette_scores.append(float(np.mean(state_silhouettes)) if state_silhouettes else 0.0)
+
+            if state_alphas:
+                mean_alpha = np.mean(np.stack(state_alphas, axis=0), axis=0)
+                mean_centroid = np.mean(np.asarray(state_centroids, dtype=np.float64), axis=0)
+                state_signatures[state] = {
+                    "alpha_signature": mean_alpha,
+                    "centroid": (float(mean_centroid[0]), float(mean_centroid[1])),
+                }
 
         quality_score = float(np.mean(frame_scores)) if frame_scores else 0.0
         motion_score = float(np.mean(motion_scores)) if motion_scores else 0.0
         coverage_score = float(np.mean(coverage_scores)) if coverage_scores else 0.0
-        total_score = 0.72 * quality_score + 0.18 * motion_score + 0.10 * coverage_score
+        silhouette_score = float(np.mean(silhouette_scores)) if silhouette_scores else 0.0
+        state_distinction_score = self._compute_state_distinction_score(state_signatures)
+        total_score = (
+            0.56 * quality_score
+            + 0.15 * motion_score
+            + 0.10 * coverage_score
+            + 0.11 * silhouette_score
+            + 0.08 * state_distinction_score
+        )
 
         return {
             "score": float(total_score),
             "quality_score": quality_score,
             "motion_score": motion_score,
             "coverage_score": coverage_score,
+            "silhouette_score": silhouette_score,
+            "state_distinction_score": float(state_distinction_score),
             "preview_states": preview_states,
         }
 
@@ -842,80 +979,117 @@ class AssetPipeline:
         palette: Palette,
     ) -> tuple[CharacterSpec, Any, Palette, dict[str, Any], list[float]]:
         rng = np.random.default_rng(self.seed)
+        base_spec = replace(char_spec)
+        base_style = self._copy_character_style(style)
+        base_palette = self._copy_palette(palette)
+
         best_spec = replace(char_spec)
         best_style = self._copy_character_style(style)
         best_palette = self._copy_palette(palette)
         best_breakdown = self._score_character_candidate(best_spec, best_style, best_palette)
         history = [float(best_breakdown["score"])]
 
-        candidates: list[dict[str, Any]] = [
-            {
-                "iteration": 0,
-                "rank": 0,
-                "score": float(best_breakdown["score"]),
-                "quality_score": float(best_breakdown["quality_score"]),
-                "motion_score": float(best_breakdown["motion_score"]),
-                "coverage_score": float(best_breakdown["coverage_score"]),
-                "head_units": float(best_spec.head_units),
-                "style": vars(best_style).copy(),
-                "palette_hex": best_palette.colors_hex,
-                "preview_states": list(best_breakdown["preview_states"]),
+        elite_size = max(1, min(int(char_spec.evolution_elite_size), max(1, char_spec.evolution_population)))
+        stagnation_patience = max(1, int(char_spec.evolution_stagnation_patience))
+        base_strength = float(max(char_spec.evolution_variation_strength, 0.05))
+        strength_history = [base_strength]
+        stagnation_steps = 0
+        stagnation_events = 0
+
+        def _entry(
+            spec: CharacterSpec,
+            style_obj: Any,
+            palette_obj: Palette,
+            breakdown: dict[str, Any],
+            iteration: int,
+            rank: int,
+            parent_source: str,
+            variation_strength: float,
+        ) -> dict[str, Any]:
+            return {
+                "iteration": iteration,
+                "rank": rank,
+                "score": float(breakdown["score"]),
+                "quality_score": float(breakdown["quality_score"]),
+                "motion_score": float(breakdown["motion_score"]),
+                "coverage_score": float(breakdown["coverage_score"]),
+                "silhouette_score": float(breakdown["silhouette_score"]),
+                "state_distinction_score": float(breakdown["state_distinction_score"]),
+                "head_units": float(spec.head_units),
+                "style": vars(style_obj).copy(),
+                "palette_hex": palette_obj.colors_hex,
+                "preview_states": list(breakdown["preview_states"]),
+                "parent_source": parent_source,
+                "variation_strength": float(variation_strength),
             }
-        ]
+
+        initial_entry = _entry(best_spec, best_style, best_palette, best_breakdown, 0, 0, "seed", base_strength)
+        candidates: list[dict[str, Any]] = [initial_entry]
+        archive: list[tuple[CharacterSpec, Any, Palette, dict[str, Any]]] = [(best_spec, best_style, best_palette, best_breakdown)]
+        elites = self._select_diverse_character_elites(archive, elite_size)
 
         for iteration in range(1, max(0, char_spec.evolution_iterations) + 1):
-            round_best = None
-            round_best_style = None
-            round_best_palette = None
-            round_best_spec = None
-            round_best_breakdown = None
+            adaptive_strength = float(np.clip(base_strength * (1.0 + 0.45 * stagnation_steps), 0.05, 0.60))
+            strength_history.append(adaptive_strength)
+            round_pool: list[tuple[CharacterSpec, Any, Palette, dict[str, Any]]] = []
+            round_entries: list[dict[str, Any]] = []
 
             for rank in range(max(1, char_spec.evolution_population)):
+                restart_mode = stagnation_steps >= stagnation_patience and rank == max(1, char_spec.evolution_population) - 1
+                if restart_mode:
+                    parent_spec = replace(base_spec)
+                    parent_style = self._copy_character_style(base_style)
+                    parent_palette = self._copy_palette(base_palette)
+                    parent_source = "restart"
+                else:
+                    parent_spec, parent_style, parent_palette, _ = elites[int(rng.integers(0, len(elites)))]
+                    parent_spec = replace(parent_spec)
+                    parent_style = self._copy_character_style(parent_style)
+                    parent_palette = self._copy_palette(parent_palette)
+                    parent_source = "elite"
+
                 trial_spec = replace(
-                    best_spec,
+                    parent_spec,
                     head_units=float(np.clip(
-                        best_spec.head_units + rng.normal(0.0, 0.22 * char_spec.evolution_variation_strength),
+                        parent_spec.head_units + rng.normal(0.0, 0.24 * adaptive_strength),
                         2.2,
                         3.8,
                     )),
                 )
-                trial_style = self._mutate_character_style(
-                    best_style,
-                    rng,
-                    char_spec.evolution_variation_strength,
-                )
-                trial_palette = self._mutate_palette(
-                    best_palette,
-                    rng,
-                    char_spec.evolution_variation_strength,
-                )
+                trial_style = self._mutate_character_style(parent_style, rng, adaptive_strength)
+                trial_palette = self._mutate_palette(parent_palette, rng, adaptive_strength)
                 trial_breakdown = self._score_character_candidate(trial_spec, trial_style, trial_palette)
-                trial_entry = {
-                    "iteration": iteration,
-                    "rank": rank,
-                    "score": float(trial_breakdown["score"]),
-                    "quality_score": float(trial_breakdown["quality_score"]),
-                    "motion_score": float(trial_breakdown["motion_score"]),
-                    "coverage_score": float(trial_breakdown["coverage_score"]),
-                    "head_units": float(trial_spec.head_units),
-                    "style": vars(trial_style).copy(),
-                    "palette_hex": trial_palette.colors_hex,
-                    "preview_states": list(trial_breakdown["preview_states"]),
-                }
-                candidates.append(trial_entry)
+                round_pool.append((trial_spec, trial_style, trial_palette, trial_breakdown))
+                round_entries.append(_entry(
+                    trial_spec,
+                    trial_style,
+                    trial_palette,
+                    trial_breakdown,
+                    iteration,
+                    rank,
+                    parent_source,
+                    adaptive_strength,
+                ))
 
-                if round_best is None or trial_breakdown["score"] > round_best_breakdown["score"]:
-                    round_best = trial_entry
-                    round_best_spec = trial_spec
-                    round_best_style = trial_style
-                    round_best_palette = trial_palette
-                    round_best_breakdown = trial_breakdown
+            candidates.extend(round_entries)
+            archive.extend(round_pool)
+            elites = self._select_diverse_character_elites(archive, elite_size)
+            round_best_spec, round_best_style, round_best_palette, round_best_breakdown = max(
+                round_pool,
+                key=lambda item: item[3]["score"],
+            )
 
-            if round_best_breakdown is not None and round_best_breakdown["score"] >= best_breakdown["score"]:
+            if round_best_breakdown["score"] > best_breakdown["score"] + 1e-6:
                 best_spec = round_best_spec
                 best_style = round_best_style
                 best_palette = round_best_palette
                 best_breakdown = round_best_breakdown
+                stagnation_steps = 0
+            else:
+                stagnation_steps += 1
+                if stagnation_steps >= stagnation_patience and stagnation_steps % stagnation_patience == 0:
+                    stagnation_events += 1
+
             history.append(float(best_breakdown["score"]))
 
         evolution_meta = {
@@ -923,6 +1097,10 @@ class AssetPipeline:
             "iterations": int(char_spec.evolution_iterations),
             "population": int(char_spec.evolution_population),
             "variation_strength": float(char_spec.evolution_variation_strength),
+            "elite_size": int(elite_size),
+            "stagnation_patience": int(stagnation_patience),
+            "stagnation_events": int(stagnation_events),
+            "strength_history": [float(v) for v in strength_history],
             "preview_states": list(best_breakdown["preview_states"]),
             "initial_score": float(candidates[0]["score"]),
             "best_score": float(best_breakdown["score"]),
@@ -931,6 +1109,18 @@ class AssetPipeline:
                 "head_units": float(best_spec.head_units),
                 "style": vars(best_style).copy(),
                 "palette_hex": best_palette.colors_hex,
+                "quality_score": float(best_breakdown["quality_score"]),
+                "motion_score": float(best_breakdown["motion_score"]),
+                "coverage_score": float(best_breakdown["coverage_score"]),
+                "silhouette_score": float(best_breakdown["silhouette_score"]),
+                "state_distinction_score": float(best_breakdown["state_distinction_score"]),
+            },
+            "objective_weights": {
+                "quality_score": 0.56,
+                "motion_score": 0.15,
+                "coverage_score": 0.10,
+                "silhouette_score": 0.11,
+                "state_distinction_score": 0.08,
             },
             "candidates": candidates,
         }

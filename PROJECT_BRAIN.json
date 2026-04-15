@@ -1,25 +1,34 @@
 {
-  "version": "0.17.0",
-  "last_session_id": "SESSION-023",
-  "last_updated": "2026-04-15T14:31:31Z",
+  "version": "0.18.0",
+  "last_session_id": "SESSION-024",
+  "last_updated": "2026-04-15T14:45:57Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "492/492 = 100%",
+  "validation_pass_rate": "493/493 = 100%",
   "total_iterations": 500,
-  "total_code_lines": 31450,
+  "total_code_lines": 31673,
   "distill_session_id": "DISTILL-004",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
   "knowledge_rule_count": 12,
   "math_model_count": 10,
-  "project_health_score": 9.1,
+  "project_health_score": 9.2,
+  "current_focus": "Character evolution 2.5 planning after landing the 2.0 foundation; next critical gaps are broader semantic mutation space, benchmark asset suites, and pipeline closure for level/export/shader.",
   "pending_tasks": [
     {
       "id": "P1-NEW-9B",
       "priority": "P1",
-      "title": "Character evolution 2.0",
+      "title": "Character evolution 2.5",
+      "status": "PARTIAL",
+      "estimated_effort": "high",
+      "description": "The 2.0 foundation is landed. Next step is to expand anatomy, clothing, accessory and archetype mutation space, then add pose clarity, motion arc, overlap, appeal and character-specific objective metrics."
+    },
+    {
+      "id": "P1-NEW-10",
+      "priority": "P1",
+      "title": "Production benchmark asset suite",
       "status": "TODO",
       "estimated_effort": "high",
-      "description": "Extend the new baseline character search with silhouette readability, pose clarity, state distinction, diversity preservation, stagnation recovery, and richer anatomy/style mutation spaces."
+      "description": "Create benchmark characters, tiles, VFX and acceptance thresholds so future evolution is judged against production-like targets instead of only generic metrics."
     },
     {
       "id": "P1-NEW-1",
@@ -27,7 +36,7 @@
       "title": "WFC tilemap pipeline integration",
       "status": "TODO",
       "estimated_effort": "high",
-      "description": "WFC module (level/wfc.py) exists and imports correctly. Need to add produce_level() method to AssetPipeline and integrate outputs into asset packs."
+      "description": "WFC module exists and imports correctly. Need to add produce_level() to AssetPipeline and integrate level outputs into asset packs."
     },
     {
       "id": "P1-NEW-7",
@@ -76,14 +85,6 @@
       "status": "TODO",
       "estimated_effort": "low",
       "description": "Wire ArtMathQualityController mid-generation checkpoint into longer searches."
-    },
-    {
-      "id": "P1-NEW-10",
-      "priority": "P1",
-      "title": "Production benchmark asset suite",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Create benchmark characters, tiles, VFX and acceptance thresholds so future evolution is judged against production-like targets rather than only generic quality metrics."
     },
     {
       "id": "P2-1",
@@ -159,7 +160,7 @@
     {
       "id": "P3-6",
       "priority": "P3",
-      "title": "README update for SESSION-018~023 features",
+      "title": "README update for SESSION-018~024 features",
       "status": "TODO",
       "estimated_effort": "low"
     }
@@ -180,10 +181,10 @@
     {"id": "P0-NEW-4", "title": "Multi-layer render compositing (render_sdf_layered + composite_layers)", "completed_in": "SESSION-020"},
     {"id": "P0-NEW-5", "title": "Large-scale evolution validation (4 shapes, 120 iters, avg 0.8371)", "completed_in": "SESSION-020"},
     {"id": "P0-NEW-6", "title": "VFX evaluator tuning (evaluate_vfx + evaluate_multi_frame_vfx, explosion 0.24→0.66)", "completed_in": "SESSION-020"},
-    {"id": "P0-NEW-7", "title": "Adaptive outline width (curvature-based, _compute_adaptive_outline_width)", "completed_in": "SESSION-021"},
-    {"id": "P0-NEW-8", "title": "Texture-aware layered rendering (render_textured_sdf_layered + _build_texture_func)", "completed_in": "SESSION-021"},
-    {"id": "P0-NEW-9", "title": "Adaptive evolution convergence (shape-complexity-aware patience/population/min_delta)", "completed_in": "SESSION-021"},
-    {"id": "AUDIT-021", "title": "Full project audit (14-module functional audit + commercial gap analysis)", "completed_in": "SESSION-021"},
+    {"id": "P0-NEW-7", "title": "Adaptive outline width (curvature-based)", "completed_in": "SESSION-021"},
+    {"id": "P0-NEW-8", "title": "Texture-aware layered rendering", "completed_in": "SESSION-021"},
+    {"id": "P0-NEW-9", "title": "Adaptive evolution convergence", "completed_in": "SESSION-021"},
+    {"id": "AUDIT-021", "title": "Full project audit and commercial gap analysis", "completed_in": "SESSION-021"},
     {"id": "P1-NEW-5A", "title": "Character pack pipeline integration", "completed_in": "SESSION-022"},
     {"id": "P1-NEW-4", "title": "Multi-state sprite generation", "completed_in": "SESSION-022"},
     {"id": "P0-HARDEN-1", "title": "Character renderer NumPy dilation fallback", "completed_in": "SESSION-022"},
@@ -193,7 +194,10 @@
     {"id": "P1-NEW-9A", "title": "Baseline character evolution search", "completed_in": "SESSION-023"},
     {"id": "P0-HARDEN-4", "title": "Palette adherence compatibility fix for character evolution", "completed_in": "SESSION-023"},
     {"id": "TEST-023", "title": "Character evolution pipeline coverage", "completed_in": "SESSION-023"},
-    {"id": "VALIDATION-023", "title": "Full repository validation (492/492 pass)", "completed_in": "SESSION-023"}
+    {"id": "VALIDATION-023", "title": "Full repository validation (492/492 pass)", "completed_in": "SESSION-023"},
+    {"id": "P1-NEW-9B-FOUNDATION", "title": "Character evolution 2.0 foundation (silhouette/state-distinction scoring + diversity/stagnation recovery)", "completed_in": "SESSION-024"},
+    {"id": "TEST-024", "title": "Character evolution recovery and metadata coverage", "completed_in": "SESSION-024"},
+    {"id": "VALIDATION-024", "title": "Full repository validation (493/493 pass)", "completed_in": "SESSION-024"}
   ],
   "capability_gaps": [
     "RESOLVED-S018: Evaluator too lenient -> 12-metric evaluator with strict thresholds",
@@ -206,167 +210,53 @@
     "RESOLVED-S019: Particles/cage not in pipeline -> produce_vfx() + produce_deform_animation()",
     "RESOLVED-S019: No validation suite -> 19-test validation, 100% pass",
     "RESOLVED-S020: No multi-layer compositing -> render_sdf_layered() + composite_layers()",
-    "RESOLVED-S020: VFX evaluator too harsh -> evaluate_vfx() with rebalanced weights, explosion 0.24→0.66",
-    "RESOLVED-S020: Evolution not validated at scale -> 4 shapes, 120 iters, avg 0.8371, all positive trends",
+    "RESOLVED-S020: VFX evaluator too harsh -> rebalanced weights, explosion 0.24→0.66",
+    "RESOLVED-S020: Evolution not validated at scale -> 4 shapes, 120 iters, avg 0.8371",
     "RESOLVED-S021: Outline gaps at sharp corners -> adaptive outline width based on curvature",
     "RESOLVED-S021: Texture layer empty in layered rendering -> render_textured_sdf_layered()",
     "RESOLVED-S021: Evolution convergence too slow for complex shapes -> shape-complexity-aware params",
-    "RESOLVED-S022: Character renderer disconnected from pipeline -> produce_character_pack() + produce_asset_pack() character integration",
-    "RESOLVED-S022: No multi-state character packaging -> multi-state sheets/GIFs/atlas/manifest export",
+    "RESOLVED-S022: Character renderer disconnected from pipeline -> produce_character_pack() + produce_asset_pack() integration",
+    "RESOLVED-S022: No multi-state character packaging -> sheets/GIFs/atlas/manifest export",
     "RESOLVED-S022: Repeated session duplication risk -> session fingerprint guard added",
     "RESOLVED-S023: No character search path before export -> baseline character evolution search added to produce_character_pack()",
-    "REMAINING: Character evolution still lacks stronger character-specific objective metrics and diversity/stagnation handling",
+    "PARTIAL-S024: Character evolution lacked character-aware objectives -> silhouette and state-distinction scoring now added, but richer motion/appeal objectives remain open",
+    "PARTIAL-S024: Character evolution lacked diversity and stagnation recovery -> elite diversity, adaptive strength and restart added, but broader population strategies remain open",
+    "REMAINING: Character mutation space is still too narrow for rich production character families",
+    "REMAINING: No production benchmark asset suite",
     "REMAINING: WFC tilemap not first-class in AssetPipeline",
     "REMAINING: Shader/Export modules not first-class in AssetPipeline",
     "REMAINING: No per-frame SDF parameter animation",
     "REMAINING: No reaction-diffusion textures",
-    "REMAINING: No spring-based secondary animation",
-    "REMAINING: No production benchmark asset suite"
+    "REMAINING: No spring-based secondary animation"
   ],
-  "session_022_changes": {
+  "session_024_changes": {
     "new_features": [
-      "CharacterSpec dataclass for practical character asset generation",
-      "CHARACTER_ANIMATION_MAP for state-driven character rendering",
-      "AssetPipeline.produce_character_pack() with sheets, GIFs, frames, atlas, manifest, palette JSON",
-      "produce_asset_pack() now includes character packs",
-      "SessionGuard task fingerprinting and duplicate-work detection",
-      "NumPy-only binary dilation fallback in character renderer",
-      "Package __version__ aligned to 0.16.1"
+      "Character evolution now exports silhouette-aware and state-distinction-aware scoring",
+      "Character evolution now keeps a diverse elite pool instead of sampling from a single incumbent only",
+      "Adaptive variation strength and restart-mode recovery now activate during character-search stagnation",
+      "Evolution metadata now records objective weights, strength history and stagnation events",
+      "Project version aligned to 0.18.0"
     ],
     "quality_improvements": {
-      "character_output": "Pipeline now emits usable multi-state character asset packs instead of isolated renderer-only outputs",
-      "anti_duplication": "Cross-session duplicate-work guard reduces repeated audits and redundant implementation",
-      "runtime_robustness": "Character rendering path survives even without SciPy in lean environments",
-      "validation_tests": "491/491 full repository pass",
-      "project_health": "8.6 -> 9.0"
+      "character_output": "Character packs are now selected by a more defensible objective function before export, improving the odds of useful downstream-ready states.",
+      "search_resilience": "Character search is less likely to collapse into single-point local drift because it now preserves diverse elites and reacts to stagnation.",
+      "auditability": "The evolution JSON now captures more of the why behind candidate selection, not only the final score."
     },
-    "audit_results": {
-      "biggest_gap_before": "No character sprite pipeline integration",
-      "resolved_now": "Pipeline-level character pack generation and multi-state export",
-      "current_biggest_gap": "No evaluator-guided character evolution loop",
-      "second_gap": "WFC/Shader/Export still under-integrated"
+    "validation": {
+      "full_suite": "493/493 PASS",
+      "character_pipeline": "PASS",
+      "new_recovery_metadata_tests": "PASS"
     }
   },
-  "session_023_changes": {
-    "new_features": [
-      "CharacterSpec evolution parameters for pre-export search",
-      "AssetPipeline character evolution helper methods for anatomy/style/palette candidate mutation",
-      "Character evolution JSON artifact embedded in pack outputs",
-      "Package version aligned to 0.17.0"
-    ],
-    "quality_improvements": {
-      "character_output": "Character packs are now selected through a baseline search loop rather than only preset rendering",
-      "evaluation_compatibility": "Palette adherence logic now supports Palette objects during evolution scoring",
-      "validation_tests": "492/492 full repository pass",
-      "project_health": "9.0 -> 9.1"
-    },
-    "audit_results": {
-      "biggest_gap_before": "Character packs were still preset-driven rather than evolved",
-      "resolved_now": "Baseline search-before-export loop exists for character assets",
-      "current_biggest_gap": "Character evolution still needs stronger objective metrics, diversity handling, and richer mutation spaces",
-      "second_gap": "WFC/Export/Shader still not first-class pipeline outputs"
-    }
-  },
-  "evolution_history": [
-    {
-      "session": "SESSION-017",
-      "date": "2026-04-15",
-      "iterations": 15,
-      "best_score": 0.961,
-      "assets_produced": 37,
-      "notes": "First real evolution run. Pipeline E2E test successful."
-    },
-    {
-      "session": "SESSION-018",
-      "date": "2026-04-15",
-      "iterations": 0,
-      "best_score": 0.961,
-      "assets_produced": 0,
-      "notes": "Infrastructure session: evaluator rewrite, CPPN enrichment, particles, cage deform, knowledge base."
-    },
-    {
-      "session": "SESSION-019",
-      "date": "2026-04-15",
-      "iterations": 19,
-      "best_score": 0.8244,
-      "assets_produced": 0,
-      "notes": "Integration + validation session: palette-constrained rendering, pipeline integration, critical parameter bug fix, 19/19 validation pass."
-    },
-    {
-      "session": "SESSION-020",
-      "date": "2026-04-15",
-      "iterations": 233,
-      "best_score": 0.8674,
-      "assets_produced": 4,
-      "notes": "Multi-layer compositing, VFX evaluator tuning, large-scale evolution validation. 4 shapes evolved (coin 0.85, star 0.82, gem 0.81, circle 0.87). 24/24 validation pass."
-    },
-    {
-      "session": "SESSION-021",
-      "date": "2026-04-15",
-      "iterations": 267,
-      "best_score": 0.8674,
-      "assets_produced": 0,
-      "notes": "Adaptive outline width, texture-aware layered rendering, shape-complexity-aware evolution. Full project audit: 14 modules, 10 fully functional. 20/20 validation pass (44/44 cumulative)."
-    },
-    {
-      "session": "SESSION-022",
-      "date": "2026-04-15",
-      "iterations": 0,
-      "best_score": 0.8674,
-      "assets_produced": 0,
-      "notes": "Character pack pipeline integration, multi-state character export, cross-session session guard, evaluator consistency fix, and full validation at 491/491 pass."
-    },
-    {
-      "session": "SESSION-023",
-      "date": "2026-04-15",
-      "iterations": 2,
-      "best_score": 0.8674,
-      "assets_produced": 0,
-      "notes": "Baseline character evolution search added before pack export, evaluator palette compatibility hardened, and full validation raised to 492/492 pass."
-    }
-  ],
-  "research_references": {
-    "sdf_rendering": [
-      "Inigo Quilez - 2D SDF functions and operations",
-      "Shadertoy pixel art SDF techniques"
-    ],
-    "evolution": [
-      "MAP-Elites (Mouret & Clune, 2015) - Quality-Diversity optimization",
-      "CPPN-NEAT (Stanley, 2007) - Compositional Pattern Producing Networks",
-      "PicBreeder - Interactive evolutionary art"
-    ],
-    "animation": [
-      "Thomas & Johnston (1981) - The Illusion of Life (12 Principles)",
-      "Lasseter (1987) - Principles of Traditional Animation Applied to 3D",
-      "Witkin & Popovic (1995) - Motion Warping",
-      "Floater (2003) - Mean Value Coordinates (cage deformation)",
-      "Verlet integration for game physics"
-    ],
-    "pixel_art": [
-      "Kopf & Lischinski (2011) - Depixelizing Pixel Art",
-      "Pixel art dithering: Bayer, Floyd-Steinberg, ordered patterns",
-      "OKLAB color space for perceptually uniform color manipulation",
-      "Pedro Medeiros pixel art tutorials",
-      "Lospec palette guidelines"
-    ],
-    "session_018_new": [
-      "Procedural pixel art generation: CPPN+NEAT, WFC, L-systems, reaction-diffusion",
-      "Sprite animation math: Verlet particles, Fourier descriptors, cage deformation",
-      "12-metric pixel art evaluation framework",
-      "Commercial sprite sheet standards (Unity/Godot JSON metadata)",
-      "itch.io pixel art asset benchmarks"
-    ],
-    "session_022_new": [
-      "Procedural creature generation and animation for games",
-      "Programmatic 2D pixel character animation references",
-      "Commercial multi-state character sheet packaging patterns"
+  "recent_audit": {
+    "session": "SESSION-024",
+    "summary": "The project is no longer a demo shell. It can produce real character asset packs and now contains a stronger evolution core. The biggest remaining blockers are broader semantic mutation space, benchmark asset suites, and first-class pipeline closure for levels/export/shaders.",
+    "top_gaps": [
+      "Broader semantic mutation space for character evolution",
+      "Production benchmark asset suite",
+      "WFC tilemap pipeline integration",
+      "Export pipeline integration",
+      "Shader pipeline integration"
     ]
-  },
-  "custom_notes": {
-    "key_insight": "SESSION-023 moved character generation one step closer to true iterative art production by inserting a baseline search-before-export loop. The project is no longer blocked on character evolution existing at all; it is now blocked on making that evolution significantly smarter.",
-    "next_session_focus": "Prefer P1-NEW-9B if the goal is better final character art quality; otherwise prioritize WFC or export integration to improve downstream usefulness.",
-    "anti_duplication": "READ DEDUP_REGISTRY.json BEFORE starting any work. Also use SessionGuard fingerprints before broad research or another audit pass.",
-    "parameter_safety": "ALL SDF primitive calls MUST use keyword arguments. Never use positional args for circle/box/star/ring/triangle.",
-    "class_name_reference": "ShaderCodeGenerator (not ShaderGenerator), LSystem (not LSystemGenerator), AssetExporter (not ExportBridge), PaletteGenerator.generate(harmony=...) (not scheme=...)."
   }
 }

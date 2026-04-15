@@ -98,8 +98,41 @@ class TestCharacterPipeline:
         evolution = json.loads(evolution_path.read_text())
         assert evolution["iterations"] == 2
         assert evolution["population"] == 3
+        assert evolution["elite_size"] == 3
+        assert evolution["stagnation_patience"] == 2
+        assert len(evolution["strength_history"]) == 3
         assert len(evolution["candidates"]) == 1 + 2 * 3
         assert "palette_hex" in evolution["best_character"]
+        assert "silhouette_score" in evolution["best_character"]
+        assert "state_distinction_score" in evolution["best_character"]
+        assert "objective_weights" in evolution
+
+    @pytest.mark.unit
+    def test_character_evolution_reports_stagnation_recovery_metadata(self, tmp_path: Path):
+        pipeline = AssetPipeline(output_dir=str(tmp_path), verbose=False, seed=11)
+        spec = CharacterSpec(
+            name="stagnation_mario",
+            preset="mario",
+            frame_width=32,
+            frame_height=32,
+            fps=12,
+            frames_per_state=2,
+            states=["idle", "run"],
+            evolution_iterations=3,
+            evolution_population=2,
+            evolution_variation_strength=0.0,
+            evolution_stagnation_patience=1,
+            evolution_preview_states=["idle", "run"],
+        )
+
+        result = pipeline.produce_character_pack(spec)
+        evolution = result.metadata["evolution"]
+
+        assert evolution["elite_size"] >= 1
+        assert evolution["stagnation_patience"] == 1
+        assert evolution["stagnation_events"] >= 1
+        assert len(evolution["strength_history"]) == 4
+        assert any(candidate["parent_source"] == "restart" for candidate in evolution["candidates"][1:])
 
     @pytest.mark.unit
     def test_produce_character_pack_rejects_unknown_preset(self, tmp_path: Path):

@@ -6101,3 +6101,592 @@
   Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
 ======================================================================
 ```
+
+## 20260415_144456 — Iteration 5
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 5
+  Consecutive stagnant  : 5
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_144457 — Iteration 3
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 3
+  Consecutive stagnant  : 3
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [64, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_144457 — Iteration 3
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 3
+  Consecutive stagnant  : 3
+  Score history (last 5): [0.92, 0.92, 0.92, 0.92]
+  pHash distances       : [64, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_144457 — Iteration 2
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 2
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5]
+  pHash distances       : [64, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_144457 — Iteration 4
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 4
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [64, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_144457 — Iteration 6
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 6
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_144457 — Iteration 8
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 8
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_144457 — Iteration 10
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 10
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_144457 — Iteration 12
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 12
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_144457 — Iteration 14
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 14
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_144457 — Iteration 16
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 16
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_144457 — Iteration 18
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 18
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_144457 — Iteration 2
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 2
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5]
+  pHash distances       : [64, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## SESSION-024 Governance Note — Character Evolution 2.0 Foundation
+
+This session addressed a higher-order stagnation risk: **character evolution existed, but it could still behave like a shallow local search with weak recovery**. That pattern would have produced repeated future sessions that kept “tuning search” without materially increasing the system's ability to escape mediocre basins.
+
+The mitigation added in SESSION-024 is structural rather than cosmetic:
+
+| Risk | Governance Action | Expected Effect |
+|------|-------------------|-----------------|
+| Character search collapsing around one incumbent | Diverse elite pool added | Preserves alternative high-value candidates |
+| Search progress flatlining for several iterations | Adaptive variation strength added | Increases exploration pressure when local progress stalls |
+| Recovery never escaping the same basin | Restart-mode candidate injection added | Gives the search a controlled way to re-open exploration |
+| Search quality hard to audit later | Objective weights, strength history, and stagnation events exported | Future sessions can see why a search got stuck or improved |
+
+The key anti-stagnation rule for future sessions is therefore:
+
+> Do **not** treat character evolution as solved just because it now has better scoring and restart behavior. The next non-cosmetic step must expand the **semantic mutation space** and define **benchmark asset targets**; otherwise later work risks becoming another loop of local tuning without real production-quality gains.
+
+## 20260415_145103 — Iteration 5
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 5
+  Consecutive stagnant  : 5
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_145104 — Iteration 3
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 3
+  Consecutive stagnant  : 3
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [64, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_145104 — Iteration 3
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 3
+  Consecutive stagnant  : 3
+  Score history (last 5): [0.92, 0.92, 0.92, 0.92]
+  pHash distances       : [64, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_145104 — Iteration 2
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 2
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5]
+  pHash distances       : [64, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_145104 — Iteration 4
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 4
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [64, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_145104 — Iteration 6
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 6
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_145104 — Iteration 8
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 8
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_145104 — Iteration 10
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 10
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_145104 — Iteration 12
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 12
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_145104 — Iteration 14
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 14
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_145104 — Iteration 16
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 16
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_145104 — Iteration 18
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 18
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5, 0.5, 0.5]
+  pHash distances       : [0, 0, 0, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
+
+## 20260415_145104 — Iteration 2
+
+```
+======================================================================
+  STAGNATION REPORT
+======================================================================
+  Detected at iteration : 2
+  Consecutive stagnant  : 2
+  Score history (last 5): [0.5, 0.5, 0.5]
+  pHash distances       : [64, 0, 0]
+
+  Diagnosed cause       : generator_invariant
+  Explanation           : All generated images are perceptually identical (pHash distance < 3). The generator may be ignoring some parameters, or the parameter ranges are too narrow to produce visible variation.
+
+  Escalation level      : human_required
+  Arbitrator verdict    : stop_report
+  Verdict reasoning     : Automated recovery and AI arbitration both failed or deferred. Human review required.
+
+  Recommended action    : Please review the stagnation report in STAGNATION_LOG.md, then feed back your decision via the project chat.
+======================================================================
+```
