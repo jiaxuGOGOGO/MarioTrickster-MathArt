@@ -126,6 +126,11 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 
 ---
 
+## 🤖 How to Talk to AI (User Guide)
+Please refer to `HOW_TO_TALK_TO_AI.md` for the complete workflow on how to start, collaborate, and end a session with Manus to ensure continuous evolution.
+
+---
+
 ## Instructions for Next AI Session
 
 1. Read `PROJECT_BRAIN.json` for the full machine-readable state.
