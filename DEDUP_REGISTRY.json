@@ -1,7 +1,7 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "purpose": "Prevent duplicate research, duplicate code changes, and duplicate knowledge distillation across sessions. Every new session MUST read this file before starting work.",
-  "last_updated": "SESSION-018",
+  "last_updated": "SESSION-019",
 
   "absorbed_references": {
     "description": "External resources already studied and integrated. Do NOT re-research these.",
@@ -13,7 +13,8 @@
       {"id": "REF-P005", "title": "MAP-Elites Quality-Diversity (Mouret & Clune 2015)", "used_in": "mathart/evolution/cppn.py", "session": "SESSION-005"},
       {"id": "REF-P006", "title": "Inigo Quilez SDF functions", "used_in": "mathart/sdf/primitives.py", "session": "SESSION-002"},
       {"id": "REF-P007", "title": "Disney 12 Principles of Animation", "used_in": "mathart/animation/principles.py", "session": "SESSION-004"},
-      {"id": "REF-P008", "title": "Verlet Integration for Game Physics", "used_in": "mathart/animation/particles.py", "session": "SESSION-018"}
+      {"id": "REF-P008", "title": "Verlet Integration for Game Physics", "used_in": "mathart/animation/particles.py", "session": "SESSION-018"},
+      {"id": "REF-P009", "title": "Floyd-Steinberg Dithering in perceptual color space", "used_in": "mathart/sdf/renderer.py", "session": "SESSION-019"}
     ],
     "tutorials": [
       {"id": "REF-T001", "title": "Pedro Medeiros pixel art tutorials", "used_in": "knowledge/pixel_art.md", "session": "SESSION-006"},
@@ -51,6 +52,17 @@
       {"change": "Knowledge: 12 rules in rules.json", "file": "knowledge/rules.json"},
       {"change": "Knowledge: 10 math models registered", "file": "knowledge/math_models.json"},
       {"change": "Anti-duplication registry created", "file": "DEDUP_REGISTRY.json"}
+    ],
+    "SESSION-019": [
+      {"change": "CRITICAL BUG FIX: All SDF primitive calls converted to keyword arguments", "files": ["mathart/pipeline.py", "test_new_renderer.py", "test_evolution_validation.py", "test_actual_output.py"]},
+      {"change": "Palette-constrained rendering: Floyd-Steinberg dither in OKLAB space", "file": "mathart/sdf/renderer.py"},
+      {"change": "Palette.from_srgb_list() class method added", "file": "mathart/oklab/palette.py"},
+      {"change": "produce_vfx() integrated into AssetPipeline", "file": "mathart/pipeline.py"},
+      {"change": "produce_deform_animation() integrated into AssetPipeline", "file": "mathart/pipeline.py"},
+      {"change": "Animation __init__.py exports ParticleSystem, CageDeformer etc.", "file": "mathart/animation/__init__.py"},
+      {"change": "BUG FIX: result.overall → result.overall_score in produce_vfx()", "file": "mathart/pipeline.py"},
+      {"change": "19-test validation suite created", "file": "test_evolution_validation.py"},
+      {"change": "Palette-constrained kwargs passed from produce_sprite to _build_generator", "file": "mathart/pipeline.py"}
     ]
   },
 
@@ -91,6 +103,20 @@
         "root_cause": "No dedup registry, no record of absorbed references",
         "fix": "DEDUP_REGISTRY.json tracks all absorbed references",
         "status": "fixed_in_SESSION-018"
+      },
+      {
+        "id": "STAG-006",
+        "pattern": "SDF shapes invisible — star/gem/shield render as empty images",
+        "root_cause": "Positional argument mismatch: star(n, r1, r2) maps to cx=n (off-screen). All primitives use (cx, cy, ...) signature but callers assumed (param1, param2, ...)",
+        "fix": "All 42 call sites converted to keyword arguments. RULE: Never use positional args for SDF primitives.",
+        "status": "fixed_in_SESSION-019"
+      },
+      {
+        "id": "STAG-007",
+        "pattern": "VFX scoring fails with AttributeError",
+        "root_cause": "produce_vfx() used result.overall but EvaluationResult has result.overall_score",
+        "fix": "Changed to result.overall_score",
+        "status": "fixed_in_SESSION-019"
       }
     ]
   },
@@ -105,9 +131,11 @@
       "RULE-5: Do NOT re-implement any change listed in completed_changes",
       "RULE-6: When adding new research, append to absorbed_references",
       "RULE-7: When making code changes, append to completed_changes",
-      "RULE-8: Run evaluator test on sample images to verify changes work",
+      "RULE-8: Run test_evolution_validation.py to verify changes work (expect 19/19 pass)",
       "RULE-9: If evolution stagnates, check known_stagnation_patterns first",
-      "RULE-10: Always update SESSION_HANDOFF.md and PROJECT_BRAIN.json before ending"
+      "RULE-10: Always update SESSION_HANDOFF.md and PROJECT_BRAIN.json before ending",
+      "RULE-11: NEVER use positional arguments for SDF primitives (circle, box, star, ring, triangle)",
+      "RULE-12: EvaluationResult uses .overall_score not .overall"
     ]
   }
 }

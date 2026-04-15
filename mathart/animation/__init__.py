@@ -14,6 +14,9 @@ from .principles import (
     create_jump_animation, create_walk_cycle, create_idle_breathe,
     create_attack_swing, create_death_animation,
 )
+# SESSION-019: Export new animation modules
+from .particles import ParticleSystem, ParticleConfig
+from .cage_deform import CageDeformer, CagePreset, CageAnimation, CageKeyframe
 
 __all__ = [
     "Skeleton", "Bone", "Joint",
@@ -30,4 +33,7 @@ __all__ = [
     "EASING_FUNCTIONS", "ANIMATION_PRESETS",
     "create_jump_animation", "create_walk_cycle", "create_idle_breathe",
     "create_attack_swing", "create_death_animation",
+    # SESSION-019: New animation modules
+    "ParticleSystem", "ParticleConfig",
+    "CageDeformer", "CagePreset", "CageAnimation", "CageKeyframe",
 ]

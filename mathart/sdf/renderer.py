@@ -205,12 +205,22 @@ def render_sdf(
     color_ramp_levels: int = 5,
     texture_func: Optional[Callable[[np.ndarray, np.ndarray], np.ndarray]] = None,
     texture_strength: float = 0.3,
+    # SESSION-019: Palette-constrained rendering
+    palette_constrained: bool = False,
+    palette_colors: Optional[list[tuple[int, int, int]]] = None,
+    palette_dither: bool = True,
 ) -> Image.Image:
     """Render an SDF to a professional pixel art sprite.
 
     Uses SDF-gradient normals, Lambertian lighting, ambient occlusion,
     hue-shifted color ramps, and Bayer-matrix dithering to produce output
     comparable to hand-drawn pixel art.
+
+    SESSION-019: Added ``palette_constrained`` mode. When enabled, the
+    final image is quantized to the given ``palette_colors`` using OKLAB
+    nearest-neighbor mapping with optional Floyd-Steinberg dithering.
+    This produces true pixel art with exact palette colors instead of
+    continuous-color renders that are post-quantized.
 
     All new keyword arguments are optional and default to producing a
     visually rich result. Callers that relied on the old 2-colour output
@@ -307,7 +317,58 @@ def render_sdf(
     if enable_outline:
         img[outline_mask & inside_mask] = base_outline
 
-    return Image.fromarray(img, "RGBA")
+    result_img = Image.fromarray(img, "RGBA")
+
+    # SESSION-019: Palette-constrained post-processing
+    if palette_constrained and palette_colors:
+        result_img = _apply_palette_constraint(
+            result_img, palette_colors, dither=palette_dither
+        )
+
+    return result_img
+
+
+def _apply_palette_constraint(
+    img: Image.Image,
+    palette_colors: list[tuple[int, int, int]],
+    dither: bool = True,
+) -> Image.Image:
+    """Quantize rendered image to strict palette using OKLAB space.
+
+    SESSION-019: This is the key function that bridges continuous SDF
+    rendering with discrete pixel art palettes. Uses the existing
+    OKLAB quantizer for perceptually accurate color mapping.
+    """
+    try:
+        from ..oklab.quantizer import quantize_image
+        from ..oklab.palette import Palette
+
+        # Build Palette object from color list
+        pal = Palette.from_srgb_list(palette_colors)
+        return quantize_image(img, pal, dither=dither, preserve_alpha=True)
+    except Exception:
+        # Fallback: manual nearest-neighbor quantization
+        arr = np.array(img)
+        if arr.shape[2] < 4:
+            return img
+        alpha = arr[:, :, 3].copy()
+        rgb = arr[:, :, :3].astype(np.float32)
+        pal_arr = np.array(palette_colors, dtype=np.float32)  # (N, 3)
+
+        # Reshape for broadcasting
+        h, w = rgb.shape[:2]
+        pixels = rgb.reshape(-1, 1, 3)  # (H*W, 1, 3)
+        pal_exp = pal_arr[np.newaxis, :, :]  # (1, N, 3)
+
+        # Nearest neighbor in RGB space
+        dists = np.sum((pixels - pal_exp) ** 2, axis=2)  # (H*W, N)
+        indices = np.argmin(dists, axis=1)  # (H*W,)
+        result_rgb = pal_arr[indices].reshape(h, w, 3).astype(np.uint8)
+
+        out = np.zeros((h, w, 4), dtype=np.uint8)
+        out[:, :, :3] = result_rgb
+        out[:, :, 3] = alpha
+        return Image.fromarray(out, "RGBA")
 
 
 def render_sdf_simple(

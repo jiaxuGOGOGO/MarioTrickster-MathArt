@@ -56,32 +56,38 @@ from .animation.principles import (
     create_attack_swing, create_death_animation,
 )
 from .distill.compiler import Constraint, ParameterSpace
+from .animation.particles import ParticleSystem, ParticleConfig
+from .animation.cage_deform import CageDeformer, CagePreset, CageAnimation
 
 
 # ── Shape Library ─────────────────────────────────────────────────────────────
 # SESSION-018: Fixed gem/star defaults to be visible (larger radii)
 
 SHAPE_LIBRARY: dict[str, Callable[..., Any]] = {
-    "circle": lambda r=0.4: circle(r),
-    "box": lambda w=0.35, h=0.35: box(w, h),
-    "star": lambda n=5, r1=0.42, r2=0.22: star(n, r1, r2),
-    "triangle": lambda s=0.4: triangle(s),
-    "ring": lambda r=0.35, w=0.1: ring(r, w),
+    # SESSION-019 FIX: All primitives use (cx, cy, ...) signature — use kwargs!
+    "circle": lambda r=0.4: circle(cx=0, cy=0, r=r),
+    "box": lambda w=0.35, h=0.35: box(cx=0, cy=0, hw=w, hh=h),
+    # SESSION-019 FIX: star(cx, cy, r_outer, r_inner, n_points) — use kwargs!
+    "star": lambda n=5, r1=0.42, r2=0.22: star(cx=0, cy=0, r_outer=r1, r_inner=r2, n_points=n),
+    "triangle": lambda s=0.4: triangle(),  # uses default equilateral
+    "ring": lambda r=0.35, w=0.1: ring(cx=0, cy=0, r=r, thickness=w),
     "spike": lambda: spike_sdf(),
     "flame": lambda: flame_sdf(),
     "saw": lambda: saw_blade_sdf(),
     "glow": lambda: glow_sdf(),
     "electric": lambda: electric_arc_sdf(),
-    "coin": lambda: ring(0.35, 0.12),
-    "gem": lambda: star(4, 0.38, 0.18),
-    "shield": lambda: smooth_union(circle(0.3), box(0.25, 0.1), k=0.1),
+    "coin": lambda: ring(cx=0, cy=0, r=0.35, thickness=0.12),
+    # SESSION-019 FIX: gem is a 4-pointed star
+    "gem": lambda: star(cx=0, cy=0, r_outer=0.38, r_inner=0.18, n_points=4),
+    # SESSION-019 FIX: use kwargs for all primitives in compound shapes
+    "shield": lambda: smooth_union(circle(cx=0, cy=0, r=0.3), box(cx=0, cy=0, hw=0.25, hh=0.1), k=0.1),
     "heart": lambda: smooth_union(
-        circle(0.2),
-        smooth_union(circle(0.2), triangle(0.3), k=0.1),
+        circle(cx=-0.12, cy=-0.08, r=0.2),
+        smooth_union(circle(cx=0.12, cy=-0.08, r=0.2), triangle(), k=0.1),
         k=0.15,
     ),
-    "platform": lambda: box(0.6, 0.12),
-    "bullet": lambda: smooth_union(circle(0.15), box(0.1, 0.25), k=0.08),
+    "platform": lambda: box(cx=0, cy=0, hw=0.6, hh=0.12),
+    "bullet": lambda: smooth_union(circle(cx=0, cy=-0.1, r=0.15), box(cx=0, cy=0.1, hw=0.1, hh=0.25), k=0.08),
 }
 
 
@@ -304,8 +310,14 @@ class AssetPipeline:
 
         return space
 
-    def _build_generator(self, spec: AssetSpec) -> Callable[[dict], Image.Image]:
-        """Build a generator function for evolution."""
+    def _build_generator(
+        self, spec: AssetSpec, palette_colors: Optional[list] = None,
+    ) -> Callable[[dict], Image.Image]:
+        """Build a generator function for evolution.
+
+        SESSION-019: Now accepts palette_colors for palette-constrained rendering.
+        """
+        _palette_colors = palette_colors
 
         def generator(params: dict) -> Image.Image:
             fill_r = int(np.clip(params.get("fill_r", 150), 0, 255))
@@ -319,28 +331,39 @@ class AssetPipeline:
             # Build SDF shape (SESSION-018: fixed defaults)
             if spec.shape in ("circle",):
                 r = params.get("radius", 0.38)
-                sdf = circle(r)
+                sdf = circle(cx=0, cy=0, r=r)
             elif spec.shape == "coin":
                 r = params.get("radius", 0.35)
-                sdf = ring(r, 0.12)
+                sdf = ring(cx=0, cy=0, r=r, thickness=0.12)
             elif spec.shape in ("star",):
                 r1 = params.get("outer_radius", 0.42)
                 r2 = params.get("inner_radius", 0.20)
-                sdf = star(5, r1, r2)
+                # SESSION-019 FIX: use keyword args for star()
+                sdf = star(cx=0, cy=0, r_outer=r1, r_inner=r2, n_points=5)
             elif spec.shape == "gem":
                 r1 = params.get("outer_radius", 0.38)
                 r2 = params.get("inner_radius", 0.18)
-                sdf = star(4, r1, r2)
+                # SESSION-019 FIX: use keyword args for star()
+                sdf = star(cx=0, cy=0, r_outer=r1, r_inner=r2, n_points=4)
             elif spec.shape == "ring":
                 r = params.get("ring_radius", 0.35)
                 w = params.get("ring_width", 0.1)
-                sdf = ring(r, w)
+                sdf = ring(cx=0, cy=0, r=r, thickness=w)
             elif spec.shape in SHAPE_LIBRARY:
                 sdf = SHAPE_LIBRARY[spec.shape]()
             else:
-                sdf = circle(0.4)
+                sdf = circle(cx=0, cy=0, r=0.4)
 
             # Render
+            # SESSION-019: Palette-constrained rendering kwargs
+            pal_kwargs = {}
+            if _palette_colors:
+                pal_kwargs = {
+                    "palette_constrained": True,
+                    "palette_colors": _palette_colors,
+                    "palette_dither": True,
+                }
+
             if spec.style != "default" and spec.style in (
                 "stone", "wood", "metal", "organic", "crystal"
             ):
@@ -352,6 +375,7 @@ class AssetPipeline:
                     light_angle=light_angle,
                     ao_strength=ao_strength,
                     color_ramp_levels=ramp_levels,
+                    **pal_kwargs,
                 )
             else:
                 img = render_sdf(
@@ -364,6 +388,7 @@ class AssetPipeline:
                     enable_lighting=True,
                     enable_ao=True,
                     enable_hue_shift=True,
+                    **pal_kwargs,
                 )
             return img
 
@@ -383,7 +408,14 @@ class AssetPipeline:
 
         # Build components
         space = self._build_parameter_space(spec)
-        generator = self._build_generator(spec)
+        # SESSION-019: Pass palette_colors for palette-constrained rendering
+        palette_colors_for_render = None
+        if palette and isinstance(palette, list) and len(palette) > 0:
+            # Ensure tuples of (r, g, b)
+            palette_colors_for_render = [
+                (c[0], c[1], c[2]) if len(c) >= 3 else c for c in palette
+            ]
+        generator = self._build_generator(spec, palette_colors=palette_colors_for_render)
 
         # Run evolution WITH reference and palette (SESSION-018 fix)
         runner = InnerLoopRunner(
@@ -800,6 +832,250 @@ class AssetPipeline:
             result = Image.fromarray(arr, "RGBA")
 
         return result
+
+    # ── SESSION-019: VFX and Deformation Animation ────────────────────────────
+
+    def produce_vfx(
+        self,
+        name: str = "fire_vfx",
+        preset: str = "fire",
+        canvas_size: int = 64,
+        n_frames: int = 16,
+        seed: int = 42,
+    ) -> AssetResult:
+        """Produce a VFX particle animation (fire, explosion, sparkle, smoke).
+
+        SESSION-019: Integrates ParticleSystem into the main pipeline.
+        Outputs: GIF, spritesheet PNG, individual frames, JSON metadata.
+        """
+        start = time.time()
+        self._log(f"Producing VFX: {name} (preset={preset}, frames={n_frames})")
+
+        # Select preset
+        preset_map = {
+            "fire": ParticleConfig.fire,
+            "explosion": ParticleConfig.explosion,
+            "sparkle": ParticleConfig.sparkle,
+            "smoke": ParticleConfig.smoke,
+        }
+        config_factory = preset_map.get(preset, ParticleConfig.fire)
+        config = config_factory(canvas_size=canvas_size)
+        config.seed = seed
+
+        # Simulate
+        system = ParticleSystem(config)
+        frames = system.simulate_and_render(n_frames=n_frames)
+
+        # Save outputs
+        asset_dir = self.output_dir / name
+        asset_dir.mkdir(parents=True, exist_ok=True)
+        output_paths = []
+
+        # GIF
+        gif_path = str(asset_dir / f"{name}.gif")
+        system.export_gif(frames, gif_path)
+        output_paths.append(gif_path)
+        self._log(f"Saved GIF: {gif_path}")
+
+        # Spritesheet
+        sheet_path = str(asset_dir / f"{name}_sheet.png")
+        meta = system.export_spritesheet(frames, sheet_path)
+        output_paths.append(sheet_path)
+        self._log(f"Saved spritesheet: {sheet_path}")
+
+        # Individual frames
+        for i, frame in enumerate(frames):
+            fp = str(asset_dir / f"{name}_frame_{i:02d}.png")
+            frame.save(fp)
+            output_paths.append(fp)
+
+        # Metadata
+        meta["preset"] = preset
+        meta["seed"] = seed
+        meta_path = str(asset_dir / f"{name}_meta.json")
+        with open(meta_path, "w") as f:
+            json.dump(meta, f, indent=2)
+        output_paths.append(meta_path)
+
+        # Evaluate first frame quality
+        score = 0.0
+        if frames:
+            result = self.evaluator.evaluate(frames[len(frames) // 2])
+            score = result.overall_score
+
+        elapsed = time.time() - start
+        self._log(f"VFX done: {n_frames} frames, score={score:.3f}, time={elapsed:.1f}s")
+
+        self._production_log.append({
+            "name": name, "type": "vfx",
+            "score": score, "elapsed": elapsed,
+        })
+
+        return AssetResult(
+            name=name,
+            frames=frames,
+            metadata=meta,
+            score=score,
+            elapsed_seconds=elapsed,
+            output_paths=output_paths,
+        )
+
+    def produce_deform_animation(
+        self,
+        spec: AssetSpec,
+        deform_type: str = "squash_stretch",
+        n_frames: int = 12,
+        intensity: float = 0.2,
+        fps: int = 12,
+    ) -> AssetResult:
+        """Produce a cage-deformation animation of a sprite.
+
+        SESSION-019: Integrates CageDeformer into the main pipeline.
+        First produces a base sprite via evolution, then applies cage deformation.
+        Outputs: GIF, spritesheet PNG, individual frames, JSON metadata.
+        """
+        start = time.time()
+        self._log(f"Producing deform animation: {spec.name} "
+                  f"(deform={deform_type}, frames={n_frames})")
+
+        # Step 1: Get base sprite
+        base_result = self.produce_sprite(spec)
+        if base_result.image is None:
+            self._log("ERROR: Failed to produce base sprite")
+            return AssetResult(name=spec.name, score=0.0)
+
+        # Step 2: Select deformation preset
+        preset_map = {
+            "squash_stretch": lambda: CagePreset.squash_stretch(intensity=intensity),
+            "wobble": lambda: CagePreset.wobble(intensity=intensity),
+            "breathe": lambda: CagePreset.breathe(intensity=intensity),
+            "lean": lambda: CagePreset.lean(intensity=intensity),
+        }
+        anim_factory = preset_map.get(deform_type, preset_map["squash_stretch"])
+        cage_anim = anim_factory()
+
+        # Step 3: Apply cage deformation
+        deformer = CageDeformer(base_result.image)
+        frames = deformer.animate(cage_anim, n_frames=n_frames)
+
+        # Step 4: Save outputs
+        asset_dir = self.output_dir / spec.name
+        asset_dir.mkdir(parents=True, exist_ok=True)
+        output_paths = list(base_result.output_paths)
+
+        # GIF
+        gif_path = str(asset_dir / f"{spec.name}_deform.gif")
+        deformer.export_gif(frames, gif_path, fps=fps)
+        output_paths.append(gif_path)
+        self._log(f"Saved deform GIF: {gif_path}")
+
+        # Spritesheet
+        sheet_path = str(asset_dir / f"{spec.name}_deform_sheet.png")
+        sheet_meta = deformer.export_spritesheet(frames, sheet_path)
+        output_paths.append(sheet_path)
+        self._log(f"Saved deform spritesheet: {sheet_path}")
+
+        # Individual frames
+        for i, frame in enumerate(frames):
+            fp = str(asset_dir / f"{spec.name}_deform_{i:02d}.png")
+            frame.save(fp)
+            output_paths.append(fp)
+
+        # Metadata
+        full_meta = {
+            **sheet_meta,
+            "deform_type": deform_type,
+            "intensity": intensity,
+            "n_frames": n_frames,
+            "fps": fps,
+            "base_score": base_result.score,
+        }
+        meta_path = str(asset_dir / f"{spec.name}_deform_meta.json")
+        with open(meta_path, "w") as f:
+            json.dump(full_meta, f, indent=2)
+        output_paths.append(meta_path)
+
+        elapsed = time.time() - start
+        self._log(f"Deform animation done: {n_frames} frames, time={elapsed:.1f}s")
+
+        self._production_log.append({
+            "name": spec.name, "type": "deform_animation",
+            "score": base_result.score, "elapsed": elapsed,
+        })
+
+        return AssetResult(
+            name=spec.name,
+            image=base_result.image,
+            spritesheet=None,
+            frames=frames,
+            metadata=full_meta,
+            score=base_result.score,
+            evolution_history=base_result.evolution_history,
+            elapsed_seconds=elapsed,
+            output_paths=output_paths,
+        )
+
+    def produce_full_asset_pack(
+        self,
+        pack_name: str = "full_game_assets",
+        sprites: Optional[list[AssetSpec]] = None,
+        animations: Optional[list[AnimationSpec]] = None,
+        vfx_presets: Optional[list[str]] = None,
+        deform_specs: Optional[list[tuple[AssetSpec, str]]] = None,
+        include_textures: bool = True,
+    ) -> list[AssetResult]:
+        """Produce a complete asset pack including sprites, animations, VFX, and deformations.
+
+        SESSION-019: Extended version of produce_asset_pack that includes
+        particle VFX and cage deformation animations.
+        """
+        self._log(f"=== Producing Full Asset Pack: {pack_name} ===")
+        start = time.time()
+
+        # Start with base asset pack
+        results = self.produce_asset_pack(
+            pack_name=pack_name,
+            sprites=sprites,
+            animations=animations,
+            include_textures=include_textures,
+        )
+
+        # Add VFX
+        if vfx_presets is None:
+            vfx_presets = ["fire", "explosion", "sparkle", "smoke"]
+        for preset in vfx_presets:
+            try:
+                result = self.produce_vfx(
+                    name=f"{pack_name}_{preset}",
+                    preset=preset,
+                    seed=self.seed,
+                )
+                results.append(result)
+            except Exception as e:
+                self._log(f"ERROR producing VFX {preset}: {e}")
+
+        # Add deformation animations
+        if deform_specs is None:
+            deform_specs = [
+                (AssetSpec(name=f"{pack_name}_coin_squash", shape="coin", style="metal"), "squash_stretch"),
+                (AssetSpec(name=f"{pack_name}_gem_wobble", shape="gem", style="crystal"), "wobble"),
+                (AssetSpec(name=f"{pack_name}_heart_breathe", shape="heart"), "breathe"),
+            ]
+        for spec, deform_type in deform_specs:
+            try:
+                result = self.produce_deform_animation(
+                    spec=spec,
+                    deform_type=deform_type,
+                )
+                results.append(result)
+            except Exception as e:
+                self._log(f"ERROR producing deform {spec.name}: {e}")
+
+        elapsed = time.time() - start
+        self._log(f"=== Full Asset Pack Complete: {len(results)} assets, "
+                  f"time={elapsed:.1f}s ===")
+
+        return results
 
     def get_production_log(self) -> list[dict]:
         """Get the production log for this session."""

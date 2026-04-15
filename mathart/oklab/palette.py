@@ -58,6 +58,20 @@ class Palette:
             json.dump(self.to_dict(), f, indent=2)
 
     @classmethod
+    def from_srgb_list(
+        cls,
+        colors: list[tuple[int, int, int]],
+        name: str = "custom",
+    ) -> "Palette":
+        """Create a Palette from a list of sRGB tuples.
+
+        SESSION-019: Convenience constructor for palette-constrained rendering.
+        """
+        srgb_arr = np.array(colors, dtype=np.float64) / 255.0
+        oklab_arr = srgb_to_oklab(srgb_arr)
+        return cls(name=name, colors_oklab=oklab_arr)
+
+    @classmethod
     def load_json(cls, path: str) -> "Palette":
         with open(path) as f:
             d = json.load(f)

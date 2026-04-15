@@ -85,3 +85,50 @@ Infrastructure session focused on fixing the core problems that prevented the sy
 1. P0-NEW-1: Integrate particles/cage into pipeline
 2. P0-NEW-2: Run full evolution with new evaluator
 3. P0-NEW-3: Palette-constrained SDF rendering
+
+## SESSION-019 (2026-04-15) — Integration, Validation & Critical Bug Fix
+
+### Summary
+Integration and validation session that discovered and fixed a systemic SDF parameter order bug, implemented palette-constrained rendering, integrated particles and cage deformation into the main pipeline, and achieved 100% validation pass rate (19/19 tests).
+
+### Critical Bug Fixed
+**SDF Primitive Parameter Order** — All SDF primitives use `(cx, cy, ...)` signature, but callers used positional arguments assuming `(param1, param2, ...)`. For example, `star(5, 0.42, 0.22)` was interpreted as `cx=5, cy=0.42, r_outer=0.22`, placing the star at coordinates (5, 0.42) — completely off-screen. This was the true root cause of invisible gem/star shapes (SESSION-018 only increased radii, which didn't help). All 42 call sites across 8 files were converted to keyword arguments.
+
+### Changes Made
+
+| Category | Change | File(s) |
+|----------|--------|---------|
+| BUG FIX | SDF primitive kwargs (42 call sites) | `pipeline.py`, test files |
+| Feature | Palette-constrained rendering (OKLAB Floyd-Steinberg) | `sdf/renderer.py` |
+| Feature | `Palette.from_srgb_list()` class method | `oklab/palette.py` |
+| Feature | `produce_vfx()` in AssetPipeline | `pipeline.py` |
+| Feature | `produce_deform_animation()` in AssetPipeline | `pipeline.py` |
+| Feature | Animation module exports updated | `animation/__init__.py` |
+| BUG FIX | `result.overall` → `result.overall_score` | `pipeline.py` |
+| Test | 19-test validation suite | `test_evolution_validation.py` |
+
+### Validation Results (19/19 = 100%)
+
+| Category | Tests | Key Scores |
+|----------|-------|------------|
+| Evaluator discrimination | 5 | good=0.725, medium=0.662, bad=0.642, noise=0.598 |
+| Sprite production | 3 | coin=0.824, gem=0.770, star=0.754 |
+| Animation | 1 | idle=0.824 |
+| VFX | 4 | fire=0.494, explosion=0.240, sparkle=0.472, smoke=0.397 |
+| Deformation | 3 | squash=0.796, wobble=0.796, breathe=0.796 |
+| Palette constraint | 3 | all shapes constrained to 6 palette colors |
+
+### Quality Improvements
+- gem: 0.24 → 0.77 (+221%)
+- star: 0.24 → 0.75 (+214%)
+- coin: 0.78 → 0.82 (+5%)
+- Validation: 84.2% → 100%
+
+### Health Score
+6.8 → 7.8 (+1.0)
+
+### Next Priorities
+1. P0-NEW-4: Multi-layer render compositing
+2. P0-NEW-5: Large-scale evolution (100+ iterations)
+3. P0-NEW-6: VFX evaluator tuning
+
