@@ -616,3 +616,71 @@ class TestEvolutionaryOptimizer:
         assert FitnessResult(score=0.5).is_valid
         assert FitnessResult(score=0.0).is_valid
         assert not FitnessResult(score=-0.1).is_valid
+
+    @pytest.mark.unit
+    def test_optimizer_adaptive_history_contains_search_metrics(self, simple_space):
+        def fitness(params):
+            return FitnessResult(score=params["x"] + params["y"])
+
+        opt = EvolutionaryOptimizer(
+            simple_space,
+            population_size=12,
+            seed=42,
+            strategy="adaptive_ga",
+        )
+        opt.run(fitness, generations=6)
+        last = opt.history[-1]
+        assert last["strategy"] == "adaptive_ga"
+        assert "diversity" in last
+        assert "mutation_rate" in last
+        assert "mutation_strength" in last
+        assert "local_search_count" in last
+
+    @pytest.mark.unit
+    def test_optimizer_increases_exploration_when_stagnant(self, simple_space):
+        def fitness(params):
+            return FitnessResult(score=1.0)
+
+        opt = EvolutionaryOptimizer(
+            simple_space,
+            population_size=12,
+            seed=42,
+            strategy="adaptive_ga",
+            mutation_rate=0.05,
+            stagnation_window=2,
+            immigrant_ratio=0.25,
+        )
+        opt.run(fitness, generations=6)
+        assert any(entry["mutation_rate"] > 0.05 for entry in opt.history)
+        assert any(entry["immigrant_count"] > 0 for entry in opt.history)
+
+    @pytest.mark.unit
+    def test_optimizer_supports_cma_es_like_strategy(self):
+        space = ParameterSpace(name="high_dim")
+        for i in range(6):
+            space.add_constraint(
+                Constraint(
+                    param_name=f"p{i}",
+                    min_value=0.0,
+                    max_value=1.0,
+                    default_value=0.5,
+                )
+            )
+
+        target = {f"p{i}": 0.85 for i in range(6)}
+
+        def fitness(params):
+            error = sum((params[name] - value) ** 2 for name, value in target.items()) / len(target)
+            return FitnessResult(score=max(0.0, 1.0 - error))
+
+        opt = EvolutionaryOptimizer(
+            space,
+            population_size=24,
+            seed=42,
+            strategy="cma_es_like",
+            local_search_ratio=0.25,
+        )
+        best = opt.run(fitness, generations=25)
+        assert best.fitness > 0.9
+        assert any(entry["local_search_count"] > 0 for entry in opt.history)
+        assert all(entry["strategy"] == "cma_es_like" for entry in opt.history)
