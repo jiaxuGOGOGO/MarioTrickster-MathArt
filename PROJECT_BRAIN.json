@@ -12,7 +12,7 @@
   "core_vision": {
     "summary": "Self-evolving math-driven art engine with three interlocking loops",
     "loop_1_internal": "Local autonomous evolution: math models + knowledge constraints guide generation throughout the entire pipeline (not just final scoring). Must run without AI (AUTONOMOUS mode) and never block on missing AI connection.",
-    "loop_2_distillation": "User uploads PDFs/books/Sprites to Manus chat -> Manus manually distills into knowledge/*.md and math constraints -> pushes to GitHub -> user pulls and runs evolution. Preferred high-quality method.",
+    "loop_2_distillation": "Continuous Workflow: User uploads PDFs/books/Sprites to Manus chat -> Manus manually distills into knowledge/*.md and math constraints -> Manus optimizes local evolution pipeline based on new knowledge -> pushes to GitHub -> user pulls and runs evolution.",
     "loop_3_math_mining": "Manus proactively searches academic papers, GitHub projects, Reddit for relevant math models -> converts to code -> registers in math_registry.py.",
     "quality_principles": [
       "No invalid iterations: detect consecutive identical outputs, diagnose root cause, report and halt safely",
@@ -49,18 +49,7 @@
         "file": "mathart/export/bridge.py"
       }
     },
-    {
-      "task_id": "TASK-007",
-      "description": "The Distillation Engine (Waiting for User Input)",
-      "priority": "ongoing",
-      "depends_on": [],
-      "created_at": "2026-04-15T23:00:00Z",
-      "status": "ongoing",
-      "notes": "Infrastructure for PDF distillation, math paper mining, sprite learning, and deduplication is fully built. Waiting for user to upload new PDFs, reference books, or sprite images to trigger the next distillation cycle.",
-      "context": {
-        "files": ["knowledge/*.md", "mathart/distill/parser.py", "mathart/evolution/math_registry.py"]
-      }
-    },
+
     {
       "task_id": "TASK-005",
       "description": "Hardware Acceleration & Unity Integration",
