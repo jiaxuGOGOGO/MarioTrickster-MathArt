@@ -1,11 +1,10 @@
-
 > **READ THIS FIRST** if you are starting a new conversation about this project.
 > This document is auto-generated and always reflects the latest project state.
 
 ## Project Overview
-- **Current version**: 0.12.0
-- **Last updated**: 2026-04-15T05:55:13Z
-- **Last session**: SESSION-012 (LevelSpecBridge ↔ ExportBridge integration + comprehensive gap audit)
+- **Current version**: 0.13.0
+- **Last updated**: 2026-04-15T06:17:44Z
+- **Last session**: SESSION-013 (Math mining loop → registry-backed scaffolds + fresh comprehensive gap audit)
 - **Best quality score achieved**: 0.000
 - **Total iterations run**: 0
 
@@ -47,20 +46,20 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 
 ## Pending Tasks (Priority Order)
 
-### [HIGH] `TASK-012`: Close the math mining loop from discovery candidates to registry-backed implementation scaffolds
+### [HIGH] `TASK-013`: Add a finite-difference gradient optimizer path for CPU-only inner-loop acceleration
 - **Status**: Not started
-- **Remaining Gap**: `MathPaperMiner` can now search live APIs, score results, write knowledge notes, and emit registry candidates, but it still stops at the candidate stage. The codebase does **not yet** scaffold implementation files, tests, and registry promotion steps for accepted mined models, so the third loop is still only partially closed.
-- **Files**: `mathart/evolution/paper_miner.py`, `mathart/evolution/math_registry.py`, `MINE_LOG.md`
-
-### [MEDIUM] `TASK-013`: Add a finite-difference gradient optimizer path for CPU-only inner-loop acceleration
-- **Status**: Not started
-- **Remaining Gap**: The roadmap already identifies finite-difference gradients as the next no-GPU speed upgrade, but the current inner loop still relies on evolutionary search only. There is no CPU-friendly gradient approximation path yet.
+- **Remaining Gap**: This is now the **highest-impact remaining local-runtime gap**. The roadmap already identifies finite-difference gradients as the next no-GPU speed upgrade, but the current inner loop still relies on evolutionary search only. There is no CPU-friendly gradient approximation path yet.
 - **Files**: `mathart/distill/optimizer.py`, `mathart/evolution/inner_loop.py`, `knowledge/differentiable_rendering.md`
 
 ### [MEDIUM] `TASK-014`: Build a reference-image to parameter inference workflow (Image-to-Math bootstrap)
 - **Status**: Not started
 - **Remaining Gap**: The project can ingest sprite references and evaluate against them, but it still lacks a workflow that infers parameter seeds or math-model hints directly from uploaded reference images. This means the long-term Image-to-Math goal remains open.
 - **Files**: `mathart/evolution/cli.py`, `mathart/evaluator/evaluator.py`, `mathart/workspace/manager.py`
+
+### [MEDIUM] `TASK-015`: Promote mined scaffolds into concrete math implementations and stable registry entries
+- **Status**: Not started
+- **Remaining Gap**: SESSION-013 closed Loop 3 to the **registry-backed scaffold stage**: mined candidates can now become executable module scaffolds, smoke tests, and JSON registry records. However, these promoted modules are still placeholder implementations. The remaining gap is a workflow that upgrades high-value promoted scaffolds into real mathematical implementations, evaluator hooks, and eventual stable-registry graduation.
+- **Files**: `mathart/evolution/paper_miner.py`, `mathart/evolution/math_registry.py`, `mathart/mined/`, `tests/test_paper_miner.py`
 
 ### [EXTERNAL] `TASK-005`: Hardware Acceleration & Unity Integration
 - **Status**: Blocked by external dependencies
@@ -77,6 +76,20 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 - `TASK-009`: Add CLI command to run evolution loop (`mathart-evolve run` with built-in texture target and JSON metadata export) — SESSION-009
 - `TASK-010`: Upgrade Evolutionary Optimizer (adaptive GA controls, diversity tracking, random immigrants, elite-guided local search, and `cma_es_like` strategy) — SESSION-010
 - `TASK-011`: Connect MathPaperMiner to Real APIs (real arXiv Atom API + GitHub Search REST API integration, optional GitHub token auth, weighted relevance scoring from public metadata, LLM fallback retained) — SESSION-011
+- `TASK-012`: Close the math mining loop from discovery candidates to registry-backed implementation scaffolds (enriched registry candidates, executable scaffold generation, smoke-test generation, registry JSON persistence, candidate manifest saving, and CLI `--promote`) — SESSION-013
+
+---
+
+## Comprehensive Gap Audit Snapshot
+
+The latest audit indicates that the project has now closed three major gaps in succession: **real API-backed math mining**, **level-aware export bridging**, and **mine-to-registry scaffold promotion**. The remaining mismatch between the codebase and the original three-loop vision is no longer at the “missing plumbing” layer. It is now concentrated in three higher-order product gaps.
+
+| Priority | Gap | Current status |
+|---|---|---|
+| High | CPU-only local optimization speed | Still missing finite-difference gradient path; local search remains evolutionary only. |
+| Medium | Image-to-Math bootstrap | Reference images can be ingested and evaluated, but not converted into parameter seeds or model hints. |
+| Medium | Scaffold-to-real-model graduation | Loop 3 now lands in executable scaffolds, but not yet in concrete mathematical implementations. |
+| External | GPU / Unity deep integration | Still blocked on user-provided runtime environment. |
 
 ---
 
@@ -91,6 +104,14 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 ---
 
 ## Recent Evolution History (Last 5 Sessions)
+
+### SESSION-013 — v0.13.0 (2026-04-15)
+- Best score: 0.000 | Tests: 83
+  - TASK-012 DONE: closed the math-mining loop to the registry-backed scaffold stage
+  - Enriched mined candidates with registry metadata, parameter specs, quality metrics, and math-foundation summaries
+  - Added promotion workflow that scaffolds Python modules and smoke tests, persists promoted entries into `math_models.json`-compatible records, and stores candidate manifests
+  - Added CLI `--promote` support so mined or text-extracted candidates can be promoted without extra manual plumbing
+  - Re-ran comprehensive gap audit and promoted finite-difference optimization to the highest remaining task while adding scaffold-to-real-model follow-up tracking
 
 ### SESSION-012 — v0.12.0 (2026-04-15)
 - Best score: 0.000 | Tests: 79
@@ -124,17 +145,6 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
   - Added scipy-free fallback in quick quality check so mid-generation QC works in minimal environments
   - Added regression tests for CLI run and mid-generation checkpoint invocation
 
-### SESSION-008 — v0.8.0 (2026-04-16)
-- Audit & task integration session
-  - Fixed 2 Windows compatibility bugs (GBK encoding, JSON parsing)
-  - Comprehensive audit of all user requirements from conversation history
-  - Integrated and deduplicated all tasks into unified task list
-  - Added TASK-008 (Unity Shader & Pseudo-3D)
-  - Expanded TASK-001 scope (full-pipeline QC + invalid iteration prevention)
-  - Expanded TASK-007 scope (math paper mining + GitHub scouting + sprite learning)
-  - Expanded TASK-005 scope (Stable Diffusion + optional hardware)
-  - Recorded core vision: three interlocking loops + quality principles + collaboration model
-
 ---
 
 ## How to Talk to AI (User Guide)
@@ -151,10 +161,10 @@ Please refer to `HOW_TO_TALK_TO_AI.md` for the complete workflow on how to start
 5. **Review the Core Vision section above** to understand the three-loop architecture and quality principles.
 6. **CRITICAL — AI Greeting & Menu**: After reading this document, the AI MUST greet the user and present the following interactive menu to let the user choose the next action:
 
-   > **Welcome back! I have read the project state (v0.12.0). What would you like to do next?**
+   > **Welcome back! I have read the project state (v0.13.0). What would you like to do next?**
    > 
    > 1. **Distill Knowledge (Continuous)**: Upload a PDF, book, or Sprite image now. I will extract the math/art rules, inject them into the project, and optimize the evolution pipeline for better local generation.
-   > 2. **Continue Development**: Work on the highest priority pending task (currently TASK-012: close the math mining loop from candidate discovery to implementation scaffolding and registry promotion).
+   > 2. **Continue Development**: Work on the highest priority pending task (currently TASK-013: add a finite-difference gradient optimizer path for CPU-only inner-loop acceleration).
    > 3. **Mine Math Models**: Ask me to search the web/GitHub for specific math models (e.g., fluid dynamics, procedural animation) to add to the engine.
    > 4. **Diagnose Stagnation**: If your local evolution is stuck or producing identical results, paste the logs here and I will analyze the math-art conflicts.
 
@@ -164,4 +174,4 @@ Please refer to `HOW_TO_TALK_TO_AI.md` for the complete workflow on how to start
 10. Always push changes to GitHub after completing a task so the user can `git pull` and run evolution locally.
 
 ---
-*Auto-generated by ProjectMemory at 2026-04-15T05:55:13Z*
+*Auto-generated by ProjectMemory at 2026-04-15T06:17:44Z*

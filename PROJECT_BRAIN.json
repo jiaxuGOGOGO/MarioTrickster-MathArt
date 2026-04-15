@@ -1,7 +1,7 @@
 {
-  "version": "0.12.0",
-  "last_session_id": "SESSION-012",
-  "last_updated": "2026-04-15T05:55:13Z",
+  "version": "0.13.0",
+  "last_session_id": "SESSION-013",
+  "last_updated": "2026-04-15T06:17:44Z",
   "best_quality_score": 0.0,
   "total_iterations": 0,
   "distill_session_id": "DISTILL-008",
@@ -98,26 +98,28 @@
         "TASK-011"
       ],
       "created_at": "2026-04-15T05:55:13Z",
-      "status": "not_started",
-      "notes": "Audit gap from SESSION-012. MathPaperMiner can now search live APIs, score results, write knowledge notes, and emit registry candidates, but it still does not scaffold code/tests or promote accepted candidates into math_registry-backed implementations.",
+      "status": "done",
+      "completed_at": "2026-04-15T06:17:44Z",
+      "notes": "Completed in SESSION-013. MathPaperMiner now enriches mined candidates with registry metadata, can scaffold executable Python modules plus smoke-test files, persists promoted entries into math_models.json-compatible registry records, stores registry candidate manifests, and exposes a CLI --promote path to close the loop from accepted mined papers to runnable scaffolds.",
       "context": {
         "files": [
           "mathart/evolution/paper_miner.py",
           "mathart/evolution/math_registry.py",
-          "MINE_LOG.md"
+          "tests/test_paper_miner.py",
+          "math_models.json"
         ]
       }
     },
     {
       "task_id": "TASK-013",
       "description": "Add a finite-difference gradient optimizer path for CPU-only inner-loop acceleration",
-      "priority": "medium",
+      "priority": "high",
       "depends_on": [
         "TASK-010"
       ],
       "created_at": "2026-04-15T05:55:13Z",
       "status": "not_started",
-      "notes": "Audit gap from SESSION-012. README and knowledge/differentiable_rendering.md define finite-difference gradients as the next no-GPU optimization upgrade, but the inner loop still relies solely on evolutionary search.",
+      "notes": "Audit gap from SESSION-012 and reconfirmed as the highest-impact remaining local-runtime upgrade in SESSION-013. README and knowledge/differentiable_rendering.md define finite-difference gradients as the next no-GPU optimization path, but the inner loop still relies solely on evolutionary search.",
       "context": {
         "files": [
           "mathart/distill/optimizer.py",
@@ -135,12 +137,31 @@
       ],
       "created_at": "2026-04-15T05:55:13Z",
       "status": "not_started",
-      "notes": "Audit gap from SESSION-012. The project can ingest sprite references and evaluate against them, but it still lacks a workflow that infers parameter seeds or math-model hints directly from uploaded reference images.",
+      "notes": "Audit gap from SESSION-012 and reconfirmed in SESSION-013. The project can ingest sprite references and evaluate against them, but it still lacks a workflow that infers parameter seeds or math-model hints directly from uploaded reference images.",
       "context": {
         "files": [
           "mathart/evolution/cli.py",
           "mathart/evaluator/evaluator.py",
           "mathart/workspace/manager.py"
+        ]
+      }
+    },
+    {
+      "task_id": "TASK-015",
+      "description": "Promote mined scaffolds into concrete math implementations and stable registry entries",
+      "priority": "medium",
+      "depends_on": [
+        "TASK-012"
+      ],
+      "created_at": "2026-04-15T06:17:44Z",
+      "status": "not_started",
+      "notes": "Audit gap from SESSION-013. The third loop now closes through registry-backed scaffolds, but promoted modules are still executable placeholders. The project still needs a workflow that turns high-value mined candidates into real mathematical implementations, evaluation hooks, and eventual stable registry graduation.",
+      "context": {
+        "files": [
+          "mathart/evolution/paper_miner.py",
+          "mathart/evolution/math_registry.py",
+          "mathart/mined",
+          "tests/test_paper_miner.py"
         ]
       }
     },
@@ -268,6 +289,14 @@
       "best_score": 0.0,
       "test_count": 79,
       "notes": "Completed TASK-003: connected LevelSpecBridge to AssetExporter with level-aware export validation and metadata. Also performed a comprehensive gap audit, which promoted mine-to-registry automation to the top pending task and added finite-difference plus Image-to-Math roadmap tasks."
+    },
+    {
+      "session_id": "SESSION-013",
+      "timestamp": "2026-04-15T06:17:44Z",
+      "version": "0.13.0",
+      "best_score": 0.0,
+      "test_count": 83,
+      "notes": "Completed TASK-012: closed the math-mining loop to registry-backed scaffolds by enriching registry candidates, adding module and smoke-test scaffolding, saving promoted entries into math_models.json-compatible records, exposing a CLI promote path, and refreshing the product-gap audit to highlight finite-difference, Image-to-Math, and scaffold-to-real-model follow-up work."
     }
   ]
 }

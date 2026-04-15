@@ -251,11 +251,13 @@ class MathPaperMiner:
         return session
 
     def generate_registry_candidates(self, session: MiningSession) -> list[dict]:
-        """Convert accepted papers to math model registry candidate entries."""
+        """Convert accepted papers to enriched registry candidate entries."""
         candidates: list[dict] = []
         for paper in session.results:
+            model_name = self._paper_to_model_name(paper.title)
+            param_specs = self._build_candidate_param_specs(paper.capabilities)
             candidate = {
-                "name": self._paper_to_model_name(paper.title),
+                "name": model_name,
                 "version": "0.1.0",
                 "description": paper.abstract[:200],
                 "capabilities": paper.capabilities,
@@ -265,9 +267,302 @@ class MathPaperMiner:
                 "requires_external": paper.requires_external,
                 "implementation_notes": paper.implementation_notes,
                 "relevance_score": paper.relevance_score,
+                "module_path": f"mathart.mined.{model_name}",
+                "function_name": "generate",
+                "params": param_specs,
+                "knowledge_sources": ["knowledge/math_papers.md"],
+                "quality_metrics": self._suggest_quality_metrics(paper.capabilities),
+                "math_foundation": self._derive_math_foundation(paper),
             }
             candidates.append(candidate)
         return candidates
+
+    def promote_session_candidates(
+        self,
+        session: MiningSession,
+        registry_path: Optional[str | Path] = None,
+        overwrite: bool = False,
+    ) -> list[dict]:
+        """Scaffold accepted candidates and persist them into a JSON registry.
+
+        The generated registry stays compatible with :class:`MathModelRegistry`
+        by writing ``ModelEntry`` records to ``math_models.json`` (or a custom
+        path). Each promoted candidate also receives a Python module scaffold
+        and a smoke-test scaffold so the discovery loop lands in executable,
+        versioned project artifacts instead of remaining a log-only suggestion.
+        """
+        if not session.results:
+            return []
+
+        registry_path = Path(registry_path) if registry_path else self.project_root / "math_models.json"
+        registry = self._load_registry(registry_path)
+        promoted_records: list[dict] = []
+
+        for candidate in self.generate_registry_candidates(session):
+            scaffold_info = self._scaffold_candidate(candidate, overwrite=overwrite)
+            registry.register(self._candidate_to_model_entry(candidate))
+            promoted_records.append({
+                **candidate,
+                **scaffold_info,
+                "registry_path": str(registry_path),
+            })
+
+        registry.save(registry_path)
+        self._save_promoted_candidates(promoted_records)
+        self._append_promotion_log(session, promoted_records, registry_path)
+        return promoted_records
+
+    def _load_registry(self, registry_path: Path):
+        from mathart.evolution.math_registry import MathModelRegistry
+
+        if registry_path.exists():
+            return MathModelRegistry.load(registry_path)
+        return MathModelRegistry()
+
+    def _candidate_to_model_entry(self, candidate: dict):
+        from mathart.evolution.math_registry import ModelCapability, ModelEntry
+
+        capability_map = {
+            "COLOR_PALETTE": [ModelCapability.COLOR_PALETTE],
+            "TEXTURE": [ModelCapability.TEXTURE, ModelCapability.PIXEL_IMAGE],
+            "ANIMATION": [ModelCapability.ANIMATION_CURVE],
+            "SDF": [ModelCapability.SDF_EFFECT, ModelCapability.PIXEL_IMAGE],
+            "PCG": [ModelCapability.LEVEL_LAYOUT],
+            "SHADER_PARAMS": [ModelCapability.SHADER_PARAMS],
+            "PIXEL_IMAGE": [ModelCapability.PIXEL_IMAGE],
+            "PSEUDO_3D": [ModelCapability.SHADER_PARAMS, ModelCapability.PIXEL_IMAGE],
+        }
+
+        mapped_capabilities: list[ModelCapability] = []
+        for name in candidate.get("capabilities", []):
+            for capability in capability_map.get(name, []):
+                if capability not in mapped_capabilities:
+                    mapped_capabilities.append(capability)
+        if not mapped_capabilities:
+            mapped_capabilities = [ModelCapability.PIXEL_IMAGE]
+
+        return ModelEntry(
+            name=candidate["name"],
+            version=candidate.get("version", "0.1.0"),
+            description=candidate.get("description", ""),
+            capabilities=mapped_capabilities,
+            module_path=candidate.get("module_path", ""),
+            function_name=candidate.get("function_name", "generate"),
+            params=candidate.get("params", {}),
+            knowledge_sources=candidate.get("knowledge_sources", ["knowledge/math_papers.md"]),
+            quality_metrics=candidate.get("quality_metrics", ["overall_score"]),
+            math_foundation=candidate.get("math_foundation", candidate.get("implementation_notes", "")),
+            status="experimental",
+        )
+
+    def _build_candidate_param_specs(self, capabilities: list[str]) -> dict[str, dict]:
+        specs: dict[str, dict] = {
+            "seed": {
+                "type": "int",
+                "default": 0,
+                "range": [0, 1000000],
+                "description": "Random seed used for deterministic experimentation.",
+            },
+            "scale": {
+                "type": "float",
+                "default": 1.0,
+                "range": [0.1, 8.0],
+                "description": "Global scale or intensity factor for the mined model.",
+            },
+        }
+
+        capability_set = set(capabilities)
+        if capability_set & {"PIXEL_IMAGE", "TEXTURE", "SDF", "PSEUDO_3D"}:
+            specs["width"] = {
+                "type": "int",
+                "default": 32,
+                "range": [8, 512],
+                "description": "Output width in pixels.",
+            }
+            specs["height"] = {
+                "type": "int",
+                "default": 32,
+                "range": [8, 512],
+                "description": "Output height in pixels.",
+            }
+        if "COLOR_PALETTE" in capability_set:
+            specs["n_colors"] = {
+                "type": "int",
+                "default": 8,
+                "range": [2, 64],
+                "description": "Number of palette colors to generate or optimize.",
+            }
+        if "ANIMATION" in capability_set:
+            specs["n_frames"] = {
+                "type": "int",
+                "default": 8,
+                "range": [1, 120],
+                "description": "Frame count for animation-oriented outputs.",
+            }
+        if "PCG" in capability_set:
+            specs["grid_width"] = {
+                "type": "int",
+                "default": 20,
+                "range": [4, 256],
+                "description": "Tile grid width for procedural generation experiments.",
+            }
+            specs["grid_height"] = {
+                "type": "int",
+                "default": 15,
+                "range": [4, 256],
+                "description": "Tile grid height for procedural generation experiments.",
+            }
+        return specs
+
+    def _suggest_quality_metrics(self, capabilities: list[str]) -> list[str]:
+        metrics: list[str] = ["overall_score"]
+        capability_to_metrics = {
+            "COLOR_PALETTE": ["palette_adherence", "color_harmony"],
+            "TEXTURE": ["texture_richness", "overall_score"],
+            "ANIMATION": ["temporal_consistency", "overall_score"],
+            "SDF": ["edge_clarity", "overall_score"],
+            "PCG": ["rule_compliance", "overall_score"],
+            "PIXEL_IMAGE": ["shape_readability", "overall_score"],
+            "PSEUDO_3D": ["depth_consistency", "overall_score"],
+            "SHADER_PARAMS": ["shader_coherence", "overall_score"],
+        }
+        for capability in capabilities:
+            for metric in capability_to_metrics.get(capability, []):
+                if metric not in metrics:
+                    metrics.append(metric)
+        return metrics
+
+    def _derive_math_foundation(self, paper: PaperResult) -> str:
+        abstract = self._clean_text(paper.abstract)
+        if abstract:
+            return abstract[:180]
+        return self._clean_text(paper.implementation_notes)[:180]
+
+    def _scaffold_candidate(self, candidate: dict, overwrite: bool = False) -> dict[str, str]:
+        model_dir = self.project_root / "mathart" / "mined"
+        tests_dir = self.project_root / "tests" / "generated"
+        model_dir.mkdir(parents=True, exist_ok=True)
+        tests_dir.mkdir(parents=True, exist_ok=True)
+
+        self._ensure_package_init(self.project_root / "mathart")
+        self._ensure_package_init(model_dir)
+
+        module_file = model_dir / f"{candidate['name']}.py"
+        test_file = tests_dir / f"test_{candidate['name']}.py"
+
+        if overwrite or not module_file.exists():
+            module_file.write_text(self._render_module_scaffold(candidate), encoding="utf-8")
+        if overwrite or not test_file.exists():
+            test_file.write_text(self._render_test_scaffold(candidate), encoding="utf-8")
+
+        return {
+            "module_file": str(module_file),
+            "test_file": str(test_file),
+        }
+
+    def _ensure_package_init(self, package_dir: Path) -> None:
+        package_dir.mkdir(parents=True, exist_ok=True)
+        init_file = package_dir / "__init__.py"
+        if not init_file.exists():
+            init_file.write_text('"""Generated package for mined math model scaffolds."""\n', encoding="utf-8")
+
+    def _render_module_scaffold(self, candidate: dict) -> str:
+        default_params = {
+            name: spec.get("default")
+            for name, spec in candidate.get("params", {}).items()
+        }
+        metadata = {
+            "name": candidate.get("name"),
+            "source": candidate.get("source"),
+            "capabilities": candidate.get("capabilities", []),
+            "relevance_score": candidate.get("relevance_score", 0.0),
+            "requires_gpu": candidate.get("requires_gpu", False),
+            "requires_external": candidate.get("requires_external", ""),
+            "implementation_notes": candidate.get("implementation_notes", ""),
+        }
+        metadata_json = json.dumps(metadata, indent=4, ensure_ascii=False)
+        params_json = json.dumps(default_params, indent=4, ensure_ascii=False)
+        description = textwrap.fill(candidate.get("description", ""), width=76)
+
+        return textwrap.dedent(
+            f'''"""Auto-generated scaffold for mined model ``{candidate["name"]}``.
+
+Source: {candidate.get("source", "")}
+
+Summary:
+    {description}
+"""
+from __future__ import annotations
+
+MODEL_METADATA = {metadata_json}
+DEFAULT_PARAMS = {params_json}
+
+
+def generate(params: dict | None = None) -> dict:
+    """Return a deterministic scaffold payload for future implementation work."""
+    merged = dict(DEFAULT_PARAMS)
+    if params:
+        merged.update(params)
+    return {{
+        "status": "scaffold",
+        "model": MODEL_METADATA["name"],
+        "source": MODEL_METADATA["source"],
+        "capabilities": list(MODEL_METADATA["capabilities"]),
+        "params": merged,
+        "implementation_notes": MODEL_METADATA["implementation_notes"],
+    }}
+'''
+        )
+
+    def _render_test_scaffold(self, candidate: dict) -> str:
+        return textwrap.dedent(
+            f'''"""Smoke test scaffold for mined model ``{candidate["name"]}``."""
+from __future__ import annotations
+
+import importlib.util
+from pathlib import Path
+
+
+MODULE_FILE = Path(__file__).resolve().parents[2] / "mathart" / "mined" / "{candidate["name"]}.py"
+
+
+def test_{candidate["name"]}_scaffold_is_callable():
+    spec = importlib.util.spec_from_file_location("{candidate["name"]}_module", MODULE_FILE)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    result = module.generate({{"seed": 7}})
+    assert result["status"] == "scaffold"
+    assert result["model"] == "{candidate["name"]}"
+'''
+        )
+
+    def _save_promoted_candidates(self, promoted_records: list[dict]) -> None:
+        manifest_path = self.project_root / "knowledge" / "registry_candidates.json"
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        existing: list[dict] = []
+        if manifest_path.exists():
+            try:
+                existing = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                existing = []
+        existing.extend(promoted_records)
+        manifest_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def _append_promotion_log(self, session: MiningSession, promoted_records: list[dict], registry_path: Path) -> None:
+        if not promoted_records:
+            return
+        log_path = self.project_root / "MINE_LOG.md"
+        with open(log_path, "a", encoding="utf-8") as handle:
+            handle.write(f"Promotion registry: {registry_path}\n")
+            handle.write("Promoted scaffolds:\n")
+            for record in promoted_records:
+                handle.write(
+                    f"  - {record['name']} -> {record['module_file']} (score={record['relevance_score']:.2f})\n"
+                )
+            handle.write("\n")
+
+    # ── Search orchestration ───────────────────────────────────────────
 
     # ── Search orchestration ───────────────────────────────────────────
 
@@ -689,7 +984,11 @@ class MathPaperMiner:
             capabilities = self._detect_capabilities(line)
             if not capabilities:
                 continue
-            relevance = self._combine_scores(0.5, 0.7, 0.5, 0.5)
+            applicability = self._clamp(0.56 + 0.07 * len(set(capabilities)))
+            implementability = 0.78
+            novelty = self._clamp(0.5 + 0.05 * len(set(capabilities)))
+            quality = 0.58
+            relevance = self._combine_scores(applicability, implementability, novelty, quality)
             results.append(
                 PaperResult(
                     title=line[:100],
@@ -697,13 +996,13 @@ class MathPaperMiner:
                     url="",
                     abstract=line,
                     year=datetime.utcnow().year,
-                    applicability=0.5,
-                    implementability=0.7,
-                    novelty=0.5,
-                    quality=0.5,
+                    applicability=applicability,
+                    implementability=implementability,
+                    novelty=novelty,
+                    quality=quality,
                     relevance_score=relevance,
                     capabilities=capabilities,
-                    implementation_notes="Manually extracted — review required.",
+                    implementation_notes="Manually extracted — scaffold candidate pending deeper review.",
                 )
             )
         return results
@@ -792,7 +1091,7 @@ class MathPaperMiner:
         return headers
 
     def _user_agent(self) -> str:
-        return "MarioTrickster-MathArt/0.11.0"
+        return "MarioTrickster-MathArt/0.12.0"
 
     def _extract_keywords(self, text: str) -> list[str]:
         """Extract normalized keywords from a free-form query."""
@@ -874,10 +1173,20 @@ def _cli_entry() -> None:
         action="store_true",
         help="Disable real HTTP APIs and use fallback or LLM-only behaviour",
     )
+    mine_cmd.add_argument(
+        "--promote",
+        action="store_true",
+        help="Scaffold accepted candidates and persist them into math_models.json",
+    )
 
     text_cmd = subparsers.add_parser("text", help="Extract papers from text file")
     text_cmd.add_argument("file", help="Text file path")
     text_cmd.add_argument("--source", default="manual", help="Source name")
+    text_cmd.add_argument(
+        "--promote",
+        action="store_true",
+        help="Scaffold accepted candidates and persist them into math_models.json",
+    )
 
     args = parser.parse_args()
 
@@ -885,11 +1194,17 @@ def _cli_entry() -> None:
 
     if args.command == "mine":
         session = miner.mine(queries=args.queries, max_results_per_query=args.max)
+        promoted = miner.promote_session_candidates(session) if args.promote else []
         print(f"\n{session.summary()}")
+        if promoted:
+            print(f"Promoted {len(promoted)} candidate scaffold(s) into math_models.json")
     elif args.command == "text":
         text = Path(args.file).read_text(encoding="utf-8")
         session = miner.mine_from_text(text, source_name=args.source)
+        promoted = miner.promote_session_candidates(session) if args.promote else []
         print(f"\n{session.summary()}")
+        if promoted:
+            print(f"Promoted {len(promoted)} candidate scaffold(s) into math_models.json")
     else:
         parser.print_help()
         sys.exit(1)

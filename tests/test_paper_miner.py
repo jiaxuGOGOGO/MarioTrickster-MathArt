@@ -1,7 +1,10 @@
 """Tests for MathPaperMiner — math paper mining scheduler."""
 from __future__ import annotations
 
-from mathart.evolution.paper_miner import MathPaperMiner, MiningSession, PaperResult
+import json
+from pathlib import Path
+
+from mathart.evolution.paper_miner import MathPaperMiner, MiningSession, PaperResult, _cli_entry
 
 
 class _MockResponse:
@@ -88,7 +91,7 @@ class TestMathPaperMiner:
         assert " " not in name
 
     def test_generate_registry_candidates(self, tmp_path):
-        """Should generate registry candidates from session results."""
+        """Should generate enriched registry candidates from session results."""
         miner = MathPaperMiner(project_root=tmp_path, use_llm=False, verbose=False)
         paper = PaperResult(
             title="WFC Tilemap Generation",
@@ -117,6 +120,10 @@ class TestMathPaperMiner:
         assert len(candidates) == 1
         assert candidates[0]["status"] == "candidate"
         assert "PCG" in candidates[0]["capabilities"]
+        assert candidates[0]["module_path"] == "mathart.mined.wfc_tilemap_generation"
+        assert candidates[0]["function_name"] == "generate"
+        assert "grid_width" in candidates[0]["params"]
+        assert "rule_compliance" in candidates[0]["quality_metrics"]
 
     def test_relevance_threshold_filters(self, tmp_path):
         """Papers below threshold should be rejected."""
@@ -251,3 +258,68 @@ class TestMathPaperMiner:
         assert session.papers_found == 1
         assert session.papers_accepted == 1
         assert session.results[0].title.startswith("Signed Distance Field")
+
+    def test_promote_session_candidates_creates_scaffolds_and_registry(self, tmp_path):
+        """Should scaffold accepted candidates and persist them into math_models.json."""
+        miner = MathPaperMiner(project_root=tmp_path, use_llm=False, verbose=False)
+        paper = PaperResult(
+            title="Wave Function Collapse for Tilemaps",
+            source="arxiv",
+            url="https://arxiv.org/abs/2401.12345",
+            abstract="Wave Function Collapse for procedural tilemap generation and layout synthesis.",
+            year=2024,
+            applicability=0.9,
+            implementability=0.85,
+            novelty=0.7,
+            quality=0.8,
+            relevance_score=0.84,
+            capabilities=["PCG", "PIXEL_IMAGE"],
+            implementation_notes="Start with a CPU-friendly constraint solver scaffold.",
+        )
+        session = MiningSession(
+            session_id="MINE-010",
+            query="wfc tilemap",
+            timestamp="2024-01-01T00:00:00",
+            papers_found=1,
+            papers_accepted=1,
+            papers_rejected=0,
+            results=[paper],
+        )
+
+        promoted = miner.promote_session_candidates(session)
+        assert len(promoted) == 1
+
+        module_file = Path(promoted[0]["module_file"])
+        test_file = Path(promoted[0]["test_file"])
+        registry_file = Path(promoted[0]["registry_path"])
+        manifest_file = tmp_path / "knowledge" / "registry_candidates.json"
+
+        assert module_file.exists()
+        assert test_file.exists()
+        assert registry_file.exists()
+        assert manifest_file.exists()
+
+        module_text = module_file.read_text(encoding="utf-8")
+        assert "def generate(" in module_text
+        assert '"status": "scaffold"' in module_text
+
+        registry = json.loads(registry_file.read_text(encoding="utf-8"))
+        assert "wave_function_collapse_for_tilemaps" in registry
+        assert registry["wave_function_collapse_for_tilemaps"]["status"] == "experimental"
+        assert registry["wave_function_collapse_for_tilemaps"]["module_path"] == "mathart.mined.wave_function_collapse_for_tilemaps"
+
+    def test_cli_text_promote_persists_candidate_scaffolds(self, monkeypatch, tmp_path, capsys):
+        """CLI text --promote should create scaffolds and announce promotion."""
+        notes_file = tmp_path / "notes.txt"
+        notes_file.write_text("Wave Function Collapse for procedural tilemap generation", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(
+            "sys.argv",
+            ["mathart-mine", "text", str(notes_file), "--source", "manual", "--promote"],
+        )
+
+        _cli_entry()
+        output = capsys.readouterr().out
+        assert "Promoted 1 candidate scaffold" in output
+        assert (tmp_path / "math_models.json").exists()
+        assert (tmp_path / "mathart" / "mined").exists()
