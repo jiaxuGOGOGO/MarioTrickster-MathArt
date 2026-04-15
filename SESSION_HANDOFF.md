@@ -48,48 +48,24 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 
 ## Pending Tasks (Priority Order)
 
-### [HIGH] `TASK-001`: Full-Pipeline Quality Control & Invalid Iteration Prevention
-- **Status**: In progress (3/4 QC checkpoints integrated)
-- **Scope** (expanded from original):
-  1. Complete `mid_generation` checkpoint integration — knowledge and math models must guide generation throughout, not just score at the end.
-  2. Enhance `StagnationGuard` to detect consecutive identical/invalid outputs, auto-diagnose root cause (e.g., math-art parameter conflict), and generate a structured report.
-  3. Ensure AUTONOMOUS mode (no AI) runs stably with local rules only — never blocks iteration due to missing AI connection.
-  4. In ASSISTED mode (AI available), enable deeper quality arbitration via API proxy.
-- **Files**: `mathart/evolution/inner_loop.py`, `mathart/evolution/stagnation.py`, `mathart/quality/controller.py`
+### [HIGH] `TASK-001`: Complete QC Controller Integration
+- **Status**: 3/4 checkpoints done (`pre_generation`, `post_generation`, `iteration_end` integrated)
+- **Remaining Gap**: The `mid_generation` checkpoint is implemented in `ArtMathQualityController` but not yet called in `InnerLoopRunner`. This is the final step to ensure knowledge and math models guide the generation process throughout, not just at the end.
+- **File**: `mathart/evolution/inner_loop.py`
 
-### [HIGH] `TASK-007`: External Knowledge & Math Model Continuous Injection
-- **Status**: Ongoing (ready whenever user uploads materials)
-- **Scope** (expanded from original):
-  1. **PDF/Book Distillation**: User uploads → Manus extracts art/design rules → writes to `knowledge/*.md` → pushes to GitHub.
-  2. **Math Paper Mining**: Manus proactively searches academic papers and converts relevant math models into code registered in `math_registry.py`.
-  3. **Sprite/Asset Learning**: Analyze user-provided Sprite and SpriteSheet references, extract mathematical features (palette, proportions, symmetry, edge density) to guide evolution constraints.
-  4. **GitHub/Reddit Scouting**: Reference excellent open-source projects for implementation patterns and techniques.
-  5. **Deduplication**: All knowledge injection is deduplicated via `DeduplicationEngine`, but valuable knowledge is never discarded.
-- **Next distill session ID**: DISTILL-008
-- **Files**: `knowledge/*.md`, `mathart/distill/parser.py`, `mathart/evolution/math_registry.py`, `mathart/evolution/paper_miner.py`
-
-### [MEDIUM] `TASK-008`: Unity Shader Integration & Pseudo-3D Extension Path
+### [MEDIUM] `TASK-003`: Connect LevelSpecBridge to ExportBridge
 - **Status**: Not started
-- **Scope**:
-  1. Study and integrate Unity Shader techniques to enhance final art asset quality (normal maps, lighting, post-processing).
-  2. Design extension interfaces in the existing 2D pixel/SDF architecture for future pseudo-3D rendering (parallax layers, depth-based lighting, sprite stacking).
-  3. Document a clear roadmap from current 2D to pseudo-3D capability.
-- **Files**: `mathart/export/bridge.py`, new `mathart/shader/` module (to be created)
-
-### [MEDIUM] `TASK-003`: Level Generation → Asset Export Pipeline Connection
-- **Status**: Not started
-- **Depends on**: TASK-001
-- **Scope**: Connect `LevelSpecBridge` to `ExportBridge` for automatic asset sizing, tiling validation, and Unity-ready export based on level requirements.
+- **Remaining Gap**: Both `LevelSpecBridge` and `ExportBridge` are fully implemented, but they are currently disconnected. Need to bridge them so that level requirements automatically dictate asset export sizing and tiling validation.
 - **File**: `mathart/export/bridge.py`
 
-### [LOW] `TASK-005`: External Compute & Hardware Acceleration
-- **Status**: Not started
-- **Scope** (expanded from original):
-  1. Enable CUDA-accelerated differentiable rendering when NVIDIA GPU is available.
-  2. Explore Stable Diffusion / AI image model API integration for higher-quality sprite generation, while keeping the core pipeline independent.
-  3. All hardware acceleration is **optional** — the core system must always work without it.
-- **Requires**: NVIDIA GPU (CUDA 11+) and/or Stable Diffusion API access
-- **File**: `mathart/sdf/renderer.py`
+### [ONGOING] `TASK-007`: The Distillation Engine (Waiting for User Input)
+- **Status**: Ready and waiting
+- **Remaining Gap**: The infrastructure for PDF distillation, math paper mining, sprite learning, and deduplication is fully built. The system is waiting for the user to upload new PDFs, reference books, or sprite images to the chat to trigger the next distillation cycle.
+- **Next distill session ID**: DISTILL-008
+
+### [EXTERNAL] `TASK-005`: Hardware Acceleration & Unity Integration
+- **Status**: Blocked by external dependencies
+- **Remaining Gap**: The code skeletons for differentiable rendering (`mathart/sdf/renderer.py`), Unity Shader knowledge (`knowledge/unity_rules.md`), and Pseudo-3D (`mathart/shader/pseudo3d.py`) are already implemented. Deep integration requires the user to provide an NVIDIA GPU (CUDA 11+) and/or Unity Editor access.
 
 ---
 
