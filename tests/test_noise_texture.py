@@ -247,7 +247,7 @@ class TestWorkspaceManager:
         ws.init_workspace()
         readme = ws.inbox / "README.md"
         assert readme.exists()
-        content = readme.read_text()
+        content = readme.read_text(encoding="utf-8")
         assert "sprites" in content
 
     def test_init_workspace_idempotent(self, ws):

@@ -25,7 +25,7 @@ import re
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union
+from typing import Union
 
 
 class RuleType(str, Enum):
@@ -334,13 +334,21 @@ class KnowledgeParser:
         self._rule_counter = 0
 
     def parse_directory(self, directory: Union[str, Path]) -> list[KnowledgeRule]:
-        """Parse all knowledge files in a directory."""
+        """Parse all knowledge files in a directory.
+
+        Skips JSON files that are not rule-list format (e.g., sprite_library.json).
+        """
         directory = Path(directory)
         rules = []
         for md_file in sorted(directory.glob("*.md")):
             rules.extend(self.parse_markdown(md_file))
         for json_file in sorted(directory.glob("*.json")):
-            rules.extend(self.load_rules(json_file))
+            try:
+                rules.extend(self.load_rules(json_file))
+            except (TypeError, KeyError, ValueError):
+                # Skip JSON files that don't conform to rule format
+                # (e.g., sprite_library.json, stagnation reports)
+                pass
         return rules
 
     def parse_markdown(self, filepath: Union[str, Path]) -> list[KnowledgeRule]:
@@ -578,9 +586,17 @@ class KnowledgeParser:
 
     @staticmethod
     def load_rules(filepath: Union[str, Path]) -> list[KnowledgeRule]:
-        """Load rules from a JSON file."""
+        """Load rules from a JSON file.
+
+        The file must contain a JSON array of rule dicts.
+        Raises TypeError if the format is not a list of dicts.
+        """
         filepath = Path(filepath)
         data = json.loads(filepath.read_text(encoding="utf-8"))
+        if not isinstance(data, list):
+            raise TypeError(
+                f"Expected JSON array of rules, got {type(data).__name__}"
+            )
         return [KnowledgeRule.from_dict(d) for d in data]
 
     @staticmethod
