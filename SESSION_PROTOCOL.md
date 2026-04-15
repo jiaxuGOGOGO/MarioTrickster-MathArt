@@ -11,7 +11,34 @@ Every new session MUST complete these steps in order:
 2. **Read `DEDUP_REGISTRY.json`** — Already-absorbed references and completed changes
 3. **Read `PROJECT_BRAIN.json`** — Machine-readable project state
 4. **Check `STAGNATION_LOG.md`** — Known failure patterns to avoid
-5. **Identify the NEXT priority** from the TODO list (not redo past work)
+5. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` if the task may need external references**
+6. **Identify the NEXT priority** from the TODO list (not redo past work)
+
+## Default Precision Research Trigger
+
+Trigger the precision parallel research protocol by default when one of these conditions is true:
+
+1. The user explicitly asks for **precise**, **parallel**, **global**, or **comprehensive** web research.
+2. The next upgrade is blocked by missing outside knowledge rather than local coding.
+3. The session risks becoming **surface-level**, **repetitive**, or **formal** without new ideas.
+4. A subsystem gap stays open across sessions and needs stronger benchmarks, implementation references, or production standards.
+
+When triggered, follow `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` before starting wide search.
+
+If available in the environment, also load the reusable skill at `/home/ubuntu/skills/mathart-precision-research/SKILL.md` to reuse the same workflow outside this repository.
+
+## External Research Guardrails
+
+Before any broad search:
+
+1. Define the concrete subsystem and implementation decision to unlock.
+2. State what is already known from project memory.
+3. State what must not be searched again.
+4. Define the success signal for useful sources.
+5. Prefer a query lattice over one oversized query.
+6. Stop searching when the next code change is already clear.
+
+Do not search broadly just to appear thorough. Search only to improve implementation quality, benchmarks, or deliverable standards.
 
 ## Anti-Duplication Rules
 
@@ -21,6 +48,7 @@ Every new session MUST complete these steps in order:
 | **No re-implementation** | If a change is in `DEDUP_REGISTRY.json → completed_changes`, do NOT redo it |
 | **No re-analysis** | If a stagnation pattern is in `known_stagnation_patterns`, apply the documented fix directly |
 | **Append, don't overwrite** | New findings go into the registry; never delete existing entries |
+| **Distill, then store** | Keep only sources that change implementation, evaluation, benchmarks, or roadmap decisions |
 
 ## Session Exit Checklist
 
@@ -31,6 +59,7 @@ Before ending any session:
 3. **Update `PROJECT_BRAIN.json`** — Machine-readable state
 4. **Update `SESSION_TRACKER.md`** — Log this session's work
 5. **Commit and push** — All changes to GitHub
+6. **If research was triggered, update `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` when the workflow itself improved**
 
 ## Quality Gates
 
@@ -40,6 +69,7 @@ Before declaring any feature "done":
 - [ ] Verify new code doesn't break existing imports
 - [ ] Check that evolution produces measurably different scores
 - [ ] Verify GIF/spritesheet export works end-to-end
+- [ ] Verify any research sweep produced a reusable note or a clear decision not to retain it
 
 ## Known Efficiency Killers (Avoid These)
 
@@ -48,6 +78,8 @@ Before declaring any feature "done":
 3. **Adding features without testing** — Test immediately after implementation
 4. **Ignoring stagnation patterns** — They waste entire sessions
 5. **Not updating handoff docs** — Next session starts from scratch
+6. **Searching without a decision target** — Broad search becomes expensive noise
+7. **Keeping inspirational links without implementation value** — They pollute future sessions
 
 ## Priority Framework
 
@@ -58,3 +90,4 @@ When choosing what to work on:
 3. **Asset quality** (do outputs look good?)
 4. **New capabilities** (new types of assets)
 5. **Polish** (nice-to-have improvements)
+

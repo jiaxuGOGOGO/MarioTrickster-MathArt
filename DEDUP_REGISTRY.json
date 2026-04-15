@@ -1,7 +1,7 @@
 {
   "version": "1.1",
   "purpose": "Prevent duplicate research, duplicate code changes, and duplicate knowledge distillation across sessions. Every new session MUST read this file before starting work.",
-  "last_updated": "SESSION-025",
+  "last_updated": "SESSION-026",
 
   "absorbed_references": {
     "description": "External resources already studied and integrated. Do NOT re-research these.",
@@ -47,6 +47,10 @@
       {"id": "REF-R025-003", "topic": "WFC as first-class pipeline stage", "findings": "WFC should be elevated into AssetPipeline with connectivity/playability constraints, metadata manifests, and multi-pass assembly instead of staying as a disconnected module.", "status": "planned_for_integration", "note_file": "research_notes_session025.md"},
       {"id": "REF-R025-004", "topic": "Shader/export pipeline closure", "findings": "Shader artifacts should support baked-texture plus runtime-parameter metadata export so generated assets become more engine-ready and reusable downstream.", "status": "planned_for_integration", "note_file": "research_notes_session025.md"},
       {"id": "REF-R025-005", "topic": "Per-frame SDF animation, secondary motion, and organic textures", "findings": "Keyframed SDF parameter tracks, spring-based overlap, and reaction-diffusion masks are the clearest next upgrades for motion liveliness and material richness.", "status": "planned_for_integration", "note_file": "research_notes_session025.md"}
+    ],
+    "research_session_026": [
+      {"id": "REF-R026-001", "topic": "Precision parallel research protocol for project upgrades", "findings": "External research should trigger only when it unlocks a concrete implementation or evaluation decision. Query lattices, source ranking, stop conditions, and write-back notes reduce duplicate searching and improve implementation relevance.", "status": "integrated", "note_file": "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md"},
+      {"id": "REF-R026-002", "topic": "Repository-local plus skill-based protocol reuse", "findings": "Keeping both a repo-local protocol file and a validated reusable skill gives future sessions a stable default search workflow inside and outside the repository.", "status": "integrated", "note_file": "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md"}
     ]
   },
 
@@ -110,6 +114,11 @@
       {"change": "Dedup-first parallel gap research synthesized into a reusable note file", "files": ["research_notes_session025.md"]},
       {"change": "Handoff priorities refreshed to point future sessions at semantic mutation space, benchmark suites, and pipeline closure", "files": ["SESSION_HANDOFF.md", "PROJECT_BRAIN.json"]},
       {"change": "Dedup registry updated with newly absorbed non-duplicate reference directions", "file": "DEDUP_REGISTRY.json"}
+    ],
+    "SESSION-026": [
+      {"change": "Repository-level precision parallel research protocol added", "files": ["PRECISION_PARALLEL_RESEARCH_PROTOCOL.md", "SESSION_PROTOCOL.md"]},
+      {"change": "Future-session handoff and machine state updated to reference the new protocol by default", "files": ["SESSION_HANDOFF.md", "PROJECT_BRAIN.json"]},
+      {"change": "Dedup registry updated so protocol design work is not rediscovered in later sessions", "file": "DEDUP_REGISTRY.json"}
     ]
   },
 

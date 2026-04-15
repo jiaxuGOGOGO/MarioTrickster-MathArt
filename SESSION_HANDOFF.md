@@ -1,15 +1,16 @@
 # SESSION HANDOFF — MarioTrickster-MathArt
 
 > **READ THIS FIRST** if you are starting a new conversation about this project.
-> This document is auto-generated and always reflects the latest verified project state.
+> This document is auto-generated and reflects the latest verified project state and workflow rules.
 
 ## MANDATORY: Read Before Starting
 
 1. **Read `DEDUP_REGISTRY.json`** — Prevents duplicate research and repeated external harvesting.
-2. **Read `SESSION_PROTOCOL.md`** — Session efficiency rules and anti-repetition process.
-3. **Read `PROJECT_BRAIN.json`** — Machine-readable global state.
-4. **Read `research_notes_session025.md`** — Latest non-duplicative reference synthesis for the next high-value decisions.
-5. **Read this file** — Current priorities, verified status, and handoff guidance.
+2. **Read `SESSION_PROTOCOL.md`** — Session efficiency rules, anti-repetition process, and protocol trigger logic.
+3. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`** — Default method for precise, parallel, high-value external research.
+4. **Read `PROJECT_BRAIN.json`** — Machine-readable global state.
+5. **Read `research_notes_session025.md`** — Latest non-duplicative reference synthesis for the next high-value decisions.
+6. **Read this file** — Current priorities, verified status, and handoff guidance.
 
 ---
 
@@ -18,50 +19,57 @@
 | Dimension | Value |
 |-----------|-------|
 | Current version | **0.18.0** |
-| Last updated | 2026-04-15T15:08:12Z |
-| Last session | **SESSION-025** |
+| Last updated | 2026-04-15T15:25:06Z |
+| Last session | **SESSION-026** |
 | Best quality score | 0.8674 (best validated geometric sprite baseline) |
 | Validation pass rate | **493/493 = 100%** |
 | Total code lines | 31,673 |
 | Knowledge rules | 12 |
 | Math models registered | 10 |
-| Project health score | **9.2/10** |
+| Project health score | **9.3/10** |
 
-## What Changed in SESSION-025
+## What Changed in SESSION-026
 
-### P1-RESEARCH-025A: Dedup-First Parallel Gap Research Completed
+### P0-PROTOCOL-026A: Default Precision Parallel Research Protocol Added
 
-A fresh **non-duplicative parallel research sweep** was completed against the highest-priority remaining gaps. This was intentionally constrained by `DEDUP_REGISTRY.json` so the project would not re-absorb already known material such as CPPN, Picbreeder, OKLAB, general pixel-art tutorials, generic WFC basics, or the already-integrated procedural character references.
+A new repository-level workflow file, **`PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`**, was added to formalize how future sessions should search the web when the project needs outside knowledge. This protocol is not a generic “search more” instruction. It is a decision-oriented mechanism designed to help future sessions find **more accurate, more implementation-relevant, and less repetitive** sources before coding.
 
-The result is a new reference synthesis document, **`research_notes_session025.md`**, that is much more useful for the next conversation than another broad audit. It gives concrete external anchors for the five most important remaining fronts: **semantic character mutation space, production benchmark assets, WFC pipeline closure, shader/export closure, and per-frame SDF animation with secondary motion and organic textures**.
+It defines **when research should trigger**, how to frame the missing decision, how to split search into a **query lattice** instead of one vague query, how to rank sources, how to stop once the next implementation step is clear, and how to write back results so later sessions do not repeat the same harvesting.
 
-### P1-RESEARCH-025B: TODO List Re-ranked Around Actual Bottlenecks
+### P0-PROTOCOL-026B: Session Workflow Now Automatically Points to the Protocol
 
-The project already has a stronger character evolution core after SESSION-024, so the highest-value work is no longer “make search exist” or “make search less fragile.” The updated task order now reflects the new reality:
+`SESSION_PROTOCOL.md` was updated so future sessions now explicitly load the precision protocol whenever the work is blocked by missing external knowledge, whenever the user asks for precise or broad web research, or whenever the session risks slipping into **surface-level iteration without new ideas**.
 
-1. **Broaden semantic mutation space** so the search can evolve richer families instead of only local proportion/style perturbations.
-2. **Create benchmark asset suites** so the system is measured against production-like targets rather than only internal heuristics.
-3. **Close WFC / shader / export pipeline gaps** so the repository produces more complete downstream-consumable asset bundles.
-4. **Add per-frame SDF animation, secondary motion, and organic textures** so output quality improves in motion and material feel, not just still-frame packaging.
+This makes the research mechanism part of the project’s **default operating model**, not a one-off note.
+
+### P0-PROTOCOL-026C: Reusable Skill Validated for Cross-Session Reuse
+
+A reusable skill was created and validated at:
+
+`/home/ubuntu/skills/mathart-precision-research/SKILL.md`
+
+This gives future sessions two aligned entrypoints: the **repository-local protocol** and the **reusable skill**. The skill passed structural validation, which means the mechanism is now robust enough to be reused consistently in future conversations.
 
 ### Validation Outcome
 
-No new runtime code was changed in SESSION-025. The last verified code baseline remains **493/493 tests passing**, inherited from SESSION-024.
+No runtime code was changed in SESSION-026. The last verified code baseline remains **493/493 tests passing**, inherited from SESSION-024. The new workflow layer itself was validated through successful skill structure validation and repository document integration.
 
-## SESSION-025 Deliverables
+## SESSION-026 Deliverables
 
 | Category | Change | File(s) | Impact |
 |----------|--------|---------|--------|
-| **RESEARCH** | Dedup-aware parallel gap research | `research_notes_session025.md` | Gives next sessions concrete, non-redundant reference material instead of another vague broad search |
-| **PLANNING** | TODO reprioritization around the real blockers | `SESSION_HANDOFF.md`, `PROJECT_BRAIN.json` | Future sessions can act on clearer, narrower priorities |
-| **STATE** | Refreshed machine and handoff state | `SESSION_HANDOFF.md`, `PROJECT_BRAIN.json` | Next conversation starts with stronger context and less duplicate effort |
+| **WORKFLOW** | Default precision parallel research protocol added | `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` | Gives future sessions a concrete, reusable method for high-value external research |
+| **PROCESS** | Main session protocol updated with trigger rules | `SESSION_PROTOCOL.md` | Makes the protocol automatic when research is truly needed |
+| **STATE** | Handoff and machine memory refreshed | `SESSION_HANDOFF.md`, `PROJECT_BRAIN.json` | Future sessions can enter with clearer context and less duplicate effort |
+| **DEDUP** | Long-term anti-repeat memory extended | `DEDUP_REGISTRY.json` | Prevents future sessions from rediscovering the same protocol design work |
 
 ## Validation Results
 
 | Scope | Result |
 |-------|--------|
 | Full repository test suite | **493/493 PASS** |
-| Code delta in SESSION-025 | Docs/research only |
+| Code delta in SESSION-026 | Docs / workflow / research protocol only |
+| Skill validation | **PASS** (`mathart-precision-research`) |
 | Verified implementation baseline | Inherited from SESSION-024 |
 
 ## Current Capability Snapshot
@@ -79,24 +87,26 @@ No new runtime code was changed in SESSION-025. The last verified code baseline 
 | Asset export bridge | Module exists, not integrated enough | Needs to become a first-class end-to-end pipeline step |
 | Animation liveliness | Partial | Still missing per-frame parameter tracks and spring overlap |
 | Organic material system | Missing | Reaction-diffusion / advanced organic masks are not yet integrated |
-| Cross-session anti-duplication | Implemented | SessionGuard + registry + protocol are in place |
+| Cross-session anti-duplication | Stronger | SessionGuard + registry + default precision research protocol are now in place |
+| Search / reference harvesting discipline | Stronger | Trigger, framing, source ranking, stopping rules, and note contract are now formalized |
 | Test reliability | Strong | Full suite green at 493 tests |
 
 ## Gap Analysis: Current vs. User Goal
 
-The repository is **no longer a beautiful empty shell**. It can already output real character packs, run character-aware search, preserve diversity, recover from stagnation, and export multi-state assets.
+The repository is **not just a beautiful shell anymore**. It can already output real character packs, run character-aware search, preserve diversity, recover from stagnation, and export multi-state assets.
 
-However, it still falls short of the user’s ultimate target in a more specific way: the system is now credible as a foundation, but it still lacks the **semantic search breadth, production benchmarks, and end-to-end closure** that would let it keep evolving toward genuinely strong art assets over time.
+The new improvement in SESSION-026 is that the project now also has a **default research mechanism** for when code progress would otherwise become shallow. That matters because the remaining gaps are no longer only “implement feature X.” Several of them require better benchmark standards, better source selection, and tighter translation from external references into project-local code and evaluation rules.
 
 | Goal Dimension | Current State | Remaining Gap |
 |---------------|---------------|---------------|
 | Produce usable assets, not demos | Stronger than before | Real evolved character packs exist, but level/shader/export closure is still incomplete |
 | Multi-state character output | **Done** | Needs broader state library and richer anatomy/accessory diversity |
 | Continuous evolution potential | Improved again | Search logic is stronger, but mutation semantics remain narrow |
-| Avoid repeated wasted sessions | Improved | Mechanisms exist and the next references are now distilled for reuse |
+| Avoid repeated wasted sessions | Improved further | Protocol, registry, and reusable skill now reduce duplicated searching as well as duplicated coding |
 | Integrate best existing project modules | Partial | WFC, shader, export, and benchmark assets still under-integrated |
 | Minimal software sprawl / self-contained | Good | Core generation path remains repo-local and controllable |
 | Output suitable for real downstream use | Partial | Needs stronger benchmark definitions and engine-ready bundle closure |
+| Search quality during upgrades | Improved structurally | Still needs repeated real-world use to confirm the protocol continues to surface the right sources under different gap types |
 
 ## Biggest Remaining Gaps
 
@@ -106,6 +116,7 @@ However, it still falls short of the user’s ultimate target in a more specific
 4. **Shader and export modules remain under-integrated.** These are still not first-class pipeline outputs.
 5. **Per-frame SDF parameter animation is still absent.** Existing geometric animation remains largely transform-driven.
 6. **Secondary motion and organic texture systems are still roadmap items.** Spring-based overlap and reaction-diffusion remain open.
+7. **The new protocol now needs repeated use on real upgrade decisions.** It is designed and integrated, but its long-term value depends on applying it to future bottlenecks instead of letting sessions drift back into vague searching.
 
 ## Pending Tasks (Priority Order)
 
@@ -113,7 +124,7 @@ However, it still falls short of the user’s ultimate target in a more specific
 
 | ID | Task | Status | Effort | Description |
 |----|------|--------|--------|-------------|
-| P1-NEW-9B | Character evolution 2.5 | PARTIAL | High | Expand `CharacterSpec` toward **semantic mutation space**: archetypes, anatomy templates, clothing layers, accessory slots, clearer pose/appeal objectives, and less noise-like local drift. |
+| P1-NEW-9B | Character evolution 2.5 | PARTIAL | High | Expand `CharacterSpec` toward **semantic mutation space**: archetypes, anatomy templates, clothing layers, accessory slots, clearer pose/appeal objectives, and less noise-like local drift. Use the precision research protocol before making broad design changes. |
 | P1-NEW-10 | Production benchmark asset suite | TODO | High | Add benchmark characters, tiles, and VFX with structured metadata, acceptance thresholds, and automated validators so future evolution is judged against production-like targets. |
 | P1-NEW-1 | WFC tilemap pipeline integration | TODO | High | Add a high-level `produce_level()` path, connect WFC outputs to asset packs, and include playability / connectivity validation plus metadata manifests. |
 | P1-NEW-7 | Export pipeline integration | TODO | High | Promote exporter to a first-class stage that emits engine-ready bundles with atlas indices, palette data, manifests, and reusable metadata. |
@@ -121,6 +132,7 @@ However, it still falls short of the user’s ultimate target in a more specific
 | P1-2 | Per-frame SDF parameter animation | TODO | Medium | Add keyframed SDF parameter tracks and true shape evolution over time instead of mostly transform-driven playback. |
 | P1-NEW-3 | Spring-based secondary animation | TODO | Medium | Add critically damped follow-through / overlap motion for accessories, appendages, and VFX attachments. |
 | P1-NEW-2 | Reaction-diffusion textures | TODO | Medium | Add Gray-Scott-style organic texture generation and hook it into SDF / shader masks. |
+| P1-NEW-11 | Protocol-guided gap research in live use | TODO | Low | Apply `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` to the next major upgrade bottleneck and verify that it improves source quality, implementation clarity, and anti-duplication discipline in practice. |
 | P1-NEW-8 | Quality checkpoint mid-generation | TODO | Low | Wire `ArtMathQualityController` mid-generation checkpoint into longer searches. |
 
 ### P2 — Nice to Have
@@ -142,9 +154,17 @@ However, it still falls short of the user’s ultimate target in a more specific
 | P3-3 | Unity/Godot exporter plugin | TODO | Medium |
 | P3-4 | CI/CD + GitHub Actions | TODO | Medium |
 | P3-5 | End-to-end demo showcase script | TODO | Low |
-| P3-6 | README update for SESSION-018~025 features | TODO | Low |
+| P3-6 | README update for SESSION-018~026 features | TODO | Low |
 
 ## Completed Tasks
+
+### SESSION-026
+
+| ID | Task | Result |
+|----|------|--------|
+| P0-PROTOCOL-026A | Repository precision parallel research protocol | Added `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` as the default external-research method |
+| P0-PROTOCOL-026B | Session workflow integration | `SESSION_PROTOCOL.md` now triggers the research protocol by default when needed |
+| P0-PROTOCOL-026C | Reusable skill validation | `mathart-precision-research` skill validated successfully for future reuse |
 
 ### SESSION-025
 
@@ -185,13 +205,15 @@ However, it still falls short of the user’s ultimate target in a more specific
 
 1. **Read `DEDUP_REGISTRY.json` first.**
 2. **Read `SESSION_PROTOCOL.md` second.**
-3. Read `PROJECT_BRAIN.json`, `research_notes_session025.md`, and this handoff before coding.
-4. Do **not** launch another broad external research sweep unless a new subsystem focus is chosen.
-5. If the goal is better final character art quality, start with **P1-NEW-9B** or **P1-NEW-10**, not another packaging-only change.
-6. If the goal is end-to-end production usefulness, start with **P1-NEW-1**, **P1-NEW-7**, or **P1-NEW-6**.
-7. If motion/material quality is the next focus, start with **P1-2**, **P1-NEW-3**, or **P1-NEW-2**.
-8. Always update this file and `PROJECT_BRAIN.json` before ending.
-9. Preserve new scoring heuristics, benchmark schemas, and harvested references in dedicated notes rather than re-harvesting the same material later.
+3. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` third whenever the work may need external references.**
+4. Read `PROJECT_BRAIN.json`, `research_notes_session025.md`, and this handoff before coding.
+5. Do **not** launch another broad external research sweep unless a new subsystem focus is chosen or the precision protocol explicitly justifies it.
+6. If the goal is better final character art quality, start with **P1-NEW-9B** or **P1-NEW-10**, not another packaging-only change.
+7. If the goal is end-to-end production usefulness, start with **P1-NEW-1**, **P1-NEW-7**, or **P1-NEW-6**.
+8. If motion/material quality is the next focus, start with **P1-2**, **P1-NEW-3**, or **P1-NEW-2**.
+9. If the session starts to drift toward vague or repetitive iteration, trigger the precision protocol before searching broadly.
+10. Always update this file and `PROJECT_BRAIN.json` before ending.
+11. Preserve new scoring heuristics, benchmark schemas, harvested references, and protocol improvements in dedicated notes rather than re-harvesting the same material later.
 
 ## Quick Start
 
@@ -214,4 +236,4 @@ character = pipeline.produce_character_pack(
 ```
 
 ---
-*Auto-generated by SESSION-025 at 2026-04-15T15:08:12Z*
+*Auto-generated by SESSION-026 at 2026-04-15T15:25:06Z*

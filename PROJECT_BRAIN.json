@@ -1,7 +1,7 @@
 {
   "version": "0.18.0",
-  "last_session_id": "SESSION-025",
-  "last_updated": "2026-04-15T15:08:12Z",
+  "last_session_id": "SESSION-026",
+  "last_updated": "2026-04-15T15:25:06Z",
   "best_quality_score": 0.8674,
   "validation_pass_rate": "493/493 = 100%",
   "total_iterations": 500,
@@ -11,9 +11,29 @@
   "sprite_count": 0,
   "knowledge_rule_count": 12,
   "math_model_count": 10,
-  "project_health_score": 9.2,
-  "current_focus": "Dedup-first planning after character evolution 2.0 foundation; the next critical gaps are semantic character mutation space, production benchmark asset suites, WFC pipeline closure, shader/export closure, and motion/material upgrades.",
-  "next_reference_entrypoint": "research_notes_session025.md",
+  "project_health_score": 9.3,
+  "current_focus": "The repository now has a default precision parallel research protocol in addition to the character evolution 2.0 foundation. The next critical gaps remain semantic character mutation space, production benchmark asset suites, WFC pipeline closure, shader/export closure, and motion/material upgrades.",
+  "next_reference_entrypoint": "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md",
+  "reference_notes_priority": [
+    "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md",
+    "research_notes_session025.md"
+  ],
+  "default_research_skill": "/home/ubuntu/skills/mathart-precision-research/SKILL.md",
+  "research_trigger_policy": {
+    "status": "active_default",
+    "trigger_when": [
+      "The user explicitly asks for precise, parallel, global, or comprehensive research",
+      "A subsystem upgrade is blocked by missing external knowledge",
+      "The session risks becoming superficial, repetitive, or formal without new ideas",
+      "A multi-session gap needs stronger benchmarks, implementation references, or production standards"
+    ],
+    "stop_when": [
+      "Two or more strong sources support the same practical conclusion",
+      "New results are mostly duplicates or weaker restatements",
+      "The next code change is already clear",
+      "The bottleneck is engineering rather than missing knowledge"
+    ]
+  },
   "pending_tasks": [
     {
       "id": "P1-NEW-9B",
@@ -21,7 +41,7 @@
       "title": "Character evolution 2.5",
       "status": "PARTIAL",
       "estimated_effort": "high",
-      "description": "Expand CharacterSpec toward a semantic mutation space with archetypes, anatomy templates, clothing layers, accessory slots, and stronger pose/appeal objectives so search moves beyond local proportion and palette drift."
+      "description": "Expand CharacterSpec toward a semantic mutation space with archetypes, anatomy templates, clothing layers, accessory slots, and stronger pose/appeal objectives so search moves beyond local proportion and palette drift. Use the precision research protocol before broad design changes."
     },
     {
       "id": "P1-NEW-10",
@@ -78,6 +98,14 @@
       "status": "TODO",
       "estimated_effort": "medium",
       "description": "Add Gray-Scott reaction-diffusion for organic textures and integrate it as an SDF/shader mask source."
+    },
+    {
+      "id": "P1-NEW-11",
+      "priority": "P1",
+      "title": "Protocol-guided gap research in live use",
+      "status": "TODO",
+      "estimated_effort": "low",
+      "description": "Apply PRECISION_PARALLEL_RESEARCH_PROTOCOL.md to the next major upgrade bottleneck and verify that it improves source quality, implementation clarity, and anti-duplication discipline in practice."
     },
     {
       "id": "P1-NEW-8",
@@ -161,7 +189,7 @@
     {
       "id": "P3-6",
       "priority": "P3",
-      "title": "README update for SESSION-018~025 features",
+      "title": "README update for SESSION-018~026 features",
       "status": "TODO",
       "estimated_effort": "low"
     }
@@ -200,7 +228,10 @@
     {"id": "TEST-024", "title": "Character evolution recovery and metadata coverage", "completed_in": "SESSION-024"},
     {"id": "VALIDATION-024", "title": "Full repository validation (493/493 pass)", "completed_in": "SESSION-024"},
     {"id": "P1-RESEARCH-025A", "title": "Dedup-first parallel gap research", "completed_in": "SESSION-025"},
-    {"id": "P1-RESEARCH-025B", "title": "Priority and state refresh for next-session decision support", "completed_in": "SESSION-025"}
+    {"id": "P1-RESEARCH-025B", "title": "Priority and state refresh for next-session decision support", "completed_in": "SESSION-025"},
+    {"id": "P0-PROTOCOL-026A", "title": "Repository precision parallel research protocol", "completed_in": "SESSION-026"},
+    {"id": "P0-PROTOCOL-026B", "title": "Session workflow integration for protocol triggers", "completed_in": "SESSION-026"},
+    {"id": "P0-PROTOCOL-026C", "title": "Validated reusable precision research skill", "completed_in": "SESSION-026"}
   ],
   "capability_gaps": [
     "RESOLVED-S018: Evaluator too lenient -> 12-metric evaluator with strict thresholds",
@@ -225,41 +256,46 @@
     "PARTIAL-S024: Character evolution lacked character-aware objectives -> silhouette and state-distinction scoring now added, but richer motion/appeal objectives remain open",
     "PARTIAL-S024: Character evolution lacked diversity and stagnation recovery -> elite diversity, adaptive strength and restart added, but broader population strategies remain open",
     "CLARIFIED-S025: Next high-value reference set distilled into research_notes_session025.md so future sessions can avoid another broad audit loop",
+    "RESOLVED-S026: No default high-efficiency external research mechanism -> precision parallel research protocol and reusable skill now define trigger, framing, source ranking, stopping rules, and write-back process",
     "REMAINING: Character mutation space is still too narrow for rich production character families",
     "REMAINING: No production benchmark asset suite",
     "REMAINING: WFC tilemap not first-class in AssetPipeline",
     "REMAINING: Shader/Export modules not first-class in AssetPipeline",
     "REMAINING: No per-frame SDF parameter animation",
     "REMAINING: No reaction-diffusion textures",
-    "REMAINING: No spring-based secondary animation"
+    "REMAINING: No spring-based secondary animation",
+    "REMAINING: The new precision research protocol still needs repeated real upgrade use to prove long-term leverage"
   ],
-  "session_025_changes": {
+  "session_026_changes": {
     "new_artifacts": [
-      "research_notes_session025.md: dedup-aware external reference synthesis for the next major gaps",
-      "SESSION_HANDOFF.md: refreshed priorities and next-session reading order",
-      "PROJECT_BRAIN.json: refreshed machine-readable priorities and focus"
+      "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md: repository-level default protocol for precise, parallel, dedup-aware external research",
+      "SESSION_PROTOCOL.md: updated trigger rules and workflow integration for the new protocol",
+      "SESSION_HANDOFF.md: refreshed reading order, priorities, and protocol-aware next-session guidance",
+      "PROJECT_BRAIN.json: refreshed machine-readable state with protocol triggers and reference entrypoints"
     ],
-    "planning_improvements": {
-      "next_session_entry": "New sessions now have a dedicated reference-entry document instead of relying on another broad audit.",
-      "todo_clarity": "Pending tasks now reflect the real blocker order: semantic mutation space, benchmark suites, pipeline closure, then motion/material upgrades.",
-      "duplication_risk": "Reduced further because the newly harvested references are now distilled into a reusable note file."
+    "workflow_improvements": {
+      "default_trigger": "Future sessions now automatically invoke the precision protocol when blocked by missing external knowledge or when broad research is explicitly requested.",
+      "search_quality": "Research is now decision-oriented, query-lattice based, source-ranked, and dedup-aware by default.",
+      "reuse_path": "A validated reusable skill mirrors the repository protocol for future cross-session reuse."
     },
     "validation": {
       "full_suite": "493/493 PASS",
-      "code_changes": "none in SESSION-025",
+      "code_changes": "none in SESSION-026",
+      "skill_validation": "PASS",
       "baseline_inherited_from": "SESSION-024"
     }
   },
   "recent_audit": {
-    "session": "SESSION-025",
-    "summary": "The project already has a credible character-evolution foundation and is no longer a demo shell. The biggest remaining blockers are semantic mutation breadth, benchmark asset suites, and first-class closure for levels, shaders, and export bundles.",
+    "session": "SESSION-026",
+    "summary": "The project now has both a credible character-evolution foundation and a default research protocol for when implementation quality depends on external references. The biggest remaining blockers are semantic mutation breadth, benchmark asset suites, and first-class closure for levels, shaders, and export bundles.",
     "top_gaps": [
       "Broader semantic mutation space for character evolution",
       "Production benchmark asset suite",
       "WFC tilemap pipeline integration",
       "Export pipeline integration",
       "Shader pipeline integration",
-      "Per-frame SDF animation plus secondary motion and organic textures"
+      "Per-frame SDF animation plus secondary motion and organic textures",
+      "Protocol-guided live validation on future upgrade bottlenecks"
     ]
   }
 }
