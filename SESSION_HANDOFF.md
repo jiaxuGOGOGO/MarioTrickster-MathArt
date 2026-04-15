@@ -48,10 +48,25 @@ Manus proactively searches academic papers, GitHub projects, and Reddit discussi
 
 ## Pending Tasks (Priority Order)
 
+### [HIGH] `TASK-009`: Add CLI Command to Run Evolution Loop
+- **Status**: Not started
+- **Remaining Gap**: The `InnerLoopRunner` and `EvolutionaryOptimizer` are fully implemented, but there is no CLI command to actually start the evolution process. Need to add `mathart-evolve run` to `cli.py` so the user can watch the generation process in the terminal.
+- **File**: `mathart/evolution/cli.py`
+
 ### [HIGH] `TASK-001`: Complete QC Controller Integration
 - **Status**: 3/4 checkpoints done (`pre_generation`, `post_generation`, `iteration_end` integrated)
 - **Remaining Gap**: The `mid_generation` checkpoint is implemented in `ArtMathQualityController` but not yet called in `InnerLoopRunner`. This is the final step to ensure knowledge and math models guide the generation process throughout, not just at the end.
 - **File**: `mathart/evolution/inner_loop.py`
+
+### [MEDIUM] `TASK-010`: Upgrade Evolutionary Optimizer
+- **Status**: Basic implementation (Genetic Algorithm)
+- **Remaining Gap**: The current `EvolutionaryOptimizer` uses a basic GA (tournament selection, crossover, mutation). This is sufficient for simple parameters but will converge too slowly for high-dimensional spaces. Needs an upgrade path to CMA-ES or Bayesian Optimization.
+- **File**: `mathart/distill/optimizer.py`
+
+### [MEDIUM] `TASK-011`: Connect MathPaperMiner to Real APIs
+- **Status**: Basic implementation (LLM simulation)
+- **Remaining Gap**: `MathPaperMiner` currently uses an LLM to "simulate" searching for papers based on its training data. It needs to be connected to real external APIs (arXiv API, GitHub Search API) to find the latest research.
+- **File**: `mathart/evolution/paper_miner.py`
 
 ### [MEDIUM] `TASK-003`: Connect LevelSpecBridge to ExportBridge
 - **Status**: Not started
