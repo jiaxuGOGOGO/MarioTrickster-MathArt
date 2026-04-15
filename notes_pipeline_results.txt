@@ -1,0 +1,23 @@
+Pipeline E2E Test Results Analysis:
+
+SUCCESSES:
+- Pipeline runs end-to-end producing 37 output files
+- Gold coin: score=0.9296, visible ring with metallic texture and lighting
+- Stone platform: score=0.8015, textured rectangle with stone feel
+- Idle orb animation: 6-frame spritesheet showing subtle breathing scale changes
+- CPPN textures: 9 diverse procedural textures evolved, colorful gradients
+
+ISSUES TO FIX:
+1. Bouncing gem spritesheet is nearly invisible (gem shape too small/bright)
+   - Need to increase gem SDF radius or adjust fill colors for contrast
+2. CPPN textures are too simple (mostly gradients) - need more iterations and
+   more complex initial topologies
+3. Evolution converges in 1 generation (too easy threshold) - need to make
+   evaluator more discriminating
+4. Platform shape renders as triangle-like (SDF box with stone texture looks odd)
+
+NEXT PRIORITIES:
+- Fix gem visibility in pipeline
+- Increase CPPN complexity (start with more hidden nodes)
+- Make evaluator more discriminating for pixel art quality
+- Run existing tests to ensure nothing is broken

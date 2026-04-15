@@ -1,0 +1,23 @@
+Evolution Engine E2E Test Results:
+
+SUCCESS - The evolution engine now runs end-to-end!
+
+InnerLoopRunner test (10 gen, pop 12):
+- Best score: 0.8043 (was 0.000 before)
+- Iterations: 10 (all ran)
+- History shows improvement over generations
+
+SelfEvolutionEngine test (5 gen, pop 8):
+- Best score: 0.9610 (converged in 1 generation!)
+- The QC controller is working
+- Knowledge/math violations: 0
+
+Key findings:
+1. Evolution engine IS working now - evaluator bug was the main blocker
+2. Convergence is too fast (1 gen) because quality_threshold=0.75 is too easy
+3. The evaluator gives high scores to almost anything with good contrast
+4. Need more discriminating fitness function for real quality improvement
+5. The engine produced a visible, lit sprite with hue-shifted colors
+
+Next: Create a more challenging evolution scenario with complex sprites,
+and add CPPN texture generation for real diversity.

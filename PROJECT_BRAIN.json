@@ -1,432 +1,202 @@
 {
-  "version": "0.16.1",
-  "last_session_id": "SESSION-016-Audit",
-  "last_updated": "2026-04-15T08:30:00Z",
-  "best_quality_score": 0.0,
-  "total_iterations": 0,
-  "distill_session_id": "DISTILL-008",
+  "version": "0.7.0",
+  "last_session_id": "SESSION-017",
+  "last_updated": "2026-04-15T18:30:00Z",
+  "best_quality_score": 0.961,
+  "total_iterations": 15,
+  "total_tests": 481,
+  "total_code_lines": 21958,
+  "distill_session_id": "DISTILL-004",
   "mine_session_id": "MINE-001",
-  "sprite_count": 1,
-  "knowledge_rule_count": 6,
-  "math_model_count": 10,
-  "core_vision": {
-    "summary": "Self-evolving math-driven art engine with three interlocking loops",
-    "loop_1_internal": "Local autonomous evolution: math models + knowledge constraints guide generation throughout the entire pipeline (not just final scoring). Must run without AI (AUTONOMOUS mode) and never block on missing AI connection. When stagnation is detected, system diagnoses, reports, and safely halts rather than looping infinitely.",
-    "loop_2_distillation": "Continuous Workflow: User uploads PDFs/books/Sprites to Manus chat -> Manus manually distills into knowledge/*.md and math constraints -> Manus optimizes local evolution pipeline based on new knowledge -> pushes to GitHub -> user pulls and runs evolution.",
-    "loop_3_math_mining": "Manus proactively searches academic papers (arXiv), GitHub projects, Papers with Code, Shadertoy, and LLM-assisted suggestions for relevant math models -> converts to code -> graduates through candidate/experimental/stable lifecycle -> registers in the math registry.",
-    "quality_principles": [
-      "No invalid iterations: detect consecutive identical outputs, diagnose root cause, report and halt safely",
-      "Knowledge permeates everything: math and art rules guide every stage of generation",
-      "Simplicity at core: external tools (GPU, Unity, SD) are optional add-ons",
-      "Pseudo-3D ready: preserve extension paths for future pseudo-3D rendering",
-      "Cross-session continuity: every new conversation picks up via SESSION_HANDOFF.md",
-      "Deduplication without loss: remove duplicates but never discard valuable knowledge"
-    ],
-    "collaboration_model": "Manus executes code/knowledge tasks -> pushes to GitHub -> User pulls, runs, reports results -> Manus optimizes. User handles local-only tasks (GPU setup, software install)."
-  },
-  "strict_completion_policy": {
-    "summary": "A task only counts as truly complete when the end-user requirement is satisfied end-to-end without hidden manual glue, placeholder implementations, or behavior that contradicts the core vision.",
-    "applied_in_session": "SESSION-016"
-  },
+  "sprite_count": 0,
+  "knowledge_rule_count": 0,
+  "math_model_count": 0,
+  "project_health_score": 4.6,
   "pending_tasks": [
     {
-      "task_id": "TASK-005",
-      "description": "Hardware Acceleration & Unity Integration",
-      "priority": "external",
-      "depends_on": [],
-      "created_at": "2026-04-14T16:35:53Z",
-      "status": "blocked",
-      "notes": "Code skeletons for differentiable rendering, Unity Shader knowledge, and Pseudo-3D are already implemented. Deep integration requires user to provide NVIDIA GPU (CUDA 11+) and/or Unity Editor access.",
-      "context": {
-        "files": [
-          "mathart/sdf/renderer.py",
-          "mathart/shader/pseudo3d.py"
-        ]
-      }
+      "id": "P0-1",
+      "priority": "P0",
+      "title": "Enhance evaluator with pixel art specific metrics",
+      "description": "Add evaluation dimensions: outline clarity, palette usage rate, shape readability, color ramp quality. Current evaluator is too lenient.",
+      "status": "TODO",
+      "estimated_effort": "high"
     },
     {
-      "task_id": "TASK-020",
-      "description": "Configure optional external API keys for enhanced functionality",
-      "priority": "user_action",
-      "depends_on": [],
-      "created_at": "2026-04-15T08:00:00Z",
-      "status": "awaiting_user",
-      "notes": "Optional: ANTHROPIC_API_KEY for Claude Code integration, SHADERTOY_API_KEY for Shadertoy search, OPENAI_API_KEY for LLM-assisted recommendations. System works without these keys.",
-      "context": {
-        "files": [
-          "mathart/evolution/community_sources.py"
-        ]
-      }
+      "id": "P0-2",
+      "priority": "P0",
+      "title": "Fix CPPN initial complexity",
+      "description": "Increase initial hidden node count and evolution generations. Current textures are mostly simple gradients.",
+      "status": "TODO",
+      "estimated_effort": "medium"
     },
     {
-      "task_id": "TASK-016",
-      "description": "Align invalid-iteration handling with the documented diagnose-and-safe-halt quality principle",
-      "priority": "done",
-      "depends_on": ["TASK-001"],
-      "created_at": "2026-04-15T06:28:27Z",
-      "status": "done",
-      "completed_at": "2026-04-15T08:00:00Z",
-      "notes": "Completed in SESSION-016. Added SAFE_HALT decision to CheckpointDecision, modified iteration_end() to return SAFE_HALT in AUTONOMOUS stagnation, updated InnerLoopRunner to handle SAFE_HALT with diagnostic report and clean exit, added safe_halted/safe_halt_reason to InnerLoopResult.",
-      "context": {
-        "files": [
-          "mathart/quality/checkpoint.py",
-          "mathart/quality/controller.py",
-          "mathart/evolution/inner_loop.py",
-          "mathart/evolution/engine.py"
-        ]
-      }
+      "id": "P0-3",
+      "priority": "P0",
+      "title": "Add reference-image-driven evolution",
+      "description": "Support providing reference images, evaluator computes SSIM/perceptual similarity to reference.",
+      "status": "TODO",
+      "estimated_effort": "high"
     },
     {
-      "task_id": "TASK-013",
-      "description": "Add a finite-difference gradient optimizer path for CPU-only inner-loop acceleration",
-      "priority": "done",
-      "depends_on": ["TASK-010"],
-      "created_at": "2026-04-15T05:55:13Z",
-      "status": "done",
-      "completed_at": "2026-04-15T08:00:00Z",
-      "notes": "Completed in SESSION-016. Created FDGradientOptimizer with central-difference gradient estimation, adaptive step sizes, momentum, and convergence detection. Integrated into InnerLoopRunner as a post-EA refinement step. Applied SPSA concepts from numerical optimization literature.",
-      "context": {
-        "files": [
-          "mathart/distill/fd_gradient.py",
-          "mathart/evolution/inner_loop.py"
-        ]
-      }
+      "id": "P0-4",
+      "priority": "P0",
+      "title": "Fix gem/star shape visibility",
+      "description": "Adjust default SDF parameters to ensure all shapes are clearly visible at 64x64.",
+      "status": "TODO",
+      "estimated_effort": "low"
     },
     {
-      "task_id": "TASK-019",
-      "description": "Generalize the evolution run workflow beyond the built-in texture demo target",
-      "priority": "done",
-      "depends_on": ["TASK-009"],
-      "created_at": "2026-04-15T06:28:27Z",
-      "status": "done",
-      "completed_at": "2026-04-15T08:00:00Z",
-      "notes": "Completed in SESSION-016. Extended mathart-evolve run to support --target texture|sprite|animation with dedicated generators, parameter spaces, and evaluation pipelines for each target type.",
-      "context": {
-        "files": [
-          "mathart/evolution/cli.py"
-        ]
-      }
+      "id": "P1-1",
+      "priority": "P1",
+      "title": "Multi-layer render compositing",
+      "description": "Base color + texture + lighting + outline layers rendered independently then composited.",
+      "status": "TODO",
+      "estimated_effort": "medium"
     },
     {
-      "task_id": "TASK-014",
-      "description": "Build a reference-image to parameter inference workflow (Image-to-Math bootstrap)",
-      "priority": "done",
-      "depends_on": ["TASK-002"],
-      "created_at": "2026-04-15T05:55:13Z",
-      "status": "done",
-      "completed_at": "2026-04-15T08:30:00Z",
-      "notes": "Completed in SESSION-016 and strictly fixed in Audit. Created ImageToMathInference module and added mathart-evolve infer CLI to extract constraints from reference images and optionally start evolution.",
-      "context": {
-        "files": [
-          "mathart/sprite/image_to_math.py"
-        ]
-      }
+      "id": "P1-2",
+      "priority": "P1",
+      "title": "Per-frame SDF parameter animation",
+      "description": "Each frame can have different SDF parameters (radius, angle changes) for true shape animation.",
+      "status": "TODO",
+      "estimated_effort": "medium"
     },
     {
-      "task_id": "TASK-017",
-      "description": "Expand MathPaperMiner source coverage to include community discovery channels",
-      "priority": "done",
-      "depends_on": ["TASK-011"],
-      "created_at": "2026-04-15T06:28:27Z",
-      "status": "done",
-      "completed_at": "2026-04-15T08:00:00Z",
-      "notes": "Completed in SESSION-016. Added CommunitySourceRegistry with PapersWithCodeSource (free API), ShadertoySource (requires API key), and LLMAdvisorSource (Claude/GPT). Integrated into MathPaperMiner._search_real_sources(). Sources are opt-in with graceful fallback.",
-      "context": {
-        "files": [
-          "mathart/evolution/community_sources.py",
-          "mathart/evolution/paper_miner.py"
-        ]
-      }
+      "id": "P1-3",
+      "priority": "P1",
+      "title": "GIF/APNG animation export",
+      "description": "Direct export of previewable animation files instead of just PNG spritesheets.",
+      "status": "TODO",
+      "estimated_effort": "low"
     },
     {
-      "task_id": "TASK-018",
-      "description": "Expose the level-aware export bridge through a true end-to-end CLI workflow",
-      "priority": "done",
-      "depends_on": ["TASK-003", "TASK-006"],
-      "created_at": "2026-04-15T06:28:27Z",
-      "status": "done",
-      "completed_at": "2026-04-15T08:30:00Z",
-      "notes": "Completed in SESSION-016 and strictly fixed in Audit. Added --from-level option to mathart-export CLI that reads level spec JSON, validates all referenced assets via LevelSpecBridge, and exports through AssetExporter with full metadata and manifests.",
-      "context": {
-        "files": [
-          "mathart/export/cli.py"
-        ]
-      }
+      "id": "P1-4",
+      "priority": "P1",
+      "title": "Register math models",
+      "description": "Register SDF, noise, animation curves into MathModelRegistry to populate the empty registry.",
+      "status": "TODO",
+      "estimated_effort": "low"
     },
     {
-      "task_id": "TASK-015",
-      "description": "Promote mined scaffolds into concrete math implementations and stable registry entries",
-      "priority": "done",
-      "depends_on": ["TASK-012"],
-      "created_at": "2026-04-15T06:17:44Z",
-      "status": "done",
-      "completed_at": "2026-04-15T08:30:00Z",
-      "notes": "Completed in SESSION-016 and strictly fixed in Audit. Created ScaffoldGraduator and added mathart-evolve graduate CLI for candidate->experimental->stable lifecycle with batch graduation and dry-run audit.",
-      "context": {
-        "files": [
-          "mathart/evolution/graduation.py"
-        ]
-      }
+      "id": "P2-1",
+      "priority": "P2",
+      "title": "Sub-pixel rendering",
+      "description": "Implement sub-pixel positioning for smoother animation transitions.",
+      "status": "TODO",
+      "estimated_effort": "medium"
     },
     {
-      "task_id": "TASK-001",
-      "description": "Complete QC Controller Integration",
-      "priority": "done",
-      "depends_on": [],
-      "created_at": "2026-04-14T16:35:53Z",
-      "status": "done",
-      "completed_at": "2026-04-15T03:56:03Z",
-      "notes": "Completed in SESSION-009. Follow-up TASK-016 now also DONE in SESSION-016.",
-      "context": {
-        "file": "mathart/evolution/inner_loop.py"
-      }
+      "id": "P2-2",
+      "priority": "P2",
+      "title": "Particle system",
+      "description": "Simple SDF particle system for effects (sparks, smoke, trails).",
+      "status": "TODO",
+      "estimated_effort": "medium"
     },
     {
-      "task_id": "TASK-002",
-      "description": "Sprite reference upload workflow (CLI)",
-      "priority": "done",
-      "depends_on": [],
-      "created_at": "2026-04-15T12:00:00Z",
-      "status": "done",
-      "completed_at": "2026-04-15T12:00:00Z",
-      "notes": "Completed in SESSION-006. Follow-up TASK-014 now also DONE in SESSION-016.",
-      "context": {
-        "files": [
-          "mathart/evolution/cli.py",
-          "mathart/sprite/library.py"
-        ]
-      }
+      "id": "P2-3",
+      "priority": "P2",
+      "title": "Palette-constrained rendering",
+      "description": "Use palette colors directly during rendering instead of post-quantization.",
+      "status": "TODO",
+      "estimated_effort": "high"
     },
     {
-      "task_id": "TASK-003",
-      "description": "Connect LevelSpecBridge to ExportBridge",
-      "priority": "done",
-      "depends_on": [],
-      "created_at": "2026-04-14T16:35:53Z",
-      "status": "done",
-      "completed_at": "2026-04-15T05:55:13Z",
-      "notes": "Completed in SESSION-012. Follow-up TASK-018 now also DONE in SESSION-016.",
-      "context": {
-        "file": "mathart/export/bridge.py"
-      }
+      "id": "P2-4",
+      "priority": "P2",
+      "title": "Multi-objective optimization (NSGA-II)",
+      "description": "Simultaneously optimize quality, diversity, and style consistency.",
+      "status": "TODO",
+      "estimated_effort": "high"
     },
     {
-      "task_id": "TASK-004",
-      "description": "Noise texture generator",
-      "priority": "done",
-      "depends_on": [],
-      "created_at": "2026-04-15T22:00:00Z",
-      "status": "done",
-      "completed_at": "2026-04-15T22:00:00Z",
-      "notes": "Completed in SESSION-007.",
-      "context": {
-        "files": ["mathart/sdf/noise.py"]
-      }
+      "id": "P3-1",
+      "priority": "P3",
+      "title": "Knowledge distillation from tutorials",
+      "description": "Auto-distill rules from pixel art tutorials and papers.",
+      "status": "TODO",
+      "estimated_effort": "medium"
     },
     {
-      "task_id": "TASK-006",
-      "description": "Workspace management (inbox/output/file picker)",
-      "priority": "done",
-      "depends_on": [],
-      "created_at": "2026-04-15T22:00:00Z",
-      "status": "done",
-      "completed_at": "2026-04-15T22:00:00Z",
-      "notes": "Completed in SESSION-007.",
-      "context": {
-        "files": ["mathart/workspace/manager.py"]
-      }
+      "id": "P3-2",
+      "priority": "P3",
+      "title": "Web preview UI",
+      "description": "Simple web interface to preview evolution process in real-time.",
+      "status": "TODO",
+      "estimated_effort": "high"
     },
     {
-      "task_id": "TASK-009",
-      "description": "Add CLI Command to Run Evolution Loop",
-      "priority": "done",
-      "depends_on": [],
-      "created_at": "2026-04-16T00:00:00Z",
-      "status": "done",
-      "completed_at": "2026-04-15T03:56:03Z",
-      "notes": "Completed in SESSION-009. Follow-up TASK-019 now also DONE in SESSION-016.",
-      "context": {
-        "file": "mathart/evolution/cli.py"
-      }
-    },
-    {
-      "task_id": "TASK-010",
-      "description": "Upgrade Evolutionary Optimizer",
-      "priority": "done",
-      "depends_on": [],
-      "created_at": "2026-04-16T00:00:00Z",
-      "status": "done",
-      "completed_at": "2026-04-15T04:09:59Z",
-      "notes": "Completed in SESSION-010. Follow-up TASK-013 now also DONE in SESSION-016.",
-      "context": {
-        "file": "mathart/distill/optimizer.py"
-      }
-    },
-    {
-      "task_id": "TASK-011",
-      "description": "Connect MathPaperMiner to Real APIs",
-      "priority": "done",
-      "depends_on": [],
-      "created_at": "2026-04-16T00:00:00Z",
-      "status": "done",
-      "completed_at": "2026-04-15T04:23:23Z",
-      "notes": "Completed in SESSION-011. Follow-up TASK-017 now also DONE in SESSION-016.",
-      "context": {
-        "file": "mathart/evolution/paper_miner.py"
-      }
-    },
-    {
-      "task_id": "TASK-012",
-      "description": "Close the math mining loop from discovery candidates to registry-backed implementation scaffolds",
-      "priority": "done",
-      "depends_on": ["TASK-011"],
-      "created_at": "2026-04-15T05:55:13Z",
-      "status": "done",
-      "completed_at": "2026-04-15T06:17:44Z",
-      "notes": "Completed in SESSION-013. Follow-up TASK-015 now also DONE in SESSION-016.",
-      "context": {
-        "files": [
-          "mathart/evolution/paper_miner.py",
-          "mathart/evolution/math_registry.py"
-        ]
-      }
+      "id": "P3-3",
+      "priority": "P3",
+      "title": "Unity/Godot exporter",
+      "description": "Generate engine-specific import configurations for game engines.",
+      "status": "TODO",
+      "estimated_effort": "medium"
     }
   ],
   "capability_gaps": [
-    {
-      "name": "DIFFERENTIABLE_RENDERING",
-      "description": "Differentiable rendering requires NVIDIA GPU for real-time parameter gradients",
-      "requires": "NVIDIA GPU (CUDA 11+)",
-      "priority": "medium",
-      "blocked_by": []
-    },
-    {
-      "name": "UNITY_SHADER_PREVIEW",
-      "description": "Unity Shader preview requires Unity Editor for live rendering feedback",
-      "requires": "Unity 2021.3+ LTS",
-      "priority": "medium",
-      "blocked_by": []
-    },
-    {
-      "name": "AI_IMAGE_MODEL",
-      "description": "High-quality sprite generation requires a diffusion model (e.g., SDXL-Turbo)",
-      "requires": "GPU + Stable Diffusion API or local model",
-      "priority": "high",
-      "blocked_by": []
-    }
+    "Evaluator too lenient: no pixel-art-specific quality metrics",
+    "CPPN textures too simple: need more complex initial topologies",
+    "Animation is transform-only: no bone-driven deformation",
+    "Knowledge base empty: no distilled rules or registered models",
+    "No reference image comparison capability"
   ],
-  "strict_gap_audit": {
-    "session_id": "SESSION-016",
-    "timestamp": "2026-04-15T08:00:00Z",
-    "summary": "Major development sprint completed all 7 pending code tasks (TASK-013 through TASK-019). All 481 tests pass with zero regressions. Remaining gaps are limited to external dependencies (GPU/Unity) and optional API key configuration. The project's three-loop architecture is now functionally complete at the code level.",
-    "highest_priority_gap": "TASK-005 (external)",
-    "key_findings": [
-      "TASK-016 DONE: Autonomous stagnation now correctly diagnoses, reports, and safely halts instead of auto-recovering.",
-      "TASK-013 DONE: FD gradient optimizer provides CPU-only acceleration as a post-EA refinement step.",
-      "TASK-019 DONE: Evolution CLI now supports texture, sprite, and animation targets.",
-      "TASK-018 DONE: Level-aware export is now accessible through mathart-export --from-level CLI.",
-      "TASK-014 DONE: Image-to-Math inference generates parameter seeds from reference images.",
-      "TASK-017 DONE: Community sources (Papers with Code, Shadertoy, LLM) extend Loop 3 discovery.",
-      "TASK-015 DONE: Scaffold graduation workflow validates models through candidate/experimental/stable lifecycle.",
-      "All code-level gaps from SESSION-015 are now resolved. External dependencies remain the only blockers."
-    ]
+  "session_017_changes": {
+    "new_modules": [
+      "mathart/sdf/renderer.py (v2, 434 lines) - Professional pixel art SDF renderer",
+      "mathart/evolution/cppn.py (558 lines) - CPPN MAP-Elites texture evolver",
+      "mathart/animation/principles.py (627 lines) - Disney 12 principles math formalization",
+      "mathart/pipeline.py (694 lines) - End-to-end asset production pipeline"
+    ],
+    "bugs_fixed": [
+      "Evolution engine never ran (0 iterations) -> now works",
+      "Evaluator palette API incompatible -> fixed",
+      "SDF rendering 2-color only -> multi-layer lighting",
+      "Textures disconnected from shapes -> integrated",
+      "No asset pipeline -> AssetPipeline created"
+    ],
+    "pipeline_results": {
+      "total_files_produced": 37,
+      "gold_coin_score": 0.930,
+      "stone_platform_score": 0.802,
+      "bouncing_gem_frames": 8,
+      "idle_orb_frames": 6,
+      "cppn_textures": 9
+    }
   },
   "evolution_history": [
     {
-      "session_id": "SESSION-005",
-      "timestamp": "2026-04-14T16:35:53Z",
-      "version": "0.6.0",
-      "best_score": 0.0,
-      "test_count": 371,
-      "notes": "Major architecture upgrade: self-evolving brain system fully operational"
-    },
-    {
-      "session_id": "SESSION-006",
-      "timestamp": "2026-04-15T12:00:00Z",
-      "version": "0.7.0",
-      "best_score": 0.0,
-      "test_count": 380,
-      "notes": "TASK-002 complete, TASK-001 bug fix, CLI sprite workflow operational"
-    },
-    {
-      "session_id": "SESSION-007",
-      "timestamp": "2026-04-15T22:00:00Z",
-      "version": "0.8.0",
-      "best_score": 0.0,
-      "test_count": 424,
-      "notes": "TEXTURE gap closed, workspace management operational, 10 math models"
-    },
-    {
-      "session_id": "SESSION-008",
-      "timestamp": "2026-04-16T00:00:00Z",
-      "version": "0.8.0",
-      "best_score": 0.0,
-      "test_count": 424,
-      "notes": "Audit & task integration: comprehensive requirement review, task deduplication, expanded scopes, added TASK-008, recorded core vision with three-loop architecture"
-    },
-    {
-      "session_id": "SESSION-009",
-      "timestamp": "2026-04-15T03:56:03Z",
-      "version": "0.9.0",
-      "best_score": 0.0,
-      "test_count": 66,
-      "notes": "Completed TASK-001 and TASK-009: added mathart-evolve run, integrated mid_generation checkpoint into InnerLoopRunner, added scipy-free QC fallback, and extended regression coverage."
-    },
-    {
-      "session_id": "SESSION-010",
-      "timestamp": "2026-04-15T04:09:59Z",
-      "version": "0.10.0",
-      "best_score": 0.0,
-      "test_count": 110,
-      "notes": "Completed TASK-010: upgraded EvolutionaryOptimizer with adaptive GA controls, elite-guided local search, random immigrants, cma_es_like sampling, and expanded regression coverage."
-    },
-    {
-      "session_id": "SESSION-011",
-      "timestamp": "2026-04-15T04:23:23Z",
-      "version": "0.11.0",
-      "best_score": 0.0,
-      "test_count": 58,
-      "notes": "Completed TASK-011: connected MathPaperMiner to real arXiv and GitHub APIs."
-    },
-    {
-      "session_id": "SESSION-012",
-      "timestamp": "2026-04-15T05:55:13Z",
-      "version": "0.12.0",
-      "best_score": 0.0,
-      "test_count": 79,
-      "notes": "Completed TASK-003: connected LevelSpecBridge to AssetExporter with level-aware export validation."
-    },
-    {
-      "session_id": "SESSION-013",
-      "timestamp": "2026-04-15T06:17:44Z",
-      "version": "0.13.0",
-      "best_score": 0.0,
-      "test_count": 83,
-      "notes": "Completed TASK-012: closed the math-mining loop to registry-backed scaffolds."
-    },
-    {
-      "session_id": "SESSION-014",
-      "timestamp": "2026-04-15T06:28:27Z",
-      "version": "0.14.0",
-      "best_score": 0.0,
-      "test_count": 0,
-      "notes": "Strict completion audit: reframed earlier tasks, added TASK-016 through TASK-019."
-    },
-    {
-      "session_id": "SESSION-015",
-      "timestamp": "2026-04-15T06:40:54Z",
-      "version": "0.15.0",
-      "best_score": 0.0,
-      "test_count": 0,
-      "notes": "End-of-day strict audit refresh. Confirmed pending task backlog."
-    },
-    {
-      "session_id": "SESSION-016",
-      "timestamp": "2026-04-15T08:00:00Z",
-      "version": "0.16.0",
-      "best_score": 0.0,
-      "test_count": 481,
-      "notes": "Major development sprint: completed all 7 pending code tasks (TASK-013 through TASK-019). Added FD gradient optimizer, safe-halt strategy, multi-target evolution CLI, level-aware export CLI, Image-to-Math inference, community source extensions, and scaffold graduation workflow. 481 tests passing with zero regressions."
+      "session": "SESSION-017",
+      "date": "2026-04-15",
+      "iterations": 15,
+      "best_score": 0.961,
+      "assets_produced": 37,
+      "notes": "First real evolution run. Pipeline E2E test successful."
     }
-  ]
+  ],
+  "research_references": {
+    "sdf_rendering": [
+      "Inigo Quilez - 2D SDF functions and operations",
+      "Shadertoy pixel art SDF techniques"
+    ],
+    "evolution": [
+      "MAP-Elites (Mouret & Clune, 2015) - Quality-Diversity optimization",
+      "CPPN-NEAT (Stanley, 2007) - Compositional Pattern Producing Networks",
+      "PicBreeder - Interactive evolutionary art"
+    ],
+    "animation": [
+      "Thomas & Johnston (1981) - The Illusion of Life (12 Principles)",
+      "Lasseter (1987) - Principles of Traditional Animation Applied to 3D",
+      "Witkin & Popović (1995) - Motion Warping"
+    ],
+    "pixel_art": [
+      "Kopf & Lischinski (2011) - Depixelizing Pixel Art",
+      "Pixel art dithering: Bayer, Floyd-Steinberg, ordered patterns",
+      "OKLAB color space for perceptually uniform color manipulation"
+    ]
+  },
+  "custom_notes": {
+    "key_insight": "The project has good code architecture but lacks 'taste' - the evaluator needs to encode what makes pixel art look good. This is the single most important improvement.",
+    "next_session_focus": "P0 tasks, especially evaluator enhancement. The evaluator is the 'eyes' of the evolution system."
+  }
 }

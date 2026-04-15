@@ -1,0 +1,17 @@
+Renderer evaluation results:
+- coin (ring): GOOD - visible 3D lighting, hue shift, dithering, looks like real game coin
+- smooth_union: GOOD - visible 3D lighting on combined shape
+- textured_stone: GOOD - noise texture adds depth
+- textured_metal: GOOD - metallic feel
+- light_45: GOOD - clear directional lighting on circle
+- star: ISSUE - nearly invisible, likely too bright/small
+- gem (4-point star): ISSUE - nearly invisible
+- ao_60 star: ISSUE - nearly invisible
+
+Root cause: star SDF produces very small shapes at default params, and the
+fill_color (200,100,50) with hue shift may produce very light specular colors
+that blend with transparent background. Need to ensure shapes are large enough
+and colors have enough contrast.
+
+Next: Focus on fixing evolution engine (the critical path), then come back to
+fine-tune renderer for edge cases.

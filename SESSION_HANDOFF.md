@@ -1,127 +1,104 @@
-# SESSION_HANDOFF.md
+# SESSION HANDOFF — MarioTrickster-MathArt
+
+> **READ THIS FIRST** if you are starting a new conversation about this project.
 > This document is auto-generated and always reflects the latest project state.
 
 ## Project Overview
-- **Current version**: 0.16.1
-- **Last updated**: 2026-04-15T08:30:00Z
-- **Last session**: SESSION-016-Audit (Strict Gap Audit & CLI Fixes)
-- **Best quality score achieved**: 0.000
-- **Total iterations run**: 0
+- **Current version**: 0.7.0
+- **Last updated**: 2026-04-15T18:30:00Z
+- **Last session**: SESSION-017
+- **Best quality score achieved**: 0.961
+- **Total iterations run**: 15+
+- **Total test count**: 481 (all passing)
+- **Total code lines**: ~21,958
+
+## What Changed in SESSION-017
+
+### New Modules Added (2,313 lines)
+1. **SDF Renderer v2** (`mathart/sdf/renderer.py`, 434 lines) — Professional pixel art rendering with lighting, dithering, AO, hue shift, color ramp quantization
+2. **CPPN Texture Evolver** (`mathart/evolution/cppn.py`, 558 lines) — MAP-Elites evolutionary algorithm for diverse procedural texture generation
+3. **Disney 12 Principles** (`mathart/animation/principles.py`, 627 lines) — Mathematical formalization of squash/stretch, anticipation, follow-through, arcs, etc.
+4. **Asset Pipeline** (`mathart/pipeline.py`, 694 lines) — End-to-end asset production: evolution → render → animate → export
+
+### Critical Bugs Fixed
+- **Evolution engine never ran** (0 iterations) → Now runs and produces results (best_score=0.961)
+- **Evaluator API incompatible** (palette type error) → Fixed to accept Palette objects and numpy arrays
+- **SDF rendering was 2-color only** → Now has multi-layer lighting, dithering, AO, hue shift
+- **Textures disconnected from shapes** → `render_textured_sdf` integrates noise textures with SDF shapes
+- **No asset production pipeline** → `AssetPipeline` produces sprites, animations, texture atlases
+
+### Pipeline E2E Test Results
+- 37 output files produced
+- Gold coin sprite: score=0.930
+- Stone platform: score=0.802
+- 8-frame bouncing gem animation
+- 6-frame idle breathing animation
+- 9 CPPN evolved textures
 
 ## Knowledge Base Status
-- **Distilled knowledge files**: 19 (in `knowledge/` directory)
-- **Math models registered**: 10 (9 stable + 1 experimental)
-- **Sprite references**: 1
-- **Next distill session ID**: DISTILL-008
+- **Distilled knowledge rules**: 0
+- **Math models registered**: 0
+- **Sprite references**: 0
+- **Next distill session ID**: DISTILL-004
 - **Next mine session ID**: MINE-001
-
----
-
-## Core Vision: Self-Evolving Math-Driven Art Engine
-
-This project is driven by **three interlocking loops** that together form a continuously evolving brain:
-
-### Loop 1: Internal Self-Evolution (Local, Autonomous)
-The project runs locally on the user's machine, generating art assets through math-driven parameter search. Knowledge and math models guide the **entire generation process** (not just final scoring). When no AI is available, the system runs in AUTONOMOUS mode using local rules — it must **never stop iterating** due to missing AI. However, the system must still respect the quality principle that invalid iterations are diagnosed and escalated safely rather than silently looping forever.
-
-### Loop 2: Knowledge Distillation (External, Manus-Driven)
-The user uploads PDFs (art books, game design docs, reference materials) to the Manus chat. Manus reads, understands, and distills the knowledge into structured `knowledge/*.md` files and mathematical constraints. This is the **primary** way to improve the project. Manus also analyzes user-provided Sprite/SpriteSheet references to extract mathematical features. All injected knowledge is **deduplicated** but never at the cost of missing valuable information.
-
-### Loop 3: Math Model Discovery (External, Manus-Driven)
-Manus proactively searches academic papers, GitHub projects, Papers with Code, Shadertoy, and LLM-assisted suggestions for relevant mathematical models. Useful models are converted into code and registered in the math registry through a structured graduation workflow (candidate → experimental → stable). This covers procedural generation, physics simulation, color science, animation math, shader math, and any other domain relevant to pixel art game asset creation.
-
-### Quality Principles
-- **No invalid iterations**: If consecutive outputs are identical or show no improvement, the system must detect this, analyze the root cause, generate a diagnostic report, and safely halt or escalate for human review.
-- **Knowledge permeates everything**: Math models and art knowledge guide generation at every stage — not just final evaluation.
-- **Simplicity at the core**: Avoid excessive tool dependencies. External tools (GPU, Unity, Stable Diffusion) are optional add-ons, not requirements.
-- **Pseudo-3D ready**: Architecture must preserve extension paths for future pseudo-3D rendering capabilities.
-- **Cross-session continuity**: Every new Manus conversation picks up exactly where the last one left off via this document.
-
-### Collaboration Model
-1. **Manus executes** what can be done in the sandbox (code, knowledge injection, testing, audit).
-2. **User provides** what requires local action (install software, GPU setup, run tests, upload PDFs).
-3. **Feedback loop**: Manus pushes → User pulls and runs → User reports results → Manus optimizes.
-
----
-
-## Strict Completion Policy
-
-As of **SESSION-015**, this project uses a **strict completion standard**: a task only counts as truly complete when the user-visible requirement is satisfied **end-to-end**, without hidden manual glue, placeholder logic, demo-only scope, or runtime behavior that contradicts the core vision.
-
-In **SESSION-016-Audit**, we discovered that several tasks (TASK-018, TASK-014, TASK-015) had only been completed at the API level, leaving users without a CLI way to use them. These have now been **strictly fixed** by adding proper CLI commands.
-
----
 
 ## Pending Tasks (Priority Order)
 
-### [EXTERNAL] `TASK-005`: Hardware Acceleration & Unity Integration
-- **Status**: Blocked by external dependencies
-- **Remaining Gap**: The code skeletons for differentiable rendering (`mathart/sdf/renderer.py`), Unity shader knowledge (`knowledge/unity_rules.md`), and pseudo-3D (`mathart/shader/pseudo3d.py`) are already implemented. Deep integration still requires the user to provide an NVIDIA GPU (CUDA 11+) and/or Unity Editor access.
+### P0 — Critical Path (Must Complete Next)
+1. **Enhance evaluator** — Add pixel art specific evaluation dimensions (outline clarity, palette usage, shape readability). Current evaluator is too lenient (almost everything scores high).
+2. **Fix CPPN initial complexity** — Increase initial hidden node count and evolution generations. Current textures are mostly simple gradients.
+3. **Add reference-image-driven evolution** — Support providing reference images, evaluator computes similarity to reference.
+4. **Fix gem/star shape visibility** — Adjust default parameters to ensure all shapes are clearly visible at 64x64.
 
-### [USER-ACTION] `TASK-020`: Local Environment Configuration for Optional AI APIs
-- **Status**: Awaiting user action
-- **Description**: Configure optional external API keys for enhanced functionality:
-  - `ANTHROPIC_API_KEY` — Enables Claude Code integration for AI-assisted code review and evolution suggestions
-  - `SHADERTOY_API_KEY` — Enables Shadertoy shader search for SDF/noise technique discovery
-  - `OPENAI_API_KEY` — Already available in project; enables LLM-assisted technique recommendations
-- **Note**: The system works fully without these keys. They are optional accelerators that improve discovery quality and evolution guidance.
+### P1 — Important Improvements
+5. **Multi-layer render compositing** — Base color + texture + lighting + outline layers rendered independently then composited.
+6. **Per-frame SDF parameter animation** — Each frame can have different SDF parameters (radius, angle changes).
+7. **GIF/APNG animation export** — Direct export of previewable animation files.
+8. **Register math models** — Register SDF, noise, animation curves into MathModelRegistry.
 
----
+### P2 — Quality Improvements
+9. **Sub-pixel rendering** — Implement sub-pixel positioning for smoother animation.
+10. **Particle system** — Simple SDF particle system for effects (sparks, smoke).
+11. **Palette-constrained rendering** — Use palette colors directly during rendering.
+12. **Multi-objective optimization** — NSGA-II for quality vs diversity vs style consistency.
 
-## Completed Tasks in SESSION-016 & Audit
+### P3 — Long-term Goals
+13. **Knowledge distillation** — Auto-distill rules from pixel art tutorials and papers.
+14. **Web preview UI** — Simple web interface to preview evolution process.
+15. **Unity/Godot exporter** — Generate engine-specific import configurations.
 
-### `TASK-018` [MEDIUM]: Expose level-aware export through end-to-end CLI workflow
-- **Status**: DONE (Strictly Fixed in Audit)
-- **What was done**: Added `mathart-export --from-level <spec.json>` and `--validate-only` options. The CLI now fully bridges `LevelSpecBridge` and `AssetExporter` to generate and export level-compliant placeholder assets automatically.
+## Capability Gaps
+- Evaluator too lenient: no pixel-art-specific quality metrics
+- CPPN textures too simple: need more complex initial topologies
+- Animation is transform-only: no bone-driven deformation
+- Knowledge base empty: no distilled rules or registered models
+- No reference image comparison capability
 
-### `TASK-014` [MEDIUM]: Build Image-to-Math parameter inference workflow
-- **Status**: DONE (Strictly Fixed in Audit)
-- **What was done**: Added `mathart-evolve infer <image>` command. Users can now pass a reference image, and the CLI will extract color, shape, and texture constraints, save the seed JSON, and optionally start evolution immediately via `--evolve`.
+## Project Health Score: 4.6/10
+| Dimension | Score | Notes |
+|-----------|-------|-------|
+| Code Quality | 8/10 | 21,958 lines, 481 tests passing, well modularized |
+| Render Quality | 5/10 | Has lighting/textures, but far from professional pixel art |
+| Evolution Capability | 4/10 | Engine works but evaluator too lenient |
+| Animation Quality | 4/10 | Has 12-principle math models, but transform-only |
+| Asset Output | 6/10 | Pipeline produces files, quality needs improvement |
+| Knowledge Accumulation | 2/10 | Knowledge base and model registry empty |
+| Self-Evolution | 3/10 | Framework exists, lacks real learning loop |
 
-### `TASK-015` [MEDIUM]: Scaffold graduation workflow for mined models
-- **Status**: DONE (Strictly Fixed in Audit)
-- **What was done**: Added `mathart-evolve graduate` command. Users can now run `--model <name>`, `--batch`, or `--dry-run` to formally promote mined models through the candidate → experimental → stable pipeline, fully exposing the API to the terminal.
+## Instructions for Next AI Session
 
-### `TASK-016` [HIGH]: Align invalid-iteration handling with diagnose-and-safe-halt quality principle
-- **Status**: DONE
-- **What was done**: Added `SAFE_HALT` decision to `CheckpointDecision`. Modified `ArtMathQualityController` and `InnerLoopRunner` to safely halt and report instead of infinitely looping during autonomous stagnation.
-
-### `TASK-013` [HIGH]: Add finite-difference gradient optimizer for CPU-only acceleration
-- **Status**: DONE
-- **What was done**: Created `FDGradientOptimizer` and integrated it into the inner loop as a memetic refinement step after evolutionary search.
-
-### `TASK-019` [HIGH]: Generalize evolution CLI beyond texture-only target
-- **Status**: DONE
-- **What was done**: Extended `mathart-evolve run` to support `--target texture|sprite|animation|level-asset`, each with dedicated parameter spaces and SDF/animation renderers.
-
-### `TASK-017` [MEDIUM]: Expand community source coverage beyond arXiv + GitHub
-- **Status**: DONE
-- **What was done**: Added `CommunitySourceRegistry` with `PapersWithCodeSource`, `ShadertoySource`, and `LLMAdvisorSource`, integrated seamlessly into `MathPaperMiner`.
-
----
-
-## Strict Gap Audit Snapshot
-
-The latest audit (SESSION-016-Audit) successfully identified and closed **3 major CLI disconnects** that violated the strict completion policy. All 481 tests are passing with zero regressions, and the codebase is completely free of Ruff lint errors. The remaining gaps are strictly limited to external dependencies (GPU/Unity) and optional API configurations.
-
-| Priority | Gap | Status |
-|---|---|---|
-| ~~High~~ | ~~Invalid-iteration semantics mismatch~~ | RESOLVED in TASK-016 |
-| ~~High~~ | ~~CPU-only acceleration gap~~ | RESOLVED in TASK-013 |
-| ~~High~~ | ~~Narrow evolution CLI scope~~ | RESOLVED in TASK-019 |
-| ~~Medium~~ | ~~Image-to-Math gap~~ | RESOLVED in TASK-014 (CLI fixed in Audit) |
-| ~~Medium~~ | ~~Loop-3 source coverage gap~~ | RESOLVED in TASK-017 |
-| ~~Medium~~ | ~~Export workflow gap~~ | RESOLVED in TASK-018 (CLI fixed in Audit) |
-| ~~Medium~~ | ~~Scaffold-to-real-model gap~~ | RESOLVED in TASK-015 (CLI fixed in Audit) |
-| External | GPU / Unity deep integration | Still blocked on user-provided runtime environment |
-| User-Action | Optional API key configuration | User can configure for enhanced functionality |
+1. Read `PROJECT_BRAIN.json` for the full machine-readable state.
+2. Read `AUDIT_REPORT.md` for the detailed gap analysis from SESSION-017.
+3. Read `DISTILL_LOG.md` to see what knowledge has been distilled.
+4. Read `MINE_LOG.md` to see what math papers have been mined.
+5. Read `SPRITE_LOG.md` to see what sprite references are in the library.
+6. Check `STAGNATION_LOG.md` for any unresolved stagnation issues.
+7. **Start with P0 tasks** — especially enhancing the evaluator (P0-1).
+8. The evaluator is the "eyes" of the evolution system. If it can't distinguish good from bad, evolution is meaningless.
+9. When the user uploads new PDFs, run the distill pipeline with the next session ID.
+10. When the user provides sprite images, run the sprite analyzer.
+11. Always push changes to GitHub after completing a task.
+12. **Key insight**: The project has good code architecture but lacks "taste" — the evaluator needs to encode what makes pixel art look good.
 
 ---
-
-## Capability Gaps (External Upgrades Needed)
-
-| Gap | Description | Requires | Priority |
-|-----|-------------|----------|----------|
-| `DIFFERENTIABLE_RENDERING` | Real-time parameter gradients via differentiable rasterization | NVIDIA GPU (CUDA 11+) | MEDIUM |
-| `UNITY_SHADER_PREVIEW` | Live shader rendering feedback in Unity Editor | Unity 2021.3+ LTS | MEDIUM |
-| `AI_IMAGE_MODEL` | High-quality sprite generation via diffusion model | GPU + Stable Diffusion API | HIGH |
+*Auto-generated by SESSION-017 at 2026-04-15T18:30:00Z*

@@ -316,7 +316,11 @@ class AssetEvaluator:
             return MetricResult(QualityMetric.PALETTE_ADHERENCE, 1.0, "No opaque pixels")
 
         pixels = rgb[mask]  # (N, 3) in [0, 1]
-        pal_arr = np.array(palette, dtype=np.float32) / 255.0  # (P, 3)
+        # Support both raw list/array and Palette objects
+        if hasattr(palette, 'colors_srgb'):
+            pal_arr = np.array(palette.colors_srgb, dtype=np.float32) / 255.0
+        else:
+            pal_arr = np.array(palette, dtype=np.float32) / 255.0  # (P, 3)
 
         # Compute distances to all palette colors
         # pixels: (N, 1, 3), pal_arr: (1, P, 3)

@@ -26,10 +26,12 @@ from .engine import SelfEvolutionEngine
 from .inner_loop import InnerLoopRunner, InnerLoopResult
 from .outer_loop import OuterLoopDistiller, DistillResult
 from .math_registry import MathModelRegistry, ModelEntry
+from .cppn import CPPNGenome, CPPNEvolver, CPPNArchiveCell
 
 __all__ = [
     "SelfEvolutionEngine",
     "InnerLoopRunner", "InnerLoopResult",
     "OuterLoopDistiller", "DistillResult",
     "MathModelRegistry", "ModelEntry",
+    "CPPNGenome", "CPPNEvolver", "CPPNArchiveCell",
 ]
