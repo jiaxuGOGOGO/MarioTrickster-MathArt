@@ -15,58 +15,59 @@
 
 | Dimension | Value |
 |-----------|-------|
-| Current version | 0.9.0 |
-| Last updated | 2026-04-15T16:15:00Z |
-| Last session | SESSION-019 |
-| Best quality score | 0.8244 (coin, validated) |
-| Validation pass rate | 19/19 = 100% |
-| Total code lines | ~25,500 |
+| Current version | 0.10.0 |
+| Last updated | 2026-04-15T18:30:00Z |
+| Last session | SESSION-020 |
+| Best quality score | 0.8674 (circle, validated) |
+| Validation pass rate | 24/24 = 100% |
+| Total code lines | ~26,800 |
 | Knowledge rules | 12 |
 | Math models registered | 10 |
-| Project health score | 7.8/10 |
+| Project health score | 8.4/10 |
 
-## What Changed in SESSION-019
+## What Changed in SESSION-020
 
-### Critical Bug Fix: SDF Primitive Parameter Order
+### P0-NEW-4: Multi-layer Render Compositing
 
-The most impactful fix in SESSION-019 was discovering and correcting a **systemic parameter order bug** across all SDF primitive calls. Every primitive function uses the signature `primitive(cx, cy, ...)`, but `SHAPE_LIBRARY` and `_build_generator()` were calling them with positional arguments that mapped incorrectly. For example, `star(5, 0.42, 0.22)` was interpreted as `cx=5, cy=0.42, r_outer=0.22` — placing the star center at (5, 0.42), completely off-screen.
+Added `render_sdf_layered()` function and `LayeredRenderResult` dataclass to `sdf/renderer.py`. The rendering pipeline now separates output into four independent RGBA layers (base, texture, lighting, outline) plus a pre-composited result. Each layer can be individually adjusted (opacity, color grading) before final compositing via the new `composite_layers()` utility. The pipeline gained `produce_layered_sprite()` which runs evolution then re-renders the best result with separated layers, exporting individual layer PNGs and metadata JSON.
 
-This bug existed since the project's creation and was the root cause of gem/star shapes being invisible. SESSION-018 attempted to fix it by increasing radii, but the real problem was parameter ordering. All calls now use explicit keyword arguments: `star(cx=0, cy=0, r_outer=0.42, r_inner=0.22, n_points=5)`.
+### P0-NEW-5: Large-scale Evolution Validation (100+ iterations)
 
-### All SESSION-019 Changes
+Ran evolution for 120 iterations across 4 shapes (coin, star, gem, circle) with population size 16. All shapes showed positive quality trends with an average improvement of +0.0147 over the run. Key results: coin converged at 0.8505 (gen 32), circle reached 0.8674 (gen 13, early convergence), gem ran full 120 iterations reaching 0.8145, star converged at 0.8159 (gen 56). Average final score across all shapes: 0.8371. All 4/4 shapes showed positive trend slopes, validating that evolution consistently improves quality.
+
+### P0-NEW-6: VFX Evaluator Tuning
+
+Added `evaluate_vfx()` and `evaluate_multi_frame_vfx()` methods to `AssetEvaluator`. VFX assets (fire, explosion, sparkle, smoke) now use rebalanced weights that reward motion, color variance, and visual energy rather than penalising sparse fill and missing outlines. Key weight changes: INTERNAL_DETAIL boosted to 0.33, OUTLINE_CLARITY/CONTINUITY reduced to 0.02, FILL_RATIO threshold lowered to 0.03. The pipeline's `produce_vfx()` now uses `evaluate_multi_frame_vfx()` which scores all frames and uses the peak score. Explosion score improved from 0.24 to 0.66.
+
+### All SESSION-020 Changes
 
 | Category | Change | File(s) | Impact |
 |----------|--------|---------|--------|
-| **BUG FIX** | SDF primitive kwargs everywhere | `pipeline.py`, all test files | gem 0.24→0.77, star 0.24→0.75 |
-| **P0-NEW-1** | Particles + cage deform integrated into pipeline | `pipeline.py`, `animation/__init__.py` | `produce_vfx()` and `produce_deform_animation()` |
-| **P0-NEW-3** | Palette-constrained SDF rendering | `sdf/renderer.py`, `oklab/palette.py` | Floyd-Steinberg dither in OKLAB space |
-| **P0-NEW-2** | Full evolution validation (19 tests) | `test_evolution_validation.py` | 100% pass rate |
-| **BUG FIX** | `result.overall` → `result.overall_score` in VFX | `pipeline.py` | VFX scoring now works |
-| **ENHANCEMENT** | `Palette.from_srgb_list()` class method | `oklab/palette.py` | Easy palette creation from color lists |
+| **P0-NEW-4** | Multi-layer render compositing | `sdf/renderer.py`, `sdf/__init__.py`, `pipeline.py` | `render_sdf_layered()` + `composite_layers()` + `produce_layered_sprite()` |
+| **P0-NEW-5** | Large-scale evolution validation | `test_large_scale_evolution.py` | 4 shapes, 120 iters, avg score 0.8371, all positive trends |
+| **P0-NEW-6** | VFX evaluator tuning | `evaluator/evaluator.py`, `pipeline.py` | `evaluate_vfx()` + `evaluate_multi_frame_vfx()`, explosion 0.24→0.66 |
+| **TEST** | SESSION-020 validation suite | `test_session020_validation.py` | 24/24 = 100% pass rate |
 
-### Validation Results (19/19 = 100%)
+### Validation Results (24/24 = 100%)
 
-| Test | Score | Status |
-|------|-------|--------|
-| eval_good_circle | 0.7253 | PASS |
-| eval_medium_circle | 0.6621 | PASS |
-| eval_bad_tiny | 0.6417 | INFO |
-| eval_noise | 0.5976 | PASS |
-| selection_pressure | good > medium > bad | PASS |
-| sprite_val_coin | 0.8244 | PASS |
-| sprite_val_gem | 0.7699 | PASS |
-| sprite_val_star | 0.7544 | PASS |
-| animation_idle | 0.8244 | PASS |
-| vfx_fire | 0.4938 | PASS |
-| vfx_explosion | 0.2400 | PASS |
-| vfx_sparkle | 0.4718 | PASS |
-| vfx_smoke | 0.3974 | PASS |
-| deform_squash_stretch | 0.7956 | PASS |
-| deform_wobble | 0.7956 | PASS |
-| deform_breathe | 0.7956 | PASS |
-| palette_circle | 6 colors | PASS |
-| palette_star | 6 colors | PASS |
-| palette_box | 6 colors | PASS |
+| Test Group | Tests | Status |
+|------------|-------|--------|
+| Multi-layer Compositing (P0-NEW-4) | 10 tests | 10/10 PASS |
+| VFX Evaluator Tuning (P0-NEW-6) | 6 tests | 6/6 PASS |
+| Large-scale Evolution (P0-NEW-5) | 5 tests | 5/5 PASS |
+| Regression Tests | 3 tests | 3/3 PASS |
+
+### Key Metrics
+
+| Metric | SESSION-019 | SESSION-020 | Change |
+|--------|-------------|-------------|--------|
+| Best sprite score | 0.8244 | 0.8674 | +0.0430 |
+| Explosion VFX score | 0.2400 | 0.6637 | +0.4237 |
+| Fire VFX score | 0.4938 | 0.6324 | +0.1386 |
+| Sparkle VFX score | 0.4718 | 0.6578 | +0.1860 |
+| Smoke VFX score | 0.3974 | 0.5373 | +0.1399 |
+| Validation tests | 19 | 24 | +5 |
+| Render layers | 1 | 5 | +4 |
 
 ## Knowledge Base Status
 
@@ -87,9 +88,9 @@ All previous P0 tasks are now **DONE**. The following are newly identified P0 pr
 
 | ID | Task | Effort | Description |
 |----|------|--------|-------------|
-| P0-NEW-4 | Multi-layer render compositing | Medium | Separate base/texture/lighting/outline layers for independent control |
-| P0-NEW-5 | Run large-scale evolution (100+ iterations) | Medium | Validate that evolution produces quality improvement over many generations |
-| P0-NEW-6 | VFX evaluator tuning | Low | Explosion scores 0.24 — need VFX-specific evaluation criteria |
+| P0-NEW-7 | Outline continuity improvement | Medium | SDF outlines have gaps at sharp corners; need adaptive outline width |
+| P0-NEW-8 | Texture-aware layered rendering | Medium | Pass CPPN textures through layered pipeline for richer results |
+| P0-NEW-9 | Evolution convergence acceleration | Low | Early convergence wastes iterations; add adaptive mutation rate |
 
 ### P1 — Important
 
@@ -118,6 +119,14 @@ All previous P0 tasks are now **DONE**. The following are newly identified P0 pr
 | P3-3 | Unity/Godot exporter plugin | Medium |
 
 ## Completed Tasks
+
+### SESSION-020
+
+| ID | Task | Result |
+|----|------|--------|
+| P0-NEW-4 | Multi-layer render compositing | `render_sdf_layered()` + `composite_layers()` + `produce_layered_sprite()` |
+| P0-NEW-5 | Large-scale evolution (100+ iters) | 4 shapes, avg 0.8371, all positive trends, VALIDATED |
+| P0-NEW-6 | VFX evaluator tuning | `evaluate_vfx()` + `evaluate_multi_frame_vfx()`, explosion 0.24→0.66 |
 
 ### SESSION-019
 
@@ -149,39 +158,41 @@ All previous P0 tasks are now **DONE**. The following are newly identified P0 pr
 |--------|-----------------|-------------------|-----|
 | Palette | 4-16 curated colors | Palette-constrained rendering (DONE) | **LOW** |
 | Outlines | 1px crisp, continuous | SDF outlines, sometimes gaps | Medium |
-| Shading | 2-4 level ramps | 3-7 level ramps | Low |
+| Shading | 2-4 level ramps | 3-7 level ramps + layered control | Low |
 | Animation | Squash/stretch/anticipation | Transform + cage + particles + VFX | Low |
 | Tilemap | Seamless connecting tiles | No tilemap capability | **HIGH** |
 | Variety | Multiple states per character | Single shape per asset | Medium |
 | Internal detail | Hand-placed highlights/shadows | CPPN-evolved textures | Medium |
+| Compositing | Layer-based workflow | Multi-layer rendering (DONE) | **LOW** |
+| VFX quality | Convincing particles/effects | VFX-tuned evaluator + 4 presets | Low |
 
 ### Biggest Remaining Gaps
 
 1. **No tilemap generation** — Cannot produce coherent level-scale assets (needs WFC)
 2. **No multi-state sprites** — Each asset is a single shape, no idle/walk/attack variants
-3. **VFX evaluation too harsh** — Explosion scores 0.24 because evaluator expects solid shapes
-4. **No multi-layer compositing** — All rendering in single pass, limits artistic control
+3. **Outline gaps at sharp corners** — SDF outlines break at star points and gem facets
+4. **No texture in layered pipeline** — CPPN textures not yet passed through layered render
 
-## Project Health Score: 7.8/10 (up from 6.8)
+## Project Health Score: 8.4/10 (up from 7.8)
 
 | Dimension | Score | Notes |
 |-----------|-------|-------|
-| Code Quality | 8/10 | ~25,500 lines, 19 validation tests, well modularized |
-| Render Quality | 7/10 | Palette-constrained + lighting + AO + hue-shift |
-| Evolution Capability | 7/10 | 12-metric evaluator with real selection pressure, validated |
+| Code Quality | 8/10 | ~26,800 lines, 24 validation tests, well modularized |
+| Render Quality | 8/10 | Multi-layer + palette-constrained + lighting + AO + hue-shift |
+| Evolution Capability | 8/10 | 12-metric evaluator, 100+ iter validated, avg 0.84 score |
 | Animation Quality | 7/10 | Transform + cage deform + particles + VFX (4 presets each) |
-| Asset Output | 8/10 | PNG + GIF + spritesheet + JSON metadata, all shapes work |
+| Asset Output | 9/10 | PNG + GIF + spritesheet + layers + JSON metadata |
 | Knowledge Accumulation | 5/10 | 12 rules + 10 models (needs auto-distillation) |
-| Self-Evolution | 6/10 | Better evaluator + enriched CPPN + anti-stagnation + dedup |
+| Self-Evolution | 7/10 | VFX-tuned evaluator + large-scale validated + anti-stagnation |
 
 ## Instructions for Next AI Session
 
 1. **Read `DEDUP_REGISTRY.json`** — DO NOT re-research absorbed topics
 2. **Read `SESSION_PROTOCOL.md`** — Follow efficiency rules
 3. Read `PROJECT_BRAIN.json` for the full machine-readable state
-4. **Start with P0-NEW-4** — Multi-layer render compositing
-5. Then **P0-NEW-5** — Run large-scale evolution (100+ iterations)
-6. Then **P0-NEW-6** — VFX evaluator tuning
+4. **Start with P0-NEW-7** — Outline continuity improvement
+5. Then **P0-NEW-8** — Texture-aware layered rendering
+6. Then **P0-NEW-9** — Evolution convergence acceleration
 7. Always push changes to GitHub after completing work
 8. Always update this file and `PROJECT_BRAIN.json` before ending
 
@@ -194,10 +205,28 @@ ev = AssetEvaluator()
 result = ev.evaluate(some_image)
 print(result.overall_score, result.passed, result.suggestions)
 
+# Evaluate VFX (SESSION-020)
+vfx_result = ev.evaluate_vfx(vfx_frame)
+multi_result = ev.evaluate_multi_frame_vfx(vfx_frames)
+
 # Produce sprite
 from mathart.pipeline import AssetPipeline, AssetSpec
 pipeline = AssetPipeline(output_dir="output/")
 result = pipeline.produce_sprite(AssetSpec(name="coin", shape="coin"))
+
+# Produce layered sprite (SESSION-020)
+result, layered = pipeline.produce_layered_sprite(AssetSpec(name="coin", shape="coin"))
+layered.export_layers("output/coin")  # Saves 5 layer PNGs
+
+# Custom layer compositing (SESSION-020)
+from mathart.sdf.renderer import render_sdf_layered, composite_layers
+layered = render_sdf_layered(sdf_func, 64, 64)
+custom = composite_layers(
+    layered.base_layer,
+    lighting=layered.lighting_layer,
+    outline=layered.outline_layer,
+    lighting_opacity=0.7,  # Reduce lighting intensity
+)
 
 # Produce VFX
 vfx = pipeline.produce_vfx(name="fire", preset="fire", n_frames=12)
@@ -207,21 +236,9 @@ from mathart.pipeline import AnimationSpec
 spec = AssetSpec(name="bounce", shape="circle")
 deform = pipeline.produce_deform_animation(spec=spec, deform_type="squash_stretch", n_frames=8)
 
-# Test particles standalone
-from mathart.animation.particles import ParticleSystem, ParticleConfig
-system = ParticleSystem(ParticleConfig.fire())
-frames = system.simulate_and_render(n_frames=12)
-system.export_gif(frames, "fire.gif")
-
-# Test cage deformation standalone
-from mathart.animation.cage_deform import CageDeformer, CagePreset
-deformer = CageDeformer(sprite_image)
-frames = deformer.animate(CagePreset.squash_stretch(), n_frames=12)
-deformer.export_gif(frames, "squash.gif")
-
 # Run validation
-python3 test_evolution_validation.py
+python3 test_session020_validation.py
 ```
 
 ---
-*Auto-generated by SESSION-019 at 2026-04-15T16:15:00Z*
+*Auto-generated by SESSION-020 at 2026-04-15T18:30:00Z*

@@ -127,6 +127,44 @@ _DEFAULT_THRESHOLDS: dict[QualityMetric, float] = {
 }
 
 
+# ── SESSION-020: VFX-specific evaluation weights ──────────────────────────────
+# VFX (particles, explosions, etc.) have fundamentally different visual
+# characteristics than solid sprites: sparse fill, no continuous outline,
+# high color variance, irregular shapes. The default evaluator penalises
+# all of these, so VFX assets need rebalanced weights and thresholds.
+
+_VFX_WEIGHTS: dict[QualityMetric, float] = {
+    QualityMetric.SHARPNESS: 0.05,
+    QualityMetric.PALETTE_ADHERENCE: 0.08,
+    QualityMetric.CONTRAST: 0.15,
+    QualityMetric.STYLE_CONSISTENCY: 0.03,
+    QualityMetric.COLOR_HARMONY: 0.12,
+    QualityMetric.OUTLINE_CLARITY: 0.02,       # VFX rarely has outlines
+    QualityMetric.SHAPE_READABILITY: 0.05,     # Irregular shapes are expected
+    QualityMetric.FILL_RATIO: 0.08,            # Sparse is normal for particles
+    QualityMetric.PALETTE_ECONOMY: 0.05,
+    QualityMetric.DITHER_QUALITY: 0.02,
+    QualityMetric.OUTLINE_CONTINUITY: 0.02,    # No continuous outline expected
+    QualityMetric.INTERNAL_DETAIL: 0.33,       # Variance/motion is the point
+}
+
+_VFX_THRESHOLDS: dict[QualityMetric, float] = {
+    QualityMetric.SHARPNESS: 0.20,
+    QualityMetric.PALETTE_ADHERENCE: 0.30,
+    QualityMetric.CONTRAST: 0.25,
+    QualityMetric.STYLE_CONSISTENCY: 0.10,
+    QualityMetric.COLOR_HARMONY: 0.20,
+    QualityMetric.OUTLINE_CLARITY: 0.10,
+    QualityMetric.SHAPE_READABILITY: 0.10,
+    QualityMetric.FILL_RATIO: 0.03,            # Even 3% fill is OK for sparks
+    QualityMetric.PALETTE_ECONOMY: 0.20,
+    QualityMetric.DITHER_QUALITY: 0.10,
+    QualityMetric.OUTLINE_CONTINUITY: 0.10,
+    QualityMetric.INTERNAL_DETAIL: 0.10,
+    QualityMetric.OVERALL: 0.40,
+}
+
+
 class AssetEvaluator:
     """Multi-metric quality evaluator for pixel art assets.
 
@@ -854,3 +892,110 @@ class AssetEvaluator:
             )
 
         return suggestions
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # SESSION-020: VFX EVALUATION MODE (P0-NEW-6)
+    # ═══════════════════════════════════════════════════════════════════════
+
+    def evaluate_vfx(
+        self,
+        image: Image.Image,
+        reference: Optional[Image.Image] = None,
+        palette: Optional[list[tuple[int, int, int]]] = None,
+    ) -> EvaluationResult:
+        """Evaluate a VFX/particle image with VFX-appropriate criteria.
+
+        SESSION-020 (P0-NEW-6): VFX assets (fire, explosion, sparkle, smoke)
+        have fundamentally different visual characteristics than solid sprites.
+        This method uses rebalanced weights and relaxed thresholds that reward
+        motion, color variance, and visual energy rather than penalising sparse
+        fill and missing outlines.
+
+        Key differences from ``evaluate()``:
+          - FILL_RATIO threshold lowered from 0.15 to 0.03
+          - OUTLINE_CLARITY and OUTLINE_CONTINUITY nearly zeroed
+          - INTERNAL_DETAIL weight boosted to 0.33 (rewards variance)
+          - CONTRAST weight boosted (VFX should be visually striking)
+          - Overall pass threshold lowered to 0.40
+
+        Parameters
+        ----------
+        image : PIL.Image
+            VFX frame to evaluate.
+        reference : PIL.Image, optional
+            Style reference.
+        palette : list of (R, G, B), optional
+            Target palette.
+
+        Returns
+        -------
+        EvaluationResult
+        """
+        # Temporarily swap weights and thresholds
+        orig_weights = self.weights
+        orig_thresholds = self.thresholds
+        orig_pass = self.pass_threshold
+
+        self.weights = dict(_VFX_WEIGHTS)
+        self.thresholds = dict(_VFX_THRESHOLDS)
+        self.pass_threshold = _VFX_THRESHOLDS[QualityMetric.OVERALL]
+
+        try:
+            result = self.evaluate(image, reference=reference, palette=palette)
+        finally:
+            # Restore original weights
+            self.weights = orig_weights
+            self.thresholds = orig_thresholds
+            self.pass_threshold = orig_pass
+
+        return result
+
+    def evaluate_multi_frame_vfx(
+        self,
+        frames: list[Image.Image],
+        reference: Optional[Image.Image] = None,
+        palette: Optional[list[tuple[int, int, int]]] = None,
+    ) -> EvaluationResult:
+        """Evaluate a VFX animation by scoring multiple frames.
+
+        SESSION-020: Scores each frame with VFX weights, then combines
+        using the peak frame score (VFX quality is defined by its best
+        moment, not its average).
+
+        Parameters
+        ----------
+        frames : list of PIL.Image
+            VFX animation frames.
+        reference, palette : optional
+            Same as ``evaluate_vfx``.
+
+        Returns
+        -------
+        EvaluationResult
+            Result from the best-scoring frame, with metadata about
+            frame-level scores.
+        """
+        if not frames:
+            return EvaluationResult(overall_score=0.0, passed=False,
+                                    suggestions=["No frames provided"])
+
+        best_result = None
+        best_score = -1.0
+        frame_scores = []
+
+        for frame in frames:
+            result = self.evaluate_vfx(frame, reference=reference, palette=palette)
+            frame_scores.append(result.overall_score)
+            if result.overall_score > best_score:
+                best_score = result.overall_score
+                best_result = result
+
+        # Add frame-level metadata to suggestions
+        avg_score = sum(frame_scores) / len(frame_scores)
+        best_result.suggestions.insert(
+            0,
+            f"VFX multi-frame: best={best_score:.3f}, avg={avg_score:.3f}, "
+            f"frames={len(frames)}"
+        )
+
+        return best_result

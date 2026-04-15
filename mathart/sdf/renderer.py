@@ -24,6 +24,7 @@ Mathematical foundations:
 """
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Callable, Optional
 import numpy as np
 from PIL import Image
@@ -183,6 +184,336 @@ def _generate_color_ramp(
 
 
 # ── Main Renderer ─────────────────────────────────────────────────────────────
+
+# ── SESSION-020: Multi-layer Render Compositing ─────────────────────────────
+
+@dataclass
+class LayeredRenderResult:
+    """Result of multi-layer SDF rendering.
+
+    SESSION-020: Separates the rendering pipeline into independent layers
+    for artistic control. Each layer is an RGBA PIL Image that can be
+    individually adjusted (opacity, color grading, blur) before final
+    compositing.
+
+    Layers (back to front):
+      1. **base_layer**: Flat fill using the midtone color ramp, no lighting.
+      2. **texture_layer**: Texture/noise contribution (premultiplied alpha).
+      3. **lighting_layer**: Directional light + AO as a luminosity overlay.
+      4. **outline_layer**: 1px outline on a transparent background.
+      5. **composite**: All layers merged in standard order.
+
+    Each layer uses the same inside/outline masks derived from the SDF,
+    so they align pixel-perfectly.
+    """
+    base_layer: Image.Image
+    texture_layer: Image.Image
+    lighting_layer: Image.Image
+    outline_layer: Image.Image
+    composite: Image.Image
+    width: int = 0
+    height: int = 0
+    metadata: dict = field(default_factory=dict)
+
+    def export_layers(self, prefix: str) -> list[str]:
+        """Save all layers to files and return paths."""
+        paths = []
+        for name in ["base", "texture", "lighting", "outline", "composite"]:
+            layer = getattr(self, f"{name}_layer" if name != "composite" else "composite")
+            path = f"{prefix}_{name}.png"
+            layer.save(path)
+            paths.append(path)
+        return paths
+
+
+def render_sdf_layered(
+    sdf_func: SDFFunc,
+    width: int = 32,
+    height: int = 32,
+    palette: Optional[Palette] = None,
+    outline_width: float = 0.03,
+    fill_color: Optional[tuple[int, ...]] = None,
+    outline_color: Optional[tuple[int, ...]] = None,
+    bg_transparent: bool = True,
+    enable_lighting: bool = True,
+    light_angle: float = 0.785,
+    enable_dithering: bool = True,
+    dither_matrix_size: int = 4,
+    enable_ao: bool = True,
+    enable_hue_shift: bool = True,
+    enable_outline: bool = True,
+    ao_strength: float = 0.4,
+    color_ramp_levels: int = 5,
+    texture_func: Optional[Callable[[np.ndarray, np.ndarray], np.ndarray]] = None,
+    texture_strength: float = 0.3,
+    palette_constrained: bool = False,
+    palette_colors: Optional[list[tuple[int, int, int]]] = None,
+    palette_dither: bool = True,
+) -> LayeredRenderResult:
+    """Render an SDF to separate compositable layers.
+
+    SESSION-020 (P0-NEW-4): Multi-layer render compositing.
+
+    Produces four independent RGBA layers plus a pre-composited result.
+    Each layer can be individually adjusted before final compositing,
+    enabling artistic control over lighting intensity, outline color/width,
+    texture blending, and base color grading.
+
+    The composite is equivalent to ``render_sdf()`` output, ensuring
+    backward compatibility.
+
+    Parameters
+    ----------
+    (Same as ``render_sdf``.)
+
+    Returns
+    -------
+    LayeredRenderResult
+        Contains base_layer, texture_layer, lighting_layer, outline_layer,
+        and composite.
+    """
+    xs = np.linspace(-1, 1, width)
+    ys = np.linspace(-1, 1, height)
+    X, Y = np.meshgrid(xs, ys)
+    dist = sdf_func(X, Y)
+
+    # ── base colours ──
+    if palette is not None and palette.count >= 2:
+        srgb = palette.colors_srgb
+        base_fill = tuple(int(c) for c in srgb[0]) + (255,)
+        base_outline = outline_color or tuple(int(c) for c in srgb[-1]) + (255,)
+    else:
+        base_fill = fill_color or (200, 80, 80, 255)
+        base_outline = outline_color or (40, 20, 20, 255)
+
+    # ── colour ramp ──
+    if enable_hue_shift:
+        ramp = _generate_color_ramp(base_fill[:3], color_ramp_levels)
+    else:
+        base = np.array(base_fill[:3], dtype=np.float64)
+        ramp = []
+        for i in range(color_ramp_levels):
+            t = i / max(1, color_ramp_levels - 1)
+            factor = 0.4 + t * 0.8
+            c = np.clip(base * factor, 0, 255).astype(int)
+            ramp.append(tuple(c) + (255,))
+
+    # ── masks ──
+    inside_mask = dist < 0
+    if enable_outline:
+        outline_mask = (dist >= -outline_width) & (dist < outline_width * 0.5)
+        inner_mask = dist < -outline_width
+    else:
+        outline_mask = np.zeros_like(dist, dtype=bool)
+        inner_mask = inside_mask
+
+    # ── lighting ──
+    if enable_lighting:
+        nx, ny = _compute_sdf_normals(sdf_func, X, Y)
+        lx = np.cos(light_angle)
+        ly = -np.sin(light_angle)
+        light_intensity = np.clip(nx * lx + ny * ly, 0, 1)
+    else:
+        light_intensity = np.full_like(dist, 0.5)
+
+    # ── ambient occlusion ──
+    if enable_ao:
+        nx_ao, ny_ao = _compute_sdf_normals(sdf_func, X, Y)
+        ao = _compute_sdf_ao(sdf_func, X, Y, nx_ao, ny_ao)
+    else:
+        ao = np.ones_like(dist)
+
+    # ── texture ──
+    if texture_func is not None:
+        tex_val = texture_func(X, Y)
+        t_min, t_max = tex_val.min(), tex_val.max()
+        if t_max - t_min > 1e-8:
+            tex_val = (tex_val - t_min) / (t_max - t_min)
+        else:
+            tex_val = np.full_like(tex_val, 0.5)
+    else:
+        tex_val = np.full_like(dist, 0.5)
+
+    # ═══════════════════════════════════════════════════════════════════
+    # LAYER 1: BASE — flat fill using midtone ramp color
+    # ═══════════════════════════════════════════════════════════════════
+    base_layer = np.zeros((height, width, 4), dtype=np.uint8)
+    midtone_idx = len(ramp) // 2
+    midtone_color = ramp[midtone_idx]
+    base_layer[inner_mask] = midtone_color
+    base_img = Image.fromarray(base_layer, "RGBA")
+
+    # ═══════════════════════════════════════════════════════════════════
+    # LAYER 2: TEXTURE — texture contribution as color-tinted overlay
+    # ═══════════════════════════════════════════════════════════════════
+    texture_layer = np.zeros((height, width, 4), dtype=np.uint8)
+    if texture_func is not None:
+        # Map texture value to ramp colors
+        tex_ramp_idx = np.clip(
+            (tex_val * (len(ramp) - 1)).astype(int), 0, len(ramp) - 1
+        )
+        for i, color in enumerate(ramp):
+            mask = inner_mask & (tex_ramp_idx == i)
+            texture_layer[mask] = color[:3] + (int(255 * texture_strength),)
+    texture_img = Image.fromarray(texture_layer, "RGBA")
+
+    # ═══════════════════════════════════════════════════════════════════
+    # LAYER 3: LIGHTING — light + AO as luminosity overlay
+    # ═══════════════════════════════════════════════════════════════════
+    lighting_layer = np.zeros((height, width, 4), dtype=np.uint8)
+    combined_light = light_intensity * (1.0 - ao_strength + ao_strength * ao)
+    combined_light = np.clip(combined_light, 0, 1)
+    # Encode as grayscale: 128 = neutral, >128 = lighten, <128 = darken
+    light_gray = np.clip(combined_light * 255, 0, 255).astype(np.uint8)
+    lighting_layer[inner_mask, 0] = light_gray[inner_mask]
+    lighting_layer[inner_mask, 1] = light_gray[inner_mask]
+    lighting_layer[inner_mask, 2] = light_gray[inner_mask]
+    lighting_layer[inner_mask, 3] = 255
+    lighting_img = Image.fromarray(lighting_layer, "RGBA")
+
+    # ═══════════════════════════════════════════════════════════════════
+    # LAYER 4: OUTLINE — outline pixels on transparent background
+    # ═══════════════════════════════════════════════════════════════════
+    outline_layer = np.zeros((height, width, 4), dtype=np.uint8)
+    if enable_outline:
+        outline_layer[outline_mask & inside_mask] = base_outline
+    outline_img = Image.fromarray(outline_layer, "RGBA")
+
+    # ═══════════════════════════════════════════════════════════════════
+    # COMPOSITE — standard render_sdf equivalent
+    # ═══════════════════════════════════════════════════════════════════
+    # Use the same compositing logic as render_sdf for full compatibility
+    combined = light_intensity * (1.0 - ao_strength + ao_strength * ao)
+    combined = combined * (1.0 - texture_strength) + tex_val * texture_strength
+    combined = np.clip(combined, 0, 1)
+
+    if enable_dithering:
+        bayer = {2: BAYER_2, 4: BAYER_4, 8: BAYER_8}.get(
+            dither_matrix_size, BAYER_4
+        )
+        ramp_idx = _apply_ordered_dither(combined, len(ramp), bayer)
+    else:
+        ramp_idx = np.clip(
+            (combined * (len(ramp) - 1)).astype(int), 0, len(ramp) - 1
+        )
+
+    comp = np.zeros((height, width, 4), dtype=np.uint8)
+    if not bg_transparent:
+        comp[:, :] = [30, 30, 30, 255]
+
+    for i, color in enumerate(ramp):
+        mask = inner_mask & (ramp_idx == i)
+        comp[mask] = color
+
+    if enable_outline:
+        comp[outline_mask & inside_mask] = base_outline
+
+    composite_img = Image.fromarray(comp, "RGBA")
+
+    if palette_constrained and palette_colors:
+        composite_img = _apply_palette_constraint(
+            composite_img, palette_colors, dither=palette_dither
+        )
+
+    return LayeredRenderResult(
+        base_layer=base_img,
+        texture_layer=texture_img,
+        lighting_layer=lighting_img,
+        outline_layer=outline_img,
+        composite=composite_img,
+        width=width,
+        height=height,
+        metadata={
+            "fill_color": base_fill,
+            "outline_color": base_outline,
+            "ramp_levels": color_ramp_levels,
+            "light_angle": light_angle,
+            "ao_strength": ao_strength,
+            "texture_strength": texture_strength,
+            "outline_width": outline_width,
+            "has_texture": texture_func is not None,
+            "palette_constrained": palette_constrained,
+        },
+    )
+
+
+def composite_layers(
+    base: Image.Image,
+    texture: Optional[Image.Image] = None,
+    lighting: Optional[Image.Image] = None,
+    outline: Optional[Image.Image] = None,
+    base_opacity: float = 1.0,
+    texture_opacity: float = 1.0,
+    lighting_opacity: float = 1.0,
+    outline_opacity: float = 1.0,
+) -> Image.Image:
+    """Composite individual layers with adjustable opacity.
+
+    SESSION-020: Allows artists to tweak layer contributions after rendering.
+    For example, reduce lighting_opacity for a flatter look, or increase
+    outline_opacity for bolder outlines.
+
+    Parameters
+    ----------
+    base : Image
+        Base fill layer (required).
+    texture : Image, optional
+        Texture overlay layer.
+    lighting : Image, optional
+        Lighting/AO layer (grayscale encoded).
+    outline : Image, optional
+        Outline layer.
+    *_opacity : float
+        Opacity multiplier for each layer (0.0 - 1.0).
+
+    Returns
+    -------
+    Image
+        Composited RGBA image.
+    """
+    result = base.copy().convert("RGBA")
+
+    if base_opacity < 1.0:
+        arr = np.array(result)
+        arr[:, :, 3] = (arr[:, :, 3] * base_opacity).astype(np.uint8)
+        result = Image.fromarray(arr, "RGBA")
+
+    # Texture: alpha-composite with opacity
+    if texture is not None:
+        tex = texture.copy()
+        if texture_opacity < 1.0:
+            arr = np.array(tex)
+            arr[:, :, 3] = (arr[:, :, 3] * texture_opacity).astype(np.uint8)
+            tex = Image.fromarray(arr, "RGBA")
+        result = Image.alpha_composite(result, tex)
+
+    # Lighting: apply as luminosity adjustment
+    if lighting is not None:
+        result_arr = np.array(result, dtype=np.float32)
+        light_arr = np.array(lighting, dtype=np.float32)
+        light_alpha = light_arr[:, :, 3] / 255.0 * lighting_opacity
+        # Normalize light: 128 = neutral, scale to [0, 2]
+        light_factor = light_arr[:, :, 0] / 128.0
+        for c in range(3):
+            result_arr[:, :, c] = np.clip(
+                result_arr[:, :, c] * (
+                    1.0 - light_alpha + light_alpha * light_factor
+                ),
+                0, 255,
+            )
+        result = Image.fromarray(result_arr.astype(np.uint8), "RGBA")
+
+    # Outline: alpha-composite on top
+    if outline is not None:
+        out = outline.copy()
+        if outline_opacity < 1.0:
+            arr = np.array(out)
+            arr[:, :, 3] = (arr[:, :, 3] * outline_opacity).astype(np.uint8)
+            out = Image.fromarray(arr, "RGBA")
+        result = Image.alpha_composite(result, out)
+
+    return result
+
 
 def render_sdf(
     sdf_func: SDFFunc,

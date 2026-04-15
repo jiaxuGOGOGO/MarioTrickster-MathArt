@@ -42,7 +42,10 @@ from PIL import Image
 
 from .sdf.primitives import circle, box, star, triangle, ring, segment
 from .sdf.operations import smooth_union, smooth_subtraction, union
-from .sdf.renderer import render_sdf, render_textured_sdf, render_spritesheet
+from .sdf.renderer import (
+    render_sdf, render_textured_sdf, render_spritesheet,
+    render_sdf_layered, composite_layers, LayeredRenderResult,
+)
 from .sdf.effects import spike_sdf, flame_sdf, saw_blade_sdf, glow_sdf, electric_arc_sdf
 from .oklab.palette import PaletteGenerator, Palette
 from .evaluator.evaluator import AssetEvaluator
@@ -897,10 +900,10 @@ class AssetPipeline:
             json.dump(meta, f, indent=2)
         output_paths.append(meta_path)
 
-        # Evaluate first frame quality
+        # SESSION-020: Use VFX-specific evaluator (P0-NEW-6)
         score = 0.0
         if frames:
-            result = self.evaluator.evaluate(frames[len(frames) // 2])
+            result = self.evaluator.evaluate_multi_frame_vfx(frames)
             score = result.overall_score
 
         elapsed = time.time() - start
@@ -1076,6 +1079,132 @@ class AssetPipeline:
                   f"time={elapsed:.1f}s ===")
 
         return results
+
+    # ── SESSION-020: Multi-layer Render Compositing ────────────────────────
+
+    def produce_layered_sprite(
+        self,
+        spec: AssetSpec,
+        export_layers: bool = True,
+    ) -> tuple[AssetResult, Optional[LayeredRenderResult]]:
+        """Produce a sprite with separated render layers.
+
+        SESSION-020 (P0-NEW-4): Extends produce_sprite with multi-layer output.
+        First runs evolution to find optimal parameters, then re-renders the
+        best result using render_sdf_layered() to produce separated layers.
+
+        Parameters
+        ----------
+        spec : AssetSpec
+            Asset specification.
+        export_layers : bool
+            If True, save individual layer PNGs alongside the composite.
+
+        Returns
+        -------
+        tuple[AssetResult, LayeredRenderResult]
+            The standard asset result plus the layered render result.
+        """
+        # Step 1: Produce sprite normally (with evolution)
+        asset_result = self.produce_sprite(spec)
+        if asset_result.image is None:
+            self._log("ERROR: Failed to produce base sprite for layered render")
+            return asset_result, None
+
+        # Step 2: Re-render with layered output using best params
+        self._log(f"Re-rendering {spec.name} with multi-layer compositing")
+
+        _, palette = self._get_reference_and_palette(spec)
+        palette_colors_for_render = None
+        if palette and isinstance(palette, list) and len(palette) > 0:
+            palette_colors_for_render = [
+                (c[0], c[1], c[2]) if len(c) >= 3 else c for c in palette
+            ]
+
+        # Reconstruct SDF from spec
+        best_params = asset_result.metadata.get("best_params", {})
+        fill_r = int(np.clip(best_params.get("fill_r", 150), 0, 255))
+        fill_g = int(np.clip(best_params.get("fill_g", 100), 0, 255))
+        fill_b = int(np.clip(best_params.get("fill_b", 80), 0, 255))
+        light_angle = best_params.get("light_angle", 0.785)
+        ao_str = best_params.get("ao_strength", 0.4)
+        ramp_levels = int(np.clip(best_params.get("color_ramp_levels", 5), 3, 7))
+        outline_w = best_params.get("outline_width", 0.03)
+
+        # Build SDF
+        if spec.shape in ("circle",):
+            r = best_params.get("radius", 0.38)
+            sdf = circle(cx=0, cy=0, r=r)
+        elif spec.shape == "coin":
+            r = best_params.get("radius", 0.35)
+            sdf = ring(cx=0, cy=0, r=r, thickness=0.12)
+        elif spec.shape in ("star",):
+            r1 = best_params.get("outer_radius", 0.42)
+            r2 = best_params.get("inner_radius", 0.20)
+            sdf = star(cx=0, cy=0, r_outer=r1, r_inner=r2, n_points=5)
+        elif spec.shape == "gem":
+            r1 = best_params.get("outer_radius", 0.38)
+            r2 = best_params.get("inner_radius", 0.18)
+            sdf = star(cx=0, cy=0, r_outer=r1, r_inner=r2, n_points=4)
+        elif spec.shape == "ring":
+            r = best_params.get("ring_radius", 0.35)
+            w = best_params.get("ring_width", 0.1)
+            sdf = ring(cx=0, cy=0, r=r, thickness=w)
+        elif spec.shape in SHAPE_LIBRARY:
+            sdf = SHAPE_LIBRARY[spec.shape]()
+        else:
+            sdf = circle(cx=0, cy=0, r=0.4)
+
+        pal_kwargs = {}
+        if palette_colors_for_render:
+            pal_kwargs = {
+                "palette_constrained": True,
+                "palette_colors": palette_colors_for_render,
+                "palette_dither": True,
+            }
+
+        layered = render_sdf_layered(
+            sdf, spec.size, spec.size,
+            fill_color=(fill_r, fill_g, fill_b, 255),
+            outline_width=outline_w,
+            light_angle=light_angle,
+            ao_strength=ao_str,
+            color_ramp_levels=ramp_levels,
+            enable_lighting=True,
+            enable_ao=True,
+            enable_hue_shift=True,
+            **pal_kwargs,
+        )
+
+        # Step 3: Export layers
+        if export_layers:
+            asset_dir = self.output_dir / spec.name
+            asset_dir.mkdir(parents=True, exist_ok=True)
+            prefix = str(asset_dir / spec.name)
+            layer_paths = layered.export_layers(prefix)
+            asset_result.output_paths.extend(layer_paths)
+            self._log(f"Exported {len(layer_paths)} layers for {spec.name}")
+
+            # Save layer metadata
+            layer_meta = {
+                "layers": ["base", "texture", "lighting", "outline", "composite"],
+                "layer_files": {name: f"{spec.name}_{name}.png"
+                                for name in ["base", "texture", "lighting", "outline", "composite"]},
+                "render_params": layered.metadata,
+            }
+            import json
+            meta_path = str(asset_dir / f"{spec.name}_layers.json")
+            with open(meta_path, "w") as f:
+                json.dump(layer_meta, f, indent=2)
+            asset_result.output_paths.append(meta_path)
+
+        self._production_log.append({
+            "name": spec.name, "type": "layered_sprite",
+            "score": asset_result.score,
+            "layers": 5,
+        })
+
+        return asset_result, layered
 
     def get_production_log(self) -> list[dict]:
         """Get the production log for this session."""

@@ -1,41 +1,41 @@
 {
-  "version": "0.9.0",
-  "last_session_id": "SESSION-019",
-  "last_updated": "2026-04-15T16:15:00Z",
-  "best_quality_score": 0.8244,
-  "validation_pass_rate": "19/19 = 100%",
-  "total_iterations": 15,
-  "total_code_lines": 25500,
+  "version": "0.10.0",
+  "last_session_id": "SESSION-020",
+  "last_updated": "2026-04-15T18:30:00Z",
+  "best_quality_score": 0.8674,
+  "validation_pass_rate": "24/24 = 100%",
+  "total_iterations": 267,
+  "total_code_lines": 26800,
   "distill_session_id": "DISTILL-004",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
   "knowledge_rule_count": 12,
   "math_model_count": 10,
-  "project_health_score": 7.8,
+  "project_health_score": 8.4,
   "pending_tasks": [
     {
-      "id": "P0-NEW-4",
+      "id": "P0-NEW-7",
       "priority": "P0",
-      "title": "Multi-layer render compositing",
+      "title": "Outline continuity improvement",
       "status": "TODO",
       "estimated_effort": "medium",
-      "description": "Separate base/texture/lighting/outline layers for independent artistic control. Currently all rendering is single-pass."
+      "description": "SDF outlines have gaps at sharp corners (star points, gem facets). Need adaptive outline width based on local curvature."
     },
     {
-      "id": "P0-NEW-5",
+      "id": "P0-NEW-8",
       "priority": "P0",
-      "title": "Run large-scale evolution (100+ iterations)",
+      "title": "Texture-aware layered rendering",
       "status": "TODO",
       "estimated_effort": "medium",
-      "description": "Validate that evolution produces measurable quality improvement over many generations. Current tests use only 10 iterations."
+      "description": "Pass CPPN textures through the layered pipeline for richer texture layer output."
     },
     {
-      "id": "P0-NEW-6",
+      "id": "P0-NEW-9",
       "priority": "P0",
-      "title": "VFX evaluator tuning",
+      "title": "Evolution convergence acceleration",
       "status": "TODO",
       "estimated_effort": "low",
-      "description": "Explosion VFX scores 0.24 because evaluator expects solid shapes. Need VFX-specific evaluation criteria or separate evaluator mode."
+      "description": "Circle converges at gen 13, gem takes 120 iters. Add adaptive mutation rate to speed up convergence."
     },
     {
       "id": "P1-2",
@@ -134,7 +134,9 @@
     {"id": "P0-NEW-3", "title": "Palette-constrained SDF rendering", "completed_in": "SESSION-019"},
     {"id": "BUG-019-1", "title": "SDF primitive parameter order fix (all 16 shapes)", "completed_in": "SESSION-019"},
     {"id": "BUG-019-2", "title": "result.overall → result.overall_score in VFX", "completed_in": "SESSION-019"},
-    {"id": "P1-1", "title": "Multi-layer compositing (promoted to P0-NEW-4)", "completed_in": "PROMOTED"}
+    {"id": "P0-NEW-4", "title": "Multi-layer render compositing (render_sdf_layered + composite_layers)", "completed_in": "SESSION-020"},
+    {"id": "P0-NEW-5", "title": "Large-scale evolution validation (4 shapes, 120 iters, avg 0.8371)", "completed_in": "SESSION-020"},
+    {"id": "P0-NEW-6", "title": "VFX evaluator tuning (evaluate_vfx + evaluate_multi_frame_vfx, explosion 0.24→0.66)", "completed_in": "SESSION-020"}
   ],
   "capability_gaps": [
     "RESOLVED-S018: Evaluator too lenient -> 12-metric evaluator with strict thresholds",
@@ -146,32 +148,42 @@
     "RESOLVED-S019: Palette not constrained -> Floyd-Steinberg dither in OKLAB space",
     "RESOLVED-S019: Particles/cage not in pipeline -> produce_vfx() + produce_deform_animation()",
     "RESOLVED-S019: No validation suite -> 19-test validation, 100% pass",
+    "RESOLVED-S020: No multi-layer compositing -> render_sdf_layered() + composite_layers()",
+    "RESOLVED-S020: VFX evaluator too harsh -> evaluate_vfx() with rebalanced weights, explosion 0.24→0.66",
+    "RESOLVED-S020: Evolution not validated at scale -> 4 shapes, 120 iters, avg 0.8371, all positive trends",
     "REMAINING: No WFC tilemap generation",
     "REMAINING: No reaction-diffusion textures",
     "REMAINING: No spring-based secondary animation",
-    "REMAINING: No multi-layer compositing",
     "REMAINING: No multi-state sprites",
-    "REMAINING: VFX evaluator too harsh for particle effects"
+    "REMAINING: Outline gaps at sharp corners"
   ],
-  "session_019_changes": {
-    "critical_bug_fixed": "SDF primitive parameter order — star(5, 0.42, 0.22) was cx=5 (off-screen). All 42 call sites fixed to use keyword arguments.",
+  "session_020_changes": {
     "new_features": [
-      "Palette-constrained rendering with Floyd-Steinberg dither in OKLAB space",
-      "produce_vfx() method in AssetPipeline",
-      "produce_deform_animation() method in AssetPipeline",
-      "Palette.from_srgb_list() class method",
-      "19-test validation suite (test_evolution_validation.py)"
-    ],
-    "bugs_fixed": [
-      "SDF primitive parameter order (all 16 shapes, all test files)",
-      "result.overall → result.overall_score in produce_vfx()",
-      "palette_star test returning 0 colors (same parameter bug)"
+      "render_sdf_layered() — Multi-layer SDF rendering with 4 independent layers + composite",
+      "LayeredRenderResult dataclass with export_layers() method",
+      "composite_layers() — Adjustable-opacity layer compositing",
+      "produce_layered_sprite() — Pipeline method for layered sprite production",
+      "evaluate_vfx() — VFX-specific evaluation with rebalanced weights",
+      "evaluate_multi_frame_vfx() — Multi-frame VFX evaluation using peak score",
+      "test_large_scale_evolution.py — 100+ iteration evolution validation",
+      "test_session020_validation.py — 24-test validation suite"
     ],
     "quality_improvements": {
-      "gem_score": "0.24 → 0.7699 (+221%)",
-      "star_score": "0.24 → 0.7544 (+214%)",
-      "coin_score": "0.7836 → 0.8244 (+5%)",
-      "validation_pass_rate": "84.2% → 100%"
+      "best_sprite_score": "0.8244 → 0.8674 (+5.2%)",
+      "explosion_vfx_score": "0.2400 → 0.6637 (+177%)",
+      "fire_vfx_score": "0.4938 → 0.6324 (+28%)",
+      "sparkle_vfx_score": "0.4718 → 0.6578 (+39%)",
+      "smoke_vfx_score": "0.3974 → 0.5373 (+35%)",
+      "validation_tests": "19 → 24 (+26%)",
+      "render_layers": "1 → 5 (+400%)"
+    },
+    "evolution_validation": {
+      "shapes_tested": 4,
+      "max_iterations": 120,
+      "avg_final_score": 0.8371,
+      "best_final_score": 0.8674,
+      "avg_improvement": 0.0147,
+      "all_positive_trends": true
     }
   },
   "evolution_history": [
@@ -198,6 +210,14 @@
       "best_score": 0.8244,
       "assets_produced": 0,
       "notes": "Integration + validation session: palette-constrained rendering, pipeline integration, critical parameter bug fix, 19/19 validation pass."
+    },
+    {
+      "session": "SESSION-020",
+      "date": "2026-04-15",
+      "iterations": 233,
+      "best_score": 0.8674,
+      "assets_produced": 4,
+      "notes": "Multi-layer compositing, VFX evaluator tuning, large-scale evolution validation. 4 shapes evolved (coin 0.85, star 0.82, gem 0.81, circle 0.87). 24/24 validation pass."
     }
   ],
   "research_references": {
@@ -233,9 +253,9 @@
     ]
   },
   "custom_notes": {
-    "key_insight": "SESSION-019 discovered and fixed the root cause of invisible shapes — a systemic parameter order bug in all SDF primitive calls. This was more impactful than SESSION-018's radius increase. Combined with palette-constrained rendering and pipeline integration, the system now has a solid foundation for producing real pixel art assets.",
-    "next_session_focus": "P0-NEW-4 (multi-layer compositing), P0-NEW-5 (large-scale evolution), P0-NEW-6 (VFX evaluator tuning). The system is now ready for production-scale testing.",
-    "anti_duplication": "READ DEDUP_REGISTRY.json BEFORE starting any work. All SESSION-018 and SESSION-019 changes are logged there.",
+    "key_insight": "SESSION-020 validated that the evolution system works at scale: 4 shapes across 120 iterations all show positive quality trends. Multi-layer compositing enables artistic control over individual render passes. VFX evaluator tuning resolved the explosion scoring problem (0.24→0.66).",
+    "next_session_focus": "P0-NEW-7 (outline continuity), P0-NEW-8 (texture-aware layers), P0-NEW-9 (convergence acceleration). The system is now production-validated.",
+    "anti_duplication": "READ DEDUP_REGISTRY.json BEFORE starting any work. All SESSION-018, SESSION-019, and SESSION-020 changes are logged there.",
     "parameter_safety": "ALL SDF primitive calls MUST use keyword arguments. Never use positional args for circle/box/star/ring/triangle. This is enforced by convention — see SESSION-019 fix."
   }
 }

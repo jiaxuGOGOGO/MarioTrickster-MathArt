@@ -1,7 +1,7 @@
 {
   "version": "1.1",
   "purpose": "Prevent duplicate research, duplicate code changes, and duplicate knowledge distillation across sessions. Every new session MUST read this file before starting work.",
-  "last_updated": "SESSION-019",
+  "last_updated": "SESSION-020",
 
   "absorbed_references": {
     "description": "External resources already studied and integrated. Do NOT re-research these.",
@@ -14,7 +14,9 @@
       {"id": "REF-P006", "title": "Inigo Quilez SDF functions", "used_in": "mathart/sdf/primitives.py", "session": "SESSION-002"},
       {"id": "REF-P007", "title": "Disney 12 Principles of Animation", "used_in": "mathart/animation/principles.py", "session": "SESSION-004"},
       {"id": "REF-P008", "title": "Verlet Integration for Game Physics", "used_in": "mathart/animation/particles.py", "session": "SESSION-018"},
-      {"id": "REF-P009", "title": "Floyd-Steinberg Dithering in perceptual color space", "used_in": "mathart/sdf/renderer.py", "session": "SESSION-019"}
+      {"id": "REF-P009", "title": "Floyd-Steinberg Dithering in perceptual color space", "used_in": "mathart/sdf/renderer.py", "session": "SESSION-019"},
+      {"id": "REF-P010", "title": "Multi-layer compositing for pixel art (Photoshop-style layer separation)", "used_in": "mathart/sdf/renderer.py", "session": "SESSION-020"},
+      {"id": "REF-P011", "title": "VFX-specific evaluation criteria (motion, energy, variance over fill/outline)", "used_in": "mathart/evaluator/evaluator.py", "session": "SESSION-020"}
     ],
     "tutorials": [
       {"id": "REF-T001", "title": "Pedro Medeiros pixel art tutorials", "used_in": "knowledge/pixel_art.md", "session": "SESSION-006"},
@@ -63,6 +65,16 @@
       {"change": "BUG FIX: result.overall → result.overall_score in produce_vfx()", "file": "mathart/pipeline.py"},
       {"change": "19-test validation suite created", "file": "test_evolution_validation.py"},
       {"change": "Palette-constrained kwargs passed from produce_sprite to _build_generator", "file": "mathart/pipeline.py"}
+    ],
+    "SESSION-020": [
+      {"change": "Multi-layer render compositing: render_sdf_layered() + LayeredRenderResult + composite_layers()", "file": "mathart/sdf/renderer.py"},
+      {"change": "Updated sdf/__init__.py exports: render_sdf_layered, composite_layers, LayeredRenderResult", "file": "mathart/sdf/__init__.py"},
+      {"change": "produce_layered_sprite() method in AssetPipeline", "file": "mathart/pipeline.py"},
+      {"change": "VFX evaluator: evaluate_vfx() with rebalanced weights (_VFX_WEIGHTS, _VFX_THRESHOLDS)", "file": "mathart/evaluator/evaluator.py"},
+      {"change": "VFX evaluator: evaluate_multi_frame_vfx() for multi-frame peak scoring", "file": "mathart/evaluator/evaluator.py"},
+      {"change": "Pipeline produce_vfx() now uses evaluate_multi_frame_vfx()", "file": "mathart/pipeline.py"},
+      {"change": "Large-scale evolution validation script (4 shapes, 120 iters)", "file": "test_large_scale_evolution.py"},
+      {"change": "SESSION-020 validation suite (24 tests)", "file": "test_session020_validation.py"}
     ]
   },
 
@@ -135,7 +147,9 @@
       "RULE-9: If evolution stagnates, check known_stagnation_patterns first",
       "RULE-10: Always update SESSION_HANDOFF.md and PROJECT_BRAIN.json before ending",
       "RULE-11: NEVER use positional arguments for SDF primitives (circle, box, star, ring, triangle)",
-      "RULE-12: EvaluationResult uses .overall_score not .overall"
+      "RULE-12: EvaluationResult uses .overall_score not .overall",
+      "RULE-13: Use evaluate_vfx() or evaluate_multi_frame_vfx() for VFX assets, NOT evaluate()",
+      "RULE-14: Run test_session020_validation.py to verify changes work (expect 24/24 pass)"
     ]
   }
 }
