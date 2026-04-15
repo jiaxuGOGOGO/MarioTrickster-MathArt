@@ -148,3 +148,24 @@
 ---
 
 *下一次蒸馏将从 [DISTILL-006] 继续追加...*
+
+---
+
+## [DISTILL-006] 噪声纹理数学知识 + 工作区管理 — 2026-04-15
+
+**来源**：SESSION-007 内部开发
+**蒸馏内容**：
+
+1. **Perlin 噪声 (2002)**：梯度噪声，改进淡入曲线 6t^5-15t^4+10t^3，消除 Hermite 曲线的二阶不连续
+2. **Simplex 噪声 (2001)**：基于单纯形格点的梯度噪声，计算复杂度 O(n) vs Perlin 的 O(2^n)
+3. **fBm（分数布朗运动）**：多八度噪声叠加，lacunarity 控制频率倍增，persistence 控制振幅衰减
+4. **Ridged Multi-fractal**：取绝对值并反转产生尖锐山脊，适用于地形和水面焦散
+5. **Turbulence**：绝对值 fBm，产生翻涌的烟雾/火焰效果
+6. **Domain Warping**：将噪声输出反馈为坐标偏移，产生有机流动变形
+
+**影响**：
+- 新增 `mathart/sdf/noise.py`（~500 行），6 种噪声算法 + 6 种预设 + 7 种色彩映射
+- 注册 `noise_texture_generator` 模型 → **TEXTURE 能力缺口已关闭**
+- 新增 `mathart/workspace/manager.py`，实现 inbox 热文件夹 + output 分类管理 + GUI 文件选择器
+- 新增 4 个 CLI 命令：init-workspace, scan, pick, texture
+- 44 个新测试，总计 424 个测试全部通过

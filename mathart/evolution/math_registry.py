@@ -386,3 +386,32 @@ class MathModelRegistry:
             ),
             status="stable",
         ))
+
+        # ── Noise Texture Generator (TASK-004) ──
+        self.register(ModelEntry(
+            name="noise_texture_generator",
+            version="1.0.0",
+            description="Procedural noise texture generator (Perlin, Simplex, fBm, ridged, turbulence, domain warp)",
+            capabilities=[ModelCapability.TEXTURE, ModelCapability.PIXEL_IMAGE],
+            module_path="mathart.sdf.noise",
+            function_name="generate_texture",
+            params={
+                "preset": {"type": "str", "default": "terrain",
+                           "description": "Texture preset: terrain/clouds/lava/water/stone/magic"},
+                "width": {"type": "int", "default": 64, "range": [8, 512],
+                          "description": "Output width in pixels"},
+                "height": {"type": "int", "default": 64, "range": [8, 512],
+                           "description": "Output height in pixels"},
+                "octaves": {"type": "int", "default": 6, "range": [1, 10],
+                            "description": "Number of noise octaves (more = finer detail)"},
+                "seed": {"type": "int", "default": 42, "range": [0, 99999],
+                         "description": "Random seed for reproducibility"},
+            },
+            knowledge_sources=["knowledge/pcg_math.md", "knowledge/sdf_math.md"],
+            quality_metrics=["sharpness", "style_consistency"],
+            math_foundation=(
+                "Perlin gradient noise (2002), Simplex noise (2001), "
+                "fBm octave summation, ridged multi-fractal, domain warping"
+            ),
+            status="stable",
+        ))

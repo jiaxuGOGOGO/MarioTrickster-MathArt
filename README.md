@@ -97,7 +97,7 @@ pip install -e ".[dev]"
 
 ## 测试
 
-380 个测试覆盖全部模块，每次 push 自动运行 GitHub Actions CI：
+424 个测试覆盖全部模块，每次 push 自动运行 GitHub Actions CI：
 
 ```bash
 pytest tests/ -v                          # 全部测试

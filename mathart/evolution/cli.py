@@ -9,6 +9,10 @@ Commands:
   mathart-evolve add-sprite <image>   — Add a sprite reference to the library
   mathart-evolve add-sheet <image>    — Add a spritesheet (auto-cut into frames)
   mathart-evolve sprites              — Show sprite library status
+  mathart-evolve init-workspace       — Create inbox/output directory structure
+  mathart-evolve scan                 — Scan inbox and auto-process all files
+  mathart-evolve pick                 — Open file picker to select and import files
+  mathart-evolve texture [preset]     — Generate a noise texture
 """
 from __future__ import annotations
 
@@ -51,7 +55,8 @@ def main(argv=None):
 
     # add-sprite (TASK-002)
     p_sprite = sub.add_parser("add-sprite", help="Add a sprite reference to the library")
-    p_sprite.add_argument("image", help="Path to sprite image file")
+    p_sprite.add_argument("image", nargs="?", default=None,
+                          help="Path to sprite image file (omit to open file picker)")
     p_sprite.add_argument("--type", dest="sprite_type", default="unknown",
                           choices=["character", "tile", "effect", "ui", "unknown"],
                           help="Sprite type hint (default: auto-detect)")
@@ -62,7 +67,8 @@ def main(argv=None):
 
     # add-sheet (TASK-002 extension: spritesheet support)
     p_sheet = sub.add_parser("add-sheet", help="Add a spritesheet (auto-cut into frames)")
-    p_sheet.add_argument("image", help="Path to spritesheet image file")
+    p_sheet.add_argument("image", nargs="?", default=None,
+                         help="Path to spritesheet image file (omit to open file picker)")
     p_sheet.add_argument("--type", dest="sprite_type", default="character",
                          choices=["character", "tile", "effect", "ui", "unknown"],
                          help="Sprite type hint (default: character)")
@@ -75,6 +81,34 @@ def main(argv=None):
 
     # sprites (library status)
     sub.add_parser("sprites", help="Show sprite library status")
+
+    # init-workspace
+    sub.add_parser("init-workspace", help="Create inbox/output directory structure")
+
+    # scan
+    sub.add_parser("scan", help="Scan inbox and auto-process all files")
+
+    # pick
+    p_pick = sub.add_parser("pick", help="Open file picker to select and import files")
+    p_pick.add_argument("--type", dest="pick_type", default="sprite",
+                        choices=["sprite", "sheet", "knowledge"],
+                        help="What type of file to import (default: sprite)")
+
+    # texture (TASK-004)
+    p_tex = sub.add_parser("texture", help="Generate a noise texture")
+    p_tex.add_argument("preset", nargs="?", default=None,
+                       choices=["terrain", "clouds", "lava", "water", "stone", "magic"],
+                       help="Texture preset (omit to list all)")
+    p_tex.add_argument("--size", type=int, default=64,
+                       help="Output size in pixels (default: 64)")
+    p_tex.add_argument("--seed", type=int, default=42,
+                       help="Random seed (default: 42)")
+    p_tex.add_argument("--colormap", default=None,
+                       help="Override colormap (gray/earth/sky/lava/water/stone/magic)")
+    p_tex.add_argument("-o", "--output", default=None,
+                       help="Output path (default: auto-save to output/textures/)")
+    p_tex.add_argument("--all", dest="gen_all", action="store_true",
+                       help="Generate all 6 presets at once")
 
     args = parser.parse_args(argv)
 
@@ -94,6 +128,14 @@ def main(argv=None):
         _cmd_add_sheet(args)
     elif args.command == "sprites":
         _cmd_sprites()
+    elif args.command == "init-workspace":
+        _cmd_init_workspace()
+    elif args.command == "scan":
+        _cmd_scan()
+    elif args.command == "pick":
+        _cmd_pick(args)
+    elif args.command == "texture":
+        _cmd_texture(args)
     else:
         parser.print_help()
 
@@ -161,6 +203,13 @@ def _cmd_add_sprite(args):
     from PIL import Image
     from ..sprite.library import SpriteLibrary
 
+    # If no image path given, try file picker
+    if args.image is None:
+        args.image = _pick_single_file("Select sprite image", "sprite")
+        if args.image is None:
+            print("No file selected.")
+            return
+
     filepath = Path(args.image)
     if not filepath.exists():
         print(f"Error: File not found: {filepath}")
@@ -202,6 +251,13 @@ def _cmd_add_sheet(args):
     from PIL import Image
     from ..sprite.library import SpriteLibrary
     from ..sprite.sheet_parser import SpriteSheetParser
+
+    # If no image path given, try file picker
+    if args.image is None:
+        args.image = _pick_single_file("Select spritesheet image", "sheet")
+        if args.image is None:
+            print("No file selected.")
+            return
 
     filepath = Path(args.image)
     if not filepath.exists():
@@ -280,6 +336,189 @@ def _cmd_sprites():
             print(f"  {i}. {fp.source_name} ({fp.sprite_type}) — "
                   f"quality={fp.quality_score:.3f}, "
                   f"colors={fp.color.color_count}")
+
+
+def _cmd_init_workspace():
+    """Create the inbox/output directory structure."""
+    from ..workspace.manager import WorkspaceManager
+
+    root = _find_project_root()
+    ws = WorkspaceManager(project_root=root)
+    created = ws.init_workspace()
+
+    print("\nWorkspace initialized!")
+    print("\nInbox directories (drop files here):")
+    for d in created["inbox"]:
+        print(f"  {d}/")
+    print("\nOutput directories (results saved here):")
+    for d in created["output"]:
+        print(f"  {d}/")
+    print("\nUsage:")
+    print("  1. Drop sprite images into inbox/sprites/")
+    print("  2. Drop spritesheets into inbox/sheets/")
+    print("  3. Drop PDFs/Markdown into inbox/knowledge/")
+    print("  4. Run: mathart-evolve scan")
+
+
+def _cmd_scan():
+    """Scan inbox and auto-process all files."""
+    from ..workspace.manager import WorkspaceManager
+
+    root = _find_project_root()
+    ws = WorkspaceManager(project_root=root)
+
+    if not ws.inbox.exists():
+        print("Inbox not found. Run 'mathart-evolve init-workspace' first.")
+        return
+
+    found = ws.scan_inbox()
+    total = sum(len(v) for v in found.values())
+
+    if total == 0:
+        print("\nInbox is empty — nothing to process.")
+        print("  Drop files into inbox/sprites/, inbox/sheets/, or inbox/knowledge/")
+        return
+
+    print(f"\nFound {total} file(s) in inbox:")
+    for cat, files in found.items():
+        if files:
+            print(f"  {cat}: {', '.join(f.name for f in files)}")
+
+    print("\nProcessing...")
+    counts = ws.process_inbox(verbose=True)
+
+    print(f"\nDone! Processed: {counts['sprites']} sprites, "
+          f"{counts['sheets']} sheets, {counts['knowledge']} knowledge files")
+    if counts["skipped"] > 0:
+        print(f"  Skipped: {counts['skipped']} (see errors above)")
+    print("  Processed files moved to inbox/processed/")
+
+
+def _cmd_pick(args):
+    """Open file picker dialog to select and import files."""
+    from ..workspace.manager import pick_files
+
+    filetypes_map = {
+        "sprite": [("Images", "*.png *.jpg *.jpeg *.bmp *.gif *.webp"), ("All", "*.*")],
+        "sheet": [("Images", "*.png *.jpg *.jpeg"), ("All", "*.*")],
+        "knowledge": [("Documents", "*.pdf *.md *.txt *.markdown"), ("All", "*.*")],
+    }
+
+    title_map = {
+        "sprite": "Select sprite reference images",
+        "sheet": "Select spritesheet images",
+        "knowledge": "Select knowledge files (PDF/Markdown)",
+    }
+
+    files = pick_files(
+        title=title_map.get(args.pick_type, "Select files"),
+        filetypes=filetypes_map.get(args.pick_type),
+        multiple=True,
+    )
+
+    if not files:
+        print("No files selected (or no GUI available).")
+        print("  Alternative: drop files into inbox/ and run 'mathart-evolve scan'")
+        return
+
+    print(f"\nSelected {len(files)} file(s):")
+    for f in files:
+        print(f"  {f.name}")
+
+    # Process each file based on type
+    if args.pick_type == "sprite":
+        from PIL import Image
+        from ..sprite.library import SpriteLibrary
+        root = _find_project_root()
+        lib = SpriteLibrary(project_root=root)
+        for f in files:
+            img = Image.open(f)
+            fp, is_new = lib.add_sprite(
+                image=img, source_name=f.stem,
+                source_path=str(f.resolve()), sprite_type="unknown",
+            )
+            status = "NEW" if is_new else "DUP"
+            print(f"  [{status}] {f.name} — quality={fp.quality_score:.3f}")
+        print(f"\nLibrary now has {lib.count()} sprite(s)")
+
+    elif args.pick_type == "sheet":
+        # Delegate to add-sheet for each file
+        for f in files:
+            print(f"\nProcessing sheet: {f.name}")
+            main(["add-sheet", str(f)])
+
+    elif args.pick_type == "knowledge":
+        from ..evolution.outer_loop import OuterLoopDistiller
+        root = _find_project_root()
+        distiller = OuterLoopDistiller(project_root=root, verbose=True)
+        for f in files:
+            result = distiller.distill_file(str(f))
+            print(f"  [DISTILL] {f.name} — {result.rules_extracted} rules")
+
+
+def _cmd_texture(args):
+    """Generate noise textures."""
+    from ..sdf.noise import generate_texture, TEXTURE_PRESETS
+    from ..workspace.manager import WorkspaceManager
+
+    # List presets if none specified
+    if args.preset is None and not args.gen_all:
+        print("\nAvailable texture presets:")
+        print(f"{'Preset':<12} {'Description':<50} {'Generator':<15}")
+        print("-" * 77)
+        for name, tp in TEXTURE_PRESETS.items():
+            print(f"{name:<12} {tp.description:<50} {tp.generator:<15}")
+        print("\nUsage:")
+        print("  mathart-evolve texture terrain              # Generate one")
+        print("  mathart-evolve texture lava --size 128      # Custom size")
+        print("  mathart-evolve texture --all                # Generate all 6")
+        return
+
+    root = _find_project_root()
+    ws = WorkspaceManager(project_root=root)
+
+    presets_to_gen = list(TEXTURE_PRESETS.keys()) if args.gen_all else [args.preset]
+
+    for preset_name in presets_to_gen:
+        img = generate_texture(
+            preset=preset_name,
+            width=args.size,
+            height=args.size,
+            seed=args.seed,
+            colormap=args.colormap,
+        )
+
+        # Determine output path
+        if args.output and not args.gen_all:
+            out_path = Path(args.output)
+        else:
+            out_dir = ws.get_output_path("textures", "").parent / "textures"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = out_dir / f"texture_{preset_name}_{args.size}px_seed{args.seed}.png"
+
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        img.save(str(out_path))
+        print(f"  [{preset_name}] Saved: {out_path} ({img.width}x{img.height})")
+
+    if args.gen_all:
+        print(f"\nGenerated {len(presets_to_gen)} textures in output/textures/")
+
+
+def _pick_single_file(title: str, file_type: str) -> str | None:
+    """Try to open file picker for a single file, return path or None."""
+    from ..workspace.manager import pick_files
+
+    filetypes_map = {
+        "sprite": [("Images", "*.png *.jpg *.jpeg *.bmp *.gif *.webp"), ("All", "*.*")],
+        "sheet": [("Images", "*.png *.jpg *.jpeg"), ("All", "*.*")],
+    }
+
+    files = pick_files(
+        title=title,
+        filetypes=filetypes_map.get(file_type),
+        multiple=False,
+    )
+    return str(files[0]) if files else None
 
 
 def _find_project_root() -> Path:

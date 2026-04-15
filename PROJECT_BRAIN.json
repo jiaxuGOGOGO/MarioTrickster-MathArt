@@ -1,14 +1,14 @@
 {
-  "version": "0.7.0",
-  "last_session_id": "SESSION-006",
-  "last_updated": "2026-04-15T12:00:00Z",
+  "version": "0.8.0",
+  "last_session_id": "SESSION-007",
+  "last_updated": "2026-04-15T22:00:00Z",
   "best_quality_score": 0.0,
   "total_iterations": 0,
   "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
   "knowledge_rule_count": 6,
-  "math_model_count": 9,
+  "math_model_count": 10,
   "pending_tasks": [
     {
       "task_id": "TASK-001",
@@ -47,11 +47,16 @@
     },
     {
       "task_id": "TASK-004",
-      "description": "Mine math papers for WFC, OKLAB, SDF improvements",
-      "priority": "medium",
+      "description": "Implement Perlin/Simplex noise texture generator (fill TEXTURE capability gap)",
+      "priority": "high",
       "depends_on": [],
       "created_at": "2026-04-14T16:35:53Z",
-      "context": {}
+      "status": "done",
+      "completed_at": "2026-04-15T22:00:00Z",
+      "notes": "Implemented: mathart/sdf/noise.py with Perlin, Simplex, fBm, ridged, turbulence, domain warp. 6 presets (terrain/clouds/lava/water/stone/magic). 7 colormaps. Registered as noise_texture_generator in math registry. 44 new tests.",
+      "context": {
+        "files": ["mathart/sdf/noise.py", "mathart/evolution/math_registry.py"]
+      }
     },
     {
       "task_id": "TASK-005",
@@ -62,6 +67,19 @@
       ],
       "created_at": "2026-04-14T16:35:53Z",
       "context": {}
+    },
+    {
+      "task_id": "TASK-006",
+      "description": "Workspace management: inbox hot folder + output classification + file picker",
+      "priority": "high",
+      "depends_on": [],
+      "created_at": "2026-04-15T22:00:00Z",
+      "status": "done",
+      "completed_at": "2026-04-15T22:00:00Z",
+      "notes": "Implemented: mathart/workspace/manager.py with WorkspaceManager (inbox/output dirs), pick_files() GUI dialog, auto-scan & process. CLI commands: init-workspace, scan, pick, texture.",
+      "context": {
+        "files": ["mathart/workspace/manager.py", "mathart/evolution/cli.py"]
+      }
     }
   ],
   "capability_gaps": [
@@ -128,6 +146,37 @@
       "best_score": 0.0,
       "test_count": 380,
       "notes": "TASK-002 complete, TASK-001 bug fix, CLI sprite workflow operational"
+    },
+    {
+      "session_id": "SESSION-007",
+      "timestamp": "2026-04-15T22:00:00Z",
+      "version": "0.8.0",
+      "changes": [
+        "TASK-004 DONE: Implemented noise texture generator (mathart/sdf/noise.py)",
+        "  - Perlin 2D noise with improved fade curve",
+        "  - Simplex 2D noise on simplex lattice",
+        "  - fBm (fractional Brownian motion) with configurable octaves/lacunarity/persistence",
+        "  - Ridged multi-fractal noise for terrain/water caustics",
+        "  - Turbulence noise for smoke/fire/magic effects",
+        "  - Domain warping for organic distortions (lava, marble)",
+        "  - 6 presets: terrain, clouds, lava, water, stone, magic",
+        "  - 7 colormaps: gray, earth, sky, lava, water, stone, magic",
+        "  - Registered as noise_texture_generator (stable) in MathModelRegistry",
+        "  - TEXTURE capability gap RESOLVED: now 9 stable + 1 experimental models",
+        "TASK-006 DONE: Workspace management system",
+        "  - inbox/ hot folder with sprites/, sheets/, knowledge/ subdirectories",
+        "  - output/ classified storage: textures/, effects/, palettes/, characters/, levels/, exports/",
+        "  - Auto-scan & process: mathart-evolve scan",
+        "  - GUI file picker: mathart-evolve pick (tkinter, falls back gracefully)",
+        "  - File picker integrated into add-sprite/add-sheet (omit path to open dialog)",
+        "  - Texture generation CLI: mathart-evolve texture [preset]",
+        "  - Workspace init CLI: mathart-evolve init-workspace",
+        "Added 44 new tests (test_noise_texture.py)",
+        "Total: 424 tests passing, 0 failures"
+      ],
+      "best_score": 0.0,
+      "test_count": 424,
+      "notes": "TEXTURE gap closed, workspace management operational, 10 math models"
     }
   ],
   "custom_notes": {}
