@@ -1,0 +1,112 @@
+{
+  "version": "1.0",
+  "session": "SESSION-018",
+  "models": [
+    {
+      "id": "M001",
+      "name": "SDF Circle",
+      "category": "primitive",
+      "formula": "f(x,y) = sqrt(x^2 + y^2) - r",
+      "params": {"r": {"type": "float", "range": [0.1, 0.5], "default": 0.4}},
+      "capabilities": ["shape_generation"],
+      "quality_range": [0.6, 0.9]
+    },
+    {
+      "id": "M002",
+      "name": "SDF Star",
+      "category": "primitive",
+      "formula": "f(x,y) = star_sdf(x, y, n, r1, r2) using polar angle sectors",
+      "params": {
+        "n": {"type": "int", "range": [3, 12], "default": 5},
+        "r1": {"type": "float", "range": [0.2, 0.5], "default": 0.42},
+        "r2": {"type": "float", "range": [0.1, 0.35], "default": 0.22}
+      },
+      "capabilities": ["shape_generation"],
+      "quality_range": [0.5, 0.85]
+    },
+    {
+      "id": "M003",
+      "name": "SDF Smooth Union",
+      "category": "operation",
+      "formula": "f = smooth_min(d1, d2, k) where smooth_min(a,b,k) = -ln(e^(-k*a) + e^(-k*b))/k",
+      "params": {"k": {"type": "float", "range": [0.01, 0.5], "default": 0.1}},
+      "capabilities": ["shape_combination"],
+      "quality_range": [0.5, 0.9]
+    },
+    {
+      "id": "M004",
+      "name": "OKLAB Color Space",
+      "category": "color",
+      "formula": "sRGB -> linear -> LMS (cube root) -> OKLAB [L, a, b]",
+      "params": {},
+      "capabilities": ["palette_generation", "color_harmony"],
+      "quality_range": [0.7, 0.95]
+    },
+    {
+      "id": "M005",
+      "name": "CPPN Texture Generator",
+      "category": "texture",
+      "formula": "output = DAG(x, y, d, bias) with activation functions {sin, cos, tanh, sigmoid, gaussian, sawtooth, spike}",
+      "params": {
+        "n_hidden": {"type": "int", "range": [2, 6], "default": 3},
+        "connectivity": {"type": "float", "range": [0.3, 0.8], "default": 0.6}
+      },
+      "capabilities": ["texture_generation", "pattern_evolution"],
+      "quality_range": [0.3, 0.85]
+    },
+    {
+      "id": "M006",
+      "name": "Verlet Particle System",
+      "category": "animation",
+      "formula": "x_new = 2*x - x_prev + a*dt^2 (position Verlet integration)",
+      "params": {
+        "gravity": {"type": "float", "range": [-100, 100], "default": 0},
+        "drag": {"type": "float", "range": [0.8, 1.0], "default": 0.98},
+        "turbulence": {"type": "float", "range": [0, 50], "default": 0}
+      },
+      "capabilities": ["vfx_generation", "animation"],
+      "quality_range": [0.4, 0.8]
+    },
+    {
+      "id": "M007",
+      "name": "Mean Value Coordinates (Cage Deform)",
+      "category": "animation",
+      "formula": "w_k(p) = (tan(alpha_{k-1}/2) + tan(alpha_k/2)) / |p - v_k|",
+      "params": {
+        "n_cage_verts": {"type": "int", "range": [4, 12], "default": 4}
+      },
+      "capabilities": ["deformation_animation", "squash_stretch"],
+      "quality_range": [0.5, 0.85]
+    },
+    {
+      "id": "M008",
+      "name": "Perceptual Hash (pHash)",
+      "category": "evaluation",
+      "formula": "DCT of 32x32 grayscale -> threshold at median -> 64-bit hash",
+      "params": {"hash_size": {"type": "int", "range": [8, 16], "default": 8}},
+      "capabilities": ["style_consistency_check"],
+      "quality_range": [0.6, 0.95]
+    },
+    {
+      "id": "M009",
+      "name": "Laplacian Sharpness",
+      "category": "evaluation",
+      "formula": "score = min(1, var(conv2d(lum, laplacian_kernel)) / 0.05)",
+      "params": {},
+      "capabilities": ["sharpness_evaluation"],
+      "quality_range": [0.3, 1.0]
+    },
+    {
+      "id": "M010",
+      "name": "MAP-Elites Archive",
+      "category": "evolution",
+      "formula": "archive[features_to_cell(f)] = argmax(fitness) over all genomes mapping to cell",
+      "params": {
+        "grid_dims": {"type": "tuple", "default": [5, 5, 5]},
+        "feature_axes": ["symmetry", "complexity", "color_diversity"]
+      },
+      "capabilities": ["diversity_preservation", "quality_diversity_optimization"],
+      "quality_range": [0.4, 0.9]
+    }
+  ]
+}

@@ -106,7 +106,7 @@ class CPPNGenome:
 
     @classmethod
     def create_minimal(cls, n_outputs: int = 3, seed: Optional[int] = None) -> "CPPNGenome":
-        """Create a minimal CPPN with direct input→output connections."""
+        """Create a minimal CPPN with direct input->output connections."""
         rng = random.Random(seed)
         genome = cls(n_outputs=n_outputs)
 
@@ -126,6 +126,104 @@ class CPPNGenome:
             for out in range(4, 4 + n_outputs):
                 w = rng.gauss(0, 1.0)
                 genome.connections.append(CPPNConnection(src=inp, dst=out, weight=w))
+
+        return genome
+
+    @classmethod
+    def create_enriched(
+        cls,
+        n_outputs: int = 3,
+        n_hidden: int = 3,
+        seed: Optional[int] = None,
+    ) -> "CPPNGenome":
+        """Create an enriched CPPN with hidden layers for richer textures.
+
+        SESSION-018: The minimal topology produces mostly gradients because
+        input->output is too simple.  This adds 2-4 hidden nodes with diverse
+        activation functions (sin, gaussian, sawtooth, spike) that create
+        interference patterns, Voronoi-like cells, and organic textures.
+
+        Architecture:
+          inputs(4) -> hidden_A(n_hidden) -> hidden_B(n_hidden//2+1) -> outputs
+          Plus skip connections from inputs to outputs for baseline signal.
+        """
+        rng = random.Random(seed)
+        genome = cls(n_outputs=n_outputs)
+
+        # Input nodes (0-3): x, y, d, bias
+        for i in range(4):
+            genome.nodes.append(CPPNNode(node_id=i, activation="identity"))
+
+        # Output nodes
+        out_start = 4
+        for i in range(n_outputs):
+            act = rng.choice(["sigmoid", "tanh"])
+            genome.nodes.append(CPPNNode(
+                node_id=out_start + i, activation=act,
+                bias=rng.gauss(0, 0.3),
+            ))
+
+        # Hidden layer A: diverse activations for pattern generation
+        hidden_a_start = out_start + n_outputs
+        rich_activations = ["sin", "gaussian", "sawtooth", "spike", "cos", "abs"]
+        hidden_a_ids = []
+        for i in range(n_hidden):
+            nid = hidden_a_start + i
+            act = rich_activations[i % len(rich_activations)]
+            genome.nodes.append(CPPNNode(
+                node_id=nid, activation=act,
+                bias=rng.gauss(0, 0.5),
+            ))
+            hidden_a_ids.append(nid)
+
+        # Hidden layer B: mixing layer
+        hidden_b_start = hidden_a_start + n_hidden
+        n_hidden_b = max(1, n_hidden // 2)
+        hidden_b_ids = []
+        for i in range(n_hidden_b):
+            nid = hidden_b_start + i
+            act = rng.choice(["tanh", "sigmoid", "gaussian"])
+            genome.nodes.append(CPPNNode(
+                node_id=nid, activation=act,
+                bias=rng.gauss(0, 0.3),
+            ))
+            hidden_b_ids.append(nid)
+
+        genome._next_node_id = hidden_b_start + n_hidden_b
+
+        # Connections: input -> hidden_A (sparse, ~60% connectivity)
+        for inp in range(4):
+            for hid in hidden_a_ids:
+                if rng.random() < 0.6:
+                    w = rng.gauss(0, 1.5)
+                    genome.connections.append(CPPNConnection(src=inp, dst=hid, weight=w))
+
+        # Connections: hidden_A -> hidden_B
+        for ha in hidden_a_ids:
+            for hb in hidden_b_ids:
+                if rng.random() < 0.7:
+                    w = rng.gauss(0, 1.0)
+                    genome.connections.append(CPPNConnection(src=ha, dst=hb, weight=w))
+
+        # Connections: hidden_B -> output
+        for hb in hidden_b_ids:
+            for out in range(out_start, out_start + n_outputs):
+                w = rng.gauss(0, 1.0)
+                genome.connections.append(CPPNConnection(src=hb, dst=out, weight=w))
+
+        # Skip connections: input -> output (weak, for baseline)
+        for inp in range(4):
+            for out in range(out_start, out_start + n_outputs):
+                if rng.random() < 0.3:
+                    w = rng.gauss(0, 0.3)
+                    genome.connections.append(CPPNConnection(src=inp, dst=out, weight=w))
+
+        # Cross-layer connections: hidden_A -> output (some)
+        for ha in hidden_a_ids:
+            for out in range(out_start, out_start + n_outputs):
+                if rng.random() < 0.25:
+                    w = rng.gauss(0, 0.5)
+                    genome.connections.append(CPPNConnection(src=ha, dst=out, weight=w))
 
         return genome
 
@@ -470,8 +568,19 @@ class CPPNEvolver:
                   f"grid={self.grid_dims}")
 
         # Phase 1: Seed archive with random genomes
+        # SESSION-018: Use enriched topology for 70% of initial population
+        # to produce richer textures from the start
         for i in range(initial_population):
-            genome = CPPNGenome.create_minimal(n_outputs=3, seed=self.rng.randint(0, 999999))
+            seed_val = self.rng.randint(0, 999999)
+            if i < int(initial_population * 0.7):
+                # Enriched: 2-4 hidden nodes with diverse activations
+                n_hidden = self.rng.choice([2, 3, 4])
+                genome = CPPNGenome.create_enriched(
+                    n_outputs=3, n_hidden=n_hidden, seed=seed_val
+                )
+            else:
+                # Minimal: some simple genomes for diversity
+                genome = CPPNGenome.create_minimal(n_outputs=3, seed=seed_val)
             image = genome.render(render_size, render_size)
             fitness = self._evaluate_fitness(image)
             features = self._compute_features(image)

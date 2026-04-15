@@ -1,0 +1,114 @@
+{
+  "version": "1.0",
+  "session": "SESSION-018",
+  "rules": [
+    {
+      "id": "R001",
+      "category": "shape",
+      "rule": "SDF shapes must have fill_ratio >= 0.15 on canvas",
+      "param": "radius",
+      "constraint": {"min": 0.25, "max": 0.50},
+      "source": "AUDIT_REPORT.md — gem/star invisible bug",
+      "priority": "critical"
+    },
+    {
+      "id": "R002",
+      "category": "outline",
+      "rule": "Outline width must be at least 1 pixel at target resolution",
+      "param": "outline_width",
+      "constraint": {"min": 0.015, "max": 0.06},
+      "source": "pixel_art.md — outline best practices",
+      "priority": "high"
+    },
+    {
+      "id": "R003",
+      "category": "color",
+      "rule": "Palette size should be 4-16 colors for sprites <= 64px",
+      "param": "n_colors",
+      "constraint": {"min": 4, "max": 16},
+      "source": "Lospec pixel art guidelines",
+      "priority": "high"
+    },
+    {
+      "id": "R004",
+      "category": "color",
+      "rule": "Hue shift between shadow and highlight should be 15-40 degrees",
+      "param": "hue_shift_degrees",
+      "constraint": {"min": 15, "max": 40},
+      "source": "Pedro Medeiros pixel art tutorials",
+      "priority": "medium"
+    },
+    {
+      "id": "R005",
+      "category": "animation",
+      "rule": "Squash-stretch volume must be conserved (area constant)",
+      "param": "squash_factor",
+      "constraint": {"min": 0.7, "max": 1.3},
+      "source": "Disney 12 Principles — Squash & Stretch",
+      "priority": "high"
+    },
+    {
+      "id": "R006",
+      "category": "animation",
+      "rule": "Idle animation should have 6-12 frames at 8-12 FPS",
+      "param": "idle_frames",
+      "constraint": {"min": 6, "max": 12},
+      "source": "Game animation best practices",
+      "priority": "medium"
+    },
+    {
+      "id": "R007",
+      "category": "rendering",
+      "rule": "Color ramp must have at least 3 levels (shadow, mid, highlight)",
+      "param": "color_ramp_levels",
+      "constraint": {"min": 3, "max": 7},
+      "source": "Pixel art shading theory",
+      "priority": "high"
+    },
+    {
+      "id": "R008",
+      "category": "rendering",
+      "rule": "Ambient occlusion strength should not exceed 0.6 to avoid muddy look",
+      "param": "ao_strength",
+      "constraint": {"min": 0.1, "max": 0.6},
+      "source": "SDF rendering best practices",
+      "priority": "medium"
+    },
+    {
+      "id": "R009",
+      "category": "texture",
+      "rule": "CPPN textures must use enriched topology (>= 2 hidden nodes)",
+      "param": "cppn_hidden_nodes",
+      "constraint": {"min": 2, "max": 6},
+      "source": "SESSION-018 CPPN analysis — minimal topology produces gradients",
+      "priority": "high"
+    },
+    {
+      "id": "R010",
+      "category": "export",
+      "rule": "Sprite sheets must be power-of-2 width for GPU compatibility",
+      "param": "sheet_width",
+      "constraint": {"values": [64, 128, 256, 512, 1024]},
+      "source": "Unity/Godot texture requirements",
+      "priority": "medium"
+    },
+    {
+      "id": "R011",
+      "category": "quality",
+      "rule": "Evaluator must use all 12 metrics; skip-to-1.0 is forbidden",
+      "param": "evaluator_metrics",
+      "constraint": {"min_count": 7},
+      "source": "SESSION-018 evaluator rewrite",
+      "priority": "critical"
+    },
+    {
+      "id": "R012",
+      "category": "evolution",
+      "rule": "Stagnation detection: if best score unchanged for 5 generations, inject diversity",
+      "param": "stagnation_patience",
+      "constraint": {"min": 3, "max": 8},
+      "source": "STAGNATION_LOG.md analysis",
+      "priority": "high"
+    }
+  ]
+}

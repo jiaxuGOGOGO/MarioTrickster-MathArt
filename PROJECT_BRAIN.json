@@ -1,87 +1,134 @@
 {
-  "version": "0.7.0",
-  "last_session_id": "SESSION-017",
-  "last_updated": "2026-04-15T18:30:00Z",
+  "version": "0.8.0",
+  "last_session_id": "SESSION-018",
+  "last_updated": "2026-04-15T22:00:00Z",
   "best_quality_score": 0.961,
   "total_iterations": 15,
-  "total_tests": 481,
-  "total_code_lines": 21958,
+  "total_tests": 484,
+  "total_code_lines": 24500,
   "distill_session_id": "DISTILL-004",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 0,
-  "math_model_count": 0,
-  "project_health_score": 4.6,
+  "knowledge_rule_count": 12,
+  "math_model_count": 10,
+  "project_health_score": 6.8,
   "pending_tasks": [
     {
       "id": "P0-1",
       "priority": "P0",
       "title": "Enhance evaluator with pixel art specific metrics",
-      "description": "Add evaluation dimensions: outline clarity, palette usage rate, shape readability, color ramp quality. Current evaluator is too lenient.",
-      "status": "TODO",
-      "estimated_effort": "high"
+      "status": "DONE",
+      "completed_in": "SESSION-018",
+      "notes": "12 metrics total (7 new). Blank=0.25, circle=0.687, noise=0.597"
     },
     {
       "id": "P0-2",
       "priority": "P0",
       "title": "Fix CPPN initial complexity",
-      "description": "Increase initial hidden node count and evolution generations. Current textures are mostly simple gradients.",
-      "status": "TODO",
-      "estimated_effort": "medium"
+      "status": "DONE",
+      "completed_in": "SESSION-018",
+      "notes": "create_enriched() with 2-4 hidden nodes, 70% enriched initial population"
     },
     {
       "id": "P0-3",
       "priority": "P0",
       "title": "Add reference-image-driven evolution",
-      "description": "Support providing reference images, evaluator computes SSIM/perceptual similarity to reference.",
-      "status": "TODO",
-      "estimated_effort": "high"
+      "status": "DONE",
+      "completed_in": "SESSION-018",
+      "notes": "Pipeline now passes reference/palette from SpriteLibrary to evaluator"
     },
     {
       "id": "P0-4",
       "priority": "P0",
       "title": "Fix gem/star shape visibility",
-      "description": "Adjust default SDF parameters to ensure all shapes are clearly visible at 64x64.",
-      "status": "TODO",
-      "estimated_effort": "low"
+      "status": "DONE",
+      "completed_in": "SESSION-018",
+      "notes": "Default radii increased: star r1=0.42, gem r1=0.38"
     },
     {
       "id": "P1-1",
       "priority": "P1",
       "title": "Multi-layer render compositing",
-      "description": "Base color + texture + lighting + outline layers rendered independently then composited.",
       "status": "TODO",
-      "estimated_effort": "medium"
+      "estimated_effort": "medium",
+      "description": "Base color + texture + lighting + outline layers rendered independently then composited."
     },
     {
       "id": "P1-2",
       "priority": "P1",
       "title": "Per-frame SDF parameter animation",
-      "description": "Each frame can have different SDF parameters (radius, angle changes) for true shape animation.",
       "status": "TODO",
-      "estimated_effort": "medium"
+      "estimated_effort": "medium",
+      "description": "Each frame can have different SDF parameters for true shape animation."
     },
     {
       "id": "P1-3",
       "priority": "P1",
       "title": "GIF/APNG animation export",
-      "description": "Direct export of previewable animation files instead of just PNG spritesheets.",
-      "status": "TODO",
-      "estimated_effort": "low"
+      "status": "DONE",
+      "completed_in": "SESSION-018",
+      "notes": "Pipeline and particle system both export GIF. Cage deformer also has GIF export."
     },
     {
       "id": "P1-4",
       "priority": "P1",
       "title": "Register math models",
-      "description": "Register SDF, noise, animation curves into MathModelRegistry to populate the empty registry.",
+      "status": "DONE",
+      "completed_in": "SESSION-018",
+      "notes": "10 models registered in knowledge/math_models.json"
+    },
+    {
+      "id": "P0-NEW-1",
+      "priority": "P0",
+      "title": "Integrate particles + cage deform into pipeline",
       "status": "TODO",
-      "estimated_effort": "low"
+      "estimated_effort": "medium",
+      "description": "Add produce_vfx() and produce_deform_animation() to AssetPipeline. Currently particles and cage deform are standalone modules not wired into the main pipeline."
+    },
+    {
+      "id": "P0-NEW-2",
+      "priority": "P0",
+      "title": "Run full evolution with new evaluator to validate improvement",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Execute produce_asset_pack() with the new 12-metric evaluator and verify that evolution actually produces better sprites than before."
+    },
+    {
+      "id": "P0-NEW-3",
+      "priority": "P0",
+      "title": "Implement palette-constrained SDF rendering",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Render SDF directly to palette colors (not post-quantize). This is the single biggest quality improvement remaining — current renders use continuous colors then quantize, losing pixel art crispness."
+    },
+    {
+      "id": "P1-NEW-1",
+      "priority": "P1",
+      "title": "Add Wave Function Collapse (WFC) for tilemap generation",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "WFC can generate coherent tilemaps from a small set of example tiles. This would enable level-scale asset production."
+    },
+    {
+      "id": "P1-NEW-2",
+      "priority": "P1",
+      "title": "Add reaction-diffusion textures",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Gray-Scott reaction-diffusion for organic textures (coral, lichen, biological patterns). Complements CPPN's geometric patterns."
+    },
+    {
+      "id": "P1-NEW-3",
+      "priority": "P1",
+      "title": "Implement spring-based secondary animation",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Critically-damped spring for follow-through and overlapping action. More physically accurate than current keyframe interpolation."
     },
     {
       "id": "P2-1",
       "priority": "P2",
       "title": "Sub-pixel rendering",
-      "description": "Implement sub-pixel positioning for smoother animation transitions.",
       "status": "TODO",
       "estimated_effort": "medium"
     },
@@ -89,23 +136,22 @@
       "id": "P2-2",
       "priority": "P2",
       "title": "Particle system",
-      "description": "Simple SDF particle system for effects (sparks, smoke, trails).",
-      "status": "TODO",
-      "estimated_effort": "medium"
+      "status": "DONE",
+      "completed_in": "SESSION-018",
+      "notes": "Verlet particle system with 4 presets (fire, explosion, sparkle, smoke)"
     },
     {
       "id": "P2-3",
       "priority": "P2",
       "title": "Palette-constrained rendering",
-      "description": "Use palette colors directly during rendering instead of post-quantization.",
       "status": "TODO",
-      "estimated_effort": "high"
+      "estimated_effort": "high",
+      "description": "Promoted to P0-NEW-3 due to importance."
     },
     {
       "id": "P2-4",
       "priority": "P2",
       "title": "Multi-objective optimization (NSGA-II)",
-      "description": "Simultaneously optimize quality, diversity, and style consistency.",
       "status": "TODO",
       "estimated_effort": "high"
     },
@@ -113,15 +159,13 @@
       "id": "P3-1",
       "priority": "P3",
       "title": "Knowledge distillation from tutorials",
-      "description": "Auto-distill rules from pixel art tutorials and papers.",
-      "status": "TODO",
-      "estimated_effort": "medium"
+      "status": "PARTIAL",
+      "notes": "12 rules distilled manually. Auto-distillation not yet implemented."
     },
     {
       "id": "P3-2",
       "priority": "P3",
       "title": "Web preview UI",
-      "description": "Simple web interface to preview evolution process in real-time.",
       "status": "TODO",
       "estimated_effort": "high"
     },
@@ -129,40 +173,45 @@
       "id": "P3-3",
       "priority": "P3",
       "title": "Unity/Godot exporter",
-      "description": "Generate engine-specific import configurations for game engines.",
       "status": "TODO",
       "estimated_effort": "medium"
     }
   ],
   "capability_gaps": [
-    "Evaluator too lenient: no pixel-art-specific quality metrics",
-    "CPPN textures too simple: need more complex initial topologies",
-    "Animation is transform-only: no bone-driven deformation",
-    "Knowledge base empty: no distilled rules or registered models",
-    "No reference image comparison capability"
+    "RESOLVED: Evaluator too lenient -> 12-metric evaluator with strict thresholds",
+    "RESOLVED: CPPN textures too simple -> enriched topology with hidden layers",
+    "RESOLVED: No bone-driven deformation -> cage deformation with MVC",
+    "RESOLVED: Knowledge base empty -> 12 rules + 10 models registered",
+    "RESOLVED: No reference image comparison -> pipeline passes reference/palette",
+    "REMAINING: No palette-constrained rendering (renders continuous then quantizes)",
+    "REMAINING: No WFC tilemap generation",
+    "REMAINING: No reaction-diffusion textures",
+    "REMAINING: Particles/cage deform not integrated into main pipeline",
+    "REMAINING: No spring-based secondary animation",
+    "REMAINING: No multi-layer compositing"
   ],
-  "session_017_changes": {
+  "session_018_changes": {
     "new_modules": [
-      "mathart/sdf/renderer.py (v2, 434 lines) - Professional pixel art SDF renderer",
-      "mathart/evolution/cppn.py (558 lines) - CPPN MAP-Elites texture evolver",
-      "mathart/animation/principles.py (627 lines) - Disney 12 principles math formalization",
-      "mathart/pipeline.py (694 lines) - End-to-end asset production pipeline"
+      "mathart/animation/particles.py - Verlet particle system (4 presets, GIF export)",
+      "mathart/animation/cage_deform.py - MVC cage deformation (4 presets, GIF export)",
+      "knowledge/rules.json - 12 pixel art production rules",
+      "knowledge/math_models.json - 10 registered math models",
+      "DEDUP_REGISTRY.json - Anti-duplication registry",
+      "SESSION_PROTOCOL.md - Session efficiency protocol"
+    ],
+    "major_rewrites": [
+      "mathart/evaluator/evaluator.py - 12 metrics (7 new pixel-art-specific)",
+      "mathart/pipeline.py - reference/palette passing, GIF export, metadata"
     ],
     "bugs_fixed": [
-      "Evolution engine never ran (0 iterations) -> now works",
-      "Evaluator palette API incompatible -> fixed",
-      "SDF rendering 2-color only -> multi-layer lighting",
-      "Textures disconnected from shapes -> integrated",
-      "No asset pipeline -> AssetPipeline created"
+      "Evaluator skip-to-1.0 for missing palette/reference -> default penalty",
+      "gem/star invisible at default params -> increased radii",
+      "CPPN gradient-only output -> enriched initial topology",
+      "Knowledge base empty -> populated with rules and models"
     ],
-    "pipeline_results": {
-      "total_files_produced": 37,
-      "gold_coin_score": 0.930,
-      "stone_platform_score": 0.802,
-      "bouncing_gem_frames": 8,
-      "idle_orb_frames": 6,
-      "cppn_textures": 9
-    }
+    "research_conducted": [
+      "8 parallel research directions covering math models, animation algorithms, pixel art evaluation, CPPN enrichment, particle systems, commercial standards, itch.io benchmarks, deformation techniques"
+    ]
   },
   "evolution_history": [
     {
@@ -172,6 +221,14 @@
       "best_score": 0.961,
       "assets_produced": 37,
       "notes": "First real evolution run. Pipeline E2E test successful."
+    },
+    {
+      "session": "SESSION-018",
+      "date": "2026-04-15",
+      "iterations": 0,
+      "best_score": 0.961,
+      "assets_produced": 0,
+      "notes": "Infrastructure session: evaluator rewrite, CPPN enrichment, particles, cage deform, knowledge base. No new assets produced (focus was on fixing the foundation)."
     }
   ],
   "research_references": {
@@ -187,16 +244,28 @@
     "animation": [
       "Thomas & Johnston (1981) - The Illusion of Life (12 Principles)",
       "Lasseter (1987) - Principles of Traditional Animation Applied to 3D",
-      "Witkin & Popović (1995) - Motion Warping"
+      "Witkin & Popovic (1995) - Motion Warping",
+      "Floater (2003) - Mean Value Coordinates (cage deformation)",
+      "Verlet integration for game physics"
     ],
     "pixel_art": [
       "Kopf & Lischinski (2011) - Depixelizing Pixel Art",
       "Pixel art dithering: Bayer, Floyd-Steinberg, ordered patterns",
-      "OKLAB color space for perceptually uniform color manipulation"
+      "OKLAB color space for perceptually uniform color manipulation",
+      "Pedro Medeiros pixel art tutorials",
+      "Lospec palette guidelines"
+    ],
+    "session_018_new": [
+      "Procedural pixel art generation: CPPN+NEAT, WFC, L-systems, reaction-diffusion",
+      "Sprite animation math: Verlet particles, Fourier descriptors, cage deformation",
+      "12-metric pixel art evaluation framework",
+      "Commercial sprite sheet standards (Unity/Godot JSON metadata)",
+      "itch.io pixel art asset benchmarks"
     ]
   },
   "custom_notes": {
-    "key_insight": "The project has good code architecture but lacks 'taste' - the evaluator needs to encode what makes pixel art look good. This is the single most important improvement.",
-    "next_session_focus": "P0 tasks, especially evaluator enhancement. The evaluator is the 'eyes' of the evolution system."
+    "key_insight": "SESSION-018 fixed the foundation: the evaluator now has real selection pressure, CPPN produces richer textures, and two new animation systems (particles + cage deform) are ready. The next critical step is palette-constrained rendering and running a full evolution cycle to validate all improvements.",
+    "next_session_focus": "P0-NEW-1 (integrate particles/cage into pipeline), P0-NEW-2 (run full evolution), P0-NEW-3 (palette-constrained rendering). These three will determine if the system can actually produce commercial-quality assets.",
+    "anti_duplication": "READ DEDUP_REGISTRY.json BEFORE starting any work. All SESSION-018 changes are logged there."
   }
 }

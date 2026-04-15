@@ -1,0 +1,113 @@
+{
+  "version": "1.0",
+  "purpose": "Prevent duplicate research, duplicate code changes, and duplicate knowledge distillation across sessions. Every new session MUST read this file before starting work.",
+  "last_updated": "SESSION-018",
+
+  "absorbed_references": {
+    "description": "External resources already studied and integrated. Do NOT re-research these.",
+    "papers": [
+      {"id": "REF-P001", "title": "Compositional Pattern Producing Networks (Stanley 2007)", "used_in": "mathart/evolution/cppn.py", "session": "SESSION-001"},
+      {"id": "REF-P002", "title": "Picbreeder (Secretan et al. 2011)", "used_in": "mathart/evolution/cppn.py", "session": "SESSION-001"},
+      {"id": "REF-P003", "title": "OKLAB Color Space (Björn Ottosson)", "used_in": "mathart/oklab/palette.py", "session": "SESSION-003"},
+      {"id": "REF-P004", "title": "Mean Value Coordinates (Floater 2003)", "used_in": "mathart/animation/cage_deform.py", "session": "SESSION-018"},
+      {"id": "REF-P005", "title": "MAP-Elites Quality-Diversity (Mouret & Clune 2015)", "used_in": "mathart/evolution/cppn.py", "session": "SESSION-005"},
+      {"id": "REF-P006", "title": "Inigo Quilez SDF functions", "used_in": "mathart/sdf/primitives.py", "session": "SESSION-002"},
+      {"id": "REF-P007", "title": "Disney 12 Principles of Animation", "used_in": "mathart/animation/principles.py", "session": "SESSION-004"},
+      {"id": "REF-P008", "title": "Verlet Integration for Game Physics", "used_in": "mathart/animation/particles.py", "session": "SESSION-018"}
+    ],
+    "tutorials": [
+      {"id": "REF-T001", "title": "Pedro Medeiros pixel art tutorials", "used_in": "knowledge/pixel_art.md", "session": "SESSION-006"},
+      {"id": "REF-T002", "title": "Lospec pixel art palette guidelines", "used_in": "knowledge/pixel_art.md", "session": "SESSION-006"},
+      {"id": "REF-T003", "title": "Aseprite workflow best practices", "used_in": "knowledge/pixel_art.md", "session": "SESSION-006"}
+    ],
+    "github_repos": [
+      {"id": "REF-G001", "title": "sdf-2d (various)", "used_in": "mathart/sdf/", "session": "SESSION-002"},
+      {"id": "REF-G002", "title": "neat-python concepts", "used_in": "mathart/evolution/cppn.py", "session": "SESSION-001"}
+    ],
+    "research_session_018": [
+      {"id": "REF-R001", "topic": "Procedural pixel art generation algorithms", "findings": "CPPN+NEAT, WFC, L-systems, reaction-diffusion", "status": "integrated"},
+      {"id": "REF-R002", "topic": "Sprite animation math models", "findings": "Verlet particles, Fourier descriptors, cage deformation", "status": "integrated"},
+      {"id": "REF-R003", "topic": "Pixel art quality evaluation metrics", "findings": "12-metric evaluator with outline/shape/fill/palette/dither/detail", "status": "integrated"},
+      {"id": "REF-R004", "topic": "CPPN topology enrichment", "findings": "Hidden layers with sin/gaussian/sawtooth produce richer textures", "status": "integrated"},
+      {"id": "REF-R005", "topic": "Game VFX particle systems", "findings": "4 presets: fire, explosion, sparkle, smoke", "status": "integrated"},
+      {"id": "REF-R006", "topic": "Commercial sprite sheet standards", "findings": "JSON metadata with rect/duration/loop for Unity/Godot", "status": "integrated"},
+      {"id": "REF-R007", "topic": "itch.io pixel art asset standards", "findings": "16-64px tiles, 4-16 color palettes, horizontal spritesheets", "status": "integrated"},
+      {"id": "REF-R008", "topic": "Mathematical animation easing functions", "findings": "Bezier curves, spring physics, critically damped oscillators", "status": "partially_integrated"}
+    ]
+  },
+
+  "completed_changes": {
+    "description": "Code changes already made. Do NOT redo these.",
+    "SESSION-018": [
+      {"change": "Evaluator rewrite: 12 metrics (7 new pixel-art-specific)", "file": "mathart/evaluator/evaluator.py"},
+      {"change": "Pipeline fix: reference/palette now passed to evaluator", "file": "mathart/pipeline.py"},
+      {"change": "Pipeline: GIF export for animations", "file": "mathart/pipeline.py"},
+      {"change": "Pipeline: commercial sprite sheet metadata", "file": "mathart/pipeline.py"},
+      {"change": "Pipeline: fixed gem/star default radii", "file": "mathart/pipeline.py"},
+      {"change": "CPPN: create_enriched() with hidden layers", "file": "mathart/evolution/cppn.py"},
+      {"change": "CPPN: 70% enriched initial population in MAP-Elites", "file": "mathart/evolution/cppn.py"},
+      {"change": "New module: 2D particle system (Verlet)", "file": "mathart/animation/particles.py"},
+      {"change": "New module: cage deformation (MVC)", "file": "mathart/animation/cage_deform.py"},
+      {"change": "Knowledge: 12 rules in rules.json", "file": "knowledge/rules.json"},
+      {"change": "Knowledge: 10 math models registered", "file": "knowledge/math_models.json"},
+      {"change": "Anti-duplication registry created", "file": "DEDUP_REGISTRY.json"}
+    ]
+  },
+
+  "known_stagnation_patterns": {
+    "description": "Patterns that caused wasted effort in past sessions. Avoid repeating.",
+    "patterns": [
+      {
+        "id": "STAG-001",
+        "pattern": "generator_invariant — parameter changes don't affect visual output",
+        "root_cause": "SDF shape parameters have narrow effective ranges; most of parameter space maps to same visual",
+        "fix": "Widen parameter ranges in ParameterSpace, ensure radius >= 0.25",
+        "status": "fixed_in_SESSION-018"
+      },
+      {
+        "id": "STAG-002",
+        "pattern": "evaluator_too_lenient — all images get high scores",
+        "root_cause": "Only 5 metrics, no palette/reference passed, skip-to-1.0 for missing data",
+        "fix": "12 metrics, default penalty for missing palette/reference, stricter thresholds",
+        "status": "fixed_in_SESSION-018"
+      },
+      {
+        "id": "STAG-003",
+        "pattern": "CPPN produces only gradients",
+        "root_cause": "Minimal topology (input->output) too simple",
+        "fix": "create_enriched() with 2-4 hidden nodes and diverse activations",
+        "status": "fixed_in_SESSION-018"
+      },
+      {
+        "id": "STAG-004",
+        "pattern": "Knowledge base empty — rules and models not registered",
+        "root_cause": "No one populated knowledge/rules.json and math_models.json",
+        "fix": "Populated with 12 rules and 10 models",
+        "status": "fixed_in_SESSION-018"
+      },
+      {
+        "id": "STAG-005",
+        "pattern": "Repeated research on same topics across sessions",
+        "root_cause": "No dedup registry, no record of absorbed references",
+        "fix": "DEDUP_REGISTRY.json tracks all absorbed references",
+        "status": "fixed_in_SESSION-018"
+      }
+    ]
+  },
+
+  "session_efficiency_rules": {
+    "description": "Rules for future sessions to avoid wasted effort.",
+    "rules": [
+      "RULE-1: Read DEDUP_REGISTRY.json BEFORE starting any research",
+      "RULE-2: Read SESSION_HANDOFF.md for current state and priorities",
+      "RULE-3: Check STAGNATION_LOG.md for known failure patterns",
+      "RULE-4: Do NOT re-research any topic listed in absorbed_references",
+      "RULE-5: Do NOT re-implement any change listed in completed_changes",
+      "RULE-6: When adding new research, append to absorbed_references",
+      "RULE-7: When making code changes, append to completed_changes",
+      "RULE-8: Run evaluator test on sample images to verify changes work",
+      "RULE-9: If evolution stagnates, check known_stagnation_patterns first",
+      "RULE-10: Always update SESSION_HANDOFF.md and PROJECT_BRAIN.json before ending"
+    ]
+  }
+}

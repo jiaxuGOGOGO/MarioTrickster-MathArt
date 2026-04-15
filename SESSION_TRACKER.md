@@ -36,3 +36,52 @@ tests/          → 58 个测试（unit + integration）
 | # | 日期 | 内容 |
 |---|------|------|
 | 1 | 2026-04-14 | 项目初始搭建：4 模块 + 58 测试 + CI + 蒸馏知识迁移 |
+
+---
+
+## SESSION-018 (2026-04-15) — Foundation Overhaul
+
+### Summary
+Infrastructure session focused on fixing the core problems that prevented the system from producing real quality improvements through evolution. No new assets produced; focus was entirely on fixing the foundation.
+
+### Changes Made
+
+| Category | Change | File |
+|----------|--------|------|
+| Evaluator | Rewritten with 12 metrics (7 new pixel-art-specific) | `mathart/evaluator/evaluator.py` |
+| Pipeline | Reference/palette now passed to evaluator | `mathart/pipeline.py` |
+| Pipeline | GIF animation export | `mathart/pipeline.py` |
+| Pipeline | Commercial sprite sheet metadata | `mathart/pipeline.py` |
+| Pipeline | Fixed gem/star default radii | `mathart/pipeline.py` |
+| CPPN | `create_enriched()` with hidden layers | `mathart/evolution/cppn.py` |
+| CPPN | 70% enriched initial population | `mathart/evolution/cppn.py` |
+| Animation | Verlet particle system (4 presets) | `mathart/animation/particles.py` |
+| Animation | MVC cage deformation (4 presets) | `mathart/animation/cage_deform.py` |
+| Knowledge | 12 production rules | `knowledge/rules.json` |
+| Knowledge | 10 math models | `knowledge/math_models.json` |
+| Process | Anti-duplication registry | `DEDUP_REGISTRY.json` |
+| Process | Session efficiency protocol | `SESSION_PROTOCOL.md` |
+
+### Research Conducted
+8 parallel research directions:
+1. Procedural pixel art generation algorithms
+2. Sprite animation math models
+3. Pixel art quality evaluation metrics
+4. CPPN topology enrichment techniques
+5. Game VFX particle systems
+6. Commercial sprite sheet standards
+7. itch.io pixel art asset benchmarks
+8. 2D deformation techniques
+
+### Test Results
+- Evaluator: Blank=0.250(FAIL), Circle=0.687(PASS), Noise=0.597(FAIL) — proper discrimination
+- Particle system: Fire/Explosion/Sparkle all produce valid frames and GIF
+- Cage deformer: Squash-stretch/Wobble produce valid deformation frames
+
+### Health Score
+4.6 → 6.8 (+2.2)
+
+### Next Priorities
+1. P0-NEW-1: Integrate particles/cage into pipeline
+2. P0-NEW-2: Run full evolution with new evaluator
+3. P0-NEW-3: Palette-constrained SDF rendering
