@@ -1,10 +1,10 @@
 {
-  "version": "0.6.0",
-  "last_session_id": "SESSION-005",
-  "last_updated": "2026-04-14T16:35:53Z",
+  "version": "0.7.0",
+  "last_session_id": "SESSION-006",
+  "last_updated": "2026-04-15T12:00:00Z",
   "best_quality_score": 0.0,
   "total_iterations": 0,
-  "distill_session_id": "DISTILL-004",
+  "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
   "knowledge_rule_count": 6,
@@ -16,6 +16,8 @@
       "priority": "high",
       "depends_on": [],
       "created_at": "2026-04-14T16:35:53Z",
+      "status": "mostly_done",
+      "notes": "3 of 4 checkpoints integrated (pre/post/iteration_end). mid_generation not invoked because current generator is single-step. Bug fixed: _try_widen_space now correctly accesses optimizer.space.",
       "context": {
         "file": "mathart/evolution/inner_loop.py"
       }
@@ -26,7 +28,12 @@
       "priority": "high",
       "depends_on": [],
       "created_at": "2026-04-14T16:35:53Z",
-      "context": {}
+      "status": "done",
+      "completed_at": "2026-04-15T12:00:00Z",
+      "notes": "Implemented: add-sprite, add-sheet, sprites commands. 9 new tests.",
+      "context": {
+        "file": "mathart/evolution/cli.py"
+      }
     },
     {
       "task_id": "TASK-003",
@@ -103,6 +110,24 @@
       "best_score": 0.0,
       "test_count": 371,
       "notes": "Major architecture upgrade: self-evolving brain system fully operational"
+    },
+    {
+      "session_id": "SESSION-006",
+      "timestamp": "2026-04-15T12:00:00Z",
+      "version": "0.7.0",
+      "changes": [
+        "TASK-002 DONE: Added mathart-evolve add-sprite CLI command",
+        "TASK-002 DONE: Added mathart-evolve add-sheet CLI command (spritesheet auto-cut)",
+        "TASK-002 DONE: Added mathart-evolve sprites CLI command (library status)",
+        "BUG FIX: _try_widen_space() now correctly accesses optimizer.space (was optimizer._space)",
+        "TASK-001 PROGRESS: 3/4 checkpoints integrated; mid_generation deferred (single-step generator)",
+        "Added 9 new tests (test_cli_sprite.py): CLI add-sprite, add-sheet, sprites, widen-space fix",
+        "Updated README test count: 371 -> 380",
+        "Total: 380 tests passing, 0 failures"
+      ],
+      "best_score": 0.0,
+      "test_count": 380,
+      "notes": "TASK-002 complete, TASK-001 bug fix, CLI sprite workflow operational"
     }
   ],
   "custom_notes": {}

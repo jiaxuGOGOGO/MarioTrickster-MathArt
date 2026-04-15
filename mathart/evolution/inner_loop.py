@@ -456,7 +456,7 @@ class InnerLoopRunner:
         new regions. This avoids stopping iteration.
         """
         try:
-            space = optimizer._space
+            space = optimizer.space
             for name, constraint in space.constraints.items():
                 if constraint.min_value is not None and constraint.max_value is not None:
                     span = constraint.max_value - constraint.min_value

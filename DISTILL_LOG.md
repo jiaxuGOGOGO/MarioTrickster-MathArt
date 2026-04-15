@@ -124,3 +124,27 @@
 ---
 
 *下一次蒸馏将从 [DISTILL-005] 继续追加...*
+
+## [DISTILL-005] SESSION-006 Bug 修复 + CLI Sprite 工作流 — 2026-04-15
+
+**来源**：SESSION_HANDOFF.md 待办任务 TASK-001 / TASK-002
+
+**蒸馏内容**：
+- 修复 `_try_widen_space()` 中 `optimizer._space` → `optimizer.space` 的属性名 Bug（自主模式停滞恢复从未生效）
+- 实现 TASK-002：完整的 Sprite 参考图 CLI 上传工作流
+
+**代码改动**：
+- `mathart/evolution/inner_loop.py` — 修复 `_try_widen_space()` 属性引用
+- `mathart/evolution/cli.py` — 新增 `add-sprite`、`add-sheet`、`sprites` 三个子命令
+- `tests/test_cli_sprite.py` — 新增 9 个测试（CLI 功能 + Bug 修复验证）
+- `README.md` — 测试数量更新 371 → 380
+- `PROJECT_BRAIN.json` — SESSION-006 记录
+- `SESSION_HANDOFF.md` — 更新待办状态
+
+**测试**：380 个测试全部通过
+
+**版本**：v0.6.0 → v0.7.0
+
+---
+
+*下一次蒸馏将从 [DISTILL-006] 继续追加...*
