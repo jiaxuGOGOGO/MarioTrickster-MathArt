@@ -50,7 +50,8 @@
     ],
     "research_session_026": [
       {"id": "REF-R026-001", "topic": "Precision parallel research protocol for project upgrades", "findings": "External research should trigger only when it unlocks a concrete implementation or evaluation decision. Query lattices, source ranking, stop conditions, and write-back notes reduce duplicate searching and improve implementation relevance.", "status": "integrated", "note_file": "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md"},
-      {"id": "REF-R026-002", "topic": "Repository-local plus skill-based protocol reuse", "findings": "Keeping both a repo-local protocol file and a validated reusable skill gives future sessions a stable default search workflow inside and outside the repository.", "status": "integrated", "note_file": "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md"}
+      {"id": "REF-R026-002", "topic": "Repository-local plus skill-based protocol reuse", "findings": "Keeping both a repo-local protocol file and a validated reusable skill gives future sessions a stable default search workflow inside and outside the repository.", "status": "integrated", "note_file": "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md"},
+      {"id": "REF-R026-003", "topic": "Explicit trigger vocabulary for protocol activation", "findings": "Standard phrases, soft/hard trigger semantics, and paraphrase tolerance reduce ambiguity and let users invoke high-quality research mode faster without depending on exact wording.", "status": "integrated", "note_file": "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md"}
     ]
   },
 
@@ -118,7 +119,8 @@
     "SESSION-026": [
       {"change": "Repository-level precision parallel research protocol added", "files": ["PRECISION_PARALLEL_RESEARCH_PROTOCOL.md", "SESSION_PROTOCOL.md"]},
       {"change": "Future-session handoff and machine state updated to reference the new protocol by default", "files": ["SESSION_HANDOFF.md", "PROJECT_BRAIN.json"]},
-      {"change": "Dedup registry updated so protocol design work is not rediscovered in later sessions", "file": "DEDUP_REGISTRY.json"}
+      {"change": "Dedup registry updated so protocol design work is not rediscovered in later sessions", "file": "DEDUP_REGISTRY.json"},
+      {"change": "Explicit protocol trigger vocabulary standardized across protocol and state files", "files": ["PRECISION_PARALLEL_RESEARCH_PROTOCOL.md", "SESSION_PROTOCOL.md", "SESSION_HANDOFF.md", "PROJECT_BRAIN.json"]}
     ]
   },
 

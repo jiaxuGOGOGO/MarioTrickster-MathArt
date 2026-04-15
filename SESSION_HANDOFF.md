@@ -42,6 +42,19 @@ It defines **when research should trigger**, how to frame the missing decision, 
 
 This makes the research mechanism part of the project’s **default operating model**, not a one-off note.
 
+### P0-PROTOCOL-026D: Explicit Trigger Vocabulary Added
+
+The protocol now has **standard trigger phrases** so future conversations can invoke it with less ambiguity. These phrases do not replace automatic triggering, but they create a stable user-facing vocabulary for faster activation.
+
+| Trigger Class | Standard Phrase | Meaning |
+|---------------|-----------------|---------|
+| **standard** | **启动精准并行研究协议** | Start the protocol immediately |
+| **soft** | **优先启用精准并行研究协议** | Strongly prefer research-first, but allow implementation if the next step is already obvious |
+| **hard** | **本轮禁止直接开做，必须先启动精准并行研究协议** | Require protocol-guided research before coding |
+| **full command** | **启动精准并行研究协议：围绕当前差距做去重并行搜索，只保留能直接指导 MarioTrickster-MathArt 落地升级的高价值资料。** | Project-standard full invocation sentence |
+
+This means future sessions can now be triggered by either **automatic need detection** or **explicit standard wording**.
+
 ### P0-PROTOCOL-026C: Reusable Skill Validated for Cross-Session Reuse
 
 A reusable skill was created and validated at:
@@ -62,6 +75,7 @@ No runtime code was changed in SESSION-026. The last verified code baseline rema
 | **PROCESS** | Main session protocol updated with trigger rules | `SESSION_PROTOCOL.md` | Makes the protocol automatic when research is truly needed |
 | **STATE** | Handoff and machine memory refreshed | `SESSION_HANDOFF.md`, `PROJECT_BRAIN.json` | Future sessions can enter with clearer context and less duplicate effort |
 | **DEDUP** | Long-term anti-repeat memory extended | `DEDUP_REGISTRY.json` | Prevents future sessions from rediscovering the same protocol design work |
+| **VOCABULARY** | Explicit trigger wording added for the protocol | `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`, `SESSION_PROTOCOL.md` | Makes user-driven activation faster and less ambiguous |
 
 ## Validation Results
 
@@ -208,12 +222,13 @@ The new improvement in SESSION-026 is that the project now also has a **default 
 3. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` third whenever the work may need external references.**
 4. Read `PROJECT_BRAIN.json`, `research_notes_session025.md`, and this handoff before coding.
 5. Do **not** launch another broad external research sweep unless a new subsystem focus is chosen or the precision protocol explicitly justifies it.
-6. If the goal is better final character art quality, start with **P1-NEW-9B** or **P1-NEW-10**, not another packaging-only change.
-7. If the goal is end-to-end production usefulness, start with **P1-NEW-1**, **P1-NEW-7**, or **P1-NEW-6**.
-8. If motion/material quality is the next focus, start with **P1-2**, **P1-NEW-3**, or **P1-NEW-2**.
-9. If the session starts to drift toward vague or repetitive iteration, trigger the precision protocol before searching broadly.
-10. Always update this file and `PROJECT_BRAIN.json` before ending.
-11. Preserve new scoring heuristics, benchmark schemas, harvested references, and protocol improvements in dedicated notes rather than re-harvesting the same material later.
+6. If the user uses standard trigger wording such as **启动精准并行研究协议**, **优先启用精准并行研究协议**, or **本轮禁止直接开做，必须先启动精准并行研究协议**, treat it as an immediate protocol trigger.
+7. If the goal is better final character art quality, start with **P1-NEW-9B** or **P1-NEW-10**, not another packaging-only change.
+8. If the goal is end-to-end production usefulness, start with **P1-NEW-1**, **P1-NEW-7**, or **P1-NEW-6**.
+9. If motion/material quality is the next focus, start with **P1-2**, **P1-NEW-3**, or **P1-NEW-2**.
+10. If the session starts to drift toward vague or repetitive iteration, trigger the precision protocol before searching broadly.
+11. Always update this file and `PROJECT_BRAIN.json` before ending.
+12. Preserve new scoring heuristics, benchmark schemas, harvested references, and protocol improvements in dedicated notes rather than re-harvesting the same material later.
 
 ## Quick Start
 

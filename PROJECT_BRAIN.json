@@ -27,6 +27,19 @@
       "The session risks becoming superficial, repetitive, or formal without new ideas",
       "A multi-session gap needs stronger benchmarks, implementation references, or production standards"
     ],
+    "explicit_trigger_phrases": {
+      "standard": "启动精准并行研究协议",
+      "gap_focused": "围绕当前最大差距做去重并行搜索",
+      "feature_focused": "针对这个功能做精准并行参考全网信息",
+      "anti_drift": "如果你判断当前升级可能流于形式，立即启动研究协议",
+      "research_first": "先按研究协议补足参考，再开始实现",
+      "dedup_focused": "按去重机制并行搜索，不要重复已有资料",
+      "landing_focused": "只收集能直接指导项目落地实现的资料",
+      "soft_trigger": "优先启用精准并行研究协议",
+      "hard_trigger": "本轮禁止直接开做，必须先启动精准并行研究协议",
+      "full_standard_command": "启动精准并行研究协议：围绕当前差距做去重并行搜索，只保留能直接指导 MarioTrickster-MathArt 落地升级的高价值资料。"
+    },
+    "phrase_interpretation_rule": "Close paraphrases should count as valid triggers when the intent is clearly precise, parallel, dedup-aware, implementation-relevant research.",
     "stop_when": [
       "Two or more strong sources support the same practical conclusion",
       "New results are mostly duplicates or weaker restatements",
@@ -270,8 +283,8 @@
     "new_artifacts": [
       "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md: repository-level default protocol for precise, parallel, dedup-aware external research",
       "SESSION_PROTOCOL.md: updated trigger rules and workflow integration for the new protocol",
-      "SESSION_HANDOFF.md: refreshed reading order, priorities, and protocol-aware next-session guidance",
-      "PROJECT_BRAIN.json: refreshed machine-readable state with protocol triggers and reference entrypoints"
+      "SESSION_HANDOFF.md: refreshed reading order, priorities, protocol-aware next-session guidance, and explicit trigger wording",
+      "PROJECT_BRAIN.json: refreshed machine-readable state with protocol triggers, explicit trigger phrases, and reference entrypoints"
     ],
     "workflow_improvements": {
       "default_trigger": "Future sessions now automatically invoke the precision protocol when blocked by missing external knowledge or when broad research is explicitly requested.",

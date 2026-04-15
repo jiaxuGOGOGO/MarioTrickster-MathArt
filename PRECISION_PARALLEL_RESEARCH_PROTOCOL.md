@@ -12,6 +12,53 @@ Trigger this protocol whenever one of the following is true:
 4. A gap remains open across sessions and would benefit from benchmark-quality references, practical implementation examples, or production standards.
 5. The system needs to compare multiple independent candidate directions and cannot rely on one article or one repository.
 
+## Explicit Trigger Phrases
+
+This protocol does **not** require a magic phrase to work. It may trigger automatically when the session is clearly blocked by missing outside knowledge.
+
+However, to reduce ambiguity and make future conversations faster, the following trigger vocabulary is now treated as **project-standard phrasing**.
+
+| Trigger Type | Meaning | Recommended Phrase |
+|------|---------|--------------------|
+| **standard** | Start the protocol immediately for the current bottleneck | **启动精准并行研究协议** |
+| **gap-focused** | Research only the highest-priority current gap | **围绕当前最大差距做去重并行搜索** |
+| **feature-focused** | Research references for a specific feature before implementation | **针对这个功能做精准并行参考全网信息** |
+| **anti-drift** | Force research when the session risks becoming superficial | **如果你判断当前升级可能流于形式，立即启动研究协议** |
+| **research-first** | Do research before implementation begins | **先按研究协议补足参考，再开始实现** |
+| **dedup-focused** | Emphasize non-duplicate source harvesting | **按去重机制并行搜索，不要重复已有资料** |
+| **landing-focused** | Keep only implementation-relevant sources | **只收集能直接指导项目落地实现的资料** |
+
+## Standard Invocation Sentence
+
+When the user wants one reliable sentence that strongly triggers the workflow, prefer this project-standard command:
+
+> **启动精准并行研究协议：围绕当前差距做去重并行搜索，只保留能直接指导 MarioTrickster-MathArt 落地升级的高价值资料。**
+
+## Soft vs. Hard Trigger Semantics
+
+| Trigger Strength | Meaning | Recommended Phrase |
+|------|---------|--------------------|
+| **soft trigger** | Prefer protocol-first research, but allow implementation if the missing knowledge is already small and clear | **优先启用精准并行研究协议** |
+| **hard trigger** | Do not implement first; research must happen before coding or major design changes | **本轮禁止直接开做，必须先启动精准并行研究协议** |
+
+If a user gives a **hard trigger**, the session should treat research as the immediate next step unless a safety or feasibility issue prevents it.
+
+If a user gives a **soft trigger**, the session should bias strongly toward research but may skip a broad sweep if project memory already makes the next implementation step obvious.
+
+If no explicit phrase is given, automatic trigger logic still applies.
+
+## Phrase Interpretation Rule
+
+Treat close paraphrases as valid triggers. The exact wording does not need to match character-for-character as long as the user's intent is clearly one of the following:
+
+1. Search broadly but precisely.
+2. Search in parallel across multiple source types or subtopics.
+3. Avoid duplicate research.
+4. Gather implementation-relevant references before coding.
+5. Prevent shallow iteration by introducing stronger outside evidence.
+
+When such intent is clear, activate this protocol even if the user does not use the exact standard phrases above.
+
 ## Pre-Research Memory Check
 
 Before any broad search, read and respect these files:

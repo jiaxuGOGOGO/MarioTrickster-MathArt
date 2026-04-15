@@ -27,6 +27,33 @@ When triggered, follow `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` before starting
 
 If available in the environment, also load the reusable skill at `/home/ubuntu/skills/mathart-precision-research/SKILL.md` to reuse the same workflow outside this repository.
 
+## Explicit Trigger Vocabulary
+
+The protocol can still trigger automatically, but the following phrases are now treated as **standard project trigger wording** and should be recognized directly in future conversations.
+
+| Type | Meaning | Standard Phrase |
+|------|---------|-----------------|
+| **standard** | Start the protocol immediately | **启动精准并行研究协议** |
+| **gap-focused** | Research the highest-priority gap first | **围绕当前最大差距做去重并行搜索** |
+| **feature-focused** | Research a specific feature before implementing it | **针对这个功能做精准并行参考全网信息** |
+| **anti-drift** | Force research when the session may become superficial | **如果你判断当前升级可能流于形式，立即启动研究协议** |
+| **research-first** | Research before implementation | **先按研究协议补足参考，再开始实现** |
+| **dedup-focused** | Emphasize avoiding duplicate sources | **按去重机制并行搜索，不要重复已有资料** |
+| **landing-focused** | Keep only implementation-relevant sources | **只收集能直接指导项目落地实现的资料** |
+
+### Soft vs. Hard Trigger Rule
+
+| Strength | Meaning | Standard Phrase |
+|------|---------|-----------------|
+| **soft** | Prefer protocol-first research, but allow direct implementation if memory already makes the next step obvious | **优先启用精准并行研究协议** |
+| **hard** | Do not implement first; protocol-guided research must happen before coding or major design changes | **本轮禁止直接开做，必须先启动精准并行研究协议** |
+
+Treat close paraphrases as valid triggers whenever the user intent is clearly to do precise, parallel, non-duplicate, implementation-relevant research.
+
+The default standard command for future sessions is:
+
+> **启动精准并行研究协议：围绕当前差距做去重并行搜索，只保留能直接指导 MarioTrickster-MathArt 落地升级的高价值资料。**
+
 ## External Research Guardrails
 
 Before any broad search:
