@@ -1,25 +1,25 @@
 {
-  "version": "0.16.1",
-  "last_session_id": "SESSION-022",
-  "last_updated": "2026-04-15T14:17:34Z",
+  "version": "0.17.0",
+  "last_session_id": "SESSION-023",
+  "last_updated": "2026-04-15T14:31:31Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "491/491 = 100%",
+  "validation_pass_rate": "492/492 = 100%",
   "total_iterations": 500,
-  "total_code_lines": 31145,
+  "total_code_lines": 31450,
   "distill_session_id": "DISTILL-004",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
   "knowledge_rule_count": 12,
   "math_model_count": 10,
-  "project_health_score": 9.0,
+  "project_health_score": 9.1,
   "pending_tasks": [
     {
-      "id": "P1-NEW-9",
+      "id": "P1-NEW-9B",
       "priority": "P1",
-      "title": "Character evolution / search loop",
+      "title": "Character evolution 2.0",
       "status": "TODO",
       "estimated_effort": "high",
-      "description": "Add evaluator-guided search over character anatomy ratios, palette variants, silhouette quality, motion curves, and preset/style mutations so character packs can improve iteratively instead of remaining preset-driven."
+      "description": "Extend the new baseline character search with silhouette readability, pose clarity, state distinction, diversity preservation, stagnation recovery, and richer anatomy/style mutation spaces."
     },
     {
       "id": "P1-NEW-1",
@@ -30,20 +30,20 @@
       "description": "WFC module (level/wfc.py) exists and imports correctly. Need to add produce_level() method to AssetPipeline and integrate outputs into asset packs."
     },
     {
+      "id": "P1-NEW-7",
+      "priority": "P1",
+      "title": "Export pipeline integration",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "AssetExporter exists but is not yet a first-class end-to-end stage in produce_asset_pack()."
+    },
+    {
       "id": "P1-NEW-6",
       "priority": "P1",
       "title": "Shader pipeline integration",
       "status": "TODO",
       "estimated_effort": "medium",
       "description": "ShaderCodeGenerator exists but still needs a first-class produce_shader() path in AssetPipeline."
-    },
-    {
-      "id": "P1-NEW-7",
-      "priority": "P1",
-      "title": "Export pipeline integration",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "AssetExporter exists but is not yet a first-class end-to-end stage in produce_asset_pack()."
     },
     {
       "id": "P1-2",
@@ -54,14 +54,6 @@
       "description": "Each frame should support different SDF parameters for true shape animation rather than only transform-based playback."
     },
     {
-      "id": "P1-NEW-2",
-      "priority": "P1",
-      "title": "Reaction-diffusion textures",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Add Gray-Scott reaction-diffusion for organic textures such as coral, lichen, and biological growth patterns."
-    },
-    {
       "id": "P1-NEW-3",
       "priority": "P1",
       "title": "Spring-based secondary animation",
@@ -70,12 +62,28 @@
       "description": "Add critically damped spring dynamics for follow-through and overlapping action in characters and VFX."
     },
     {
+      "id": "P1-NEW-2",
+      "priority": "P1",
+      "title": "Reaction-diffusion textures",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Add Gray-Scott reaction-diffusion for organic textures such as coral, lichen, and biological growth patterns."
+    },
+    {
       "id": "P1-NEW-8",
       "priority": "P1",
       "title": "Quality checkpoint mid-generation",
       "status": "TODO",
       "estimated_effort": "low",
-      "description": "Wire ArtMathQualityController mid_generation checkpoint into longer searches."
+      "description": "Wire ArtMathQualityController mid-generation checkpoint into longer searches."
+    },
+    {
+      "id": "P1-NEW-10",
+      "priority": "P1",
+      "title": "Production benchmark asset suite",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Create benchmark characters, tiles, VFX and acceptance thresholds so future evolution is judged against production-like targets rather than only generic quality metrics."
     },
     {
       "id": "P2-1",
@@ -151,7 +159,7 @@
     {
       "id": "P3-6",
       "priority": "P3",
-      "title": "README update for SESSION-018~022 features",
+      "title": "README update for SESSION-018~023 features",
       "status": "TODO",
       "estimated_effort": "low"
     }
@@ -181,7 +189,11 @@
     {"id": "P0-HARDEN-1", "title": "Character renderer NumPy dilation fallback", "completed_in": "SESSION-022"},
     {"id": "P0-HARDEN-2", "title": "Cross-session duplicate-work session guard", "completed_in": "SESSION-022"},
     {"id": "P0-HARDEN-3", "title": "Evaluator no-palette neutral skip fix", "completed_in": "SESSION-022"},
-    {"id": "VALIDATION-022", "title": "Full repository validation (491/491 pass)", "completed_in": "SESSION-022"}
+    {"id": "VALIDATION-022", "title": "Full repository validation (491/491 pass)", "completed_in": "SESSION-022"},
+    {"id": "P1-NEW-9A", "title": "Baseline character evolution search", "completed_in": "SESSION-023"},
+    {"id": "P0-HARDEN-4", "title": "Palette adherence compatibility fix for character evolution", "completed_in": "SESSION-023"},
+    {"id": "TEST-023", "title": "Character evolution pipeline coverage", "completed_in": "SESSION-023"},
+    {"id": "VALIDATION-023", "title": "Full repository validation (492/492 pass)", "completed_in": "SESSION-023"}
   ],
   "capability_gaps": [
     "RESOLVED-S018: Evaluator too lenient -> 12-metric evaluator with strict thresholds",
@@ -202,12 +214,14 @@
     "RESOLVED-S022: Character renderer disconnected from pipeline -> produce_character_pack() + produce_asset_pack() character integration",
     "RESOLVED-S022: No multi-state character packaging -> multi-state sheets/GIFs/atlas/manifest export",
     "RESOLVED-S022: Repeated session duplication risk -> session fingerprint guard added",
-    "REMAINING: No evaluator-guided character evolution loop",
+    "RESOLVED-S023: No character search path before export -> baseline character evolution search added to produce_character_pack()",
+    "REMAINING: Character evolution still lacks stronger character-specific objective metrics and diversity/stagnation handling",
     "REMAINING: WFC tilemap not first-class in AssetPipeline",
     "REMAINING: Shader/Export modules not first-class in AssetPipeline",
     "REMAINING: No per-frame SDF parameter animation",
     "REMAINING: No reaction-diffusion textures",
-    "REMAINING: No spring-based secondary animation"
+    "REMAINING: No spring-based secondary animation",
+    "REMAINING: No production benchmark asset suite"
   ],
   "session_022_changes": {
     "new_features": [
@@ -231,6 +245,26 @@
       "resolved_now": "Pipeline-level character pack generation and multi-state export",
       "current_biggest_gap": "No evaluator-guided character evolution loop",
       "second_gap": "WFC/Shader/Export still under-integrated"
+    }
+  },
+  "session_023_changes": {
+    "new_features": [
+      "CharacterSpec evolution parameters for pre-export search",
+      "AssetPipeline character evolution helper methods for anatomy/style/palette candidate mutation",
+      "Character evolution JSON artifact embedded in pack outputs",
+      "Package version aligned to 0.17.0"
+    ],
+    "quality_improvements": {
+      "character_output": "Character packs are now selected through a baseline search loop rather than only preset rendering",
+      "evaluation_compatibility": "Palette adherence logic now supports Palette objects during evolution scoring",
+      "validation_tests": "492/492 full repository pass",
+      "project_health": "9.0 -> 9.1"
+    },
+    "audit_results": {
+      "biggest_gap_before": "Character packs were still preset-driven rather than evolved",
+      "resolved_now": "Baseline search-before-export loop exists for character assets",
+      "current_biggest_gap": "Character evolution still needs stronger objective metrics, diversity handling, and richer mutation spaces",
+      "second_gap": "WFC/Export/Shader still not first-class pipeline outputs"
     }
   },
   "evolution_history": [
@@ -281,6 +315,14 @@
       "best_score": 0.8674,
       "assets_produced": 0,
       "notes": "Character pack pipeline integration, multi-state character export, cross-session session guard, evaluator consistency fix, and full validation at 491/491 pass."
+    },
+    {
+      "session": "SESSION-023",
+      "date": "2026-04-15",
+      "iterations": 2,
+      "best_score": 0.8674,
+      "assets_produced": 0,
+      "notes": "Baseline character evolution search added before pack export, evaluator palette compatibility hardened, and full validation raised to 492/492 pass."
     }
   ],
   "research_references": {
@@ -321,8 +363,8 @@
     ]
   },
   "custom_notes": {
-    "key_insight": "SESSION-022 converted the character system from a disconnected renderer into a pipeline-level asset producer. The project is now materially closer to producing usable art assets, but the next decisive leap is character evolution rather than more static preset rendering.",
-    "next_session_focus": "Prefer P1-NEW-9 if the goal is better final art quality; otherwise prioritize WFC or export integration to improve downstream usefulness.",
+    "key_insight": "SESSION-023 moved character generation one step closer to true iterative art production by inserting a baseline search-before-export loop. The project is no longer blocked on character evolution existing at all; it is now blocked on making that evolution significantly smarter.",
+    "next_session_focus": "Prefer P1-NEW-9B if the goal is better final character art quality; otherwise prioritize WFC or export integration to improve downstream usefulness.",
     "anti_duplication": "READ DEDUP_REGISTRY.json BEFORE starting any work. Also use SessionGuard fingerprints before broad research or another audit pass.",
     "parameter_safety": "ALL SDF primitive calls MUST use keyword arguments. Never use positional args for circle/box/star/ring/triangle.",
     "class_name_reference": "ShaderCodeGenerator (not ShaderGenerator), LSystem (not LSystemGenerator), AssetExporter (not ExportBridge), PaletteGenerator.generate(harmony=...) (not scheme=...)."

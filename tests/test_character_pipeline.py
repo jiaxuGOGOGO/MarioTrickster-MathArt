@@ -68,6 +68,40 @@ class TestCharacterPipeline:
         assert summary_path.exists()
 
     @pytest.mark.unit
+    def test_produce_character_pack_with_evolution_exports_search_metadata(self, tmp_path: Path):
+        pipeline = AssetPipeline(output_dir=str(tmp_path), verbose=False, seed=7)
+        spec = CharacterSpec(
+            name="evolved_mario",
+            preset="mario",
+            frame_width=32,
+            frame_height=32,
+            fps=12,
+            frames_per_state=3,
+            states=["idle", "run"],
+            evolution_iterations=2,
+            evolution_population=3,
+            evolution_preview_states=["idle", "run"],
+        )
+
+        result = pipeline.produce_character_pack(spec)
+
+        assert result.evolution_history
+        assert len(result.evolution_history) == 3
+        assert result.metadata["evolution"]["enabled"] is True
+        assert result.metadata["summary"]["evolution_enabled"] is True
+        assert result.metadata["evolution"]["best_score"] >= result.metadata["evolution"]["initial_score"]
+
+        output_files = {Path(p).name for p in result.output_paths}
+        assert "evolved_mario_character_evolution.json" in output_files
+
+        evolution_path = tmp_path / "evolved_mario" / "evolved_mario_character_evolution.json"
+        evolution = json.loads(evolution_path.read_text())
+        assert evolution["iterations"] == 2
+        assert evolution["population"] == 3
+        assert len(evolution["candidates"]) == 1 + 2 * 3
+        assert "palette_hex" in evolution["best_character"]
+
+    @pytest.mark.unit
     def test_produce_character_pack_rejects_unknown_preset(self, tmp_path: Path):
         pipeline = AssetPipeline(output_dir=str(tmp_path), verbose=False)
         spec = CharacterSpec(name="bad_pack", preset="unknown")

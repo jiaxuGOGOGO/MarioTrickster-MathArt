@@ -362,9 +362,10 @@ class AssetEvaluator:
         adherent = float(np.mean(min_dists <= tolerance))
         avg_dist = float(np.mean(min_dists))
 
+        palette_size = int(pal_arr.shape[0])
         detail = (
             f"Palette adherence={adherent:.3f} "
-            f"(avg_dist={avg_dist*255:.1f}/255, palette_size={len(palette)})"
+            f"(avg_dist={avg_dist*255:.1f}/255, palette_size={palette_size})"
         )
         return MetricResult(QualityMetric.PALETTE_ADHERENCE, adherent, detail)
 

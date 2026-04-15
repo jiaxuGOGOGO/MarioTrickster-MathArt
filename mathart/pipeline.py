@@ -33,7 +33,7 @@ import json
 import math
 import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -157,6 +157,10 @@ class CharacterSpec:
     enable_outline: bool = True
     enable_lighting: bool = True
     export_palette: bool = True
+    evolution_iterations: int = 0
+    evolution_population: int = 6
+    evolution_variation_strength: float = 0.18
+    evolution_preview_states: list[str] = field(default_factory=lambda: ["idle", "run", "jump"])
 
 
 CHARACTER_ANIMATION_MAP: dict[str, Callable[[float], dict[str, float]]] = {
@@ -694,6 +698,244 @@ class AssetPipeline:
             output_paths=output_paths,
         )
 
+    def _copy_character_style(self, style: Any) -> Any:
+        return type(style)(**vars(style))
+
+    def _copy_palette(self, palette: Palette) -> Palette:
+        return Palette(
+            name=palette.name,
+            colors_oklab=np.array(palette.colors_oklab, dtype=np.float64, copy=True),
+            roles=list(palette.roles),
+            metadata=dict(palette.metadata),
+        )
+
+    def _mutate_character_style(
+        self,
+        style: Any,
+        rng: np.random.Generator,
+        strength: float,
+    ) -> Any:
+        mutated = self._copy_character_style(style)
+
+        def jitter(value: float, scale: float, low: float, high: float) -> float:
+            return float(np.clip(value + rng.normal(0.0, scale * strength), low, high))
+
+        mutated.head_radius = jitter(style.head_radius, 0.08, 0.26, 0.52)
+        mutated.torso_width = jitter(style.torso_width, 0.07, 0.16, 0.36)
+        mutated.torso_height = jitter(style.torso_height, 0.07, 0.12, 0.30)
+        mutated.arm_thickness = jitter(style.arm_thickness, 0.025, 0.04, 0.12)
+        mutated.leg_thickness = jitter(style.leg_thickness, 0.025, 0.05, 0.14)
+        mutated.hand_radius = jitter(style.hand_radius, 0.02, 0.03, 0.09)
+        mutated.foot_width = jitter(style.foot_width, 0.03, 0.05, 0.16)
+        mutated.foot_height = jitter(style.foot_height, 0.018, 0.025, 0.09)
+        mutated.outline_width = jitter(style.outline_width, 0.02, 0.02, 0.07)
+        mutated.light_angle = jitter(style.light_angle, 0.35, -1.5, 1.5)
+
+        if rng.random() < 0.35 * max(strength, 0.05):
+            mutated.eye_style = str(rng.choice(["dot", "oval", "wide"]))
+        if mutated.has_hat and rng.random() < 0.25 * max(strength, 0.05):
+            mutated.hat_style = str(rng.choice(["cap", "top"]))
+
+        return mutated
+
+    def _mutate_palette(
+        self,
+        palette: Palette,
+        rng: np.random.Generator,
+        strength: float,
+    ) -> Palette:
+        colors = np.array(palette.colors_oklab, dtype=np.float64, copy=True)
+        noise = np.stack([
+            rng.normal(0.0, 0.035 * strength, len(colors)),
+            rng.normal(0.0, 0.025 * strength, len(colors)),
+            rng.normal(0.0, 0.025 * strength, len(colors)),
+        ], axis=-1)
+        colors += noise
+        colors[:, 0] = np.clip(colors[:, 0], 0.15, 0.92)
+
+        for idx, role in enumerate(palette.roles):
+            role_l = role.lower()
+            if "outline" in role_l:
+                colors[idx, 0] = min(colors[idx, 0], 0.22)
+                colors[idx, 1:] *= 0.75
+            elif "skin" in role_l:
+                colors[idx, 0] = np.clip(colors[idx, 0], 0.55, 0.88)
+
+        metadata = dict(palette.metadata)
+        metadata["mutated_from"] = palette.name
+        metadata["variation_strength"] = float(strength)
+        return Palette(
+            name=f"{palette.name}_variant",
+            colors_oklab=colors,
+            roles=list(palette.roles),
+            metadata=metadata,
+        )
+
+    def _score_character_candidate(
+        self,
+        char_spec: CharacterSpec,
+        style: Any,
+        palette: Palette,
+    ) -> dict[str, Any]:
+        preview_states = [
+            state for state in char_spec.evolution_preview_states
+            if state in char_spec.states and state in CHARACTER_ANIMATION_MAP
+        ]
+        if not preview_states:
+            preview_states = [s for s in char_spec.states if s in CHARACTER_ANIMATION_MAP][:3]
+
+        frame_scores: list[float] = []
+        motion_scores: list[float] = []
+        coverage_scores: list[float] = []
+
+        for state in preview_states:
+            anim_func = CHARACTER_ANIMATION_MAP[state]
+            frame_count = max(2, min(4, int(char_spec.state_frames.get(state, char_spec.frames_per_state))))
+            prev_alpha: Optional[np.ndarray] = None
+            state_motion: list[float] = []
+            state_coverage: list[float] = []
+
+            for i in range(frame_count):
+                t = i / max(frame_count - 1, 1)
+                skeleton = Skeleton.create_humanoid(head_units=char_spec.head_units)
+                frame = render_character_frame(
+                    skeleton,
+                    anim_func(t),
+                    style,
+                    width=char_spec.frame_width,
+                    height=char_spec.frame_height,
+                    palette=palette,
+                    enable_dither=char_spec.enable_dither,
+                    enable_outline=char_spec.enable_outline,
+                    enable_lighting=char_spec.enable_lighting,
+                )
+                eval_result = self.evaluator.evaluate(frame, palette=palette)
+                frame_scores.append(float(eval_result.overall_score))
+
+                alpha = np.asarray(frame.getchannel("A"), dtype=np.float32) / 255.0
+                state_coverage.append(float(np.mean(alpha > 0.05)))
+                if prev_alpha is not None:
+                    state_motion.append(float(np.mean(np.abs(alpha - prev_alpha))))
+                prev_alpha = alpha
+
+            mean_coverage = float(np.mean(state_coverage)) if state_coverage else 0.0
+            coverage_scores.append(max(0.0, 1.0 - min(abs(mean_coverage - 0.22) / 0.22, 1.0)))
+            motion_scores.append(min((float(np.mean(state_motion)) if state_motion else 0.0) * 6.0, 1.0))
+
+        quality_score = float(np.mean(frame_scores)) if frame_scores else 0.0
+        motion_score = float(np.mean(motion_scores)) if motion_scores else 0.0
+        coverage_score = float(np.mean(coverage_scores)) if coverage_scores else 0.0
+        total_score = 0.72 * quality_score + 0.18 * motion_score + 0.10 * coverage_score
+
+        return {
+            "score": float(total_score),
+            "quality_score": quality_score,
+            "motion_score": motion_score,
+            "coverage_score": coverage_score,
+            "preview_states": preview_states,
+        }
+
+    def _evolve_character_spec(
+        self,
+        char_spec: CharacterSpec,
+        style: Any,
+        palette: Palette,
+    ) -> tuple[CharacterSpec, Any, Palette, dict[str, Any], list[float]]:
+        rng = np.random.default_rng(self.seed)
+        best_spec = replace(char_spec)
+        best_style = self._copy_character_style(style)
+        best_palette = self._copy_palette(palette)
+        best_breakdown = self._score_character_candidate(best_spec, best_style, best_palette)
+        history = [float(best_breakdown["score"])]
+
+        candidates: list[dict[str, Any]] = [
+            {
+                "iteration": 0,
+                "rank": 0,
+                "score": float(best_breakdown["score"]),
+                "quality_score": float(best_breakdown["quality_score"]),
+                "motion_score": float(best_breakdown["motion_score"]),
+                "coverage_score": float(best_breakdown["coverage_score"]),
+                "head_units": float(best_spec.head_units),
+                "style": vars(best_style).copy(),
+                "palette_hex": best_palette.colors_hex,
+                "preview_states": list(best_breakdown["preview_states"]),
+            }
+        ]
+
+        for iteration in range(1, max(0, char_spec.evolution_iterations) + 1):
+            round_best = None
+            round_best_style = None
+            round_best_palette = None
+            round_best_spec = None
+            round_best_breakdown = None
+
+            for rank in range(max(1, char_spec.evolution_population)):
+                trial_spec = replace(
+                    best_spec,
+                    head_units=float(np.clip(
+                        best_spec.head_units + rng.normal(0.0, 0.22 * char_spec.evolution_variation_strength),
+                        2.2,
+                        3.8,
+                    )),
+                )
+                trial_style = self._mutate_character_style(
+                    best_style,
+                    rng,
+                    char_spec.evolution_variation_strength,
+                )
+                trial_palette = self._mutate_palette(
+                    best_palette,
+                    rng,
+                    char_spec.evolution_variation_strength,
+                )
+                trial_breakdown = self._score_character_candidate(trial_spec, trial_style, trial_palette)
+                trial_entry = {
+                    "iteration": iteration,
+                    "rank": rank,
+                    "score": float(trial_breakdown["score"]),
+                    "quality_score": float(trial_breakdown["quality_score"]),
+                    "motion_score": float(trial_breakdown["motion_score"]),
+                    "coverage_score": float(trial_breakdown["coverage_score"]),
+                    "head_units": float(trial_spec.head_units),
+                    "style": vars(trial_style).copy(),
+                    "palette_hex": trial_palette.colors_hex,
+                    "preview_states": list(trial_breakdown["preview_states"]),
+                }
+                candidates.append(trial_entry)
+
+                if round_best is None or trial_breakdown["score"] > round_best_breakdown["score"]:
+                    round_best = trial_entry
+                    round_best_spec = trial_spec
+                    round_best_style = trial_style
+                    round_best_palette = trial_palette
+                    round_best_breakdown = trial_breakdown
+
+            if round_best_breakdown is not None and round_best_breakdown["score"] >= best_breakdown["score"]:
+                best_spec = round_best_spec
+                best_style = round_best_style
+                best_palette = round_best_palette
+                best_breakdown = round_best_breakdown
+            history.append(float(best_breakdown["score"]))
+
+        evolution_meta = {
+            "enabled": True,
+            "iterations": int(char_spec.evolution_iterations),
+            "population": int(char_spec.evolution_population),
+            "variation_strength": float(char_spec.evolution_variation_strength),
+            "preview_states": list(best_breakdown["preview_states"]),
+            "initial_score": float(candidates[0]["score"]),
+            "best_score": float(best_breakdown["score"]),
+            "history": history,
+            "best_character": {
+                "head_units": float(best_spec.head_units),
+                "style": vars(best_style).copy(),
+                "palette_hex": best_palette.colors_hex,
+            },
+            "candidates": candidates,
+        }
+        return best_spec, best_style, best_palette, evolution_meta, history
+
     def produce_character_pack(self, char_spec: CharacterSpec) -> AssetResult:
         """Produce a practical multi-state character asset pack.
 
@@ -719,6 +961,23 @@ class AssetPipeline:
         asset_dir.mkdir(parents=True, exist_ok=True)
 
         output_paths: list[str] = []
+        evolution_meta: Optional[dict[str, Any]] = None
+        evolution_history: list[float] = []
+        if char_spec.evolution_iterations > 0:
+            self._log(
+                f"Evolving character search space: iterations={char_spec.evolution_iterations}, "
+                f"population={char_spec.evolution_population}"
+            )
+            char_spec, style, palette, evolution_meta, evolution_history = self._evolve_character_spec(
+                char_spec,
+                style,
+                palette,
+            )
+            evolution_path = str(asset_dir / f"{char_spec.name}_character_evolution.json")
+            with open(evolution_path, "w") as f:
+                json.dump(evolution_meta, f, indent=2)
+            output_paths.append(evolution_path)
+
         palette_colors = [tuple(int(v) for v in row[:3]) for row in palette.colors_srgb]
 
         if char_spec.export_palette:
@@ -736,11 +995,19 @@ class AssetPipeline:
                 "head_units": char_spec.head_units,
                 "palette_size": palette.count,
                 "palette_colors": [list(c) for c in palette_colors],
+                "style": vars(style).copy(),
                 "render_flags": {
                     "dither": char_spec.enable_dither,
                     "outline": char_spec.enable_outline,
                     "lighting": char_spec.enable_lighting,
                 },
+            },
+            "evolution": evolution_meta or {
+                "enabled": False,
+                "iterations": 0,
+                "population": 0,
+                "variation_strength": 0.0,
+                "history": [],
             },
             "states": {},
         }
@@ -880,6 +1147,8 @@ class AssetPipeline:
             "average_state_score": float(np.mean(state_scores)) if state_scores else 0.0,
             "best_state_score": float(np.max(state_scores)) if state_scores else 0.0,
             "lowest_state_score": float(np.min(state_scores)) if state_scores else 0.0,
+            "evolution_iterations": int(char_spec.evolution_iterations),
+            "evolution_enabled": bool(char_spec.evolution_iterations > 0),
         }
 
         manifest_path = str(asset_dir / f"{char_spec.name}_character_manifest.json")
@@ -900,6 +1169,7 @@ class AssetPipeline:
             frames=representative_frames,
             metadata=manifest,
             score=float(np.mean(state_scores)) if state_scores else 0.0,
+            evolution_history=evolution_history,
             elapsed_seconds=elapsed,
             output_paths=output_paths,
         )
