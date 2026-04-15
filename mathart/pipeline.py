@@ -45,6 +45,7 @@ from .sdf.operations import smooth_union, smooth_subtraction, union
 from .sdf.renderer import (
     render_sdf, render_textured_sdf, render_spritesheet,
     render_sdf_layered, composite_layers, LayeredRenderResult,
+    render_textured_sdf_layered,
 )
 from .sdf.effects import spike_sdf, flame_sdf, saw_blade_sdf, glow_sdf, electric_arc_sdf
 from .oklab.palette import PaletteGenerator, Palette
@@ -421,6 +422,20 @@ class AssetPipeline:
         generator = self._build_generator(spec, palette_colors=palette_colors_for_render)
 
         # Run evolution WITH reference and palette (SESSION-018 fix)
+        # SESSION-021 (P0-NEW-9): Adaptive evolution convergence acceleration
+        # Scale patience, population, and min_delta based on shape complexity
+        # Complex shapes (star, gem) need more patience; simple shapes converge faster
+        shape_complexity = {
+            "circle": 1.0, "ring": 1.2, "coin": 1.2,
+            "box": 1.0, "triangle": 1.1,
+            "star": 1.8, "gem": 1.6,
+        }
+        complexity = shape_complexity.get(spec.shape, 1.3)
+        adaptive_patience = max(5, int(spec.evolution_iterations // 3 * complexity))
+        adaptive_pop = max(8, int(spec.population_size * (0.8 + 0.2 * complexity)))
+        # Tighter min_delta for simple shapes (converge faster), looser for complex
+        adaptive_min_delta = 0.008 / complexity
+
         runner = InnerLoopRunner(
             evaluator=AssetEvaluator(
                 palette=palette,
@@ -428,8 +443,9 @@ class AssetPipeline:
             ),
             quality_threshold=spec.quality_threshold,
             max_iterations=spec.evolution_iterations,
-            population_size=spec.population_size,
-            patience=max(5, spec.evolution_iterations // 3),
+            population_size=adaptive_pop,
+            patience=adaptive_patience,
+            min_delta=adaptive_min_delta,
             verbose=self.verbose,
             mode=RunMode.AUTONOMOUS,
             project_root=self.project_root,
@@ -1163,18 +1179,39 @@ class AssetPipeline:
                 "palette_dither": True,
             }
 
-        layered = render_sdf_layered(
-            sdf, spec.size, spec.size,
-            fill_color=(fill_r, fill_g, fill_b, 255),
-            outline_width=outline_w,
-            light_angle=light_angle,
-            ao_strength=ao_str,
-            color_ramp_levels=ramp_levels,
-            enable_lighting=True,
-            enable_ao=True,
-            enable_hue_shift=True,
-            **pal_kwargs,
-        )
+        # SESSION-021 (P0-NEW-8): Use texture-aware layered rendering
+        # when the spec has a texture style, otherwise use standard layered
+        if spec.style != "default" and spec.style in (
+            "stone", "wood", "metal", "organic", "crystal"
+        ):
+            layered = render_textured_sdf_layered(
+                sdf,
+                texture_type=spec.style,
+                width=spec.size,
+                height=spec.size,
+                fill_color=(fill_r, fill_g, fill_b, 255),
+                outline_width=outline_w,
+                light_angle=light_angle,
+                ao_strength=ao_str,
+                color_ramp_levels=ramp_levels,
+                enable_lighting=True,
+                enable_ao=True,
+                enable_hue_shift=True,
+                **pal_kwargs,
+            )
+        else:
+            layered = render_sdf_layered(
+                sdf, spec.size, spec.size,
+                fill_color=(fill_r, fill_g, fill_b, 255),
+                outline_width=outline_w,
+                light_angle=light_angle,
+                ao_strength=ao_str,
+                color_ramp_levels=ramp_levels,
+                enable_lighting=True,
+                enable_ao=True,
+                enable_hue_shift=True,
+                **pal_kwargs,
+            )
 
         # Step 3: Export layers
         if export_layers:

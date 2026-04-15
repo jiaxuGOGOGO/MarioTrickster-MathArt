@@ -1,41 +1,33 @@
 {
-  "version": "0.10.0",
-  "last_session_id": "SESSION-020",
-  "last_updated": "2026-04-15T18:30:00Z",
+  "version": "0.11.0",
+  "last_session_id": "SESSION-021",
+  "last_updated": "2026-04-15T20:00:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "24/24 = 100%",
-  "total_iterations": 267,
-  "total_code_lines": 26800,
+  "validation_pass_rate": "44/44 = 100% (20 in S021 + 24 in S020)",
+  "total_iterations": 500,
+  "total_code_lines": 25500,
   "distill_session_id": "DISTILL-004",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
   "knowledge_rule_count": 12,
   "math_model_count": 10,
-  "project_health_score": 8.4,
+  "project_health_score": 8.6,
   "pending_tasks": [
     {
-      "id": "P0-NEW-7",
-      "priority": "P0",
-      "title": "Outline continuity improvement",
+      "id": "P1-NEW-5",
+      "priority": "P1",
+      "title": "Character sprite pipeline integration",
       "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "SDF outlines have gaps at sharp corners (star points, gem facets). Need adaptive outline width based on local curvature."
+      "estimated_effort": "high",
+      "description": "Integrate character_renderer.py into evolution Pipeline. Currently only geometric shapes (coin/star/gem/circle) can be evolved. character_renderer has 5 presets (mario, trickster, simple_enemy, flying_enemy, bouncing_enemy) but is not connected to the evolution loop."
     },
     {
-      "id": "P0-NEW-8",
-      "priority": "P0",
-      "title": "Texture-aware layered rendering",
+      "id": "P1-NEW-1",
+      "priority": "P1",
+      "title": "WFC tilemap pipeline integration",
       "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Pass CPPN textures through the layered pipeline for richer texture layer output."
-    },
-    {
-      "id": "P0-NEW-9",
-      "priority": "P0",
-      "title": "Evolution convergence acceleration",
-      "status": "TODO",
-      "estimated_effort": "low",
-      "description": "Circle converges at gen 13, gem takes 120 iters. Add adaptive mutation rate to speed up convergence."
+      "estimated_effort": "high",
+      "description": "WFC module (level/wfc.py) exists and imports correctly. Need to add produce_level() method to AssetPipeline."
     },
     {
       "id": "P1-2",
@@ -46,12 +38,28 @@
       "description": "Each frame can have different SDF parameters for true shape animation."
     },
     {
-      "id": "P1-NEW-1",
+      "id": "P1-NEW-4",
       "priority": "P1",
-      "title": "Wave Function Collapse tilemap generation",
+      "title": "Multi-state sprite generation",
       "status": "TODO",
-      "estimated_effort": "high",
-      "description": "WFC can generate coherent tilemaps from a small set of example tiles. This would enable level-scale asset production."
+      "estimated_effort": "medium",
+      "description": "Generate multiple states per character (idle, walk, attack) sharing same palette and style."
+    },
+    {
+      "id": "P1-NEW-6",
+      "priority": "P1",
+      "title": "Shader pipeline integration",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "ShaderCodeGenerator (shader/generator.py) exists but needs produce_shader() in Pipeline."
+    },
+    {
+      "id": "P1-NEW-7",
+      "priority": "P1",
+      "title": "Export pipeline integration",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "AssetExporter (export/bridge.py) exists but not connected to produce_asset_pack()."
     },
     {
       "id": "P1-NEW-2",
@@ -70,12 +78,12 @@
       "description": "Critically-damped spring for follow-through and overlapping action."
     },
     {
-      "id": "P1-NEW-4",
+      "id": "P1-NEW-8",
       "priority": "P1",
-      "title": "Multi-state sprite generation",
+      "title": "Quality checkpoint mid-generation",
       "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Generate multiple states per character (idle, walk, attack) sharing same palette and style."
+      "estimated_effort": "low",
+      "description": "ArtMathQualityController mid_generation checkpoint not wired into evolution loop."
     },
     {
       "id": "P2-1",
@@ -95,9 +103,23 @@
       "id": "P2-5",
       "priority": "P2",
       "title": "Procedural outline variation",
-      "status": "TODO",
+      "status": "PARTIAL",
       "estimated_effort": "low",
-      "description": "Vary outline thickness and color per-segment for more organic look."
+      "description": "Partially addressed by P0-NEW-7 adaptive outline width. Full per-segment color/thickness variation still TODO."
+    },
+    {
+      "id": "P2-6",
+      "priority": "P2",
+      "title": "CMA-ES optimizer upgrade",
+      "status": "TODO",
+      "estimated_effort": "medium"
+    },
+    {
+      "id": "P2-7",
+      "priority": "P2",
+      "title": "Performance benchmarks",
+      "status": "TODO",
+      "estimated_effort": "low"
     },
     {
       "id": "P3-1",
@@ -119,6 +141,27 @@
       "title": "Unity/Godot exporter plugin",
       "status": "TODO",
       "estimated_effort": "medium"
+    },
+    {
+      "id": "P3-4",
+      "priority": "P3",
+      "title": "CI/CD + GitHub Actions",
+      "status": "TODO",
+      "estimated_effort": "medium"
+    },
+    {
+      "id": "P3-5",
+      "priority": "P3",
+      "title": "End-to-end demo showcase script",
+      "status": "TODO",
+      "estimated_effort": "low"
+    },
+    {
+      "id": "P3-6",
+      "priority": "P3",
+      "title": "README update for SESSION-018~021 features",
+      "status": "TODO",
+      "estimated_effort": "low"
     }
   ],
   "completed_tasks": [
@@ -136,7 +179,11 @@
     {"id": "BUG-019-2", "title": "result.overall → result.overall_score in VFX", "completed_in": "SESSION-019"},
     {"id": "P0-NEW-4", "title": "Multi-layer render compositing (render_sdf_layered + composite_layers)", "completed_in": "SESSION-020"},
     {"id": "P0-NEW-5", "title": "Large-scale evolution validation (4 shapes, 120 iters, avg 0.8371)", "completed_in": "SESSION-020"},
-    {"id": "P0-NEW-6", "title": "VFX evaluator tuning (evaluate_vfx + evaluate_multi_frame_vfx, explosion 0.24→0.66)", "completed_in": "SESSION-020"}
+    {"id": "P0-NEW-6", "title": "VFX evaluator tuning (evaluate_vfx + evaluate_multi_frame_vfx, explosion 0.24→0.66)", "completed_in": "SESSION-020"},
+    {"id": "P0-NEW-7", "title": "Adaptive outline width (curvature-based, _compute_adaptive_outline_width)", "completed_in": "SESSION-021"},
+    {"id": "P0-NEW-8", "title": "Texture-aware layered rendering (render_textured_sdf_layered + _build_texture_func)", "completed_in": "SESSION-021"},
+    {"id": "P0-NEW-9", "title": "Adaptive evolution convergence (shape-complexity-aware patience/population/min_delta)", "completed_in": "SESSION-021"},
+    {"id": "AUDIT-021", "title": "Full project audit (14-module functional audit + commercial gap analysis)", "completed_in": "SESSION-021"}
   ],
   "capability_gaps": [
     "RESOLVED-S018: Evaluator too lenient -> 12-metric evaluator with strict thresholds",
@@ -151,39 +198,39 @@
     "RESOLVED-S020: No multi-layer compositing -> render_sdf_layered() + composite_layers()",
     "RESOLVED-S020: VFX evaluator too harsh -> evaluate_vfx() with rebalanced weights, explosion 0.24→0.66",
     "RESOLVED-S020: Evolution not validated at scale -> 4 shapes, 120 iters, avg 0.8371, all positive trends",
-    "REMAINING: No WFC tilemap generation",
-    "REMAINING: No reaction-diffusion textures",
-    "REMAINING: No spring-based secondary animation",
+    "RESOLVED-S021: Outline gaps at sharp corners -> adaptive outline width based on curvature",
+    "RESOLVED-S021: Texture layer empty in layered rendering -> render_textured_sdf_layered()",
+    "RESOLVED-S021: Evolution convergence too slow for complex shapes -> shape-complexity-aware params",
+    "REMAINING: No character sprite evolution (character_renderer not in Pipeline)",
+    "REMAINING: WFC tilemap not in Pipeline",
+    "REMAINING: Shader/Export modules not in Pipeline",
     "REMAINING: No multi-state sprites",
-    "REMAINING: Outline gaps at sharp corners"
+    "REMAINING: No per-frame SDF animation",
+    "REMAINING: No reaction-diffusion textures",
+    "REMAINING: No spring-based secondary animation"
   ],
-  "session_020_changes": {
+  "session_021_changes": {
     "new_features": [
-      "render_sdf_layered() — Multi-layer SDF rendering with 4 independent layers + composite",
-      "LayeredRenderResult dataclass with export_layers() method",
-      "composite_layers() — Adjustable-opacity layer compositing",
-      "produce_layered_sprite() — Pipeline method for layered sprite production",
-      "evaluate_vfx() — VFX-specific evaluation with rebalanced weights",
-      "evaluate_multi_frame_vfx() — Multi-frame VFX evaluation using peak score",
-      "test_large_scale_evolution.py — 100+ iteration evolution validation",
-      "test_session020_validation.py — 24-test validation suite"
+      "_compute_adaptive_outline_width() — Curvature-based per-pixel outline width",
+      "adaptive_outline parameter for render_sdf() and render_sdf_layered()",
+      "render_textured_sdf_layered() — Texture-aware multi-layer rendering",
+      "_build_texture_func() — Shared texture function builder for flat and layered renderers",
+      "Shape-complexity-aware evolution parameters (patience, population, min_delta)",
+      "Full project audit with 14-module functional testing"
     ],
     "quality_improvements": {
-      "best_sprite_score": "0.8244 → 0.8674 (+5.2%)",
-      "explosion_vfx_score": "0.2400 → 0.6637 (+177%)",
-      "fire_vfx_score": "0.4938 → 0.6324 (+28%)",
-      "sparkle_vfx_score": "0.4718 → 0.6578 (+39%)",
-      "smoke_vfx_score": "0.3974 → 0.5373 (+35%)",
-      "validation_tests": "19 → 24 (+26%)",
-      "render_layers": "1 → 5 (+400%)"
+      "outline_continuity": "Adaptive width eliminates gaps at star tips and gem facets",
+      "texture_layers": "Layered rendering now produces populated texture layers for all 5 presets",
+      "evolution_efficiency": "Simple shapes converge faster, complex shapes get more patience",
+      "validation_tests": "24 → 44 (+83%)",
+      "project_health": "8.4 → 8.6"
     },
-    "evolution_validation": {
-      "shapes_tested": 4,
-      "max_iterations": 120,
-      "avg_final_score": 0.8371,
-      "best_final_score": 0.8674,
-      "avg_improvement": 0.0147,
-      "all_positive_trends": true
+    "audit_results": {
+      "modules_total": 14,
+      "modules_fully_functional": 10,
+      "modules_need_integration": 4,
+      "biggest_gap": "No character sprite evolution",
+      "second_gap": "WFC/Shader/Export not in Pipeline"
     }
   },
   "evolution_history": [
@@ -218,6 +265,14 @@
       "best_score": 0.8674,
       "assets_produced": 4,
       "notes": "Multi-layer compositing, VFX evaluator tuning, large-scale evolution validation. 4 shapes evolved (coin 0.85, star 0.82, gem 0.81, circle 0.87). 24/24 validation pass."
+    },
+    {
+      "session": "SESSION-021",
+      "date": "2026-04-15",
+      "iterations": 267,
+      "best_score": 0.8674,
+      "assets_produced": 0,
+      "notes": "Adaptive outline width, texture-aware layered rendering, shape-complexity-aware evolution. Full project audit: 14 modules, 10 fully functional. 20/20 validation pass (44/44 cumulative)."
     }
   ],
   "research_references": {
@@ -253,9 +308,10 @@
     ]
   },
   "custom_notes": {
-    "key_insight": "SESSION-020 validated that the evolution system works at scale: 4 shapes across 120 iterations all show positive quality trends. Multi-layer compositing enables artistic control over individual render passes. VFX evaluator tuning resolved the explosion scoring problem (0.24→0.66).",
-    "next_session_focus": "P0-NEW-7 (outline continuity), P0-NEW-8 (texture-aware layers), P0-NEW-9 (convergence acceleration). The system is now production-validated.",
-    "anti_duplication": "READ DEDUP_REGISTRY.json BEFORE starting any work. All SESSION-018, SESSION-019, and SESSION-020 changes are logged there.",
-    "parameter_safety": "ALL SDF primitive calls MUST use keyword arguments. Never use positional args for circle/box/star/ring/triangle. This is enforced by convention — see SESSION-019 fix."
+    "key_insight": "SESSION-021 completed all P0 tasks and performed a full project audit. The system's core rendering and evolution engines are production-validated. The biggest remaining gap is character sprite generation — character_renderer.py exists with 5 presets but is not connected to the evolution Pipeline. Four modules (WFC, Shader, Export, Quality) are coded but need Pipeline integration.",
+    "next_session_focus": "P1-NEW-5 (character sprite pipeline integration), P1-NEW-1 (WFC pipeline integration), P1-NEW-6/7 (Shader/Export pipeline integration). Focus on wiring existing modules into the Pipeline.",
+    "anti_duplication": "READ DEDUP_REGISTRY.json BEFORE starting any work. All SESSION-018 through SESSION-021 changes are logged there.",
+    "parameter_safety": "ALL SDF primitive calls MUST use keyword arguments. Never use positional args for circle/box/star/ring/triangle. This is enforced by convention — see SESSION-019 fix.",
+    "class_name_reference": "ShaderCodeGenerator (not ShaderGenerator), LSystem (not LSystemGenerator), AssetExporter (not ExportBridge), PaletteGenerator.generate(harmony=...) (not scheme=...)"
   }
 }

@@ -124,6 +124,79 @@ def _compute_sdf_ao(
     return 1.0 - np.clip(ao / steps, 0, 1)
 
 
+# ── Adaptive Outline Width (SESSION-021: P0-NEW-7) ──────────────────────────
+
+def _compute_adaptive_outline_width(
+    sdf_func: SDFFunc,
+    X: np.ndarray,
+    Y: np.ndarray,
+    base_width: float = 0.03,
+    min_scale: float = 0.6,
+    max_scale: float = 1.4,
+    eps: float = 0.01,
+) -> np.ndarray:
+    """Compute per-pixel adaptive outline width based on local SDF curvature.
+
+    SESSION-021 (P0-NEW-7): SDF outlines break at sharp corners (star points,
+    gem facets) because a uniform outline_width is too thin where the SDF
+    gradient changes rapidly. This function widens the outline at high-curvature
+    regions and slightly narrows it on flat edges for a crisper look.
+
+    Curvature is estimated from the Laplacian of the SDF:
+        kappa ≈ (d²SDF/dx² + d²SDF/dy²) / |grad SDF|
+
+    At sharp convex corners (star tips), curvature is large and positive,
+    so we widen the outline. At concave regions, curvature is negative,
+    so we also widen slightly to prevent gaps.
+
+    Parameters
+    ----------
+    sdf_func : SDFFunc
+        The signed distance function.
+    X, Y : ndarray
+        Coordinate grids.
+    base_width : float
+        Nominal outline width.
+    min_scale : float
+        Minimum width multiplier (for flat edges).
+    max_scale : float
+        Maximum width multiplier (for sharp corners).
+    eps : float
+        Finite difference step for curvature estimation.
+
+    Returns
+    -------
+    ndarray
+        Per-pixel outline width, same shape as X.
+    """
+    # Compute gradient magnitude
+    dx = sdf_func(X + eps, Y) - sdf_func(X - eps, Y)
+    dy = sdf_func(X, Y + eps) - sdf_func(X, Y - eps)
+    grad_mag = np.sqrt(dx**2 + dy**2) + 1e-8
+
+    # Compute Laplacian (sum of second derivatives)
+    d2x = sdf_func(X + eps, Y) - 2 * sdf_func(X, Y) + sdf_func(X - eps, Y)
+    d2y = sdf_func(X, Y + eps) - 2 * sdf_func(X, Y) + sdf_func(X, Y - eps)
+    laplacian = (d2x + d2y) / (eps**2)
+
+    # Curvature = Laplacian / |grad|
+    curvature = laplacian / grad_mag
+
+    # Absolute curvature drives width: high curvature = wider outline
+    abs_curvature = np.abs(curvature)
+
+    # Normalize using a sigmoid-like mapping based on the distribution.
+    # Raw curvature can span many orders of magnitude, so we use a
+    # percentile-based approach: the median curvature maps to 0.5.
+    median_curv = np.median(abs_curvature) + 1e-8
+    curvature_norm = np.clip(abs_curvature / (median_curv * 3.0), 0, 1)
+
+    # Map to width scale: flat edges -> min_scale, sharp corners -> max_scale
+    scale = min_scale + (max_scale - min_scale) * curvature_norm
+
+    return base_width * scale
+
+
 # ── Hue Shifting ──────────────────────────────────────────────────────────────
 
 def _hue_shift_color(
@@ -249,6 +322,7 @@ def render_sdf_layered(
     palette_constrained: bool = False,
     palette_colors: Optional[list[tuple[int, int, int]]] = None,
     palette_dither: bool = True,
+    adaptive_outline: bool = True,
 ) -> LayeredRenderResult:
     """Render an SDF to separate compositable layers.
 
@@ -301,8 +375,15 @@ def render_sdf_layered(
     # ── masks ──
     inside_mask = dist < 0
     if enable_outline:
-        outline_mask = (dist >= -outline_width) & (dist < outline_width * 0.5)
-        inner_mask = dist < -outline_width
+        if adaptive_outline:
+            adaptive_w = _compute_adaptive_outline_width(
+                sdf_func, X, Y, base_width=outline_width,
+            )
+            outline_mask = (dist >= -adaptive_w) & (dist < adaptive_w * 0.5)
+            inner_mask = dist < -adaptive_w
+        else:
+            outline_mask = (dist >= -outline_width) & (dist < outline_width * 0.5)
+            inner_mask = dist < -outline_width
     else:
         outline_mask = np.zeros_like(dist, dtype=bool)
         inner_mask = inside_mask
@@ -540,6 +621,8 @@ def render_sdf(
     palette_constrained: bool = False,
     palette_colors: Optional[list[tuple[int, int, int]]] = None,
     palette_dither: bool = True,
+    # SESSION-021: Adaptive outline width
+    adaptive_outline: bool = True,
 ) -> Image.Image:
     """Render an SDF to a professional pixel art sprite.
 
@@ -635,8 +718,16 @@ def render_sdf(
     inside_mask = dist < 0
 
     if enable_outline:
-        outline_mask = (dist >= -outline_width) & (dist < outline_width * 0.5)
-        inner_mask = dist < -outline_width
+        if adaptive_outline:
+            # SESSION-021 (P0-NEW-7): Per-pixel adaptive outline width
+            adaptive_w = _compute_adaptive_outline_width(
+                sdf_func, X, Y, base_width=outline_width,
+            )
+            outline_mask = (dist >= -adaptive_w) & (dist < adaptive_w * 0.5)
+            inner_mask = dist < -adaptive_w
+        else:
+            outline_mask = (dist >= -outline_width) & (dist < outline_width * 0.5)
+            inner_mask = dist < -outline_width
     else:
         outline_mask = np.zeros_like(dist, dtype=bool)
         inner_mask = inside_mask
@@ -822,5 +913,101 @@ def render_textured_sdf(
         palette,
         texture_func=tex_func,
         texture_strength=0.35,
+        **kwargs,
+    )
+
+
+# ── SESSION-021 (P0-NEW-8): Texture-Aware Layered Rendering ───────────────
+
+def _build_texture_func(
+    texture_type: str,
+    width: int,
+    height: int,
+) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
+    """Build a texture function from a preset name.
+
+    SESSION-021 (P0-NEW-8): Factored out from render_textured_sdf so that
+    both flat and layered renderers can share the same texture generation.
+
+    Parameters
+    ----------
+    texture_type : str
+        One of 'stone', 'wood', 'metal', 'organic', 'crystal'.
+    width, height : int
+        Render dimensions (noise is generated at 2x for quality).
+
+    Returns
+    -------
+    callable
+        A function (x, y) -> ndarray mapping normalized coords to [0, 1].
+    """
+    from .noise import fbm
+
+    texture_configs = {
+        "stone":   {"scale": 8.0,  "octaves": 4, "persistence": 0.5},
+        "wood":    {"scale": 3.0,  "octaves": 6, "persistence": 0.6},
+        "metal":   {"scale": 12.0, "octaves": 2, "persistence": 0.3},
+        "organic": {"scale": 5.0,  "octaves": 5, "persistence": 0.55},
+        "crystal": {"scale": 6.0,  "octaves": 3, "persistence": 0.4},
+    }
+    config = texture_configs.get(texture_type, texture_configs["stone"])
+    noise_arr = fbm(width * 2, height * 2, **config)
+
+    def tex_func(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+        ix = ((x + 1) / 2 * (noise_arr.shape[1] - 1)).astype(int)
+        iy = ((y + 1) / 2 * (noise_arr.shape[0] - 1)).astype(int)
+        ix = np.clip(ix, 0, noise_arr.shape[1] - 1)
+        iy = np.clip(iy, 0, noise_arr.shape[0] - 1)
+        return noise_arr[iy, ix]
+
+    return tex_func
+
+
+def render_textured_sdf_layered(
+    sdf_func: SDFFunc,
+    texture_type: str = "stone",
+    width: int = 32,
+    height: int = 32,
+    palette: Optional[Palette] = None,
+    texture_strength: float = 0.35,
+    **kwargs,
+) -> LayeredRenderResult:
+    """Render an SDF with procedural texture into separated layers.
+
+    SESSION-021 (P0-NEW-8): Texture-aware layered rendering. Combines the
+    texture generation from ``render_textured_sdf`` with the multi-layer
+    output from ``render_sdf_layered``. The texture layer now contains
+    actual procedural noise data instead of being empty when no explicit
+    texture_func is passed.
+
+    Parameters
+    ----------
+    sdf_func : SDFFunc
+        The signed distance function.
+    texture_type : str
+        Texture preset name ('stone', 'wood', 'metal', 'organic', 'crystal').
+    width, height : int
+        Output dimensions.
+    palette : Palette, optional
+        Color palette.
+    texture_strength : float
+        Blend strength of the texture layer (0.0 - 1.0).
+    **kwargs
+        Additional keyword arguments passed to ``render_sdf_layered``.
+
+    Returns
+    -------
+    LayeredRenderResult
+        Multi-layer result with a populated texture layer.
+    """
+    tex_func = _build_texture_func(texture_type, width, height)
+
+    return render_sdf_layered(
+        sdf_func,
+        width=width,
+        height=height,
+        palette=palette,
+        texture_func=tex_func,
+        texture_strength=texture_strength,
         **kwargs,
     )

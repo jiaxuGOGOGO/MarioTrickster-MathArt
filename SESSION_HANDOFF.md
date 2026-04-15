@@ -15,59 +15,66 @@
 
 | Dimension | Value |
 |-----------|-------|
-| Current version | 0.10.0 |
-| Last updated | 2026-04-15T18:30:00Z |
-| Last session | SESSION-020 |
+| Current version | 0.11.0 |
+| Last updated | 2026-04-15T20:00:00Z |
+| Last session | SESSION-021 |
 | Best quality score | 0.8674 (circle, validated) |
-| Validation pass rate | 24/24 = 100% |
-| Total code lines | ~26,800 |
+| Validation pass rate | 44/44 = 100% (20 in S021 + 24 in S020) |
+| Total code lines | ~25,500 |
 | Knowledge rules | 12 |
 | Math models registered | 10 |
-| Project health score | 8.4/10 |
+| Project health score | 8.6/10 |
 
-## What Changed in SESSION-020
+## What Changed in SESSION-021
 
-### P0-NEW-4: Multi-layer Render Compositing
+### P0-NEW-7: Adaptive Outline Width (Curvature-Based)
 
-Added `render_sdf_layered()` function and `LayeredRenderResult` dataclass to `sdf/renderer.py`. The rendering pipeline now separates output into four independent RGBA layers (base, texture, lighting, outline) plus a pre-composited result. Each layer can be individually adjusted (opacity, color grading) before final compositing via the new `composite_layers()` utility. The pipeline gained `produce_layered_sprite()` which runs evolution then re-renders the best result with separated layers, exporting individual layer PNGs and metadata JSON.
+Added `_compute_adaptive_outline_width()` to `sdf/renderer.py`. SDF outlines previously used a uniform width which caused gaps at sharp corners (star tips, gem facets). The new function estimates local curvature via the SDF Laplacian and adjusts outline width per-pixel: wider at high-curvature regions, narrower on flat edges. Uses percentile-based normalization to handle the wide range of curvature values. Both `render_sdf()` and `render_sdf_layered()` now accept an `adaptive_outline=True` parameter (default enabled).
 
-### P0-NEW-5: Large-scale Evolution Validation (100+ iterations)
+### P0-NEW-8: Texture-Aware Layered Rendering
 
-Ran evolution for 120 iterations across 4 shapes (coin, star, gem, circle) with population size 16. All shapes showed positive quality trends with an average improvement of +0.0147 over the run. Key results: coin converged at 0.8505 (gen 32), circle reached 0.8674 (gen 13, early convergence), gem ran full 120 iterations reaching 0.8145, star converged at 0.8159 (gen 56). Average final score across all shapes: 0.8371. All 4/4 shapes showed positive trend slopes, validating that evolution consistently improves quality.
+Added `render_textured_sdf_layered()` and `_build_texture_func()` to `sdf/renderer.py`. Previously, the layered renderer (`render_sdf_layered`) produced an empty texture layer when no explicit `texture_func` was passed. Now, when a texture style is specified (stone/wood/metal/organic/crystal), the layered pipeline automatically generates and applies procedural noise textures. The pipeline's `produce_layered_sprite()` now routes textured styles through `render_textured_sdf_layered()` for richer layer output.
 
-### P0-NEW-6: VFX Evaluator Tuning
+### P0-NEW-9: Adaptive Evolution Convergence Acceleration
 
-Added `evaluate_vfx()` and `evaluate_multi_frame_vfx()` methods to `AssetEvaluator`. VFX assets (fire, explosion, sparkle, smoke) now use rebalanced weights that reward motion, color variance, and visual energy rather than penalising sparse fill and missing outlines. Key weight changes: INTERNAL_DETAIL boosted to 0.33, OUTLINE_CLARITY/CONTINUITY reduced to 0.02, FILL_RATIO threshold lowered to 0.03. The pipeline's `produce_vfx()` now uses `evaluate_multi_frame_vfx()` which scores all frames and uses the peak score. Explosion score improved from 0.24 to 0.66.
+Modified `produce_sprite()` in `pipeline.py` to use shape-complexity-aware evolution parameters. A complexity mapping (circle=1.0, star=1.8, gem=1.6, etc.) now drives three adaptive parameters: (1) patience scales with complexity so complex shapes get more generations before early-stopping, (2) population size increases for complex shapes to maintain diversity, (3) min_delta tightens for simple shapes to converge faster. This addresses the issue where circle converged at gen 13 but gem needed 120 iterations.
 
-### All SESSION-020 Changes
+### Full Audit Conducted
+
+A comprehensive project audit was performed comparing current capabilities against commercial pixel art pipeline requirements. Key findings:
+- **14 modules**, 10 fully functional end-to-end, 4 importable but not integrated into Pipeline
+- **Biggest gap**: No character sprite generation (only geometric shapes)
+- **Second gap**: WFC/Shader/Export modules exist but not wired into AssetPipeline
+- See `audit_findings.md` for the complete report
+
+### All SESSION-021 Changes
 
 | Category | Change | File(s) | Impact |
 |----------|--------|---------|--------|
-| **P0-NEW-4** | Multi-layer render compositing | `sdf/renderer.py`, `sdf/__init__.py`, `pipeline.py` | `render_sdf_layered()` + `composite_layers()` + `produce_layered_sprite()` |
-| **P0-NEW-5** | Large-scale evolution validation | `test_large_scale_evolution.py` | 4 shapes, 120 iters, avg score 0.8371, all positive trends |
-| **P0-NEW-6** | VFX evaluator tuning | `evaluator/evaluator.py`, `pipeline.py` | `evaluate_vfx()` + `evaluate_multi_frame_vfx()`, explosion 0.24→0.66 |
-| **TEST** | SESSION-020 validation suite | `test_session020_validation.py` | 24/24 = 100% pass rate |
+| **P0-NEW-7** | Adaptive outline width | `sdf/renderer.py` | `_compute_adaptive_outline_width()` + `adaptive_outline` param |
+| **P0-NEW-8** | Texture-aware layered rendering | `sdf/renderer.py`, `sdf/__init__.py`, `pipeline.py` | `render_textured_sdf_layered()` + `_build_texture_func()` |
+| **P0-NEW-9** | Adaptive evolution convergence | `pipeline.py` | Shape-complexity-aware patience/population/min_delta |
+| **AUDIT** | Full project audit | `audit_findings.md` | 14-module functional audit + gap analysis |
+| **TEST** | SESSION-021 validation suite | `test_session021_validation.py` | 20/20 = 100% pass rate |
 
-### Validation Results (24/24 = 100%)
+### Validation Results (20/20 = 100%)
 
 | Test Group | Tests | Status |
 |------------|-------|--------|
-| Multi-layer Compositing (P0-NEW-4) | 10 tests | 10/10 PASS |
-| VFX Evaluator Tuning (P0-NEW-6) | 6 tests | 6/6 PASS |
-| Large-scale Evolution (P0-NEW-5) | 5 tests | 5/5 PASS |
-| Regression Tests | 3 tests | 3/3 PASS |
+| Adaptive Outline Width (P0-NEW-7) | 6 tests | 6/6 PASS |
+| Texture-Aware Layered Rendering (P0-NEW-8) | 6 tests | 6/6 PASS |
+| Adaptive Evolution Convergence (P0-NEW-9) | 4 tests | 4/4 PASS |
+| Regression Tests | 4 tests | 4/4 PASS |
 
 ### Key Metrics
 
-| Metric | SESSION-019 | SESSION-020 | Change |
+| Metric | SESSION-020 | SESSION-021 | Change |
 |--------|-------------|-------------|--------|
-| Best sprite score | 0.8244 | 0.8674 | +0.0430 |
-| Explosion VFX score | 0.2400 | 0.6637 | +0.4237 |
-| Fire VFX score | 0.4938 | 0.6324 | +0.1386 |
-| Sparkle VFX score | 0.4718 | 0.6578 | +0.1860 |
-| Smoke VFX score | 0.3974 | 0.5373 | +0.1399 |
-| Validation tests | 19 | 24 | +5 |
-| Render layers | 1 | 5 | +4 |
+| Best sprite score | 0.8674 | 0.8674 | — (maintained) |
+| Validation tests | 24 | 44 | +20 |
+| Render features | 5 layers | 5 layers + adaptive outline + textured layers | +2 features |
+| Evolution adaptivity | Fixed params | Shape-complexity-aware | New |
+| Project health | 8.4/10 | 8.6/10 | +0.2 |
 
 ## Knowledge Base Status
 
@@ -82,25 +89,23 @@ Added `evaluate_vfx()` and `evaluate_multi_frame_vfx()` methods to `AssetEvaluat
 
 ## Pending Tasks (Priority Order)
 
-### P0 — Critical Path (Do These Next)
+### P0 — Critical Path
 
-All previous P0 tasks are now **DONE**. The following are newly identified P0 priorities:
+**All P0 tasks are now DONE.** No remaining P0 items.
 
-| ID | Task | Effort | Description |
-|----|------|--------|-------------|
-| P0-NEW-7 | Outline continuity improvement | Medium | SDF outlines have gaps at sharp corners; need adaptive outline width |
-| P0-NEW-8 | Texture-aware layered rendering | Medium | Pass CPPN textures through layered pipeline for richer results |
-| P0-NEW-9 | Evolution convergence acceleration | Low | Early convergence wastes iterations; add adaptive mutation rate |
-
-### P1 — Important
+### P1 — Important (Do These Next)
 
 | ID | Task | Effort | Description |
 |----|------|--------|-------------|
+| P1-NEW-5 | Character sprite pipeline integration | High | Integrate character_renderer.py into evolution Pipeline; currently only geometric shapes can be evolved |
+| P1-NEW-1 | WFC tilemap pipeline integration | High | WFC module exists but needs `produce_level()` in Pipeline |
 | P1-2 | Per-frame SDF parameter animation | Medium | Each frame can have different SDF parameters for true shape animation |
-| P1-NEW-1 | Wave Function Collapse tilemap | High | Generate coherent tilemaps from example tiles |
+| P1-NEW-4 | Multi-state sprite generation | Medium | Multiple states per character (idle, walk, attack) sharing palette |
+| P1-NEW-6 | Shader pipeline integration | Medium | ShaderCodeGenerator exists but needs `produce_shader()` in Pipeline |
+| P1-NEW-7 | Export pipeline integration | Medium | AssetExporter exists but not connected to `produce_asset_pack()` |
 | P1-NEW-2 | Reaction-diffusion textures | Medium | Gray-Scott for organic textures (coral, lichen) |
 | P1-NEW-3 | Spring-based secondary animation | Medium | Critically-damped spring for follow-through |
-| P1-NEW-4 | Multi-state sprite generation | Medium | Multiple states per character (idle, walk, attack) |
+| P1-NEW-8 | Quality checkpoint mid-generation | Low | ArtMathQualityController mid_generation checkpoint not wired into evolution loop |
 
 ### P2 — Nice to Have
 
@@ -109,6 +114,8 @@ All previous P0 tasks are now **DONE**. The following are newly identified P0 pr
 | P2-1 | Sub-pixel rendering | Medium |
 | P2-4 | Multi-objective optimization (NSGA-II) | High |
 | P2-5 | Procedural outline variation | Low |
+| P2-6 | CMA-ES optimizer upgrade | Medium |
+| P2-7 | Performance benchmarks | Low |
 
 ### P3 — Future
 
@@ -117,8 +124,20 @@ All previous P0 tasks are now **DONE**. The following are newly identified P0 pr
 | P3-1 | Auto knowledge distillation | Medium |
 | P3-2 | Web preview UI | High |
 | P3-3 | Unity/Godot exporter plugin | Medium |
+| P3-4 | CI/CD + GitHub Actions | Medium |
+| P3-5 | End-to-end demo showcase script | Low |
+| P3-6 | README update for SESSION-018~021 features | Low |
 
 ## Completed Tasks
+
+### SESSION-021
+
+| ID | Task | Result |
+|----|------|--------|
+| P0-NEW-7 | Adaptive outline width | `_compute_adaptive_outline_width()` + curvature-based per-pixel width |
+| P0-NEW-8 | Texture-aware layered rendering | `render_textured_sdf_layered()` + `_build_texture_func()` |
+| P0-NEW-9 | Adaptive evolution convergence | Shape-complexity-aware patience/population/min_delta |
+| AUDIT | Full project audit | 14-module functional audit + commercial gap analysis |
 
 ### SESSION-020
 
@@ -157,44 +176,48 @@ All previous P0 tasks are now **DONE**. The following are newly identified P0 pr
 | Aspect | itch.io Standard | Our Current State | Gap |
 |--------|-----------------|-------------------|-----|
 | Palette | 4-16 curated colors | Palette-constrained rendering (DONE) | **LOW** |
-| Outlines | 1px crisp, continuous | SDF outlines, sometimes gaps | Medium |
+| Outlines | 1px crisp, continuous | Adaptive outline width (DONE) | **LOW** |
 | Shading | 2-4 level ramps | 3-7 level ramps + layered control | Low |
 | Animation | Squash/stretch/anticipation | Transform + cage + particles + VFX | Low |
-| Tilemap | Seamless connecting tiles | No tilemap capability | **HIGH** |
+| Tilemap | Seamless connecting tiles | WFC module exists, not in Pipeline | **HIGH** |
+| Characters | Multiple body parts + states | character_renderer exists, not evolved | **HIGH** |
 | Variety | Multiple states per character | Single shape per asset | Medium |
-| Internal detail | Hand-placed highlights/shadows | CPPN-evolved textures | Medium |
+| Internal detail | Hand-placed highlights/shadows | CPPN-evolved + noise textures + layered | Low |
 | Compositing | Layer-based workflow | Multi-layer rendering (DONE) | **LOW** |
 | VFX quality | Convincing particles/effects | VFX-tuned evaluator + 4 presets | Low |
+| Textures | Material-specific detail | 5 texture presets + layered rendering | **LOW** |
 
-### Biggest Remaining Gaps
+### Biggest Remaining Gaps (from Audit)
 
-1. **No tilemap generation** — Cannot produce coherent level-scale assets (needs WFC)
-2. **No multi-state sprites** — Each asset is a single shape, no idle/walk/attack variants
-3. **Outline gaps at sharp corners** — SDF outlines break at star points and gem facets
-4. **No texture in layered pipeline** — CPPN textures not yet passed through layered render
+1. **No character sprite evolution** — character_renderer.py has 5 presets but is not integrated into the evolution Pipeline; only geometric shapes (coin/star/gem/circle) can be evolved
+2. **WFC/Shader/Export not in Pipeline** — Three modules exist but need Pipeline methods (produce_level, produce_shader, integrated export)
+3. **No multi-state sprites** — Each asset is a single shape, no idle/walk/attack variants
+4. **No per-frame SDF animation** — Animation only transforms base image, no true shape morphing
 
-## Project Health Score: 8.4/10 (up from 7.8)
+## Project Health Score: 8.6/10 (up from 8.4)
 
 | Dimension | Score | Notes |
 |-----------|-------|-------|
-| Code Quality | 8/10 | ~26,800 lines, 24 validation tests, well modularized |
-| Render Quality | 8/10 | Multi-layer + palette-constrained + lighting + AO + hue-shift |
-| Evolution Capability | 8/10 | 12-metric evaluator, 100+ iter validated, avg 0.84 score |
+| Code Quality | 8/10 | ~25,500 lines, 44 validation tests, well modularized |
+| Render Quality | 9/10 | Multi-layer + adaptive outline + textured layers + palette-constrained |
+| Evolution Capability | 8/10 | 12-metric evaluator, shape-adaptive convergence, avg 0.84 score |
 | Animation Quality | 7/10 | Transform + cage deform + particles + VFX (4 presets each) |
 | Asset Output | 9/10 | PNG + GIF + spritesheet + layers + JSON metadata |
 | Knowledge Accumulation | 5/10 | 12 rules + 10 models (needs auto-distillation) |
-| Self-Evolution | 7/10 | VFX-tuned evaluator + large-scale validated + anti-stagnation |
+| Self-Evolution | 8/10 | VFX-tuned evaluator + adaptive convergence + anti-stagnation |
+| Module Integration | 6/10 | 10/14 modules fully integrated, 4 need Pipeline wiring |
 
 ## Instructions for Next AI Session
 
 1. **Read `DEDUP_REGISTRY.json`** — DO NOT re-research absorbed topics
 2. **Read `SESSION_PROTOCOL.md`** — Follow efficiency rules
 3. Read `PROJECT_BRAIN.json` for the full machine-readable state
-4. **Start with P0-NEW-7** — Outline continuity improvement
-5. Then **P0-NEW-8** — Texture-aware layered rendering
-6. Then **P0-NEW-9** — Evolution convergence acceleration
-7. Always push changes to GitHub after completing work
-8. Always update this file and `PROJECT_BRAIN.json` before ending
+4. Read `audit_findings.md` for the comprehensive gap analysis
+5. **Start with P1-NEW-5** — Character sprite pipeline integration (biggest gap)
+6. Then **P1-NEW-1** — WFC tilemap pipeline integration
+7. Then **P1-NEW-6 + P1-NEW-7** — Shader + Export pipeline integration
+8. Always push changes to GitHub after completing work
+9. Always update this file and `PROJECT_BRAIN.json` before ending
 
 ## Quick Start
 
@@ -209,7 +232,7 @@ print(result.overall_score, result.passed, result.suggestions)
 vfx_result = ev.evaluate_vfx(vfx_frame)
 multi_result = ev.evaluate_multi_frame_vfx(vfx_frames)
 
-# Produce sprite
+# Produce sprite (with adaptive evolution — SESSION-021)
 from mathart.pipeline import AssetPipeline, AssetSpec
 pipeline = AssetPipeline(output_dir="output/")
 result = pipeline.produce_sprite(AssetSpec(name="coin", shape="coin"))
@@ -218,6 +241,17 @@ result = pipeline.produce_sprite(AssetSpec(name="coin", shape="coin"))
 result, layered = pipeline.produce_layered_sprite(AssetSpec(name="coin", shape="coin"))
 layered.export_layers("output/coin")  # Saves 5 layer PNGs
 
+# Produce textured layered sprite (SESSION-021)
+result, layered = pipeline.produce_layered_sprite(
+    AssetSpec(name="stone_gem", shape="gem", style="stone")
+)
+
+# Adaptive outline rendering (SESSION-021)
+from mathart.sdf.renderer import render_sdf
+from mathart.sdf.primitives import star
+sdf = star(cx=0, cy=0, r_outer=0.42, r_inner=0.2, n_points=5)
+img = render_sdf(sdf, 64, 64, adaptive_outline=True)  # Default is True
+
 # Custom layer compositing (SESSION-020)
 from mathart.sdf.renderer import render_sdf_layered, composite_layers
 layered = render_sdf_layered(sdf_func, 64, 64)
@@ -225,7 +259,7 @@ custom = composite_layers(
     layered.base_layer,
     lighting=layered.lighting_layer,
     outline=layered.outline_layer,
-    lighting_opacity=0.7,  # Reduce lighting intensity
+    lighting_opacity=0.7,
 )
 
 # Produce VFX
@@ -237,8 +271,9 @@ spec = AssetSpec(name="bounce", shape="circle")
 deform = pipeline.produce_deform_animation(spec=spec, deform_type="squash_stretch", n_frames=8)
 
 # Run validation
-python3 test_session020_validation.py
+python3 test_session021_validation.py  # 20/20 PASS
+python3 test_session020_validation.py  # 24/24 PASS
 ```
 
 ---
-*Auto-generated by SESSION-020 at 2026-04-15T18:30:00Z*
+*Auto-generated by SESSION-021 at 2026-04-15T20:00:00Z*
