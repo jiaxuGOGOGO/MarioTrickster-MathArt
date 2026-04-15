@@ -1,7 +1,7 @@
 {
   "version": "1.1",
   "purpose": "Prevent duplicate research, duplicate code changes, and duplicate knowledge distillation across sessions. Every new session MUST read this file before starting work.",
-  "last_updated": "SESSION-022",
+  "last_updated": "SESSION-025",
 
   "absorbed_references": {
     "description": "External resources already studied and integrated. Do NOT re-research these.",
@@ -40,6 +40,13 @@
       {"id": "REF-R006", "topic": "Commercial sprite sheet standards", "findings": "JSON metadata with rect/duration/loop for Unity/Godot", "status": "integrated"},
       {"id": "REF-R007", "topic": "itch.io pixel art asset standards", "findings": "16-64px tiles, 4-16 color palettes, horizontal spritesheets", "status": "integrated"},
       {"id": "REF-R008", "topic": "Mathematical animation easing functions", "findings": "Bezier curves, spring physics, critically damped oscillators", "status": "partially_integrated"}
+    ],
+    "research_session_025": [
+      {"id": "REF-R025-001", "topic": "Character semantic mutation space", "findings": "Semantic mutation should expand toward archetypes, anatomy templates, clothing layers, accessory slots, grammar-guided topology, and structured part compatibility rather than only local numeric perturbation.", "status": "planned_for_integration", "note_file": "research_notes_session025.md"},
+      {"id": "REF-R025-002", "topic": "Production benchmark asset suite", "findings": "Benchmark assets should include structured metadata, acceptance thresholds, and automated validators for characters, tilesets, and VFX rather than relying only on internal evaluator scores.", "status": "planned_for_integration", "note_file": "research_notes_session025.md"},
+      {"id": "REF-R025-003", "topic": "WFC as first-class pipeline stage", "findings": "WFC should be elevated into AssetPipeline with connectivity/playability constraints, metadata manifests, and multi-pass assembly instead of staying as a disconnected module.", "status": "planned_for_integration", "note_file": "research_notes_session025.md"},
+      {"id": "REF-R025-004", "topic": "Shader/export pipeline closure", "findings": "Shader artifacts should support baked-texture plus runtime-parameter metadata export so generated assets become more engine-ready and reusable downstream.", "status": "planned_for_integration", "note_file": "research_notes_session025.md"},
+      {"id": "REF-R025-005", "topic": "Per-frame SDF animation, secondary motion, and organic textures", "findings": "Keyframed SDF parameter tracks, spring-based overlap, and reaction-diffusion masks are the clearest next upgrades for motion liveliness and material richness.", "status": "planned_for_integration", "note_file": "research_notes_session025.md"}
     ]
   },
 
@@ -98,6 +105,11 @@
       {"change": "Evaluator no-palette metric now skips neutrally instead of silently penalizing", "file": "mathart/evaluator/evaluator.py"},
       {"change": "Package version aligned to pyproject metadata", "file": "mathart/__init__.py"},
       {"change": "Full repository validation reached 491/491 pass", "files": ["SESSION_HANDOFF.md", "PROJECT_BRAIN.json"]}
+    ],
+    "SESSION-025": [
+      {"change": "Dedup-first parallel gap research synthesized into a reusable note file", "files": ["research_notes_session025.md"]},
+      {"change": "Handoff priorities refreshed to point future sessions at semantic mutation space, benchmark suites, and pipeline closure", "files": ["SESSION_HANDOFF.md", "PROJECT_BRAIN.json"]},
+      {"change": "Dedup registry updated with newly absorbed non-duplicate reference directions", "file": "DEDUP_REGISTRY.json"}
     ]
   },
 
