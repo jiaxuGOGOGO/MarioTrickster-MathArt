@@ -68,6 +68,11 @@ from .animation.character_presets import get_preset, CHARACTER_PRESETS
 from .animation.presets import (
     idle_animation, run_animation, jump_animation, fall_animation, hit_animation,
 )
+# SESSION-027: Semantic genotype system
+from .animation.genotype import (
+    CharacterGenotype, GENOTYPE_PRESETS, BODY_TEMPLATES,
+    mutate_genotype, crossover_genotypes,
+)
 
 
 # ── Shape Library ─────────────────────────────────────────────────────────────
@@ -163,6 +168,10 @@ class CharacterSpec:
     evolution_preview_states: list[str] = field(default_factory=lambda: ["idle", "run", "jump"])
     evolution_elite_size: int = 3
     evolution_stagnation_patience: int = 2
+    # SESSION-027: Semantic genotype evolution
+    use_genotype: bool = False
+    genotype: Optional[CharacterGenotype] = None
+    evolution_crossover_rate: float = 0.25
 
 
 CHARACTER_ANIMATION_MAP: dict[str, Callable[[float], dict[str, float]]] = {
@@ -1126,6 +1135,254 @@ class AssetPipeline:
         }
         return best_spec, best_style, best_palette, evolution_meta, history
 
+    # ── SESSION-027: Genotype-based evolution methods ──────────────────────
+
+    def _genotype_to_palette(self, genotype: CharacterGenotype) -> Palette:
+        """Convert genotype palette genes to a Palette object."""
+        genes = list(genotype.palette_genes)
+        while len(genes) < 18:
+            genes.extend([0.5, 0.0, 0.0])
+        colors_oklab = np.array(genes[:18], dtype=np.float64).reshape(6, 3)
+        roles = ["skin", "hair_hat", "shirt", "pants", "shoes", "outline"]
+        return Palette(
+            name=f"genotype_{genotype.archetype}",
+            colors_oklab=colors_oklab,
+            roles=roles,
+        )
+
+    def _genotype_candidate_vector(self, genotype: CharacterGenotype) -> np.ndarray:
+        """Create a feature vector from a genotype for diversity selection."""
+        values: list[float] = [
+            float(hash(genotype.archetype) % 1000) / 1000.0,
+            float(hash(genotype.body_template) % 1000) / 1000.0,
+        ]
+        for key in sorted(genotype.proportion_modifiers.keys()):
+            values.append(float(genotype.proportion_modifiers[key]))
+        values.append(genotype.outline_width)
+        values.append(genotype.light_angle)
+        for slot_key in sorted(genotype.slots.keys()):
+            slot = genotype.slots[slot_key]
+            values.append(float(hash(slot.part_id) % 1000) / 1000.0)
+        values.extend(genotype.palette_genes[:18])
+        return np.asarray(values, dtype=np.float64)
+
+    def _select_diverse_genotype_elites(
+        self,
+        pool: list[tuple[CharacterGenotype, dict[str, Any]]],
+        elite_size: int,
+        min_distance: float = 0.035,
+    ) -> list[tuple[CharacterGenotype, dict[str, Any]]]:
+        """Select diverse elite genotypes from a pool."""
+        if not pool:
+            return []
+        ranked = sorted(pool, key=lambda item: item[1]["score"], reverse=True)
+        selected: list[tuple[CharacterGenotype, dict[str, Any]]] = []
+        vectors: list[np.ndarray] = []
+
+        for candidate in ranked:
+            vector = self._genotype_candidate_vector(candidate[0])
+            if not vectors:
+                selected.append(candidate)
+                vectors.append(vector)
+            else:
+                distances = [float(np.mean(np.abs(vector - other))) for other in vectors]
+                if min(distances) >= min_distance:
+                    selected.append(candidate)
+                    vectors.append(vector)
+            if len(selected) >= elite_size:
+                return selected
+
+        for candidate in ranked:
+            if any(candidate is chosen for chosen in selected):
+                continue
+            selected.append(candidate)
+            if len(selected) >= elite_size:
+                break
+        return selected
+
+    def _score_genotype_candidate(
+        self,
+        char_spec: CharacterSpec,
+        genotype: CharacterGenotype,
+    ) -> dict[str, Any]:
+        """Score a genotype candidate using the existing evaluation pipeline."""
+        style = genotype.decode_to_style()
+        palette = self._genotype_to_palette(genotype)
+        head_units = genotype.get_head_units()
+        temp_spec = replace(char_spec, head_units=head_units)
+        return self._score_character_candidate(temp_spec, style, palette)
+
+    def _evolve_character_genotype(
+        self,
+        char_spec: CharacterSpec,
+        genotype: CharacterGenotype,
+    ) -> tuple[CharacterSpec, Any, Palette, dict[str, Any], list[float]]:
+        """Evolve a character using the semantic genotype system.
+
+        SESSION-027: This operates on CharacterGenotype objects and uses
+        three-layer semantic mutation (structural + proportional + palette)
+        plus crossover between diverse elites.
+        """
+        import copy as _copy
+
+        rng = np.random.default_rng(self.seed)
+        base_genotype = _copy.deepcopy(genotype)
+
+        best_genotype = _copy.deepcopy(genotype)
+        best_breakdown = self._score_genotype_candidate(char_spec, best_genotype)
+        history = [float(best_breakdown["score"])]
+
+        elite_size = max(1, min(int(char_spec.evolution_elite_size), max(1, char_spec.evolution_population)))
+        stagnation_patience = max(1, int(char_spec.evolution_stagnation_patience))
+        base_strength = float(max(char_spec.evolution_variation_strength, 0.05))
+        crossover_rate = float(max(char_spec.evolution_crossover_rate, 0.0))
+        strength_history = [base_strength]
+        stagnation_steps = 0
+        stagnation_events = 0
+
+        def _entry(
+            g: CharacterGenotype,
+            breakdown: dict[str, Any],
+            iteration: int,
+            rank: int,
+            parent_source: str,
+            variation_strength: float,
+        ) -> dict[str, Any]:
+            style = g.decode_to_style()
+            palette = self._genotype_to_palette(g)
+            return {
+                "iteration": iteration,
+                "rank": rank,
+                "score": float(breakdown["score"]),
+                "quality_score": float(breakdown["quality_score"]),
+                "motion_score": float(breakdown["motion_score"]),
+                "coverage_score": float(breakdown["coverage_score"]),
+                "silhouette_score": float(breakdown["silhouette_score"]),
+                "state_distinction_score": float(breakdown["state_distinction_score"]),
+                "head_units": float(g.get_head_units()),
+                "style": vars(style).copy(),
+                "palette_hex": palette.colors_hex,
+                "preview_states": list(breakdown["preview_states"]),
+                "parent_source": parent_source,
+                "variation_strength": float(variation_strength),
+                "genotype": g.to_dict(),
+            }
+
+        initial_entry = _entry(best_genotype, best_breakdown, 0, 0, "seed", base_strength)
+        candidates: list[dict[str, Any]] = [initial_entry]
+        archive: list[tuple[CharacterGenotype, dict[str, Any]]] = [
+            (best_genotype, best_breakdown),
+        ]
+        elites = self._select_diverse_genotype_elites(archive, elite_size)
+
+        for iteration in range(1, max(0, char_spec.evolution_iterations) + 1):
+            adaptive_strength = float(np.clip(
+                base_strength * (1.0 + 0.45 * stagnation_steps), 0.05, 0.60,
+            ))
+            strength_history.append(adaptive_strength)
+            round_pool: list[tuple[CharacterGenotype, dict[str, Any]]] = []
+            round_entries: list[dict[str, Any]] = []
+
+            for rank in range(max(1, char_spec.evolution_population)):
+                restart_mode = (
+                    stagnation_steps >= stagnation_patience
+                    and rank == max(1, char_spec.evolution_population) - 1
+                )
+
+                if restart_mode:
+                    parent_genotype = _copy.deepcopy(base_genotype)
+                    parent_source = "restart"
+                else:
+                    parent_genotype = _copy.deepcopy(
+                        elites[int(rng.integers(0, len(elites)))][0]
+                    )
+                    parent_source = "elite"
+
+                # SESSION-027: Crossover with another elite
+                if (
+                    not restart_mode
+                    and len(elites) >= 2
+                    and rng.random() < crossover_rate
+                ):
+                    other_idx = int(rng.integers(0, len(elites)))
+                    other_genotype = elites[other_idx][0]
+                    trial_genotype = crossover_genotypes(parent_genotype, other_genotype, rng)
+                    parent_source = "crossover"
+                else:
+                    trial_genotype = parent_genotype
+
+                trial_genotype = mutate_genotype(trial_genotype, rng, adaptive_strength)
+                trial_breakdown = self._score_genotype_candidate(char_spec, trial_genotype)
+                round_pool.append((trial_genotype, trial_breakdown))
+                round_entries.append(_entry(
+                    trial_genotype,
+                    trial_breakdown,
+                    iteration,
+                    rank,
+                    parent_source,
+                    adaptive_strength,
+                ))
+
+            candidates.extend(round_entries)
+            archive.extend(round_pool)
+            elites = self._select_diverse_genotype_elites(archive, elite_size)
+            round_best_genotype, round_best_breakdown = max(
+                round_pool, key=lambda item: item[1]["score"],
+            )
+
+            if round_best_breakdown["score"] > best_breakdown["score"] + 1e-6:
+                best_genotype = round_best_genotype
+                best_breakdown = round_best_breakdown
+                stagnation_steps = 0
+            else:
+                stagnation_steps += 1
+                if stagnation_steps >= stagnation_patience and stagnation_steps % stagnation_patience == 0:
+                    stagnation_events += 1
+
+            history.append(float(best_breakdown["score"]))
+
+        # Decode final best genotype to style + palette
+        best_style = best_genotype.decode_to_style()
+        best_palette = self._genotype_to_palette(best_genotype)
+        best_spec = replace(char_spec, head_units=best_genotype.get_head_units())
+
+        evolution_meta = {
+            "enabled": True,
+            "mode": "genotype_semantic",
+            "iterations": int(char_spec.evolution_iterations),
+            "population": int(char_spec.evolution_population),
+            "variation_strength": float(char_spec.evolution_variation_strength),
+            "crossover_rate": float(crossover_rate),
+            "elite_size": int(elite_size),
+            "stagnation_patience": int(stagnation_patience),
+            "stagnation_events": int(stagnation_events),
+            "strength_history": [float(v) for v in strength_history],
+            "preview_states": list(best_breakdown["preview_states"]),
+            "initial_score": float(candidates[0]["score"]),
+            "best_score": float(best_breakdown["score"]),
+            "history": history,
+            "best_character": {
+                "head_units": float(best_spec.head_units),
+                "style": vars(best_style).copy(),
+                "palette_hex": best_palette.colors_hex,
+                "quality_score": float(best_breakdown["quality_score"]),
+                "motion_score": float(best_breakdown["motion_score"]),
+                "coverage_score": float(best_breakdown["coverage_score"]),
+                "silhouette_score": float(best_breakdown["silhouette_score"]),
+                "state_distinction_score": float(best_breakdown["state_distinction_score"]),
+                "genotype": best_genotype.to_dict(),
+            },
+            "objective_weights": {
+                "quality_score": 0.56,
+                "motion_score": 0.15,
+                "coverage_score": 0.10,
+                "silhouette_score": 0.11,
+                "state_distinction_score": 0.08,
+            },
+            "candidates": candidates,
+        }
+        return best_spec, best_style, best_palette, evolution_meta, history
+
     def produce_character_pack(self, char_spec: CharacterSpec) -> AssetResult:
         """Produce a practical multi-state character asset pack.
 
@@ -1150,6 +1407,25 @@ class AssetPipeline:
         asset_dir = self.output_dir / char_spec.name
         asset_dir.mkdir(parents=True, exist_ok=True)
 
+        # SESSION-027: If use_genotype is enabled, initialize from genotype
+        genotype_used: Optional[CharacterGenotype] = None
+        if char_spec.use_genotype:
+            if char_spec.genotype is not None:
+                genotype_used = char_spec.genotype
+            elif char_spec.preset in GENOTYPE_PRESETS:
+                genotype_used = GENOTYPE_PRESETS[char_spec.preset]()
+            else:
+                genotype_used = CharacterGenotype()
+            # Override style and palette from genotype
+            style = genotype_used.decode_to_style()
+            palette = self._genotype_to_palette(genotype_used)
+            char_spec = replace(char_spec, head_units=genotype_used.get_head_units())
+            self._log(
+                f"Using genotype mode: archetype={genotype_used.archetype}, "
+                f"template={genotype_used.body_template}, "
+                f"slots={list(genotype_used.slots.keys())}"
+            )
+
         output_paths: list[str] = []
         evolution_meta: Optional[dict[str, Any]] = None
         evolution_history: list[float] = []
@@ -1158,11 +1434,20 @@ class AssetPipeline:
                 f"Evolving character search space: iterations={char_spec.evolution_iterations}, "
                 f"population={char_spec.evolution_population}"
             )
-            char_spec, style, palette, evolution_meta, evolution_history = self._evolve_character_spec(
-                char_spec,
-                style,
-                palette,
-            )
+            if genotype_used is not None:
+                # SESSION-027: Use genotype-based semantic evolution
+                self._log("Evolution mode: genotype_semantic (3-layer mutation + crossover)")
+                char_spec, style, palette, evolution_meta, evolution_history = self._evolve_character_genotype(
+                    char_spec,
+                    genotype_used,
+                )
+            else:
+                # Legacy: flat style+palette evolution
+                char_spec, style, palette, evolution_meta, evolution_history = self._evolve_character_spec(
+                    char_spec,
+                    style,
+                    palette,
+                )
             evolution_path = str(asset_dir / f"{char_spec.name}_character_evolution.json")
             with open(evolution_path, "w") as f:
                 json.dump(evolution_meta, f, indent=2)
@@ -1191,6 +1476,7 @@ class AssetPipeline:
                     "outline": char_spec.enable_outline,
                     "lighting": char_spec.enable_lighting,
                 },
+                "genotype": genotype_used.to_dict() if genotype_used is not None else None,
             },
             "evolution": evolution_meta or {
                 "enabled": False,

@@ -1,4 +1,4 @@
-# SESSION HANDOFF — MarioTrickster-MathArt
+# SESSION HANDOFF
 
 > **READ THIS FIRST** if you are starting a new conversation about this project.
 > This document is auto-generated and reflects the latest verified project state and workflow rules.
@@ -7,9 +7,9 @@
 
 1. **Read `DEDUP_REGISTRY.json`** — Prevents duplicate research and repeated external harvesting.
 2. **Read `SESSION_PROTOCOL.md`** — Session efficiency rules, anti-repetition process, and protocol trigger logic.
-3. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`** — Default method for precise, parallel, high-value external research.
+3. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`** — Default method for precise, parallel, high-value external research. Now includes SESSION-027 enhanced query construction and synthesis rules.
 4. **Read `PROJECT_BRAIN.json`** — Machine-readable global state.
-5. **Read `research_notes_session025.md`** — Latest non-duplicative reference synthesis for the next high-value decisions.
+5. **Read `research_notes_session027.md`** — Latest research synthesis for the semantic genotype system.
 6. **Read this file** — Current priorities, verified status, and handoff guidance.
 
 ---
@@ -18,73 +18,77 @@
 
 | Dimension | Value |
 |-----------|-------|
-| Current version | **0.18.0** |
-| Last updated | 2026-04-15T15:25:06Z |
-| Last session | **SESSION-026** |
+| Current version | **0.19.0** |
+| Last updated | 2026-04-16T12:00:00Z |
+| Last session | **SESSION-027** |
 | Best quality score | 0.8674 (best validated geometric sprite baseline) |
-| Validation pass rate | **493/493 = 100%** |
-| Total code lines | 31,673 |
+| Validation pass rate | **538/538 = 100%** |
+| Total code lines | 35,278 |
 | Knowledge rules | 12 |
 | Math models registered | 10 |
 | Project health score | **9.3/10** |
 
-## What Changed in SESSION-026
+## What Changed in SESSION-027
 
-### P0-PROTOCOL-026A: Default Precision Parallel Research Protocol Added
+### P1-NEW-9B DONE: Character Evolution 2.5 — Semantic Genotype System
 
-A new repository-level workflow file, **`PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`**, was added to formalize how future sessions should search the web when the project needs outside knowledge. This protocol is not a generic “search more” instruction. It is a decision-oriented mechanism designed to help future sessions find **more accurate, more implementation-relevant, and less repetitive** sources before coding.
+This is the **largest single-session code delivery** in the project's history. SESSION-027 replaced the flat numerical parameter mutation space with a hierarchical, component-based genotype system that enables genuinely diverse character families.
 
-It defines **when research should trigger**, how to frame the missing decision, how to split search into a **query lattice** instead of one vague query, how to rank sources, how to stop once the next implementation step is clear, and how to write back results so later sessions do not repeat the same harvesting.
+**New module: `mathart/animation/genotype.py` (823 lines)**
 
-### P0-PROTOCOL-026B: Session Workflow Now Automatically Points to the Protocol
+The genotype system introduces five architectural layers:
 
-`SESSION_PROTOCOL.md` was updated so future sessions now explicitly load the precision protocol whenever the work is blocked by missing external knowledge, whenever the user asks for precise or broad web research, or whenever the session risks slipping into **surface-level iteration without new ideas**.
+| Layer | Purpose | Implementation |
+|-------|---------|----------------|
+| **Archetype** | High-level semantic identity | `Archetype` enum: hero, villain, npc_worker, npc_merchant, monster_basic |
+| **Body Template** | Defines proportions and available slots | `BodyTemplate` dataclass: humanoid_standard, humanoid_chibi, humanoid_tall, creature_round, creature_tall |
+| **Part Registry** | Manages all equippable parts with compatibility rules | `PART_REGISTRY` dict: 11 registered parts across hat and face_accessory slots |
+| **Genotype** | Complete evolvable character representation | `CharacterGenotype` dataclass with slots, proportion modifiers, palette genes |
+| **Operators** | Mutation and crossover for evolution | `mutate_genotype()` (3-layer: structural + proportional + palette) and `crossover_genotypes()` |
 
-This makes the research mechanism part of the project’s **default operating model**, not a one-off note.
+**Key design decisions:**
 
-### P0-PROTOCOL-026D: Explicit Trigger Vocabulary Added
+- The genotype is the **search space**; the phenotype is `CharacterStyle` + `BodyPart` list
+- All mutations operate on the genotype; `decode_to_style()` produces valid characters
+- Slot compatibility is enforced by the registry, not by the mutation operator
+- Mixed discrete/continuous encoding: discrete choices (archetype, part IDs) are categorical; continuous params are floats with defined ranges
+- Backward-compatible: legacy `use_genotype=False` path is completely unchanged
 
-The protocol now has **standard trigger phrases** so future conversations can invoke it with less ambiguity. These phrases do not replace automatic triggering, but they create a stable user-facing vocabulary for faster activation.
+**New hat SDF shapes:** crown, helmet, hood (added to `parts.py`)
 
-| Trigger Class | Standard Phrase | Meaning |
-|---------------|-----------------|---------|
-| **standard** | **启动精准并行研究协议** | Start the protocol immediately |
-| **soft** | **优先启用精准并行研究协议** | Strongly prefer research-first, but allow implementation if the next step is already obvious |
-| **hard** | **本轮禁止直接开做，必须先启动精准并行研究协议** | Require protocol-guided research before coding |
-| **full command** | **启动精准并行研究协议：围绕当前差距做去重并行搜索，只保留能直接指导 MarioTrickster-MathArt 落地升级的高价值资料。** | Project-standard full invocation sentence |
+**Pipeline integration:** `produce_character_pack()` now supports `use_genotype=True` which activates the semantic evolution path with crossover support.
 
-This means future sessions can now be triggered by either **automatic need detection** or **explicit standard wording**.
+### Research Protocol Enhancement
 
-### P0-PROTOCOL-026C: Reusable Skill Validated for Cross-Session Reuse
+The precision parallel research protocol (`PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`) was enhanced with:
 
-A reusable skill was created and validated at:
-
-`/home/ubuntu/skills/mathart-precision-research/SKILL.md`
-
-This gives future sessions two aligned entrypoints: the **repository-local protocol** and the **reusable skill**. The skill passed structural validation, which means the mechanism is now robust enough to be reused consistently in future conversations.
+1. **Precision query construction rules** — Anchor to implementation artifacts, include constraints, name output formats, use domain vocabulary, create cross-domain bridge queries
+2. **Parallel search dimension selection** — Choose between abstraction layer, competing approach, output consumer, or project subsystem dimensions based on gap type
+3. **Post-search synthesis rule** — Require a decision matrix mapping findings to code files, rating novelty/feasibility/impact, and ending with a concrete implementation plan
 
 ### Validation Outcome
 
-No runtime code was changed in SESSION-026. The last verified code baseline remains **493/493 tests passing**, inherited from SESSION-024. The new workflow layer itself was validated through successful skill structure validation and repository document integration.
+| Scope | Result |
+|-------|--------|
+| Full repository test suite | **538/538 PASS** (was 493) |
+| New genotype unit tests | **45/45 PASS** |
+| E2E integration tests | **4/4 PASS** |
+| Legacy mode regression | **Zero regressions** |
+| Code delta | +3,605 lines (genotype module + tests + pipeline integration + research notes) |
 
-## SESSION-026 Deliverables
+## SESSION-027 Deliverables
 
 | Category | Change | File(s) | Impact |
 |----------|--------|---------|--------|
-| **WORKFLOW** | Default precision parallel research protocol added | `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` | Gives future sessions a concrete, reusable method for high-value external research |
-| **PROCESS** | Main session protocol updated with trigger rules | `SESSION_PROTOCOL.md` | Makes the protocol automatic when research is truly needed |
-| **STATE** | Handoff and machine memory refreshed | `SESSION_HANDOFF.md`, `PROJECT_BRAIN.json` | Future sessions can enter with clearer context and less duplicate effort |
-| **DEDUP** | Long-term anti-repeat memory extended | `DEDUP_REGISTRY.json` | Prevents future sessions from rediscovering the same protocol design work |
-| **VOCABULARY** | Explicit trigger wording added for the protocol | `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`, `SESSION_PROTOCOL.md` | Makes user-driven activation faster and less ambiguous |
-
-## Validation Results
-
-| Scope | Result |
-|-------|--------|
-| Full repository test suite | **493/493 PASS** |
-| Code delta in SESSION-026 | Docs / workflow / research protocol only |
-| Skill validation | **PASS** (`mathart-precision-research`) |
-| Verified implementation baseline | Inherited from SESSION-024 |
+| **CORE** | Semantic genotype system | `mathart/animation/genotype.py` | Replaces flat parameter mutation with hierarchical component-based evolution |
+| **CORE** | Pipeline genotype integration | `mathart/pipeline.py` | `produce_character_pack()` supports `use_genotype=True` with semantic evolution + crossover |
+| **CORE** | New hat SDF shapes | `mathart/animation/parts.py` | crown, helmet, hood added to hat_sdf |
+| **API** | Genotype public exports | `mathart/animation/__init__.py` | Full genotype API exported |
+| **TEST** | Genotype unit tests | `tests/test_genotype.py` | 45 tests covering structure, registry, decoding, mutation, crossover, presets, new hats |
+| **TEST** | E2E integration tests | `test_genotype_e2e.py` | 4 tests covering pipeline integration, evolution, all presets, legacy mode |
+| **RESEARCH** | Research notes | `research_notes_session027.md` | 5-dimension parallel research synthesis |
+| **PROTOCOL** | Enhanced search mechanism | `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` | Query construction rules, dimension selection, synthesis requirements |
+| **STATE** | Updated project memory | `PROJECT_BRAIN.json`, `DEDUP_REGISTRY.json` | Reflects SESSION-027 completion |
 
 ## Current Capability Snapshot
 
@@ -93,44 +97,41 @@ No runtime code was changed in SESSION-026. The last verified code baseline rema
 | Geometric sprite generation | Strong | Evolved SDF sprites, layered rendering, texture-aware output |
 | Character rendering | Strong | Direct pipeline output with usable exports |
 | Character asset packaging | Strong | Multi-state sheets, GIFs, frames, atlas, manifest, palette |
-| Character evolution/search | **Implemented (2.0 foundation)** | Supports character-aware scoring, elite diversity, and stagnation recovery |
-| Character evolution depth | Partial | Mutation space is still too narrow for rich character families |
+| Character evolution/search | **Strong (2.5 with genotype)** | Semantic genotype with archetypes, body templates, part registry, 3-layer mutation, crossover, elite diversity, stagnation recovery |
+| Character evolution depth | **Significantly improved** | Mutation space now includes structural changes (archetype, template, parts) not just proportions and palette |
 | Benchmark-driven evaluation | Weak | Still lacks production benchmark suites and acceptance thresholds |
 | Tile / level generation | Module exists, not integrated enough | WFC code exists but still needs top-level pipeline wiring |
 | Shader generation | Module exists, not integrated enough | Needs direct production path and export wiring |
 | Asset export bridge | Module exists, not integrated enough | Needs to become a first-class end-to-end pipeline step |
 | Animation liveliness | Partial | Still missing per-frame parameter tracks and spring overlap |
 | Organic material system | Missing | Reaction-diffusion / advanced organic masks are not yet integrated |
-| Cross-session anti-duplication | Stronger | SessionGuard + registry + default precision research protocol are now in place |
-| Search / reference harvesting discipline | Stronger | Trigger, framing, source ranking, stopping rules, and note contract are now formalized |
-| Test reliability | Strong | Full suite green at 493 tests |
+| Cross-session anti-duplication | Strong | SessionGuard + registry + default precision research protocol |
+| Search / reference harvesting discipline | **Stronger** | Protocol now includes precision query construction and synthesis rules |
+| Test reliability | Strong | Full suite green at 538 tests |
 
 ## Gap Analysis: Current vs. User Goal
 
-The repository is **not just a beautiful shell anymore**. It can already output real character packs, run character-aware search, preserve diversity, recover from stagnation, and export multi-state assets.
-
-The new improvement in SESSION-026 is that the project now also has a **default research mechanism** for when code progress would otherwise become shallow. That matters because the remaining gaps are no longer only “implement feature X.” Several of them require better benchmark standards, better source selection, and tighter translation from external references into project-local code and evaluation rules.
+The character evolution system is now **architecturally complete at the 2.5 level**. The genotype layer provides the structural foundation for rich character families. The remaining evolution gap is **content breadth** (more parts in the registry, more slot types supported by the renderer) rather than architecture.
 
 | Goal Dimension | Current State | Remaining Gap |
 |---------------|---------------|---------------|
-| Produce usable assets, not demos | Stronger than before | Real evolved character packs exist, but level/shader/export closure is still incomplete |
-| Multi-state character output | **Done** | Needs broader state library and richer anatomy/accessory diversity |
-| Continuous evolution potential | Improved again | Search logic is stronger, but mutation semantics remain narrow |
-| Avoid repeated wasted sessions | Improved further | Protocol, registry, and reusable skill now reduce duplicated searching as well as duplicated coding |
+| Produce usable assets, not demos | Stronger | Genotype-evolved character packs exist; level/shader/export closure still incomplete |
+| Multi-state character output | **Done** | Needs broader state library and richer part registry content |
+| Continuous evolution potential | **Strong** | Genotype architecture supports arbitrary expansion; needs more registered parts |
+| Avoid repeated wasted sessions | Strong | Protocol, registry, skill, and enhanced search mechanism reduce duplication |
 | Integrate best existing project modules | Partial | WFC, shader, export, and benchmark assets still under-integrated |
 | Minimal software sprawl / self-contained | Good | Core generation path remains repo-local and controllable |
 | Output suitable for real downstream use | Partial | Needs stronger benchmark definitions and engine-ready bundle closure |
-| Search quality during upgrades | Improved structurally | Still needs repeated real-world use to confirm the protocol continues to surface the right sources under different gap types |
+| Search quality during upgrades | **Improved and validated** | Protocol was used in practice during SESSION-027 and enhanced based on real results |
 
 ## Biggest Remaining Gaps
 
-1. **Character evolution still needs a broader semantic mutation space.** It can score and recover better now, but it still mostly mutates proportions, style micro-parameters, and palette perturbations.
-2. **Production benchmark asset suites are still missing.** The repository validates correctness well, but it still lacks benchmark targets and acceptance thresholds that define what “good enough for production” means.
-3. **WFC tilemap pipeline integration remains unfinished.** The module exists but still needs a top-level `AssetPipeline` production path and package integration.
-4. **Shader and export modules remain under-integrated.** These are still not first-class pipeline outputs.
-5. **Per-frame SDF parameter animation is still absent.** Existing geometric animation remains largely transform-driven.
-6. **Secondary motion and organic texture systems are still roadmap items.** Spring-based overlap and reaction-diffusion remain open.
-7. **The new protocol now needs repeated use on real upgrade decisions.** It is designed and integrated, but its long-term value depends on applying it to future bottlenecks instead of letting sessions drift back into vague searching.
+1. **Production benchmark asset suites are still missing.** The repository validates correctness well, but lacks benchmark targets and acceptance thresholds.
+2. **Part registry content is narrow.** Only hat and face_accessory slots have registered parts. Torso overlays, hand items, and foot accessories need SDF functions and renderer support.
+3. **WFC tilemap pipeline integration remains unfinished.** The module exists but needs a top-level production path.
+4. **Shader and export modules remain under-integrated.** Not yet first-class pipeline outputs.
+5. **Per-frame SDF parameter animation is still absent.** Geometric animation remains largely transform-driven.
+6. **Secondary motion and organic texture systems are still roadmap items.**
 
 ## Pending Tasks (Priority Order)
 
@@ -138,16 +139,15 @@ The new improvement in SESSION-026 is that the project now also has a **default 
 
 | ID | Task | Status | Effort | Description |
 |----|------|--------|--------|-------------|
-| P1-NEW-9B | Character evolution 2.5 | PARTIAL | High | Expand `CharacterSpec` toward **semantic mutation space**: archetypes, anatomy templates, clothing layers, accessory slots, clearer pose/appeal objectives, and less noise-like local drift. Use the precision research protocol before making broad design changes. |
-| P1-NEW-10 | Production benchmark asset suite | TODO | High | Add benchmark characters, tiles, and VFX with structured metadata, acceptance thresholds, and automated validators so future evolution is judged against production-like targets. |
-| P1-NEW-1 | WFC tilemap pipeline integration | TODO | High | Add a high-level `produce_level()` path, connect WFC outputs to asset packs, and include playability / connectivity validation plus metadata manifests. |
-| P1-NEW-7 | Export pipeline integration | TODO | High | Promote exporter to a first-class stage that emits engine-ready bundles with atlas indices, palette data, manifests, and reusable metadata. |
-| P1-NEW-6 | Shader pipeline integration | TODO | Medium | Wire `ShaderCodeGenerator` into `AssetPipeline` and support shader-bundle export with baked textures plus runtime parameter metadata. |
-| P1-2 | Per-frame SDF parameter animation | TODO | Medium | Add keyframed SDF parameter tracks and true shape evolution over time instead of mostly transform-driven playback. |
-| P1-NEW-3 | Spring-based secondary animation | TODO | Medium | Add critically damped follow-through / overlap motion for accessories, appendages, and VFX attachments. |
-| P1-NEW-2 | Reaction-diffusion textures | TODO | Medium | Add Gray-Scott-style organic texture generation and hook it into SDF / shader masks. |
-| P1-NEW-11 | Protocol-guided gap research in live use | TODO | Low | Apply `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` to the next major upgrade bottleneck and verify that it improves source quality, implementation clarity, and anti-duplication discipline in practice. |
-| P1-NEW-8 | Quality checkpoint mid-generation | TODO | Low | Wire `ArtMathQualityController` mid-generation checkpoint into longer searches. |
+| P1-NEW-9C | Character evolution 3.0: expand part registry | TODO | Medium | Add torso overlays, hand items, foot accessories with new SDF functions and renderer support |
+| P1-NEW-10 | Production benchmark asset suite | TODO | High | Add benchmark characters, tiles, and VFX with structured metadata, acceptance thresholds, and automated validators |
+| P1-NEW-1 | WFC tilemap pipeline integration | TODO | High | Add `produce_level()`, connect WFC to asset packs, include playability validation |
+| P1-NEW-7 | Export pipeline integration | TODO | High | Promote exporter to first-class stage with engine-ready bundles |
+| P1-NEW-6 | Shader pipeline integration | TODO | Medium | Wire `ShaderCodeGenerator` into `AssetPipeline` |
+| P1-2 | Per-frame SDF parameter animation | TODO | Medium | Add keyframed SDF parameter tracks |
+| P1-NEW-3 | Spring-based secondary animation | TODO | Medium | Add follow-through / overlap motion |
+| P1-NEW-2 | Reaction-diffusion textures | TODO | Medium | Add Gray-Scott organic texture generation |
+| P1-NEW-8 | Quality checkpoint mid-generation | TODO | Low | Wire mid-generation quality checkpoint |
 
 ### P2 — Nice to Have
 
@@ -168,9 +168,17 @@ The new improvement in SESSION-026 is that the project now also has a **default 
 | P3-3 | Unity/Godot exporter plugin | TODO | Medium |
 | P3-4 | CI/CD + GitHub Actions | TODO | Medium |
 | P3-5 | End-to-end demo showcase script | TODO | Low |
-| P3-6 | README update for SESSION-018~026 features | TODO | Low |
+| P3-6 | README update for SESSION-018~027 features | TODO | Low |
 
 ## Completed Tasks
+
+### SESSION-027
+
+| ID | Task | Result |
+|----|------|--------|
+| P1-NEW-9B | Character evolution 2.5: semantic genotype system | **DONE** — CharacterGenotype with archetypes, body templates, part registry, 3-layer mutation, crossover, pipeline integration. 538/538 tests passing. |
+| PROTOCOL-027A | Precision research protocol enhancement | Enhanced query construction rules, dimension selection, post-search synthesis |
+| RESEARCH-027 | Semantic mutation space research | 5-dimension parallel research → implementation synthesis |
 
 ### SESSION-026
 
@@ -219,11 +227,11 @@ The new improvement in SESSION-026 is that the project now also has a **default 
 
 1. **Read `DEDUP_REGISTRY.json` first.**
 2. **Read `SESSION_PROTOCOL.md` second.**
-3. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` third whenever the work may need external references.**
-4. Read `PROJECT_BRAIN.json`, `research_notes_session025.md`, and this handoff before coding.
+3. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` third** — now includes SESSION-027 enhanced query construction and synthesis rules.
+4. Read `PROJECT_BRAIN.json`, `research_notes_session027.md`, and this handoff before coding.
 5. Do **not** launch another broad external research sweep unless a new subsystem focus is chosen or the precision protocol explicitly justifies it.
 6. If the user uses standard trigger wording such as **启动精准并行研究协议**, **优先启用精准并行研究协议**, or **本轮禁止直接开做，必须先启动精准并行研究协议**, treat it as an immediate protocol trigger.
-7. If the goal is better final character art quality, start with **P1-NEW-9B** or **P1-NEW-10**, not another packaging-only change.
+7. If the goal is better final character art quality, start with **P1-NEW-9C** (expand part registry) or **P1-NEW-10** (production benchmarks).
 8. If the goal is end-to-end production usefulness, start with **P1-NEW-1**, **P1-NEW-7**, or **P1-NEW-6**.
 9. If motion/material quality is the next focus, start with **P1-2**, **P1-NEW-3**, or **P1-NEW-2**.
 10. If the session starts to drift toward vague or repetitive iteration, trigger the precision protocol before searching broadly.
@@ -237,6 +245,7 @@ from mathart.pipeline import AssetPipeline, CharacterSpec
 
 pipeline = AssetPipeline(output_dir="output/", seed=7)
 
+# Legacy mode (unchanged)
 character = pipeline.produce_character_pack(
     CharacterSpec(
         name="mario_character",
@@ -248,7 +257,21 @@ character = pipeline.produce_character_pack(
         evolution_preview_states=["idle", "run"],
     )
 )
+
+# SESSION-027: Genotype mode (new)
+genotype_character = pipeline.produce_character_pack(
+    CharacterSpec(
+        name="evolved_mario",
+        preset="mario",
+        use_genotype=True,  # Activates semantic genotype evolution
+        frames_per_state=6,
+        states=["idle", "run", "jump", "fall", "hit"],
+        evolution_iterations=5,
+        evolution_population=6,
+        evolution_crossover_rate=0.25,
+    )
+)
 ```
 
 ---
-*Auto-generated by SESSION-026 at 2026-04-15T15:25:06Z*
+*Auto-generated by SESSION-027 at 2026-04-16T12:00:00Z*

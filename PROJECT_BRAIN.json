@@ -1,20 +1,21 @@
 {
-  "version": "0.18.0",
-  "last_session_id": "SESSION-026",
-  "last_updated": "2026-04-15T15:25:06Z",
+  "version": "0.19.0",
+  "last_session_id": "SESSION-027",
+  "last_updated": "2026-04-16T12:00:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "493/493 = 100%",
+  "validation_pass_rate": "538/538 = 100%",
   "total_iterations": 500,
-  "total_code_lines": 31673,
+  "total_code_lines": 35278,
   "distill_session_id": "DISTILL-004",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
   "knowledge_rule_count": 12,
   "math_model_count": 10,
   "project_health_score": 9.3,
-  "current_focus": "The repository now has a default precision parallel research protocol in addition to the character evolution 2.0 foundation. The next critical gaps remain semantic character mutation space, production benchmark asset suites, WFC pipeline closure, shader/export closure, and motion/material upgrades.",
-  "next_reference_entrypoint": "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md",
+  "current_focus": "SESSION-027 delivered the semantic genotype evolution system (character evolution 2.5). The CharacterGenotype layer with archetypes, body templates, part registry, and 3-layer mutation+crossover is now integrated into the pipeline. The precision research protocol was also enhanced with better query construction rules and post-search synthesis requirements. Next critical gaps: production benchmark suites, WFC pipeline closure, shader/export closure, per-frame SDF animation, and motion/material upgrades.",
+  "next_reference_entrypoint": "research_notes_session027.md",
   "reference_notes_priority": [
+    "research_notes_session027.md",
     "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md",
     "research_notes_session025.md"
   ],
@@ -52,9 +53,17 @@
       "id": "P1-NEW-9B",
       "priority": "P1",
       "title": "Character evolution 2.5",
-      "status": "PARTIAL",
+      "status": "DONE",
       "estimated_effort": "high",
-      "description": "Expand CharacterSpec toward a semantic mutation space with archetypes, anatomy templates, clothing layers, accessory slots, and stronger pose/appeal objectives so search moves beyond local proportion and palette drift. Use the precision research protocol before broad design changes."
+      "description": "SESSION-027: Delivered CharacterGenotype with archetypes (hero/villain/npc/monster), 5 body templates, part registry with 11 registered parts, 3-layer semantic mutation (structural+proportional+palette), crossover operator, and full pipeline integration. 45 unit tests + E2E validation. Genotype mode activated via use_genotype=True on CharacterSpec."
+    },
+    {
+      "id": "P1-NEW-9C",
+      "priority": "P1",
+      "title": "Character evolution 3.0: expand part registry",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Expand the part registry beyond hats and face accessories to include torso overlays (armor, cape, vest), hand items (sword, staff, shield), and foot accessories (boots, wings). Requires new SDF functions and renderer support for each new slot type."
     },
     {
       "id": "P1-NEW-10",

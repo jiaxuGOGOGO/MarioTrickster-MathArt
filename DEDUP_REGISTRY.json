@@ -52,6 +52,11 @@
       {"id": "REF-R026-001", "topic": "Precision parallel research protocol for project upgrades", "findings": "External research should trigger only when it unlocks a concrete implementation or evaluation decision. Query lattices, source ranking, stop conditions, and write-back notes reduce duplicate searching and improve implementation relevance.", "status": "integrated", "note_file": "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md"},
       {"id": "REF-R026-002", "topic": "Repository-local plus skill-based protocol reuse", "findings": "Keeping both a repo-local protocol file and a validated reusable skill gives future sessions a stable default search workflow inside and outside the repository.", "status": "integrated", "note_file": "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md"},
       {"id": "REF-R026-003", "topic": "Explicit trigger vocabulary for protocol activation", "findings": "Standard phrases, soft/hard trigger semantics, and paraphrase tolerance reduce ambiguity and let users invoke high-quality research mode faster without depending on exact wording.", "status": "integrated", "note_file": "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md"}
+    ],
+    "research_session_027": [
+      {"id": "REF-R027-001", "topic": "Hierarchical Component Model for Characters", "findings": "Characters should be represented as a tree of components (Archetype -> Slots -> Parts) rather than a flat parameter vector, enabling true semantic variation.", "status": "planned_for_integration", "note_file": "research_notes_session027.md"},
+      {"id": "REF-R027-002", "topic": "Mixed-Parameter Encoding for Evolution", "findings": "Discrete choices (templates, part types) and continuous parameters (proportions, colors) should be encoded into a single continuous float vector for the evolutionary algorithm, and decoded during fitness evaluation.", "status": "planned_for_integration", "note_file": "research_notes_session027.md"},
+      {"id": "REF-R027-003", "topic": "Grammar-Guided Assembly Constraints", "findings": "Part compatibility must be enforced through a slot-and-tag system (e.g., 'head' provides 'hat_slot') to ensure random mutations produce structurally valid characters.", "status": "planned_for_integration", "note_file": "research_notes_session027.md"}
     ]
   },
 

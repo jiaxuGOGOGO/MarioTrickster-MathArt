@@ -109,6 +109,49 @@ def hat_sdf(style: CharacterStyle) -> SDFFunc | None:
             return np.minimum(hat, brim)
         return sdf
 
+    elif style.hat_style == "crown":
+        # Crown: three pointed peaks on a band
+        def sdf(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+            # Base band
+            band_dx = np.abs(x) - r * 0.75
+            band_dy = np.abs(y - r * 0.55) - r * 0.15
+            band = np.sqrt(np.maximum(band_dx, 0)**2 + np.maximum(band_dy, 0)**2) + \
+                   np.minimum(np.maximum(band_dx, band_dy), 0)
+            # Three peaks (triangles approximated by circles)
+            peak_c = np.sqrt(x**2 + (y - r * 1.05)**2) - r * 0.22
+            peak_l = np.sqrt((x + r * 0.45)**2 + (y - r * 0.88)**2) - r * 0.18
+            peak_r = np.sqrt((x - r * 0.45)**2 + (y - r * 0.88)**2) - r * 0.18
+            peaks = np.minimum(np.minimum(peak_c, peak_l), peak_r)
+            return np.minimum(band, peaks)
+        return sdf
+
+    elif style.hat_style == "helmet":
+        # Helmet: dome covering the top of the head with a nose guard
+        def sdf(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+            # Main dome (larger than head, covers top)
+            dome = np.sqrt(x**2 + (y - r * 0.15)**2) - r * 1.12
+            dome = np.where(y > -r * 0.1, dome, 1.0)  # Only top half
+            # Nose guard (thin vertical strip)
+            guard_dx = np.abs(x) - r * 0.06
+            guard_dy = np.abs(y + r * 0.05) - r * 0.25
+            guard = np.sqrt(np.maximum(guard_dx, 0)**2 + np.maximum(guard_dy, 0)**2) + \
+                    np.minimum(np.maximum(guard_dx, guard_dy), 0)
+            return np.minimum(dome, guard)
+        return sdf
+
+    elif style.hat_style == "hood":
+        # Hood: soft draping shape around head
+        def sdf(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+            # Main hood shape (larger circle offset upward)
+            hood = np.sqrt(x**2 + (y - r * 0.2)**2) - r * 1.18
+            # Cut out the face area (lower front)
+            face_cut = -(np.sqrt(x**2 + (y + r * 0.1)**2) - r * 0.85)
+            hood = np.maximum(hood, face_cut)
+            # Only show above a certain line
+            hood = np.where(y > -r * 0.25, hood, 1.0)
+            return hood
+        return sdf
+
     return None
 
 

@@ -190,3 +190,47 @@ For this repository specifically:
 3. Prefer self-contained and controllable methods unless outside tooling unlocks major leverage.
 4. Study marketplaces to learn **deliverable standards**, not just visual inspiration.
 5. Favor sources that can be turned into code, metrics, or asset requirements within this repository.
+
+## SESSION-027 Enhancement: Precision Search Mechanism
+
+> Added based on real-world application of this protocol during the character genotype evolution upgrade.
+
+### Problem Observed
+
+Generic queries like "procedural character generation" return broad results that overlap heavily with what the project already knows. The protocol's original query lattice method helps, but the **query construction strategy** itself can be further optimized.
+
+### Enhanced Query Construction Rules
+
+When constructing queries for the lattice, apply these precision rules:
+
+| Rule | Description | Example |
+|------|-------------|----------|
+| **Anchor to implementation artifact** | Include the specific data structure, algorithm, or file format being designed | "hierarchical genotype dataclass character evolution" instead of "character evolution system" |
+| **Include the constraint** | Name the constraint that makes the problem hard | "mixed discrete-continuous mutation operator SDF" instead of "mutation operator" |
+| **Name the output format** | Specify what the source must produce | "spritesheet atlas JSON manifest pixel art" instead of "game asset export" |
+| **Use domain-specific vocabulary** | Use terms from the target domain, not generic CS terms | "signed distance field body part composition" instead of "shape combination" |
+| **Cross-domain bridge queries** | When the project touches multiple domains, create bridge queries | "shape grammar meets evolutionary search pixel art" |
+
+### Parallel Search Dimension Selection
+
+When using parallel subtasks for research, select dimensions that maximize **information independence**:
+
+| Dimension Type | When to Use | Example |
+|---------------|-------------|----------|
+| **By abstraction layer** | When the gap spans theory → code | "formal model" vs "implementation pattern" vs "production practice" |
+| **By competing approach** | When multiple algorithms could solve the problem | "shape grammar" vs "L-system" vs "CPPN" vs "constraint solver" |
+| **By output consumer** | When the result must serve different downstream needs | "renderer compatibility" vs "evolution searchability" vs "serialization" |
+| **By project subsystem** | When the gap touches multiple modules | "skeleton system" vs "SDF parts" vs "palette generation" vs "evaluator" |
+
+Choose the dimension type that produces the **most non-overlapping** results. If unsure, prefer **by competing approach** for algorithm gaps and **by abstraction layer** for architecture gaps.
+
+### Post-Search Synthesis Rule
+
+After parallel search completes, do not just list findings. Produce a **decision matrix**:
+
+1. Map each finding to the specific code file or function it would change.
+2. Rate each finding on **novelty** (vs. project memory), **feasibility** (given current architecture), and **impact** (on the gap being addressed).
+3. If two findings conflict, state the trade-off explicitly.
+4. The synthesis must end with a **concrete implementation plan**, not just "consider these options."
+
+This ensures research always terminates in an actionable decision rather than an open-ended reading list.

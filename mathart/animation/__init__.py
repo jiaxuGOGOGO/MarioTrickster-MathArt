@@ -17,6 +17,13 @@ from .principles import (
 # SESSION-019: Export new animation modules
 from .particles import ParticleSystem, ParticleConfig
 from .cage_deform import CageDeformer, CagePreset, CageAnimation, CageKeyframe
+# SESSION-027: Semantic genotype system
+from .genotype import (
+    CharacterGenotype, PartSlotInstance, PartDefinition, BodyTemplate,
+    Archetype, BodyTemplateName, SlotType,
+    BODY_TEMPLATES, PART_REGISTRY, ARCHETYPE_TEMPLATES, GENOTYPE_PRESETS,
+    mutate_genotype, crossover_genotypes, get_parts_for_slot,
+)
 
 __all__ = [
     "Skeleton", "Bone", "Joint",
@@ -36,4 +43,9 @@ __all__ = [
     # SESSION-019: New animation modules
     "ParticleSystem", "ParticleConfig",
     "CageDeformer", "CagePreset", "CageAnimation", "CageKeyframe",
+    # SESSION-027: Semantic genotype
+    "CharacterGenotype", "PartSlotInstance", "PartDefinition", "BodyTemplate",
+    "Archetype", "BodyTemplateName", "SlotType",
+    "BODY_TEMPLATES", "PART_REGISTRY", "ARCHETYPE_TEMPLATES", "GENOTYPE_PRESETS",
+    "mutate_genotype", "crossover_genotypes", "get_parts_for_slot",
 ]
