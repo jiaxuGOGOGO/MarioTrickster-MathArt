@@ -66,7 +66,22 @@
         "DIFFERENTIABLE_RENDERING gap resolved"
       ],
       "created_at": "2026-04-14T16:35:53Z",
-      "context": {}
+      "status": "not_started",
+      "context": {
+        "file": "mathart/sdf/renderer.py"
+      }
+    },
+    {
+      "task_id": "TASK-007",
+      "description": "PDF Distillation — inject reference knowledge into the project",
+      "priority": "high",
+      "depends_on": [],
+      "created_at": "2026-04-15T23:00:00Z",
+      "status": "ongoing",
+      "notes": "Primary knowledge injection method. User uploads PDFs to Manus chat -> Manus reads and distills -> writes to knowledge/*.md -> pushes to GitHub -> user pulls and runs evolution. Next session ID: DISTILL-008.",
+      "context": {
+        "files": ["knowledge/*.md", "mathart/distill/parser.py", "mathart/evolution/math_registry.py"]
+      }
     },
     {
       "task_id": "TASK-006",

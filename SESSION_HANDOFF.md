@@ -19,19 +19,37 @@
 
 ## Pending Tasks (Priority Order)
 
+### [HIGH] `TASK-001`: Integrate ArtMathQualityController into the main InnerLoop pipeline
+- **Status**: 3/4 checkpoints done — `pre_generation`, `post_generation`, `iteration_end` integrated
+- **Remaining**: `mid_generation` checkpoint not yet called (current generator is single-step; needs multi-step generator support)
+- **Bug fixed**: `_try_widen_space()` now correctly accesses `optimizer.space` (was `optimizer._space`)
+- **File**: `mathart/evolution/inner_loop.py`
+
+### [HIGH] `TASK-007`: PDF Distillation — inject reference knowledge into the project
+- **Status**: Ongoing / Ready to execute whenever user uploads PDFs
+- **Workflow**: User uploads PDF to Manus chat → Manus reads and distills → writes to `knowledge/*.md` → pushes to GitHub → user pulls and runs evolution
+- **Next distill session ID**: DISTILL-008
+- **Note**: This is the primary way to improve the project's math and art knowledge base
+
+### [MEDIUM] `TASK-003`: Connect LevelSpecBridge to ExportBridge for auto-sized asset export
+- **Status**: Not started
+- **Depends on**: TASK-001
+- **File**: `mathart/export/bridge.py`
+
+### [LOW] `TASK-005`: Add GPU-accelerated rendering path when CUDA is available
+- **Status**: Not started
+- **Depends on**: DIFFERENTIABLE_RENDERING capability gap resolved (requires NVIDIA GPU)
+- **File**: `mathart/sdf/renderer.py`
+
+---
+
+### [DONE] Completed Tasks
 - [DONE] `TASK-002`: Add sprite reference upload workflow to CLI
   - Completed in SESSION-006: add-sprite, add-sheet, sprites commands + 9 tests
 - [DONE] `TASK-004`: Implement noise texture generator (fill TEXTURE capability gap)
   - Completed in SESSION-007: mathart/sdf/noise.py with 6 noise algorithms, 6 presets, 7 colormaps + 44 tests
 - [DONE] `TASK-006`: Workspace management (inbox/output/file picker)
   - Completed in SESSION-007: mathart/workspace/manager.py + 4 new CLI commands
-- [HIGH] `TASK-001`: Integrate ArtMathQualityController into the main InnerLoop pipeline
-  - Progress: 3/4 checkpoints integrated (pre/post/iteration_end). mid_generation deferred for single-step generators.
-  - Bug fixed: _try_widen_space() now correctly accesses optimizer.space
-- [MEDIUM] `TASK-003`: Connect LevelSpecBridge to ExportBridge for auto-sized asset export
-  - Depends on: TASK-001
-- [LOW] `TASK-005`: Add GPU-accelerated rendering path when CUDA is available
-  - Depends on: DIFFERENTIABLE_RENDERING gap resolved
 
 ## Capability Gaps (External Upgrades Needed)
 
