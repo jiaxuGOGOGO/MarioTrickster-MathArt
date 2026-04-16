@@ -113,6 +113,21 @@ class ClosedLoopStatus:
 
 
 @dataclass
+class AnalyticalRenderingStatus:
+    """Snapshot of analytical SDF rendering integration status."""
+
+    aux_module_exists: bool = False
+    industrial_renderer_supports_aux_maps: bool = False
+    public_api_exports_aux_maps: bool = False
+    auxiliary_test_exists: bool = False
+    research_notes_path: str = ""
+    tracked_exports: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
 class EvolutionCycleReport:
     """Complete report for one evolution cycle."""
 
@@ -122,6 +137,7 @@ class EvolutionCycleReport:
     distillations: list[DistillationRecord] = field(default_factory=list)
     test_result: Optional[TestEvolutionResult] = None
     closed_loop: Optional[ClosedLoopStatus] = None
+    analytical_rendering: Optional[AnalyticalRenderingStatus] = None
     summary: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
@@ -133,6 +149,7 @@ class EvolutionCycleReport:
             "distillations": [d.to_dict() for d in self.distillations],
             "test_result": self.test_result.to_dict() if self.test_result else None,
             "closed_loop": self.closed_loop.to_dict() if self.closed_loop else None,
+            "analytical_rendering": self.analytical_rendering.to_dict() if self.analytical_rendering else None,
             "summary": self.summary,
             "timestamp": self.timestamp,
         }
@@ -283,9 +300,47 @@ GAP4_DISTILLATIONS: list[DistillationRecord] = [
 ]
 
 
+GAPC1_DISTILLATIONS: list[DistillationRecord] = [
+    DistillationRecord(
+        paper_id="quilez2015normalssdf",
+        paper_title="Normals for an SDF",
+        authors="Inigo Quilez",
+        venue="iquilezles.org article (2015)",
+        concept="Treat the normalized SDF gradient as the canonical surface orientation source, then reuse it for offline sprite-space normal-map baking without raymarching.",
+        target_module="mathart/animation/sdf_aux_maps.py",
+        target_class="compute_sdf_gradients",
+        validation_status="validated",
+        test_coverage="tests/test_sdf_aux_maps.py",
+    ),
+    DistillationRecord(
+        paper_id="quilez2019distgrad2d",
+        paper_title="2D Distance and Gradient Functions",
+        authors="Inigo Quilez",
+        venue="iquilezles.org article (2019)",
+        concept="Design the renderer around a distance-plus-gradient contract so existing SDF callables can use finite-difference fallback today while future primitives can plug in exact analytic gradients.",
+        target_module="mathart/animation/sdf_aux_maps.py",
+        target_class="bake_sdf_auxiliary_maps",
+        validation_status="validated",
+        test_coverage="tests/test_sdf_aux_maps.py",
+    ),
+    DistillationRecord(
+        paper_id="session044enginecompat",
+        paper_title="2D Lighting Engine Compatibility for Analytical SDF Aux Maps",
+        authors="Project Internal (SESSION-044)",
+        venue="SESSION-044",
+        concept="Export RGB normal maps and grayscale depth proxies alongside the albedo sprite so mainstream 2D engines can consume procedural characters through forward or deferred lighting workflows.",
+        target_module="mathart/animation/industrial_renderer.py",
+        target_class="render_character_maps_industrial",
+        validation_status="validated",
+        test_coverage="tests/test_sdf_aux_maps.py",
+    ),
+]
+
+
 _REGISTERED_DISTILLATIONS: list[DistillationRecord] = [
     *GAP1_DISTILLATIONS,
     *GAP4_DISTILLATIONS,
+    *GAPC1_DISTILLATIONS,
 ]
 
 
@@ -372,6 +427,46 @@ def collect_closed_loop_status(project_root: str | Path) -> ClosedLoopStatus:
     )
 
 
+def collect_analytical_rendering_status(project_root: str | Path) -> AnalyticalRenderingStatus:
+    """Collect the persisted state of analytical SDF rendering integration."""
+    root = Path(project_root)
+    aux_module = root / "mathart/animation/sdf_aux_maps.py"
+    renderer_module = root / "mathart/animation/industrial_renderer.py"
+    api_module = root / "mathart/animation/__init__.py"
+    test_path = root / "tests/test_sdf_aux_maps.py"
+    research_notes = root / "evolution_reports/session044_sdf_rendering_research_notes.md"
+
+    tracked_exports: list[str] = []
+    if renderer_module.exists():
+        try:
+            text = renderer_module.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            text = ""
+        for name in (
+            "IndustrialRenderAuxiliaryResult",
+            "render_character_maps_industrial",
+            "_build_character_distance_field",
+        ):
+            if name in text:
+                tracked_exports.append(name)
+    api_exports_aux = False
+    if api_module.exists():
+        try:
+            api_text = api_module.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            api_text = ""
+        api_exports_aux = "render_character_maps_industrial" in api_text and "bake_sdf_auxiliary_maps" in api_text
+
+    return AnalyticalRenderingStatus(
+        aux_module_exists=aux_module.exists(),
+        industrial_renderer_supports_aux_maps=("render_character_maps_industrial" in tracked_exports),
+        public_api_exports_aux_maps=api_exports_aux,
+        auxiliary_test_exists=test_path.exists(),
+        research_notes_path=str(research_notes.relative_to(root)) if research_notes.exists() else "",
+        tracked_exports=tracked_exports,
+    )
+
+
 def run_active_closed_loop(
     project_root: str | Path,
     source_state: str = "run",
@@ -405,11 +500,14 @@ def generate_evolution_report(
     distillations = get_distillation_registry()
     distillation_validation = validate_distillations(root)
     closed_loop_status = collect_closed_loop_status(root)
+    analytical_rendering_status = collect_analytical_rendering_status(root)
 
     test_counts = count_test_functions(root)
     total_tests = sum(test_counts.values())
-    new_tests_added = int((root / "tests/test_phase_state.py").exists()) + int(
-        (root / "tests/test_layer3_closed_loop.py").exists()
+    new_tests_added = (
+        int((root / "tests/test_phase_state.py").exists())
+        + int((root / "tests/test_layer3_closed_loop.py").exists())
+        + int((root / "tests/test_sdf_aux_maps.py").exists())
     )
 
     test_result = TestEvolutionResult(
@@ -433,6 +531,12 @@ def generate_evolution_report(
         )
     else:
         summary_parts.append("active Layer 3 closed loop not yet tuned")
+    if analytical_rendering_status.industrial_renderer_supports_aux_maps:
+        summary_parts.append(
+            f"analytical SDF rendering exports {len(analytical_rendering_status.tracked_exports)} tracked auxiliary hooks"
+        )
+    else:
+        summary_parts.append("analytical SDF rendering path not yet integrated")
     summary = "; ".join(summary_parts) + "."
 
     return EvolutionCycleReport(
@@ -442,6 +546,7 @@ def generate_evolution_report(
         distillations=distillations,
         test_result=test_result,
         closed_loop=closed_loop_status,
+        analytical_rendering=analytical_rendering_status,
         summary=summary,
     )
 
@@ -477,6 +582,7 @@ __all__ = [
     "DistillationRecord",
     "TestEvolutionResult",
     "ClosedLoopStatus",
+    "AnalyticalRenderingStatus",
     "EvolutionCycleReport",
     "scan_internal_todos",
     "get_distillation_registry",
@@ -484,10 +590,12 @@ __all__ = [
     "validate_distillations",
     "count_test_functions",
     "collect_closed_loop_status",
+    "collect_analytical_rendering_status",
     "run_active_closed_loop",
     "generate_evolution_report",
     "save_evolution_report",
     "run_evolution_cycle",
     "GAP1_DISTILLATIONS",
     "GAP4_DISTILLATIONS",
+    "GAPC1_DISTILLATIONS",
 ]

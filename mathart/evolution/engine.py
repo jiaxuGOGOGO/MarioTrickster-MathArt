@@ -55,7 +55,7 @@ from .evolution_contract_bridge import ContractEvolutionBridge
 # SESSION-041: Visual Regression Evolution Bridge
 from .visual_regression_bridge import VisualRegressionEvolutionBridge
 from .layer3_closed_loop import Layer3ClosedLoopDistiller, TransitionTuningTarget
-from .evolution_loop import collect_closed_loop_status
+from .evolution_loop import collect_closed_loop_status, collect_analytical_rendering_status
 
 
 class SelfEvolutionEngine:
@@ -613,6 +613,21 @@ class SelfEvolutionEngine:
             lines.append(f"   Rule keys: {', '.join(closed_loop.tracked_rules)}")
         if closed_loop.report_path:
             lines.append(f"   Latest report: {closed_loop.report_path}")
+        lines.append("")
+
+        # ── SESSION-044: Analytical SDF rendering status ──
+        lines.append("--- Layer 2.5: Analytical SDF Rendering (SESSION-044) ---")
+        analytical = collect_analytical_rendering_status(self.project_root)
+        lines.extend([
+            f"   Aux module active: {'yes' if analytical.aux_module_exists else 'no'}",
+            f"   Industrial aux-map export: {'yes' if analytical.industrial_renderer_supports_aux_maps else 'no'}",
+            f"   Public API export: {'yes' if analytical.public_api_exports_aux_maps else 'no'}",
+            f"   Auxiliary test present: {'yes' if analytical.auxiliary_test_exists else 'no'}",
+        ])
+        if analytical.tracked_exports:
+            lines.append(f"   Tracked exports: {', '.join(analytical.tracked_exports)}")
+        if analytical.research_notes_path:
+            lines.append(f"   Research notes: {analytical.research_notes_path}")
         lines.append("")
 
         # ── Layer 3: Physics Evolution Status ──

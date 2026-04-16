@@ -1,0 +1,17 @@
+{
+  "session_id": "SESSION-044",
+  "artifact_dir": "evolution_reports/session044_aux_demo",
+  "style": "mario",
+  "pose": "idle_animation(0.0)",
+  "metadata": {
+    "width": 32,
+    "height": 32,
+    "part_count": 18,
+    "inside_pixel_count": 468,
+    "depth_scale": 0.3417534259811256,
+    "outline_boost": 0.0,
+    "gradient_mode": "central_difference",
+    "normal_z_base": 0.35,
+    "depth_to_z_scale": 0.85
+  }
+}

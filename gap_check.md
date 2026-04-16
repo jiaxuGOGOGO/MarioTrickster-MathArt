@@ -25,8 +25,10 @@
 | 19 | AI 接手后给菜单选项 | SESSION_HANDOFF.md 第6条 CRITICAL | 无差距 | ✅ |
 | 20 | 定期审计差距并更新待办 | evolution_loop.py + collect_closed_loop_status() + run_evolution_cycle() + gap_check.md | 后续可继续把审计结果自动同步到更多看板文件 | ✅ |
 | 21 | Layer 3 闭环：Runtime Query → 自动合成 → 蒸馏写回 | Layer3ClosedLoopDistiller + transition_rules.json + LAYER3_CONVERGENCE_BRIDGE.json + physics_genotype 闭环回读 | 下一步可扩展到更多过渡对（如 walk->hit、idle->fall）与批量调优编排 | ✅ |
+| 22 | Gap C1：工业级渲染管线缺失（基于 2D SDF 梯度直接生成 normal/depth） | `mathart/animation/sdf_aux_maps.py` + `render_character_maps_industrial()` + `tests/test_sdf_aux_maps.py` + `evolution_loop.py` 的 SESSION-044 蒸馏注册与状态追踪 | 后续可增加 analytic gradient 原生图元、specular/roughness 导出与引擎侧导入模板 | ✅ |
 
 ## 结论
-- 21/21 项已建立代码级承接路径
+- 22/22 项已建立代码级承接路径
 - 本轮新增 Gap 4 主动闭环已实现，并已实际生成 `run->jump` 蒸馏规则、桥接文件与演化报告
-- 后续重点从“是否具备机制”转为“扩展到更多难过渡目标与批量调优编排”
+- 本轮新增 Gap C1 解析法 SDF 渲染能力已实现，并已实际生成 Mario idle 的 albedo / normal / depth / mask 工件
+- 后续重点从“是否具备机制”转为“扩展到更多难过渡目标、analytic gradient 图元和引擎侧批量消费模板”

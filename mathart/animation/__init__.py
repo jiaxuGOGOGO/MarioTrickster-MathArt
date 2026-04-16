@@ -109,8 +109,16 @@ from .motion_matching_evaluator import (
 # SESSION-034: Industrial Renderer (Dead Cells GDC 2018 + Guilty Gear Xrd GDC 2015)
 from .industrial_renderer import (
     AnimationPhaseType, HoldFrameConfig, HOLD_FRAME_DEFAULTS,
-    GuiltyGearFrameScheduler,
-    render_character_frame_industrial, render_character_sheet_industrial,
+    GuiltyGearFrameScheduler, IndustrialRenderAuxiliaryResult,
+    render_character_frame_industrial, render_character_maps_industrial,
+    render_character_sheet_industrial,
+)
+# SESSION-044: Analytical SDF auxiliary-map baking
+from .sdf_aux_maps import (
+    SDFSamplingGrid, SDFBakeConfig, SDFAuxiliaryMaps,
+    sample_sdf_grid, compute_sdf_gradients, compute_depth_map,
+    compute_normal_vectors, encode_normal_map, encode_depth_map,
+    encode_mask, bake_sdf_auxiliary_maps,
 )
 # SESSION-039: Inertialized Transition Synthesis (Bollo GDC 2018 / Holden Dead Blending)
 from .transition_synthesizer import (
@@ -218,8 +226,14 @@ __all__ = [
     "MotionMatchingEvaluator", "create_evaluator_with_defaults",
     # SESSION-034: Industrial Renderer (Dead Cells + Guilty Gear Xrd)
     "AnimationPhaseType", "HoldFrameConfig", "HOLD_FRAME_DEFAULTS",
-    "GuiltyGearFrameScheduler",
-    "render_character_frame_industrial", "render_character_sheet_industrial",
+    "GuiltyGearFrameScheduler", "IndustrialRenderAuxiliaryResult",
+    "render_character_frame_industrial", "render_character_maps_industrial",
+    "render_character_sheet_industrial",
+    # SESSION-044: Analytical SDF auxiliary-map baking
+    "SDFSamplingGrid", "SDFBakeConfig", "SDFAuxiliaryMaps",
+    "sample_sdf_grid", "compute_sdf_gradients", "compute_depth_map",
+    "compute_normal_vectors", "encode_normal_map", "encode_depth_map",
+    "encode_mask", "bake_sdf_auxiliary_maps",
     # SESSION-039: Inertialized Transition Synthesis
     "TransitionStrategy",
     "InertializationChannel", "DeadBlendingChannel",

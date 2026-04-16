@@ -1,17 +1,17 @@
 {
-  "version": "0.34.0",
-  "last_session_id": "SESSION-043",
-  "last_updated": "2026-04-16T15:50:00Z",
+  "version": "0.35.0",
+  "last_session_id": "SESSION-044",
+  "last_updated": "2026-04-17T00:20:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "17/17 targeted Gap 4 audit PASS; 845 tests tracked by evolution loop",
+  "validation_pass_rate": "42 targeted tests PASS across SESSION-044 integration path; evolution loop snapshot regenerated successfully",
   "total_iterations": 500,
-  "total_code_lines": 57542,
+  "total_code_lines": 57900,
   "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 46,
+  "knowledge_rule_count": 49,
   "math_model_count": 28,
-  "project_health_score": 9.99,
+  "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",
@@ -30,7 +30,7 @@
     "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-032: the original WFC/shader/export break is now closed by a lightweight PDG runtime and a USD-like scene contract. The main remaining blockers are industrial runtime depth (cache/partition/layering), benchmarked asset production, visual quality, and the simulation-conditioned neural-render bridge.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules.",
-      "path_b_ai_visual_polish": "Now better conditioned by anatomically valid low-dimensional motion data; next step is ControlNet / diffusion export from the distilled body and pose representation.",
+      "path_b_ai_visual_polish": "Now better conditioned by anatomically valid low-dimensional motion data; next step is ControlNet / diffusion export from the distilled body and pose representation. SESSION-044 adds analytical SDF auxiliary-map export (normal/depth/mask), giving the project a materially stronger bridge into lit 2D runtime rendering before any diffusion or neural polish stage.",
       "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop. SESSION-043 closed Gap 4 (active Layer 3 closed loop) with runtime query → synthesis → write-back. Next step: Gap 2 (XPBD rigid/soft body coupling), terrain-aware sensing, gait transition blending, production benchmark suite."
     },
     "commercial_references": [
@@ -47,10 +47,12 @@
     ],
     "engineering_automation": 84
   },
-  "current_focus": "SESSION-043 closes Gap 4 (Layer 3 Closed Loop) by upgrading runtime transition tuning from passive evaluation to an active Runtime Query → Synthesis → Optuna Search → Distillation Write-back loop. A real run->jump rule was distilled into transition_rules.json and LAYER3_CONVERGENCE_BRIDGE.json. Targeted Gap 4 audit: 17/17 PASS. Next: Gap 2 (XPBD), batch tuning of multiple hard transitions, and scheduled closed-loop audits.",
+  "current_focus": "SESSION-044 closes Gap C1 by adding an analytical SDF auxiliary-map pipeline: the industrial renderer now exports albedo, normal, depth, and mask directly from 2D SDF gradients in Python/NumPy, while SESSION-043 active Layer 3 closed-loop transition tuning remains intact. Next: XPBD, AssetPipeline wiring, engine-ready export templates, and analytic-gradient native primitives.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "SESSION_HANDOFF.md",
+    "evolution_reports/session044_sdf_rendering_research_notes.md",
+    "AUDIT_SESSION044.md",
     "evolution_reports/session043_browser_research_notes.md",
     "AUDIT_SESSION043.md",
     "research_session041_visual_regression_ci.md",
@@ -552,6 +554,43 @@
       "status": "TODO",
       "estimated_effort": "high",
       "description": "Use the new dual-quaternion backend to drive 2.5D limbs, volumetric shells, or lightweight mesh deformation without abandoning the current 2D-first workflow."
+    },
+    {
+      "id": "P1-INDUSTRIAL-44A",
+      "priority": "P1",
+      "title": "Engine-ready export templates for analytical SDF auxiliary maps",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Package albedo/normal/depth/mask outputs into engine-facing export presets and importer templates so SESSION-044 artifacts can flow into real runtime lighting workflows.",
+      "added_in": "SESSION-044"
+    },
+    {
+      "id": "P1-INDUSTRIAL-44B",
+      "priority": "P1",
+      "title": "Analytic-gradient native primitives for auxiliary-map baking",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Introduce optional exact gradient providers for selected SDF primitives so SESSION-044 auxiliary-map baking can reduce finite-difference noise without brute-force supersampling.",
+      "added_in": "SESSION-044"
+    },
+    {
+      "id": "P1-INDUSTRIAL-44C",
+      "priority": "P1",
+      "title": "Specular/roughness and material metadata export for 2D lighting",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Extend the SESSION-044 auxiliary-map pipeline with optional material channels and engine-specific metadata for richer 2D lighting integration.",
+      "added_in": "SESSION-044"
+    },
+    {
+      "id": "P0-GAP-C1",
+      "priority": "P0",
+      "title": "Industrial-grade analytical SDF normal/depth pipeline",
+      "status": "DONE",
+      "estimated_effort": "high",
+      "description": "CLOSED in SESSION-044. Added `mathart/animation/sdf_aux_maps.py`, upgraded `render_character_maps_industrial()` to export albedo/normal/depth/mask, connected analytical-rendering status into `evolution_loop.py` and `engine.py`, and generated real demo artifacts plus audit evidence.",
+      "added_in": "SESSION-044",
+      "completed_in": "SESSION-044"
     }
   ],
   "completed_tasks": [
@@ -1815,6 +1854,12 @@
   },
   "completed_work": [
     {
+      "id": "P0-GAP-C1",
+      "completed_in": "SESSION-044",
+      "title": "Industrial-grade analytical SDF normal/depth pipeline",
+      "summary": "Closed Gap C1 by generating normal/depth/mask maps directly from 2D SDF gradients and integrating the capability into industrial rendering, the evolution loop, audit artifacts, and project memory."
+    },
+    {
       "id": "P0-GAP4-043",
       "title": "Active Layer 3 closed loop (Runtime Query → Synthesis → Distillation Write-back)",
       "completed_in": "SESSION-043",
@@ -1837,6 +1882,48 @@
     "session043_best_transition_rule": "run->jump / inertialization / blend_time=0.22353582207901024 / best_loss=1.319902391027808",
     "session043_rule_store": "transition_rules.json now stores distilled runtime transition rules.",
     "session043_bridge_file": "LAYER3_CONVERGENCE_BRIDGE.json mirrors deterministic downstream payload for the latest tuned transition.",
-    "session043_audit": "AUDIT_SESSION043.md verifies research → code → artifact → test closure."
-  }
+    "session043_audit": "AUDIT_SESSION043.md verifies research → code → artifact → test closure.",
+    "session044_gapc1_status": "CLOSED. Analytical SDF auxiliary-map pipeline implemented.",
+    "session044_aux_maps": "render_character_maps_industrial() now exports albedo/normal/depth/mask from the same industrial character distance field.",
+    "session044_demo_artifacts": "evolution_reports/session044_aux_demo/ contains a real Mario idle export pack.",
+    "session044_audit": "AUDIT_SESSION044.md verifies research → code → artifact → test closure."
+  },
+  "recent_focus_snapshot": {
+    "top_open_loops": [
+      "Engine-ready auxiliary-map export and import templates (P1-INDUSTRIAL-44A)"
+    ],
+    "remaining_followups": [
+      "P1-INDUSTRIAL-44A: package albedo/normal/depth/mask for engine import",
+      "P1-INDUSTRIAL-44B: add analytic-gradient native primitives",
+      "P1-INDUSTRIAL-44C: export optional material metadata"
+    ]
+  },
+  "recent_sessions": [
+    {
+      "session_id": "SESSION-044",
+      "date": "2026-04-17",
+      "version": "0.35.0",
+      "title": "Gap C1 closure: analytical SDF normal/depth auxiliary-map pipeline",
+      "highlights": [
+        "Added `mathart/animation/sdf_aux_maps.py` for grid-sampled SDF normal/depth/mask baking.",
+        "Upgraded `render_character_maps_industrial()` to export albedo plus engine-consumable auxiliary maps.",
+        "Registered SESSION-044 rendering provenance in `evolution_loop.py` and exposed status in `engine.py`.",
+        "Generated real Mario idle auxiliary-map artifacts and wrote `AUDIT_SESSION044.md`."
+      ],
+      "artifacts": [
+        "evolution_reports/session044_aux_demo/mario_idle_albedo.png",
+        "evolution_reports/session044_aux_demo/mario_idle_normal.png",
+        "evolution_reports/session044_aux_demo/mario_idle_depth.png",
+        "evolution_reports/session044_aux_demo/mario_idle_mask.png",
+        "evolution_reports/session044_aux_demo/session044_aux_demo.json",
+        "evolution_reports/CYCLE-SESSION044.json",
+        "AUDIT_SESSION044.md"
+      ],
+      "tests": [
+        "pytest -q tests/test_sdf_aux_maps.py",
+        "pytest -q tests/test_sdf_aux_maps.py tests/test_evolution_loop.py tests/test_layer3_closed_loop.py",
+        "pytest -q tests/test_evolution.py"
+      ]
+    }
+  ]
 }

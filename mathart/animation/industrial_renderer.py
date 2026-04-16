@@ -65,6 +65,15 @@ from PIL import Image
 
 from .skeleton import Skeleton
 from .parts import CharacterStyle, BodyPart, assemble_character
+from .sdf_aux_maps import (
+    SDFBakeConfig,
+    compute_sdf_gradients,
+    compute_depth_map,
+    compute_normal_vectors,
+    encode_normal_map,
+    encode_depth_map,
+    encode_mask,
+)
 from ..oklab.color_space import srgb_to_oklab, oklab_to_srgb
 
 
@@ -312,38 +321,54 @@ class GuiltyGearFrameScheduler:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+@dataclass
+class IndustrialRenderAuxiliaryResult:
+    """Industrial renderer output bundle with auxiliary textures.
+
+    The albedo sprite remains the primary baked frame. Normal/depth/mask maps
+    are exported alongside it so downstream engines or deferred-lighting
+    experiments can consume the same procedural character as a compact G-buffer.
+    """
+
+    albedo_image: Image.Image
+    normal_map_image: Image.Image
+    depth_map_image: Image.Image
+    mask_image: Image.Image
+    metadata: dict[str, float | int | str]
+
+
 def _compute_pseudo_normal(
     x: np.ndarray,
     y: np.ndarray,
     dist: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Compute pseudo-normal map from SDF (Dead Cells technique).
+    """Compute pseudo-normal map from SDF using actual field gradients.
 
-    Dead Cells uses 3D normal maps exported from their 3D models to add
-    volume to 2D sprites. We approximate this by computing the SDF gradient,
-    which gives us a surface normal direction.
-
-    The Z component is derived from the SDF distance to create a hemisphere-like
-    normal field, giving the illusion of 3D volume.
-
-    Returns (nx, ny, nz) normalized normal vectors.
+    SESSION-044 upgrades the earlier position-only approximation to a true
+    field-based method: normals come from the sampled SDF gradient, while the
+    z component is lifted by the normalized interior distance. This remains a
+    cheap 2D bake, but tracks the silhouette much more faithfully.
     """
-    # Compute SDF gradient via central differences
-    eps = 0.015
-    # Use position-based normal (works well for convex shapes)
-    r = np.sqrt(x ** 2 + y ** 2) + 1e-8
-    nx = x / r
-    ny = y / r
+    try:
+        xs = np.asarray(x[0, :], dtype=np.float64)
+        ys = np.asarray(y[:, 0], dtype=np.float64)
+        grad_x, grad_y = compute_sdf_gradients(np.asarray(dist, dtype=np.float64), xs, ys)
+    except Exception:
+        grad_y_raw, grad_x_raw = np.gradient(np.asarray(dist, dtype=np.float64), edge_order=2)
+        grad_x = np.asarray(grad_x_raw, dtype=np.float64)
+        grad_y = np.asarray(grad_y_raw, dtype=np.float64)
 
-    # Z component: hemisphere falloff from SDF distance
-    # Deeper inside the shape = more facing camera (higher Z)
-    max_depth = 0.15
-    depth = np.clip(-dist / max_depth, 0.0, 1.0)
-    nz = np.sqrt(np.clip(1.0 - nx ** 2 - ny ** 2, 0.0, 1.0)) * depth
-
-    # Renormalize
-    length = np.sqrt(nx ** 2 + ny ** 2 + nz ** 2) + 1e-8
-    return nx / length, ny / length, nz / length
+    depth, _ = compute_depth_map(np.asarray(dist, dtype=np.float64))
+    inside = np.asarray(dist, dtype=np.float64) < 0.0
+    normals = compute_normal_vectors(
+        grad_x,
+        grad_y,
+        depth,
+        inside,
+        normal_z_base=0.35,
+        depth_to_z_scale=0.85,
+    )
+    return normals[..., 0], normals[..., 1], normals[..., 2]
 
 
 def _cel_shade_hard(
@@ -473,6 +498,52 @@ def _transform_coords_with_squash(
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+def _build_character_distance_field(
+    skeleton: Skeleton,
+    pose: dict[str, float],
+    style: CharacterStyle,
+    width: int = 32,
+    height: int = 32,
+    scale_x: float = 1.0,
+    scale_y: float = 1.0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[tuple[BodyPart, np.ndarray, np.ndarray, np.ndarray]], np.ndarray]:
+    """Build the union distance field for the filled character silhouette."""
+    skeleton.apply_pose(pose)
+    positions = skeleton.get_joint_positions()
+
+    xs = np.linspace(-0.6, 0.6, width)
+    ys = np.linspace(1.1, -0.1, height)
+    x, y = np.meshgrid(xs, ys)
+    parts = assemble_character(style)
+    part_layers: list[tuple[BodyPart, np.ndarray, np.ndarray, np.ndarray]] = []
+    union_dist = np.full((height, width), np.inf, dtype=np.float64)
+
+    pivot_y = -0.05
+    for part in parts:
+        if part.joint_name not in positions:
+            continue
+        jx, jy = positions[part.joint_name]
+        local_x, local_y = _transform_coords_with_squash(
+            x,
+            y,
+            jx + part.offset_x,
+            jy + part.offset_y,
+            part.rotation,
+            scale_x=scale_x,
+            scale_y=scale_y,
+            pivot_y=pivot_y,
+        )
+        dist = np.asarray(part.sdf(local_x, local_y), dtype=np.float64)
+        part_layers.append((part, dist, local_x, local_y))
+        if not part.is_outline_only:
+            union_dist = np.minimum(union_dist, dist)
+
+    if not part_layers:
+        raise ValueError("Industrial renderer could not build any character parts for the current skeleton/style.")
+
+    return xs, ys, x, y, part_layers, union_dist
+
+
 def render_character_frame_industrial(
     skeleton: Skeleton,
     pose: dict[str, float],
@@ -525,13 +596,15 @@ def render_character_frame_industrial(
     enable_outline : bool
         Draw pixel outline.
     """
-    skeleton.apply_pose(pose)
-    positions = skeleton.get_joint_positions()
-
-    # Build pixel coordinate grids
-    xs = np.linspace(-0.6, 0.6, width)
-    ys = np.linspace(1.1, -0.1, height)
-    X, Y = np.meshgrid(xs, ys)
+    _, _, X, Y, part_layers, union_dist = _build_character_distance_field(
+        skeleton,
+        pose,
+        style,
+        width=width,
+        height=height,
+        scale_x=scale_x,
+        scale_y=scale_y,
+    )
 
     # Get palette colors
     if palette is not None and hasattr(palette, 'colors_srgb') and palette.count >= 6:
@@ -546,38 +619,8 @@ def render_character_frame_industrial(
             [30, 20, 15],     # outline
         ], dtype=np.float64)
 
-    parts = assemble_character(style)
     img = np.zeros((height, width, 4), dtype=np.uint8)
-    all_inside = np.zeros((height, width), dtype=bool)
-    part_layers: list[tuple[BodyPart, np.ndarray, np.ndarray, np.ndarray]] = []
-
-    # Squash/stretch pivot: bottom of character (feet level)
-    pivot_y = -0.05
-
-    for part in parts:
-        if part.joint_name not in positions:
-            continue
-        jx, jy = positions[part.joint_name]
-
-        # Dead Cells: NO anti-aliasing transform
-        # Guilty Gear: squash/stretch applied to coordinate space
-        local_x, local_y = _transform_coords_with_squash(
-            X, Y,
-            jx + part.offset_x, jy + part.offset_y,
-            part.rotation,
-            scale_x=scale_x,
-            scale_y=scale_y,
-            pivot_y=pivot_y,
-        )
-
-        dist = part.sdf(local_x, local_y)
-
-        # Dead Cells: HARD threshold, no smoothstep
-        inside = dist < 0  # Binary: in or out. No AA.
-
-        part_layers.append((part, dist, local_x, local_y))
-        if not part.is_outline_only:
-            all_inside |= inside
+    all_inside = union_dist < 0.0
 
     # Outline (Dead Cells: crisp 1px, GGXrd: boosted on impact)
     outline_mask = np.zeros((height, width), dtype=bool)
@@ -643,6 +686,81 @@ def render_character_frame_industrial(
             img[boundary & all_inside] = outline_color
 
     return Image.fromarray(img, "RGBA")
+
+
+def render_character_maps_industrial(
+    skeleton: Skeleton,
+    pose: dict[str, float],
+    style: CharacterStyle,
+    width: int = 32,
+    height: int = 32,
+    palette=None,
+    scale_x: float = 1.0,
+    scale_y: float = 1.0,
+    outline_boost: float = 0.0,
+    bake_config: Optional[SDFBakeConfig] = None,
+) -> IndustrialRenderAuxiliaryResult:
+    """Render an industrial albedo frame plus normal/depth/mask auxiliary maps."""
+    bake_config = bake_config or SDFBakeConfig()
+    xs, ys, _x, _y, part_layers, union_dist = _build_character_distance_field(
+        skeleton,
+        pose,
+        style,
+        width=width,
+        height=height,
+        scale_x=scale_x,
+        scale_y=scale_y,
+    )
+    inside = union_dist < 0.0
+    grad_x, grad_y = compute_sdf_gradients(union_dist, xs, ys, edge_order=bake_config.edge_order)
+    depth_values, depth_scale = compute_depth_map(
+        union_dist,
+        percentile=bake_config.depth_percentile,
+        min_depth_span=bake_config.min_depth_span,
+    )
+    normal_vectors = compute_normal_vectors(
+        grad_x,
+        grad_y,
+        depth_values,
+        inside,
+        normal_z_base=bake_config.normal_z_base,
+        depth_to_z_scale=bake_config.depth_to_z_scale,
+        flat_normal_outside=bake_config.flat_normal_outside,
+    )
+
+    albedo_image = render_character_frame_industrial(
+        Skeleton.create_humanoid(skeleton.head_units),
+        pose,
+        style,
+        width=width,
+        height=height,
+        palette=palette,
+        scale_x=scale_x,
+        scale_y=scale_y,
+        outline_boost=outline_boost,
+        enable_pseudo_normals=True,
+        enable_cel_shading=True,
+        enable_outline=True,
+    )
+    metadata: dict[str, float | int | str] = {
+        "width": width,
+        "height": height,
+        "part_count": len(part_layers),
+        "inside_pixel_count": int(np.count_nonzero(inside)),
+        "depth_scale": float(depth_scale),
+        "outline_boost": float(outline_boost),
+        "gradient_mode": bake_config.gradient_mode,
+        "normal_z_base": float(bake_config.normal_z_base),
+        "depth_to_z_scale": float(bake_config.depth_to_z_scale),
+    }
+
+    return IndustrialRenderAuxiliaryResult(
+        albedo_image=albedo_image,
+        normal_map_image=encode_normal_map(normal_vectors, inside),
+        depth_map_image=encode_depth_map(depth_values, inside),
+        mask_image=encode_mask(inside),
+        metadata=metadata,
+    )
 
 
 def render_character_sheet_industrial(
@@ -755,6 +873,8 @@ __all__ = [
     "HoldFrameConfig",
     "HOLD_FRAME_DEFAULTS",
     "GuiltyGearFrameScheduler",
+    "IndustrialRenderAuxiliaryResult",
     "render_character_frame_industrial",
+    "render_character_maps_industrial",
     "render_character_sheet_industrial",
 ]
