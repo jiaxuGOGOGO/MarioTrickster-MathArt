@@ -1,7 +1,7 @@
 {
   "version": "0.21.0",
-  "last_session_id": "SESSION-029",
-  "last_updated": "2026-04-16T23:30:00Z",
+  "last_session_id": "SESSION-029-SUPP",
+  "last_updated": "2026-04-17T00:30:00Z",
   "best_quality_score": 0.8674,
   "validation_pass_rate": "655/655 = 100%",
   "total_iterations": 500,
@@ -38,7 +38,7 @@
       {"name": "Tiny Swords by Pixel Frog", "url": "https://pixelfrog-assets.itch.io/tiny-swords", "type": "itch.io top-seller asset pack"}
     ]
   },
-  "current_focus": "SESSION-029 delivered the full biomechanics engine: ZMPAnalyzer (CoM computation + ZMP balance + support polygon + stability scoring), InvertedPendulumModel (LIPM trajectory + vertical bounce + lateral sway), SkatingCleanupCalculus (finite-difference velocity + Hermite blending + position lock), FABRIKGaitGenerator (IK-driven walk/run cycles + parabolic swing arc + IPM CoM bounce), BiomechanicsProjector (unified post-processor), and compute_biomechanics_penalty (GA fitness). Pipeline integration: BiomechanicsProjector applied per-frame after physics projector. 57 new tests, 655/655 pass. Animation physics realism gap reduced from 3% to 1%. Next: architecture integration (WFC/shader/export), production benchmarks, visual quality.",
+  "current_focus": "SESSION-029-SUPP added three frontier research directions to the backlog: (A) P1-RESEARCH-30A: Metabolic Engine (ATP/lactate fatigue model, Scott Delp/OpenSim, joint torque reduction + body temperature for ControlNet), (B) P1-RESEARCH-30B: MPM & Phase Change (snow/mud terrain, Yuanming Hu/Taichi + Chenfanfu Jiang/UCLA, 2D material masks for ComfyUI), (C) P1-RESEARCH-30C: Reaction-Diffusion Thermodynamics (rust/fire/poison, Ron Fedkiw/ILM + Nils Thuerey/TUM, texture evolution maps for diffusion model guidance). All three are queued as TODO with deep_reading research protocol. SESSION-029 core deliverables remain: full biomechanics engine (ZMP/IPM/SkatingCleanup/FABRIK), 655/655 tests pass. Next immediate priorities: architecture integration (WFC/shader/export), production benchmarks, visual quality.",
   "next_reference_entrypoint": "SESSION_029_AUDIT.md",
   "reference_notes_priority": [
     "SESSION_029_AUDIT.md",
@@ -190,6 +190,46 @@
       "status": "TODO",
       "estimated_effort": "low",
       "description": "Wire ArtMathQualityController mid-generation checkpoint into longer searches."
+    },
+    {
+      "id": "P1-RESEARCH-30A",
+      "priority": "P1",
+      "title": "Metabolic Engine: ATP/Lactate Fatigue Model",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Research-driven: ATP consumption + lactate accumulation math model (Hill-type muscle, Michaelis-Menten kinetics). When lactate threshold exceeded, reduce joint max torque → motion becomes heavy/staggering. Output body temperature parameter for ControlNet conditioning (flushed skin, sweat highlights in ComfyUI).",
+      "research_protocol": "deep_reading",
+      "masters": ["Scott Delp (Stanford, OpenSim founder, musculoskeletal + biochemical simulation)"],
+      "search_keywords": ["Metabolic Energy Cost in Character Animation", "Biomechanical Simulation of Muscle Fatigue"],
+      "output_targets": ["joint_torque_reduction_model", "body_temperature_parameter_for_controlnet"],
+      "added_in": "SESSION-029-SUPP"
+    },
+    {
+      "id": "P1-RESEARCH-30B",
+      "priority": "P1",
+      "title": "MPM & Phase Change Simulation",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Research-driven: Material Point Method for terrain interaction — snow compaction/melting, mud drying/hardening (solid↔liquid phase change). Compute material state as 2D mask for ComfyUI (wet/dry regions, deformation footprints).",
+      "research_protocol": "deep_reading",
+      "masters": ["Yuanming Hu (Taichi differentiable programming)", "Chenfanfu Jiang (UCLA, Hollywood MPM for snow/mud/fluid VFX)"],
+      "search_keywords": ["Differentiable Material Point Method (MPM) for Phase Change"],
+      "output_targets": ["2d_material_state_mask", "terrain_deformation_footprint"],
+      "added_in": "SESSION-029-SUPP"
+    },
+    {
+      "id": "P1-RESEARCH-30C",
+      "priority": "P1",
+      "title": "Reaction-Diffusion & Thermodynamics for Surface Chemistry",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Research-driven: Turing patterns / Navier-Stokes for chemical texture evolution — rust on armor (acid rain), fire spread on cloth, poison diffusion on skin. Output texture evolution maps as diffusion model guidance. Supersedes P2-3 (basic reaction-diffusion) with full thermodynamics.",
+      "research_protocol": "deep_reading",
+      "masters": ["Ron Fedkiw (Stanford, ILM, Oscar winner — fluid mechanics + combustion VFX)", "Nils Thuerey (TUM — deep learning + complex physics/fluid simulation)"],
+      "search_keywords": ["Reaction-Diffusion Systems in Computer Graphics", "Physically Based Combustion Simulation"],
+      "output_targets": ["texture_evolution_map", "diffusion_model_guidance_mask"],
+      "supersedes": "P2-3",
+      "added_in": "SESSION-029-SUPP"
     },
     {
       "id": "P2-1",
@@ -387,7 +427,10 @@
     "REMAINING: Shader/Export modules not first-class in AssetPipeline",
     "REMAINING: No per-frame SDF parameter animation",
     "REMAINING: No reaction-diffusion textures",
-    "REMAINING: Visual quality still tech-demo level (SDF primitives vs hand-drawn/AI)"
+    "REMAINING: Visual quality still tech-demo level (SDF primitives vs hand-drawn/AI)",
+    "REMAINING-RESEARCH: No metabolic fatigue model (ATP/lactate → torque reduction + body temperature for ControlNet) — P1-RESEARCH-30A",
+    "REMAINING-RESEARCH: No MPM phase change simulation (snow/mud terrain interaction → 2D material masks) — P1-RESEARCH-30B",
+    "REMAINING-RESEARCH: No thermodynamic reaction-diffusion (rust/fire/poison texture evolution → diffusion model guidance) — P1-RESEARCH-30C"
   ],
   "session_029_changes": {
     "new_artifacts": [
@@ -484,7 +527,10 @@
       "Export pipeline integration (P1-ARCH-2)",
       "Shader pipeline integration (P1-ARCH-3)",
       "Per-frame SDF animation and organic textures",
-      "Visual quality gap (SDF vs hand-drawn/AI)"
+      "Visual quality gap (SDF vs hand-drawn/AI)",
+      "Metabolic fatigue engine (P1-RESEARCH-30A) — queued for deep reading protocol",
+      "MPM phase change simulation (P1-RESEARCH-30B) — queued for deep reading protocol",
+      "Reaction-diffusion thermodynamics (P1-RESEARCH-30C) — queued for deep reading protocol"
     ]
   }
 }
