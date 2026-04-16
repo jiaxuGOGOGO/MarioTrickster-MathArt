@@ -145,7 +145,7 @@ The character evolution system is now **architecturally complete at the 2.5 leve
 
 ## Biggest Remaining Gaps (Based on SESSION-027 Audit)
 
-1. **SDF Visual Ceiling (Fundamental):** The mathematical SDF primitive approach has an inherent expressiveness ceiling. Characters look like "tech demos" rather than game-ready sprites. This is the single biggest blocker to commercial viability.
+1. **SDF Visual Ceiling (Fundamental):** The mathematical SDF primitive approach has an inherent expressiveness ceiling. Characters look like "tech demos" rather than game-ready sprites. This is the single biggest blocker to commercial viability. **We must choose one of the new strategic paths (C, D, E, or F) discovered in the deep research to break through this ceiling.**
 2. **Architecture Integration Gaps (P1):** The `level` (WFC), `shader`, and `export` modules exist in the codebase but are completely disconnected from the main `AssetPipeline`. They need top-level `produce_*` methods.
 3. **Zero coverage on UI and Multi-direction:** Two entire asset categories (UI elements and multi-directional views) have not been started at all.
 4. **Part registry content is narrow.** Only hat and face_accessory slots have registered parts. Torso overlays, hand items, and foot accessories need SDF functions and renderer support.

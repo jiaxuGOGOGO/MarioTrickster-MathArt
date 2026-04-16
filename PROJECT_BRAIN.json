@@ -32,7 +32,11 @@
     "fundamental_blocker": "SDF visual ceiling — math primitives cannot match hand-drawn or AI-generated pixel art expressiveness",
     "strategic_paths": {
       "path_a_pure_math": "Deep optimization of SDF + pipeline integration → ceiling ~45-50%",
-      "path_b_ai_hybrid": "Use math pipeline as structure generator + AI model for visual rendering → ceiling ~70-80%"
+      "path_b_heavy_ai": "Use math pipeline as structure generator + Heavy AI model (Stable Diffusion/PixelLab) for visual rendering → ceiling ~70-80%",
+      "path_c_sdf_mask_ca": "SDF as probability mask + Cellular Automata + Random Walk + Dithering (Pure CPU) → ceiling ~55-65%",
+      "path_d_modular_assembly": "Genetic algorithm assembling high-quality pre-made pixel art parts (Pure CPU) → ceiling ~60-75%",
+      "path_e_wfc_style_learning": "WFC overlapping model learning from examples to generate new content (Pure CPU) → ceiling ~55-65%",
+      "path_f_3d_to_2d": "SDF to 3D Voxel → Multi-angle 2D rendering (Solves multi-directional views) → ceiling ~60-70%"
     },
     "commercial_references": [
       {"name": "PixelLab", "url": "https://www.pixellab.ai/", "type": "AI SaaS tool"},

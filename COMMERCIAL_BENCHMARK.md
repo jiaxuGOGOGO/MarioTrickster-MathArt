@@ -50,18 +50,37 @@
 
 ## 三、 缩小差距的战略路径
 
-项目的"大脑"（架构、进化引擎、知识蒸馏）已经非常强大，但"手"（实际渲染输出的视觉质量和广度）仍然薄弱。为了提升商业完成度，必须在以下两个方向中做出选择或结合：
+项目的"大脑"（架构、进化引擎、知识蒸馏）已经非常强大，但"手"（实际渲染输出的视觉质量和广度）仍然薄弱。经过深度并行研究，我们发现除了纯数学和重型AI之外，还有多条高价值的中间路径可供选择：
 
-### 路径 A：深耕纯数学生成（将完成度提升至 45-50%）
+### 路径 A：深耕纯数学生成（预期完成度：45-50%）
 继续优化现有的 SDF 和程序化生成管线，做到"程序化生成的极致"。
-- **首要行动**：修复架构断裂，将 WFC（关卡）、Export（导出）、Shader（着色器）模块接入主 `AssetPipeline`。
-- **次要行动**：大幅扩展部件注册表，增加武器、防具；实现弹簧二次动画。
+- **核心方法**：修复架构断裂（接入 WFC/Export/Shader），大幅扩展部件注册表，实现弹簧二次动画。
 - **局限性**：纯数学原语组合在视觉表现力上存在不可逾越的天花板，难以达到手绘像素画的细腻度。
 
-### 路径 B：引入 AI 视觉模型（将完成度提升至 70-80%）
+### 路径 B：引入重型 AI 视觉模型（预期完成度：70-80%）
 将本项目的数学管线定位为"结构与逻辑生成器"，将最终的视觉渲染交给外部 AI 模型。
-- **工作流**：本项目生成角色的骨架、调色板、动画时序和粗糙的 SDF 遮罩 -> 将这些作为 ControlNet/Image-to-Image 的输入 -> 调用外部扩散模型（如 Stable Diffusion 或 PixelLab API）生成最终的高质量像素帧。
-- **优势**：完美结合了本项目的"逻辑可控性"与 AI 模型的"视觉表现力"。
+- **核心方法**：本项目生成角色的骨架、调色板和粗糙的 SDF 遮罩 -> 作为 ControlNet/Image-to-Image 的输入 -> 调用外部扩散模型（如 Stable Diffusion 或 PixelLab API [1]）生成最终的高质量像素帧。
+- **局限性**：需要强大的 GPU 算力或支付外部 API 费用，且生成结果的帧间一致性难以完美保证。
+
+### 路径 C：SDF 骨架 + 掩码模板与细胞自动机（预期完成度：55-65%）
+结合数学结构与有机生成算法，突破纯 SDF 的几何感，纯 CPU 可运行。
+- **核心方法**：将 SDF 不再作为最终像素，而是作为"概率掩码"（Mask）。在掩码基础上，应用细胞自动机（Cellular Automata）和随机游走（Random Walk）算法生成有机的边缘和内部细节 [3]。最后应用自动描边、基于单纯形噪声（Simplex Noise）的着色和抖动（Dithering）算法 [4]。
+- **优势**：无需 GPU，与现有管线完美兼容，能显著提升角色的"生物感"和"像素艺术感"。
+
+### 路径 D：模块化预制部件拼装（预期完成度：60-75%）
+放弃从零生成像素，转而使用遗传算法组合高质量的预制美术资产。
+- **核心方法**：建立一个由人类艺术家绘制的（或从 CC0 社区如 OpenGameArt 获取的）高质量像素部件库（头、身体、武器等）。利用现有的基因型系统和遗传算法，在这些预制部件中进行选择、调色和拼装 [5]。
+- **优势**：视觉质量直接由预制部件决定，下限极高。遗传算法的"大脑"得到了完美复用。
+
+### 路径 E：WFC 风格学习与纹理合成（预期完成度：55-65%）
+利用项目中已有的波函数坍缩（WFC）模块，从少量范例中学习并生成新内容。
+- **核心方法**：输入少量高质量的商业像素画作为范例，使用 WFC 的重叠模型（Overlapping Model）学习其局部像素模式（如 3x3 像素块的排列规则），然后程序化地生成具有相同风格的新角色或纹理 [6]。
+- **优势**：纯 CPU 运行，充分利用了项目中现有的 WFC 架构，能有效模仿特定艺术风格。
+
+### 路径 F：3D 体素转 2D 像素管线（预期完成度：60-70%）
+解决多方向视图和光影一致性的终极方案。
+- **核心方法**：将 SDF 转换为 3D 体素（Voxel）模型，或使用 MagicaVoxel 等工具生成基础模型。然后通过特定的着色器或预渲染脚本，从多个摄像机角度将其渲染为 2D 像素精灵图 [7]。
+- **优势**：完美解决 4/8 方向视图问题，光影和透视绝对准确。
 
 ---
 
@@ -69,3 +88,8 @@
 
 [1] PixelLab. "AI Generator for Pixel Art Game Assets." *PixelLab.ai*, 2026. https://www.pixellab.ai/
 [2] Pixel Frog. "Tiny Swords - 2D Environments and Characters." *itch.io*, 2026. https://pixelfrog-assets.itch.io/tiny-swords
+[3] Deep-Fold. "Procedurally generated pixel art monster sprites." *Reddit r/proceduralgeneration*, 2021. https://www.reddit.com/r/proceduralgeneration/comments/nqq6gv/procedurally_generated_pixel_art_monster_sprites/
+[4] MaartenGr. "Sprite-Generator: Python procedural sprite generator." *GitHub*, 2020. https://github.com/MaartenGr/Sprite-Generator
+[5] Dalichrome. "The Best Modular Character Workflow With Aseprite." *Medium*, 2025. https://medium.com/@dalichrome/the-best-modular-character-workflow-with-aseprite-78a29124b8c4
+[6] mxgmn. "WaveFunctionCollapse: Bitmap & tilemap generation from a single example." *GitHub*, 2016. https://github.com/mxgmn/WaveFunctionCollapse
+[7] David Holland. "3D Pixel Art Rendering." *davidhol.land*, 2023. https://www.davidhol.land/articles/3d-pixel-art-rendering/
