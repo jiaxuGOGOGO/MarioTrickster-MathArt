@@ -150,10 +150,12 @@ The character evolution system is now **architecturally complete at the 2.5 leve
 
 ## Pending Tasks (Priority Order)
 
-### P0 — Critical (Physics & Motion Engine)
+### P0 — Critical (Physics & Motion Engine + Global Distillation)
 
 | ID | Task | Status | Effort | Description |
 |----|------|--------|--------|-------------|
+| P0-DISTILL-1 | Global Distillation Bus (The Brain) | TODO | High | Wire `RuleCompiler` to automatically inject `ParameterSpace` into all modules at runtime instead of hardcoding |
+| P0-DISTILL-2 | Cognitive Constraints → Fitness Functions | TODO | High | Compile anticipation/follow-through/volume-preservation rules into GA fitness terms |
 | P0-MOTION-1 | Verlet Integration Physics Engine | TODO | High | Build particle-constraint system to drive character motion dynamically |
 | P0-MOTION-2 | Mass-Spring Secondary Animation | TODO | Medium | Implement Hooke's law + damping for hair/clothing jiggle physics |
 | P0-MOTION-3 | FABRIK IK Solver & Procedural Gait | TODO | High | Implement 2D IK for keyframeless walk/run/jump cycles |
@@ -164,9 +166,11 @@ The character evolution system is now **architecturally complete at the 2.5 leve
 
 | ID | Task | Status | Effort | Description |
 |----|------|--------|--------|-------------|
+| P1-DISTILL-3 | Distill Verlet & Gait Parameters | TODO | Medium | Research and distill physics stability and procedural gait parameters into `knowledge/` |
+| P1-DISTILL-4 | Distill Cognitive Science Rules | TODO | Medium | Research and distill phase relationships and biological motion perception rules |
 | P1-AI-1 | Math-to-AI Pipeline Prototype | TODO | Medium | Export skeleton/pose data as ControlNet inputs for external AI diffusion models |
 | P1-ARCH-1 | WFC tilemap pipeline integration | TODO | High | Add `produce_level()`, connect WFC to asset packs |
-| P1-ARCH-2 | Export pipeline integration | TODO | High | Promote exporter to first-class stage with engine-ready bundles |
+| P1-ARCH-2 | Export pipeline integration | TODO | High | Promote exporter to first-class stage |
 | P1-ARCH-3 | Shader pipeline integration | TODO | Medium | Wire `ShaderCodeGenerator` into `AssetPipeline` |
 | P1-VFX-1 | Physics-driven Particle System | TODO | Medium | Upgrade SDF VFX to use emitters, gravity, and collision |
 
@@ -174,6 +178,7 @@ The character evolution system is now **architecturally complete at the 2.5 leve
 
 | ID | Task | Status | Effort |
 |----|------|--------|--------|
+| P2-DISTILL-5 | Distill → AI Polish Parameter Bridge | TODO | Medium |
 | P2-1 | Character evolution 3.0: expand part registry | TODO | Medium |
 | P2-2 | Production benchmark asset suite | TODO | High |
 | P2-3 | Reaction-diffusion textures | TODO | Medium |

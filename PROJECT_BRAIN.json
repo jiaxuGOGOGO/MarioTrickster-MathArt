@@ -74,31 +74,103 @@
       "The bottleneck is engineering rather than missing knowledge"
     ]
   },
-  "pending_tasks": [
-    {
-      "id": "P1-NEW-9B",
-      "priority": "P1",
-      "title": "Character evolution 2.5",
-      "status": "DONE",
-      "estimated_effort": "high",
-      "description": "SESSION-027: Delivered CharacterGenotype with archetypes (hero/villain/npc/monster), 5 body templates, part registry with 11 registered parts, 3-layer semantic mutation (structural+proportional+palette), crossover operator, and full pipeline integration. 45 unit tests + E2E validation. Genotype mode activated via use_genotype=True on CharacterSpec."
-    },
-    {
-      "id": "P1-NEW-9C",
-      "priority": "P1",
-      "title": "Character evolution 3.0: expand part registry",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Expand the part registry beyond hats and face accessories to include torso overlays (armor, cape, vest), hand items (sword, staff, shield), and foot accessories (boots, wings). Requires new SDF functions and renderer support for each new slot type."
-    },
-    {
-      "id": "P1-NEW-1",
-      "priority": "P1",
-      "title": "WFC tilemap pipeline integration",
-      "status": "TODO",
-      "estimated_effort": "high",
-      "description": "Add produce_level() to AssetPipeline, integrate WFC outputs into asset packs, and include connectivity/playability checks plus metadata manifests. The mathart/level/wfc.py module exists but is disconnected from the main pipeline."
-    },
+    "pending_tasks": [
+      {
+        "id": "P0-DISTILL-1",
+        "priority": "P0",
+        "title": "Global Distillation Bus (The Brain)",
+        "status": "TODO",
+        "estimated_effort": "high",
+        "description": "Wire RuleCompiler to automatically inject ParameterSpace into all modules at runtime instead of hardcoding."
+      },
+      {
+        "id": "P0-DISTILL-2",
+        "priority": "P0",
+        "title": "Cognitive Constraints → Fitness Functions",
+        "status": "TODO",
+        "estimated_effort": "high",
+        "description": "Compile anticipation/follow-through/volume-preservation rules into GA fitness terms."
+      },
+      {
+        "id": "P0-MOTION-1",
+        "priority": "P0",
+        "title": "Verlet Integration Physics Engine",
+        "status": "TODO",
+        "estimated_effort": "high",
+        "description": "Build particle-constraint system to drive character motion dynamically."
+      },
+      {
+        "id": "P0-MOTION-2",
+        "priority": "P0",
+        "title": "Mass-Spring Secondary Animation",
+        "status": "TODO",
+        "estimated_effort": "medium",
+        "description": "Implement Hooke's law + damping for hair/clothing jiggle physics."
+      },
+      {
+        "id": "P0-MOTION-3",
+        "priority": "P0",
+        "title": "FABRIK IK Solver & Procedural Gait",
+        "status": "TODO",
+        "estimated_effort": "high",
+        "description": "Implement 2D IK for keyframeless walk/run/jump cycles."
+      },
+      {
+        "id": "P0-MOTION-4",
+        "priority": "P0",
+        "title": "Easing Functions & Motion Curves",
+        "status": "TODO",
+        "estimated_effort": "low",
+        "description": "Add Robert Penner equations and Bezier curves for non-linear motion."
+      },
+      {
+        "id": "P0-MOTION-5",
+        "priority": "P0",
+        "title": "Cognitive Motion Constraints",
+        "status": "TODO",
+        "estimated_effort": "high",
+        "description": "Add fitness functions based on anticipation, follow-through, and phase relationships."
+      },
+      {
+        "id": "P1-DISTILL-3",
+        "priority": "P1",
+        "title": "Distill Verlet & Gait Parameters",
+        "status": "TODO",
+        "estimated_effort": "medium",
+        "description": "Research and distill physics stability and procedural gait parameters into knowledge/."
+      },
+      {
+        "id": "P1-DISTILL-4",
+        "priority": "P1",
+        "title": "Distill Cognitive Science Rules",
+        "status": "TODO",
+        "estimated_effort": "medium",
+        "description": "Research and distill phase relationships and biological motion perception rules."
+      },
+      {
+        "id": "P1-NEW-9B",
+        "priority": "P1",
+        "title": "Character evolution 2.5",
+        "status": "DONE",
+        "estimated_effort": "high",
+        "description": "SESSION-027: Delivered CharacterGenotype with archetypes (hero/villain/npc/monster), 5 body templates, part registry with 11 registered parts, 3-layer semantic mutation (structural+proportional+palette), crossover operator, and full pipeline integration. 45 unit tests + E2E validation. Genotype mode activated via use_genotype=True on CharacterSpec."
+      },
+      {
+        "id": "P1-NEW-9C",
+        "priority": "P1",
+        "title": "Character evolution 3.0: expand part registry",
+        "status": "TODO",
+        "estimated_effort": "medium",
+        "description": "Expand the part registry beyond hats and face accessories to include torso overlays (armor, cape, vest), hand items (sword, staff, shield), and foot accessories (boots, wings). Requires new SDF functions and renderer support for each new slot type."
+      },
+      {
+        "id": "P1-NEW-1",
+        "priority": "P1",
+        "title": "WFC tilemap pipeline integration",
+        "status": "TODO",
+        "estimated_effort": "high",
+        "description": "Add produce_level() to AssetPipeline, integrate WFC outputs into asset packs, and include connectivity/playability checks plus metadata manifests. The mathart/level/wfc.py module exists but is disconnected from the main pipeline."
+      },
     {
       "id": "P1-NEW-7",
       "priority": "P1",
