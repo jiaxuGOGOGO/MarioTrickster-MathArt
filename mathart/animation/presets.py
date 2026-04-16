@@ -3,7 +3,8 @@ Animation presets for MarioTrickster character states.
 
 Maps to the required character animation states:
   - idle: breathing + subtle sway (secondary action)
-  - run: cyclic leg/arm swing with squash/stretch
+  - run: **phase-driven** cyclic locomotion (SESSION-033 upgrade)
+  - walk: **phase-driven** walk cycle (SESSION-033 new)
   - jump: anticipation → launch → apex
   - fall: stretched pose → impact squash
   - hit: recoil with spring follow-through
@@ -16,6 +17,13 @@ Distilled knowledge applied:
   - 拮抗筋連動: biceps contract → triceps stretch
   - 胸骨盆独立回転: chest/pelvis counter-rotate for gesture
   - Line of Action: curves toward contraction side
+
+SESSION-033 upgrade:
+  - run_animation() now delegates to phase_driven_run() internally
+  - New walk_animation() delegates to phase_driven_walk()
+  - Phase-driven system based on PFNN phase variable, Animator's Survival Kit
+    key poses (Contact/Down/Pass/Up), and DeepPhase channel overlays
+  - Legacy sin()-based implementation preserved as run_animation_legacy()
 """
 from __future__ import annotations
 from typing import Callable
@@ -49,10 +57,58 @@ def idle_animation(t: float) -> dict[str, float]:
 
 
 def run_animation(t: float) -> dict[str, float]:
-    """Run cycle animation.
+    """Run cycle animation — **Phase-Driven** (SESSION-033).
+
+    Upgraded from sin()-based to phase-driven key-pose interpolation.
+    Uses Contact→Down→Passing→Up→Flight key poses from Animator's
+    Survival Kit, Catmull-Rom spline interpolation (PFNN), and
+    DeepPhase-style secondary motion channels.
 
     Full stride cycle with:
-    - Alternating leg swing
+    - Four canonical key poses per half-cycle + flight phase
+    - Pelvis height trajectory: Contact(neutral)→Down(lowest)→Pass(rising)→Up(highest)
+    - Counter-rotating arms (胸骨盆独立回転)
+    - Forward lean scaling with speed
+    - Flight phase (both feet off ground)
+
+    Parameters
+    ----------
+    t : float
+        Normalized cycle time [0, 1). Full gait cycle.
+
+    Returns
+    -------
+    dict[str, float] : Joint angles for the entire body.
+    """
+    from .phase_driven import phase_driven_run
+    return phase_driven_run(t)
+
+
+def walk_animation(t: float) -> dict[str, float]:
+    """Walk cycle animation — **Phase-Driven** (SESSION-033).
+
+    New preset based on Animator's Survival Kit walk cycle:
+    Contact→Down→Passing→Up key poses with Catmull-Rom interpolation.
+
+    Parameters
+    ----------
+    t : float
+        Normalized cycle time [0, 1). Full gait cycle.
+
+    Returns
+    -------
+    dict[str, float] : Joint angles for the entire body.
+    """
+    from .phase_driven import phase_driven_walk
+    return phase_driven_walk(t)
+
+
+def run_animation_legacy(t: float) -> dict[str, float]:
+    """Legacy run cycle animation (pre-SESSION-033, sin()-based).
+
+    Preserved for backward compatibility and A/B comparison testing.
+    Full stride cycle with:
+    - Alternating leg swing via sin()
     - Counter-rotating arms (胸骨盆独立回転)
     - Torso lean forward
     - Squash at contact, stretch at push-off

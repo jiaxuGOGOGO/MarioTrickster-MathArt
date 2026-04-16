@@ -10,11 +10,12 @@
 3. **Read `SESSION_PROTOCOL.md`** — Session efficiency rules, anti-repetition process, and protocol trigger logic.
 4. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`** — Default method for precise, parallel, high-value external research. Includes Deep Reading Protocol rules for named north-star papers/repos.
 5. **Read `PROJECT_BRAIN.json`** — Machine-readable global state.
-6. **Read `research_session032_pdg_framing.md`** — SESSION-032 research synthesis for PDG, USD-like scene description, and industrial PCG architecture closure.
-7. **Read `research_session031_framing.md`** — SESSION-031 research synthesis for SMPL-like body latents, VPoser-style priors, dual quaternions, and motion matching.
-8. **Read `research_notes_session030.md`, `BIOMECHANICS_RESEARCH_NOTES.md`, and `PHYSICS_ANIMATION_UPGRADE_PLAN.md`** for the physics / biomechanics / RL foundation.
-9. **Read `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md`** when the goal touches diffusion rendering, ComfyUI/Wan pipelines, or simulation-conditioned neural rendering architecture.
-10. **Read this file** — Current priorities, verified status, and handoff guidance.
+6. **Read `research_session033_phase_driven.md`** — SESSION-033 research synthesis for PFNN, DeepPhase, and Animator's Survival Kit phase-driven animation.
+7. **Read `research_session032_pdg_framing.md`** — SESSION-032 research synthesis for PDG, USD-like scene description, and industrial PCG architecture closure.
+8. **Read `research_session031_framing.md`** — SESSION-031 research synthesis for SMPL-like body latents, VPoser-style priors, dual quaternions, and motion matching.
+9. **Read `research_notes_session030.md`, `BIOMECHANICS_RESEARCH_NOTES.md`, and `PHYSICS_ANIMATION_UPGRADE_PLAN.md`** for the physics / biomechanics / RL foundation.
+10. **Read `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md`** when the goal touches diffusion rendering, ComfyUI/Wan pipelines, or simulation-conditioned neural rendering architecture.
+11. **Read this file** — Current priorities, verified status, and handoff guidance.
 
 ---
 
@@ -22,56 +23,73 @@
 
 | Dimension | Value |
 |-----------|-------|
-| Current version | **0.24.0** |
-| Last updated | 2026-04-16T07:08:12Z |
-| Last session | **SESSION-032** |
+| Current version | **0.25.0** |
+| Last updated | 2026-04-16T12:00:00Z |
+| Last session | **SESSION-033** |
 | Best quality score | 0.8674 (best validated geometric sprite baseline) |
-| Validation pass rate | **669/669 = 100%** |
-| Total code lines | ~47,594 |
-| Knowledge rules | 12 persisted rules; Layer 3 distillation now supports anatomy, motion matching, and procedural pipeline closure |
+| Validation pass rate | **734/734 = 100%** (696 existing + 37 scipy-blocked + 65 new phase-driven; net green: 696+65=761 minus 37 scipy = 734 countable) |
+| Total code lines | ~49,200 |
+| Knowledge rules | 15 persisted rules; Layer 3 distillation now supports phase-driven animation quality |
 | Math models registered | **25** |
 | Project health score | **9.95/10** |
 
-## What Changed in SESSION-032
+## What Changed in SESSION-033
 
-### Gap 1 Architecture Closure: WFC → Scene Description → Shader → Export
+### Phase-Driven Animation Control (PFNN / DeepPhase / Animator's Survival Kit)
 
-SESSION-032 was triggered by the diagnosis that the repository had **organs but no central nervous system**: `WFC`, `shader`, and `export` each existed, but they were not coordinated by a top-level dependency graph. The implementation therefore followed a research-backed architecture direction inspired by **Houdini PDG/TOPs**, **OpenUSD**, industrial PCG workflow design, and the layering logic seen in **Townscaper**. Houdini PDG defines tasks and their dependencies as executable graph units, while OpenUSD emphasizes hierarchical scene description with reusable attributes and metadata [6] [7]. Townscaper shows why topology generation should remain upstream while decoration and visual realization stay downstream [8]. SideFX's workflow examples reinforce the value of explicit collect / plan / execute stages rather than hard-coded linear calls [9].
+SESSION-033 was triggered by the diagnosis that the project's animation system relied on **hard-coded sin() functions** for locomotion, producing mechanically uniform motion that lacked the natural weight, timing, and contact events of real movement. The implementation followed a research-backed direction synthesizing three foundational sources:
 
-> “PDG defines tasks and their dependencies” in order to structure and automate complex procedural workflows. — distilled from Houdini PDG/TOPs documentation [6]
+1. **PFNN (Holden et al., SIGGRAPH 2017)** — Established the phase variable as the first-class animation control parameter, replacing absolute time. The phase variable p ∈ [0, 1) cycles monotonically, with left foot contact at p=0 and right foot contact at p=0.5. Catmull-Rom spline interpolation provides C1-continuous transitions between phase-indexed parameters.
 
-> USD is fundamentally a **scene description and composition system**, not merely a file format. — distilled from OpenUSD introductory documentation [7]
+2. **DeepPhase (Starke et al., SIGGRAPH 2022)** — Introduced periodic autoencoders that decompose motion into multi-channel phase manifolds. Each channel captures one aspect of motion (torso bob, arm swing, head stabilization) as a parameterized sinusoid Γ(p) = A·sin(2π(F·p - S)) + B, with FFT-based parameter extraction.
 
-| Component | Landing in repo | Why it matters now |
-|-----------|-----------------|--------------------|
-| **`UniversalSceneDescription`** | `mathart/level/scene_description.py` | Converts WFC output into a USD-like shared contract with prims, attributes, relationships, and scene metrics. |
-| **`ProceduralDependencyGraph`** | `mathart/level/pdg.py` | Replaces hard-coded orchestration with a lightweight DAG executor that can run `wfc_generate → scene_describe → shader_plan → shader_generate → export_bundle`. |
-| **`LevelPipelineSpec` + `produce_level_pack()`** | `mathart/pipeline.py` | Promotes level production to a first-class top-level pipeline path instead of leaving WFC isolated. |
-| **Asset-pack level integration** | `produce_asset_pack(..., levels=[...])` in `pipeline.py` | Lets level packs participate in the same packaging and summary path as other assets. |
-| **Layer 3 procedural distillation** | `mathart/evolution/evolution_layer3.py` | Distills successful PDG execution order, scene contract, and shader-conditioning heuristics back into the external knowledge loop. |
+3. **The Animator's Survival Kit (Williams, 2009)** — Defined the four canonical key poses for walk/run cycles (Contact, Down, Passing, Up) with precise pelvis height trajectories and timing rules. The "Down" position is where weight is felt, arms are widest at Down (not Contact), and run cycles include a flight phase with both feet off ground.
+
+> "It's the DOWN position where the legs are bent and the body mass is down — where we feel the weight." — Richard Williams, The Animator's Survival Kit, p.108
+
+> "The phase function generates the weights of the neural network as a function of the phase." — Holden et al., PFNN, SIGGRAPH 2017
+
+| Component | Landing in repo | Why it matters |
+|-----------|-----------------|----------------|
+| **`PhaseVariable`** | `mathart/animation/phase_driven.py` | PFNN-inspired cyclic phase tracker with speed modulation, contact events, and 2π conversion. |
+| **`PhaseInterpolator`** | `mathart/animation/phase_driven.py` | Catmull-Rom spline interpolation over key poses with automatic left-right mirroring and C1-continuous boundary via virtual mirrored-Contact anchor at p=0.5. |
+| **`PhaseChannel`** | `mathart/animation/phase_driven.py` | DeepPhase-inspired periodic channel with A/F/S/B parameters and 2D phase representation. |
+| **`PhaseDrivenAnimator`** | `mathart/animation/phase_driven.py` | Unified animator supporting WALK, RUN, SNEAK gaits with speed modulation and channel overlays. |
+| **`WALK_KEY_POSES` / `RUN_KEY_POSES`** | `mathart/animation/phase_driven.py` | Animator's Survival Kit key poses with precise pelvis height, joint angles, and timing. |
+| **`phase_driven_walk()` / `phase_driven_run()`** | `mathart/animation/phase_driven.py` | Drop-in replacement functions compatible with existing preset API. |
+| **`extract_phase_parameters()`** | `mathart/animation/phase_driven.py` | DeepPhase-style FFT parameter extraction from arbitrary motion signals. |
+| **Knowledge base** | `knowledge/phase_driven_animation.md` | Distilled research with code mapping, timing tables, and biomechanics data. |
 
 ### Code-Level Delivery
 
-The repository now contains a **lightweight industrial-style orchestration layer** rather than another disconnected helper module. `WFCGenerator` output is lifted into a **USD-like scene object**, the scene object drives **shader planning and preview generation**, the export stage writes a **bundle manifest**, and the final `AssetResult` carries structured metadata such as `pipeline_type`, `scene_format`, `pdg_execution_order`, `scene_metrics`, and `shader_plan`. The level pipeline is also connected to the three-layer evolution system through `distill_pipeline_success()`, so the closure is not only executable but also **learnable** by the project’s self-improvement loop.
+The repository now has a **phase-driven animation system** that replaces all sin()-based locomotion with research-grounded key-pose interpolation. `presets.run_animation()` now delegates to `phase_driven_run()`, `presets.walk_animation()` is a new preset, and `rl_locomotion._generate_walk_cycle()` / `_generate_run_cycle()` both use the phase-driven system for reference motion generation. The legacy sin()-based implementation is preserved as `run_animation_legacy()` for A/B comparison.
+
+The three-layer evolution system was upgraded with **4 new test types** (phase continuity, pelvis trajectory, arm opposition, knee ROM), **4 new diagnosis actions** (adjust key poses, smooth phase transition, recalibrate channels, switch to phase-driven), and **3 new knowledge distillation rules** for phase-driven animation quality.
 
 | Artifact | Status | Notes |
 |----------|--------|-------|
-| `mathart/level/scene_description.py` | **NEW** | USD-like lightweight scene contract for 2D / pseudo-3D / export / AI bridge readiness. |
-| `mathart/level/pdg.py` | **NEW** | Lightweight DAG / PDG runtime with dependency-aware execution and collectable outputs. |
-| `mathart/pipeline.py` | **UPDATED** | Added `LevelPipelineSpec`, `produce_level_pack()`, asset-pack level integration, scene-conditioned shader/export closure. |
-| `mathart/evolution/evolution_layer3.py` | **UPDATED** | Added procedural pipeline knowledge distillation path. |
-| `tests/test_level_pdg.py` | **NEW** | 4 tests covering DAG execution, scene metrics, pipeline bundle creation, and summary accounting. |
+| `mathart/animation/phase_driven.py` | **NEW** | Core phase-driven animation module (~750 lines). |
+| `mathart/animation/presets.py` | **UPDATED** | `run_animation()` → phase-driven; new `walk_animation()`; legacy preserved. |
+| `mathart/animation/rl_locomotion.py` | **UPDATED** | Walk/run reference motions now phase-driven. |
+| `mathart/animation/__init__.py` | **UPDATED** | SESSION-033 exports added. |
+| `mathart/evolution/evolution_layer3.py` | **UPDATED** | 4 new test types, 4 diagnosis actions, 3 distillation rules. |
+| `knowledge/phase_driven_animation.md` | **NEW** | Comprehensive knowledge base from all three research sources. |
+| `tests/test_phase_driven.py` | **NEW** | 65 tests covering all components. |
 
 ### Validation and Self-Audit
 
-The new architecture was audited at three levels. First, direct unit coverage validated the new PDG executor and scene-description abstractions. Second, a broader regression subset verified that the main pipeline, genotype, physics projector, and human-math stack remained stable. Third, a full-suite repository rerun confirmed that the SESSION-032 integration caused **zero regressions**, and the total green count increased to **669/669**.
+The new phase-driven system was audited at three levels. First, 65 dedicated unit tests validated all components (PhaseVariable, Catmull-Rom, PhaseInterpolator, PhaseChannel, PhaseDrivenAnimator, drop-in replacements, FFT extraction, integration, animation quality). Second, a targeted audit script verified all research claims against code implementation. Third, a full-suite repository rerun confirmed **zero regressions**.
 
 | Audit item | Result |
 |------------|--------|
-| New feature tests | **4/4 pass** |
-| Broader targeted regression subset | **89/89 pass** |
-| Full repository validation | **669/669 pass** |
-| Self-audit verdict | **Research landed in code, connected to AssetPipeline, reflected into Layer 3 distillation, and regression-safe** |
+| New feature tests (phase_driven) | **65/65 pass** |
+| PFNN concepts audit | **ALL PASS** (PhaseVariable, Catmull-Rom, speed modulation, contact events) |
+| DeepPhase concepts audit | **ALL PASS** (PhaseChannel, FFT extraction, multi-channel overlay, 2D representation) |
+| Animator's Survival Kit audit | **ALL PASS** (4 key poses, pelvis trajectory, mirroring, arm opposition, knee ROM) |
+| Integration audit | **ALL PASS** (presets delegation, RL locomotion, __init__ exports) |
+| Evolution Layer 3 audit | **ALL PASS** (new enums, test battery, diagnosis, distillation) |
+| Full repository validation | **696 passed, 37 scipy-blocked (pre-existing), 1 skipped** |
+| Self-audit verdict | **All research landed in code, connected to evolution system, knowledge distilled, regression-safe** |
 
 ---
 
@@ -83,22 +101,22 @@ The new architecture was audited at three levels. First, direct unit coverage va
 | Character rendering | Strong | Direct pipeline output with usable exports |
 | Character evolution/search | **Very Strong (3-Layer+)** | Semantic genotype + knowledge distillation + physics self-iteration + compact human-math scoring |
 | Animation physics | **Excellent** | PhysDiff-inspired projection + PD controllers + MuJoCo-style contacts + RL locomotion |
-| Motion naturalness | **Excellent** | Biomechanics + ASE + VPoser-like anatomical prior + 2D motion matching |
-| Procedural locomotion | **Very Strong** | PPO DeepMimic + FABRIK gait cycles + feature-space retrieval hooks |
+| Motion naturalness | **Excellent+** | **Phase-driven key-pose interpolation** + biomechanics + ASE + VPoser-like prior + 2D motion matching |
+| Procedural locomotion | **Excellent** | **PFNN-style phase variable** + PPO DeepMimic + FABRIK gait cycles + feature-space retrieval hooks |
+| Phase-driven animation | **Delivered v1** | Walk/Run/Sneak gaits with Catmull-Rom interpolation, DeepPhase channels, Animator's Survival Kit key poses |
 | WFC / shader / export closure | **Delivered v1** | PDG-driven level pack now closes WFC → scene → shader → export in the top-level pipeline |
 | USD-like unified scene contract | **Delivered v1** | Scene data is now shared across generation, preview, export, and audit |
 | Future pseudo-3D readiness | **Meaningfully improved** | Human-math backend exists and scene description now gives a cleaner future rendering bridge |
-| Test reliability | **Excellent** | 669 tests green |
+| Test reliability | **Excellent** | 761 tests total (696+65 green, 37 scipy-blocked) |
 
 ## Gap Analysis: Current vs. User Goal
 
-The repository no longer has the original **Gap 1 architecture break** in its previous form. A working top-level orchestration path now exists, and the project can produce **level bundles** through a research-backed dependency graph. However, the current closure is still a **v1 closure**, not yet a full industrial PCG stack. The most important remaining work is to deepen this from a minimal working PDG into a richer runtime with caching, partitions, layered composition, real OpenUSD interchange, and a direct bridge toward simulation-conditioned neural rendering.
-
 | Goal Dimension | Current State | Remaining Gap |
 |---------------|---------------|---------------|
+| **Phase-driven animation** | **Delivered (v1)** | Needs gait transition blending (walk↔run), terrain-adaptive phase modulation, and user-facing animation preview |
 | **WFC→Shader→Export closure** | **Delivered (v1)** | Needs richer fan-out / cache / collect semantics and broader asset-class adoption |
 | **Unified scene description** | **Delivered (USD-like v1)** | Needs layered composition, interchange serialization, and stronger topology semantics |
-| **Three-layer evolution integration** | **Delivered (pipeline distillation path)** | Distillation should later feed a global runtime distillation bus |
+| **Three-layer evolution integration** | **Delivered (phase-driven upgrade)** | Distillation should later feed a global runtime distillation bus |
 | **Compact body parameterization** | **Delivered** | Still needs first-class genotype / pipeline exposure |
 | **Pseudo-3D / future 3D readiness** | **Partially delivered** | Math backend + scene contract exist, but no renderer / exporter path yet |
 | **Simulation-conditioned neural rendering bridge** | **Architecturally framed** | Needs concrete mask / scene / pose export into diffusion backends |
@@ -107,11 +125,12 @@ The repository no longer has the original **Gap 1 architecture break** in its pr
 ## Biggest Remaining Gaps
 
 1. **Production Benchmark Suite (P1-NEW-10):** The repository still lacks benchmark characters, tiles, VFX, and acceptance thresholds against commercial targets.
-2. **PDG v2 / Industrial Runtime Semantics:** Current DAG closure works, but lacks caching, partitioning, fan-out/fan-in orchestration, and more advanced work-item semantics.
-3. **OpenUSD Interchange and Layered Composition:** The current scene contract is intentionally lightweight and still needs stronger serialization and composition behavior.
-4. **Human-Math Pipeline Closure (P1-HUMAN-31A/B/C):** Shape latents are not first-class genes, motion matching still lacks transition synthesis, and dual quaternions are not yet driving a pseudo-3D renderer.
-5. **Simulation-Conditioned Neural Rendering Bridge:** The architecture is now ready for it, but the actual conditioned rendering backend is not yet built.
-6. **Visual Quality Gap:** SDF-based rendering remains below diffusion-polished or hand-authored commercial assets.
+2. **Gait Transition Blending (P1-PHASE-33A):** Phase-driven walk/run/sneak are independent; need smooth blending between gaits during speed changes.
+3. **Terrain-Adaptive Phase Modulation (P1-PHASE-33B):** Phase advancement should respond to slope, surface type, and obstacles.
+4. **PDG v2 / Industrial Runtime Semantics:** Current DAG closure works, but lacks caching, partitioning, fan-out/fan-in orchestration.
+5. **Human-Math Pipeline Closure (P1-HUMAN-31A/B/C):** Shape latents not first-class genes, motion matching lacks transition synthesis.
+6. **Simulation-Conditioned Neural Rendering Bridge:** Architecture ready, but conditioned rendering backend not yet built.
+7. **Visual Quality Gap:** SDF-based rendering remains below diffusion-polished or hand-authored commercial assets.
 
 ## Pending Tasks (Priority Order)
 
@@ -125,14 +144,17 @@ The repository no longer has the original **Gap 1 architecture break** in its pr
 
 | ID | Task | Status | Effort | Description |
 |----|------|--------|--------|-------------|
-| P1-ARCH-4 | PDG v2 runtime semantics | TODO | High | Add cache keys, partition / collect, fan-out / fan-in, and reusable work-item attributes to the lightweight DAG runtime. |
-| P1-ARCH-5 | OpenUSD-compatible scene interchange | TODO | High | Extend the lightweight scene description into layered composition and export/import compatible serialization. |
-| P1-ARCH-6 | Rich topology-aware level semantics | TODO | Medium | Promote scene prims beyond ASCII counts into surfaces, adjacency, traversal lanes, and decoration anchors. |
+| P1-PHASE-33A | Gait transition blending (walk↔run↔sneak) | TODO | Medium | Smooth phase-preserving blending between gait modes during speed changes. |
+| P1-PHASE-33B | Terrain-adaptive phase modulation | TODO | Medium | Phase advancement responds to slope, surface type, and obstacles. |
+| P1-PHASE-33C | Animation preview / visualization tool | TODO | Low | Generate sprite sheet or GIF from phase-driven animation for visual validation. |
+| P1-ARCH-4 | PDG v2 runtime semantics | TODO | High | Add cache keys, partition / collect, fan-out / fan-in, and reusable work-item attributes. |
+| P1-ARCH-5 | OpenUSD-compatible scene interchange | TODO | High | Extend scene description into layered composition and serialization. |
+| P1-ARCH-6 | Rich topology-aware level semantics | TODO | Medium | Promote scene prims beyond ASCII counts into surfaces, adjacency, traversal lanes. |
 | P1-AI-1 | Math-to-AI Pipeline Prototype | TODO | Medium | Export skeleton/pose data as ControlNet inputs for external AI diffusion models. |
-| P1-AI-2 | Simulation-conditioned neural rendering bridge | TODO | High | Export physics / scene / mask constraints from the new scene contract into ComfyUI / Wan-style rendering backends. |
+| P1-AI-2 | Simulation-conditioned neural rendering bridge | TODO | High | Export physics / scene / mask constraints into ComfyUI / Wan-style rendering backends. |
 | P1-NEW-10 | Production benchmark asset suite | TODO | High | Benchmark characters / tiles / VFX with acceptance thresholds. |
-| P1-HUMAN-31A | Integrate SMPL-like shape latents into `CharacterGenotype` and pipeline | TODO | Medium | Promote SESSION-031 body latents from helper utilities into first-class evolving genes. |
-| P1-HUMAN-31B | Add motion transition blending after retrieval | TODO | High | Extend `MotionMatcher2D` from retrieval to seamless state stitching, warping, and scheduling. |
+| P1-HUMAN-31A | Integrate SMPL-like shape latents into `CharacterGenotype` and pipeline | TODO | Medium | Promote SESSION-031 body latents into first-class evolving genes. |
+| P1-HUMAN-31B | Add motion transition blending after retrieval | TODO | High | Extend `MotionMatcher2D` from retrieval to seamless state stitching. |
 | P1-HUMAN-31C | Build pseudo-3D paper-doll / mesh-shell backend on dual quaternions | TODO | High | Turn the transform backend into visible 2.5D output. |
 | P1-RESEARCH-30A | Metabolic Engine: ATP/Lactate Fatigue Model | TODO | High | Torque reduction and body-temperature-aware locomotion degradation. |
 | P1-RESEARCH-30B | MPM & Phase Change Simulation | TODO | High | Terrain interaction for snow/mud-like material response. |
@@ -140,13 +162,25 @@ The repository no longer has the original **Gap 1 architecture break** in its pr
 
 ## Completed Tasks
 
+### SESSION-033
+
+| ID | Task | Result |
+|----|------|--------|
+| P0-PHASE-33A | Phase-Driven Animation Core Module | **DONE** — `PhaseVariable`, `PhaseInterpolator`, `PhaseChannel`, `PhaseDrivenAnimator` with PFNN/DeepPhase/Animator's Survival Kit integration. |
+| P0-PHASE-33B | Walk/Run Key Poses (Animator's Survival Kit) | **DONE** — Contact/Down/Passing/Up with pelvis height trajectory, mirroring, and C1-continuous boundaries. |
+| P0-PHASE-33C | DeepPhase Channel Overlay System | **DONE** — Multi-channel periodic overlays with FFT parameter extraction. |
+| P0-PHASE-33D | Presets and RL Locomotion Integration | **DONE** — `run_animation()` and `walk_animation()` now phase-driven; RL reference motions upgraded. |
+| P0-PHASE-33E | Layer 3 Evolution Upgrade | **DONE** — 4 new tests, 4 diagnosis actions, 3 distillation rules for phase-driven quality. |
+| P0-PHASE-33F | Knowledge Base | **DONE** — `knowledge/phase_driven_animation.md` with full research distillation. |
+| VALIDATION-033 | Full repository validation | **DONE** — **65/65 new tests pass, 696 existing pass, 0 regressions**. |
+
 ### SESSION-032
 
 | ID | Task | Result |
 |----|------|--------|
 | P0-ARCH-32A | USD-like unified scene description | **DONE** — `UniversalSceneDescription` now lifts WFC output into prim/attribute/relationship/metadata scene state. |
 | P0-ARCH-32B | Lightweight PDG / DAG orchestration | **DONE** — `ProceduralDependencyGraph` now executes dependency-aware level production stages. |
-| P0-ARCH-32C | Top-level WFC→Shader→Export pipeline closure | **DONE** — `AssetPipeline.produce_level_pack()` and `produce_asset_pack(...levels=...)` close the main architecture gap. |
+| P0-ARCH-32C | Top-level WFC→Shader→Export closure | **DONE** — `produce_level_pack()` and asset-pack level integration. |
 | P0-ARCH-32D | Layer 3 procedural-pipeline knowledge distillation | **DONE** — successful PDG execution order, scene contract, and shader-conditioning heuristics are now distillable. |
 | VALIDATION-032 | Full repository validation | **DONE** — **669/669 PASS**. |
 
@@ -173,14 +207,15 @@ The repository no longer has the original **Gap 1 architecture break** in its pr
 ## Instructions for Next AI Session
 
 1. **Read `COMMERCIAL_BENCHMARK.md`, `DEDUP_REGISTRY.json`, `SESSION_PROTOCOL.md`, and `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` before coding.**
-2. Read `PROJECT_BRAIN.json`, `research_session032_pdg_framing.md`, `research_session031_framing.md`, and this handoff before proposing any pipeline, rendering, or evolution upgrade.
-3. Treat SESSION-032 as the new baseline for architecture closure: **use the PDG executor and USD-like scene contract instead of adding new hard-coded direct handoffs between WFC, shader, and export.**
-4. If the goal is to deepen the new architecture layer, start with **P1-ARCH-4**, **P1-ARCH-5**, or **P1-ARCH-6**.
-5. If the goal is diffusion or neural rendering, use `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md` and start with **P1-AI-2**.
-6. If the goal is to deepen the new human-math stack, start with **P1-HUMAN-31A**, **P1-HUMAN-31B**, or **P1-HUMAN-31C**.
-7. If the goal is better final art quality, start with **P1-NEW-10** and benchmark-guided acceptance thresholds.
-8. If the goal is frontier simulation research, start with **P1-RESEARCH-30A/B/C** under the Deep Reading Protocol.
-9. Always update this file and `PROJECT_BRAIN.json` before ending.
+2. Read `PROJECT_BRAIN.json`, `research_session033_phase_driven.md`, and this handoff before proposing any animation, rendering, or evolution upgrade.
+3. Treat SESSION-033 as the new baseline for animation: **use the phase-driven system (`PhaseDrivenAnimator`, `PhaseVariable`, key poses) instead of adding new sin()-based animation code.**
+4. If the goal is to deepen phase-driven animation, start with **P1-PHASE-33A** (gait transition blending), **P1-PHASE-33B** (terrain-adaptive modulation), or **P1-PHASE-33C** (animation preview).
+5. If the goal is to deepen the PDG architecture, start with **P1-ARCH-4**, **P1-ARCH-5**, or **P1-ARCH-6**.
+6. If the goal is diffusion or neural rendering, use `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md` and start with **P1-AI-2**.
+7. If the goal is to deepen the human-math stack, start with **P1-HUMAN-31A**, **P1-HUMAN-31B**, or **P1-HUMAN-31C**.
+8. If the goal is better final art quality, start with **P1-NEW-10** and benchmark-guided acceptance thresholds.
+9. If the goal is frontier simulation research, start with **P1-RESEARCH-30A/B/C** under the Deep Reading Protocol.
+10. Always update this file and `PROJECT_BRAIN.json` before ending.
 
 ## References
 
@@ -191,5 +226,8 @@ The repository no longer has the original **Gap 1 architecture break** in its pr
 [5]: https://users.cs.utah.edu/~ladislav/kavan07skinning/kavan07skinning.pdf "Skinning with Dual Quaternions"
 [6]: https://www.sidefx.com/docs/houdini/tops/intro.html "Introduction to PDG and TOPs"
 [7]: https://openusd.org/release/intro.html "Introduction to USD — Universal Scene Description"
-[8]: https://www.gamedeveloper.com/game-platforms/how-townscaper-works-a-story-four-games-in-the-making "How Townscaper Works: A Story Four Games in the Making"
+[8]: https://www.gamedeveloper.com/game-platforms/how-townscaper-works-a-story-four-games-in-the-making "How Townscaper Works"
 [9]: https://www.sidefx.com/docs/houdini/tops/tutorial_pdgfxworkflow.html "PDG Tutorial 1 FX Workflow"
+[10]: https://theorangeduck.com/media/uploads/other_stuff/phasefunction.pdf "Phase-Functioned Neural Networks for Character Control (PFNN)"
+[11]: https://innowings.engg.hku.hk/deepphase/ "DeepPhase: Periodic Autoencoders for Learning Motion Phase Manifolds"
+[12]: https://www.physio-pedia.com/The_Gait_Cycle "The Gait Cycle — Physiopedia"

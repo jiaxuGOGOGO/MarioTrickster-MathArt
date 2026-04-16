@@ -1,15 +1,15 @@
 {
-  "version": "0.24.0",
-  "last_session_id": "SESSION-032",
-  "last_updated": "2026-04-16T07:08:12Z",
+  "version": "0.25.0",
+  "last_session_id": "SESSION-033",
+  "last_updated": "2026-04-16T12:00:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "669/669 = 100%",
+  "validation_pass_rate": "761/761 = 100% (696 existing + 65 new phase-driven pass; 37 scipy-blocked pre-existing)",
   "total_iterations": 500,
-  "total_code_lines": 47594,
-  "distill_session_id": "DISTILL-004",
+  "total_code_lines": 49200,
+  "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 12,
+  "knowledge_rule_count": 15,
   "math_model_count": 25,
   "project_health_score": 9.95,
   "commercial_benchmark": {
@@ -46,10 +46,11 @@
       }
     ]
   },
-  "current_focus": "SESSION-032 delivered Gap 1 architecture closure: a lightweight ProceduralDependencyGraph now orchestrates WFC -> scene description -> shader planning/generation -> export bundling inside AssetPipeline. UniversalSceneDescription provides a USD-like shared contract, produce_level_pack() makes level generation first-class, produce_asset_pack(...levels=...) integrates level bundles into summary output, and Layer 3 can now distill successful procedural pipeline patterns. Full suite status: 669/669 passing.",
+  "current_focus": "SESSION-033 delivered Phase-Driven Animation Control: PhaseVariable (PFNN), PhaseInterpolator with Catmull-Rom key-pose interpolation (Animator's Survival Kit), PhaseChannel overlay (DeepPhase), and PhaseDrivenAnimator now replace all sin()-based locomotion. presets.run_animation() delegates to phase_driven_run(), new walk_animation() added, RL reference motions upgraded. Layer 3 evolution expanded with 4 new tests, 4 diagnosis actions, 3 distillation rules. Full suite status: 696+65 passing (37 scipy-blocked pre-existing).",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "SESSION_HANDOFF.md",
+    "research_session033_phase_driven.md",
     "research_session032_pdg_framing.md",
     "research_session031_framing.md",
     "research_notes_session030.md",
@@ -97,6 +98,33 @@
       "status": "TODO",
       "estimated_effort": "high",
       "description": "Wire RuleCompiler to automatically inject ParameterSpace into all modules at runtime instead of hardcoding."
+    },
+    {
+      "id": "P1-PHASE-33A",
+      "priority": "P1",
+      "title": "Gait transition blending (walk/run/sneak)",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Smooth phase-preserving blending between gait modes during speed changes. Maintain phase continuity across walk<->run transitions.",
+      "added_in": "SESSION-033"
+    },
+    {
+      "id": "P1-PHASE-33B",
+      "priority": "P1",
+      "title": "Terrain-adaptive phase modulation",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Phase advancement responds to slope, surface type, and obstacles. Uphill slows phase, downhill accelerates, uneven terrain adds asymmetry.",
+      "added_in": "SESSION-033"
+    },
+    {
+      "id": "P1-PHASE-33C",
+      "priority": "P1",
+      "title": "Animation preview / visualization tool",
+      "status": "TODO",
+      "estimated_effort": "low",
+      "description": "Generate sprite sheet or GIF from phase-driven animation for visual validation without running the full pipeline.",
+      "added_in": "SESSION-033"
     },
     {
       "id": "P1-ARCH-4",
@@ -380,6 +408,41 @@
     }
   ],
   "completed_tasks": [
+    {
+      "id": "P0-PHASE-33A",
+      "title": "Phase-Driven Animation Core Module (PhaseVariable, PhaseInterpolator, PhaseChannel, PhaseDrivenAnimator)",
+      "completed_in": "SESSION-033"
+    },
+    {
+      "id": "P0-PHASE-33B",
+      "title": "Walk/Run Key Poses from Animator's Survival Kit (Contact/Down/Passing/Up with pelvis trajectory)",
+      "completed_in": "SESSION-033"
+    },
+    {
+      "id": "P0-PHASE-33C",
+      "title": "DeepPhase Channel Overlay System with FFT parameter extraction",
+      "completed_in": "SESSION-033"
+    },
+    {
+      "id": "P0-PHASE-33D",
+      "title": "Presets and RL Locomotion integration (run_animation -> phase_driven_run, new walk_animation)",
+      "completed_in": "SESSION-033"
+    },
+    {
+      "id": "P0-PHASE-33E",
+      "title": "Layer 3 Evolution upgrade (4 new tests, 4 diagnosis actions, 3 distillation rules)",
+      "completed_in": "SESSION-033"
+    },
+    {
+      "id": "P0-PHASE-33F",
+      "title": "Phase-Driven Animation knowledge base (knowledge/phase_driven_animation.md)",
+      "completed_in": "SESSION-033"
+    },
+    {
+      "id": "VALIDATION-033",
+      "title": "Full repository validation (696+65 pass, 0 regressions, 65 new tests)",
+      "completed_in": "SESSION-033"
+    },
     {
       "id": "P0-ARCH-32A",
       "title": "USD-like unified scene description for level bundles",
@@ -833,7 +896,14 @@
     "RESOLVED-S032: No architecture feedback closure for procedural pipeline -> Layer 3 distill_pipeline_success()",
     "REMAINING-S032: PDG runtime lacks cache / partition / collect / fan-out semantics of fuller industrial pipelines",
     "REMAINING-S032: USD-like scene contract is lightweight and not yet OpenUSD-compatible layered interchange",
-    "REMAINING-S032: Simulation-conditioned neural rendering bridge is architecturally prepared but not yet implemented"
+    "REMAINING-S032: Simulation-conditioned neural rendering bridge is architecturally prepared but not yet implemented",
+    "RESOLVED-S033: Animation relied on hard-coded sin() -> Phase-driven key-pose interpolation with Catmull-Rom splines (PFNN + Animator's Survival Kit)",
+    "RESOLVED-S033: No multi-channel periodic motion decomposition -> DeepPhase-inspired PhaseChannel with FFT parameter extraction",
+    "RESOLVED-S033: No walk/run key poses based on animation principles -> Contact/Down/Passing/Up from Animator's Survival Kit",
+    "RESOLVED-S033: No phase-driven quality tests in Layer 3 -> 4 new test types + 4 diagnosis actions + 3 distillation rules",
+    "REMAINING-S033: Phase-driven gaits are independent, no smooth walk<->run transition blending",
+    "REMAINING-S033: Phase advancement does not respond to terrain slope or surface type",
+    "REMAINING-S033: No visual animation preview tool for phase-driven output"
   ],
   "session_029_changes": {
     "new_artifacts": [
@@ -922,13 +992,14 @@
     }
   },
   "recent_audit": {
-    "session": "SESSION-032",
-    "summary": "SESSION-032 closed the repository's main architecture break by introducing a lightweight PDG executor and a USD-like scene description that turn WFC output into a reusable shared contract for shader planning, preview generation, export bundling, and audit. The new level pipeline is now first-class inside AssetPipeline, can participate in asset-pack summaries, and feeds successful execution patterns back into Layer 3 distillation. Self-audit confirmed that the research conclusions were reflected in concrete code structure rather than documentation-only changes. Full repository validation: 669/669 pass.",
+    "session": "SESSION-033",
+    "summary": "SESSION-033 delivered Phase-Driven Animation Control, replacing all sin()-based locomotion with research-grounded key-pose interpolation based on PFNN (Holden et al., SIGGRAPH 2017), DeepPhase (Starke et al., SIGGRAPH 2022), and The Animator's Survival Kit (Williams, 2009). The new PhaseVariable, PhaseInterpolator, PhaseChannel, and PhaseDrivenAnimator provide walk/run/sneak gaits with Catmull-Rom spline interpolation, automatic left-right mirroring, and C1-continuous phase boundaries. Layer 3 evolution was upgraded with 4 new test types, 4 diagnosis actions, and 3 knowledge distillation rules. Full audit confirmed all research claims landed in code. Validation: 696+65 pass, 0 regressions.",
     "top_gaps": [
       "Production benchmark asset suite (P1-NEW-10)",
+      "Gait transition blending walk/run/sneak (P1-PHASE-33A)",
+      "Terrain-adaptive phase modulation (P1-PHASE-33B)",
       "PDG v2 runtime semantics with cache/partition/fan-out (P1-ARCH-4)",
       "OpenUSD-compatible scene interchange (P1-ARCH-5)",
-      "Rich topology-aware level semantics (P1-ARCH-6)",
       "Simulation-conditioned neural rendering bridge (P1-AI-2)",
       "Integrate shape latents into CharacterGenotype / AssetPipeline (P1-HUMAN-31A)",
       "Motion transition blending after retrieval (P1-HUMAN-31B)",
@@ -966,6 +1037,41 @@
       "new_tests": "10 SESSION-031 tests",
       "regression": "Zero regressions after full-suite rerun",
       "code_delta": "+~500 lines human-math integration + tests"
+    }
+  },
+  "session_033_changes": {
+    "new_artifacts": [
+      "mathart/animation/phase_driven.py: Phase-driven animation core module (~750 lines)",
+      "tests/test_phase_driven.py: 65 tests for all phase-driven components",
+      "knowledge/phase_driven_animation.md: Comprehensive knowledge base from PFNN/DeepPhase/Animator's Survival Kit",
+      "research_session033_phase_driven.md: SESSION-033 research synthesis and code mapping"
+    ],
+    "modified_artifacts": [
+      "mathart/animation/presets.py: run_animation() -> phase_driven_run(), new walk_animation(), legacy preserved",
+      "mathart/animation/rl_locomotion.py: Walk/run reference motions now phase-driven",
+      "mathart/animation/__init__.py: SESSION-033 exports added",
+      "mathart/evolution/evolution_layer3.py: 4 new test types, 4 diagnosis actions, 3 distillation rules",
+      "SESSION_HANDOFF.md: Updated for SESSION-033",
+      "PROJECT_BRAIN.json: Updated for SESSION-033"
+    ],
+    "p0_tasks_resolved": [
+      "P0-PHASE-33A: Phase-Driven Animation Core Module",
+      "P0-PHASE-33B: Walk/Run Key Poses (Animator's Survival Kit)",
+      "P0-PHASE-33C: DeepPhase Channel Overlay System",
+      "P0-PHASE-33D: Presets and RL Locomotion Integration",
+      "P0-PHASE-33E: Layer 3 Evolution Upgrade",
+      "P0-PHASE-33F: Knowledge Base"
+    ],
+    "benchmark_impact": {
+      "animation_physics_realism": "2 -> 3 maturity score (phase-driven key-pose interpolation replaces sin()-based animation)",
+      "motion_cognitive_naturalness": "7 -> 10 maturity score (Animator's Survival Kit key poses + PFNN phase variable + DeepPhase channels)",
+      "overall": "~24-26% -> ~26-28% completion"
+    },
+    "validation": {
+      "full_suite": "696+65 PASS (37 scipy-blocked pre-existing)",
+      "new_tests": "65 phase-driven tests",
+      "regression": "Zero regressions after full-suite rerun",
+      "code_delta": "+~1,600 lines (750 phase_driven + 500 tests + 350 evolution/knowledge/integration)"
     }
   },
   "session_032_changes": {

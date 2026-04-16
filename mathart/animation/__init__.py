@@ -1,7 +1,7 @@
 """Programmatic 2D skeletal animation module."""
 from .skeleton import Skeleton, Bone, Joint
 from .curves import ease_in_out, spring, sine_wave, bezier_curve
-from .presets import idle_animation, run_animation, jump_animation, fall_animation, hit_animation
+from .presets import idle_animation, run_animation, walk_animation, jump_animation, fall_animation, hit_animation
 from .renderer import render_skeleton_sheet
 from .parts import CharacterStyle, BodyPart, assemble_character
 from .character_renderer import render_character_frame, render_character_sheet
@@ -72,6 +72,14 @@ from .physics_genotype import (
     crossover_physics_genotype, crossover_locomotion_genotype,
     evaluate_physics_fitness,
 )
+# SESSION-033: Phase-Driven Animation Control (PFNN/DeepPhase/Animator's Survival Kit)
+from .phase_driven import (
+    PhaseDrivenAnimator, PhaseVariable, GaitMode,
+    PhaseInterpolator, PhaseChannel, KeyPose,
+    phase_driven_walk, phase_driven_run,
+    extract_phase_parameters, create_phase_channel_from_signal,
+    WALK_KEY_POSES, RUN_KEY_POSES, WALK_CHANNELS, RUN_CHANNELS,
+)
 # SESSION-031: Distilled human math stack (SMPL/VPoser/DQ/Motion Matching)
 from .human_math import (
     SMPLShapeLatent, DistilledSMPLBodyModel,
@@ -84,7 +92,7 @@ from .human_math import (
 __all__ = [
     "Skeleton", "Bone", "Joint",
     "ease_in_out", "spring", "sine_wave", "bezier_curve",
-    "idle_animation", "run_animation", "jump_animation",
+    "idle_animation", "run_animation", "walk_animation", "jump_animation",
     "fall_animation", "hit_animation",
     "render_skeleton_sheet",
     "CharacterStyle", "BodyPart", "assemble_character",
@@ -137,6 +145,12 @@ __all__ = [
     "mutate_physics_genotype", "mutate_locomotion_genotype",
     "crossover_physics_genotype", "crossover_locomotion_genotype",
     "evaluate_physics_fitness",
+    # SESSION-033: Phase-Driven Animation Control
+    "PhaseDrivenAnimator", "PhaseVariable", "GaitMode",
+    "PhaseInterpolator", "PhaseChannel", "KeyPose",
+    "phase_driven_walk", "phase_driven_run",
+    "extract_phase_parameters", "create_phase_channel_from_signal",
+    "WALK_KEY_POSES", "RUN_KEY_POSES", "WALK_CHANNELS", "RUN_CHANNELS",
     # SESSION-031: Distilled human math stack
     "SMPLShapeLatent", "DistilledSMPLBodyModel",
     "PosePriorScore", "VPoserDistilledPrior",

@@ -310,58 +310,44 @@ class ReferenceMotionLibrary:
     def _generate_walk_cycle(self, n_frames: int = 30) -> list[dict[str, float]]:
         """Generate a procedural walk cycle reference motion.
 
-        Based on biomechanics: ~2 steps per second, hip ROM ±30°,
-        knee ROM 0-60°, counter-rotation of arms.
+        SESSION-033 upgrade: Now uses phase-driven key-pose interpolation
+        (Contact→Down→Pass→Up) from Animator's Survival Kit, with
+        Catmull-Rom splines (PFNN) and DeepPhase secondary channels.
         """
+        from .phase_driven import phase_driven_walk
         frames = []
         for i in range(n_frames):
             phase = i / n_frames
-            t = phase * 2 * math.pi  # Full cycle
-
-            frame = {
-                "spine": math.sin(t * 2) * 0.02,
-                "chest": math.sin(t * 2) * 0.01,
-                "neck": -math.sin(t * 2) * 0.01,
-                "head": 0.0,
-                # Legs: alternating swing
-                "l_hip": math.sin(t) * 0.45,
-                "r_hip": math.sin(t + math.pi) * 0.45,
-                "l_knee": -abs(math.sin(t)) * 0.8,
-                "r_knee": -abs(math.sin(t + math.pi)) * 0.8,
-                "l_foot": math.sin(t) * 0.15,
-                "r_foot": math.sin(t + math.pi) * 0.15,
-                # Arms: counter-swing
-                "l_shoulder": math.sin(t + math.pi) * 0.3,
-                "r_shoulder": math.sin(t) * 0.3,
-                "l_elbow": -abs(math.sin(t + math.pi)) * 0.3,
-                "r_elbow": -abs(math.sin(t)) * 0.3,
-            }
+            frame = phase_driven_walk(phase)
+            # Ensure foot keys exist for RL compatibility
+            if "l_foot" not in frame:
+                frame["l_foot"] = frame.get("l_hip", 0.0) * 0.3
+            if "r_foot" not in frame:
+                frame["r_foot"] = frame.get("r_hip", 0.0) * 0.3
+            if "neck" not in frame:
+                frame["neck"] = 0.0
             frames.append(frame)
         return frames
 
     def _generate_run_cycle(self, n_frames: int = 20) -> list[dict[str, float]]:
-        """Generate a procedural run cycle (wider ROM, flight phase)."""
+        """Generate a procedural run cycle (wider ROM, flight phase).
+
+        SESSION-033 upgrade: Now uses phase-driven key-pose interpolation
+        with flight phase, forward lean, and Animator's Survival Kit
+        run cycle parameters.
+        """
+        from .phase_driven import phase_driven_run
         frames = []
         for i in range(n_frames):
             phase = i / n_frames
-            t = phase * 2 * math.pi
-
-            frame = {
-                "spine": math.sin(t * 2) * 0.04,
-                "chest": math.sin(t * 2) * 0.03 + 0.05,  # Forward lean
-                "neck": -math.sin(t * 2) * 0.02,
-                "head": 0.0,
-                "l_hip": math.sin(t) * 0.65,
-                "r_hip": math.sin(t + math.pi) * 0.65,
-                "l_knee": -abs(math.sin(t)) * 1.2,
-                "r_knee": -abs(math.sin(t + math.pi)) * 1.2,
-                "l_foot": math.sin(t) * 0.25,
-                "r_foot": math.sin(t + math.pi) * 0.25,
-                "l_shoulder": math.sin(t + math.pi) * 0.5,
-                "r_shoulder": math.sin(t) * 0.5,
-                "l_elbow": -abs(math.sin(t + math.pi)) * 0.6 - 0.3,
-                "r_elbow": -abs(math.sin(t)) * 0.6 - 0.3,
-            }
+            frame = phase_driven_run(phase)
+            # Ensure foot keys exist for RL compatibility
+            if "l_foot" not in frame:
+                frame["l_foot"] = frame.get("l_hip", 0.0) * 0.4
+            if "r_foot" not in frame:
+                frame["r_foot"] = frame.get("r_hip", 0.0) * 0.4
+            if "neck" not in frame:
+                frame["neck"] = 0.0
             frames.append(frame)
         return frames
 

@@ -73,6 +73,11 @@ class PhysicsTestResult(str, Enum):
     FAIL_BALANCE = "fail_balance"           # ZMP outside support polygon
     FAIL_SKATING = "fail_skating"           # Foot skating detected
     WARN_MARGINAL = "warn_marginal"         # Passes but barely
+    # SESSION-033: Phase-driven animation quality tests
+    FAIL_PHASE_CONTINUITY = "fail_phase_continuity"  # Discontinuous phase transitions
+    FAIL_PELVIS_TRAJECTORY = "fail_pelvis_trajectory"  # Pelvis height doesn't follow Down/Up pattern
+    FAIL_ARM_OPPOSITION = "fail_arm_opposition"  # Arms don't counter-rotate with legs
+    FAIL_KNEE_ROM = "fail_knee_rom"  # Knees bend forward (positive)
 
 
 class DiagnosisAction(str, Enum):
@@ -88,6 +93,11 @@ class DiagnosisAction(str, Enum):
     WIDEN_PHYSICS_SPACE = "widen_physics_space"
     DISTILL_MORE_KNOWLEDGE = "distill_more_knowledge"
     ESCALATE_TO_HUMAN = "escalate_to_human"
+    # SESSION-033: Phase-driven animation diagnosis actions
+    ADJUST_KEY_POSES = "adjust_key_poses"  # Modify key pose joint angles
+    SMOOTH_PHASE_TRANSITION = "smooth_phase_transition"  # Add interpolation smoothing
+    RECALIBRATE_CHANNELS = "recalibrate_channels"  # Re-tune DeepPhase channels
+    SWITCH_TO_PHASE_DRIVEN = "switch_to_phase_driven"  # Upgrade from sin() to phase-driven
 
 
 class EvolutionPhase(str, Enum):
@@ -286,6 +296,32 @@ class PhysicsTestBattery:
             failures.append(PhysicsTestResult.FAIL_BALANCE)
             recommendations.append(DiagnosisAction.ADJUST_MASS)
 
+        # SESSION-033: Phase-Driven Animation Quality Tests
+        # Test 5: Phase continuity (max joint delta between 1% steps < 0.5)
+        phase_continuity = scores.get("phase_continuity", 1.0)
+        if phase_continuity < 0.5:
+            failures.append(PhysicsTestResult.FAIL_PHASE_CONTINUITY)
+            recommendations.append(DiagnosisAction.SMOOTH_PHASE_TRANSITION)
+
+        # Test 6: Pelvis trajectory (Down < Contact < Up pattern)
+        pelvis_trajectory = scores.get("pelvis_trajectory", 1.0)
+        if pelvis_trajectory < 0.5:
+            failures.append(PhysicsTestResult.FAIL_PELVIS_TRAJECTORY)
+            recommendations.append(DiagnosisAction.ADJUST_KEY_POSES)
+
+        # Test 7: Arm-leg opposition (arms counter-rotate with legs)
+        arm_opposition = scores.get("arm_opposition", 1.0)
+        if arm_opposition < 0.5:
+            failures.append(PhysicsTestResult.FAIL_ARM_OPPOSITION)
+            recommendations.append(DiagnosisAction.RECALIBRATE_CHANNELS)
+
+        # Test 8: Knee ROM (knees should never bend forward)
+        knee_rom = scores.get("knee_rom", 1.0)
+        if knee_rom < 0.5:
+            failures.append(PhysicsTestResult.FAIL_KNEE_ROM)
+            failing_joints.extend(["l_knee", "r_knee"])
+            recommendations.append(DiagnosisAction.ADJUST_KEY_POSES)
+
         # Determine overall result
         if not failures:
             overall = scores.get("overall", 0.0)
@@ -302,7 +338,7 @@ class PhysicsTestBattery:
             result=result,
             scores=scores,
             details={
-                "n_tests_run": 4,
+                "n_tests_run": 8,  # SESSION-033: upgraded from 4 to 8 tests
                 "n_failures": len(failures),
                 "all_failures": [f.value for f in failures],
             },
@@ -354,6 +390,35 @@ class PhysicsDiagnosisEngine:
                 "condition": lambda scores: True,
                 "action": DiagnosisAction.ADJUST_MASS,
                 "gene_mods": {"gravity_compensation": 0.1},
+            },
+        },
+        # SESSION-033: Phase-Driven Animation diagnosis rules
+        PhysicsTestResult.FAIL_PHASE_CONTINUITY: {
+            "discontinuous_transition": {
+                "condition": lambda scores: scores.get("phase_continuity", 1.0) < 0.5,
+                "action": DiagnosisAction.SMOOTH_PHASE_TRANSITION,
+                "gene_mods": {"spline_tension": -0.1},
+            },
+        },
+        PhysicsTestResult.FAIL_PELVIS_TRAJECTORY: {
+            "wrong_height_pattern": {
+                "condition": lambda scores: scores.get("pelvis_trajectory", 1.0) < 0.5,
+                "action": DiagnosisAction.ADJUST_KEY_POSES,
+                "gene_mods": {"pelvis_amplitude": 0.005},
+            },
+        },
+        PhysicsTestResult.FAIL_ARM_OPPOSITION: {
+            "arms_not_opposing": {
+                "condition": lambda scores: scores.get("arm_opposition", 1.0) < 0.5,
+                "action": DiagnosisAction.RECALIBRATE_CHANNELS,
+                "gene_mods": {"arm_swing_amplitude": 0.1},
+            },
+        },
+        PhysicsTestResult.FAIL_KNEE_ROM: {
+            "knee_hyperextension": {
+                "condition": lambda scores: scores.get("knee_rom", 1.0) < 0.5,
+                "action": DiagnosisAction.ADJUST_KEY_POSES,
+                "gene_mods": {"knee_clamp_max": -0.05},
             },
         },
     }
@@ -550,6 +615,65 @@ class PhysicsKnowledgeDistiller:
                     "archetype": archetype,
                 },
                 "confidence": fitness.get("anatomical_score", 0.5),
+                "source": f"Layer3-AutoDistill-{self.rules_generated}",
+            })
+
+        # SESSION-033: Phase-Driven Animation knowledge distillation
+        # Rule 5: Phase continuity quality
+        phase_cont = fitness.get("phase_continuity", None)
+        if phase_cont is not None and phase_cont > 0.7:
+            rules.append({
+                "domain": "phase_animation",
+                "rule_type": "soft_default",
+                "rule_text": (
+                    f"Phase-driven animation with Catmull-Rom spline + mirrored contact "
+                    f"anchor achieves continuity={phase_cont:.2f} for archetype '{archetype}'. "
+                    f"Key: append virtual mirrored-Contact at p=0.5 to ensure C1 boundary."
+                ),
+                "params": {
+                    "phase_continuity": str(phase_cont),
+                    "interpolation": "catmull_rom_with_mirror_anchor",
+                    "archetype": archetype,
+                },
+                "confidence": min(phase_cont, 0.95),
+                "source": f"Layer3-AutoDistill-{self.rules_generated}",
+            })
+
+        # Rule 6: Pelvis trajectory pattern
+        pelvis_traj = fitness.get("pelvis_trajectory", None)
+        if pelvis_traj is not None and pelvis_traj > 0.7:
+            rules.append({
+                "domain": "phase_animation",
+                "rule_type": "hard_constraint",
+                "rule_text": (
+                    f"Pelvis height must follow Contact(neutral)→Down(lowest)→Pass(rising)→Up(highest) "
+                    f"pattern per Animator's Survival Kit. Achieved trajectory_score={pelvis_traj:.2f}."
+                ),
+                "params": {
+                    "pelvis_trajectory": str(pelvis_traj),
+                    "source_book": "Animator's Survival Kit p.107-111",
+                    "archetype": archetype,
+                },
+                "confidence": min(pelvis_traj, 0.95),
+                "source": f"Layer3-AutoDistill-{self.rules_generated}",
+            })
+
+        # Rule 7: Arm-leg opposition pattern
+        arm_opp = fitness.get("arm_opposition", None)
+        if arm_opp is not None and arm_opp > 0.7:
+            rules.append({
+                "domain": "phase_animation",
+                "rule_type": "hard_constraint",
+                "rule_text": (
+                    f"Arms must counter-rotate with legs (left arm back when left leg forward). "
+                    f"Achieved opposition_score={arm_opp:.2f}. This is a fundamental biomechanics "
+                    f"principle from both PFNN and Animator's Survival Kit."
+                ),
+                "params": {
+                    "arm_opposition": str(arm_opp),
+                    "archetype": archetype,
+                },
+                "confidence": min(arm_opp, 0.95),
                 "source": f"Layer3-AutoDistill-{self.rules_generated}",
             })
 
