@@ -292,7 +292,11 @@ class SelfEvolutionEngine:
         result: InnerLoopResult,
         physics_record: Optional[PhysicsEvolutionRecord] = None,
     ) -> None:
-        """Update PROJECT_BRAIN.json with the latest run results."""
+        """Update PROJECT_BRAIN.json with the latest run results.
+
+        SESSION-035: Now also persists Layer 3 converged parameters
+        for automatic export-time parameter selection (Gap #3 fix).
+        """
         try:
             from ..brain.memory import ProjectMemory
             mem = ProjectMemory(project_root=self.project_root)
@@ -317,6 +321,41 @@ class SelfEvolutionEngine:
                     f"{self.physics_layer.state.best_combined_fitness:.3f}"
                     if self.physics_layer else "N/A"
                 )
+
+                # SESSION-035: Persist converged parameters for export bridge
+                # This is the critical Gap #3 fix: Layer 3 evaluation results
+                # now automatically feed into the next produce_character_pack()
+                # parameter selection via the convergence bridge.
+                if self.physics_layer and self.physics_layer.converged_params:
+                    import json
+                    converged = self.physics_layer.converged_params
+                    mem.set_note(
+                        "layer3_converged_params",
+                        json.dumps(converged)
+                    )
+                    mem.set_note(
+                        "layer3_recommended_physics_stiffness",
+                        f"{converged.get('physics_stiffness', 1.0):.3f}"
+                    )
+                    mem.set_note(
+                        "layer3_recommended_compliance_alpha",
+                        f"{converged.get('compliance_alpha', 0.6):.3f}"
+                    )
+                    mem.set_note(
+                        "layer3_amp_style_reward",
+                        f"{converged.get('amp_style_reward', 0.0):.3f}"
+                    )
+                    mem.set_note(
+                        "layer3_vposer_naturalness",
+                        f"{converged.get('vposer_naturalness', 0.0):.3f}"
+                    )
+
+                    # SESSION-035: Save convergence bridge file for pipeline consumption
+                    bridge_path = self.project_root / "LAYER3_CONVERGENCE_BRIDGE.json"
+                    bridge_path.write_text(
+                        json.dumps(converged, indent=2, ensure_ascii=False),
+                        encoding="utf-8",
+                    )
 
             mem.generate_handoff()
         except Exception:

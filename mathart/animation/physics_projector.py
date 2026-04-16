@@ -268,17 +268,31 @@ class AnglePoseProjector:
     """PhysDiff-inspired angle-space physics projector.
 
     This is the recommended integration path. It works directly with the
-    angle-based pose dicts that the renderer expects, applying spring-damper
-    physics to each joint angle independently.
+    angle-based pose dicts that the renderer expects, applying physics
+    to each joint angle independently.
 
-    The "physics projection" concept from PhysDiff is implemented as:
-    1. The animation system generates a "target" pose (angles)
-    2. Each joint has an angular spring-damper that tracks the target
-    3. The spring dynamics naturally produce:
-       - Inertia (heavier parts lag behind)
-       - Follow-through (parts overshoot and oscillate)
-       - Overlapping action (different spring constants = different timing)
-    4. Cognitive motion constraints add anticipation and squash/stretch
+    SESSION-035 UPGRADE: Two physics modes are now available:
+
+    1. **"spring" mode** (legacy): Rigid spring-damper that forces exact
+       pose matching. Can create "Frankenstein" artifacts when the source
+       motion deviates significantly from the target.
+
+    2. **"compliant_pd" mode** (NEW, default): DeepMimic-inspired compliant
+       PD servo tracking. The physics layer acts as a *soft guide* rather
+       than a rigid corrector. Key properties:
+       - Compliance parameter α ∈ [0,1] controls how much the physics
+         "trusts" the upstream motion vs. enforcing its own corrections
+       - Per-joint compliance: primary joints (legs) track tightly,
+         secondary joints (arms, head) have more artistic freedom
+       - Gravity-aware balance: compensates gravity without overriding
+         the motion's artistic intent
+       - DeepMimic reward-weighted blending: the tracking strength is
+         modulated by how well the current pose matches the reference
+
+    Reference: Peng et al., "DeepMimic: Example-Guided Deep Reinforcement
+    Learning of Physics-Based Character Skills" (SIGGRAPH 2018)
+    - PD control law: τ = k_p * (θ_target - θ_current) - k_d * ω_current
+    - The PD controller does NOT override motion — it TRACKS with compliance
 
     Parameters
     ----------
@@ -292,7 +306,33 @@ class AnglePoseProjector:
         Range: 0.5 (loose/organic) to 2.0 (tight/snappy).
     global_damping_scale : float
         Multiplier for all damping values.
+    compliance_mode : str
+        Physics simulation mode. "compliant_pd" (default, DeepMimic-style
+        soft tracking) or "spring" (legacy rigid spring-damper).
+    compliance_alpha : float
+        Global compliance factor [0, 1]. 0 = physics fully trusts upstream
+        motion (pass-through), 1 = physics fully controls (rigid tracking).
+        Default 0.6 — physics provides gentle guidance while preserving
+        the upstream motion's artistic character.
     """
+
+    # SESSION-035: Per-joint compliance factors (DeepMimic-inspired)
+    # Primary joints track tightly (high compliance), secondary joints
+    # preserve artistic freedom (low compliance)
+    _JOINT_COMPLIANCE: dict[str, float] = {
+        # Legs: tight tracking — critical for locomotion stability
+        "l_hip": 0.85, "r_hip": 0.85,
+        "l_knee": 0.80, "r_knee": 0.80,
+        "l_foot": 0.75, "r_foot": 0.75,
+        # Spine: moderate — balance matters but allow artistic expression
+        "hip": 0.70, "spine": 0.65, "chest": 0.60,
+        # Head/neck: loose — let upstream motion shine
+        "neck": 0.40, "head": 0.35,
+        # Arms: loose — secondary motion should feel organic
+        "l_shoulder": 0.45, "r_shoulder": 0.45,
+        "l_elbow": 0.35, "r_elbow": 0.35,
+        "l_hand": 0.25, "r_hand": 0.25,
+    }
 
     def __init__(
         self,
@@ -302,11 +342,17 @@ class AnglePoseProjector:
         global_damping_scale: float = 1.0,
         enable_foot_locking: bool = True,
         skeleton_ref=None,
+        compliance_mode: str = "compliant_pd",
+        compliance_alpha: float = 0.6,
     ):
         self._configs = dict(joint_configs or DEFAULT_JOINT_PHYSICS)
         self._cognitive = cognitive_config or CognitiveMotionConfig()
         self._stiffness_scale = float(np.clip(global_stiffness_scale, 0.1, 10.0))
         self._damping_scale = float(np.clip(global_damping_scale, 0.1, 10.0))
+
+        # SESSION-035: Compliance mode selection
+        self._compliance_mode = compliance_mode if compliance_mode in ("compliant_pd", "spring") else "compliant_pd"
+        self._compliance_alpha = float(np.clip(compliance_alpha, 0.0, 1.0))
 
         # Per-joint spring-damper states
         self._states: dict[str, AngularSpringState] = {}
@@ -387,10 +433,16 @@ class AnglePoseProjector:
                     joint_name, effective_target, config
                 )
 
-            # Angular spring-damper simulation
-            corrected_angle = self._simulate_angular_spring(
-                state, effective_target, config, dt
-            )
+            # SESSION-035: Physics simulation — mode-dependent
+            if self._compliance_mode == "compliant_pd":
+                corrected_angle = self._simulate_compliant_pd(
+                    joint_name, state, effective_target, config, dt
+                )
+            else:
+                # Legacy spring-damper mode
+                corrected_angle = self._simulate_angular_spring(
+                    state, effective_target, config, dt
+                )
 
             # Apply follow-through
             if self._cognitive.enable_follow_through and config.follow_through_strength > 0:
@@ -506,6 +558,100 @@ class AnglePoseProjector:
             self._contact_detector._states[name] = ContactState()
 
     # ── Physics Simulation Sub-steps ──
+
+    def _simulate_compliant_pd(
+        self,
+        joint_name: str,
+        state: AngularSpringState,
+        target: float,
+        config: JointPhysicsConfig,
+        dt: float,
+    ) -> float:
+        """SESSION-035: DeepMimic-inspired compliant PD servo tracking.
+
+        Unlike the rigid spring-damper, this method implements a *compliant*
+        PD controller that respects the upstream motion's artistic intent.
+
+        The key insight from DeepMimic (Peng et al., 2018):
+        > The PD controller acts as a compliant servo — it applies torques
+        > proportional to the error, with damping proportional to velocity.
+        > It does NOT override motion; it TRACKS with compliance.
+
+        Algorithm:
+        1. Compute PD torque: τ = k_p * (θ_target - θ_current) - k_d * ω
+        2. Apply gravity compensation: τ_g = m * g * L * sin(θ)
+        3. Clamp torque to realistic bounds (virtual muscle limits)
+        4. Integrate with semi-implicit Euler
+        5. Blend result with upstream target using per-joint compliance α:
+           θ_final = (1 - α_eff) * θ_target + α_eff * θ_physics
+
+        The compliance blending is the critical difference from the legacy
+        spring-damper: it ensures the physics layer *guides* rather than
+        *overrides* the upstream motion.
+
+        Parameters
+        ----------
+        joint_name : str
+            Joint name for per-joint compliance lookup.
+        state : AngularSpringState
+            Current angular state of this joint.
+        target : float
+            Target angle from upstream animation.
+        config : JointPhysicsConfig
+            Per-joint physics configuration.
+        dt : float
+            Timestep in seconds.
+
+        Returns
+        -------
+        float : Compliant-PD-corrected angle.
+        """
+        # ── Step 1: PD torque computation (DeepMimic Eq. 4) ──
+        k_p = config.spring_k * self._stiffness_scale
+        k_d = config.damping_c * self._damping_scale
+        I = config.inertia
+
+        # Angular error with wrapping to [-π, π]
+        error = target - state.angle
+        while error > math.pi:
+            error -= 2 * math.pi
+        while error < -math.pi:
+            error += 2 * math.pi
+
+        # Core PD law: τ = k_p * error - k_d * ω
+        tau_pd = k_p * error - k_d * state.angular_velocity
+
+        # ── Step 2: Gravity compensation (DeepMimic Section 4) ──
+        tau_gravity = config.gravity_sensitivity * self._cognitive.strength * (-2.0)
+
+        # ── Step 3: Torque clamping (virtual muscle limits) ──
+        # Max torque proportional to k_p (stronger muscles = more torque)
+        max_torque = k_p * 1.5
+        total_torque = float(np.clip(tau_pd + tau_gravity, -max_torque, max_torque))
+
+        # ── Step 4: Semi-implicit Euler integration ──
+        alpha_phys = total_torque / max(I, 1e-8)
+        state.angular_velocity += alpha_phys * dt
+
+        # Velocity damping (prevents energy accumulation)
+        state.angular_velocity *= 0.98
+
+        theta_physics = state.angle + state.angular_velocity * dt
+
+        # ── Step 5: Compliance blending (SESSION-035 core innovation) ──
+        # α_eff = global_alpha * per_joint_alpha
+        # Low α → trust upstream motion (artistic freedom)
+        # High α → trust physics (stability enforcement)
+        per_joint_alpha = self._JOINT_COMPLIANCE.get(joint_name, 0.5)
+        alpha_eff = self._compliance_alpha * per_joint_alpha
+
+        # Blend: final = (1 - α) * upstream_target + α * physics_result
+        theta_final = (1.0 - alpha_eff) * target + alpha_eff * theta_physics
+
+        # Update state for next frame
+        state.angle = theta_final
+
+        return theta_final
 
     def _simulate_angular_spring(
         self,

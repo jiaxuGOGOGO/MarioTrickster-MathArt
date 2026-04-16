@@ -1567,8 +1567,37 @@ class AssetPipeline:
         representative_frames: list[Image.Image] = []
         state_scores: list[float] = []
 
+        # SESSION-035: Load Layer 3 convergence bridge if available
+        # This automatically applies optimized parameters from the last
+        # Layer 3 evolution cycle to the export pipeline (Gap #3 fix)
+        _convergence_bridge = {}
+        _bridge_path = Path(self.output_dir).parent / "LAYER3_CONVERGENCE_BRIDGE.json"
+        if _bridge_path.exists():
+            try:
+                _convergence_bridge = json.loads(_bridge_path.read_text(encoding="utf-8"))
+                self._log(
+                    f"SESSION-035: Loaded convergence bridge from Layer 3 "
+                    f"(cycle={_convergence_bridge.get('cycle_id', '?')}, "
+                    f"fitness={_convergence_bridge.get('combined_fitness', '?'):.3f})"
+                )
+            except (json.JSONDecodeError, OSError):
+                pass
+
+        # SESSION-035: Apply converged parameters (override defaults if bridge exists)
+        _eff_stiffness = _convergence_bridge.get(
+            "physics_stiffness", char_spec.physics_stiffness
+        )
+        _eff_damping = _convergence_bridge.get(
+            "physics_damping", char_spec.physics_damping
+        )
+        _eff_compliance = _convergence_bridge.get("compliance_alpha", 0.6)
+        _eff_zmp_strength = _convergence_bridge.get(
+            "biomechanics_zmp_strength", char_spec.biomechanics_zmp_strength
+        )
+
         # SESSION-028: Initialize physics projector if enabled
         # SESSION-028-SUPP: Pass skeleton_ref for PhysDiff-inspired foot locking
+        # SESSION-035: Now uses compliant_pd mode with convergence bridge params
         _physics_skeleton = Skeleton.create_humanoid(head_units=char_spec.head_units)
         _physics_projector = None
         if char_spec.enable_physics:
@@ -1576,11 +1605,13 @@ class AssetPipeline:
                 strength=char_spec.physics_cognitive_strength,
             )
             _physics_projector = AnglePoseProjector(
-                global_stiffness_scale=char_spec.physics_stiffness,
-                global_damping_scale=char_spec.physics_damping,
+                global_stiffness_scale=_eff_stiffness,
+                global_damping_scale=_eff_damping,
                 cognitive_config=_cognitive_cfg,
                 enable_foot_locking=True,
                 skeleton_ref=_physics_skeleton,
+                compliance_mode="compliant_pd",
+                compliance_alpha=_eff_compliance,
             )
 
         # SESSION-029: Initialize biomechanics projector if enabled
@@ -1594,7 +1625,7 @@ class AssetPipeline:
                 enable_zmp=char_spec.biomechanics_zmp,
                 enable_ipm=char_spec.biomechanics_ipm,
                 enable_skating_cleanup=char_spec.biomechanics_skating_cleanup,
-                zmp_correction_strength=char_spec.biomechanics_zmp_strength,
+                zmp_correction_strength=_eff_zmp_strength,  # SESSION-035: convergence bridge
             )
             self._log(
                 f"Biomechanics projector enabled: "

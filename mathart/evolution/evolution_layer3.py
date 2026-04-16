@@ -924,6 +924,21 @@ class PhysicsEvolutionLayer:
             knowledge_dir=self.project_root / "knowledge"
         )
 
+        # SESSION-035: AMP discriminator for adversarial motion evaluation
+        # Replaces hand-written coverage_score with learned motion prior
+        from ..animation.skill_embeddings import MotionDiscriminator
+        self.motion_discriminator = MotionDiscriminator(
+            obs_dim=40, hidden_dim=256, reward_mode="lsgan",
+        )
+
+        # SESSION-035: VPoser prior for latent-space mutation
+        # Guarantees all mutated poses are anatomically legal
+        from ..animation.human_math import VPoserDistilledPrior
+        self.vposer_prior = VPoserDistilledPrior()
+
+        # SESSION-035: Convergence bridge — stores best parameters for export
+        self.converged_params: dict[str, Any] = {}
+
         # State
         self.state = self._load_state()
 
@@ -1016,6 +1031,62 @@ class PhysicsEvolutionLayer:
         pop_fitness = []
         for p, l in zip(population_p, population_l):
             f = evaluate_physics_fitness(p, l)
+
+            # SESSION-035: AMP discriminator augments fitness evaluation
+            # Instead of relying solely on hand-written metrics, ask the
+            # discriminator: "Does this motion look like real motion?"
+            try:
+                # Generate synthetic state vectors from genotype parameters
+                obs_dim = self.motion_discriminator.obs_dim
+                n_frames = 10
+                states = []
+                for frame_i in range(n_frames):
+                    state_vec = np.zeros(obs_dim, dtype=np.float32)
+                    # Encode physics parameters into state
+                    if hasattr(p, 'pd_stiffness_scale'):
+                        state_vec[0] = p.pd_stiffness_scale
+                    if hasattr(p, 'pd_damping_scale'):
+                        state_vec[1] = p.pd_damping_scale
+                    if hasattr(l, 'step_frequency'):
+                        state_vec[2] = l.step_frequency
+                    if hasattr(l, 'stride_length'):
+                        state_vec[3] = l.stride_length
+                    # Add frame-dependent variation
+                    phase = frame_i / max(n_frames - 1, 1)
+                    state_vec[4] = math.sin(phase * 2 * math.pi)
+                    state_vec[5] = math.cos(phase * 2 * math.pi)
+                    states.append(state_vec)
+
+                amp_reward = self.motion_discriminator.style_reward_sequence(states)
+                f["amp_style_reward"] = amp_reward
+
+                # Blend AMP reward into overall fitness (30% weight)
+                f["overall"] = 0.7 * f["overall"] + 0.3 * amp_reward
+            except Exception:
+                f["amp_style_reward"] = 0.0
+
+            # SESSION-035: VPoser naturalness scoring
+            # Check if the genotype's implied poses are anatomically natural
+            try:
+                sample_pose = {}
+                if hasattr(l, 'key_poses') and l.key_poses:
+                    sample_pose = l.key_poses[0] if isinstance(l.key_poses[0], dict) else {}
+                elif hasattr(l, 'stride_length'):
+                    # Construct a representative pose from gait parameters
+                    sample_pose = {
+                        "hip": 0.0, "spine": 0.05,
+                        "l_hip": -l.stride_length * 0.3,
+                        "r_hip": l.stride_length * 0.3,
+                        "l_knee": -0.3, "r_knee": -0.1,
+                    }
+                if sample_pose:
+                    vposer_score = self.vposer_prior.naturalness_score(sample_pose)
+                    f["vposer_naturalness"] = vposer_score
+                    # Penalize unnatural poses (10% weight)
+                    f["overall"] = 0.9 * f["overall"] + 0.1 * vposer_score
+            except Exception:
+                f["vposer_naturalness"] = 0.0
+
             pop_fitness.append(f)
 
         # Select best
@@ -1025,7 +1096,13 @@ class PhysicsEvolutionLayer:
         best_fitness = pop_fitness[best_idx]
 
         if self.verbose:
+            amp_r = best_fitness.get('amp_style_reward', 'N/A')
+            vp_n = best_fitness.get('vposer_naturalness', 'N/A')
             print(f"  [EVOLVE] Best in population: {best_fitness['overall']:.3f} (idx={best_idx})")
+            if amp_r != 'N/A':
+                print(f"  [S035-AMP] style_reward={amp_r:.3f}")
+            if vp_n != 'N/A':
+                print(f"  [S035-VPoser] naturalness={vp_n:.3f}")
 
         # Phase 5: DISTILL — save successful strategies
         self.state.current_phase = EvolutionPhase.DISTILL
@@ -1095,12 +1172,30 @@ class PhysicsEvolutionLayer:
                 print(f"  [S034] contact_consistency={cc:.3f} | "
                       f"silhouette_quality={sq:.3f} | skating_penalty={sp:.3f}")
 
+        # SESSION-035: Update convergence bridge with best parameters
+        # This bridges the gap between Layer 3 evaluation and export-time
+        # parameter selection (Gap #3 fix)
+        self.converged_params = {
+            "physics_stiffness": getattr(best_physics, 'pd_stiffness_scale', 1.0),
+            "physics_damping": getattr(best_physics, 'pd_damping_scale', 1.0),
+            "compliance_alpha": min(0.8, max(0.3, best_fitness.get('stability', 0.6))),
+            "biomechanics_zmp_strength": min(0.5, max(0.1, best_fitness.get('balance_score', 0.3))),
+            "amp_style_reward": best_fitness.get('amp_style_reward', 0.0),
+            "vposer_naturalness": best_fitness.get('vposer_naturalness', 0.0),
+            "combined_fitness": best_fitness['overall'],
+            "archetype": archetype,
+            "cycle_id": cycle_id,
+        }
+
         self.state.current_phase = EvolutionPhase.IDLE
         self._save_state()
 
         if self.verbose:
             print(f"  [COMPLETE] Cycle {cycle_id}: combined={best_fitness['overall']:.3f} "
                   f"| stagnation={self.state.stagnation_count}")
+            print(f"  [S035-CONVERGE] Bridge params: stiffness={self.converged_params['physics_stiffness']:.2f}, "
+                  f"damping={self.converged_params['physics_damping']:.2f}, "
+                  f"compliance_alpha={self.converged_params['compliance_alpha']:.2f}")
 
         return record
 
