@@ -140,6 +140,14 @@ from .runtime_motion_query import (
 from .phase_driven_idle import (
     phase_driven_idle, phase_driven_idle_frame,
 )
+# SESSION-045: Motion Vector Baker (Gap C3 — Neural Rendering Bridge)
+from .motion_vector_baker import (
+    MotionVectorField, MotionVectorSequence,
+    compute_joint_displacement, compute_pixel_motion_field,
+    encode_motion_vector_rgb, encode_motion_vector_hsv, encode_motion_vector_raw,
+    bake_motion_vector_sequence, export_ebsynth_project,
+    compute_temporal_consistency_score,
+)
 
 __all__ = [
     "Skeleton", "Bone", "Joint",
@@ -248,4 +256,10 @@ __all__ = [
     "create_runtime_database", "create_motion_matching_runtime",
     # SESSION-040: Phase-Driven Idle (UMR Contract Enforcement)
     "phase_driven_idle", "phase_driven_idle_frame",
+    # SESSION-045: Motion Vector Baker (Gap C3 — Neural Rendering Bridge)
+    "MotionVectorField", "MotionVectorSequence",
+    "compute_joint_displacement", "compute_pixel_motion_field",
+    "encode_motion_vector_rgb", "encode_motion_vector_hsv", "encode_motion_vector_raw",
+    "bake_motion_vector_sequence", "export_ebsynth_project",
+    "compute_temporal_consistency_score",
 ]

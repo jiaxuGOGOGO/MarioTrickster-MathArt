@@ -1,11 +1,11 @@
 {
-  "version": "0.35.0",
-  "last_session_id": "SESSION-044",
-  "last_updated": "2026-04-17T00:20:00Z",
+  "version": "0.36.0",
+  "last_session_id": "SESSION-045",
+  "last_updated": "2026-04-17T12:00:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "42 targeted tests PASS across SESSION-044 integration path; evolution loop snapshot regenerated successfully",
+  "validation_pass_rate": "37 new tests PASS (Gap C3); 845 total tests PASS; zero regressions",
   "total_iterations": 500,
-  "total_code_lines": 57900,
+  "total_code_lines": 60500,
   "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
@@ -27,11 +27,11 @@
       "engine_ready_export": 24,
       "engineering_automation": 82
     },
-    "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-032: the original WFC/shader/export break is now closed by a lightweight PDG runtime and a USD-like scene contract. The main remaining blockers are industrial runtime depth (cache/partition/layering), benchmarked asset production, visual quality, and the simulation-conditioned neural-render bridge.",
+    "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-045: the original WFC/shader/export break is closed by PDG + USD-like scene contract. The simulation-conditioned neural-render bridge is now CLOSED (SESSION-045). Main remaining blockers: industrial runtime depth (cache/partition/layering), benchmarked asset production, visual quality, and XPBD soft body coupling.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules.",
-      "path_b_ai_visual_polish": "Now better conditioned by anatomically valid low-dimensional motion data; next step is ControlNet / diffusion export from the distilled body and pose representation. SESSION-044 adds analytical SDF auxiliary-map export (normal/depth/mask), giving the project a materially stronger bridge into lit 2D runtime rendering before any diffusion or neural polish stage.",
-      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop. SESSION-043 closed Gap 4 (active Layer 3 closed loop) with runtime query → synthesis → write-back. Next step: Gap 2 (XPBD rigid/soft body coupling), terrain-aware sensing, gait transition blending, production benchmark suite."
+      "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. Combined with SESSION-044 auxiliary maps (normal/depth/mask), the project now has a complete Math→AI conditioning pipeline. Next: real-time EbSynth/ComfyUI integration demo.",
+      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop. SESSION-043 closed Gap 4 (active Layer 3 closed loop) with runtime query → synthesis → write-back. SESSION-044 closed Gap C1 (analytical SDF auxiliary maps). SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency). Next step: Gap B1 (XPBD rigid/soft body coupling), Gap C2 (physics-driven particles), terrain-aware sensing, gait transition blending, production benchmark suite."
     },
     "commercial_references": [
       {
@@ -45,12 +45,14 @@
         "type": "itch.io top-seller asset pack"
       }
     ],
-    "engineering_automation": 84
+    "engineering_automation": 86
   },
-  "current_focus": "SESSION-044 closes Gap C1 by adding an analytical SDF auxiliary-map pipeline: the industrial renderer now exports albedo, normal, depth, and mask directly from 2D SDF gradients in Python/NumPy, while SESSION-043 active Layer 3 closed-loop transition tuning remains intact. Next: XPBD, AssetPipeline wiring, engine-ready export templates, and analytic-gradient native primitives.",
+  "current_focus": "SESSION-045 closes Gap C3 (Neural Rendering Bridge / 防闪烁终极杀器) by implementing ground-truth motion vector extraction from procedural FK, three encoding formats (RGB/HSV/Raw), EbSynth project export, and a three-layer NeuralRenderingEvolutionBridge for temporal consistency enforcement. All previous SESSION-043/044 capabilities remain intact. Next: XPBD, physics-driven particles, real-time EbSynth/ComfyUI integration demo.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "SESSION_HANDOFF.md",
+    "docs/research/GAP_C3_NEURAL_RENDERING_BRIDGE.md",
+    "docs/research/GAP_C3_AUDIT_CHECKLIST.md",
     "evolution_reports/session044_sdf_rendering_research_notes.md",
     "AUDIT_SESSION044.md",
     "evolution_reports/session043_browser_research_notes.md",
@@ -300,9 +302,11 @@
       "id": "P1-AI-2",
       "priority": "P1",
       "title": "Simulation-conditioned neural rendering bridge",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "high",
-      "description": "Export physics / scene / mask constraints from the new scene contract into ComfyUI / Wan-style rendering backends."
+      "description": "CLOSED in SESSION-045. MotionVectorBaker extracts ground-truth optical flow from procedural FK. Three encoding formats (RGB/HSV/Raw). EbSynth project export. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. 5 distillation records, 37 tests PASS.",
+      "added_in": "SESSION-032",
+      "completed_in": "SESSION-045"
     },
     {
       "id": "P1-DISTILL-3",
@@ -1374,7 +1378,7 @@
     "RESOLVED-S032: No architecture feedback closure for procedural pipeline -> Layer 3 distill_pipeline_success()",
     "REMAINING-S032: PDG runtime lacks cache / partition / collect / fan-out semantics of fuller industrial pipelines",
     "REMAINING-S032: USD-like scene contract is lightweight and not yet OpenUSD-compatible layered interchange",
-    "REMAINING-S032: Simulation-conditioned neural rendering bridge is architecturally prepared but not yet implemented",
+    "RESOLVED-S045: Simulation-conditioned neural rendering bridge CLOSED by MotionVectorBaker + NeuralRenderingEvolutionBridge (Gap C3)",
     "RESOLVED-S033: Animation relied on hard-coded sin() -> Phase-driven key-pose interpolation with Catmull-Rom splines (PFNN + Animator's Survival Kit)",
     "RESOLVED-S033: No multi-channel periodic motion decomposition -> DeepPhase-inspired PhaseChannel with FFT parameter extraction",
     "RESOLVED-S033: No walk/run key poses based on animation principles -> Contact/Down/Passing/Up from Animator's Survival Kit",
@@ -1854,6 +1858,12 @@
   },
   "completed_work": [
     {
+      "id": "P1-AI-2-GAPC3",
+      "completed_in": "SESSION-045",
+      "title": "Neural Rendering Bridge (Gap C3 / 防闪烁终极杀器)",
+      "summary": "Closed Gap C3 by implementing ground-truth motion vector extraction from procedural FK with SDF-weighted skinning, three encoding formats (RGB/HSV/Raw), EbSynth project export, and NeuralRenderingEvolutionBridge for three-layer temporal consistency enforcement. 5 distillation records (Jamriška, OnlyFlow, MotionPrompt, internal MV Baker, internal Neural Bridge). 37 tests PASS. Engine integration complete."
+    },
+    {
       "id": "P0-GAP-C1",
       "completed_in": "SESSION-044",
       "title": "Industrial-grade analytical SDF normal/depth pipeline",
@@ -1886,19 +1896,53 @@
     "session044_gapc1_status": "CLOSED. Analytical SDF auxiliary-map pipeline implemented.",
     "session044_aux_maps": "render_character_maps_industrial() now exports albedo/normal/depth/mask from the same industrial character distance field.",
     "session044_demo_artifacts": "evolution_reports/session044_aux_demo/ contains a real Mario idle export pack.",
-    "session044_audit": "AUDIT_SESSION044.md verifies research → code → artifact → test closure."
+    "session044_audit": "AUDIT_SESSION044.md verifies research → code → artifact → test closure.",
+    "session045_gapc3_status": "CLOSED. Neural rendering bridge (Gap C3 / 防闪烁终极杀器) implemented.",
+    "session045_motion_vector_baker": "motion_vector_baker.py exports ground-truth MV from procedural FK with SDF-weighted skinning.",
+    "session045_neural_bridge": "neural_rendering_bridge.py implements three-layer temporal consistency evolution bridge.",
+    "session045_distillation_records": "5 new records (Jamriška SIGGRAPH 2019, OnlyFlow CVPR 2025W, MotionPrompt CVPR 2025, internal MV Baker, internal Neural Bridge).",
+    "session045_test_count": "37 new tests, all PASS.",
+    "session045_audit": "docs/research/GAP_C3_AUDIT_CHECKLIST.md confirms 8/8 research items → code, 100% coverage."
   },
   "recent_focus_snapshot": {
     "top_open_loops": [
-      "Engine-ready auxiliary-map export and import templates (P1-INDUSTRIAL-44A)"
+      "XPBD rigid/soft body coupling (P0-GAP-2)",
+      "Physics-driven particle system (P1-VFX-1)",
+      "Real-time EbSynth/ComfyUI integration demo (P1-AI-2A)"
     ],
     "remaining_followups": [
-      "P1-INDUSTRIAL-44A: package albedo/normal/depth/mask for engine import",
-      "P1-INDUSTRIAL-44B: add analytic-gradient native primitives",
-      "P1-INDUSTRIAL-44C: export optional material metadata"
+      "P0-GAP-2: XPBD rigid/soft body coupling",
+      "P1-VFX-1: physics-driven particle system leveraging MV field",
+      "P1-AI-2A: real-time EbSynth/ComfyUI integration demo with exported MV data",
+      "P1-AI-2B: ControlNet conditioning pipeline using motion vector maps",
+      "P1-INDUSTRIAL-44A: package albedo/normal/depth/mask for engine import"
     ]
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-045",
+      "date": "2026-04-17",
+      "version": "0.36.0",
+      "title": "Gap C3 closure: Neural Rendering Bridge (防闪烁终极杀器)",
+      "highlights": [
+        "Ground-truth motion vector baker from procedural FK with SDF-weighted Gaussian skinning.",
+        "Three encoding formats: RGB (128-neutral, Unity/ControlNet), HSV (direction visualization), Raw float32 (ComfyUI).",
+        "EbSynth project export: frames + optical flow + keyframes + metadata.",
+        "NeuralRenderingEvolutionBridge: temporal consistency gate + knowledge distillation + fitness integration.",
+        "5 distillation records: Jamriška (SIGGRAPH 2019), OnlyFlow (CVPR 2025W), MotionPrompt (CVPR 2025), internal MV Baker, internal Neural Bridge.",
+        "37 new tests all PASS, engine integration complete, GLOBAL_GAP_ANALYSIS.md updated."
+      ],
+      "artifacts": [
+        "mathart/animation/motion_vector_baker.py",
+        "mathart/evolution/neural_rendering_bridge.py",
+        "tests/test_motion_vector_baker.py",
+        "docs/research/GAP_C3_NEURAL_RENDERING_BRIDGE.md",
+        "docs/research/GAP_C3_AUDIT_CHECKLIST.md"
+      ],
+      "tests": [
+        "pytest -q tests/test_motion_vector_baker.py (37/37 PASS)"
+      ]
+    },
     {
       "session_id": "SESSION-044",
       "date": "2026-04-17",

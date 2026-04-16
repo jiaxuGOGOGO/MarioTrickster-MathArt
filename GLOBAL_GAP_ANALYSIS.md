@@ -1,6 +1,8 @@
 # MarioTrickster-MathArt 全局差距清单与解决方案搜集指南
 
-> **文档目标**：全面梳理项目当前（v0.33.0 / SESSION-042）存在的所有技术差距、架构断裂与商业基准短板。本清单旨在为后续的"精准并行研究协议"和技术攻坚提供明确的靶点。
+> **文档目标**：全面梳理项目当前（v0.36.0 / SESSION-045）存在的所有技术差距、架构断裂与商业基准短板。本清单旨在为后续的"精准并行研究协议"和技术攻坚提供明确的靶点。
+>
+> **最近更新**：SESSION-045 完成 Gap C3（神经渲染桥接 / 防闪烁终极杀器）的完整研究与代码实践。
 
 ---
 
@@ -66,11 +68,19 @@
 - 2D 游戏中的物理驱动粒子系统（Physics-driven Particle System）。
 - 基于角色运动矢量场（Motion Vector Field）的流体/烟雾扰动算法。
 
-### Gap C3: 模拟条件下的神经渲染桥接 (P1-AI-2)
-**现状**：项目愿景是"数学保证动得对，AI保证看得美"，但目前缺乏将物理/运动数据导出为 AI 模型（如 ControlNet、Wan2.2）条件输入的桥接层。
-**搜集方向**：
-- 如何将 2D 骨骼、深度图、运动矢量（Motion Vectors）编码为 ControlNet/ComfyUI 可识别的控制信号。
-- 保持 AI 视频生成时间连贯性（Temporal Consistency）的工程实践。
+### Gap C3: 模拟条件下的神经渲染桥接 (P1-AI-2) — ✅ SESSION-045 RESOLVED
+**现状**：~~项目愿景是"数学保证动得对，AI保证看得美"，但目前缺乏将物理/运动数据导出为 AI 模型（如 ControlNet、Wan2.2）条件输入的桥接层。~~
+
+**SESSION-045 解决方案（v0.36.0）**：
+- **MotionVectorBaker** (`mathart/animation/motion_vector_baker.py`)：从骨骼 FK 精确计算零误差运动矢量，SDF 加权蒙皮混合多关节位移到像素级光流场。
+- **三种编码格式**：RGB (128-neutral, Unity/ControlNet 兼容)、HSV (方向可视化)、Raw float32 (ComfyUI 光流节点)。
+- **EbSynth 项目导出**：帧序列 + 光流 + 关键帧 + 项目元数据，直接导入 EbSynth/ReEzSynth。
+- **NeuralRenderingEvolutionBridge** (`mathart/evolution/neural_rendering_bridge.py`)：三层进化桥接 — Layer 1 时序一致性门控、Layer 2 闪烁模式知识蒸馏、Layer 3 适应度集成 + skinning sigma 自动优化。
+- **5 条蒸馏记录**：Jamriška (SIGGRAPH 2019)、OnlyFlow (CVPR 2025W)、MotionPrompt (CVPR 2025)、内部 MV Baker、内部 Neural Bridge。
+- **37 个测试**全部通过，Engine 集成完成。
+
+**研究文档**：`docs/research/GAP_C3_NEURAL_RENDERING_BRIDGE.md`
+**审计清单**：`docs/research/GAP_C3_AUDIT_CHECKLIST.md`
 
 ---
 
@@ -89,10 +99,25 @@
 
 ---
 
-## 总结：下一步研究协议触发建议
+## 总结：差距解决进度
 
-当启动**精准并行研究协议**时，建议优先针对以下三个靶点输入 Query：
+| Gap | 优先级 | 状态 | 解决会话 |
+|-----|--------|------|----------|
+| A1: 评估→导出参数收敛闭环 | P0 | 🟡 部分解决 (SESSION-043 Closed Loop) | SESSION-043 |
+| A2: 全局蒸馏总线运行时接入 | P0 | 🟡 部分解决 | — |
+| B1: 刚体与柔体双向耦合 | P0 | 🔴 未解决 | — |
+| B2: 场景感知距离匹配传感器 | P1 | 🔴 未解决 | — |
+| B3: 步态过渡相位保持混合 | P1 | 🟡 部分解决 (SESSION-039 Inertialization) | SESSION-039 |
+| C1: 工业级渲染器 | P1 | 🟢 已解决 (SESSION-034/044) | SESSION-034, SESSION-044 |
+| C2: 物理驱动粒子特效 | P1 | 🔴 未解决 | — |
+| C3: 神经渲染桥接（防闪烁） | P1 | 🟢 **已解决** | **SESSION-045** |
+| D1: 端到端测试覆盖 | P1 | 🟡 部分解决 (SESSION-041 Visual Regression) | SESSION-041 |
+| D2: 遗留 API 清理 | P2 | 🔴 未解决 | — |
+
+### 下一步研究协议触发建议
+
+当启动**精准并行研究协议**时，建议优先针对以下靶点输入 Query：
 
 1. **针对 Gap A1 (P0)**: `"Closed-loop parameter optimization for procedural animation feedback"`
 2. **针对 Gap B1 (P0)**: `"XPBD soft body coupling with rigid body skeleton 2D"`
-3. **针对 Gap C1 (P1)**: `"Dead Cells 3D to 2D pixel art rendering pipeline normal map"`
+3. **针对 Gap C2 (P1)**: `"Physics-driven particle system motion vector field perturbation 2D game"`

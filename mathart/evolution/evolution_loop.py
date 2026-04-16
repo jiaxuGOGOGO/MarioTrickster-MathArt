@@ -337,10 +337,70 @@ GAPC1_DISTILLATIONS: list[DistillationRecord] = [
 ]
 
 
+GAPC3_DISTILLATIONS: list[DistillationRecord] = [
+    DistillationRecord(
+        paper_id="jamriska2019stylizing",
+        paper_title="Stylizing Video by Example",
+        authors="Ondřej Jamriška, Šárka Sochorová, Ondřej Texler, Michal Lukáč, Jakub Fišer, Jingwan Lu, Eli Shechtman, Daniel Sýkora",
+        venue="SIGGRAPH 2019 (ACM TOG 38:4)",
+        concept="Patch-based synthesis with temporal blending guided by optical flow. Keyframe styles are propagated to intermediate frames using NNF (Nearest Neighbor Field) matching constrained by motion vectors, achieving temporally coherent video stylization.",
+        target_module="mathart/animation/motion_vector_baker.py",
+        target_class="export_ebsynth_project",
+        validation_status="validated",
+        test_coverage="tests/test_motion_vector_baker.py",
+    ),
+    DistillationRecord(
+        paper_id="koroglu2025onlyflow",
+        paper_title="OnlyFlow: Optical Flow based Motion Conditioning for Video Diffusion Models",
+        authors="Mathis Koroglu, Hugo Music, Guillaume Couairon, Nicu Sebe, Yuki M. Asano",
+        venue="CVPR 2025 Workshop",
+        concept="Trainable optical flow encoder injects flow features into temporal attention layers of video diffusion models, enabling explicit motion control without retraining the base model. Ground-truth flow from procedural animation eliminates estimation noise.",
+        target_module="mathart/animation/motion_vector_baker.py",
+        target_class="encode_motion_vector_rgb",
+        validation_status="validated",
+        test_coverage="tests/test_motion_vector_baker.py",
+    ),
+    DistillationRecord(
+        paper_id="nam2025motionprompt",
+        paper_title="MotionPrompt: Optical Flow Guided Prompt Optimization for Coherent Video Generation",
+        authors="Daeun Nam, Gyeongho Bae, Jong Chul Ye",
+        venue="CVPR 2025",
+        concept="Optical flow as a differentiable loss signal for prompt optimization in video generation. Flow-guided prompt tuning achieves temporal consistency without architectural changes to the diffusion model.",
+        target_module="mathart/animation/motion_vector_baker.py",
+        target_class="compute_pixel_motion_field",
+        validation_status="validated",
+        test_coverage="tests/test_motion_vector_baker.py",
+    ),
+    DistillationRecord(
+        paper_id="session045_mv_baker",
+        paper_title="Ground-Truth Motion Vectors from Procedural FK for Zero-Flicker Temporal Consistency",
+        authors="Project Internal (SESSION-045 / Gap C3)",
+        venue="SESSION-045",
+        concept="Leverage the procedural math engine's exact FK knowledge to export perfect ground-truth motion vectors with zero estimation error. SDF-weighted skinning blends per-joint displacements into per-pixel flow fields, enabling EbSynth and ControlNet conditioning without noisy optical flow estimation.",
+        target_module="mathart/animation/motion_vector_baker.py",
+        target_class="compute_pixel_motion_field",
+        validation_status="validated",
+        test_coverage="tests/test_motion_vector_baker.py",
+    ),
+    DistillationRecord(
+        paper_id="session045_neural_bridge",
+        paper_title="Neural Rendering Evolution Bridge — Three-Layer Temporal Consistency Loop",
+        authors="Project Internal (SESSION-045 / Gap C3)",
+        venue="SESSION-045",
+        concept="Three-layer evolution bridge for temporal consistency: Layer 1 gates animation acceptance on warp error, Layer 2 distills flicker patterns into knowledge rules, Layer 3 integrates temporal fitness into the physics evolution loop with skinning sigma optimization.",
+        target_module="mathart/evolution/neural_rendering_bridge.py",
+        target_class="NeuralRenderingEvolutionBridge",
+        validation_status="validated",
+        test_coverage="tests/test_motion_vector_baker.py",
+    ),
+]
+
+
 _REGISTERED_DISTILLATIONS: list[DistillationRecord] = [
     *GAP1_DISTILLATIONS,
     *GAP4_DISTILLATIONS,
     *GAPC1_DISTILLATIONS,
+    *GAPC3_DISTILLATIONS,
 ]
 
 
@@ -502,12 +562,17 @@ def generate_evolution_report(
     closed_loop_status = collect_closed_loop_status(root)
     analytical_rendering_status = collect_analytical_rendering_status(root)
 
+    # SESSION-045: Neural rendering bridge status
+    from .neural_rendering_bridge import collect_neural_rendering_status
+    neural_rendering_status = collect_neural_rendering_status(root)
+
     test_counts = count_test_functions(root)
     total_tests = sum(test_counts.values())
     new_tests_added = (
         int((root / "tests/test_phase_state.py").exists())
         + int((root / "tests/test_layer3_closed_loop.py").exists())
         + int((root / "tests/test_sdf_aux_maps.py").exists())
+        + int((root / "tests/test_motion_vector_baker.py").exists())
     )
 
     test_result = TestEvolutionResult(
@@ -537,6 +602,12 @@ def generate_evolution_report(
         )
     else:
         summary_parts.append("analytical SDF rendering path not yet integrated")
+    if neural_rendering_status.motion_vector_module_exists:
+        summary_parts.append(
+            f"neural rendering bridge exports {len(neural_rendering_status.tracked_exports)} tracked MV hooks"
+        )
+    else:
+        summary_parts.append("neural rendering bridge (Gap C3) not yet integrated")
     summary = "; ".join(summary_parts) + "."
 
     return EvolutionCycleReport(
@@ -598,4 +669,6 @@ __all__ = [
     "GAP1_DISTILLATIONS",
     "GAP4_DISTILLATIONS",
     "GAPC1_DISTILLATIONS",
+    "GAPC3_DISTILLATIONS",
+    "collect_neural_rendering_status",
 ]

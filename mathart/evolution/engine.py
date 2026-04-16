@@ -56,6 +56,8 @@ from .evolution_contract_bridge import ContractEvolutionBridge
 from .visual_regression_bridge import VisualRegressionEvolutionBridge
 from .layer3_closed_loop import Layer3ClosedLoopDistiller, TransitionTuningTarget
 from .evolution_loop import collect_closed_loop_status, collect_analytical_rendering_status
+# SESSION-045: Neural Rendering Evolution Bridge (Gap C3)
+from .neural_rendering_bridge import NeuralRenderingEvolutionBridge, collect_neural_rendering_status
 
 
 class SelfEvolutionEngine:
@@ -123,6 +125,12 @@ class SelfEvolutionEngine:
 
         # SESSION-041: Visual Regression Evolution Bridge
         self.visual_regression_bridge = VisualRegressionEvolutionBridge(
+            project_root=self.project_root,
+            verbose=verbose,
+        )
+
+        # SESSION-045: Neural Rendering Evolution Bridge (Gap C3)
+        self.neural_rendering_bridge = NeuralRenderingEvolutionBridge(
             project_root=self.project_root,
             verbose=verbose,
         )
@@ -422,6 +430,52 @@ class SelfEvolutionEngine:
             "visual_status": "PASS" if metrics.all_pass else "FAIL",
         }
 
+    # ── SESSION-045: Temporal Consistency Evaluation ──────────────────────
+
+    def evaluate_temporal_consistency(
+        self,
+        rendered_frames: list | None = None,
+        mv_sequence: Any | None = None,
+        warp_error_threshold: float = 0.15,
+    ) -> dict:
+        """Evaluate temporal consistency and distill knowledge.
+
+        This is the unified entry point for temporal-consistency-aware evolution.
+        It runs all three layers of the neural rendering cycle:
+        1. Layer 1: Evaluate temporal consistency (warp error + flicker)
+        2. Layer 2: Distill knowledge from results
+        3. Layer 3: Compute fitness bonus
+
+        Returns
+        -------
+        dict
+            Temporal consistency evaluation results.
+        """
+        metrics = self.neural_rendering_bridge.evaluate_temporal_consistency(
+            rendered_frames, mv_sequence, warp_error_threshold
+        )
+        rules = self.neural_rendering_bridge.distill_temporal_knowledge(metrics)
+        fitness_bonus = self.neural_rendering_bridge.compute_temporal_fitness_bonus(
+            metrics
+        )
+
+        if self.verbose:
+            status = "PASS" if metrics.temporal_pass else "FAIL"
+            print(f"\n[TEMPORAL CONSISTENCY] Evaluation: {status}")
+            print(f"  Warp error: {metrics.mean_warp_error:.4f} "
+                  f"(threshold: {metrics.warp_error_threshold})")
+            print(f"  Flicker score: {metrics.flicker_score:.4f}")
+            print(f"  Coverage: {metrics.coverage:.2%}")
+            print(f"  Knowledge rules: {len(rules)} generated")
+            print(f"  Fitness bonus: {fitness_bonus:+.3f}")
+
+        return {
+            "metrics": metrics.to_dict(),
+            "rules": rules,
+            "fitness_bonus": fitness_bonus,
+            "temporal_status": "PASS" if metrics.temporal_pass else "FAIL",
+        }
+
     def _update_brain(
         self,
         result: InnerLoopResult,
@@ -519,6 +573,31 @@ class SelfEvolutionEngine:
                         vrs.golden_baseline_hash[:24] + "..."
                     )
 
+            # SESSION-045: Persist neural rendering bridge state
+            if self.neural_rendering_bridge:
+                nrs = self.neural_rendering_bridge.state
+                mem.set_note(
+                    "session045_neural_rendering_cycles",
+                    str(nrs.total_evaluation_cycles)
+                )
+                mem.set_note(
+                    "session045_neural_rendering_pass_rate",
+                    f"{nrs.total_passes}/{nrs.total_evaluation_cycles}"
+                    if nrs.total_evaluation_cycles > 0 else "N/A"
+                )
+                mem.set_note(
+                    "session045_best_warp_error",
+                    f"{nrs.best_warp_error:.4f}"
+                )
+                mem.set_note(
+                    "session045_optimal_skinning_sigma",
+                    f"{nrs.optimal_skinning_sigma:.3f}"
+                )
+                mem.set_note(
+                    "session045_knowledge_rules",
+                    str(nrs.knowledge_rules_total)
+                )
+
             # SESSION-040: Persist contract evolution bridge state
             if self.contract_bridge:
                 cs = self.contract_bridge.state
@@ -613,6 +692,13 @@ class SelfEvolutionEngine:
             lines.append(f"   Rule keys: {', '.join(closed_loop.tracked_rules)}")
         if closed_loop.report_path:
             lines.append(f"   Latest report: {closed_loop.report_path}")
+        lines.append("")
+
+        # ── SESSION-045: Neural Rendering Bridge status ──
+        lines.append("--- Neural Rendering Bridge (SESSION-045 / Gap C3) ---")
+        lines.append(self.neural_rendering_bridge.status_report().replace(
+            "--- Neural Rendering Evolution Bridge (SESSION-045 / Gap C3) ---", ""
+        ).strip())
         lines.append("")
 
         # ── SESSION-044: Analytical SDF rendering status ──
