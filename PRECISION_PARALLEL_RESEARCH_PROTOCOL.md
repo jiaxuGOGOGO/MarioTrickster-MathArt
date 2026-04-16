@@ -191,6 +191,44 @@ For this repository specifically:
 4. Study marketplaces to learn **deliverable standards**, not just visual inspiration.
 5. Favor sources that can be turned into code, metrics, or asset requirements within this repository.
 
+## SESSION-028 Enhancement: Deep Reading vs. Parallel Scanning
+
+> Added after the PhysDiff (ICCV 2023) implementation audit revealed that parallel scanning missed 7 critical mechanisms that were only discovered through deep, sequential reading of the source paper.
+
+### The "Parallel Blindspot" Problem
+
+Parallel research (using `map` or broad search sweeps) is excellent for **discovery** and **landscape mapping**, but it is fundamentally flawed for **deep mechanism extraction**. 
+
+When an AI agent processes a complex paper (like PhysDiff) via parallel summarization or search snippets, it tends to:
+1. Extract the high-level abstract (e.g., "uses physics projection").
+2. Miss the unglamorous but critical engineering details buried in the methodology section (e.g., "uses a height+velocity heuristic for contact detection before applying 2-bone IK").
+3. Hallucinate generic solutions to fill the gaps (e.g., assuming the physics engine implicitly handles contact).
+
+### The "Deep Reading" Protocol
+
+When a specific, high-value target (a "North Star" paper, a benchmark repository, or a core algorithm) is identified, **parallel research must stop, and Deep Reading must begin.**
+
+**Trigger for Deep Reading:**
+When the user or the project memory identifies a specific, named target as the primary solution (e.g., "Read PhysDiff", "Implement WFC from this repo"), immediately switch to Deep Reading.
+
+**Deep Reading Execution Rules:**
+
+| Step | Action | Tooling |
+|------|--------|---------|
+| **1. Source Acquisition** | Download the full PDF, clone the full repo, or navigate to the full documentation page. | `browser_navigate`, `shell` (wget/pdftotext) |
+| **2. Sequential Reading** | Read the methodology, implementation details, and supplementary materials section by section. Do not rely on abstracts or introductions. | `browser_scroll`, `file` (read with ranges) |
+| **3. Mechanism Extraction** | Explicitly list every mathematical term, heuristic threshold, data structure, and pipeline step mentioned in the text. | `file` (write to local notes) |
+| **4. Gap Mapping** | Compare the extracted mechanisms 1:1 against the current project architecture. Identify exactly what is missing. | `file` (read project code) |
+| **5. Implementation Design** | Design the code changes to faithfully replicate the extracted mechanisms, not just the high-level idea. | `file` (write design doc) |
+
+### Protocol Integration
+
+1. **Phase 1: Parallel Discovery** (Use `map` and `search` to find the best 1-2 North Star sources).
+2. **Phase 2: Deep Reading** (Use the Deep Reading Protocol on those 1-2 sources to extract exact mechanisms).
+3. **Phase 3: Implementation** (Code the mechanisms).
+
+Never skip Phase 2. Parallel discovery tells you *what* to build; Deep Reading tells you *how* to build it.
+
 ## SESSION-027 Enhancement: Precision Search Mechanism
 
 > Added based on real-world application of this protocol during the character genotype evolution upgrade.

@@ -65,8 +65,10 @@
       "landing_focused": "只收集能直接指导项目落地实现的资料",
       "soft_trigger": "优先启用精准并行研究协议",
       "hard_trigger": "本轮禁止直接开做，必须先启动精准并行研究协议",
+      "deep_reading": "这篇论文/这个仓库是指路明灯，认真研读每一个细节",
       "full_standard_command": "启动精准并行研究协议：围绕当前差距做去重并行搜索，只保留能直接指导 MarioTrickster-MathArt 落地升级的高价值资料。"
     },
+    "deep_reading_trigger_rule": "When the user names a specific paper, repo, or documentation as the primary reference (e.g., 'this paper is your guiding light'), MUST switch from parallel scanning to Deep Reading Protocol. Parallel discovery finds WHAT to build; Deep Reading finds HOW to build it. Never skip Deep Reading for North Star sources.",
     "phrase_interpretation_rule": "Close paraphrases should count as valid triggers when the intent is clearly precise, parallel, dedup-aware, implementation-relevant research.",
     "stop_when": [
       "Two or more strong sources support the same practical conclusion",

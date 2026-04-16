@@ -8,7 +8,7 @@
 1. **Read `COMMERCIAL_BENCHMARK.md`** — **MANDATORY FIRST**. Commercial pixel art standard and gap analysis. Every upgrade MUST be measured against this benchmark. If an upgrade does not shrink a percentage gap listed there, it is considered cosmetic.
 2. **Read `DEDUP_REGISTRY.json`** — Prevents duplicate research and repeated external harvesting.
 3. **Read `SESSION_PROTOCOL.md`** — Session efficiency rules, anti-repetition process, and protocol trigger logic.
-4. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`** — Default method for precise, parallel, high-value external research. Now includes SESSION-027 enhanced query construction and synthesis rules.
+4. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`** — Default method for precise, parallel, high-value external research. Includes SESSION-027 enhanced query construction, SESSION-028 **Deep Reading Protocol** (mandatory for North Star papers/repos), and synthesis rules.
 5. **Read `PROJECT_BRAIN.json`** — Machine-readable global state.
 6. **Read `research_notes_session027.md`** — Latest research synthesis for the semantic genotype system.
 7. **Read `PHYSICS_ANIMATION_UPGRADE_PLAN.md`** — SESSION-028 physics-guided animation design document and research synthesis.
