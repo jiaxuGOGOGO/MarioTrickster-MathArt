@@ -17,6 +17,13 @@ from .principles import (
 # SESSION-019: Export new animation modules
 from .particles import ParticleSystem, ParticleConfig
 from .cage_deform import CageDeformer, CagePreset, CageAnimation, CageKeyframe
+# SESSION-028: Physics-guided animation (PhysDiff-inspired)
+from .physics_projector import (
+    AnglePoseProjector, PositionPhysicsProjector,
+    JointPhysicsConfig, CognitiveMotionConfig,
+    DEFAULT_JOINT_PHYSICS, PENNER_EASING_FUNCTIONS,
+    compute_physics_penalty,
+)
 # SESSION-027: Semantic genotype system
 from .genotype import (
     CharacterGenotype, PartSlotInstance, PartDefinition, BodyTemplate,
@@ -48,4 +55,9 @@ __all__ = [
     "Archetype", "BodyTemplateName", "SlotType",
     "BODY_TEMPLATES", "PART_REGISTRY", "ARCHETYPE_TEMPLATES", "GENOTYPE_PRESETS",
     "mutate_genotype", "crossover_genotypes", "get_parts_for_slot",
+    # SESSION-028: Physics-guided animation
+    "AnglePoseProjector", "PositionPhysicsProjector",
+    "JointPhysicsConfig", "CognitiveMotionConfig",
+    "DEFAULT_JOINT_PHYSICS", "PENNER_EASING_FUNCTIONS",
+    "compute_physics_penalty",
 ]

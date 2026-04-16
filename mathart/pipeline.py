@@ -68,6 +68,8 @@ from .animation.character_presets import get_preset, CHARACTER_PRESETS
 from .animation.presets import (
     idle_animation, run_animation, jump_animation, fall_animation, hit_animation,
 )
+# SESSION-028: Physics-guided animation (PhysDiff-inspired)
+from .animation.physics_projector import AnglePoseProjector, CognitiveMotionConfig
 # SESSION-027: Semantic genotype system
 from .animation.genotype import (
     CharacterGenotype, GENOTYPE_PRESETS, BODY_TEMPLATES,
@@ -168,6 +170,11 @@ class CharacterSpec:
     evolution_preview_states: list[str] = field(default_factory=lambda: ["idle", "run", "jump"])
     evolution_elite_size: int = 3
     evolution_stagnation_patience: int = 2
+    # SESSION-028: Physics-guided animation
+    enable_physics: bool = True
+    physics_stiffness: float = 1.0
+    physics_damping: float = 1.0
+    physics_cognitive_strength: float = 1.0
     # SESSION-027: Semantic genotype evolution
     use_genotype: bool = False
     genotype: Optional[CharacterGenotype] = None
@@ -1475,6 +1482,14 @@ class AssetPipeline:
                     "dither": char_spec.enable_dither,
                     "outline": char_spec.enable_outline,
                     "lighting": char_spec.enable_lighting,
+                    "physics": char_spec.enable_physics,
+                },
+                "physics_config": {
+                    "enabled": char_spec.enable_physics,
+                    "stiffness_scale": char_spec.physics_stiffness,
+                    "damping_scale": char_spec.physics_damping,
+                    "cognitive_strength": char_spec.physics_cognitive_strength,
+                    "engine": "AnglePoseProjector (PhysDiff-inspired)",
                 },
                 "genotype": genotype_used.to_dict() if genotype_used is not None else None,
             },
@@ -1492,6 +1507,18 @@ class AssetPipeline:
         representative_frames: list[Image.Image] = []
         state_scores: list[float] = []
 
+        # SESSION-028: Initialize physics projector if enabled
+        _physics_projector = None
+        if char_spec.enable_physics:
+            _cognitive_cfg = CognitiveMotionConfig(
+                strength=char_spec.physics_cognitive_strength,
+            )
+            _physics_projector = AnglePoseProjector(
+                global_stiffness_scale=char_spec.physics_stiffness,
+                global_damping_scale=char_spec.physics_damping,
+                cognitive_config=_cognitive_cfg,
+            )
+
         for state in char_spec.states:
             anim_func = CHARACTER_ANIMATION_MAP.get(state)
             if anim_func is None:
@@ -1504,11 +1531,21 @@ class AssetPipeline:
             frame_duration_ms = max(16, 1000 // max(1, char_spec.fps))
             loop_flag = bool(char_spec.loop_overrides.get(state, state in {"idle", "run"}))
 
+            # SESSION-028: Reset physics projector for each state
+            if _physics_projector is not None:
+                _physics_projector.reset()
+
             frames: list[Image.Image] = []
             frame_scores: list[float] = []
             for i in range(frame_count):
                 t = i / max(1, frame_count)
                 pose = anim_func(t)
+
+                # SESSION-028: Apply physics projection to raw pose
+                if _physics_projector is not None:
+                    dt = 1.0 / max(1, char_spec.fps)
+                    pose = _physics_projector.step(pose, dt=dt)
+
                 skeleton = Skeleton.create_humanoid(head_units=char_spec.head_units)
                 frame = render_character_frame(
                     skeleton,
