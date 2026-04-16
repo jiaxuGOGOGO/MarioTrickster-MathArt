@@ -26,15 +26,52 @@
 
 | Dimension | Value |
 |-----------|-------|
-| Current version | **0.28.0** |
-| Last updated | 2026-04-16T19:20:00Z |
-| Last session | **SESSION-036** |
+| Current version | **0.29.0** |
+| Last updated | 2026-04-16T11:45:27Z |
+| Last session | **SESSION-037** |
 | Best quality score | 0.8674 (best validated geometric sprite baseline) |
-| Validation pass rate | **734/734 full-suite baseline + 73 targeted UMR regression PASS** |
-| Total code lines | ~52,600 |
+| Validation pass rate | **734/734 full-suite baseline + 73 prior targeted UMR regression PASS + 6 SESSION-037 transient-phase regression PASS** |
+| Total code lines | ~52,950 |
 | Knowledge rules | 26 persisted rules |
 | Math models registered | **25** |
-| Project health score | **9.97/10** |
+| Project health score | **9.98/10** |
+
+## What Changed in SESSION-037
+
+### Distance Matching & Hit Recovery Progress Closure
+
+SESSION-037 closed the biggest remaining semantic hole in the UMR trunk: **jump, fall, and hit were still entering the bus as legacy time-driven poses** even after SESSION-036 unified the transport layer. This session replaced those legacy adapters with native transient phase models derived from industrial and academic references.
+
+The implementation followed two north-star directions and translated them into code constraints:
+
+1. **Unreal Distance Matching / Paragon-style landing logic** — `jump` is now keyed by **Distance-to-Apex** and `fall` by **Distance-to-Ground**, both mapped into `[0,1]` transient phase semantics so the pose remains valid even when vertical motion changes.
+2. **Neural State Machine / Local Motion Phase intuition** — `hit` is now a one-way recovery process represented by exponential deficit decay plus recovery progress, instead of a raw time slice pretending to be a phase.
+
+> "Transient action phases should be driven by spatial or goal progress, not blindly by elapsed time." — SESSION-037 architectural rule
+
+| Component | Landing in repo | Why it matters |
+|-----------|-----------------|----------------|
+| **Transient phase calculators** | `mathart/animation/phase_driven.py` | Adds `jump_distance_phase()`, `fall_distance_phase()`, and `hit_recovery_phase()` plus UMR-native frame emitters. |
+| **Legacy preset closure** | `mathart/animation/presets.py` | `jump_animation()`, `fall_animation()`, and `hit_animation()` stay backward-compatible while internally delegating to transient phase logic. |
+| **UMR endpoint preservation** | `mathart/animation/unified_motion.py` | Prevents terminal transient phases from wrapping `1.0 -> 0.0`, preserving apex/landing/recovery semantics in exported clips. |
+| **AssetPipeline transient trunk** | `mathart/pipeline.py` | `jump`, `fall`, and `hit` are now exported through native transient-phase UMR clip generation instead of legacy pose adapters. |
+| **Layer 3 metadata bridge** | `mathart/animation/motion_matching_evaluator.py` | `extract_umr_context()` now exposes `phase_kind`, `phase_source`, `distance_to_apex`, `distance_to_ground`, `impact_deficit`, and `recovery_progress`. |
+| **Regression + export audit** | `tests/test_unified_motion.py` + `audit_session037_distance_transient.md` | Locks monotonicity, metadata, and real-export evidence into repeatable validation. |
+
+### Validation and Self-Audit
+
+SESSION-037 was validated in both unit/regression form and real exported artifacts.
+
+| Audit Category | Checks | Result |
+|---------------|--------|--------|
+| Jump transient phase | `distance_to_apex` metadata, monotonic phase, apex window | **PASS** |
+| Fall transient phase | `distance_to_ground` metadata, landing window, monotonic phase | **PASS** |
+| Hit recovery phase | deficit/progress semantics, clamped one-way decay | **PASS** |
+| UMR trunk export | `.umr.json` clips + manifest `motion_contract` + state coverage | **PASS** |
+| Layer 3 bridge | evaluator context exposes transient phase metadata | **PASS** |
+| Targeted regression suite | `python3.11 -m pytest tests/test_unified_motion.py -q` | **6/6 PASS** |
+
+A real sample export (`session037_probe`, states `run/jump/fall/hit`) confirmed that the transient phase semantics survive the full production path: `jump` exports `phase_kind=distance_to_apex`, `fall` exports `phase_kind=distance_to_ground`, and `hit` exports `phase_kind=hit_recovery`, all as UMR-native clips.
 
 ## What Changed in SESSION-036
 
@@ -195,15 +232,16 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 ## Biggest Remaining Gaps
 
 1. **Production Benchmark Suite (P1-NEW-10):** The repository still lacks benchmark characters, tiles, VFX, and acceptance thresholds against commercial targets.
-2. **Phase-Driven Coverage for All Actions (P1-PHASE-35A):** trunk enforcement is now partial through UMR, but jump/fall/hit remain legacy-adapted and CLI/export entrypoints still need non-bypass enforcement.
-3. **End-to-End Trunk Reproducibility Validation (P1-BENCH-35A):** No task yet validates zero-to-export execution with `.umr.json`, manifest `motion_contract`, node order, and audit assertions.
-4. **UMR Propagation Beyond AssetPipeline (P1-UMR-36A):** CLI, exporter, and future distillation/runtime entrypoints still need to consume the shared motion bus.
-5. **Gait Transition Blending (P1-PHASE-33A):** Phase-driven walk/run/sneak are independent; need smooth blending between gaits during speed changes.
-6. **Terrain-Adaptive Phase Modulation (P1-PHASE-33B):** Phase advancement should respond to slope, surface type, and obstacles.
-7. **Motion Transition Synthesis (P1-HUMAN-31B / P1-INDUSTRIAL-34B):** Motion matching retrieves clips and reads UMR context, but does not yet synthesize seamless runtime transitions.
-8. **PDG v2 / Industrial Runtime Semantics:** Current DAG closure works, but lacks caching, partitioning, fan-out/fan-in orchestration.
-9. **Human-Math Pipeline Closure (P1-HUMAN-31A/C):** Shape latents not first-class genes, dual-quaternion renderer not built.
-10. **Simulation-Conditioned Neural Rendering Bridge + Visual Quality Gap:** Conditioned rendering backend is still missing, and SDF-based rendering remains below diffusion-polished or hand-authored commercial assets.
+2. **Phase-Driven Coverage for All Actions (P1-PHASE-35A):** jump/fall/hit are now native transient phases inside UMR, but CLI/export entrypoints still need hard non-bypass enforcement.
+3. **End-to-End Trunk Reproducibility Validation (P1-BENCH-35A):** No task yet validates zero-to-export execution with `.umr.json`, manifest `motion_contract`, transient phase metadata, node order, and audit fields in one run.
+4. **UMR Contract Propagation (P1-UMR-36A):** AssetPipeline and Layer 3 now understand transient phases, but CLI/exporters/distillation runtime still need full non-bypass adoption.
+5. **Scene-Aware Distance Sensors (P1-PHASE-37A):** Current jump/fall semantics use strong analytic proxies; next step is terrain-aware or raycast-based distance sensing under dynamic runtime physics.
+6. **Gait Transition Blending (P1-PHASE-33A):** Phase-driven walk/run/sneak are independent; need smooth blending between gaits during speed changes.
+7. **Terrain-Adaptive Phase Modulation (P1-PHASE-33B):** Phase advancement should respond to slope, surface type, obstacles, and true distance sensing.
+8. **Motion Transition Synthesis (P1-HUMAN-31B / P1-INDUSTRIAL-34B):** Motion matching retrieves clips and reads UMR context, but does not yet synthesize seamless runtime transitions.
+9. **PDG v2 / Industrial Runtime Semantics:** Current DAG closure works, but lacks caching, partitioning, fan-out/fan-in orchestration.
+10. **Human-Math Pipeline Closure (P1-HUMAN-31A/C):** Shape latents not first-class genes, dual-quaternion renderer not built.
+11. **Simulation-Conditioned Neural Rendering Bridge + Visual Quality Gap:** Conditioned rendering backend is still missing, and SDF-based rendering remains below diffusion-polished or hand-authored commercial assets.
 
 ## Pending Tasks (Priority Order)
 
@@ -217,9 +255,10 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 
 | ID | Task | Status | Effort | Description |
 |----|------|--------|--------|-------------|
-| P1-PHASE-35A | Phase-driven coverage for jump/fall/hit + CLI trunk enforcement | PARTIAL | Medium | AssetPipeline trunk now runs through UMR for every exported state, but jump/fall/hit are still legacy-adapted and CLI/other entrypoints still need hard non-bypass enforcement. |
-| P1-BENCH-35A | End-to-end trunk reproducibility validation | TODO | Medium | Zero-to-export integration test that validates every module participates in the main trunk and asserts `.umr.json`, manifest `motion_contract`, node order, and audit fields. |
-| P1-UMR-36A | Propagate UMR contract to CLI, exporters, and distillation bus | TODO | Medium | Ensure `cli.py`, export bridges, and future distillation/runtime entrypoints consume and emit `UnifiedMotionFrame` / `UnifiedMotionClip` instead of bypassing the shared bus. |
+| P1-PHASE-35A | Phase-driven coverage for jump/fall/hit + CLI trunk enforcement | PARTIAL | Low | Native phase-driven jump/fall/hit is now delivered through UMR transient phases; remaining work is hard non-bypass enforcement in `cli.py` and other outward-facing pose-only entrypoints. |
+| P1-BENCH-35A | End-to-end trunk reproducibility validation | TODO | Medium | Zero-to-export integration test that validates every module participates in the main trunk and asserts `.umr.json`, manifest `motion_contract`, transient phase metadata, node order, and audit fields. |
+| P1-UMR-36A | Propagate UMR contract to CLI, exporters, and distillation bus | TODO | Medium | Ensure `cli.py`, export bridges, and future distillation/runtime entrypoints consume and emit `UnifiedMotionFrame` / `UnifiedMotionClip`, including transient phase semantics for jump/fall/hit. |
+| P1-PHASE-37A | Scene-aware distance matching sensors | TODO | Medium | Replace analytic jump/fall proxies with scene-aware sensing (distance-to-ground raycasts, apex prediction under runtime physics, landing probes) so transient phases stay correct on uneven terrain and dynamic collision setups. |
 | P1-INDUSTRIAL-34A | Industrial renderer integration into AssetPipeline | TODO | Medium | Wire `render_character_frame_industrial()` as an optional rendering backend in `produce_character_pack()`. |
 | P1-INDUSTRIAL-34B | Runtime motion matching query for real-time animation | TODO | High | Extend `MotionMatchingEvaluator` from batch evaluation to frame-by-frame runtime query driven by UMR context, with transition synthesis, inertia blending, and clip stitching. |
 | P1-INDUSTRIAL-34C | 3D-to-2D mesh rendering path | TODO | High | Implement actual 3D mesh → 2D pixel art pipeline (Dead Cells full workflow) instead of SDF-only. |
@@ -240,6 +279,17 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 | P1-RESEARCH-30C | Reaction-Diffusion Thermodynamics | TODO | High | Texture evolution for chemical / thermal phenomena. |
 
 ## Completed Tasks
+
+### SESSION-037
+
+| ID | Task | Result |
+|----|------|--------|
+| P0-PHASE-37A | Native distance-driven jump/fall transient phases in UMR | **DONE** — `jump` now uses `distance_to_apex` and `fall` uses `distance_to_ground`, both emitted as UMR-native frames/clips instead of legacy time slices. |
+| P0-PHASE-37B | Native hit recovery progress transient phase in UMR | **DONE** — `hit` now follows one-way exponential recovery deficit/progress semantics with exported `impact_deficit` and `recovery_progress` metadata. |
+| P0-ARCH-37A | Transient phase preservation in UMR | **DONE** — `UnifiedMotionFrame` now preserves terminal `phase == 1.0` for distance/progress states rather than folding them back to `0.0`. |
+| P0-LAYER3-37A | Layer 3 transient phase metadata bridge | **DONE** — `MotionFeatureExtractor.extract_umr_context()` now exposes transient phase type/source and distance/progress metadata directly. |
+| AUDIT-037 | Research-to-code + real-export audit | **DONE** — `audit_session037_distance_transient.md` confirms code landing plus real `run/jump/fall/hit` export evidence through the UMR trunk. |
+| VALIDATION-037 | Targeted transient-phase validation | **DONE** — `python3.11 -m pytest tests/test_unified_motion.py -q` **6/6 PASS**. |
 
 ### SESSION-036
 
@@ -321,20 +371,20 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 ## Instructions for Next AI Session
 
 1. **Read `COMMERCIAL_BENCHMARK.md`, `DEDUP_REGISTRY.json`, `SESSION_PROTOCOL.md`, and `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` before coding.**
-2. Read `PROJECT_BRAIN.json`, `research_session036_umr_architecture.md`, `research_session035_compliant_physics.md`, and this handoff before proposing any motion, animation, or evolution upgrade.
-3. Treat SESSION-036 as the new trunk baseline: **all motion stages should prefer `UnifiedMotionFrame` / `UnifiedMotionClip`, preserve phase/root/contact metadata, and respect the ordered filter contract.**
+2. Read `PROJECT_BRAIN.json`, `research_session037_distance_transient_phases.md`, `research_session036_umr_architecture.md`, `research_session035_compliant_physics.md`, and this handoff before proposing any motion, animation, or evolution upgrade.
+3. Treat SESSION-036 + SESSION-037 as the new motion baseline: **all motion stages should prefer `UnifiedMotionFrame` / `UnifiedMotionClip`, preserve phase/root/contact metadata, and represent jump/fall/hit with native transient phase semantics rather than raw elapsed time.**
 4. Treat SESSION-035 as the physics baseline: **use compliant_pd mode instead of spring mode, use AMP discriminator instead of hand-written coverage_score, use VPoser latent mutation instead of joint-angle mutation.**
-5. If the goal is to complete phase-driven coverage, start with **P1-PHASE-35A** (native phase-driven jump/fall/hit + non-bypass CLI trunk enforcement).
-6. If the goal is end-to-end validation, start with **P1-BENCH-35A** (zero-to-export trunk reproducibility with UMR artifact assertions).
-7. If the goal is to harden architecture closure, start with **P1-UMR-36A** (propagate the UMR contract to CLI, exporters, and distillation/runtime bridges).
+5. If the goal is to finish trunk enforcement, start with **P1-PHASE-35A** and **P1-UMR-36A** (non-bypass CLI/exporter propagation of the UMR + transient phase contract).
+6. If the goal is to improve physical accuracy of transient phases, start with **P1-PHASE-37A** and **P1-PHASE-33B** (scene-aware/raycast distance sensing and terrain-adaptive modulation).
+7. If the goal is end-to-end validation, start with **P1-BENCH-35A** (zero-to-export trunk reproducibility with UMR and transient-phase artifact assertions).
 8. If the goal is to deepen the industrial rendering/runtime pipeline, start with **P1-INDUSTRIAL-34A** (AssetPipeline integration), **P1-INDUSTRIAL-34B** (runtime motion matching), or **P1-INDUSTRIAL-34C** (3D-to-2D mesh path).
 9. If the goal is to deepen phase-driven animation, start with **P1-PHASE-33A** (gait transition blending), **P1-PHASE-33B** (terrain-adaptive modulation), or **P1-PHASE-33C** (animation preview).
-8. If the goal is to deepen the PDG architecture, start with **P1-ARCH-4**, **P1-ARCH-5**, or **P1-ARCH-6**.
-9. If the goal is diffusion or neural rendering, use `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md` and start with **P1-AI-2**.
-10. If the goal is to deepen the human-math stack, start with **P1-HUMAN-31A**, **P1-HUMAN-31B**, or **P1-HUMAN-31C**.
-11. If the goal is better final art quality, start with **P1-NEW-10** and benchmark-guided acceptance thresholds.
-12. If the goal is frontier simulation research, start with **P1-RESEARCH-30A/B/C** under the Deep Reading Protocol.
-13. Always update this file and `PROJECT_BRAIN.json` before ending.
+10. If the goal is to deepen the PDG architecture, start with **P1-ARCH-4**, **P1-ARCH-5**, or **P1-ARCH-6**.
+11. If the goal is diffusion or neural rendering, use `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md` and start with **P1-AI-2**.
+12. If the goal is to deepen the human-math stack, start with **P1-HUMAN-31A**, **P1-HUMAN-31B**, or **P1-HUMAN-31C**.
+13. If the goal is better final art quality, start with **P1-NEW-10** and benchmark-guided acceptance thresholds.
+14. If the goal is frontier simulation research, start with **P1-RESEARCH-30A/B/C** under the Deep Reading Protocol.
+15. Always update this file and `PROJECT_BRAIN.json` before ending.
 
 ## References
 

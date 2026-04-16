@@ -147,103 +147,31 @@ def run_animation_legacy(t: float) -> dict[str, float]:
 
 
 def jump_animation(t: float) -> dict[str, float]:
-    """Jump animation (anticipation → launch → apex).
+    """Jump animation — distance-matched transient phase (SESSION-037).
 
-    t=0.0-0.3: Anticipation (crouch/squash)
-    t=0.3-0.7: Launch (stretch upward)
-    t=0.7-1.0: Apex (spread pose)
+    Public API is preserved, but the internal control law is no longer a
+    fixed time-sliced anticipation/launch/apex split. The pose is now driven
+    by a distance-to-apex transient phase implemented in `phase_driven.py`.
     """
-    if t < 0.3:
-        # Anticipation: crouch
-        phase = t / 0.3
-        crouch = ease_in_out(phase) * 0.4
-        return {
-            "spine": -crouch,
-            "l_hip": -crouch * 0.8,
-            "r_hip": -crouch * 0.8,
-            "l_knee": -crouch * 1.2,
-            "r_knee": -crouch * 1.2,
-            "l_shoulder": 0.3 * phase,
-            "r_shoulder": 0.3 * phase,
-        }
-    elif t < 0.7:
-        # Launch: stretch upward
-        phase = (t - 0.3) / 0.4
-        stretch = ease_in_out(phase)
-        return {
-            "spine": 0.1 * stretch,
-            "l_hip": 0.2 * stretch,
-            "r_hip": 0.2 * stretch,
-            "l_knee": 0,
-            "r_knee": 0,
-            "l_shoulder": -0.5 * stretch,
-            "r_shoulder": -0.5 * stretch,
-            "l_elbow": 0.2,
-            "r_elbow": 0.2,
-        }
-    else:
-        # Apex: spread
-        phase = (t - 0.7) / 0.3
-        return {
-            "spine": 0.05,
-            "l_hip": 0.15,
-            "r_hip": -0.15,
-            "l_knee": -0.2,
-            "r_knee": 0,
-            "l_shoulder": -0.3,
-            "r_shoulder": 0.4,
-            "l_elbow": 0.3,
-            "r_elbow": 0.5,
-            "head": 0.05 * sine_wave(phase, 2),
-        }
+    from .phase_driven import phase_driven_jump
+    return phase_driven_jump(t)
 
 
 def fall_animation(t: float) -> dict[str, float]:
-    """Fall animation (descent → impact).
+    """Fall animation — distance-matched transient phase (SESSION-037).
 
-    t=0.0-0.7: Falling (stretched pose)
-    t=0.7-1.0: Impact (squash)
+    Public API is preserved, but the internal control law now uses a
+    distance-to-ground transient phase instead of fixed time buckets.
     """
-    if t < 0.7:
-        phase = t / 0.7
-        return {
-            "spine": -0.05,
-            "l_shoulder": -0.6 + 0.2 * sine_wave(phase, 2),
-            "r_shoulder": -0.6 + 0.2 * sine_wave(phase, 2, phase=np.pi),
-            "l_hip": 0.1,
-            "r_hip": -0.1,
-            "l_knee": -0.3,
-            "r_knee": -0.1,
-        }
-    else:
-        # Impact squash
-        phase = (t - 0.7) / 0.3
-        squash = spring(phase, stiffness=15, damping=4)
-        return {
-            "spine": -0.2 * squash,
-            "l_hip": -0.3 * squash,
-            "r_hip": -0.3 * squash,
-            "l_knee": -0.6 * squash,
-            "r_knee": -0.6 * squash,
-            "l_shoulder": 0.3 * squash,
-            "r_shoulder": 0.3 * squash,
-        }
+    from .phase_driven import phase_driven_fall
+    return phase_driven_fall(t)
 
 
 def hit_animation(t: float) -> dict[str, float]:
-    """Hit/damage reaction animation.
+    """Hit/damage reaction — action-goal-progress transient phase (SESSION-037).
 
-    Recoil with spring follow-through.
+    Public API is preserved, but the internal control law now follows a
+    one-way recovery deficit phase rather than a spring-timed recoil curve.
     """
-    recoil = spring(t, stiffness=12, damping=3)
-    return {
-        "spine": -0.3 * (1 - recoil),
-        "chest": 0.2 * (1 - recoil),
-        "head": -0.4 * (1 - recoil),
-        "l_shoulder": 0.5 * (1 - recoil),
-        "r_shoulder": 0.5 * (1 - recoil),
-        "l_elbow": 0.3,
-        "r_elbow": 0.3,
-        "l_hip": -0.1 * (1 - recoil),
-        "r_hip": -0.1 * (1 - recoil),
-    }
+    from .phase_driven import phase_driven_hit
+    return phase_driven_hit(t)

@@ -68,7 +68,13 @@ from .animation.character_presets import get_preset, CHARACTER_PRESETS
 from .animation.presets import (
     idle_animation, run_animation, jump_animation, fall_animation, hit_animation,
 )
-from .animation.phase_driven import phase_driven_run_frame, phase_driven_walk_frame
+from .animation.phase_driven import (
+    phase_driven_fall_frame,
+    phase_driven_hit_frame,
+    phase_driven_jump_frame,
+    phase_driven_run_frame,
+    phase_driven_walk_frame,
+)
 from .animation.unified_motion import (
     MotionPipelineNode,
     MotionRootTransform,
@@ -1467,12 +1473,13 @@ class AssetPipeline:
             return MotionRootTransform(x=distance, y=0.0, velocity_x=0.16 / max((frame_count - 1) * dt, dt), velocity_y=0.0)
         if state_key == "jump":
             x = 0.06 * progress
-            y = 0.18 * math.sin(math.pi * progress)
-            vy = 0.18 * math.pi * math.cos(math.pi * progress) / max((frame_count - 1) * dt, dt)
+            y = 0.18 * math.sin((math.pi * progress) / 2.0)
+            vy = 0.18 * (math.pi / 2.0) * math.cos((math.pi * progress) / 2.0) / max((frame_count - 1) * dt, dt)
             return MotionRootTransform(x=x, y=y, velocity_x=0.06 / max((frame_count - 1) * dt, dt), velocity_y=vy)
         if state_key == "fall":
-            y = -0.22 * progress
-            return MotionRootTransform(x=0.0, y=y, velocity_x=0.0, velocity_y=-0.22 / max((frame_count - 1) * dt, dt))
+            start_height = 0.22
+            y = start_height * (1.0 - progress)
+            return MotionRootTransform(x=0.0, y=y, velocity_x=0.0, velocity_y=-start_height / max((frame_count - 1) * dt, dt))
         if state_key == "hit":
             x = -0.05 * math.sin(math.pi * progress)
             return MotionRootTransform(x=x, y=0.0, velocity_x=0.0, velocity_y=0.0)
@@ -1489,7 +1496,7 @@ class AssetPipeline:
         state_key = state.lower()
         frames: list[UnifiedMotionFrame] = []
         dt = 1.0 / max(1, fps)
-        use_phase_generator = state_key in {"run", "walk"}
+        use_phase_generator = state_key in {"run", "walk", "jump", "fall", "hit"}
 
         legacy_anim = CHARACTER_ANIMATION_MAP.get(state_key)
         if not use_phase_generator and legacy_anim is None:
@@ -1520,6 +1527,44 @@ class AssetPipeline:
                     root_velocity_x=root.velocity_x,
                     root_velocity_y=root.velocity_y,
                 )
+            elif state_key == "jump":
+                frame = phase_driven_jump_frame(
+                    t,
+                    time=time_s,
+                    frame_index=i,
+                    source_state=state_key,
+                    root_x=root.x,
+                    root_y=root.y,
+                    root_velocity_x=root.velocity_x,
+                    root_velocity_y=root.velocity_y,
+                    apex_height=0.18,
+                )
+            elif state_key == "fall":
+                frame = phase_driven_fall_frame(
+                    t,
+                    time=time_s,
+                    frame_index=i,
+                    source_state=state_key,
+                    root_x=root.x,
+                    root_y=root.y,
+                    root_velocity_x=root.velocity_x,
+                    root_velocity_y=root.velocity_y,
+                    ground_height=0.0,
+                    fall_reference_height=0.22,
+                )
+            elif state_key == "hit":
+                frame = phase_driven_hit_frame(
+                    t,
+                    time=time_s,
+                    frame_index=i,
+                    source_state=state_key,
+                    root_x=root.x,
+                    root_y=root.y,
+                    root_velocity_x=root.velocity_x,
+                    root_velocity_y=root.velocity_y,
+                    damping=4.0,
+                    impact_energy=1.0,
+                )
             else:
                 pose = legacy_anim(t)
                 frame = pose_to_umr(
@@ -1543,7 +1588,7 @@ class AssetPipeline:
             fps=max(1, fps),
             frames=frames,
             metadata={
-                "base_stage": "phase_or_legacy_generation",
+                "base_stage": "phase_or_transient_generation",
                 "generator_mode": "phase_driven" if use_phase_generator else "legacy_pose_adapter",
                 "strict_contract": "UnifiedMotionFrame",
             },

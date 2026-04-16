@@ -75,7 +75,9 @@ from typing import Optional, Callable
 
 import numpy as np
 
+from .curves import ease_in_out
 from .unified_motion import (
+    MotionContactState,
     MotionRootTransform,
     UnifiedMotionFrame,
     infer_contact_tags,
@@ -1020,6 +1022,341 @@ def phase_driven_walk_frame(t: float, **kwargs: float) -> UnifiedMotionFrame:
 def phase_driven_run_frame(t: float, **kwargs: float) -> UnifiedMotionFrame:
     """UMR-native run frame generator."""
     return _get_animator().run_frame(t, **kwargs)
+
+
+def _clamp01(value: float) -> float:
+    return max(0.0, min(1.0, float(value)))
+
+
+def _resolve_apex_height(root_y: float, root_velocity_y: float, apex_height: float | None) -> float:
+    if apex_height is not None and float(apex_height) > 1e-6:
+        return float(apex_height)
+    ballistic_extra = max(float(root_velocity_y), 0.0) ** 2 / (2.0 * 9.81) if root_velocity_y > 0.0 else 0.0
+    return max(float(root_y) + ballistic_extra, float(root_y), 0.18)
+
+
+def jump_distance_phase(
+    *,
+    root_y: float,
+    root_velocity_y: float = 0.0,
+    apex_height: float | None = None,
+) -> dict[str, float | bool | str]:
+    """Map jump ascent state to a distance-to-apex transient phase."""
+    resolved_apex = max(_resolve_apex_height(root_y, root_velocity_y, apex_height), 1e-4)
+    current_height = max(float(root_y), 0.0)
+    distance_to_apex = max(resolved_apex - current_height, 0.0)
+    phase = _clamp01(1.0 - (distance_to_apex / resolved_apex))
+    apex_window = bool(distance_to_apex <= max(0.02, resolved_apex * 0.12) or phase >= 0.88)
+    return {
+        "phase": float(phase),
+        "phase_kind": "distance_to_apex",
+        "phase_source": "distance_matching",
+        "distance_to_apex": float(distance_to_apex),
+        "apex_height": float(resolved_apex),
+        "vertical_velocity": float(root_velocity_y),
+        "is_apex_window": apex_window,
+    }
+
+
+def fall_distance_phase(
+    *,
+    root_y: float,
+    ground_height: float = 0.0,
+    fall_reference_height: float | None = None,
+) -> dict[str, float | bool | str]:
+    """Map descent state to a distance-to-ground transient phase."""
+    current_height = max(float(root_y) - float(ground_height), 0.0)
+    reference_height = float(fall_reference_height) if fall_reference_height is not None else max(current_height, 0.22)
+    reference_height = max(reference_height, 1e-4)
+    distance_to_ground = max(current_height, 0.0)
+    phase = _clamp01(1.0 - (distance_to_ground / reference_height))
+    landing_window = bool(distance_to_ground <= max(0.03, reference_height * 0.15) or phase >= 0.82)
+    return {
+        "phase": float(phase),
+        "phase_kind": "distance_to_ground",
+        "phase_source": "distance_matching",
+        "distance_to_ground": float(distance_to_ground),
+        "ground_height": float(ground_height),
+        "fall_reference_height": float(reference_height),
+        "is_landing_window": landing_window,
+    }
+
+
+def hit_recovery_phase(
+    progress_driver: float = 0.0,
+    *,
+    damping: float = 4.0,
+    impact_energy: float = 1.0,
+    stability_score: float | None = None,
+) -> dict[str, float | str]:
+    """Map a hit reaction to a one-way recovery deficit phase.
+
+    The returned ``phase`` follows the user's requested semantics:
+    1.0 = peak stun / rigidity, 0.0 = recovered equilibrium.
+    """
+    energy = max(float(impact_energy), 0.0)
+    if stability_score is not None:
+        phase = _clamp01((1.0 - _clamp01(stability_score)) * max(energy, 1.0))
+        phase_source = "action_goal_progress_stability"
+    else:
+        driver = max(float(progress_driver), 0.0)
+        phase = _clamp01(energy * math.exp(-max(float(damping), 0.0) * driver))
+        phase_source = "action_goal_progress_proxy"
+    recovery_progress = _clamp01(1.0 - phase)
+    return {
+        "phase": float(phase),
+        "phase_kind": "hit_recovery",
+        "phase_source": phase_source,
+        "impact_energy": float(energy),
+        "impact_deficit": float(phase),
+        "recovery_progress": float(recovery_progress),
+        "stability_score": float(1.0 - phase),
+    }
+
+
+def phase_driven_jump(
+    t: float,
+    *,
+    root_y: float | None = None,
+    root_velocity_y: float = 0.0,
+    apex_height: float | None = None,
+) -> dict[str, float]:
+    """Distance-matched jump pose driven by vertical distance to apex."""
+    resolved_apex = float(apex_height) if apex_height is not None else 0.18
+    current_height = float(root_y) if root_y is not None else resolved_apex * math.sin((_clamp01(t) * math.pi) / 2.0)
+    metrics = jump_distance_phase(
+        root_y=current_height,
+        root_velocity_y=root_velocity_y,
+        apex_height=apex_height,
+    )
+    phase = float(metrics["phase"])
+    crouch = ease_in_out(_clamp01((0.20 - phase) / 0.20))
+    launch = ease_in_out(_clamp01(phase / 0.70))
+    apex = ease_in_out(_clamp01((phase - 0.62) / 0.38))
+
+    return {
+        "spine": -0.18 * crouch + 0.12 * launch + 0.04 * apex,
+        "chest": -0.05 * crouch + 0.06 * launch - 0.03 * apex,
+        "head": -0.04 * crouch + 0.03 * apex,
+        "l_hip": -0.26 * crouch + 0.16 * launch + 0.12 * apex,
+        "r_hip": -0.26 * crouch + 0.16 * launch - 0.12 * apex,
+        "l_knee": -0.52 * crouch - 0.04 * launch - 0.20 * apex,
+        "r_knee": -0.52 * crouch - 0.04 * launch - 0.08 * apex,
+        "l_foot": 0.08 * (1.0 - apex),
+        "r_foot": 0.08 * (1.0 - apex),
+        "l_shoulder": 0.22 * crouch - 0.58 * launch - 0.28 * apex,
+        "r_shoulder": 0.22 * crouch - 0.58 * launch - 0.18 * apex,
+        "l_elbow": 0.12 + 0.12 * crouch + 0.18 * apex,
+        "r_elbow": 0.12 + 0.12 * crouch + 0.18 * apex,
+    }
+
+
+def phase_driven_fall(
+    t: float,
+    *,
+    root_y: float | None = None,
+    ground_height: float = 0.0,
+    fall_reference_height: float | None = None,
+) -> dict[str, float]:
+    """Distance-matched falling pose driven by distance to ground."""
+    reference_height = float(fall_reference_height) if fall_reference_height is not None else 0.22
+    current_height = float(root_y) if root_y is not None else reference_height * (1.0 - _clamp01(t))
+    metrics = fall_distance_phase(
+        root_y=current_height,
+        ground_height=ground_height,
+        fall_reference_height=fall_reference_height,
+    )
+    phase = float(metrics["phase"])
+    stretch = 1.0 - phase
+    brace = ease_in_out(_clamp01((phase - 0.40) / 0.60))
+    landing = ease_in_out(_clamp01((phase - 0.78) / 0.22))
+
+    return {
+        "spine": -0.05 * stretch - 0.18 * landing,
+        "chest": -0.02 * stretch + 0.05 * landing,
+        "head": 0.03 * stretch - 0.06 * landing,
+        "l_shoulder": -0.60 * stretch + 0.22 * landing,
+        "r_shoulder": -0.55 * stretch + 0.26 * landing,
+        "l_elbow": 0.20 + 0.10 * landing,
+        "r_elbow": 0.22 + 0.12 * landing,
+        "l_hip": 0.10 * stretch - 0.22 * landing,
+        "r_hip": -0.10 * stretch - 0.22 * landing,
+        "l_knee": -0.16 * stretch - 0.54 * brace,
+        "r_knee": -0.12 * stretch - 0.54 * brace,
+        "l_foot": -0.05 * stretch + 0.06 * landing,
+        "r_foot": -0.03 * stretch + 0.06 * landing,
+    }
+
+
+def phase_driven_hit(
+    t: float,
+    *,
+    damping: float = 4.0,
+    impact_energy: float = 1.0,
+    stability_score: float | None = None,
+) -> dict[str, float]:
+    """Goal-progress hit reaction driven by recovery deficit rather than time slices."""
+    metrics = hit_recovery_phase(
+        t,
+        damping=damping,
+        impact_energy=impact_energy,
+        stability_score=stability_score,
+    )
+    phase = float(metrics["phase"])
+    recovery = float(metrics["recovery_progress"])
+
+    return {
+        "spine": -0.30 * phase + 0.06 * recovery,
+        "chest": 0.22 * phase - 0.05 * recovery,
+        "head": -0.38 * phase + 0.04 * recovery,
+        "l_shoulder": 0.42 * phase - 0.10 * recovery,
+        "r_shoulder": 0.46 * phase - 0.12 * recovery,
+        "l_elbow": 0.22 + 0.12 * phase,
+        "r_elbow": 0.22 + 0.12 * phase,
+        "l_hip": -0.12 * phase + 0.03 * recovery,
+        "r_hip": -0.12 * phase + 0.03 * recovery,
+        "l_knee": -0.14 * phase,
+        "r_knee": -0.14 * phase,
+    }
+
+
+def phase_driven_jump_frame(
+    t: float,
+    **kwargs: float,
+) -> UnifiedMotionFrame:
+    """UMR-native jump frame driven by distance to apex."""
+    time = float(kwargs.pop("time", 0.0))
+    frame_index = int(kwargs.pop("frame_index", 0))
+    source_state = str(kwargs.pop("source_state", "jump"))
+    root_x = float(kwargs.pop("root_x", 0.0))
+    root_y = float(kwargs.pop("root_y", 0.0))
+    root_rotation = float(kwargs.pop("root_rotation", 0.0))
+    root_velocity_x = float(kwargs.pop("root_velocity_x", 0.0))
+    root_velocity_y = float(kwargs.pop("root_velocity_y", 0.0))
+    apex_height = kwargs.pop("apex_height", None)
+    metrics = jump_distance_phase(root_y=root_y, root_velocity_y=root_velocity_y, apex_height=apex_height)
+    pose = phase_driven_jump(t, root_y=root_y, root_velocity_y=root_velocity_y, apex_height=apex_height)
+    contact = bool(root_y <= 1e-3 and float(metrics["phase"]) <= 0.08)
+    return pose_to_umr(
+        pose,
+        time=time,
+        phase=float(metrics["phase"]),
+        frame_index=frame_index,
+        source_state=source_state,
+        root_transform=MotionRootTransform(
+            x=root_x,
+            y=root_y,
+            rotation=root_rotation,
+            velocity_x=root_velocity_x,
+            velocity_y=root_velocity_y,
+            angular_velocity=0.0,
+        ),
+        contact_tags=MotionContactState(left_foot=contact, right_foot=contact),
+        metadata={
+            "generator": "phase_driven_jump_distance_matching",
+            **metrics,
+        },
+    )
+
+
+def phase_driven_fall_frame(
+    t: float,
+    **kwargs: float,
+) -> UnifiedMotionFrame:
+    """UMR-native fall frame driven by distance to ground."""
+    time = float(kwargs.pop("time", 0.0))
+    frame_index = int(kwargs.pop("frame_index", 0))
+    source_state = str(kwargs.pop("source_state", "fall"))
+    root_x = float(kwargs.pop("root_x", 0.0))
+    root_y = float(kwargs.pop("root_y", 0.0))
+    root_rotation = float(kwargs.pop("root_rotation", 0.0))
+    root_velocity_x = float(kwargs.pop("root_velocity_x", 0.0))
+    root_velocity_y = float(kwargs.pop("root_velocity_y", 0.0))
+    ground_height = float(kwargs.pop("ground_height", 0.0))
+    fall_reference_height = kwargs.pop("fall_reference_height", None)
+    metrics = fall_distance_phase(
+        root_y=root_y,
+        ground_height=ground_height,
+        fall_reference_height=fall_reference_height,
+    )
+    pose = phase_driven_fall(
+        t,
+        root_y=root_y,
+        ground_height=ground_height,
+        fall_reference_height=fall_reference_height,
+    )
+    landing_contact = bool(float(metrics["distance_to_ground"]) <= 1e-3)
+    return pose_to_umr(
+        pose,
+        time=time,
+        phase=float(metrics["phase"]),
+        frame_index=frame_index,
+        source_state=source_state,
+        root_transform=MotionRootTransform(
+            x=root_x,
+            y=root_y,
+            rotation=root_rotation,
+            velocity_x=root_velocity_x,
+            velocity_y=root_velocity_y,
+            angular_velocity=0.0,
+        ),
+        contact_tags=MotionContactState(left_foot=landing_contact, right_foot=landing_contact),
+        metadata={
+            "generator": "phase_driven_fall_distance_matching",
+            **metrics,
+        },
+    )
+
+
+def phase_driven_hit_frame(
+    t: float,
+    **kwargs: float,
+) -> UnifiedMotionFrame:
+    """UMR-native hit frame driven by recovery deficit progress."""
+    time = float(kwargs.pop("time", 0.0))
+    frame_index = int(kwargs.pop("frame_index", 0))
+    source_state = str(kwargs.pop("source_state", "hit"))
+    root_x = float(kwargs.pop("root_x", 0.0))
+    root_y = float(kwargs.pop("root_y", 0.0))
+    root_rotation = float(kwargs.pop("root_rotation", 0.0))
+    root_velocity_x = float(kwargs.pop("root_velocity_x", 0.0))
+    root_velocity_y = float(kwargs.pop("root_velocity_y", 0.0))
+    damping = float(kwargs.pop("damping", 4.0))
+    impact_energy = float(kwargs.pop("impact_energy", 1.0))
+    stability_score = kwargs.pop("stability_score", None)
+    metrics = hit_recovery_phase(
+        t,
+        damping=damping,
+        impact_energy=impact_energy,
+        stability_score=stability_score,
+    )
+    pose = phase_driven_hit(
+        t,
+        damping=damping,
+        impact_energy=impact_energy,
+        stability_score=stability_score,
+    )
+    return pose_to_umr(
+        pose,
+        time=time,
+        phase=float(metrics["phase"]),
+        frame_index=frame_index,
+        source_state=source_state,
+        root_transform=MotionRootTransform(
+            x=root_x,
+            y=root_y,
+            rotation=root_rotation,
+            velocity_x=root_velocity_x,
+            velocity_y=root_velocity_y,
+            angular_velocity=0.0,
+        ),
+        contact_tags=MotionContactState(left_foot=True, right_foot=True),
+        metadata={
+            "generator": "phase_driven_hit_recovery",
+            **metrics,
+            "damping": damping,
+        },
+    )
 
 
 # ── Phase Analysis Utilities (DeepPhase-inspired) ───────────────────────────

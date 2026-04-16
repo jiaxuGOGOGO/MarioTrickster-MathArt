@@ -356,6 +356,7 @@ class MotionFeatureExtractor:
         phase_velocity = (
             ((frame.phase - prev_frame.phase) % 1.0) / dt if prev_frame is not None else 1.0
         )
+        metadata = dict(frame.metadata)
         return {
             "phase": float(frame.phase),
             "phase_velocity": float(phase_velocity),
@@ -365,6 +366,12 @@ class MotionFeatureExtractor:
             "root_vy": float(frame.root_transform.velocity_y),
             "left_contact": 1.0 if frame.contact_tags.left_foot else 0.0,
             "right_contact": 1.0 if frame.contact_tags.right_foot else 0.0,
+            "phase_kind": str(metadata.get("phase_kind", "cyclic")),
+            "phase_source": str(metadata.get("phase_source", metadata.get("generator", "unknown"))),
+            "distance_to_apex": float(metadata.get("distance_to_apex", 0.0) or 0.0),
+            "distance_to_ground": float(metadata.get("distance_to_ground", 0.0) or 0.0),
+            "impact_deficit": float(metadata.get("impact_deficit", 0.0) or 0.0),
+            "recovery_progress": float(metadata.get("recovery_progress", 1.0 if frame.source_state != "hit" else 0.0) or 0.0),
         }
 
     def extract_silhouette_features(

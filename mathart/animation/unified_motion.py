@@ -91,13 +91,20 @@ class UnifiedMotionFrame:
     format_version: str = "umr_motion_frame_v1"
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "phase", float(self.phase) % 1.0)
+        metadata = dict(self.metadata)
+        phase_kind = str(metadata.get("phase_kind", "cyclic"))
+        phase_value = float(self.phase)
+        if phase_kind in {"distance_to_apex", "distance_to_ground", "hit_recovery"}:
+            phase_value = max(0.0, min(1.0, phase_value))
+        else:
+            phase_value = phase_value % 1.0
+        object.__setattr__(self, "phase", phase_value)
         object.__setattr__(
             self,
             "joint_local_rotations",
             {k: float(v) for k, v in dict(self.joint_local_rotations).items()},
         )
-        object.__setattr__(self, "metadata", dict(self.metadata))
+        object.__setattr__(self, "metadata", metadata)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -238,15 +245,23 @@ def pose_to_umr(
 ) -> UnifiedMotionFrame:
     """Wrap a legacy pose dict in the UMR contract."""
 
+    metadata_dict = dict(metadata or {})
+    phase_kind = str(metadata_dict.get("phase_kind", "cyclic"))
+    normalized_phase = float(phase)
+    if phase_kind in {"distance_to_apex", "distance_to_ground", "hit_recovery"}:
+        normalized_phase = max(0.0, min(1.0, normalized_phase))
+    else:
+        normalized_phase = normalized_phase % 1.0
+
     return UnifiedMotionFrame(
         time=float(time),
-        phase=float(phase) % 1.0,
+        phase=normalized_phase,
         root_transform=root_transform or MotionRootTransform(),
         joint_local_rotations={k: float(v) for k, v in dict(pose).items()},
         contact_tags=contact_tags or MotionContactState(),
         frame_index=int(frame_index),
         source_state=source_state,
-        metadata=dict(metadata or {}),
+        metadata=metadata_dict,
     )
 
 
