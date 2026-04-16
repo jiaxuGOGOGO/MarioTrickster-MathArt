@@ -1,0 +1,34 @@
+{
+  "total_cycles": 1,
+  "total_passes": 1,
+  "total_failures": 0,
+  "best_flow_energy": 0.0006129571984179674,
+  "lowest_obstacle_leak_ratio": 0.0,
+  "best_visual_alpha_coverage": 0.35964626736111116,
+  "consecutive_passes": 1,
+  "knowledge_rules_total": 1,
+  "flow_energy_trend": [
+    0.0006129571984179674
+  ],
+  "obstacle_leak_trend": [
+    0.0
+  ],
+  "particle_trend": [
+    47.375
+  ],
+  "history": [
+    {
+      "cycle_id": 1,
+      "frame_count": 8,
+      "mean_flow_energy": 0.0006129571984179674,
+      "max_flow_speed": 0.11219309890538981,
+      "mean_density_mass": 40.48809230747834,
+      "mean_obstacle_leak_ratio": 0.0,
+      "mean_active_particles": 47.375,
+      "obstacle_coverage": 0.068359375,
+      "visual_alpha_coverage": 0.35964626736111116,
+      "fluid_pass": true,
+      "timestamp": "2026-04-16T23:52:25.018109+00:00"
+    }
+  ]
+}

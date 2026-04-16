@@ -58,6 +58,8 @@ from .layer3_closed_loop import Layer3ClosedLoopDistiller, TransitionTuningTarge
 from .evolution_loop import collect_closed_loop_status, collect_analytical_rendering_status
 # SESSION-045: Neural Rendering Evolution Bridge (Gap C3)
 from .neural_rendering_bridge import NeuralRenderingEvolutionBridge, collect_neural_rendering_status
+# SESSION-046: Stable Fluids VFX Bridge (Gap C2)
+from .fluid_vfx_bridge import FluidVFXEvolutionBridge, collect_fluid_vfx_status
 
 
 class SelfEvolutionEngine:
@@ -131,6 +133,12 @@ class SelfEvolutionEngine:
 
         # SESSION-045: Neural Rendering Evolution Bridge (Gap C3)
         self.neural_rendering_bridge = NeuralRenderingEvolutionBridge(
+            project_root=self.project_root,
+            verbose=verbose,
+        )
+
+        # SESSION-046: Stable Fluids VFX Bridge (Gap C2)
+        self.fluid_vfx_bridge = FluidVFXEvolutionBridge(
             project_root=self.project_root,
             verbose=verbose,
         )
@@ -598,6 +606,31 @@ class SelfEvolutionEngine:
                     str(nrs.knowledge_rules_total)
                 )
 
+            # SESSION-046: Persist fluid VFX bridge state
+            if self.fluid_vfx_bridge:
+                fvs = self.fluid_vfx_bridge.state
+                mem.set_note(
+                    "session046_fluid_vfx_cycles",
+                    str(fvs.total_cycles)
+                )
+                mem.set_note(
+                    "session046_fluid_vfx_pass_rate",
+                    f"{fvs.total_passes}/{fvs.total_cycles}"
+                    if fvs.total_cycles > 0 else "N/A"
+                )
+                mem.set_note(
+                    "session046_best_flow_energy",
+                    f"{fvs.best_flow_energy:.6f}"
+                )
+                mem.set_note(
+                    "session046_lowest_obstacle_leak_ratio",
+                    f"{fvs.lowest_obstacle_leak_ratio:.6f}"
+                )
+                mem.set_note(
+                    "session046_fluid_knowledge_rules",
+                    str(fvs.knowledge_rules_total)
+                )
+
             # SESSION-040: Persist contract evolution bridge state
             if self.contract_bridge:
                 cs = self.contract_bridge.state
@@ -699,6 +732,24 @@ class SelfEvolutionEngine:
         lines.append(self.neural_rendering_bridge.status_report().replace(
             "--- Neural Rendering Evolution Bridge (SESSION-045 / Gap C3) ---", ""
         ).strip())
+        lines.append("")
+
+        # ── SESSION-046: Fluid VFX Bridge status ──
+        lines.append("--- Fluid VFX Bridge (SESSION-046 / Gap C2) ---")
+        lines.append(self.fluid_vfx_bridge.status_report().replace(
+            "--- Fluid VFX Evolution Bridge (SESSION-046 / Gap C2) ---", ""
+        ).strip())
+        fluid_status = collect_fluid_vfx_status(self.project_root)
+        lines.extend([
+            f"   Module active: {'yes' if fluid_status.module_exists else 'no'}",
+            f"   Pipeline presets integrated: {'yes' if fluid_status.pipeline_supports_fluid_presets else 'no'}",
+            f"   Public API export: {'yes' if fluid_status.public_api_exports_fluid_vfx else 'no'}",
+            f"   Test present: {'yes' if fluid_status.test_exists else 'no'}",
+        ])
+        if fluid_status.tracked_exports:
+            lines.append(f"   Tracked exports: {', '.join(fluid_status.tracked_exports)}")
+        if fluid_status.research_notes_path:
+            lines.append(f"   Research notes: {fluid_status.research_notes_path}")
         lines.append("")
 
         # ── SESSION-044: Analytical SDF rendering status ──

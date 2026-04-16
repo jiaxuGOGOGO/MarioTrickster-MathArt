@@ -1,7 +1,7 @@
 {
   "version": "1.1",
   "purpose": "Prevent duplicate research, duplicate code changes, and duplicate knowledge distillation across sessions. Every new session MUST read this file before starting work.",
-  "last_updated": "SESSION-026",
+  "last_updated": "SESSION-046",
 
   "absorbed_references": {
     "description": "External resources already studied and integrated. Do NOT re-research these.",
@@ -20,7 +20,9 @@
       {"id": "REF-P012", "title": "SDF curvature estimation via Laplacian for adaptive outline width", "used_in": "mathart/sdf/renderer.py", "session": "SESSION-021"},
       {"id": "REF-P013", "title": "Percentile-based normalization for curvature fields", "used_in": "mathart/sdf/renderer.py", "session": "SESSION-021"},
       {"id": "REF-P014", "title": "Procedural Creature Generation and Animation for Games", "used_in": "mathart/pipeline.py", "session": "SESSION-022"},
-      {"id": "REF-P015", "title": "Programmatic multi-state 2D character animation references", "used_in": "mathart/pipeline.py", "session": "SESSION-022"}
+      {"id": "REF-P015", "title": "Programmatic multi-state 2D character animation references", "used_in": "mathart/pipeline.py", "session": "SESSION-022"},
+      {"id": "REF-P016", "title": "Stable Fluids (Jos Stam 1999)", "used_in": "mathart/animation/fluid_vfx.py", "session": "SESSION-046"},
+      {"id": "REF-P017", "title": "Real-Time Fluid Dynamics for Games (Jos Stam)", "used_in": "mathart/animation/fluid_vfx.py", "session": "SESSION-046"}
     ],
     "tutorials": [
       {"id": "REF-T001", "title": "Pedro Medeiros pixel art tutorials", "used_in": "knowledge/pixel_art.md", "session": "SESSION-006"},
@@ -29,7 +31,8 @@
     ],
     "github_repos": [
       {"id": "REF-G001", "title": "sdf-2d (various)", "used_in": "mathart/sdf/", "session": "SESSION-002"},
-      {"id": "REF-G002", "title": "neat-python concepts", "used_in": "mathart/evolution/cppn.py", "session": "SESSION-001"}
+      {"id": "REF-G002", "title": "neat-python concepts", "used_in": "mathart/evolution/cppn.py", "session": "SESSION-001"},
+      {"id": "REF-G003", "title": "ohjay/stable_fluids", "used_in": "mathart/animation/fluid_vfx.py", "session": "SESSION-046"}
     ],
     "research_session_018": [
       {"id": "REF-R001", "topic": "Procedural pixel art generation algorithms", "findings": "CPPN+NEAT, WFC, L-systems, reaction-diffusion", "status": "integrated"},
@@ -52,6 +55,11 @@
       {"id": "REF-R026-001", "topic": "Precision parallel research protocol for project upgrades", "findings": "External research should trigger only when it unlocks a concrete implementation or evaluation decision. Query lattices, source ranking, stop conditions, and write-back notes reduce duplicate searching and improve implementation relevance.", "status": "integrated", "note_file": "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md"},
       {"id": "REF-R026-002", "topic": "Repository-local plus skill-based protocol reuse", "findings": "Keeping both a repo-local protocol file and a validated reusable skill gives future sessions a stable default search workflow inside and outside the repository.", "status": "integrated", "note_file": "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md"},
       {"id": "REF-R026-003", "topic": "Explicit trigger vocabulary for protocol activation", "findings": "Standard phrases, soft/hard trigger semantics, and paraphrase tolerance reduce ambiguity and let users invoke high-quality research mode faster without depending on exact wording.", "status": "integrated", "note_file": "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md"}
+    ],
+    "research_session_046": [
+      {"id": "REF-R046-001", "topic": "Stable Fluids for physics-driven VFX", "findings": "A 2D colocated grid with semi-Lagrangian advection, implicit diffusion, pressure projection, ghost cells, and obstacle masks is sufficient to deliver convincing dash/slash smoke in the current NumPy pipeline.", "status": "integrated", "note_file": "docs/research/GAP_C2_STABLE_FLUIDS_VFX.md"},
+      {"id": "REF-R046-002", "topic": "Fluid-guided particles over grid density", "findings": "Do not replace particles entirely; keep a stylized particle overlay that samples the fluid velocity field so readability and pixel-art texture survive while motion becomes physically coherent.", "status": "integrated", "note_file": "docs/research/GAP_C2_STABLE_FLUIDS_VFX.md"},
+      {"id": "REF-R046-003", "topic": "Three-layer evolution hook for VFX", "findings": "Flow energy, obstacle leakage, and alpha coverage can be persisted as repository-native evolution metrics, letting Gap C2 continue improving across sessions instead of remaining a one-off effect implementation.", "status": "integrated", "note_file": "evolution_reports/session046_gapc2_audit.json"}
     ],
     "research_session_027": [
       {"id": "REF-R027-001", "topic": "Hierarchical Component Model for Characters", "findings": "Characters should be represented as a tree of components (Archetype -> Slots -> Parts) rather than a flat parameter vector, enabling true semantic variation.", "status": "planned_for_integration", "note_file": "research_notes_session027.md"},

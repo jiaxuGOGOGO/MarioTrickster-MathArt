@@ -57,6 +57,14 @@ from .layer3_closed_loop import (
     Layer3ClosedLoopDistiller,
     load_distilled_transition_params,
 )
+# SESSION-046: Stable Fluids VFX Bridge (Gap C2)
+from .fluid_vfx_bridge import (
+    FluidVFXMetrics,
+    FluidVFXState,
+    FluidVFXStatus,
+    collect_fluid_vfx_status,
+    FluidVFXEvolutionBridge,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -86,4 +94,10 @@ __all__ = [
     "TransitionRuleStore",
     "Layer3ClosedLoopDistiller",
     "load_distilled_transition_params",
+    # SESSION-046: Stable Fluids VFX Bridge (Gap C2)
+    "FluidVFXMetrics",
+    "FluidVFXState",
+    "FluidVFXStatus",
+    "collect_fluid_vfx_status",
+    "FluidVFXEvolutionBridge",
 ]

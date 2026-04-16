@@ -1,0 +1,425 @@
+{
+  "session_id": "SESSION-046",
+  "goal": "Gap C2 Stable Fluids VFX audit",
+  "produced": {
+    "smoke_fluid": {
+      "score": 0.4519445167070814,
+      "frame_count": 8,
+      "output_paths": [
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/smoke_fluid/smoke_fluid.gif",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/smoke_fluid/smoke_fluid_sheet.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/smoke_fluid/smoke_fluid_frame_00.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/smoke_fluid/smoke_fluid_frame_01.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/smoke_fluid/smoke_fluid_frame_02.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/smoke_fluid/smoke_fluid_frame_03.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/smoke_fluid/smoke_fluid_frame_04.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/smoke_fluid/smoke_fluid_frame_05.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/smoke_fluid/smoke_fluid_frame_06.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/smoke_fluid/smoke_fluid_frame_07.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/smoke_fluid/smoke_fluid_meta.json"
+      ],
+      "metadata": {
+        "meta": {
+          "generator": "MarioTrickster-MathArt/FluidDrivenVFXSystem",
+          "image_count": 8,
+          "canvas_size": 48,
+          "driver_mode": "smoke",
+          "grid_size": 32,
+          "stable_fluids": true,
+          "preset": "smoke_fluid"
+        },
+        "frames": [
+          {
+            "frame_index": 0,
+            "driver_speed": 16.0,
+            "mean_flow_energy": 3.5475682898321145e-05,
+            "max_flow_speed": 0.02129202077326595,
+            "density_mass": 7.351310252277742,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.0,
+            "active_particles": 10
+          },
+          {
+            "frame_index": 1,
+            "driver_speed": 16.076225983355442,
+            "mean_flow_energy": 0.00013014764914958692,
+            "max_flow_speed": 0.039972034459609375,
+            "density_mass": 14.631932537682761,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.0,
+            "active_particles": 20
+          },
+          {
+            "frame_index": 2,
+            "driver_speed": 16.1183726764151,
+            "mean_flow_energy": 0.00027399164213925964,
+            "max_flow_speed": 0.05731053888659174,
+            "density_mass": 21.83417613898024,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.0,
+            "active_particles": 30
+          },
+          {
+            "frame_index": 3,
+            "driver_speed": 16.023514608109,
+            "mean_flow_energy": 0.00045443914576674866,
+            "max_flow_speed": 0.0726912078403792,
+            "density_mass": 28.962933497479344,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.0,
+            "active_particles": 40
+          },
+          {
+            "frame_index": 4,
+            "driver_speed": 16.023514608109,
+            "mean_flow_energy": 0.0006685196459585522,
+            "max_flow_speed": 0.08731214070182154,
+            "density_mass": 36.013002317954424,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.0,
+            "active_particles": 50
+          },
+          {
+            "frame_index": 5,
+            "driver_speed": 16.1183726764151,
+            "mean_flow_energy": 0.0009095586824711633,
+            "max_flow_speed": 0.10083724744302139,
+            "density_mass": 42.96128756362807,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.0,
+            "active_particles": 58
+          },
+          {
+            "frame_index": 6,
+            "driver_speed": 16.076225983355442,
+            "mean_flow_energy": 0.0011713025240629499,
+            "max_flow_speed": 0.11397557385860344,
+            "density_mass": 49.79846358255082,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.0,
+            "active_particles": 66
+          },
+          {
+            "frame_index": 7,
+            "driver_speed": 16.0,
+            "mean_flow_energy": 0.001458653111201107,
+            "max_flow_speed": 0.1271045564725704,
+            "density_mass": 56.54432733462721,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.0,
+            "active_particles": 69
+          }
+        ],
+        "fluid": {
+          "dt": 0.08333333333333333,
+          "diffusion": 0.00025,
+          "viscosity": 0.0001,
+          "iterations": 16,
+          "density_dissipation": 0.985,
+          "velocity_dissipation": 0.992,
+          "mean_flow_energy": 0.0006377610104559611,
+          "max_flow_speed": 0.1271045564725704,
+          "mean_obstacle_leak_ratio": 0.0
+        },
+        "driver_mode": "smoke",
+        "stable_fluids": true,
+        "preset": "smoke_fluid",
+        "seed": 46,
+        "simulation_kind": "fluid",
+        "flow_energy_bonus": 0.0006377610104559611
+      }
+    },
+    "dash_smoke": {
+      "score": 0.432063694551617,
+      "frame_count": 8,
+      "output_paths": [
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/dash_smoke/dash_smoke.gif",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/dash_smoke/dash_smoke_sheet.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/dash_smoke/dash_smoke_frame_00.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/dash_smoke/dash_smoke_frame_01.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/dash_smoke/dash_smoke_frame_02.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/dash_smoke/dash_smoke_frame_03.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/dash_smoke/dash_smoke_frame_04.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/dash_smoke/dash_smoke_frame_05.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/dash_smoke/dash_smoke_frame_06.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/dash_smoke/dash_smoke_frame_07.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/dash_smoke/dash_smoke_meta.json"
+      ],
+      "metadata": {
+        "meta": {
+          "generator": "MarioTrickster-MathArt/FluidDrivenVFXSystem",
+          "image_count": 8,
+          "canvas_size": 48,
+          "driver_mode": "dash",
+          "grid_size": 32,
+          "stable_fluids": true,
+          "preset": "dash_smoke"
+        },
+        "frames": [
+          {
+            "frame_index": 0,
+            "driver_speed": 25.079872407968907,
+            "mean_flow_energy": 7.549695251145146e-05,
+            "max_flow_speed": 0.03320980248204938,
+            "density_mass": 10.536760247489402,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.068359375,
+            "active_particles": 14
+          },
+          {
+            "frame_index": 1,
+            "driver_speed": 25.001398796052378,
+            "mean_flow_energy": 0.0002517884479260523,
+            "max_flow_speed": 0.058598968737059484,
+            "density_mass": 20.932463662206295,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.068359375,
+            "active_particles": 28
+          },
+          {
+            "frame_index": 2,
+            "driver_speed": 25.025404367405574,
+            "mean_flow_energy": 0.00045956856091033846,
+            "max_flow_speed": 0.07747882034500682,
+            "density_mass": 30.256322244716806,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.068359375,
+            "active_particles": 42
+          },
+          {
+            "frame_index": 3,
+            "driver_speed": 25.072074193179752,
+            "mean_flow_energy": 0.0006355414027063237,
+            "max_flow_speed": 0.09257192141284967,
+            "density_mass": 38.01285711179856,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.068359375,
+            "active_particles": 55
+          },
+          {
+            "frame_index": 4,
+            "driver_speed": 25.072074193179752,
+            "mean_flow_energy": 0.0007413199879350127,
+            "max_flow_speed": 0.10617013473760337,
+            "density_mass": 44.60744962927313,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.068359375,
+            "active_particles": 52
+          },
+          {
+            "frame_index": 5,
+            "driver_speed": 25.025404367405574,
+            "mean_flow_energy": 0.0008090247970150483,
+            "max_flow_speed": 0.10836553452991718,
+            "density_mass": 51.46199276954,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.068359375,
+            "active_particles": 55
+          },
+          {
+            "frame_index": 6,
+            "driver_speed": 25.001398796052378,
+            "mean_flow_energy": 0.0009026498253484775,
+            "max_flow_speed": 0.10424274335467901,
+            "density_mass": 59.57074886792024,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.068359375,
+            "active_particles": 61
+          },
+          {
+            "frame_index": 7,
+            "driver_speed": 25.079872407968907,
+            "mean_flow_energy": 0.0010282676129910347,
+            "max_flow_speed": 0.11219309890538981,
+            "density_mass": 68.52614392688228,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.068359375,
+            "active_particles": 72
+          }
+        ],
+        "fluid": {
+          "dt": 0.08333333333333333,
+          "diffusion": 0.00015,
+          "viscosity": 8e-05,
+          "iterations": 16,
+          "density_dissipation": 0.985,
+          "velocity_dissipation": 0.992,
+          "mean_flow_energy": 0.0006129571984179674,
+          "max_flow_speed": 0.11219309890538981,
+          "mean_obstacle_leak_ratio": 0.0
+        },
+        "driver_mode": "dash",
+        "stable_fluids": true,
+        "preset": "dash_smoke",
+        "seed": 47,
+        "simulation_kind": "fluid",
+        "flow_energy_bonus": 0.0006129571984179674
+      },
+      "bridge_metrics": {
+        "cycle_id": 1,
+        "frame_count": 8,
+        "mean_flow_energy": 0.0006129571984179674,
+        "max_flow_speed": 0.11219309890538981,
+        "mean_density_mass": 40.48809230747834,
+        "mean_obstacle_leak_ratio": 0.0,
+        "mean_active_particles": 47.375,
+        "obstacle_coverage": 0.068359375,
+        "visual_alpha_coverage": 0.35964626736111116,
+        "fluid_pass": true,
+        "timestamp": "2026-04-16T23:52:25.018109+00:00"
+      },
+      "bridge_rules": [
+        {
+          "rule_id": "fluid_vfx_pass_1",
+          "rule_text": "Preferred Gap C2 recipe: colocated 2D grid + semi-Lagrangian advection + Gauss-Seidel diffusion/projection + obstacle mask + particle advection overlay."
+        }
+      ],
+      "bridge_bonus": 0.14838871595253902
+    },
+    "slash_smoke": {
+      "score": 0.4159806009288558,
+      "frame_count": 8,
+      "output_paths": [
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/slash_smoke/slash_smoke.gif",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/slash_smoke/slash_smoke_sheet.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/slash_smoke/slash_smoke_frame_00.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/slash_smoke/slash_smoke_frame_01.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/slash_smoke/slash_smoke_frame_02.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/slash_smoke/slash_smoke_frame_03.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/slash_smoke/slash_smoke_frame_04.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/slash_smoke/slash_smoke_frame_05.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/slash_smoke/slash_smoke_frame_06.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/slash_smoke/slash_smoke_frame_07.png",
+        "/home/ubuntu/MarioTrickster-MathArt/evolution_reports/session046_gapc2_audit_assets/slash_smoke/slash_smoke_meta.json"
+      ],
+      "metadata": {
+        "meta": {
+          "generator": "MarioTrickster-MathArt/FluidDrivenVFXSystem",
+          "image_count": 8,
+          "canvas_size": 48,
+          "driver_mode": "slash",
+          "grid_size": 36,
+          "stable_fluids": true,
+          "preset": "slash_smoke"
+        },
+        "frames": [
+          {
+            "frame_index": 0,
+            "driver_speed": 22.0,
+            "mean_flow_energy": 5.46391127093873e-05,
+            "max_flow_speed": 0.039057973164862564,
+            "density_mass": 7.676440787788966,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.07253086419753087,
+            "active_particles": 12
+          },
+          {
+            "frame_index": 1,
+            "driver_speed": 22.0,
+            "mean_flow_energy": 0.00016512798510142656,
+            "max_flow_speed": 0.06825049120453357,
+            "density_mass": 15.68214104829555,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.07253086419753087,
+            "active_particles": 23
+          },
+          {
+            "frame_index": 2,
+            "driver_speed": 22.0,
+            "mean_flow_energy": 0.00025652962052227665,
+            "max_flow_speed": 0.0832509118410024,
+            "density_mass": 23.63809196978102,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.07253086419753087,
+            "active_particles": 22
+          },
+          {
+            "frame_index": 3,
+            "driver_speed": 22.0,
+            "mean_flow_energy": 0.00030309126643659454,
+            "max_flow_speed": 0.0873353678339962,
+            "density_mass": 31.940026701903538,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.07253086419753087,
+            "active_particles": 27
+          },
+          {
+            "frame_index": 4,
+            "driver_speed": 22.0,
+            "mean_flow_energy": 0.00035502545672921323,
+            "max_flow_speed": 0.08240620154860952,
+            "density_mass": 40.77580773119825,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.07253086419753087,
+            "active_particles": 35
+          },
+          {
+            "frame_index": 5,
+            "driver_speed": 22.0,
+            "mean_flow_energy": 0.00043401876549326214,
+            "max_flow_speed": 0.09038341629835477,
+            "density_mass": 49.406308007412065,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.07253086419753087,
+            "active_particles": 43
+          },
+          {
+            "frame_index": 6,
+            "driver_speed": 22.0,
+            "mean_flow_energy": 0.0004971529316456082,
+            "max_flow_speed": 0.0891918445976206,
+            "density_mass": 56.97702966046186,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.07253086419753087,
+            "active_particles": 54
+          },
+          {
+            "frame_index": 7,
+            "driver_speed": 22.0,
+            "mean_flow_energy": 0.0005342214121719556,
+            "max_flow_speed": 0.0795327138092705,
+            "density_mass": 62.91548546010886,
+            "obstacle_leak_ratio": 0.0,
+            "obstacle_coverage": 0.07253086419753087,
+            "active_particles": 62
+          }
+        ],
+        "fluid": {
+          "dt": 0.08333333333333333,
+          "diffusion": 0.00018,
+          "viscosity": 9e-05,
+          "iterations": 16,
+          "density_dissipation": 0.985,
+          "velocity_dissipation": 0.992,
+          "mean_flow_energy": 0.0003249758188512155,
+          "max_flow_speed": 0.09038341629835477,
+          "mean_obstacle_leak_ratio": 0.0
+        },
+        "driver_mode": "slash",
+        "stable_fluids": true,
+        "preset": "slash_smoke",
+        "seed": 48,
+        "simulation_kind": "fluid",
+        "flow_energy_bonus": 0.0003249758188512155
+      }
+    }
+  },
+  "fluid_vfx_status": {
+    "module_exists": true,
+    "bridge_exists": true,
+    "public_api_exports_fluid_vfx": true,
+    "pipeline_supports_fluid_presets": true,
+    "test_exists": true,
+    "research_notes_path": "docs/research/GAP_C2_STABLE_FLUIDS_VFX.md",
+    "tracked_exports": [
+      "FluidGrid2D",
+      "FluidDrivenVFXSystem",
+      "FluidVFXConfig",
+      "default_character_obstacle_mask"
+    ],
+    "total_cycles": 1,
+    "consecutive_passes": 1,
+    "best_flow_energy": 0.0006129571984179674
+  },
+  "engine_status": "============================================================\nMarioTrickster-MathArt — Three-Layer Self-Evolution Engine\n  Mode: AUTONOMOUS\n  Physics Layer: ENABLED\n============================================================\n\n--- Layer 1: Inner Loop (Visual Quality) ---\n   Quality threshold: 0.75\n   Max iterations: 50\n   Population: 20\n\n--- Layer 2: Outer Loop (Knowledge Distillation) ---\n   Knowledge Base: 26 files, ~2140 lines\n   Files: anatomy, animation, color_light, color_science, compliant_physics_adversarial_priors, differentiable_rendering, fluid_vfx_rules, game_design, game_feel, industrial_rendering_motion_matching, level_design, pbr_math, pcg_math, perspective, phase_driven_animation, physics_sim, pipeline_contract, pixel_art, plant_botany, procedural_animation, programming, sdf_math, transition_synthesis_runtime_query, unity_rules, vfx, visual_regression_ci\n\n--- Pipeline Contract (SESSION-040) ---\nTotal cycles: 0\n   Passes: 0\n   Failures: 0\n   Golden master set: False\n   Hash stability streak: 0\n   Knowledge rules generated: 0\n\n--- Visual Regression (SESSION-041) ---\nTotal audit cycles: 0\n   Passes: 0\n   Failures: 0\n   Consecutive passes: 0\n   Best SSIM: 0.000000\n   Worst SSIM: 1.000000\n   Golden baseline set: False\n   Knowledge rules generated: 0\n\n--- Layer 3A: Active Runtime Closed Loop (SESSION-043) ---\n   Distilled transition rules: 1\n   Last tuned transition: run->jump\n   Last best loss: 1.319902\n   Bridge active: yes\n   Rule keys: run->jump\n   Latest report: evolution_reports/layer3_closed_loop_run_to_jump.json\n\n--- Neural Rendering Bridge (SESSION-045 / Gap C3) ---\nTotal evaluation cycles: 0\n   Passes: 0\n   Failures: 0\n   Consecutive passes: 0\n   Best warp error: 1.0000\n   Worst warp error: 0.0000\n   Best flicker score: 1.0000\n   Optimal skinning sigma: 0.150\n   Knowledge rules generated: 0\n\n--- Fluid VFX Bridge (SESSION-046 / Gap C2) ---\nTotal cycles: 1\n   Pass rate: 1/1\n   Consecutive passes: 1\n   Best flow energy: 0.000613\n   Lowest obstacle leak ratio: 0.000000\n   Knowledge rules distilled: 1\n   Module active: yes\n   Pipeline presets integrated: yes\n   Public API export: yes\n   Test present: yes\n   Tracked exports: FluidGrid2D, FluidDrivenVFXSystem, FluidVFXConfig, default_character_obstacle_mask\n   Research notes: docs/research/GAP_C2_STABLE_FLUIDS_VFX.md\n\n--- Layer 2.5: Analytical SDF Rendering (SESSION-044) ---\n   Aux module active: yes\n   Industrial aux-map export: yes\n   Public API export: yes\n   Auxiliary test present: yes\n   Tracked exports: IndustrialRenderAuxiliaryResult, render_character_maps_industrial, _build_character_distance_field\n   Research notes: evolution_reports/session044_sdf_rendering_research_notes.md\n\n--- Layer 3B: Physics Evolution (Self-Iteration) ---\n   Total cycles: 0\n   Best physics fitness: 0.000\n   Best locomotion fitness: 0.000\n   Best combined fitness: 0.000\n   Knowledge rules generated: 0\n   Successful strategies: 0\n   Stagnation count: 0\n\n--- Math Model Registry ---\n   Total: 10 | Stable: 9 | Experimental: 1\n\nCovered Capabilities:\n   + animation_curve\n   + color_palette\n   + level_layout\n   + physics_sim\n   + pixel_image\n   + plant_geometry\n   + sdf_effect\n   + skeleton_pose\n   + texture\n\nCapability Gaps:\n   ~ shader_params (experimental: differentiable_renderer_2d)\n\nProject Brain: v0.36.0\n   Best score: 0.867\n   Total iterations: 500\n   Pending tasks: 53\n   Capability gaps: 82\n\nDistillation Sessions: 7 completed\n   Latest: DISTILL-006\n\nRun Mode Guidance:\n   Currently in AUTONOMOUS mode:\n   - All three layers run locally without AI dependency\n   - Layer 1: visual quality optimization with QC\n   - Layer 2: knowledge distillation (requires source documents)\n   - Layer 3: physics evolution with auto-diagnosis\n   - Stagnation: auto-recover → widen space → escalate\n\n============================================================"
+}

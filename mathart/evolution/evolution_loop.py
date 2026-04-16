@@ -337,6 +337,43 @@ GAPC1_DISTILLATIONS: list[DistillationRecord] = [
 ]
 
 
+GAPC2_DISTILLATIONS: list[DistillationRecord] = [
+    DistillationRecord(
+        paper_id="stam1999stablefluids",
+        paper_title="Stable Fluids",
+        authors="Jos Stam",
+        venue="SIGGRAPH 1999",
+        concept="Unconditionally stable fluid solver using semi-Lagrangian advection and implicit viscosity, enabling real-time 2D smoke with controllable force injection.",
+        target_module="mathart/animation/fluid_vfx.py",
+        target_class="FluidGrid2D",
+        validation_status="validated",
+        test_coverage="tests/test_fluid_vfx.py",
+    ),
+    DistillationRecord(
+        paper_id="stam2003fluidgames",
+        paper_title="Real-Time Fluid Dynamics for Games",
+        authors="Jos Stam",
+        venue="GDC / game implementation article",
+        concept="Compact game-ready formulation of dens_step, vel_step, project, and boundary handling suitable for a NumPy implementation with ghost cells and internal obstacles.",
+        target_module="mathart/animation/fluid_vfx.py",
+        target_class="FluidDrivenVFXSystem",
+        validation_status="validated",
+        test_coverage="tests/test_fluid_vfx.py",
+    ),
+    DistillationRecord(
+        paper_id="session046_fluid_bridge",
+        paper_title="Stable Fluids VFX Evolution Bridge — Three-Layer Smoke Iteration Loop",
+        authors="Project Internal (SESSION-046 / Gap C2)",
+        venue="SESSION-046",
+        concept="Connect flow energy, obstacle leakage, and fluid-guided particles into a repository-native three-layer cycle: evaluate, distill rules, and write best practices back into project memory.",
+        target_module="mathart/evolution/fluid_vfx_bridge.py",
+        target_class="FluidVFXEvolutionBridge",
+        validation_status="validated",
+        test_coverage="tests/test_fluid_vfx.py",
+    ),
+]
+
+
 GAPC3_DISTILLATIONS: list[DistillationRecord] = [
     DistillationRecord(
         paper_id="jamriska2019stylizing",
@@ -400,6 +437,7 @@ _REGISTERED_DISTILLATIONS: list[DistillationRecord] = [
     *GAP1_DISTILLATIONS,
     *GAP4_DISTILLATIONS,
     *GAPC1_DISTILLATIONS,
+    *GAPC2_DISTILLATIONS,
     *GAPC3_DISTILLATIONS,
 ]
 
@@ -562,6 +600,10 @@ def generate_evolution_report(
     closed_loop_status = collect_closed_loop_status(root)
     analytical_rendering_status = collect_analytical_rendering_status(root)
 
+    # SESSION-046: Fluid VFX bridge status
+    from .fluid_vfx_bridge import collect_fluid_vfx_status
+    fluid_vfx_status = collect_fluid_vfx_status(root)
+
     # SESSION-045: Neural rendering bridge status
     from .neural_rendering_bridge import collect_neural_rendering_status
     neural_rendering_status = collect_neural_rendering_status(root)
@@ -573,6 +615,7 @@ def generate_evolution_report(
         + int((root / "tests/test_layer3_closed_loop.py").exists())
         + int((root / "tests/test_sdf_aux_maps.py").exists())
         + int((root / "tests/test_motion_vector_baker.py").exists())
+        + int((root / "tests/test_fluid_vfx.py").exists())
     )
 
     test_result = TestEvolutionResult(
@@ -602,6 +645,12 @@ def generate_evolution_report(
         )
     else:
         summary_parts.append("analytical SDF rendering path not yet integrated")
+    if fluid_vfx_status.module_exists:
+        summary_parts.append(
+            f"fluid VFX bridge tracks {len(fluid_vfx_status.tracked_exports)} Stable Fluids hook(s)"
+        )
+    else:
+        summary_parts.append("fluid VFX bridge (Gap C2) not yet integrated")
     if neural_rendering_status.motion_vector_module_exists:
         summary_parts.append(
             f"neural rendering bridge exports {len(neural_rendering_status.tracked_exports)} tracked MV hooks"
@@ -669,6 +718,7 @@ __all__ = [
     "GAP1_DISTILLATIONS",
     "GAP4_DISTILLATIONS",
     "GAPC1_DISTILLATIONS",
+    "GAPC2_DISTILLATIONS",
     "GAPC3_DISTILLATIONS",
     "collect_neural_rendering_status",
 ]

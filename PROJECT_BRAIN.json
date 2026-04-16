@@ -1,37 +1,37 @@
 {
-  "version": "0.36.0",
-  "last_session_id": "SESSION-045",
-  "last_updated": "2026-04-17T12:00:00Z",
+  "version": "0.37.0",
+  "last_session_id": "SESSION-046",
+  "last_updated": "2026-04-17T16:30:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "37 new tests PASS (Gap C3); 845 total tests PASS; zero regressions",
+  "validation_pass_rate": "6 new tests PASS (Gap C2); targeted Stable Fluids audit PASS; zero local regressions in touched modules",
   "total_iterations": 500,
-  "total_code_lines": 60500,
+  "total_code_lines": 63100,
   "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 49,
+  "knowledge_rule_count": 52,
   "math_model_count": 28,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",
-    "overall_completion": "32-34%",
-    "last_assessed": "SESSION-038",
+    "overall_completion": "35-37%",
+    "last_assessed": "SESSION-046",
     "dimension_scores": {
       "animation_physics_realism": 7,
       "motion_cognitive_naturalness": 18,
       "character_visual_quality": 25,
-      "vfx_particles": 20,
+      "vfx_particles": 34,
       "character_diversity": 15,
       "environment_tileset": 18,
       "engine_ready_export": 24,
       "engineering_automation": 82
     },
-    "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-045: the original WFC/shader/export break is closed by PDG + USD-like scene contract. The simulation-conditioned neural-render bridge is now CLOSED (SESSION-045). Main remaining blockers: industrial runtime depth (cache/partition/layering), benchmarked asset production, visual quality, and XPBD soft body coupling.",
+    "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-046: analytical aux maps (Gap C1), neural rendering bridge (Gap C3), and physics-driven particles (Gap C2) are now closed. Main remaining blockers: XPBD rigid/soft body coupling, industrial runtime depth (cache/partition/layering), terrain-aware sensing, gait transition blending, and benchmarked asset production.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules.",
       "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. Combined with SESSION-044 auxiliary maps (normal/depth/mask), the project now has a complete Math→AI conditioning pipeline. Next: real-time EbSynth/ComfyUI integration demo.",
-      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop. SESSION-043 closed Gap 4 (active Layer 3 closed loop) with runtime query → synthesis → write-back. SESSION-044 closed Gap C1 (analytical SDF auxiliary maps). SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency). Next step: Gap B1 (XPBD rigid/soft body coupling), Gap C2 (physics-driven particles), terrain-aware sensing, gait transition blending, production benchmark suite."
+      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge). Next step: Gap B1 (XPBD rigid/soft body coupling), terrain-aware sensing, gait transition blending, production benchmark suite."
     },
     "commercial_references": [
       {
@@ -45,11 +45,14 @@
         "type": "itch.io top-seller asset pack"
       }
     ],
-    "engineering_automation": 86
+    "engineering_automation": 87
   },
-  "current_focus": "SESSION-045 closes Gap C3 (Neural Rendering Bridge / 防闪烁终极杀器) by implementing ground-truth motion vector extraction from procedural FK, three encoding formats (RGB/HSV/Raw), EbSynth project export, and a three-layer NeuralRenderingEvolutionBridge for temporal consistency enforcement. All previous SESSION-043/044 capabilities remain intact. Next: XPBD, physics-driven particles, real-time EbSynth/ComfyUI integration demo.",
+  "current_focus": "SESSION-046 closes Gap C2 (physics-driven particles / Stable Fluids VFX) by implementing a grid-based vector-field smoke system, obstacle-aware flow, fluid-guided particles, pipeline presets (`smoke_fluid`, `dash_smoke`, `slash_smoke`), and a three-layer FluidVFXEvolutionBridge. All previous SESSION-043/044/045 capabilities remain intact. Next: XPBD, real-time EbSynth/ComfyUI integration demo, terrain-aware sensing, and production benchmark assets.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "docs/research/GAP_C2_STABLE_FLUIDS_VFX.md",
+    "evolution_reports/session046_gapc2_research_notes.md",
+    "evolution_reports/session046_gapc2_audit.json",
     "SESSION_HANDOFF.md",
     "docs/research/GAP_C3_NEURAL_RENDERING_BRIDGE.md",
     "docs/research/GAP_C3_AUDIT_CHECKLIST.md",
@@ -336,9 +339,10 @@
       "id": "P1-VFX-1",
       "priority": "P1",
       "title": "Physics-driven Particle System",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "medium",
-      "description": "Upgrade SDF VFX to use emitters, gravity, and collision."
+      "description": "CLOSED in SESSION-046. VFX now supports grid-based Stable Fluids smoke, obstacle-aware flow, and fluid-guided particles via mathart/animation/fluid_vfx.py, AssetPipeline fluid presets, and FluidVFXEvolutionBridge.",
+      "completed_in": "SESSION-046"
     },
     {
       "id": "P1-NEW-9C",
@@ -595,6 +599,24 @@
       "description": "CLOSED in SESSION-044. Added `mathart/animation/sdf_aux_maps.py`, upgraded `render_character_maps_industrial()` to export albedo/normal/depth/mask, connected analytical-rendering status into `evolution_loop.py` and `engine.py`, and generated real demo artifacts plus audit evidence.",
       "added_in": "SESSION-044",
       "completed_in": "SESSION-044"
+    },
+    {
+      "id": "P1-VFX-1A",
+      "priority": "P1",
+      "title": "Bind real character silhouette masks into fluid VFX presets",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Project true character alpha/SDF masks into the fluid grid so combat smoke wraps around the exact current body silhouette instead of the fallback demo obstacle.",
+      "added_in": "SESSION-046"
+    },
+    {
+      "id": "P1-VFX-1B",
+      "priority": "P1",
+      "title": "Drive fluid VFX directly from UMR root velocity and weapon trajectories",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Convert runtime root transform velocity, slash tangents, and motion-vector-derived impulses into automated driver_impulses for slash/dash smoke presets.",
+      "added_in": "SESSION-046"
     }
   ],
   "completed_tasks": [
@@ -1403,7 +1425,8 @@
     "RESOLVED-S040: End-to-end deterministic hash seal with SHA-256 + .umr_manifest.json golden master + CI regression detection (P1-BENCH-35A)",
     "RESOLVED-S040: UMR contract propagated to CLI, exporters, and distillation bus via UMR_Context + ContractEvolutionBridge (P1-UMR-36A)",
     "RESOLVED-S040: Phase-driven idle generator eliminates last legacy_pose_adapter fallback",
-    "RESOLVED-S040: Three-layer evolution cycle now includes contract compliance (L1 validation, L2 knowledge distillation, L3 fitness bonus)"
+    "RESOLVED-S040: Three-layer evolution cycle now includes contract compliance (L1 validation, L2 knowledge distillation, L3 fitness bonus)",
+    "RESOLVED-S046: No physics-driven particles / grid-based vector field VFX -> Stable Fluids smoke system with obstacle-aware flow, fluid-guided particles, pipeline presets, and evolution bridge"
   ],
   "session_029_changes": {
     "new_artifacts": [
@@ -1902,23 +1925,54 @@
     "session045_neural_bridge": "neural_rendering_bridge.py implements three-layer temporal consistency evolution bridge.",
     "session045_distillation_records": "5 new records (Jamriška SIGGRAPH 2019, OnlyFlow CVPR 2025W, MotionPrompt CVPR 2025, internal MV Baker, internal Neural Bridge).",
     "session045_test_count": "37 new tests, all PASS.",
-    "session045_audit": "docs/research/GAP_C3_AUDIT_CHECKLIST.md confirms 8/8 research items → code, 100% coverage."
+    "session045_audit": "docs/research/GAP_C3_AUDIT_CHECKLIST.md confirms 8/8 research items → code, 100% coverage.",
+    "session046_gapc2_status": "CLOSED. Stable Fluids / grid-based vector-field VFX implemented.",
+    "session046_fluid_module": "mathart/animation/fluid_vfx.py adds FluidGrid2D, FluidDrivenVFXSystem, obstacle masks, and fluid-guided particles.",
+    "session046_fluid_bridge": "mathart/evolution/fluid_vfx_bridge.py implements three-layer evaluation, rule distillation, and persistent state tracking.",
+    "session046_pipeline_presets": "AssetPipeline.produce_vfx() now supports smoke_fluid, dash_smoke, slash_smoke with optional obstacle_mask and driver_impulses.",
+    "session046_test_count": "6 new tests, all PASS.",
+    "session046_audit": "evolution_reports/session046_gapc2_audit.json confirms research → code → artifact → test closure.",
+    "session046_artifacts": "evolution_reports/session046_gapc2_audit_assets/ contains generated smoke_fluid, dash_smoke, and slash_smoke demo packs."
   },
   "recent_focus_snapshot": {
     "top_open_loops": [
       "XPBD rigid/soft body coupling (P0-GAP-2)",
-      "Physics-driven particle system (P1-VFX-1)",
+      "Real character silhouette coupling for fluid VFX (P1-VFX-1A)",
       "Real-time EbSynth/ComfyUI integration demo (P1-AI-2A)"
     ],
     "remaining_followups": [
       "P0-GAP-2: XPBD rigid/soft body coupling",
-      "P1-VFX-1: physics-driven particle system leveraging MV field",
+      "P1-VFX-1A: bind true character masks into fluid VFX obstacle grids",
+      "P1-VFX-1B: drive fluid impulses from UMR root velocity and weapon trajectories",
       "P1-AI-2A: real-time EbSynth/ComfyUI integration demo with exported MV data",
       "P1-AI-2B: ControlNet conditioning pipeline using motion vector maps",
       "P1-INDUSTRIAL-44A: package albedo/normal/depth/mask for engine import"
     ]
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-046",
+      "date": "2026-04-17",
+      "version": "0.37.0",
+      "title": "Gap C2 closure: Stable Fluids physics-driven particle VFX",
+      "highlights": [
+        "Implemented mathart/animation/fluid_vfx.py with FluidGrid2D, Stable Fluids stepping, obstacle masks, and fluid-guided particles.",
+        "Added AssetPipeline fluid presets: smoke_fluid, dash_smoke, slash_smoke, plus optional obstacle_mask and driver_impulses.",
+        "Integrated mathart/evolution/fluid_vfx_bridge.py into the three-layer evolution status and PROJECT_BRAIN write-back.",
+        "Registered 3 Gap C2 distillation records and added docs/research/GAP_C2_STABLE_FLUIDS_VFX.md.",
+        "Generated audit artifacts and passed 6/6 new Gap C2 tests."
+      ],
+      "artifacts": [
+        "mathart/animation/fluid_vfx.py",
+        "mathart/evolution/fluid_vfx_bridge.py",
+        "tests/test_fluid_vfx.py",
+        "docs/research/GAP_C2_STABLE_FLUIDS_VFX.md",
+        "evolution_reports/session046_gapc2_audit.json"
+      ],
+      "tests": [
+        "python3.11 -m pytest -q tests/test_fluid_vfx.py (6/6 PASS)"
+      ]
+    },
     {
       "session_id": "SESSION-045",
       "date": "2026-04-17",

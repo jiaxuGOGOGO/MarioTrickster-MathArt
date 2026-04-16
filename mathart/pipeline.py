@@ -61,6 +61,7 @@ from .animation.principles import (
 )
 from .distill.compiler import Constraint, ParameterSpace
 from .animation.particles import ParticleSystem, ParticleConfig
+from .animation.fluid_vfx import FluidDrivenVFXSystem, FluidVFXConfig, resize_mask_to_grid
 from .animation.cage_deform import CageDeformer, CagePreset, CageAnimation
 from .animation.skeleton import Skeleton
 from .animation.character_renderer import render_character_frame
@@ -2646,66 +2647,101 @@ class AssetPipeline:
         canvas_size: int = 64,
         n_frames: int = 16,
         seed: int = 42,
+        obstacle_mask: Optional[np.ndarray | Image.Image] = None,
+        driver_impulses: Optional[list[Any]] = None,
     ) -> AssetResult:
-        """Produce a VFX particle animation (fire, explosion, sparkle, smoke).
+        """Produce a VFX animation.
 
-        SESSION-019: Integrates ParticleSystem into the main pipeline.
-        Outputs: GIF, spritesheet PNG, individual frames, JSON metadata.
+        Supported presets now include both legacy particle emitters and the new
+        **grid-based Stable Fluids smoke path** for Gap C2:
+        `smoke_fluid`, `dash_smoke`, and `slash_smoke`.
+
+        Parameters
+        ----------
+        obstacle_mask : np.ndarray or PIL.Image, optional
+            Optional character/body mask projected into the fluid grid so smoke
+            curls around the occupied silhouette.
+        driver_impulses : list[Any], optional
+            Optional per-frame external velocity injections for future gameplay
+            integration. When omitted, preset-specific drivers are generated.
         """
         start = time.time()
         self._log(f"Producing VFX: {name} (preset={preset}, frames={n_frames})")
 
-        # Select preset
-        preset_map = {
+        legacy_preset_map = {
             "fire": ParticleConfig.fire,
             "explosion": ParticleConfig.explosion,
             "sparkle": ParticleConfig.sparkle,
             "smoke": ParticleConfig.smoke,
         }
-        config_factory = preset_map.get(preset, ParticleConfig.fire)
-        config = config_factory(canvas_size=canvas_size)
-        config.seed = seed
+        fluid_preset_map = {
+            "smoke_fluid": FluidVFXConfig.smoke_fluid,
+            "dash_smoke": FluidVFXConfig.dash_smoke,
+            "slash_smoke": FluidVFXConfig.slash_smoke,
+        }
 
-        # Simulate
-        system = ParticleSystem(config)
-        frames = system.simulate_and_render(n_frames=n_frames)
+        use_fluid = preset in fluid_preset_map
+        if use_fluid:
+            config = fluid_preset_map[preset](canvas_size=canvas_size)
+            config.seed = seed
+            system = FluidDrivenVFXSystem(config)
+            fluid_obstacle = None
+            if obstacle_mask is not None:
+                fluid_obstacle = resize_mask_to_grid(obstacle_mask, config.fluid.grid_size)
+            frames = system.simulate_and_render(
+                n_frames=n_frames,
+                driver_impulses=driver_impulses,
+                obstacle_mask=fluid_obstacle,
+            )
+        else:
+            config_factory = legacy_preset_map.get(preset, ParticleConfig.fire)
+            config = config_factory(canvas_size=canvas_size)
+            config.seed = seed
+            system = ParticleSystem(config)
+            frames = system.simulate_and_render(n_frames=n_frames)
 
-        # Save outputs
         asset_dir = self.output_dir / name
         asset_dir.mkdir(parents=True, exist_ok=True)
         output_paths = []
 
-        # GIF
         gif_path = str(asset_dir / f"{name}.gif")
         system.export_gif(frames, gif_path)
         output_paths.append(gif_path)
         self._log(f"Saved GIF: {gif_path}")
 
-        # Spritesheet
         sheet_path = str(asset_dir / f"{name}_sheet.png")
         meta = system.export_spritesheet(frames, sheet_path)
         output_paths.append(sheet_path)
         self._log(f"Saved spritesheet: {sheet_path}")
 
-        # Individual frames
         for i, frame in enumerate(frames):
             fp = str(asset_dir / f"{name}_frame_{i:02d}.png")
             frame.save(fp)
             output_paths.append(fp)
 
-        # Metadata
+        if use_fluid and hasattr(system, "build_metadata"):
+            extra_meta = system.build_metadata(preset_name=preset, n_frames=n_frames)
+            meta.update(extra_meta)
+            meta["driver_mode"] = getattr(config, "driver_mode", "fluid")
+            meta["stable_fluids"] = True
         meta["preset"] = preset
         meta["seed"] = seed
+        meta["simulation_kind"] = "fluid" if use_fluid else "particle"
+        if obstacle_mask is not None:
+            meta["has_obstacle_mask"] = True
         meta_path = str(asset_dir / f"{name}_meta.json")
         with open(meta_path, "w") as f:
             json.dump(meta, f, indent=2)
         output_paths.append(meta_path)
 
-        # SESSION-020: Use VFX-specific evaluator (P0-NEW-6)
         score = 0.0
         if frames:
             result = self.evaluator.evaluate_multi_frame_vfx(frames)
             score = result.overall_score
+        if use_fluid and getattr(system, "last_diagnostics", None):
+            flow_bonus = float(np.mean([d.mean_flow_energy for d in system.last_diagnostics]))
+            score = min(1.0, score + min(flow_bonus * 0.15, 0.08))
+            meta["flow_energy_bonus"] = flow_bonus
 
         elapsed = time.time() - start
         self._log(f"VFX done: {n_frames} frames, score={score:.3f}, time={elapsed:.1f}s")
@@ -2713,6 +2749,7 @@ class AssetPipeline:
         self._production_log.append({
             "name": name, "type": "vfx",
             "score": score, "elapsed": elapsed,
+            "preset": preset,
         })
 
         return AssetResult(

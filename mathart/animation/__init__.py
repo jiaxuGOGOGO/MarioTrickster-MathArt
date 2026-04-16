@@ -148,6 +148,12 @@ from .motion_vector_baker import (
     bake_motion_vector_sequence, export_ebsynth_project,
     compute_temporal_consistency_score,
 )
+# SESSION-046: Stable Fluids VFX (Gap C2 — Grid-Based Vector Fields)
+from .fluid_vfx import (
+    FluidGridConfig, FluidImpulse, FluidFrameDiagnostics, FluidParticle,
+    FluidVFXConfig, FluidGrid2D, FluidDrivenVFXSystem,
+    resize_mask_to_grid, default_character_obstacle_mask,
+)
 
 __all__ = [
     "Skeleton", "Bone", "Joint",
@@ -262,4 +268,8 @@ __all__ = [
     "encode_motion_vector_rgb", "encode_motion_vector_hsv", "encode_motion_vector_raw",
     "bake_motion_vector_sequence", "export_ebsynth_project",
     "compute_temporal_consistency_score",
+    # SESSION-046: Stable Fluids VFX (Gap C2 — Grid-Based Vector Fields)
+    "FluidGridConfig", "FluidImpulse", "FluidFrameDiagnostics", "FluidParticle",
+    "FluidVFXConfig", "FluidGrid2D", "FluidDrivenVFXSystem",
+    "resize_mask_to_grid", "default_character_obstacle_mask",
 ]

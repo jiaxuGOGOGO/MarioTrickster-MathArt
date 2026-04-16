@@ -1,0 +1,109 @@
+{
+  "meta": {
+    "generator": "MarioTrickster-MathArt/FluidDrivenVFXSystem",
+    "image_count": 8,
+    "canvas_size": 48,
+    "driver_mode": "slash",
+    "grid_size": 36,
+    "stable_fluids": true,
+    "preset": "slash_smoke"
+  },
+  "frames": [
+    {
+      "frame_index": 0,
+      "driver_speed": 22.0,
+      "mean_flow_energy": 5.46391127093873e-05,
+      "max_flow_speed": 0.039057973164862564,
+      "density_mass": 7.676440787788966,
+      "obstacle_leak_ratio": 0.0,
+      "obstacle_coverage": 0.07253086419753087,
+      "active_particles": 12
+    },
+    {
+      "frame_index": 1,
+      "driver_speed": 22.0,
+      "mean_flow_energy": 0.00016512798510142656,
+      "max_flow_speed": 0.06825049120453357,
+      "density_mass": 15.68214104829555,
+      "obstacle_leak_ratio": 0.0,
+      "obstacle_coverage": 0.07253086419753087,
+      "active_particles": 23
+    },
+    {
+      "frame_index": 2,
+      "driver_speed": 22.0,
+      "mean_flow_energy": 0.00025652962052227665,
+      "max_flow_speed": 0.0832509118410024,
+      "density_mass": 23.63809196978102,
+      "obstacle_leak_ratio": 0.0,
+      "obstacle_coverage": 0.07253086419753087,
+      "active_particles": 22
+    },
+    {
+      "frame_index": 3,
+      "driver_speed": 22.0,
+      "mean_flow_energy": 0.00030309126643659454,
+      "max_flow_speed": 0.0873353678339962,
+      "density_mass": 31.940026701903538,
+      "obstacle_leak_ratio": 0.0,
+      "obstacle_coverage": 0.07253086419753087,
+      "active_particles": 27
+    },
+    {
+      "frame_index": 4,
+      "driver_speed": 22.0,
+      "mean_flow_energy": 0.00035502545672921323,
+      "max_flow_speed": 0.08240620154860952,
+      "density_mass": 40.77580773119825,
+      "obstacle_leak_ratio": 0.0,
+      "obstacle_coverage": 0.07253086419753087,
+      "active_particles": 35
+    },
+    {
+      "frame_index": 5,
+      "driver_speed": 22.0,
+      "mean_flow_energy": 0.00043401876549326214,
+      "max_flow_speed": 0.09038341629835477,
+      "density_mass": 49.406308007412065,
+      "obstacle_leak_ratio": 0.0,
+      "obstacle_coverage": 0.07253086419753087,
+      "active_particles": 43
+    },
+    {
+      "frame_index": 6,
+      "driver_speed": 22.0,
+      "mean_flow_energy": 0.0004971529316456082,
+      "max_flow_speed": 0.0891918445976206,
+      "density_mass": 56.97702966046186,
+      "obstacle_leak_ratio": 0.0,
+      "obstacle_coverage": 0.07253086419753087,
+      "active_particles": 54
+    },
+    {
+      "frame_index": 7,
+      "driver_speed": 22.0,
+      "mean_flow_energy": 0.0005342214121719556,
+      "max_flow_speed": 0.0795327138092705,
+      "density_mass": 62.91548546010886,
+      "obstacle_leak_ratio": 0.0,
+      "obstacle_coverage": 0.07253086419753087,
+      "active_particles": 62
+    }
+  ],
+  "fluid": {
+    "dt": 0.08333333333333333,
+    "diffusion": 0.00018,
+    "viscosity": 9e-05,
+    "iterations": 16,
+    "density_dissipation": 0.985,
+    "velocity_dissipation": 0.992,
+    "mean_flow_energy": 0.0003249758188512155,
+    "max_flow_speed": 0.09038341629835477,
+    "mean_obstacle_leak_ratio": 0.0
+  },
+  "driver_mode": "slash",
+  "stable_fluids": true,
+  "preset": "slash_smoke",
+  "seed": 48,
+  "simulation_kind": "fluid"
+}
