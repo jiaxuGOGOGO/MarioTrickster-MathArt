@@ -1508,6 +1508,8 @@ class AssetPipeline:
         state_scores: list[float] = []
 
         # SESSION-028: Initialize physics projector if enabled
+        # SESSION-028-SUPP: Pass skeleton_ref for PhysDiff-inspired foot locking
+        _physics_skeleton = Skeleton.create_humanoid(head_units=char_spec.head_units)
         _physics_projector = None
         if char_spec.enable_physics:
             _cognitive_cfg = CognitiveMotionConfig(
@@ -1517,6 +1519,8 @@ class AssetPipeline:
                 global_stiffness_scale=char_spec.physics_stiffness,
                 global_damping_scale=char_spec.physics_damping,
                 cognitive_config=_cognitive_cfg,
+                enable_foot_locking=True,
+                skeleton_ref=_physics_skeleton,
             )
 
         for state in char_spec.states:

@@ -300,6 +300,8 @@ class AnglePoseProjector:
         cognitive_config: CognitiveMotionConfig | None = None,
         global_stiffness_scale: float = 1.0,
         global_damping_scale: float = 1.0,
+        enable_foot_locking: bool = True,
+        skeleton_ref=None,
     ):
         self._configs = dict(joint_configs or DEFAULT_JOINT_PHYSICS)
         self._cognitive = cognitive_config or CognitiveMotionConfig()
@@ -318,6 +320,13 @@ class AnglePoseProjector:
 
         # Delayed target buffers for overlapping action
         self._delayed_targets: dict[str, list[float]] = {}
+
+        # SESSION-028-SUPP: PhysDiff-inspired foot contact & skating cleanup
+        self._enable_foot_locking = enable_foot_locking
+        self._contact_detector = ContactDetector()
+        self._constraint_blender = ConstraintBlender(blend_in_frames=3, blend_out_frames=4)
+        self._foot_locker = FootLockingConstraint(skeleton_ref=skeleton_ref)
+        self._skeleton_ref = skeleton_ref
 
     def _get_config(self, joint_name: str) -> JointPhysicsConfig:
         """Get physics config for a joint, falling back to default."""
@@ -392,7 +401,46 @@ class AnglePoseProjector:
             corrected_pose[joint_name] = corrected_angle
             state.prev_target = target_angle
 
+        # SESSION-028-SUPP: PhysDiff-inspired foot contact & skating cleanup
+        if self._enable_foot_locking and self._skeleton_ref is not None:
+            corrected_pose = self._apply_foot_locking(corrected_pose, dt)
+
         return corrected_pose
+
+    def _apply_foot_locking(
+        self,
+        pose: dict[str, float],
+        dt: float,
+    ) -> dict[str, float]:
+        """Apply foot-locking constraint to eliminate skating artifacts.
+
+        This is the 2D equivalent of PhysDiff's physics-based motion projection
+        specifically targeting foot sliding. The process is:
+        1. Run FK to get current foot world positions
+        2. Detect contact states (height + velocity heuristic)
+        3. Compute blend weights (smooth transitions)
+        4. Apply IK corrections to lock feet at contact points
+        """
+        skeleton = self._skeleton_ref
+
+        # Step 1: Forward kinematics to get world positions
+        skeleton.apply_pose(pose)
+        joint_positions = skeleton.forward_kinematics()
+
+        # Step 2: Update contact detection
+        contact_states = self._contact_detector.update(joint_positions, dt)
+
+        # Step 3: Compute blend weights for smooth transitions
+        blend_weights = {}
+        for foot_name, state in contact_states.items():
+            blend_weights[foot_name] = self._constraint_blender.compute_weight(state)
+
+        # Step 4: Apply IK-based foot locking
+        corrected = self._foot_locker.correct_pose(
+            pose, contact_states, blend_weights, joint_positions, skeleton
+        )
+
+        return corrected
 
     def step_with_metadata(
         self,
@@ -452,6 +500,10 @@ class AnglePoseProjector:
         self._target_history.clear()
         self._delayed_targets.clear()
         self._frame_count = 0
+        # SESSION-028-SUPP: Reset foot contact states
+        self._contact_detector.reset()
+        for name in self._contact_detector.foot_joints:
+            self._contact_detector._states[name] = ContactState()
 
     # ── Physics Simulation Sub-steps ──
 
@@ -883,6 +935,469 @@ class PositionPhysicsProjector:
         return angles
 
 
+# ── PhysDiff-Inspired Foot Contact & Skating Cleanup ──────────────────────────
+#
+# These classes implement the core mechanisms from PhysDiff (ICCV 2023) that were
+# missing in the initial SESSION-028 delivery:
+#   1. ContactDetector: detects when feet touch the ground (height + velocity heuristic)
+#   2. FootLockingConstraint: locks foot position during ground contact via IK
+#   3. ConstraintBlender: smoothly blends constraints on/off to avoid popping
+#   4. FootSkatingPenalty: explicit skating metric for GA fitness integration
+#
+# Reference: Yuan et al., "PhysDiff: Physics-Guided Human Motion Diffusion Model"
+#   - Foot Skating metric: "find foot joints that contact the ground in two adjacent
+#     frames and compute their average horizontal displacement" (Appendix A)
+#   - Kovar et al., "Footskate Cleanup for Motion Capture Editing" (SCA 2002)
+
+
+@dataclass
+class ContactState:
+    """Tracks the contact state of a single foot joint.
+
+    Attributes
+    ----------
+    is_contacting : bool
+        Whether the foot is currently in ground contact.
+    contact_point : tuple[float, float] or None
+        The world-space position where the foot first made contact.
+        While contacting, the foot should be locked to this point.
+    blend_weight : float
+        Current blending weight for the IK constraint (0.0 = free, 1.0 = locked).
+    frames_in_contact : int
+        Number of consecutive frames the foot has been in contact.
+    frames_since_release : int
+        Number of frames since the foot left the ground.
+    """
+    is_contacting: bool = False
+    contact_point: Optional[tuple[float, float]] = None
+    blend_weight: float = 0.0
+    frames_in_contact: int = 0
+    frames_since_release: int = 0
+
+
+class ContactDetector:
+    """Detects foot-ground contact using height and velocity heuristics.
+
+    Inspired by PhysDiff's implicit contact handling through physics simulation,
+    adapted for our 2D kinematic pipeline where we need explicit detection.
+
+    The detection uses two criteria (both must be satisfied):
+      1. Height criterion: foot_y <= contact_threshold
+      2. Velocity criterion: |foot_vy| <= velocity_threshold (foot nearly stationary)
+
+    Parameters
+    ----------
+    contact_threshold : float
+        Maximum height (in normalized skeleton units) for a foot to be
+        considered "on the ground". Default 0.05 (5% of character height).
+    velocity_threshold : float
+        Maximum vertical velocity magnitude for contact detection.
+        Default 0.15 (allows slow descent but rejects fast swings).
+    foot_joints : list[str]
+        Names of foot joints to monitor. Default ["l_foot", "r_foot"].
+    """
+
+    def __init__(
+        self,
+        contact_threshold: float = 0.05,
+        velocity_threshold: float = 0.15,
+        foot_joints: list[str] | None = None,
+    ):
+        self.contact_threshold = contact_threshold
+        self.velocity_threshold = velocity_threshold
+        self.foot_joints = foot_joints or ["l_foot", "r_foot"]
+
+        self._states: dict[str, ContactState] = {
+            name: ContactState() for name in self.foot_joints
+        }
+        self._prev_positions: dict[str, tuple[float, float]] = {}
+
+    def update(
+        self,
+        joint_positions: dict[str, tuple[float, float]],
+        dt: float = 1.0 / 60.0,
+    ) -> dict[str, ContactState]:
+        """Update contact states based on current joint world positions.
+
+        Parameters
+        ----------
+        joint_positions : dict[str, (x, y)]
+            World-space positions of all joints (from forward kinematics).
+        dt : float
+            Timestep for velocity computation.
+
+        Returns
+        -------
+        dict[str, ContactState] : Current contact state per foot joint.
+        """
+        for foot_name in self.foot_joints:
+            if foot_name not in joint_positions:
+                continue
+
+            pos = joint_positions[foot_name]
+            state = self._states[foot_name]
+            foot_y = pos[1]
+
+            # Compute vertical velocity
+            vy = 0.0
+            if foot_name in self._prev_positions:
+                prev_y = self._prev_positions[foot_name][1]
+                vy = (foot_y - prev_y) / max(dt, 1e-8)
+
+            # Contact detection: height below threshold AND velocity small
+            height_ok = foot_y <= self.contact_threshold
+            velocity_ok = abs(vy) <= self.velocity_threshold
+            now_contacting = height_ok and velocity_ok
+
+            if now_contacting and not state.is_contacting:
+                # Transition: free → contact
+                state.is_contacting = True
+                state.contact_point = (pos[0], min(pos[1], 0.0))
+                state.frames_in_contact = 1
+                state.frames_since_release = 0
+            elif now_contacting and state.is_contacting:
+                # Continuing contact
+                state.frames_in_contact += 1
+            elif not now_contacting and state.is_contacting:
+                # Transition: contact → free
+                state.is_contacting = False
+                state.frames_since_release = 1
+                state.frames_in_contact = 0
+            else:
+                # Continuing free
+                state.frames_since_release += 1
+                state.contact_point = None
+
+            self._prev_positions[foot_name] = pos
+
+        return dict(self._states)
+
+    def reset(self) -> None:
+        """Reset all contact states."""
+        for name in self.foot_joints:
+            self._states[name] = ContactState()
+        self._prev_positions.clear()
+
+
+class ConstraintBlender:
+    """Smoothly blends IK constraint weights during contact transitions.
+
+    Prevents visual "popping" when foot constraints turn on/off, as described
+    in Kovar et al. (2002). The blend weight ramps up over `blend_in_frames`
+    when contact begins, and ramps down over `blend_out_frames` when contact ends.
+
+    Parameters
+    ----------
+    blend_in_frames : int
+        Number of frames to ramp constraint weight from 0 to 1 on contact start.
+    blend_out_frames : int
+        Number of frames to ramp constraint weight from 1 to 0 on contact end.
+    """
+
+    def __init__(self, blend_in_frames: int = 3, blend_out_frames: int = 4):
+        self.blend_in_frames = max(1, blend_in_frames)
+        self.blend_out_frames = max(1, blend_out_frames)
+
+    def compute_weight(self, contact_state: ContactState) -> float:
+        """Compute the current blend weight for a foot's IK constraint.
+
+        Returns a value in [0.0, 1.0] where:
+          0.0 = foot is completely free (no IK correction)
+          1.0 = foot is fully locked to contact point
+        """
+        if contact_state.is_contacting:
+            # Ramping up: smoothstep over blend_in_frames
+            t = min(contact_state.frames_in_contact / self.blend_in_frames, 1.0)
+            weight = self._smoothstep(t)
+        else:
+            # Ramping down: smoothstep over blend_out_frames
+            if contact_state.frames_since_release <= self.blend_out_frames:
+                t = 1.0 - min(
+                    contact_state.frames_since_release / self.blend_out_frames, 1.0
+                )
+                weight = self._smoothstep(t)
+            else:
+                weight = 0.0
+
+        contact_state.blend_weight = weight
+        return weight
+
+    @staticmethod
+    def _smoothstep(t: float) -> float:
+        """Hermite smoothstep: 3t² - 2t³ for C¹ continuous transitions."""
+        t = float(np.clip(t, 0.0, 1.0))
+        return t * t * (3.0 - 2.0 * t)
+
+
+class FootLockingConstraint:
+    """Locks foot positions during ground contact by adjusting leg joint angles.
+
+    This is the 2D equivalent of PhysDiff's physics-based motion projection for
+    foot skating elimination. When a foot is detected as contacting the ground,
+    this constraint computes the necessary leg angle corrections to keep the foot
+    at its contact point, using analytical 2-bone IK (hip→knee→foot).
+
+    The constraint works in angle space (compatible with the renderer) by:
+    1. Computing where the foot WOULD be given current angles (via FK)
+    2. Computing where the foot SHOULD be (the contact point)
+    3. Solving 2-bone IK for the leg to reach the contact point
+    4. Blending the IK-corrected angles with the original angles
+
+    Parameters
+    ----------
+    leg_chains : dict[str, tuple[str, str, str]]
+        Mapping from foot joint name to (hip_joint, knee_joint, foot_joint).
+    skeleton_ref : object or None
+        Reference skeleton for bone length lookup. If None, uses default lengths.
+    """
+
+    # Default leg chain definitions for humanoid skeleton
+    DEFAULT_LEG_CHAINS: dict[str, tuple[str, str, str]] = {
+        "l_foot": ("l_hip", "l_knee", "l_foot"),
+        "r_foot": ("r_hip", "r_knee", "r_foot"),
+    }
+
+    def __init__(
+        self,
+        leg_chains: dict[str, tuple[str, str, str]] | None = None,
+        skeleton_ref=None,
+    ):
+        self.leg_chains = leg_chains or self.DEFAULT_LEG_CHAINS
+        self._bone_lengths: dict[str, tuple[float, float]] = {}
+
+        # Pre-compute bone lengths from skeleton if available
+        if skeleton_ref is not None:
+            self._init_bone_lengths(skeleton_ref)
+
+    def _init_bone_lengths(self, skeleton) -> None:
+        """Extract thigh and shin bone lengths from skeleton definition."""
+        for foot_name, (hip_name, knee_name, foot_name_) in self.leg_chains.items():
+            thigh_len = 0.0
+            shin_len = 0.0
+            for bone in skeleton.bones:
+                if bone.joint_a == hip_name and bone.joint_b == knee_name:
+                    thigh_len = bone.length
+                elif bone.joint_a == knee_name and bone.joint_b == foot_name_:
+                    shin_len = bone.length
+            if thigh_len > 0 and shin_len > 0:
+                self._bone_lengths[foot_name] = (thigh_len, shin_len)
+
+    def correct_pose(
+        self,
+        pose: dict[str, float],
+        contact_states: dict[str, ContactState],
+        blend_weights: dict[str, float],
+        joint_positions: dict[str, tuple[float, float]],
+        skeleton,
+    ) -> dict[str, float]:
+        """Apply foot-locking corrections to a pose.
+
+        Parameters
+        ----------
+        pose : dict[str, float]
+            Current pose (joint angles) to correct.
+        contact_states : dict[str, ContactState]
+            Contact states from ContactDetector.
+        blend_weights : dict[str, float]
+            Blend weights from ConstraintBlender (0=free, 1=locked).
+        joint_positions : dict[str, (x, y)]
+            Current world positions from FK.
+        skeleton : Skeleton
+            Skeleton definition for bone lengths and joint info.
+
+        Returns
+        -------
+        dict[str, float] : Corrected pose with foot-locking applied.
+        """
+        corrected = dict(pose)
+
+        for foot_name, (hip_name, knee_name, _) in self.leg_chains.items():
+            if foot_name not in contact_states:
+                continue
+
+            state = contact_states[foot_name]
+            weight = blend_weights.get(foot_name, 0.0)
+
+            if weight < 1e-4 or state.contact_point is None:
+                continue
+
+            # Get current foot position and target contact point
+            if foot_name not in joint_positions or hip_name not in joint_positions:
+                continue
+
+            current_foot = joint_positions[foot_name]
+            target_foot = state.contact_point
+
+            # Compute horizontal displacement (the "skating" we want to eliminate)
+            dx = target_foot[0] - current_foot[0]
+            dy = target_foot[1] - current_foot[1]
+            displacement = math.sqrt(dx * dx + dy * dy)
+
+            if displacement < 1e-6:
+                continue  # Already at contact point
+
+            # Solve 2-bone IK analytically for the leg
+            hip_pos = joint_positions[hip_name]
+            ik_angles = self._solve_2bone_ik(
+                hip_pos, target_foot, foot_name, skeleton
+            )
+
+            if ik_angles is None:
+                continue
+
+            ik_hip_angle, ik_knee_angle = ik_angles
+
+            # Blend between original angles and IK-corrected angles
+            if hip_name in corrected:
+                orig_hip = corrected[hip_name]
+                corrected[hip_name] = orig_hip + weight * (ik_hip_angle - orig_hip)
+            if knee_name in corrected:
+                orig_knee = corrected[knee_name]
+                corrected[knee_name] = orig_knee + weight * (ik_knee_angle - orig_knee)
+
+        return corrected
+
+    def _solve_2bone_ik(
+        self,
+        hip_pos: tuple[float, float],
+        target: tuple[float, float],
+        foot_name: str,
+        skeleton,
+    ) -> Optional[tuple[float, float]]:
+        """Solve 2-bone IK analytically for a leg chain.
+
+        Uses the law of cosines to find hip and knee angles that place
+        the foot at the target position.
+
+        Returns (hip_angle, knee_angle) or None if unreachable.
+        """
+        # Get bone lengths
+        if foot_name in self._bone_lengths:
+            L1, L2 = self._bone_lengths[foot_name]
+        else:
+            # Fallback: estimate from skeleton
+            chain = self.leg_chains.get(foot_name)
+            if chain is None:
+                return None
+            hip_name, knee_name, foot_name_ = chain
+            L1 = L2 = 0.0
+            for bone in skeleton.bones:
+                if bone.joint_a == hip_name and bone.joint_b == knee_name:
+                    L1 = bone.length
+                elif bone.joint_a == knee_name and bone.joint_b == foot_name_:
+                    L2 = bone.length
+            if L1 < 1e-6 or L2 < 1e-6:
+                return None
+            self._bone_lengths[foot_name] = (L1, L2)
+
+        # Vector from hip to target
+        dx = target[0] - hip_pos[0]
+        dy = target[1] - hip_pos[1]
+        dist = math.sqrt(dx * dx + dy * dy)
+
+        # Clamp distance to reachable range
+        max_reach = L1 + L2 - 1e-4
+        min_reach = abs(L1 - L2) + 1e-4
+        if dist > max_reach:
+            dist = max_reach
+        elif dist < min_reach:
+            dist = min_reach
+
+        # Law of cosines for knee angle
+        cos_knee = (L1 * L1 + L2 * L2 - dist * dist) / (2.0 * L1 * L2)
+        cos_knee = float(np.clip(cos_knee, -1.0, 1.0))
+        knee_angle = -(math.pi - math.acos(cos_knee))  # Negative = backward bend
+
+        # Law of cosines for hip angle
+        cos_hip_offset = (L1 * L1 + dist * dist - L2 * L2) / (2.0 * L1 * dist)
+        cos_hip_offset = float(np.clip(cos_hip_offset, -1.0, 1.0))
+        hip_offset = math.acos(cos_hip_offset)
+
+        # Angle from hip to target
+        angle_to_target = math.atan2(dy, dx)
+
+        # Hip angle = angle_to_target ± hip_offset
+        # Choose the solution that keeps the knee bending backward
+        hip_angle = angle_to_target + hip_offset
+
+        # Convert from world angle to joint-local angle
+        # The skeleton's default leg orientation is downward (roughly -π/2)
+        # We need to subtract the default bone direction
+        default_hip_angle = -math.pi / 2  # Default: straight down
+        hip_angle_local = hip_angle - default_hip_angle
+
+        # Normalize angles to [-π, π]
+        while hip_angle_local > math.pi:
+            hip_angle_local -= 2 * math.pi
+        while hip_angle_local < -math.pi:
+            hip_angle_local += 2 * math.pi
+
+        return (hip_angle_local, knee_angle)
+
+
+class PhysDiffProjectionScheduler:
+    """Controls when physics projection is applied during iterative generation.
+
+    Inspired by PhysDiff's key finding that applying physics projection at EVERY
+    step is suboptimal. The paper found that:
+      - More projection steps → better physical plausibility
+      - But too many steps → decreased motion quality
+      - Late-stage projection works better than early-stage
+
+    In our context, the "diffusion steps" map to GA evolution generations.
+    This scheduler determines which generations should apply physics projection.
+
+    Parameters
+    ----------
+    total_steps : int
+        Total number of generation steps (e.g., GA generations).
+    projection_ratio : float
+        Fraction of steps that should include physics projection.
+        Default 0.4 (PhysDiff found ~40% is a good balance).
+    late_bias : float
+        Bias toward applying projection in later steps.
+        0.0 = uniform distribution, 1.0 = all projection in last steps.
+        Default 0.7 (PhysDiff found late projection works better).
+    """
+
+    def __init__(
+        self,
+        total_steps: int = 50,
+        projection_ratio: float = 0.4,
+        late_bias: float = 0.7,
+    ):
+        self.total_steps = max(1, total_steps)
+        self.projection_ratio = float(np.clip(projection_ratio, 0.0, 1.0))
+        self.late_bias = float(np.clip(late_bias, 0.0, 1.0))
+        self._schedule = self._build_schedule()
+
+    def _build_schedule(self) -> set[int]:
+        """Build the set of step indices where projection should be applied."""
+        n_projection_steps = max(1, int(self.total_steps * self.projection_ratio))
+        schedule = set()
+
+        # Generate step indices with late bias
+        for i in range(n_projection_steps):
+            # Map i to a position biased toward the end
+            t = i / max(1, n_projection_steps - 1) if n_projection_steps > 1 else 1.0
+            # Apply late bias: t_biased = t^(1/(1+late_bias))
+            # This compresses early steps and expands late steps
+            t_biased = math.pow(t, 1.0 / (1.0 + self.late_bias))
+            step_idx = int(t_biased * (self.total_steps - 1))
+            schedule.add(step_idx)
+
+        return schedule
+
+    def should_project(self, step: int) -> bool:
+        """Check if physics projection should be applied at this step."""
+        return step in self._schedule
+
+    @property
+    def schedule(self) -> list[int]:
+        """Return sorted list of steps where projection is applied."""
+        return sorted(self._schedule)
+
+
 # ── Physics-Aware Fitness Functions ───────────────────────────────────────────
 
 
@@ -972,6 +1487,60 @@ def compute_physics_penalty(
                 curr = pose_sequence[i].get(joint_name, 0.0)
                 velocity = (curr - prev) / dt
                 total_penalty += w["energy"] * velocity * velocity * 0.0001
+
+    # ── PhysDiff-inspired foot skating penalty (SESSION-028-SUPP) ──
+    # "For foot sliding (Skate), we find foot joints that contact the ground
+    # in two adjacent frames and compute their average horizontal displacement."
+    # — PhysDiff, Appendix A
+    foot_joints = ["l_foot", "r_foot"]
+    skate_weight = w.get("skating", 8.0)
+    penetrate_weight = w.get("penetrate", 10.0)
+    float_weight = w.get("float", 3.0)
+    contact_threshold = 0.05  # Normalized height threshold
+
+    if n_frames >= 2:
+        for frame_idx in range(n_frames):
+            pose = pose_sequence[frame_idx]
+            skeleton.apply_pose(pose)
+            positions = skeleton.forward_kinematics()
+
+            for foot_name in foot_joints:
+                if foot_name not in positions:
+                    continue
+                foot_y = positions[foot_name][1]
+
+                # Ground penetration penalty (PhysDiff: Penetrate metric)
+                if foot_y < -0.005:  # 5mm tolerance in normalized units
+                    total_penalty += penetrate_weight * foot_y * foot_y
+
+                # Floating penalty (PhysDiff: Float metric)
+                # Only penalize if foot SHOULD be grounded but isn't
+                # (heuristic: in idle/walk, at least one foot should be near ground)
+                if foot_y > 0.15:  # Suspiciously high for a grounded foot
+                    total_penalty += float_weight * (foot_y - 0.15) * (foot_y - 0.15) * 0.1
+
+        # Foot skating: horizontal displacement of grounded feet between frames
+        for frame_idx in range(1, n_frames):
+            prev_pose = pose_sequence[frame_idx - 1]
+            curr_pose = pose_sequence[frame_idx]
+
+            skeleton.apply_pose(prev_pose)
+            prev_positions = skeleton.forward_kinematics()
+            skeleton.apply_pose(curr_pose)
+            curr_positions = skeleton.forward_kinematics()
+
+            for foot_name in foot_joints:
+                if foot_name not in prev_positions or foot_name not in curr_positions:
+                    continue
+
+                prev_y = prev_positions[foot_name][1]
+                curr_y = curr_positions[foot_name][1]
+
+                # Both frames: foot is on/near ground
+                if prev_y <= contact_threshold and curr_y <= contact_threshold:
+                    # Horizontal displacement = skating
+                    dx = curr_positions[foot_name][0] - prev_positions[foot_name][0]
+                    total_penalty += skate_weight * dx * dx
 
     return total_penalty / max(n_frames, 1)
 

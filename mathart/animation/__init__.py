@@ -23,6 +23,9 @@ from .physics_projector import (
     JointPhysicsConfig, CognitiveMotionConfig,
     DEFAULT_JOINT_PHYSICS, PENNER_EASING_FUNCTIONS,
     compute_physics_penalty,
+    # SESSION-028-SUPP: PhysDiff foot contact & skating cleanup
+    ContactDetector, ContactState, ConstraintBlender,
+    FootLockingConstraint, PhysDiffProjectionScheduler,
 )
 # SESSION-027: Semantic genotype system
 from .genotype import (
@@ -60,4 +63,7 @@ __all__ = [
     "JointPhysicsConfig", "CognitiveMotionConfig",
     "DEFAULT_JOINT_PHYSICS", "PENNER_EASING_FUNCTIONS",
     "compute_physics_penalty",
+    # SESSION-028-SUPP: PhysDiff foot contact & skating cleanup
+    "ContactDetector", "ContactState", "ConstraintBlender",
+    "FootLockingConstraint", "PhysDiffProjectionScheduler",
 ]
