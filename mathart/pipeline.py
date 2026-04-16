@@ -75,6 +75,12 @@ from .animation.genotype import (
     CharacterGenotype, GENOTYPE_PRESETS, BODY_TEMPLATES,
     mutate_genotype, crossover_genotypes,
 )
+# SESSION-029: Biomechanics engine (ZMP/CoM, IPM, Skating Cleanup, FABRIK Gait)
+from .animation.biomechanics import (
+    BiomechanicsProjector, ZMPAnalyzer, InvertedPendulumModel,
+    SkatingCleanupCalculus, FABRIKGaitGenerator,
+    compute_biomechanics_penalty,
+)
 
 
 # ── Shape Library ─────────────────────────────────────────────────────────────
@@ -179,6 +185,12 @@ class CharacterSpec:
     use_genotype: bool = False
     genotype: Optional[CharacterGenotype] = None
     evolution_crossover_rate: float = 0.25
+    # SESSION-029: Biomechanics engine
+    enable_biomechanics: bool = True
+    biomechanics_zmp: bool = True
+    biomechanics_ipm: bool = True
+    biomechanics_skating_cleanup: bool = True
+    biomechanics_zmp_strength: float = 0.3
 
 
 CHARACTER_ANIMATION_MAP: dict[str, Callable[[float], dict[str, float]]] = {
@@ -1483,6 +1495,7 @@ class AssetPipeline:
                     "outline": char_spec.enable_outline,
                     "lighting": char_spec.enable_lighting,
                     "physics": char_spec.enable_physics,
+                    "biomechanics": char_spec.enable_biomechanics,
                 },
                 "physics_config": {
                     "enabled": char_spec.enable_physics,
@@ -1490,6 +1503,20 @@ class AssetPipeline:
                     "damping_scale": char_spec.physics_damping,
                     "cognitive_strength": char_spec.physics_cognitive_strength,
                     "engine": "AnglePoseProjector (PhysDiff-inspired)",
+                },
+                "biomechanics_config": {
+                    "enabled": char_spec.enable_biomechanics,
+                    "zmp_balance": char_spec.biomechanics_zmp,
+                    "inverted_pendulum_model": char_spec.biomechanics_ipm,
+                    "skating_cleanup_calculus": char_spec.biomechanics_skating_cleanup,
+                    "zmp_correction_strength": char_spec.biomechanics_zmp_strength,
+                    "engine": "BiomechanicsProjector (SESSION-029: ZMP/CoM + IPM + SkatingCleanup + FABRIK)",
+                    "references": [
+                        "Vukobratovic & Borovac, Zero-Moment Point (Humanoids 2001)",
+                        "Kajita et al., 3D-LIPM (IEEE IROS 2001)",
+                        "Kovar et al., Footskate Cleanup (SCA 2002)",
+                        "Aristidou & Lasenby, FABRIK (Graphical Models 2011)",
+                    ],
                 },
                 "genotype": genotype_used.to_dict() if genotype_used is not None else None,
             },
@@ -1523,6 +1550,26 @@ class AssetPipeline:
                 skeleton_ref=_physics_skeleton,
             )
 
+        # SESSION-029: Initialize biomechanics projector if enabled
+        _biomechanics_projector = None
+        if char_spec.enable_biomechanics:
+            _biomechanics_skeleton = Skeleton.create_humanoid(
+                head_units=char_spec.head_units
+            )
+            _biomechanics_projector = BiomechanicsProjector(
+                skeleton=_biomechanics_skeleton,
+                enable_zmp=char_spec.biomechanics_zmp,
+                enable_ipm=char_spec.biomechanics_ipm,
+                enable_skating_cleanup=char_spec.biomechanics_skating_cleanup,
+                zmp_correction_strength=char_spec.biomechanics_zmp_strength,
+            )
+            self._log(
+                f"Biomechanics projector enabled: "
+                f"ZMP={char_spec.biomechanics_zmp}, "
+                f"IPM={char_spec.biomechanics_ipm}, "
+                f"SkatingCleanup={char_spec.biomechanics_skating_cleanup}"
+            )
+
         for state in char_spec.states:
             anim_func = CHARACTER_ANIMATION_MAP.get(state)
             if anim_func is None:
@@ -1539,6 +1586,10 @@ class AssetPipeline:
             if _physics_projector is not None:
                 _physics_projector.reset()
 
+            # SESSION-029: Reset biomechanics projector for each state
+            if _biomechanics_projector is not None:
+                _biomechanics_projector.reset()
+
             frames: list[Image.Image] = []
             frame_scores: list[float] = []
             for i in range(frame_count):
@@ -1549,6 +1600,16 @@ class AssetPipeline:
                 if _physics_projector is not None:
                     dt = 1.0 / max(1, char_spec.fps)
                     pose = _physics_projector.step(pose, dt=dt)
+
+                # SESSION-029: Apply biomechanics corrections
+                # Runs after physics projector for layered refinement:
+                # raw → physics (spring-damper) → biomechanics (ZMP/IPM/skating)
+                if _biomechanics_projector is not None:
+                    dt_bio = 1.0 / max(1, char_spec.fps)
+                    gait_phase = t if state in ("run", "idle") else None
+                    pose = _biomechanics_projector.step(
+                        pose, dt=dt_bio, gait_phase=gait_phase
+                    )
 
                 skeleton = Skeleton.create_humanoid(head_units=char_spec.head_units)
                 frame = render_character_frame(

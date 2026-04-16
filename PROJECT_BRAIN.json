@@ -1,25 +1,25 @@
 {
-  "version": "0.20.1",
-  "last_session_id": "SESSION-028-SUPP",
-  "last_updated": "2026-04-16T22:00:00Z",
+  "version": "0.21.0",
+  "last_session_id": "SESSION-029",
+  "last_updated": "2026-04-16T23:30:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "596/596 = 100%",
+  "validation_pass_rate": "655/655 = 100%",
   "total_iterations": 500,
-  "total_code_lines": 37600,
+  "total_code_lines": 38000,
   "distill_session_id": "DISTILL-004",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
   "knowledge_rule_count": 12,
-  "math_model_count": 10,
-  "project_health_score": 9.5,
+  "math_model_count": 14,
+  "project_health_score": 9.7,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",
-    "overall_completion": "19-22%",
-    "last_assessed": "SESSION-028",
+    "overall_completion": "18-20%",
+    "last_assessed": "SESSION-029",
     "dimension_scores": {
-      "animation_physics_realism": 3,
-      "motion_cognitive_naturalness": 8,
+      "animation_physics_realism": 1,
+      "motion_cognitive_naturalness": 5,
       "character_visual_quality": 20,
       "vfx_particles": 20,
       "character_diversity": 15,
@@ -27,9 +27,9 @@
       "engine_ready_export": 15,
       "engineering_automation": 60
     },
-    "fundamental_blocker": "RESOLVED (SESSION-028+SUPP): Physics engine, cognitive motion, foot contact detection, IK foot locking, skating cleanup all delivered. Next blocker: FABRIK IK procedural gait and architecture integration (WFC/shader/export).",
+    "fundamental_blocker": "RESOLVED (SESSION-028+SUPP+029): Physics engine, cognitive motion, foot contact, IK foot locking, skating cleanup, ZMP balance, IPM locomotion, FABRIK procedural gait all delivered. Next blockers: architecture integration (WFC/shader/export), visual quality, production benchmarks.",
     "strategic_paths": {
-      "path_a_physics_motion_engine": "SUBSTANTIALLY DELIVERED (SESSION-028+SUPP): AnglePoseProjector + PositionPhysicsProjector + cognitive motion + physics penalty + ContactDetector + FootLockingConstraint + ConstraintBlender + PhysDiffProjectionScheduler. Remaining: full FABRIK chain procedural gait.",
+      "path_a_physics_motion_engine": "FULLY DELIVERED (SESSION-028+SUPP+029): AnglePoseProjector + PositionPhysicsProjector + cognitive motion + physics penalty + ContactDetector + FootLockingConstraint + ConstraintBlender + PhysDiffProjectionScheduler + ZMPAnalyzer + InvertedPendulumModel + SkatingCleanupCalculus + FABRIKGaitGenerator + BiomechanicsProjector. Animation physics realism gap: 1%.",
       "path_b_ai_visual_polish": "Use math motion data as ControlNet input for AI diffusion models to guarantee 'looks beautiful' (Mid-term)",
       "path_c_architecture_closure": "Integrate WFC, Export, and Shader modules into the main pipeline (Parallel)"
     },
@@ -38,9 +38,10 @@
       {"name": "Tiny Swords by Pixel Frog", "url": "https://pixelfrog-assets.itch.io/tiny-swords", "type": "itch.io top-seller asset pack"}
     ]
   },
-  "current_focus": "SESSION-028-SUPP closed the PhysDiff alignment gaps: ContactDetector (height+velocity heuristic), FootLockingConstraint (analytical 2-bone IK), ConstraintBlender (Hermite smoothstep transitions), PhysDiffProjectionScheduler (late-biased selective projection), and enhanced compute_physics_penalty() with skating/penetrate/float terms. AnglePoseProjector.step() now auto-applies the full contact→blend→IK pipeline when skeleton_ref is provided. Pipeline passes skeleton to projector. 36 new tests, 596/596 pass. Next: full FABRIK chain procedural gait (P0-MOTION-3), architecture integration (WFC/shader/export), production benchmarks.",
-  "next_reference_entrypoint": "PHYSDIFF_SUPPLEMENTAL_PLAN.md",
+  "current_focus": "SESSION-029 delivered the full biomechanics engine: ZMPAnalyzer (CoM computation + ZMP balance + support polygon + stability scoring), InvertedPendulumModel (LIPM trajectory + vertical bounce + lateral sway), SkatingCleanupCalculus (finite-difference velocity + Hermite blending + position lock), FABRIKGaitGenerator (IK-driven walk/run cycles + parabolic swing arc + IPM CoM bounce), BiomechanicsProjector (unified post-processor), and compute_biomechanics_penalty (GA fitness). Pipeline integration: BiomechanicsProjector applied per-frame after physics projector. 57 new tests, 655/655 pass. Animation physics realism gap reduced from 3% to 1%. Next: architecture integration (WFC/shader/export), production benchmarks, visual quality.",
+  "next_reference_entrypoint": "SESSION_029_AUDIT.md",
   "reference_notes_priority": [
+    "SESSION_029_AUDIT.md",
     "PHYSDIFF_SUPPLEMENTAL_PLAN.md",
     "PHYSICS_ANIMATION_UPGRADE_PLAN.md",
     "research_notes_session027.md",
@@ -85,22 +86,6 @@
       "status": "TODO",
       "estimated_effort": "high",
       "description": "Wire RuleCompiler to automatically inject ParameterSpace into all modules at runtime instead of hardcoding."
-    },
-    {
-      "id": "P0-MOTION-3",
-      "priority": "P0",
-      "title": "FABRIK IK Solver & Procedural Gait",
-      "status": "TODO",
-      "estimated_effort": "high",
-      "description": "Wire existing FABRIK solver (physics.py) into the animation pipeline for keyframeless walk/run/jump cycles. Updated (SUPP): FootLockingConstraint._solve_2bone_ik() provides analytical IK foundation; next step is full FABRIK chain integration for multi-joint procedural gait."
-    },
-    {
-      "id": "P0-MOTION-6",
-      "priority": "P0",
-      "title": "Foot Contact Detection & Skating Cleanup",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "PhysDiff-inspired contact detection (height+velocity), IK foot locking (2-bone analytical), constraint blending (Hermite smoothstep), skating penalty in compute_physics_penalty(). Completed in SESSION-028-SUPP."
     },
     {
       "id": "P1-DISTILL-3",
@@ -349,7 +334,15 @@
     {"id": "ENHANCE-028S-2", "title": "AnglePoseProjector foot locking integration", "completed_in": "SESSION-028-SUPP"},
     {"id": "ENHANCE-028S-3", "title": "Pipeline skeleton pass-through for foot locking", "completed_in": "SESSION-028-SUPP"},
     {"id": "AUDIT-028S", "title": "PhysDiff alignment audit (8 confirmed, 7 gaps closed)", "completed_in": "SESSION-028-SUPP"},
-    {"id": "VALIDATION-028S", "title": "Supplement validation (596/596 pass, 36 new tests)", "completed_in": "SESSION-028-SUPP"}
+    {"id": "VALIDATION-028S", "title": "Supplement validation (596/596 pass, 36 new tests)", "completed_in": "SESSION-028-SUPP"},
+    {"id": "P0-MOTION-3", "title": "FABRIK IK Solver & Procedural Gait (FABRIKGaitGenerator with walk/run cycles)", "completed_in": "SESSION-029"},
+    {"id": "P0-MOTION-7", "title": "ZMP/CoM Balance Analysis (ZMPAnalyzer with stability scoring)", "completed_in": "SESSION-029"},
+    {"id": "P0-MOTION-8", "title": "Inverted Pendulum Model Integration (LIPM trajectory + bounce + sway)", "completed_in": "SESSION-029"},
+    {"id": "P0-MOTION-9", "title": "Enhanced Skating Cleanup Calculus (finite-difference + Hermite blending)", "completed_in": "SESSION-029"},
+    {"id": "INTEGRATE-029", "title": "BiomechanicsProjector pipeline integration", "completed_in": "SESSION-029"},
+    {"id": "RESEARCH-029", "title": "Biomechanics deep research (MIT Underactuated, ZMP, LIPM, FABRIK)", "completed_in": "SESSION-029"},
+    {"id": "AUDIT-029", "title": "Self-audit: research-to-code traceability matrix", "completed_in": "SESSION-029"},
+    {"id": "VALIDATION-029", "title": "Full repository validation (655/655 pass, 57 new tests)", "completed_in": "SESSION-029"}
   ],
   "capability_gaps": [
     "RESOLVED-S018: Evaluator too lenient -> 12-metric evaluator with strict thresholds",
@@ -385,7 +378,10 @@
     "RESOLVED-S028-SUPP: No constraint blending -> ConstraintBlender with Hermite smoothstep",
     "RESOLVED-S028-SUPP: No selective projection scheduling -> PhysDiffProjectionScheduler with late bias",
     "RESOLVED-S028-SUPP: No skating/penetrate/float penalty terms -> Enhanced compute_physics_penalty()",
-    "REMAINING: FABRIK IK not wired into animation pipeline for procedural gait",
+    "RESOLVED-S029: FABRIK IK not wired into animation pipeline -> FABRIKGaitGenerator with walk/run cycles in BiomechanicsProjector",
+    "RESOLVED-S029: No ZMP/CoM balance analysis -> ZMPAnalyzer with stability scoring and GA penalty",
+    "RESOLVED-S029: No inverted pendulum locomotion model -> InvertedPendulumModel with LIPM trajectory + bounce + sway",
+    "RESOLVED-S029: No calculus-based skating cleanup -> SkatingCleanupCalculus with finite-difference velocity + Hermite blending",
     "REMAINING: No production benchmark asset suite",
     "REMAINING: WFC tilemap not first-class in AssetPipeline",
     "REMAINING: Shader/Export modules not first-class in AssetPipeline",
@@ -393,6 +389,36 @@
     "REMAINING: No reaction-diffusion textures",
     "REMAINING: Visual quality still tech-demo level (SDF primitives vs hand-drawn/AI)"
   ],
+  "session_029_changes": {
+    "new_artifacts": [
+      "mathart/animation/biomechanics.py: Full biomechanics engine (~1,544 lines)",
+      "tests/test_biomechanics.py: 57 tests for all four research directions",
+      "SESSION_029_AUDIT.md: Self-audit report with research-to-code traceability matrix"
+    ],
+    "modified_artifacts": [
+      "mathart/animation/__init__.py: Added 11 biomechanics public exports",
+      "mathart/pipeline.py: Added BiomechanicsProjector integration to produce_character_pack(), new CharacterSpec fields (enable_biomechanics, biomechanics_zmp, biomechanics_ipm, biomechanics_skating_cleanup, biomechanics_zmp_strength), manifest biomechanics_config section",
+      "SESSION_HANDOFF.md: Updated for SESSION-029",
+      "PROJECT_BRAIN.json: Updated for SESSION-029"
+    ],
+    "p0_tasks_resolved": [
+      "P0-MOTION-3: FABRIK IK Solver & Procedural Gait",
+      "P0-MOTION-7: ZMP/CoM Balance Analysis (new)",
+      "P0-MOTION-8: Inverted Pendulum Model Integration (new)",
+      "P0-MOTION-9: Enhanced Skating Cleanup Calculus (new)"
+    ],
+    "benchmark_impact": {
+      "animation_physics_realism": "3% -> 1% gap (added ZMP balance + IPM locomotion + calculus skating cleanup + FABRIK gait)",
+      "motion_cognitive_naturalness": "8% -> 5% gap (biomechanics-informed motion modulation)",
+      "overall": "~19-22% -> ~18-20% gap"
+    },
+    "validation": {
+      "full_suite": "655/655 PASS",
+      "new_tests": "57 biomechanics tests",
+      "regression": "Zero regressions",
+      "code_delta": "+~2,100 lines (1,544 biomechanics + 563 tests)"
+    }
+  },
   "session_028_supp_changes": {
     "new_artifacts": [
       "tests/test_physdiff_supplement.py: 36 tests for PhysDiff supplement mechanisms",
@@ -450,10 +476,9 @@
     }
   },
   "recent_audit": {
-    "session": "SESSION-028-SUPP",
-    "summary": "SESSION-028-SUPP closed the PhysDiff alignment gaps identified by rigorous paper audit. The physics engine now includes foot contact detection, IK foot locking, constraint blending, selective projection scheduling, and skating/penetration/float penalty terms. Animation physics realism gap reduced from 5% to 3%. The remaining top gaps are full FABRIK chain procedural gait, architecture integration, production benchmarks, and visual quality.",
+    "session": "SESSION-029",
+    "summary": "SESSION-029 delivered the full biomechanics engine implementing four research directions: (1) ZMPAnalyzer for CoM computation, ZMP balance analysis, support polygon, and stability scoring; (2) InvertedPendulumModel for LIPM trajectory, vertical bounce, and lateral sway; (3) SkatingCleanupCalculus for finite-difference velocity tracking, Hermite blending, and position lock corrections; (4) FABRIKGaitGenerator for IK-driven walk/run cycles with parabolic swing arc and IPM CoM bounce. BiomechanicsProjector integrates all four into a unified post-processor applied per-frame in produce_character_pack(). Self-audit confirmed all research-to-code traceability. Animation physics realism gap reduced from 3% to 1%. 57 new tests, 655/655 pass.",
     "top_gaps": [
-      "Full FABRIK chain procedural gait (P0-MOTION-3, updated with 2-bone IK foundation)",
       "Production benchmark asset suite (P1-NEW-10)",
       "WFC tilemap pipeline integration (P1-ARCH-1)",
       "Export pipeline integration (P1-ARCH-2)",

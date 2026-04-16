@@ -34,6 +34,15 @@ from .genotype import (
     BODY_TEMPLATES, PART_REGISTRY, ARCHETYPE_TEMPLATES, GENOTYPE_PRESETS,
     mutate_genotype, crossover_genotypes, get_parts_for_slot,
 )
+# SESSION-029: Biomechanics engine (ZMP/CoM, IPM, Skating Cleanup, FABRIK Gait)
+from .biomechanics import (
+    ZMPAnalyzer, ZMPResult, InvertedPendulumModel, IPMState,
+    SkatingCleanupCalculus, SkatingCleanupState,
+    FABRIKGaitGenerator, GaitPhase,
+    BiomechanicsProjector,
+    compute_biomechanics_penalty,
+    DEFAULT_JOINT_MASSES,
+)
 
 __all__ = [
     "Skeleton", "Bone", "Joint",
@@ -66,4 +75,11 @@ __all__ = [
     # SESSION-028-SUPP: PhysDiff foot contact & skating cleanup
     "ContactDetector", "ContactState", "ConstraintBlender",
     "FootLockingConstraint", "PhysDiffProjectionScheduler",
+    # SESSION-029: Biomechanics engine
+    "ZMPAnalyzer", "ZMPResult", "InvertedPendulumModel", "IPMState",
+    "SkatingCleanupCalculus", "SkatingCleanupState",
+    "FABRIKGaitGenerator", "GaitPhase",
+    "BiomechanicsProjector",
+    "compute_biomechanics_penalty",
+    "DEFAULT_JOINT_MASSES",
 ]
