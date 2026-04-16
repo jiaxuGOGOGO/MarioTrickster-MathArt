@@ -77,8 +77,15 @@ from .phase_driven import (
     PhaseDrivenAnimator, PhaseVariable, GaitMode,
     PhaseInterpolator, PhaseChannel, KeyPose,
     phase_driven_walk, phase_driven_run,
+    phase_driven_walk_frame, phase_driven_run_frame,
     extract_phase_parameters, create_phase_channel_from_signal,
     WALK_KEY_POSES, RUN_KEY_POSES, WALK_CHANNELS, RUN_CHANNELS,
+)
+from .unified_motion import (
+    MotionRootTransform, MotionContactState,
+    UnifiedMotionFrame, UnifiedMotionClip,
+    MotionPipelineAuditEntry, MotionPipelineResult, MotionPipelineNode,
+    pose_to_umr, umr_to_pose, infer_contact_tags, run_motion_pipeline,
 )
 # SESSION-031: Distilled human math stack (SMPL/VPoser/DQ/Motion Matching)
 from .human_math import (
@@ -161,8 +168,14 @@ __all__ = [
     "PhaseDrivenAnimator", "PhaseVariable", "GaitMode",
     "PhaseInterpolator", "PhaseChannel", "KeyPose",
     "phase_driven_walk", "phase_driven_run",
+    "phase_driven_walk_frame", "phase_driven_run_frame",
     "extract_phase_parameters", "create_phase_channel_from_signal",
     "WALK_KEY_POSES", "RUN_KEY_POSES", "WALK_CHANNELS", "RUN_CHANNELS",
+    # SESSION-036: Unified Motion Representation (UMR)
+    "MotionRootTransform", "MotionContactState",
+    "UnifiedMotionFrame", "UnifiedMotionClip",
+    "MotionPipelineAuditEntry", "MotionPipelineResult", "MotionPipelineNode",
+    "pose_to_umr", "umr_to_pose", "infer_contact_tags", "run_motion_pipeline",
     # SESSION-031: Distilled human math stack
     "SMPLShapeLatent", "DistilledSMPLBodyModel",
     "PosePriorScore", "VPoserDistilledPrior",

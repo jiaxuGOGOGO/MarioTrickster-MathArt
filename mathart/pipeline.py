@@ -68,6 +68,16 @@ from .animation.character_presets import get_preset, CHARACTER_PRESETS
 from .animation.presets import (
     idle_animation, run_animation, jump_animation, fall_animation, hit_animation,
 )
+from .animation.phase_driven import phase_driven_run_frame, phase_driven_walk_frame
+from .animation.unified_motion import (
+    MotionPipelineNode,
+    MotionRootTransform,
+    UnifiedMotionClip,
+    UnifiedMotionFrame,
+    infer_contact_tags,
+    pose_to_umr,
+    run_motion_pipeline,
+)
 # SESSION-028: Physics-guided animation (PhysDiff-inspired)
 from .animation.physics_projector import AnglePoseProjector, CognitiveMotionConfig
 # SESSION-027: Semantic genotype system
@@ -1435,6 +1445,157 @@ class AssetPipeline:
         }
         return best_spec, best_style, best_palette, evolution_meta, history
 
+    def _infer_root_transform(
+        self,
+        state: str,
+        t: float,
+        *,
+        frame_index: int,
+        frame_count: int,
+        fps: int,
+    ) -> MotionRootTransform:
+        """Infer a lightweight root-motion track for the UMR contract."""
+        dt = 1.0 / max(1, fps)
+        progress = frame_index / max(1, frame_count - 1)
+        state_key = state.lower()
+
+        if state_key == "run":
+            distance = 0.28 * progress
+            return MotionRootTransform(x=distance, y=0.0, velocity_x=0.28 / max((frame_count - 1) * dt, dt), velocity_y=0.0)
+        if state_key == "walk":
+            distance = 0.16 * progress
+            return MotionRootTransform(x=distance, y=0.0, velocity_x=0.16 / max((frame_count - 1) * dt, dt), velocity_y=0.0)
+        if state_key == "jump":
+            x = 0.06 * progress
+            y = 0.18 * math.sin(math.pi * progress)
+            vy = 0.18 * math.pi * math.cos(math.pi * progress) / max((frame_count - 1) * dt, dt)
+            return MotionRootTransform(x=x, y=y, velocity_x=0.06 / max((frame_count - 1) * dt, dt), velocity_y=vy)
+        if state_key == "fall":
+            y = -0.22 * progress
+            return MotionRootTransform(x=0.0, y=y, velocity_x=0.0, velocity_y=-0.22 / max((frame_count - 1) * dt, dt))
+        if state_key == "hit":
+            x = -0.05 * math.sin(math.pi * progress)
+            return MotionRootTransform(x=x, y=0.0, velocity_x=0.0, velocity_y=0.0)
+        return MotionRootTransform(x=0.0, y=0.0, velocity_x=0.0, velocity_y=0.0)
+
+    def _build_umr_clip_for_state(
+        self,
+        state: str,
+        *,
+        frame_count: int,
+        fps: int,
+    ) -> UnifiedMotionClip:
+        """Build the base UMR clip before downstream filters are applied."""
+        state_key = state.lower()
+        frames: list[UnifiedMotionFrame] = []
+        dt = 1.0 / max(1, fps)
+        use_phase_generator = state_key in {"run", "walk"}
+
+        legacy_anim = CHARACTER_ANIMATION_MAP.get(state_key)
+        if not use_phase_generator and legacy_anim is None:
+            available = ", ".join(sorted(CHARACTER_ANIMATION_MAP))
+            raise ValueError(f"Unknown character state '{state_key}'. Available: {available}")
+
+        for i in range(frame_count):
+            t = i / max(1, frame_count)
+            time_s = i * dt
+            root = self._infer_root_transform(state_key, t, frame_index=i, frame_count=frame_count, fps=fps)
+            if state_key == "run":
+                frame = phase_driven_run_frame(
+                    t,
+                    time=time_s,
+                    frame_index=i,
+                    source_state=state_key,
+                    root_x=root.x,
+                    root_velocity_x=root.velocity_x,
+                    root_velocity_y=root.velocity_y,
+                )
+            elif state_key == "walk":
+                frame = phase_driven_walk_frame(
+                    t,
+                    time=time_s,
+                    frame_index=i,
+                    source_state=state_key,
+                    root_x=root.x,
+                    root_velocity_x=root.velocity_x,
+                    root_velocity_y=root.velocity_y,
+                )
+            else:
+                pose = legacy_anim(t)
+                frame = pose_to_umr(
+                    pose,
+                    time=time_s,
+                    phase=t,
+                    frame_index=i,
+                    source_state=state_key,
+                    root_transform=root,
+                    contact_tags=infer_contact_tags(t, state_key),
+                    metadata={
+                        "generator": "legacy_pose_adapter",
+                        "state": state_key,
+                    },
+                )
+            frames.append(frame)
+
+        return UnifiedMotionClip(
+            clip_id=f"{state_key}_clip",
+            state=state_key,
+            fps=max(1, fps),
+            frames=frames,
+            metadata={
+                "base_stage": "phase_or_legacy_generation",
+                "generator_mode": "phase_driven" if use_phase_generator else "legacy_pose_adapter",
+                "strict_contract": "UnifiedMotionFrame",
+            },
+        )
+
+    def _build_motion_nodes(
+        self,
+        physics_projector: Optional[AnglePoseProjector],
+        biomechanics_projector: Optional[BiomechanicsProjector],
+    ) -> list[MotionPipelineNode]:
+        nodes: list[MotionPipelineNode] = []
+        if physics_projector is not None:
+            nodes.append(
+                MotionPipelineNode(
+                    name="physics_compliance",
+                    stage="root_motion_to_compliance",
+                    processor=lambda frame, dt: physics_projector.step_frame(frame, dt=dt, enforce_layer_guard=True),
+                )
+            )
+        if biomechanics_projector is not None:
+            nodes.append(
+                MotionPipelineNode(
+                    name="biomechanics_grounding",
+                    stage="localized_grounding",
+                    processor=lambda frame, dt: biomechanics_projector.step_frame(frame, dt=dt, enforce_layer_guard=True),
+                )
+            )
+        return nodes
+
+    def _audit_umr_pipeline(self, clip: UnifiedMotionClip, audit_log: list[Any]) -> dict[str, Any]:
+        """Summarize whether the motion clip respected the intended layering contract."""
+        upper_body_override_flags = 0
+        grounded_frames = 0
+        for frame in clip.frames:
+            meta = frame.metadata
+            if meta.get("physics_layer_guard") and meta.get("biomechanics_layer_guard"):
+                grounded_frames += 1
+            if not meta.get("physics_layer_guard", True):
+                upper_body_override_flags += 1
+            if meta.get("biomechanics_projected") and not meta.get("biomechanics_layer_guard", True):
+                upper_body_override_flags += 1
+
+        return {
+            "frame_count": len(clip.frames),
+            "audit_entries": len(audit_log),
+            "grounding_guarded_frames": grounded_frames,
+            "upper_body_override_flags": upper_body_override_flags,
+            "node_order": clip.metadata.get("motion_pipeline", {}).get("node_order", []),
+            "stage_order": clip.metadata.get("motion_pipeline", {}).get("stage_order", []),
+            "contract": "UnifiedMotionFrame",
+        }
+
     def produce_character_pack(self, char_spec: CharacterSpec) -> AssetResult:
         """Produce a practical multi-state character asset pack.
 
@@ -1634,47 +1795,55 @@ class AssetPipeline:
                 f"SkatingCleanup={char_spec.biomechanics_skating_cleanup}"
             )
 
-        for state in char_spec.states:
-            anim_func = CHARACTER_ANIMATION_MAP.get(state)
-            if anim_func is None:
-                available = ", ".join(sorted(CHARACTER_ANIMATION_MAP))
-                raise ValueError(
-                    f"Unknown character state '{state}'. Available: {available}"
-                )
+        manifest["motion_contract"] = {
+            "name": "UnifiedMotionFrame",
+            "format": "umr_motion_clip_v1",
+            "pipeline_order": [
+                "intent_state_selection",
+                "phase_or_legacy_base_generation",
+                "root_motion",
+                "physics_compliance",
+                "localized_grounding",
+                "render_export",
+            ],
+            "required_fields": [
+                "time",
+                "phase",
+                "root_transform",
+                "joint_local_rotations",
+                "contact_tags",
+            ],
+        }
 
+        for state in char_spec.states:
             frame_count = max(1, int(char_spec.state_frames.get(state, char_spec.frames_per_state)))
             frame_duration_ms = max(16, 1000 // max(1, char_spec.fps))
             loop_flag = bool(char_spec.loop_overrides.get(state, state in {"idle", "run"}))
+            dt = 1.0 / max(1, char_spec.fps)
 
-            # SESSION-028: Reset physics projector for each state
             if _physics_projector is not None:
                 _physics_projector.reset()
-
-            # SESSION-029: Reset biomechanics projector for each state
             if _biomechanics_projector is not None:
                 _biomechanics_projector.reset()
 
+            base_clip = self._build_umr_clip_for_state(
+                state,
+                frame_count=frame_count,
+                fps=char_spec.fps,
+            )
+            pipeline_nodes = self._build_motion_nodes(_physics_projector, _biomechanics_projector)
+            motion_result = run_motion_pipeline(base_clip, pipeline_nodes, dt=dt)
+            motion_clip = motion_result.clip
+            motion_audit = self._audit_umr_pipeline(motion_clip, motion_result.audit_log)
+
+            umr_path = str(asset_dir / f"{char_spec.name}_{state}.umr.json")
+            motion_clip.save(umr_path)
+            output_paths.append(umr_path)
+
             frames: list[Image.Image] = []
             frame_scores: list[float] = []
-            for i in range(frame_count):
-                t = i / max(1, frame_count)
-                pose = anim_func(t)
-
-                # SESSION-028: Apply physics projection to raw pose
-                if _physics_projector is not None:
-                    dt = 1.0 / max(1, char_spec.fps)
-                    pose = _physics_projector.step(pose, dt=dt)
-
-                # SESSION-029: Apply biomechanics corrections
-                # Runs after physics projector for layered refinement:
-                # raw → physics (spring-damper) → biomechanics (ZMP/IPM/skating)
-                if _biomechanics_projector is not None:
-                    dt_bio = 1.0 / max(1, char_spec.fps)
-                    gait_phase = t if state in ("run", "idle") else None
-                    pose = _biomechanics_projector.step(
-                        pose, dt=dt_bio, gait_phase=gait_phase
-                    )
-
+            for motion_frame in motion_clip.frames:
+                pose = dict(motion_frame.joint_local_rotations)
                 skeleton = Skeleton.create_humanoid(head_units=char_spec.head_units)
                 frame = render_character_frame(
                     skeleton,
@@ -1744,6 +1913,15 @@ class AssetPipeline:
                 "frame_duration_ms": frame_duration_ms,
                 "score": state_score,
                 "frame_files": [os.path.basename(p) for p in frame_files],
+                "motion_bus": {
+                    "format": "umr_motion_clip_v1",
+                    "file": os.path.basename(umr_path),
+                    "audit": motion_audit,
+                    "contact_coverage": {
+                        "left_foot_frames": int(sum(1 for f in motion_clip.frames if f.contact_tags.left_foot)),
+                        "right_foot_frames": int(sum(1 for f in motion_clip.frames if f.contact_tags.right_foot)),
+                    },
+                },
                 "sheet_frames": [
                     {
                         "name": f"{char_spec.name}_{state}_{i}",
@@ -1791,6 +1969,9 @@ class AssetPipeline:
             "lowest_state_score": float(np.min(state_scores)) if state_scores else 0.0,
             "evolution_iterations": int(char_spec.evolution_iterations),
             "evolution_enabled": bool(char_spec.evolution_iterations > 0),
+            "umr_state_coverage": len(manifest["states"]),
+            "umr_contract": "UnifiedMotionFrame",
+            "umr_pipeline_ready_for_layer3": True,
         }
 
         manifest_path = str(asset_dir / f"{char_spec.name}_character_manifest.json")

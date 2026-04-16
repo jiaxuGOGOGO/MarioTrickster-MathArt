@@ -10,14 +10,15 @@
 3. **Read `SESSION_PROTOCOL.md`** — Session efficiency rules, anti-repetition process, and protocol trigger logic.
 4. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`** — Default method for precise, parallel, high-value external research. Includes Deep Reading Protocol rules for named north-star papers/repos.
 5. **Read `PROJECT_BRAIN.json`** — Machine-readable global state.
-6. **Read `research_session035_compliant_physics.md`** — SESSION-035 research synthesis for DeepMimic compliant PD tracking, AMP adversarial motion priors, and VPoser latent-space pose mutation.
-7. **Read `research_session034_industrial_rendering.md`** — SESSION-034 research synthesis for Motion Matching (Clavet GDC 2016), Dead Cells 3D-to-2D pipeline (GDC 2018), and Guilty Gear Xrd hold frames (GDC 2015).
-8. **Read `research_session033_phase_driven.md`** — SESSION-033 research synthesis for PFNN, DeepPhase, and Animator's Survival Kit phase-driven animation.
-9. **Read `research_session032_pdg_framing.md`** — SESSION-032 research synthesis for PDG, USD-like scene description, and industrial PCG architecture closure.
-10. **Read `research_session031_framing.md`** — SESSION-031 research synthesis for SMPL-like body latents, VPoser-style priors, dual quaternions, and motion matching.
-11. **Read `research_notes_session030.md`, `BIOMECHANICS_RESEARCH_NOTES.md`, and `PHYSICS_ANIMATION_UPGRADE_PLAN.md`** for the physics / biomechanics / RL foundation.
-12. **Read `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md`** when the goal touches diffusion rendering, ComfyUI/Wan pipelines, or simulation-conditioned neural rendering architecture.
-13. **Read this file** — Current priorities, verified status, and handoff guidance.
+6. **Read `research_session036_umr_architecture.md`** — SESSION-036 research synthesis for OpenUSD `UsdSkel`, Houdini KineFX, Unreal AnimGraph layering, and the Unified Motion Representation (UMR) trunk.
+7. **Read `research_session035_compliant_physics.md`** — SESSION-035 research synthesis for DeepMimic compliant PD tracking, AMP adversarial motion priors, and VPoser latent-space pose mutation.
+8. **Read `research_session034_industrial_rendering.md`** — SESSION-034 research synthesis for Motion Matching (Clavet GDC 2016), Dead Cells 3D-to-2D pipeline (GDC 2018), and Guilty Gear Xrd hold frames (GDC 2015).
+9. **Read `research_session033_phase_driven.md`** — SESSION-033 research synthesis for PFNN, DeepPhase, and Animator's Survival Kit phase-driven animation.
+10. **Read `research_session032_pdg_framing.md`** — SESSION-032 research synthesis for PDG, USD-like scene description, and industrial PCG architecture closure.
+11. **Read `research_session031_framing.md`** — SESSION-031 research synthesis for SMPL-like body latents, VPoser-style priors, dual quaternions, and motion matching.
+12. **Read `research_notes_session030.md`, `BIOMECHANICS_RESEARCH_NOTES.md`, and `PHYSICS_ANIMATION_UPGRADE_PLAN.md`** for the physics / biomechanics / RL foundation.
+13. **Read `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md`** when the goal touches diffusion rendering, ComfyUI/Wan pipelines, or simulation-conditioned neural rendering architecture.
+14. **Read this file** — Current priorities, verified status, and handoff guidance.
 
 ---
 
@@ -25,15 +26,54 @@
 
 | Dimension | Value |
 |-----------|-------|
-| Current version | **0.27.0** |
-| Last updated | 2026-04-16T18:02:00Z |
-| Last session | **SESSION-035** |
+| Current version | **0.28.0** |
+| Last updated | 2026-04-16T19:20:00Z |
+| Last session | **SESSION-036** |
 | Best quality score | 0.8674 (best validated geometric sprite baseline) |
-| Validation pass rate | **734/734 = 100%** |
-| Total code lines | ~52,000 |
-| Knowledge rules | 26 persisted rules (18 prior + 8 new compliant physics/adversarial priors) |
+| Validation pass rate | **734/734 full-suite baseline + 73 targeted UMR regression PASS** |
+| Total code lines | ~52,600 |
+| Knowledge rules | 26 persisted rules |
 | Math models registered | **25** |
-| Project health score | **9.95/10** |
+| Project health score | **9.97/10** |
+
+## What Changed in SESSION-036
+
+### Unified Motion Representation (UMR) Trunk Closure
+
+SESSION-036 was triggered by a structural problem rather than a single bad algorithm: even after three strong upgrades (phase-driven generation, industrial evaluation, compliant physics), different modules still spoke slightly different motion dialects and could overwrite each other in ad hoc ways. The solution in this session was to **stop letting modules improvise their own frame contracts** and instead force them to speak one shared data language from generation to export.
+
+The implementation followed three north-star industrial references and converted them into concrete code constraints:
+
+1. **OpenUSD `UsdSkel`** — The motion trunk now uses a strict frame contract (`UnifiedMotionFrame`) containing `time`, `phase`, `root_transform`, `joint_local_rotations`, and `contact_tags`. Every stage reads and rewrites the same structure instead of keeping hidden side state.
+2. **Houdini KineFX** — Motion is now treated as an attribute stream flowing through a one-way filter graph. `UnifiedMotionClip` carries per-state motion through ordered nodes, and `run_motion_pipeline()` records audit entries so the trunk can be inspected instead of guessed.
+3. **Unreal AnimGraph** — Responsibility boundaries are explicit: state intent picks the clip, base pose generation fills the frame, root motion is attached, physics only compliantly refines, biomechanics only performs localized grounding/balance cleanup, and rendering consumes the result. Lower-level filters are no longer allowed to hijack upper-body expressiveness.
+
+> "One frame contract, one direction of travel, no hidden side battles between modules." — SESSION-036 architectural rule
+
+| Component | Landing in repo | Why it matters |
+|-----------|-----------------|----------------|
+| **`UnifiedMotionFrame` / `UnifiedMotionClip`** | `mathart/animation/unified_motion.py` | Mandatory motion contract with serialization, adapters, audit metadata, and pipeline execution support. |
+| **Phase-driven frame emitters** | `mathart/animation/phase_driven.py` | `phase_driven_run_frame()` / `phase_driven_walk_frame()` now produce UMR-native frames while preserving old API compatibility. |
+| **Frame-level physics filter** | `mathart/animation/physics_projector.py` | `step_frame()` and `project_frame_sequence()` let physics operate on the shared bus, with layer guards that clamp upper-body override. |
+| **Frame-level biomechanics filter** | `mathart/animation/biomechanics.py` | Grounding/balance cleanup now acts as a localized UMR filter rather than a side-channel pose mutation step. |
+| **Asset trunk migration** | `mathart/pipeline.py` | `produce_character_pack()` now exports `.umr.json` clips per state, manifest-level `motion_contract`, and per-state motion audit metadata. |
+| **Layer 3 bridge** | `mathart/animation/motion_matching_evaluator.py` | `extract_umr_context()` gives evaluation/query systems direct access to phase, contact, and root-motion semantics. |
+| **Regression harness** | `tests/test_unified_motion.py` | Locks the new contract in place with explicit tests for round-trip fields, frame filters, and manifest export. |
+
+### Validation and Self-Audit
+
+SESSION-036 was validated at three levels: architecture, code, and real exported artifacts.
+
+| Audit Category | Checks | Result |
+|---------------|--------|--------|
+| UMR contract fields | Required frame keys, adapters, serialization | **PASS** |
+| Layered filter order | physics → biomechanics after base pose/root motion | **PASS** |
+| Export artifact integrity | `.umr.json` + `motion_contract` + per-state audit metadata | **PASS** |
+| Layer guard discipline | no upper-body override flags in audited export | **PASS** |
+| Static validation | `python3.11 -m compileall mathart` | **PASS** |
+| Targeted regression suite | 73 tests across UMR + animation + physics + character export | **PASS** |
+
+A real sample export (`session036_probe`, states `idle/run/jump`, with physics + biomechanics enabled) confirmed that each state now produces a UMR clip, records node order and stage order, and preserves foot-contact coverage metadata for downstream audit.
 
 ## What Changed in SESSION-035
 
@@ -123,6 +163,7 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 | Phase-driven animation | **Delivered v1** | Walk/Run/Sneak gaits with Catmull-Rom interpolation, DeepPhase channels |
 | Industrial rendering | **Delivered v1** | Dead Cells no-AA + pseudo-normal cel shading + GGXrd hold frames + squash/stretch |
 | Motion matching evaluation | **Delivered v1** | 59-dim feature vectors replace joint-angle tolerance in Layer 3 |
+| **Unified motion data bus** | **Delivered v1** | **UMR contract now carries time/phase/root/contact fields through generation, filters, export, and audit** |
 | **Compliant physics tracking** | **Delivered v1** | **DeepMimic PD compliance replaces rigid spring-damper as default** |
 | **Adversarial motion evaluation** | **Delivered v1** | **AMP LSGAN discriminator augments Layer 3 fitness (30% weight)** |
 | **Latent-space pose manipulation** | **Delivered v1** | **VPoser encode/decode/mutate/interpolate/score API** |
@@ -140,7 +181,8 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 | **Adversarial motion evaluation** | **Delivered (v1)** | Needs real motion capture dataset for discriminator training |
 | **Latent-space pose manipulation** | **Delivered (v1)** | Needs real VAE training on pose dataset for production-grade latent space |
 | **Industrial rendering pipeline** | **Delivered (v1)** | Needs real 3D-to-2D path, sprite sheet export optimization |
-| **Motion matching evaluation** | **Delivered (v1)** | Needs runtime query for real-time animation selection, transition synthesis |
+| **Motion matching evaluation** | **Delivered (v1)** | Needs runtime query for real-time animation selection, transition synthesis on top of UMR |
+| **Unified motion data bus** | **Delivered (v1)** | Needs propagation to CLI/exporters/distillation bus and broader trunk reproducibility validation |
 | **Phase-driven animation** | **Delivered (v1)** | Needs gait transition blending, terrain-adaptive phase modulation, **jump/fall/hit phase-driven** |
 | **WFC→Shader→Export closure** | **Delivered (v1)** | Needs richer fan-out / cache / collect semantics |
 | **Unified scene description** | **Delivered (USD-like v1)** | Needs layered composition, interchange serialization |
@@ -153,15 +195,15 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 ## Biggest Remaining Gaps
 
 1. **Production Benchmark Suite (P1-NEW-10):** The repository still lacks benchmark characters, tiles, VFX, and acceptance thresholds against commercial targets.
-2. **Phase-Driven Coverage for All Actions (P1-PHASE-35A):** jump/fall/hit animations still use legacy sin()-based paths; cli.py bypasses the main trunk entirely.
-3. **End-to-End Trunk Reproducibility Validation (P1-BENCH-35A):** No task validates the complete zero-to-export path through every module.
-4. **Gait Transition Blending (P1-PHASE-33A):** Phase-driven walk/run/sneak are independent; need smooth blending between gaits during speed changes.
-5. **Terrain-Adaptive Phase Modulation (P1-PHASE-33B):** Phase advancement should respond to slope, surface type, and obstacles.
-6. **Motion Transition Synthesis (P1-HUMAN-31B):** Motion matching now retrieves clips but does not yet synthesize seamless transitions.
-7. **PDG v2 / Industrial Runtime Semantics:** Current DAG closure works, but lacks caching, partitioning, fan-out/fan-in orchestration.
-8. **Human-Math Pipeline Closure (P1-HUMAN-31A/C):** Shape latents not first-class genes, dual-quaternion renderer not built.
-9. **Simulation-Conditioned Neural Rendering Bridge:** Architecture ready, but conditioned rendering backend not yet built.
-10. **Visual Quality Gap:** SDF-based rendering remains below diffusion-polished or hand-authored commercial assets.
+2. **Phase-Driven Coverage for All Actions (P1-PHASE-35A):** trunk enforcement is now partial through UMR, but jump/fall/hit remain legacy-adapted and CLI/export entrypoints still need non-bypass enforcement.
+3. **End-to-End Trunk Reproducibility Validation (P1-BENCH-35A):** No task yet validates zero-to-export execution with `.umr.json`, manifest `motion_contract`, node order, and audit assertions.
+4. **UMR Propagation Beyond AssetPipeline (P1-UMR-36A):** CLI, exporter, and future distillation/runtime entrypoints still need to consume the shared motion bus.
+5. **Gait Transition Blending (P1-PHASE-33A):** Phase-driven walk/run/sneak are independent; need smooth blending between gaits during speed changes.
+6. **Terrain-Adaptive Phase Modulation (P1-PHASE-33B):** Phase advancement should respond to slope, surface type, and obstacles.
+7. **Motion Transition Synthesis (P1-HUMAN-31B / P1-INDUSTRIAL-34B):** Motion matching retrieves clips and reads UMR context, but does not yet synthesize seamless runtime transitions.
+8. **PDG v2 / Industrial Runtime Semantics:** Current DAG closure works, but lacks caching, partitioning, fan-out/fan-in orchestration.
+9. **Human-Math Pipeline Closure (P1-HUMAN-31A/C):** Shape latents not first-class genes, dual-quaternion renderer not built.
+10. **Simulation-Conditioned Neural Rendering Bridge + Visual Quality Gap:** Conditioned rendering backend is still missing, and SDF-based rendering remains below diffusion-polished or hand-authored commercial assets.
 
 ## Pending Tasks (Priority Order)
 
@@ -175,10 +217,11 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 
 | ID | Task | Status | Effort | Description |
 |----|------|--------|--------|-------------|
-| P1-PHASE-35A | Phase-driven coverage for jump/fall/hit + CLI trunk enforcement | TODO | Medium | Ensure all animation actions go through phase-driven path; update cli.py to use main trunk. |
-| P1-BENCH-35A | End-to-end trunk reproducibility validation | TODO | Medium | Zero-to-export integration test that validates every module participates in the main trunk. |
+| P1-PHASE-35A | Phase-driven coverage for jump/fall/hit + CLI trunk enforcement | PARTIAL | Medium | AssetPipeline trunk now runs through UMR for every exported state, but jump/fall/hit are still legacy-adapted and CLI/other entrypoints still need hard non-bypass enforcement. |
+| P1-BENCH-35A | End-to-end trunk reproducibility validation | TODO | Medium | Zero-to-export integration test that validates every module participates in the main trunk and asserts `.umr.json`, manifest `motion_contract`, node order, and audit fields. |
+| P1-UMR-36A | Propagate UMR contract to CLI, exporters, and distillation bus | TODO | Medium | Ensure `cli.py`, export bridges, and future distillation/runtime entrypoints consume and emit `UnifiedMotionFrame` / `UnifiedMotionClip` instead of bypassing the shared bus. |
 | P1-INDUSTRIAL-34A | Industrial renderer integration into AssetPipeline | TODO | Medium | Wire `render_character_frame_industrial()` as an optional rendering backend in `produce_character_pack()`. |
-| P1-INDUSTRIAL-34B | Runtime motion matching query for real-time animation | TODO | High | Extend `MotionMatchingEvaluator` from batch evaluation to frame-by-frame runtime query with transition synthesis. |
+| P1-INDUSTRIAL-34B | Runtime motion matching query for real-time animation | TODO | High | Extend `MotionMatchingEvaluator` from batch evaluation to frame-by-frame runtime query driven by UMR context, with transition synthesis, inertia blending, and clip stitching. |
 | P1-INDUSTRIAL-34C | 3D-to-2D mesh rendering path | TODO | High | Implement actual 3D mesh → 2D pixel art pipeline (Dead Cells full workflow) instead of SDF-only. |
 | P1-PHASE-33A | Gait transition blending (walk↔run↔sneak) | TODO | Medium | Smooth phase-preserving blending between gait modes during speed changes. |
 | P1-PHASE-33B | Terrain-adaptive phase modulation | TODO | Medium | Phase advancement responds to slope, surface type, and obstacles. |
@@ -197,6 +240,17 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 | P1-RESEARCH-30C | Reaction-Diffusion Thermodynamics | TODO | High | Texture evolution for chemical / thermal phenomena. |
 
 ## Completed Tasks
+
+### SESSION-036
+
+| ID | Task | Result |
+|----|------|--------|
+| P0-ARCH-36A | Unified motion frame/clip contract | **DONE** — `UnifiedMotionFrame` / `UnifiedMotionClip` now carry `time`, `phase`, `root_transform`, `joint_local_rotations`, and `contact_tags` through a serializable motion bus. |
+| P0-ARCH-36B | AssetPipeline UMR DAG trunk | **DONE** — `produce_character_pack()` now builds UMR clips, runs ordered filter nodes, exports `.umr.json`, and records manifest-level `motion_contract` + per-state audit metadata. |
+| P0-ARCH-36C | Frame-level projector layering guards | **DONE** — `AnglePoseProjector` and `BiomechanicsProjector` now expose UMR frame APIs and clamp lower-layer override so grounding/physics cannot hijack upper-body intent. |
+| P0-ARCH-36D | Layer 3 UMR context bridge | **DONE** — `MotionFeatureExtractor.extract_umr_context()` gives runtime scoring/query systems direct access to phase, root motion, and foot-contact semantics. |
+| AUDIT-036 | Research-to-code + real-export audit | **DONE** — UMR architecture validated against OpenUSD/KineFX/AnimGraph references and confirmed in a real `idle/run/jump` export with ordered node audit and zero upper-body override flags. |
+| VALIDATION-036 | Targeted validation | **DONE** — `python3.11 -m compileall mathart` PASS and **73/73 targeted regression tests PASS** (`test_unified_motion` + animation + physics + character export). |
 
 ### SESSION-035
 
@@ -267,12 +321,14 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 ## Instructions for Next AI Session
 
 1. **Read `COMMERCIAL_BENCHMARK.md`, `DEDUP_REGISTRY.json`, `SESSION_PROTOCOL.md`, and `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` before coding.**
-2. Read `PROJECT_BRAIN.json`, `research_session035_compliant_physics.md`, and this handoff before proposing any physics, animation, or evolution upgrade.
-3. Treat SESSION-035 as the new baseline for physics tracking: **use compliant_pd mode instead of spring mode, use AMP discriminator instead of hand-written coverage_score, use VPoser latent mutation instead of joint-angle mutation.**
-4. If the goal is to complete phase-driven coverage, start with **P1-PHASE-35A** (jump/fall/hit + CLI trunk enforcement).
-5. If the goal is end-to-end validation, start with **P1-BENCH-35A** (zero-to-export trunk reproducibility).
-6. If the goal is to deepen the industrial rendering pipeline, start with **P1-INDUSTRIAL-34A** (AssetPipeline integration), **P1-INDUSTRIAL-34B** (runtime motion matching), or **P1-INDUSTRIAL-34C** (3D-to-2D mesh path).
-7. If the goal is to deepen phase-driven animation, start with **P1-PHASE-33A** (gait transition blending), **P1-PHASE-33B** (terrain-adaptive modulation), or **P1-PHASE-33C** (animation preview).
+2. Read `PROJECT_BRAIN.json`, `research_session036_umr_architecture.md`, `research_session035_compliant_physics.md`, and this handoff before proposing any motion, animation, or evolution upgrade.
+3. Treat SESSION-036 as the new trunk baseline: **all motion stages should prefer `UnifiedMotionFrame` / `UnifiedMotionClip`, preserve phase/root/contact metadata, and respect the ordered filter contract.**
+4. Treat SESSION-035 as the physics baseline: **use compliant_pd mode instead of spring mode, use AMP discriminator instead of hand-written coverage_score, use VPoser latent mutation instead of joint-angle mutation.**
+5. If the goal is to complete phase-driven coverage, start with **P1-PHASE-35A** (native phase-driven jump/fall/hit + non-bypass CLI trunk enforcement).
+6. If the goal is end-to-end validation, start with **P1-BENCH-35A** (zero-to-export trunk reproducibility with UMR artifact assertions).
+7. If the goal is to harden architecture closure, start with **P1-UMR-36A** (propagate the UMR contract to CLI, exporters, and distillation/runtime bridges).
+8. If the goal is to deepen the industrial rendering/runtime pipeline, start with **P1-INDUSTRIAL-34A** (AssetPipeline integration), **P1-INDUSTRIAL-34B** (runtime motion matching), or **P1-INDUSTRIAL-34C** (3D-to-2D mesh path).
+9. If the goal is to deepen phase-driven animation, start with **P1-PHASE-33A** (gait transition blending), **P1-PHASE-33B** (terrain-adaptive modulation), or **P1-PHASE-33C** (animation preview).
 8. If the goal is to deepen the PDG architecture, start with **P1-ARCH-4**, **P1-ARCH-5**, or **P1-ARCH-6**.
 9. If the goal is diffusion or neural rendering, use `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md` and start with **P1-AI-2**.
 10. If the goal is to deepen the human-math stack, start with **P1-HUMAN-31A**, **P1-HUMAN-31B**, or **P1-HUMAN-31C**.

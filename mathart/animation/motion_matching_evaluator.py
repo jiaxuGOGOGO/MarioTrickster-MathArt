@@ -58,6 +58,8 @@ from typing import Mapping, Optional, Sequence
 
 import numpy as np
 
+from .unified_motion import UnifiedMotionFrame
+
 
 # ── Feature Schema ──────────────────────────────────────────────────────────
 
@@ -338,6 +340,32 @@ class MotionFeatureExtractor:
             math.cos(2.0 * math.pi * phase),
             float(phase_velocity),
         ], dtype=np.float32)
+
+    def extract_umr_context(
+        self,
+        frame: UnifiedMotionFrame,
+        prev_frame: Optional[UnifiedMotionFrame] = None,
+    ) -> dict[str, float]:
+        """Extract phase/contact/root context directly from a UMR frame.
+
+        This is the bridge that lets Layer 3 evaluators consume the shared motion
+        contract without having to rediscover phase and contact labels from raw
+        poses every time.
+        """
+        dt = max(float(frame.time - prev_frame.time), 1e-6) if prev_frame is not None else (1.0 / 12.0)
+        phase_velocity = (
+            ((frame.phase - prev_frame.phase) % 1.0) / dt if prev_frame is not None else 1.0
+        )
+        return {
+            "phase": float(frame.phase),
+            "phase_velocity": float(phase_velocity),
+            "root_x": float(frame.root_transform.x),
+            "root_y": float(frame.root_transform.y),
+            "root_vx": float(frame.root_transform.velocity_x),
+            "root_vy": float(frame.root_transform.velocity_y),
+            "left_contact": 1.0 if frame.contact_tags.left_foot else 0.0,
+            "right_contact": 1.0 if frame.contact_tags.right_foot else 0.0,
+        }
 
     def extract_silhouette_features(
         self,

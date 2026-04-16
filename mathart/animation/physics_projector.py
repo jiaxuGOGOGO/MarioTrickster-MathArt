@@ -49,10 +49,12 @@ Usage::
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Optional, Callable
 
 import numpy as np
+
+from .unified_motion import UnifiedMotionFrame, umr_to_pose
 
 
 # ── Angular Spring-Damper State ───────────────────────────────────────────────
@@ -530,21 +532,64 @@ class AnglePoseProjector:
         pose_sequence: list[dict[str, float]],
         dt: float = 1.0 / 60.0,
     ) -> list[dict[str, float]]:
-        """Project an entire animation sequence through the physics engine.
-
-        Parameters
-        ----------
-        pose_sequence : list of dict[str, float]
-            Sequence of raw poses (one per frame).
-        dt : float
-            Timestep between frames.
-
-        Returns
-        -------
-        list of dict[str, float] : Corrected pose sequence.
-        """
+        """Project an entire animation sequence through the physics engine."""
         self.reset()
         return [self.step(pose, dt) for pose in pose_sequence]
+
+    def step_frame(
+        self,
+        frame: UnifiedMotionFrame,
+        dt: float = 1.0 / 60.0,
+        *,
+        enforce_layer_guard: bool = True,
+    ) -> UnifiedMotionFrame:
+        """Project a UMR frame through physics while respecting layer boundaries.
+
+        The physics layer is allowed to refine locomotion-critical joints, but it
+        must not hijack high-level expressive animation. Therefore the frame API
+        optionally clamps per-joint deltas more aggressively on upper-body joints.
+        """
+        raw_pose = umr_to_pose(frame)
+        corrected_pose, metadata = self.step_with_metadata(raw_pose, dt=dt)
+
+        if enforce_layer_guard:
+            guarded_pose: dict[str, float] = {}
+            for joint, raw_angle in raw_pose.items():
+                corrected_angle = float(corrected_pose.get(joint, raw_angle))
+                delta = corrected_angle - float(raw_angle)
+                if joint in {"hip", "l_hip", "r_hip", "l_knee", "r_knee", "l_foot", "r_foot"}:
+                    max_delta = 0.18
+                elif joint in {"spine", "chest"}:
+                    max_delta = 0.06
+                else:
+                    max_delta = 0.035
+                guarded_pose[joint] = float(raw_angle) + max(-max_delta, min(max_delta, delta))
+            corrected_pose = guarded_pose
+
+        merged_metadata = dict(frame.metadata)
+        merged_metadata.update({
+            "physics_projected": True,
+            "physics_stage": "compliance_filter",
+            "physics_layer_guard": bool(enforce_layer_guard),
+            "physics_joint_count": len(corrected_pose),
+            "physics_debug": metadata,
+        })
+        return replace(
+            frame,
+            joint_local_rotations=corrected_pose,
+            metadata=merged_metadata,
+        )
+
+    def project_frame_sequence(
+        self,
+        frames: list[UnifiedMotionFrame],
+        dt: float = 1.0 / 60.0,
+        *,
+        enforce_layer_guard: bool = True,
+    ) -> list[UnifiedMotionFrame]:
+        """Project an entire UMR sequence through the physics engine."""
+        self.reset()
+        return [self.step_frame(frame, dt=dt, enforce_layer_guard=enforce_layer_guard) for frame in frames]
 
     def reset(self) -> None:
         """Reset all physics states (call when starting a new animation)."""

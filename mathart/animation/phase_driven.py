@@ -75,6 +75,13 @@ from typing import Optional, Callable
 
 import numpy as np
 
+from .unified_motion import (
+    MotionRootTransform,
+    UnifiedMotionFrame,
+    infer_contact_tags,
+    pose_to_umr,
+)
+
 
 # ── Phase Variable (PFNN-inspired) ──────────────────────────────────────────
 
@@ -829,57 +836,87 @@ class PhaseDrivenAnimator:
         gait: GaitMode = GaitMode.WALK,
         speed: float = 1.0,
     ) -> dict[str, float]:
-        """Generate a full-body pose at the given phase.
+        """Generate a full-body pose at the given phase."""
+        pose, _root_y = self._generate_pose_and_root(phase, gait=gait, speed=speed)
+        return pose
 
-        Parameters
-        ----------
-        phase : float or PhaseVariable
-            Current gait phase [0, 1), or a PhaseVariable instance.
-        gait : GaitMode
-            Gait type (walk, run, sneak).
-        speed : float
-            Speed factor for amplitude modulation. Higher speed
-            increases lean and arm swing (Animator's Survival Kit:
-            "The FASTER the figure runs, the more it LEANS FORWARD").
+    def generate_frame(
+        self,
+        phase: float | PhaseVariable,
+        gait: GaitMode = GaitMode.WALK,
+        speed: float = 1.0,
+        *,
+        time: float = 0.0,
+        frame_index: int = 0,
+        source_state: str | None = None,
+        root_x: float = 0.0,
+        root_rotation: float = 0.0,
+        root_velocity_x: float = 0.0,
+        root_velocity_y: float = 0.0,
+    ) -> UnifiedMotionFrame:
+        """Generate a UMR frame instead of a legacy pose dict.
 
-        Returns
-        -------
-        dict[str, float] : Complete joint angle dictionary.
+        This is the new strict internal contract for the motion trunk.
         """
         p = phase.phase if isinstance(phase, PhaseVariable) else float(phase) % 1.0
+        pose, root_y = self._generate_pose_and_root(phase, gait=gait, speed=speed)
+        state_name = source_state or gait.value
+        return pose_to_umr(
+            pose,
+            time=float(time),
+            phase=p,
+            frame_index=int(frame_index),
+            source_state=state_name,
+            root_transform=MotionRootTransform(
+                x=float(root_x),
+                y=float(root_y),
+                rotation=float(root_rotation),
+                velocity_x=float(root_velocity_x),
+                velocity_y=float(root_velocity_y),
+                angular_velocity=0.0,
+            ),
+            contact_tags=infer_contact_tags(p, state_name),
+            metadata={
+                "generator": "phase_driven_animator",
+                "gait": gait.value,
+                "root_y_source": "pelvis_height_curve",
+            },
+        )
 
+    def _generate_pose_and_root(
+        self,
+        phase: float | PhaseVariable,
+        gait: GaitMode = GaitMode.WALK,
+        speed: float = 1.0,
+    ) -> tuple[dict[str, float], float]:
+        p = phase.phase if isinstance(phase, PhaseVariable) else float(phase) % 1.0
         if gait == GaitMode.RUN:
             return self._generate_run(p, speed)
-        elif gait == GaitMode.SNEAK:
+        if gait == GaitMode.SNEAK:
             return self._generate_sneak(p, speed)
-        else:
-            return self._generate_walk(p, speed)
+        return self._generate_walk(p, speed)
 
-    def _generate_walk(self, p: float, speed: float = 1.0) -> dict[str, float]:
+    def _generate_walk(self, p: float, speed: float = 1.0) -> tuple[dict[str, float], float]:
         """Generate walk pose with phase channels overlay."""
-        # Base pose from key-pose interpolation
         pose, pelvis_h = self._walk_interp.evaluate(p)
 
-        # Apply secondary motion channels (DeepPhase-inspired)
         channels = self._walk_channels
         bob = channels["torso_bob"].evaluate(p)
         twist = channels["torso_twist"].evaluate(p)
         head_comp = channels["head_stabilize"].evaluate(p)
 
-        # Overlay channels onto base pose
         pose["spine"] = pose.get("spine", 0.0) + bob + pelvis_h * 2.0
         pose["chest"] = pose.get("chest", 0.0) + twist
         pose["head"] = pose.get("head", 0.0) + head_comp
 
-        # Speed modulation: faster walk → more lean, more arm swing
         speed_factor = max(0.5, min(2.0, speed))
         if speed_factor != 1.0:
             lean_extra = (speed_factor - 1.0) * 0.04
             pose["spine"] = pose.get("spine", 0.0) + lean_extra
 
-        return pose
+        return pose, pelvis_h
 
-    def _generate_run(self, p: float, speed: float = 1.0) -> dict[str, float]:
+    def _generate_run(self, p: float, speed: float = 1.0) -> tuple[dict[str, float], float]:
         """Generate run pose with phase channels overlay."""
         pose, pelvis_h = self._run_interp.evaluate(p)
 
@@ -893,49 +930,44 @@ class PhaseDrivenAnimator:
         pose["chest"] = pose.get("chest", 0.0) + twist
         pose["head"] = pose.get("head", 0.0) + head_comp
 
-        # Arm pump overlay
         pose["l_elbow"] = pose.get("l_elbow", 0.0) + arm_pump * 0.5
         pose["r_elbow"] = pose.get("r_elbow", 0.0) - arm_pump * 0.5
 
-        # Speed modulation: "The FASTER the figure runs, the more it LEANS FORWARD"
         speed_factor = max(0.5, min(3.0, speed))
         lean_extra = (speed_factor - 1.0) * 0.06
         pose["spine"] = pose.get("spine", 0.0) + lean_extra
 
-        return pose
+        return pose, pelvis_h
 
-    def _generate_sneak(self, p: float, speed: float = 1.0) -> dict[str, float]:
-        """Generate sneak pose (Animator's Survival Kit p.167-175).
-
-        Sneak characteristics:
-        - Body goes back and forth (counteraction)
-        - Arms for balance, not opposing legs
-        - Lower stance, more bent knees
-        - Slower, more deliberate steps
-        """
-        # Use walk interpolator with modified parameters
+    def _generate_sneak(self, p: float, speed: float = 1.0) -> tuple[dict[str, float], float]:
+        """Generate sneak pose (Animator's Survival Kit p.167-175)."""
         pose, pelvis_h = self._walk_interp.evaluate(p)
 
-        # Sneak modifications: lower, more crouched
-        pose["spine"] = pose.get("spine", 0.0) - 0.10  # More crouched
-        pose["l_knee"] = pose.get("l_knee", 0.0) - 0.15  # More bent
+        pose["spine"] = pose.get("spine", 0.0) - 0.10
+        pose["l_knee"] = pose.get("l_knee", 0.0) - 0.15
         pose["r_knee"] = pose.get("r_knee", 0.0) - 0.15
-        # Reduced arm swing
         for key in ["l_shoulder", "r_shoulder"]:
             if key in pose:
                 pose[key] *= 0.4
-        # Head forward (alert)
         pose["head"] = pose.get("head", 0.0) - 0.05
 
-        return pose
+        return pose, pelvis_h - 0.02
 
     def walk_pose(self, t: float) -> dict[str, float]:
         """Convenience: generate walk pose at normalized time t ∈ [0, 1)."""
         return self.generate(t, GaitMode.WALK)
 
+    def walk_frame(self, t: float, **kwargs: float) -> UnifiedMotionFrame:
+        """Convenience: generate walk UMR frame at normalized time t ∈ [0, 1)."""
+        return self.generate_frame(t, GaitMode.WALK, **kwargs)
+
     def run_pose(self, t: float) -> dict[str, float]:
         """Convenience: generate run pose at normalized time t ∈ [0, 1)."""
         return self.generate(t, GaitMode.RUN)
+
+    def run_frame(self, t: float, **kwargs: float) -> UnifiedMotionFrame:
+        """Convenience: generate run UMR frame at normalized time t ∈ [0, 1)."""
+        return self.generate_frame(t, GaitMode.RUN, **kwargs)
 
 
 # ── Drop-in Replacement Functions ───────────────────────────────────────────
@@ -976,17 +1008,18 @@ def phase_driven_run(t: float) -> dict[str, float]:
 
     Includes flight phase, greater forward lean, and reduced arm action
     per Animator's Survival Kit guidelines.
-
-    Parameters
-    ----------
-    t : float
-        Normalized time [0, 1). Full gait cycle.
-
-    Returns
-    -------
-    dict[str, float] : Joint angles.
     """
     return _get_animator().run_pose(t)
+
+
+def phase_driven_walk_frame(t: float, **kwargs: float) -> UnifiedMotionFrame:
+    """UMR-native walk frame generator."""
+    return _get_animator().walk_frame(t, **kwargs)
+
+
+def phase_driven_run_frame(t: float, **kwargs: float) -> UnifiedMotionFrame:
+    """UMR-native run frame generator."""
+    return _get_animator().run_frame(t, **kwargs)
 
 
 # ── Phase Analysis Utilities (DeepPhase-inspired) ───────────────────────────

@@ -53,12 +53,13 @@ Usage::
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Optional, Callable
 
 import numpy as np
 
 from .physics import FABRIKSolver
+from .unified_motion import UnifiedMotionFrame, umr_to_pose
 
 
 # ── Joint Mass Distribution ─────────────────────────────────────────────────
@@ -1458,6 +1459,58 @@ class BiomechanicsProjector:
             metadata["ipm_bounce"] = self._ipm.compute_vertical_bounce(gait_phase)
 
         return corrected, metadata
+
+    def step_frame(
+        self,
+        frame: UnifiedMotionFrame,
+        dt: float = 1.0 / 60.0,
+        *,
+        gait_phase: float | None = None,
+        enforce_layer_guard: bool = True,
+    ) -> UnifiedMotionFrame:
+        """Apply biomechanics corrections directly on a UMR frame.
+
+        This layer is intentionally restricted to lower-body grounding and mild
+        pelvis/spine stabilization, preserving AnimGraph-style layering.
+        """
+        raw_pose = umr_to_pose(frame)
+        phase = frame.phase if gait_phase is None else gait_phase
+        corrected_pose = self.step(raw_pose, dt=dt, gait_phase=phase)
+
+        if enforce_layer_guard:
+            guarded_pose = dict(raw_pose)
+            for joint in {"hip", "l_hip", "r_hip", "l_knee", "r_knee", "l_foot", "r_foot"}:
+                if joint in corrected_pose:
+                    guarded_pose[joint] = float(corrected_pose[joint])
+            if "spine" in corrected_pose:
+                raw_spine = float(raw_pose.get("spine", 0.0))
+                delta = float(corrected_pose["spine"]) - raw_spine
+                guarded_pose["spine"] = raw_spine + max(-0.04, min(0.04, delta))
+            corrected_pose = guarded_pose
+
+        merged_metadata = dict(frame.metadata)
+        merged_metadata.update({
+            "biomechanics_projected": True,
+            "biomechanics_stage": "grounding_filter",
+            "biomechanics_layer_guard": bool(enforce_layer_guard),
+            "biomechanics_frame_count": int(self._frame_count),
+        })
+        return replace(
+            frame,
+            joint_local_rotations={k: float(v) for k, v in corrected_pose.items()},
+            metadata=merged_metadata,
+        )
+
+    def project_frame_sequence(
+        self,
+        frames: list[UnifiedMotionFrame],
+        dt: float = 1.0 / 60.0,
+        *,
+        enforce_layer_guard: bool = True,
+    ) -> list[UnifiedMotionFrame]:
+        """Project a full UMR clip through the biomechanics layer."""
+        self.reset()
+        return [self.step_frame(frame, dt=dt, enforce_layer_guard=enforce_layer_guard) for frame in frames]
 
     def reset(self) -> None:
         """Reset all subsystem states."""
