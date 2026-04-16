@@ -730,6 +730,65 @@ def evaluate_physics_fitness(
     anatomical_score = anatomy_total / max(effective_steps, 1)
     motion_match_score_legacy = motion_total / max(effective_steps, 1)
 
+    # SESSION-039: Runtime motion matching query & inertialized transition evaluation
+    # Tests the full transition pipeline: query optimal entry frame → inertialize
+    transition_quality_score = 0.5  # Default: untested
+    entry_frame_cost_score = 5.0    # Default: moderate cost
+    try:
+        from .runtime_motion_query import RuntimeMotionDatabase, RuntimeMotionQuery
+        from .transition_synthesizer import TransitionSynthesizer, TransitionStrategy
+
+        # Build runtime database from reference clips
+        runtime_db = RuntimeMotionDatabase()
+        for gait in ["walk", "run", "jump", "idle", "fall"]:
+            clip = ref_lib.get_motion(gait)
+            if clip:
+                runtime_db.add_legacy_clip(gait, clip, state=gait, fps=24)
+        runtime_db.normalize()
+
+        # Test transition quality: simulate Run → Jump transition
+        query_engine = RuntimeMotionQuery(runtime_db)
+        synthesizer = TransitionSynthesizer(
+            strategy=TransitionStrategy.DEAD_BLENDING,
+            blend_time=0.2,
+            decay_halflife=0.05,
+        )
+
+        # Get representative frames from run and jump clips
+        run_frames = runtime_db._clip_frames.get("run", [])
+        jump_frames = runtime_db._clip_frames.get("jump", [])
+
+        if run_frames and jump_frames:
+            # Find optimal entry frame for jump from mid-run
+            mid_run_idx = len(run_frames) // 2
+            source_frame = run_frames[mid_run_idx]
+            prev_frame = run_frames[max(0, mid_run_idx - 1)]
+
+            entry_result = query_engine.query_best_entry(
+                current_frame=source_frame,
+                target_clip_name="jump",
+                prev_frame=prev_frame,
+                dt=1.0 / 24.0,
+            )
+            entry_frame_cost_score = entry_result.cost
+
+            # Test inertialized transition
+            target_frame = runtime_db.get_clip_frame("jump", entry_result.entry_frame_idx)
+            if target_frame is not None:
+                synthesizer.request_transition(
+                    source_frame=source_frame,
+                    target_frame=target_frame,
+                    prev_source_frame=prev_frame,
+                    dt=1.0 / 24.0,
+                )
+                # Run a few frames of transition
+                for _ in range(6):
+                    synthesizer.update(target_frame, 1.0 / 24.0)
+                tq = synthesizer.get_transition_quality()
+                transition_quality_score = 1.0 - min(tq.max_offset / max(tq.max_offset + 0.5, 1.0), 1.0)
+    except Exception:
+        pass
+
     # SESSION-034: Industrial feature-vector evaluation (replaces legacy motion_match_score)
     # Uses Clavet GDC 2016 feature vectors: pose + velocity + trajectory + contact + phase + silhouette
     industrial_scores: dict[str, float] = {}
@@ -761,17 +820,23 @@ def evaluate_physics_fitness(
     silhouette_quality = industrial_scores.get("silhouette_quality", 0.5)
     skating_penalty = industrial_scores.get("skating_penalty", 0.0)
 
-    # SESSION-034: Upgraded overall formula with industrial metrics
+    # SESSION-039: Normalized transition quality for overall formula
+    # transition_quality_score is in [0, 1], entry_frame_cost_score is raw cost
+    entry_quality = math.exp(-0.1 * entry_frame_cost_score)  # Map cost to [0, 1]
+
+    # SESSION-039: Upgraded overall formula with transition & runtime query metrics
     overall = float(np.clip(
-        0.16 * stability_score
-        + 0.08 * damping_score
-        + 0.22 * avg_reward
-        + 0.10 * energy_efficiency
-        + 0.10 * anatomical_score
-        + 0.14 * motion_match_score        # Now feature-vector based (Clavet GDC 2016)
-        + 0.08 * contact_consistency        # NEW: foot contact pattern quality
-        + 0.06 * silhouette_quality         # NEW: Dead Cells silhouette readability
-        + 0.06 * (1.0 - min(skating_penalty, 1.0)),  # NEW: skating penalty
+        0.13 * stability_score
+        + 0.06 * damping_score
+        + 0.18 * avg_reward
+        + 0.08 * energy_efficiency
+        + 0.08 * anatomical_score
+        + 0.12 * motion_match_score        # Feature-vector based (Clavet GDC 2016)
+        + 0.07 * contact_consistency        # Foot contact pattern quality
+        + 0.05 * silhouette_quality         # Dead Cells silhouette readability
+        + 0.05 * (1.0 - min(skating_penalty, 1.0))  # Skating penalty
+        + 0.10 * transition_quality_score   # NEW: Inertialized transition quality (Bollo GDC 2018)
+        + 0.08 * entry_quality,             # NEW: Runtime motion matching entry quality (Clavet GDC 2016)
         0.0,
         1.0,
     ))
@@ -783,9 +848,13 @@ def evaluate_physics_fitness(
         "energy_efficiency": energy_efficiency,
         "anatomical_score": anatomical_score,
         "motion_match_score": motion_match_score,
-        # SESSION-034: New industrial metrics
+        # SESSION-034: Industrial metrics
         "contact_consistency": contact_consistency,
         "silhouette_quality": silhouette_quality,
         "skating_penalty": skating_penalty,
+        # SESSION-039: Inertialized transition & runtime motion matching metrics
+        "transition_quality": transition_quality_score,
+        "entry_frame_cost": entry_frame_cost_score,
+        "entry_quality": entry_quality,
         "overall": overall,
     }

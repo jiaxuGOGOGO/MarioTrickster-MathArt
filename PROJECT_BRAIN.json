@@ -1,16 +1,16 @@
 {
-  "version": "0.29.1",
-  "last_session_id": "SESSION-038",
-  "last_updated": "2026-04-16T12:13:11Z",
+  "version": "0.30.0",
+  "last_session_id": "SESSION-039",
+  "last_updated": "2026-04-16T12:57:25Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "734/734 full-suite baseline + 73 prior targeted UMR regression PASS + 6 SESSION-037 transient-phase regression PASS + 6 SESSION-038 refined transient regression PASS",
+  "validation_pass_rate": "734/734 full-suite baseline + 73 prior targeted UMR regression PASS + 6 SESSION-037 transient-phase regression PASS + 6 SESSION-038 refined transient regression PASS + 15 SESSION-039 transition integration PASS",
   "total_iterations": 500,
-  "total_code_lines": 53387,
+  "total_code_lines": 55602,
   "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 26,
-  "math_model_count": 25,
+  "knowledge_rule_count": 36,
+  "math_model_count": 27,
   "project_health_score": 9.99,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
@@ -29,9 +29,9 @@
     },
     "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-032: the original WFC/shader/export break is now closed by a lightweight PDG runtime and a USD-like scene contract. The main remaining blockers are industrial runtime depth (cache/partition/layering), benchmarked asset production, visual quality, and the simulation-conditioned neural-render bridge.",
     "strategic_paths": {
-      "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native distance/progress-driven transient phases; SESSION-038 refined those states with target/contact/window metadata and critically damped hit recovery. Jump now keys off distance-to-apex, fall off distance-to-ground, and hit off a half-life-driven recovery variable, all exported through UMR and readable by Layer 3.",
+      "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback.",
       "path_b_ai_visual_polish": "Now better conditioned by anatomically valid low-dimensional motion data; next step is ControlNet / diffusion export from the distilled body and pose representation.",
-      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass inside the motion trunk by converting jump/fall/hit to native transient phase models; SESSION-038 hardened that contract with refined metadata and critical-damped recovery semantics. Next step: full CLI/exporter bus propagation, terrain-aware sensing, and runtime transition synthesis."
+      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query. Next step: full CLI/exporter bus propagation, terrain-aware sensing, gait transition blending."
     },
     "commercial_references": [
       {
@@ -46,10 +46,11 @@
       }
     ]
   },
-  "current_focus": "SESSION-038 refines the UMR transient-action trunk. Jump and fall remain distance-driven but now carry stronger target/contact/window metadata, while hit is upgraded to a critically damped recovery variable with half-life, deficit velocity, and recovery velocity semantics. AssetPipeline exports these states as native UMR clips, MotionMatchingEvaluator can directly consume the refined metadata, targeted validation passed 6/6, and a real-export audit confirmed the metadata survives the production path. Remaining gaps: CLI/exporter bus propagation, terrain-raycast distance sensing, richer impact sensing, and runtime transition synthesis.",
+  "current_focus": "SESSION-039 delivers inertialized transition synthesis (Bollo GDC 2018 quintic + Holden Dead Blending 2023) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: RuntimeMotionQuery finds the optimal entry frame via 16-D compact feature search, then TransitionSynthesizer applies inertialized blending with target contacts always authoritative. The Layer 3 evolution loop now runs 12 tests including transition quality and entry frame cost, with 3 new diagnosis actions and 3 new knowledge distillation rules. P1-INDUSTRIAL-34B and P1-HUMAN-31B are now DONE. Remaining gaps: CLI/exporter bus propagation, terrain-raycast distance sensing, gait transition blending, production benchmark suite.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "SESSION_HANDOFF.md",
+    "research_session039_transition_synthesis.md",
     "research_session037_distance_transient_phases.md",
     "audit_session038_refined_transient.md",
     "research_session036_umr_architecture.md",
@@ -145,10 +146,11 @@
       "id": "P1-INDUSTRIAL-34B",
       "priority": "P1",
       "title": "Runtime motion matching query for real-time animation",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "high",
-      "description": "Extend MotionMatchingEvaluator from batch evaluation to frame-by-frame runtime query driven by UMR context, with transition synthesis, inertia blending, and clip stitching on top of the shared motion bus.",
-      "added_in": "SESSION-034"
+      "description": "CLOSED in SESSION-039. RuntimeMotionQuery + TransitionSynthesizer + MotionMatchingRuntime deliver frame-by-frame runtime query, inertialized transition synthesis, and clip stitching on top of the UMR bus.",
+      "added_in": "SESSION-034",
+      "completed_in": "SESSION-039"
     },
     {
       "id": "P1-INDUSTRIAL-34C",
@@ -462,9 +464,10 @@
       "id": "P1-HUMAN-31B",
       "priority": "P1",
       "title": "Add motion transition blending and pose warping after 2D motion matching retrieval",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "high",
-      "description": "Current SESSION-031 motion matching performs compact retrieval; next step is seamless transition synthesis, clip stitching, and anticipation-aware query scheduling."
+      "description": "CLOSED in SESSION-039. TransitionSynthesizer provides inertialized blending (Bollo quintic + Holden dead blending) after retrieval. RuntimeMotionQuery finds optimal entry frames.",
+      "completed_in": "SESSION-039"
     },
     {
       "id": "P1-HUMAN-31C",
@@ -476,6 +479,48 @@
     }
   ],
   "completed_tasks": [
+    {
+      "id": "P0-TRANSITION-39A",
+      "title": "Inertialized Transition Synthesis (Bollo GDC 2018 / Holden Dead Blending 2023)",
+      "completed_in": "SESSION-039",
+      "result": "TransitionSynthesizer with two strategies (quintic inertialization + dead blending), InertializationChannel, DeadBlendingChannel, TransitionPipelineNode, TransitionQualityMetrics. 912 lines. Target contacts always authoritative."
+    },
+    {
+      "id": "P0-TRANSITION-39B",
+      "title": "Runtime Motion Matching Query (Clavet GDC 2016)",
+      "completed_in": "SESSION-039",
+      "result": "RuntimeMotionQuery with 16-D compact feature vectors, RuntimeMotionDatabase, MotionMatchingRuntime, EntryFrameResult. 929 lines. Contact weight 2x velocity weight."
+    },
+    {
+      "id": "P0-TRANSITION-39C",
+      "title": "Layer 3 Transition Pipeline Integration",
+      "completed_in": "SESSION-039",
+      "result": "Test 11-12 in PhysicsTestBattery (12 total), 3 new diagnosis actions, 3 diagnosis rules, Rules 11-13 in knowledge distiller, fitness formula updated (transition 10% + entry 8%), convergence bridge extended with transition_quality and entry_frame_cost."
+    },
+    {
+      "id": "P1-INDUSTRIAL-34B",
+      "title": "Runtime motion matching query for real-time animation",
+      "completed_in": "SESSION-039",
+      "result": "Closed by RuntimeMotionQuery + TransitionSynthesizer + MotionMatchingRuntime delivering frame-by-frame runtime query, inertialized transition synthesis, and clip stitching on top of the UMR bus."
+    },
+    {
+      "id": "P1-HUMAN-31B",
+      "title": "Motion transition blending after retrieval",
+      "completed_in": "SESSION-039",
+      "result": "Closed by inertialized blending engine (Bollo quintic + Holden dead blending) with RuntimeMotionQuery for optimal entry frames."
+    },
+    {
+      "id": "AUDIT-039",
+      "title": "SESSION-039 integration test + research-to-code audit",
+      "completed_in": "SESSION-039",
+      "result": "15/15 integration tests passed. SESSION_039_AUDIT.md confirms all research requirements implemented. 5 files pass syntax validation."
+    },
+    {
+      "id": "KNOWLEDGE-039",
+      "title": "SESSION-039 knowledge distillation",
+      "completed_in": "SESSION-039",
+      "result": "knowledge/transition_synthesis_runtime_query.md (10 rules: 3 hard constraints, 4 heuristics, 3 soft defaults) + research_session039_transition_synthesis.md."
+    },
     {
       "id": "P0-PHASE-38A",
       "title": "Refined distance-matching metadata contract for jump and fall",

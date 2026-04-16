@@ -111,6 +111,22 @@ from .industrial_renderer import (
     GuiltyGearFrameScheduler,
     render_character_frame_industrial, render_character_sheet_industrial,
 )
+# SESSION-039: Inertialized Transition Synthesis (Bollo GDC 2018 / Holden Dead Blending)
+from .transition_synthesizer import (
+    TransitionStrategy,
+    InertializationChannel, DeadBlendingChannel,
+    TransitionQualityMetrics, TransitionSynthesizer,
+    TransitionPipelineNode,
+    create_transition_synthesizer, inertialize_transition,
+)
+# SESSION-039: Runtime Motion Matching Query (Clavet GDC 2016 / Holden 2020)
+from .runtime_motion_query import (
+    RuntimeFeatureWeights, RuntimeFeatureVector,
+    extract_runtime_features, EntryFrameResult,
+    RuntimeMotionDatabase, RuntimeMotionQuery,
+    PlaybackState, MotionMatchingRuntime,
+    create_runtime_database, create_motion_matching_runtime,
+)
 
 __all__ = [
     "Skeleton", "Bone", "Joint",
@@ -198,4 +214,16 @@ __all__ = [
     "AnimationPhaseType", "HoldFrameConfig", "HOLD_FRAME_DEFAULTS",
     "GuiltyGearFrameScheduler",
     "render_character_frame_industrial", "render_character_sheet_industrial",
+    # SESSION-039: Inertialized Transition Synthesis
+    "TransitionStrategy",
+    "InertializationChannel", "DeadBlendingChannel",
+    "TransitionQualityMetrics", "TransitionSynthesizer",
+    "TransitionPipelineNode",
+    "create_transition_synthesizer", "inertialize_transition",
+    # SESSION-039: Runtime Motion Matching Query
+    "RuntimeFeatureWeights", "RuntimeFeatureVector",
+    "extract_runtime_features", "EntryFrameResult",
+    "RuntimeMotionDatabase", "RuntimeMotionQuery",
+    "PlaybackState", "MotionMatchingRuntime",
+    "create_runtime_database", "create_motion_matching_runtime",
 ]

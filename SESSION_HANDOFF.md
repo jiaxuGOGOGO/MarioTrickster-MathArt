@@ -10,15 +10,16 @@
 3. **Read `SESSION_PROTOCOL.md`** — Session efficiency rules, anti-repetition process, and protocol trigger logic.
 4. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`** — Default method for precise, parallel, high-value external research. Includes Deep Reading Protocol rules for named north-star papers/repos.
 5. **Read `PROJECT_BRAIN.json`** — Machine-readable global state.
-6. **Read `research_session036_umr_architecture.md`** — SESSION-036 research synthesis for OpenUSD `UsdSkel`, Houdini KineFX, Unreal AnimGraph layering, and the Unified Motion Representation (UMR) trunk.
-7. **Read `research_session035_compliant_physics.md`** — SESSION-035 research synthesis for DeepMimic compliant PD tracking, AMP adversarial motion priors, and VPoser latent-space pose mutation.
-8. **Read `research_session034_industrial_rendering.md`** — SESSION-034 research synthesis for Motion Matching (Clavet GDC 2016), Dead Cells 3D-to-2D pipeline (GDC 2018), and Guilty Gear Xrd hold frames (GDC 2015).
-9. **Read `research_session033_phase_driven.md`** — SESSION-033 research synthesis for PFNN, DeepPhase, and Animator's Survival Kit phase-driven animation.
-10. **Read `research_session032_pdg_framing.md`** — SESSION-032 research synthesis for PDG, USD-like scene description, and industrial PCG architecture closure.
-11. **Read `research_session031_framing.md`** — SESSION-031 research synthesis for SMPL-like body latents, VPoser-style priors, dual quaternions, and motion matching.
-12. **Read `research_notes_session030.md`, `BIOMECHANICS_RESEARCH_NOTES.md`, and `PHYSICS_ANIMATION_UPGRADE_PLAN.md`** for the physics / biomechanics / RL foundation.
-13. **Read `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md`** when the goal touches diffusion rendering, ComfyUI/Wan pipelines, or simulation-conditioned neural rendering architecture.
-14. **Read this file** — Current priorities, verified status, and handoff guidance.
+6. **Read `research_session039_transition_synthesis.md`** — SESSION-039 research synthesis for Inertialized Transition Synthesis (Bollo GDC 2018, Holden Dead Blending 2023) and Runtime Motion Matching Query (Clavet GDC 2016).
+7. **Read `research_session036_umr_architecture.md`** — SESSION-036 research synthesis for OpenUSD `UsdSkel`, Houdini KineFX, Unreal AnimGraph layering, and the Unified Motion Representation (UMR) trunk.
+8. **Read `research_session035_compliant_physics.md`** — SESSION-035 research synthesis for DeepMimic compliant PD tracking, AMP adversarial motion priors, and VPoser latent-space pose mutation.
+9. **Read `research_session034_industrial_rendering.md`** — SESSION-034 research synthesis for Motion Matching (Clavet GDC 2016), Dead Cells 3D-to-2D pipeline (GDC 2018), and Guilty Gear Xrd hold frames (GDC 2015).
+10. **Read `research_session033_phase_driven.md`** — SESSION-033 research synthesis for PFNN, DeepPhase, and Animator's Survival Kit phase-driven animation.
+11. **Read `research_session032_pdg_framing.md`** — SESSION-032 research synthesis for PDG, USD-like scene description, and industrial PCG architecture closure.
+12. **Read `research_session031_framing.md`** — SESSION-031 research synthesis for SMPL-like body latents, VPoser-style priors, dual quaternions, and motion matching.
+13. **Read `research_notes_session030.md`, `BIOMECHANICS_RESEARCH_NOTES.md`, and `PHYSICS_ANIMATION_UPGRADE_PLAN.md`** for the physics / biomechanics / RL foundation.
+14. **Read `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md`** when the goal touches diffusion rendering, ComfyUI/Wan pipelines, or simulation-conditioned neural rendering architecture.
+15. **Read this file** — Current priorities, verified status, and handoff guidance.
 
 ---
 
@@ -26,15 +27,80 @@
 
 | Dimension | Value |
 |-----------|-------|
-| Current version | **0.29.1** |
-| Last updated | 2026-04-16T12:13:11Z |
-| Last session | **SESSION-038** |
+| Current version | **0.30.0** |
+| Last updated | 2026-04-16T12:57:25Z |
+| Last session | **SESSION-039** |
 | Best quality score | 0.8674 (best validated geometric sprite baseline) |
-| Validation pass rate | **734/734 full-suite baseline + 73 prior targeted UMR regression PASS + 6 SESSION-037 transient-phase regression PASS + 6 SESSION-038 refined transient regression PASS** |
-| Total code lines | ~53,387 |
-| Knowledge rules | 26 persisted rules |
-| Math models registered | **25** |
+| Validation pass rate | **734/734 full-suite baseline + 73 prior targeted UMR regression PASS + 6 SESSION-037 transient-phase regression PASS + 6 SESSION-038 refined transient regression PASS + 15 SESSION-039 transition integration PASS** |
+| Total code lines | ~55,602 |
+| Knowledge rules | 36 persisted rules |
+| Math models registered | **27** |
 | Project health score | **9.99/10** |
+
+## What Changed in SESSION-039
+
+### Inertialized Transition Synthesis & Runtime Motion Matching Query (Bollo GDC 2018 / Holden Dead Blending 2023 / Clavet GDC 2016)
+
+SESSION-039 closed the biggest remaining runtime gap in the animation pipeline: **state transitions (e.g., Run → Jump) had no principled blending mechanism**, risking foot skating and contact tag destruction. The session implemented two complementary industrial techniques and wired them into the three-layer evolution loop as a closed feedback cycle.
+
+The implementation followed three north-star industrial references through the Deep Reading Protocol:
+
+1. **Bollo Quintic Inertialization (Gears of War, GDC 2018)** — The target animation receives **100% rendering weight immediately** at the moment of transition. The source animation's residual momentum is captured as per-joint angular offsets and decayed via a quintic polynomial with C2 boundary conditions. This guarantees contact tags from the target are always authoritative — no blended contacts, no skating.
+
+2. **Holden Dead Blending (Unreal Engine 5.3, 2023)** — A simpler alternative that extrapolates the source pose using recorded velocity with exponential decay, then cross-fades with the target. Only requires the current pose + velocity at transition time. More robust than quintic for edge cases.
+
+3. **Clavet Runtime Motion Matching Query (Ubisoft, GDC 2016)** — Never enter a clip at frame 0 blindly. Compute `Cost = w_vel*diff(velocity) + w_contact*diff(foot_contacts) + w_phase*diff(phase)` and pick the lowest-cost frame. Contact weight is 2× velocity weight to prevent skating.
+
+> "Traditional crossfade evaluates BOTH source and target during the blend window, doubling cost and destroying foot contact tags. Inertialization gives the target 100% weight immediately — the source's momentum decays as an additive offset that never touches contact semantics." — SESSION-039 architectural rule
+
+| Component | Landing in repo | Why it matters |
+|-----------|-----------------|----------------|
+| **`TransitionSynthesizer`** | `mathart/animation/transition_synthesizer.py` (912 lines) | Two-strategy inertialized blending engine: Bollo quintic + Holden dead blending. Operates on `UnifiedMotionFrame` through the UMR bus. |
+| **`RuntimeMotionQuery`** | `mathart/animation/runtime_motion_query.py` (929 lines) | UMR-native runtime entry-frame search with 16-D compact feature vectors, weighted cost function, and per-feature diagnostics. |
+| **`MotionMatchingRuntime`** | `mathart/animation/runtime_motion_query.py` | Full runtime orchestrator: playback state, automatic/forced transitions, transition logging, quality metrics. |
+| **Layer 3 Test Battery** | `mathart/evolution/evolution_layer3.py` (+139 lines) | Test 11 (transition quality) + Test 12 (entry frame cost) + 3 new diagnosis actions + 3 new diagnosis rules. |
+| **Fitness evaluation** | `mathart/animation/physics_genotype.py` (+91 lines) | `evaluate_physics_fitness()` now runs a live Run→Jump transition test and feeds transition_quality (10%) + entry_quality (8%) into the overall formula. |
+| **Knowledge distillation** | `mathart/evolution/evolution_layer3.py` | Rules 11-13: transition synthesis, runtime motion matching, and combined pipeline patterns. |
+| **Convergence bridge** | `mathart/evolution/evolution_layer3.py` | `transition_quality`, `entry_frame_cost`, and `transition_strategy` now flow through the convergence bridge to downstream pipeline. |
+| **Public API** | `mathart/animation/__init__.py` (+28 lines) | All SESSION-039 types exported: `TransitionSynthesizer`, `RuntimeMotionQuery`, `MotionMatchingRuntime`, etc. |
+| **Research synthesis** | `research_session039_transition_synthesis.md` | Full research document with equations, architecture, and reference citations. |
+| **Knowledge rules** | `knowledge/transition_synthesis_runtime_query.md` | 10 distilled rules: 3 hard constraints, 4 heuristics, 3 soft defaults. |
+
+### Two-Stage Transition Pipeline
+
+The core architectural contribution is a **two-stage transition pipeline** that eliminates both pop artifacts (wrong entry frame) and skating artifacts (crossfade contact destruction):
+
+1. **Stage 1 — Query:** `RuntimeMotionQuery.query_best_entry()` searches the target clip's feature database for the frame with the lowest velocity/contact/phase mismatch to the current character state.
+2. **Stage 2 — Inertialize:** `TransitionSynthesizer.request_transition()` captures the source→target offset and decays it over 4-6 frames using quintic or dead blending, while the target's contact tags are immediately authoritative.
+
+### Three-Layer Evolution Loop Closure
+
+The transition pipeline is fully integrated into the Layer 3 self-iteration cycle:
+
+- **TRAIN:** Candidate genotypes are generated
+- **TEST:** 12-test battery now includes transition quality (Test 11) and entry frame cost (Test 12)
+- **DIAGNOSE:** New failure types (`FAIL_TRANSITION_QUALITY`, `FAIL_ENTRY_FRAME_COST`) trigger targeted fixes (`TUNE_DECAY_HALFLIFE`, `TUNE_ENTRY_WEIGHTS`, `SWITCH_BLEND_STRATEGY`)
+- **EVOLVE:** Mutation guided by diagnosis gene modifications
+- **DISTILL:** Rules 11-13 capture transition synthesis, runtime query, and combined pipeline knowledge
+
+### Validation and Self-Audit
+
+SESSION-039 was validated with a 15-test integration suite covering all new modules and their integration with existing architecture.
+
+| Audit Category | Checks | Result |
+|---------------|--------|--------|
+| Transition synthesizer imports + API | 3 checks | **PASS** |
+| Runtime motion query imports + API | 3 checks | **PASS** |
+| RuntimeMotionDatabase bootstrap | 2 checks | **PASS** |
+| RuntimeMotionQuery Run→Jump | 1 check | **PASS** |
+| MotionMatchingRuntime lifecycle | 2 checks | **PASS** |
+| inertialize_transition convenience | 1 check | **PASS** |
+| PhysicsKnowledgeDistiller SESSION-039 rules | 1 check | **PASS** |
+| PhysicsTestBattery 12-test upgrade | 1 check | **PASS** |
+| evolution_layer3 new enums | 1 check | **PASS** |
+| **Total** | **15 checks** | **15/15 PASS** |
+
+All 5 modified/new Python files pass syntax validation. The upgrade is fully backward-compatible: existing crossfade-free animation continues to work, and the new transition pipeline is opt-in through `TransitionSynthesizer` or `MotionMatchingRuntime`.
 
 ## What Changed in SESSION-038
 
@@ -233,11 +299,13 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 | Character rendering | **Strong+** | Original pipeline + **Dead Cells-style industrial renderer** (optional) |
 | Character evolution/search | **Very Strong (3-Layer++)** | Semantic genotype + knowledge distillation + physics self-iteration + **59-dim feature-vector scoring** + **AMP discriminator** + **VPoser naturalness** |
 | Animation physics | **Excellent+** | PhysDiff-inspired projection + **compliant PD tracking** (DeepMimic) + MuJoCo-style contacts + RL locomotion |
-| Motion naturalness | **Excellent++** | Phase-driven key-pose interpolation + biomechanics + ASE + **VPoser latent-space mutation** + industrial motion matching |
-| Procedural locomotion | **Excellent** | PFNN-style phase variable + PPO DeepMimic + FABRIK gait cycles + feature-vector retrieval |
+| Motion naturalness | **Excellent++** | Phase-driven key-pose interpolation + biomechanics + ASE + **VPoser latent-space mutation** + industrial motion matching + **inertialized transitions** |
+| Procedural locomotion | **Excellent** | PFNN-style phase variable + PPO DeepMimic + FABRIK gait cycles + feature-vector retrieval + **runtime motion matching query** |
 | Phase-driven animation | **Delivered v1** | Walk/Run/Sneak gaits with Catmull-Rom interpolation, DeepPhase channels |
 | Industrial rendering | **Delivered v1** | Dead Cells no-AA + pseudo-normal cel shading + GGXrd hold frames + squash/stretch |
 | Motion matching evaluation | **Delivered v1** | 59-dim feature vectors replace joint-angle tolerance in Layer 3 |
+| **Inertialized transition synthesis** | **Delivered v1** | **Bollo quintic + Holden dead blending; target contacts always authoritative; no crossfade** |
+| **Runtime motion matching query** | **Delivered v1** | **16-D compact feature search for optimal entry frame; two-stage query→inertialize pipeline** |
 | **Unified motion data bus** | **Delivered v1** | **UMR contract now carries time/phase/root/contact fields through generation, filters, export, and audit** |
 | **Compliant physics tracking** | **Delivered v1** | **DeepMimic PD compliance replaces rigid spring-damper as default** |
 | **Adversarial motion evaluation** | **Delivered v1** | **AMP LSGAN discriminator augments Layer 3 fitness (30% weight)** |
@@ -256,12 +324,12 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 | **Adversarial motion evaluation** | **Delivered (v1)** | Needs real motion capture dataset for discriminator training |
 | **Latent-space pose manipulation** | **Delivered (v1)** | Needs real VAE training on pose dataset for production-grade latent space |
 | **Industrial rendering pipeline** | **Delivered (v1)** | Needs real 3D-to-2D path, sprite sheet export optimization |
-| **Motion matching evaluation** | **Delivered (v1)** | Needs runtime query for real-time animation selection, transition synthesis on top of UMR |
+| **Motion matching evaluation** | **Delivered (v1+)** | Runtime query and transition synthesis now delivered (SESSION-039); needs production-scale clip library and real-time frame budget profiling |
 | **Unified motion data bus** | **Delivered (v1)** | Needs propagation to CLI/exporters/distillation bus and broader trunk reproducibility validation |
-| **Phase-driven animation** | **Delivered (v1)** | Needs gait transition blending, terrain-adaptive phase modulation, **jump/fall/hit phase-driven** |
+| **Phase-driven animation** | **Delivered (v1)** | Needs gait transition blending, terrain-adaptive phase modulation |
 | **WFC→Shader→Export closure** | **Delivered (v1)** | Needs richer fan-out / cache / collect semantics |
 | **Unified scene description** | **Delivered (USD-like v1)** | Needs layered composition, interchange serialization |
-| **Three-layer evolution integration** | **Delivered (industrial + compliant upgrade)** | Distillation should later feed a global runtime distillation bus |
+| **Three-layer evolution integration** | **Delivered (industrial + compliant + transition upgrade)** | 12-test battery with transition quality; distillation should later feed a global runtime distillation bus |
 | **Compact body parameterization** | **Delivered** | Still needs first-class genotype / pipeline exposure |
 | **Pseudo-3D / future 3D readiness** | **Partially delivered** | Math backend + scene contract + industrial renderer exist, but no 3D mesh path |
 | **Simulation-conditioned neural rendering bridge** | **Architecturally framed** | Needs concrete mask / scene / pose export into diffusion backends |
@@ -276,7 +344,7 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 5. **Scene-Aware Distance Sensors (P1-PHASE-37A):** Current jump/fall semantics are architecturally correct but still use strong analytic proxies; next step is terrain-aware or raycast-based sensing plus richer impact sensing under dynamic runtime physics.
 6. **Gait Transition Blending (P1-PHASE-33A):** Phase-driven walk/run/sneak are independent; need smooth blending between gaits during speed changes.
 7. **Terrain-Adaptive Phase Modulation (P1-PHASE-33B):** Phase advancement should respond to slope, surface type, obstacles, and true distance sensing.
-8. **Motion Transition Synthesis (P1-HUMAN-31B / P1-INDUSTRIAL-34B):** Motion matching retrieves clips and reads UMR context, but does not yet synthesize seamless runtime transitions.
+8. **~~Motion Transition Synthesis (P1-HUMAN-31B / P1-INDUSTRIAL-34B):~~** **CLOSED in SESSION-039.** Inertialized transition synthesis + runtime motion matching query now delivered.
 9. **PDG v2 / Industrial Runtime Semantics:** Current DAG closure works, but lacks caching, partitioning, fan-out/fan-in orchestration.
 10. **Human-Math Pipeline Closure (P1-HUMAN-31A/C):** Shape latents not first-class genes, dual-quaternion renderer not built.
 11. **Simulation-Conditioned Neural Rendering Bridge + Visual Quality Gap:** Conditioned rendering backend is still missing, and SDF-based rendering remains below diffusion-polished or hand-authored commercial assets.
@@ -298,8 +366,7 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 | P1-UMR-36A | Propagate UMR contract to CLI, exporters, and distillation bus | TODO | Medium | Ensure `cli.py`, export bridges, and future distillation/runtime entrypoints consume and emit `UnifiedMotionFrame` / `UnifiedMotionClip`, including refined transient semantics and critical-damped hit recovery metadata. |
 | P1-PHASE-37A | Scene-aware distance matching sensors | TODO | Medium | Replace analytic jump/fall proxies with scene-aware sensing (distance-to-ground raycasts, apex prediction under runtime physics, landing probes) and extend hit toward richer impact sensing so transient phases stay correct on uneven terrain and dynamic collision setups. |
 | P1-INDUSTRIAL-34A | Industrial renderer integration into AssetPipeline | TODO | Medium | Wire `render_character_frame_industrial()` as an optional rendering backend in `produce_character_pack()`. |
-| P1-INDUSTRIAL-34B | Runtime motion matching query for real-time animation | TODO | High | Extend `MotionMatchingEvaluator` from batch evaluation to frame-by-frame runtime query driven by UMR context, with transition synthesis, inertia blending, and clip stitching. |
-| P1-INDUSTRIAL-34C | 3D-to-2D mesh rendering path | TODO | High | Implement actual 3D mesh → 2D pixel art pipeline (Dead Cells full workflow) instead of SDF-only. |
+| P1-INDUSTRIAL-34B | Runtime motion matching query for real-time animation | **DONE (SESSION-039)** | High | `RuntimeMotionQuery` + `TransitionSynthesizer` + `MotionMatchingRuntime` deliver frame-by-frame runtime query, inertialized transition synthesis, and clip stitching on top of the UMR bus. |mesh rendering path | TODO | High | Implement actual 3D mesh → 2D pixel art pipeline (Dead Cells full workflow) instead of SDF-only. |
 | P1-PHASE-33A | Gait transition blending (walk↔run↔sneak) | TODO | Medium | Smooth phase-preserving blending between gait modes during speed changes. |
 | P1-PHASE-33B | Terrain-adaptive phase modulation | TODO | Medium | Phase advancement responds to slope, surface type, and obstacles. |
 | P1-PHASE-33C | Animation preview / visualization tool | TODO | Low | Generate sprite sheet or GIF from phase-driven animation for visual validation. |
@@ -310,13 +377,26 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 | P1-AI-2 | Simulation-conditioned neural rendering bridge | TODO | High | Export physics / scene / mask constraints into ComfyUI / Wan-style rendering backends. |
 | P1-NEW-10 | Production benchmark asset suite | TODO | High | Benchmark characters / tiles / VFX with acceptance thresholds. |
 | P1-HUMAN-31A | Integrate SMPL-like shape latents into `CharacterGenotype` and pipeline | TODO | Medium | Promote SESSION-031 body latents into first-class evolving genes. |
-| P1-HUMAN-31B | Add motion transition blending after retrieval | TODO | High | Extend `MotionMatcher2D` from retrieval to seamless state stitching. |
+| P1-HUMAN-31B | Add motion transition blending after retrieval | **DONE (SESSION-039)** | High | `TransitionSynthesizer` provides inertialized blending (Bollo quintic + Holden dead blending) after retrieval. `RuntimeMotionQuery` finds optimal entry frames. |
 | P1-HUMAN-31C | Build pseudo-3D paper-doll / mesh-shell backend on dual quaternions | TODO | High | Turn the transform backend into visible 2.5D output. |
 | P1-RESEARCH-30A | Metabolic Engine: ATP/Lactate Fatigue Model | TODO | High | Torque reduction and body-temperature-aware locomotion degradation. |
 | P1-RESEARCH-30B | MPM & Phase Change Simulation | TODO | High | Terrain interaction for snow/mud-like material response. |
 | P1-RESEARCH-30C | Reaction-Diffusion Thermodynamics | TODO | High | Texture evolution for chemical / thermal phenomena. |
 
 ## Completed Tasks
+
+### SESSION-039
+
+| ID | Task | Result |
+|----|------|--------|
+| P0-TRANSITION-39A | Inertialized Transition Synthesis (Bollo GDC 2018 / Holden Dead Blending 2023) | **DONE** — `TransitionSynthesizer` with two strategies (quintic inertialization + dead blending), `InertializationChannel`, `DeadBlendingChannel`, `TransitionPipelineNode`, `TransitionQualityMetrics`. 912 lines. |
+| P0-TRANSITION-39B | Runtime Motion Matching Query (Clavet GDC 2016) | **DONE** — `RuntimeMotionQuery` with 16-D compact feature vectors, `RuntimeMotionDatabase`, `MotionMatchingRuntime`, `EntryFrameResult`. 929 lines. |
+| P0-TRANSITION-39C | Layer 3 Transition Pipeline Integration | **DONE** — Test 11-12 in `PhysicsTestBattery`, 3 new diagnosis actions, 3 diagnosis rules, Rules 11-13 in knowledge distiller, fitness formula updated (transition 10% + entry 8%), convergence bridge extended. |
+| P0-TRANSITION-39D | Two-Stage Transition Pipeline | **DONE** — Query optimal entry frame → Inertialize source→target offset. Eliminates both pop artifacts and skating artifacts. |
+| P1-INDUSTRIAL-34B | Runtime motion matching query for real-time animation | **DONE** — Closed by SESSION-039 `RuntimeMotionQuery` + `TransitionSynthesizer` + `MotionMatchingRuntime`. |
+| P1-HUMAN-31B | Motion transition blending after retrieval | **DONE** — Closed by SESSION-039 inertialized blending engine. |
+| AUDIT-039 | Full 15-point integration test + research-to-code audit | **DONE** — `SESSION_039_AUDIT.md` + `test_session039.py` **15/15 PASS**. |
+| KNOWLEDGE-039 | Knowledge distillation | **DONE** — `knowledge/transition_synthesis_runtime_query.md` (10 rules) + `research_session039_transition_synthesis.md`. |
 
 ### SESSION-038
 
@@ -420,16 +500,16 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 
 1. **Read `COMMERCIAL_BENCHMARK.md`, `DEDUP_REGISTRY.json`, `SESSION_PROTOCOL.md`, and `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` before coding.**
 2. Read `PROJECT_BRAIN.json`, `research_session037_distance_transient_phases.md`, `research_session036_umr_architecture.md`, `research_session035_compliant_physics.md`, and this handoff before proposing any motion, animation, or evolution upgrade.
-3. Treat SESSION-036 + SESSION-037 + SESSION-038 as the new motion baseline: **all motion stages should prefer `UnifiedMotionFrame` / `UnifiedMotionClip`, preserve phase/root/contact metadata, and represent jump/fall/hit with refined transient semantics (`target_state`, contact expectation, landing preparation, critical-damped recovery) rather than raw elapsed time.**
+3. Treat SESSION-036 + SESSION-037 + SESSION-038 + SESSION-039 as the new motion baseline: **all motion stages should prefer `UnifiedMotionFrame` / `UnifiedMotionClip`, preserve phase/root/contact metadata, represent jump/fall/hit with refined transient semantics, and use inertialized transitions (never crossfade) with runtime motion matching query for optimal entry frames.**
 4. Treat SESSION-035 as the physics baseline: **use compliant_pd mode instead of spring mode, use AMP discriminator instead of hand-written coverage_score, use VPoser latent mutation instead of joint-angle mutation.**
 5. If the goal is to finish trunk enforcement, start with **P1-PHASE-35A** and **P1-UMR-36A** (non-bypass CLI/exporter propagation of the refined UMR transient contract).
 6. If the goal is to improve physical accuracy of transient phases, start with **P1-PHASE-37A** and **P1-PHASE-33B** (scene-aware/raycast distance sensing, richer impact sensing, and terrain-adaptive modulation).
 7. If the goal is end-to-end validation, start with **P1-BENCH-35A** (zero-to-export trunk reproducibility with refined transient artifact assertions).
-8. If the goal is to deepen the industrial rendering/runtime pipeline, start with **P1-INDUSTRIAL-34A** (AssetPipeline integration), **P1-INDUSTRIAL-34B** (runtime motion matching), or **P1-INDUSTRIAL-34C** (3D-to-2D mesh path).
+8. If the goal is to deepen the industrial rendering/runtime pipeline, start with **P1-INDUSTRIAL-34A** (AssetPipeline integration) or **P1-INDUSTRIAL-34C** (3D-to-2D mesh path). **P1-INDUSTRIAL-34B is now DONE (SESSION-039).**
 9. If the goal is to deepen phase-driven animation, start with **P1-PHASE-33A** (gait transition blending), **P1-PHASE-33B** (terrain-adaptive modulation), or **P1-PHASE-33C** (animation preview).
 10. If the goal is to deepen the PDG architecture, start with **P1-ARCH-4**, **P1-ARCH-5**, or **P1-ARCH-6**.
 11. If the goal is diffusion or neural rendering, use `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md` and start with **P1-AI-2**.
-12. If the goal is to deepen the human-math stack, start with **P1-HUMAN-31A**, **P1-HUMAN-31B**, or **P1-HUMAN-31C**.
+12. If the goal is to deepen the human-math stack, start with **P1-HUMAN-31A** or **P1-HUMAN-31C**. **P1-HUMAN-31B is now DONE (SESSION-039).**
 13. If the goal is better final art quality, start with **P1-NEW-10** and benchmark-guided acceptance thresholds.
 14. If the goal is frontier simulation research, start with **P1-RESEARCH-30A/B/C** under the Deep Reading Protocol.
 15. Always update this file and `PROJECT_BRAIN.json` before ending.
@@ -454,3 +534,6 @@ All 6 modified Python files pass syntax validation. Full test suite: **734/734 P
 [16]: https://xbpeng.github.io/projects/DeepMimic/DeepMimic_2018.pdf "DeepMimic: Example-Guided Deep RL of Physics-Based Character Skills (SIGGRAPH 2018)"
 [17]: https://xbpeng.github.io/projects/AMP/2021_AMP.pdf "AMP: Adversarial Motion Priors for Stylized Physics-Based Character Control (SIGGRAPH 2021)"
 [18]: https://github.com/nghorbani/human_body_prior "VPoser: Variational Human Pose Prior (CVPR 2019)"
+[19]: https://media.gdcvault.com/gdc2018/presentations/bollo_david_inertialization_high_performance.pdf "Inertialization: High-Performance Animation Transitions in Gears of War (GDC 2018)"
+[20]: https://theorangeduck.com/page/dead-blending "Dead Blending (Daniel Holden, 2023)"
+[21]: https://ribosome-rbx.github.io/files/motion_matching.pdf "Motion Matching and The Road to Next-Gen Animation (Clavet GDC 2016)"

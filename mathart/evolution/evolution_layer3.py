@@ -78,6 +78,9 @@ class PhysicsTestResult(str, Enum):
     FAIL_PELVIS_TRAJECTORY = "fail_pelvis_trajectory"  # Pelvis height doesn't follow Down/Up pattern
     FAIL_ARM_OPPOSITION = "fail_arm_opposition"  # Arms don't counter-rotate with legs
     FAIL_KNEE_ROM = "fail_knee_rom"  # Knees bend forward (positive)
+    # SESSION-039: Inertialized transition & runtime motion matching tests
+    FAIL_TRANSITION_QUALITY = "fail_transition_quality"  # Inertialized transition too jerky
+    FAIL_ENTRY_FRAME_COST = "fail_entry_frame_cost"  # Runtime query entry frame cost too high
 
 
 class DiagnosisAction(str, Enum):
@@ -98,6 +101,10 @@ class DiagnosisAction(str, Enum):
     SMOOTH_PHASE_TRANSITION = "smooth_phase_transition"  # Add interpolation smoothing
     RECALIBRATE_CHANNELS = "recalibrate_channels"  # Re-tune DeepPhase channels
     SWITCH_TO_PHASE_DRIVEN = "switch_to_phase_driven"  # Upgrade from sin() to phase-driven
+    # SESSION-039: Inertialized transition & runtime motion matching diagnosis actions
+    TUNE_DECAY_HALFLIFE = "tune_decay_halflife"  # Adjust inertialization decay spring
+    TUNE_ENTRY_WEIGHTS = "tune_entry_weights"  # Adjust runtime query feature weights
+    SWITCH_BLEND_STRATEGY = "switch_blend_strategy"  # Switch between quintic/dead_blending
 
 
 class EvolutionPhase(str, Enum):
@@ -335,6 +342,22 @@ class PhysicsTestBattery:
             failures.append(PhysicsTestResult.FAIL_SKATING)
             recommendations.append(DiagnosisAction.INCREASE_DAMPING)
 
+        # SESSION-039: Inertialized transition quality tests
+        # Test 11: Transition quality (inertialization offset convergence)
+        transition_quality = scores.get("transition_quality", 1.0)
+        if transition_quality < 0.4:
+            failures.append(PhysicsTestResult.FAIL_TRANSITION_QUALITY)
+            if transition_quality < 0.2:
+                recommendations.append(DiagnosisAction.SWITCH_BLEND_STRATEGY)
+            else:
+                recommendations.append(DiagnosisAction.TUNE_DECAY_HALFLIFE)
+
+        # Test 12: Runtime motion matching entry frame cost
+        entry_frame_cost = scores.get("entry_frame_cost", 0.0)
+        if entry_frame_cost > 8.0:
+            failures.append(PhysicsTestResult.FAIL_ENTRY_FRAME_COST)
+            recommendations.append(DiagnosisAction.TUNE_ENTRY_WEIGHTS)
+
         # Determine overall result
         if not failures:
             overall = scores.get("overall", 0.0)
@@ -351,7 +374,7 @@ class PhysicsTestBattery:
             result=result,
             scores=scores,
             details={
-                "n_tests_run": 10,  # SESSION-034: upgraded from 8 to 10 tests
+                "n_tests_run": 12,  # SESSION-039: upgraded from 10 to 12 tests
                 "n_failures": len(failures),
                 "all_failures": [f.value for f in failures],
                 # SESSION-034: Industrial metrics in test details
@@ -438,6 +461,26 @@ class PhysicsDiagnosisEngine:
                 "condition": lambda scores: scores.get("knee_rom", 1.0) < 0.5,
                 "action": DiagnosisAction.ADJUST_KEY_POSES,
                 "gene_mods": {"knee_clamp_max": -0.05},
+            },
+        },
+        # SESSION-039: Inertialized transition & runtime motion matching diagnosis rules
+        PhysicsTestResult.FAIL_TRANSITION_QUALITY: {
+            "jerky_transition": {
+                "condition": lambda scores: scores.get("transition_quality", 1.0) < 0.2,
+                "action": DiagnosisAction.SWITCH_BLEND_STRATEGY,
+                "gene_mods": {"blend_strategy": 1.0},  # 1.0 = switch to dead_blending
+            },
+            "slow_convergence": {
+                "condition": lambda scores: scores.get("transition_quality", 1.0) < 0.4,
+                "action": DiagnosisAction.TUNE_DECAY_HALFLIFE,
+                "gene_mods": {"decay_halflife": -0.02},  # Faster decay
+            },
+        },
+        PhysicsTestResult.FAIL_ENTRY_FRAME_COST: {
+            "poor_entry_match": {
+                "condition": lambda scores: scores.get("entry_frame_cost", 0.0) > 8.0,
+                "action": DiagnosisAction.TUNE_ENTRY_WEIGHTS,
+                "gene_mods": {"contact_weight_boost": 0.5},  # Increase contact importance
             },
         },
     }
@@ -763,6 +806,81 @@ class PhysicsKnowledgeDistiller:
                     "archetype": archetype,
                 },
                 "confidence": min(1.0 - skating_pen, 0.90),
+                "source": f"Layer3-AutoDistill-{self.rules_generated}",
+            })
+
+        # SESSION-039: Inertialized transition & runtime motion matching knowledge distillation
+        # Rule 11: Inertialization transition quality (Bollo GDC 2018 / Holden Dead Blending)
+        transition_quality = fitness.get("transition_quality", None)
+        if transition_quality is not None and transition_quality > 0.6:
+            rules.append({
+                "domain": "transition_synthesis",
+                "rule_type": "hard_constraint",
+                "rule_text": (
+                    f"Inertialized transitions (Bollo GDC 2018) achieve quality="
+                    f"{transition_quality:.2f} for archetype '{archetype}'. "
+                    f"NEVER use linear crossfade for state transitions — it destroys "
+                    f"contact tags and causes foot skating. Target animation gets 100% "
+                    f"rendering weight immediately; source momentum decays via quintic "
+                    f"polynomial or exponential spring over 4-6 frames."
+                ),
+                "params": {
+                    "transition_quality": str(transition_quality),
+                    "strategy": "inertialization_or_dead_blending",
+                    "decay_frames": "4-6",
+                    "contact_rule": "target_always_authoritative",
+                    "archetype": archetype,
+                },
+                "confidence": min(transition_quality, 0.95),
+                "source": f"Layer3-AutoDistill-{self.rules_generated}",
+            })
+
+        # Rule 12: Runtime motion matching entry frame quality (Clavet GDC 2016)
+        entry_cost = fitness.get("entry_frame_cost", None)
+        if entry_cost is not None and entry_cost < 5.0:
+            rules.append({
+                "domain": "runtime_motion_matching",
+                "rule_type": "heuristic",
+                "rule_text": (
+                    f"Runtime motion matching query (Clavet GDC 2016) finds optimal "
+                    f"entry frame with cost={entry_cost:.2f} for archetype '{archetype}'. "
+                    f"Never enter a clip at frame 0 blindly — compute "
+                    f"Cost = w_vel*diff(velocity) + w_contact*diff(foot_contacts) + "
+                    f"w_phase*diff(phase) and pick the lowest-cost frame. Contact weight "
+                    f"should be 2x velocity weight to prevent skating."
+                ),
+                "params": {
+                    "entry_frame_cost": str(entry_cost),
+                    "cost_function": "weighted_squared_euclidean",
+                    "contact_weight": "2.0",
+                    "velocity_weight": "1.0",
+                    "phase_weight": "0.8",
+                    "archetype": archetype,
+                },
+                "confidence": min(1.0 - entry_cost / 10.0, 0.90),
+                "source": f"Layer3-AutoDistill-{self.rules_generated}",
+            })
+
+        # Rule 13: Combined transition pipeline effectiveness
+        if (transition_quality is not None and transition_quality > 0.5 and
+                entry_cost is not None and entry_cost < 6.0):
+            rules.append({
+                "domain": "transition_pipeline",
+                "rule_type": "pipeline_pattern",
+                "rule_text": (
+                    f"Full transition pipeline: RuntimeMotionQuery finds optimal entry "
+                    f"frame (cost={entry_cost:.2f}), then TransitionSynthesizer applies "
+                    f"inertialized blending (quality={transition_quality:.2f}). This "
+                    f"two-stage approach eliminates both pop artifacts (wrong entry frame) "
+                    f"and skating artifacts (crossfade contact destruction)."
+                ),
+                "params": {
+                    "pipeline": "query_then_inertialize",
+                    "entry_cost": str(entry_cost),
+                    "transition_quality": str(transition_quality),
+                    "archetype": archetype,
+                },
+                "confidence": min((transition_quality + (1.0 - entry_cost / 10.0)) / 2.0, 0.92),
                 "source": f"Layer3-AutoDistill-{self.rules_generated}",
             })
 
@@ -1161,6 +1279,12 @@ class PhysicsEvolutionLayer:
                     "silhouette_quality": best_fitness.get("silhouette_quality", None),
                     "skating_penalty": best_fitness.get("skating_penalty", None),
                 },
+                # SESSION-039: Transition pipeline metrics in strategy record
+                "transition_metrics": {
+                    "transition_quality": best_fitness.get("transition_quality", None),
+                    "entry_frame_cost": best_fitness.get("entry_frame_cost", None),
+                    "entry_quality": best_fitness.get("entry_quality", None),
+                },
             })
 
         # SESSION-034: Log industrial metrics for diagnostics
@@ -1172,6 +1296,15 @@ class PhysicsEvolutionLayer:
                 print(f"  [S034] contact_consistency={cc:.3f} | "
                       f"silhouette_quality={sq:.3f} | skating_penalty={sp:.3f}")
 
+        # SESSION-039: Log transition pipeline metrics
+        if self.verbose:
+            tq = best_fitness.get('transition_quality', 'N/A')
+            efc = best_fitness.get('entry_frame_cost', 'N/A')
+            eq = best_fitness.get('entry_quality', 'N/A')
+            if tq != 'N/A':
+                print(f"  [S039] transition_quality={tq:.3f} | "
+                      f"entry_frame_cost={efc:.3f} | entry_quality={eq:.3f}")
+
         # SESSION-035: Update convergence bridge with best parameters
         # This bridges the gap between Layer 3 evaluation and export-time
         # parameter selection (Gap #3 fix)
@@ -1182,6 +1315,10 @@ class PhysicsEvolutionLayer:
             "biomechanics_zmp_strength": min(0.5, max(0.1, best_fitness.get('balance_score', 0.3))),
             "amp_style_reward": best_fitness.get('amp_style_reward', 0.0),
             "vposer_naturalness": best_fitness.get('vposer_naturalness', 0.0),
+            # SESSION-039: Transition pipeline parameters in convergence bridge
+            "transition_quality": best_fitness.get('transition_quality', 0.5),
+            "entry_frame_cost": best_fitness.get('entry_frame_cost', 5.0),
+            "transition_strategy": "dead_blending",  # Best default from research
             "combined_fitness": best_fitness['overall'],
             "archetype": archetype,
             "cycle_id": cycle_id,
