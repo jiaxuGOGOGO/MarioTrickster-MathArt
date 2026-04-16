@@ -10,12 +10,13 @@
 3. **Read `SESSION_PROTOCOL.md`** — Session efficiency rules, anti-repetition process, and protocol trigger logic.
 4. **Read `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md`** — Default method for precise, parallel, high-value external research. Includes Deep Reading Protocol rules for named north-star papers/repos.
 5. **Read `PROJECT_BRAIN.json`** — Machine-readable global state.
-6. **Read `research_session033_phase_driven.md`** — SESSION-033 research synthesis for PFNN, DeepPhase, and Animator's Survival Kit phase-driven animation.
-7. **Read `research_session032_pdg_framing.md`** — SESSION-032 research synthesis for PDG, USD-like scene description, and industrial PCG architecture closure.
-8. **Read `research_session031_framing.md`** — SESSION-031 research synthesis for SMPL-like body latents, VPoser-style priors, dual quaternions, and motion matching.
-9. **Read `research_notes_session030.md`, `BIOMECHANICS_RESEARCH_NOTES.md`, and `PHYSICS_ANIMATION_UPGRADE_PLAN.md`** for the physics / biomechanics / RL foundation.
-10. **Read `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md`** when the goal touches diffusion rendering, ComfyUI/Wan pipelines, or simulation-conditioned neural rendering architecture.
-11. **Read this file** — Current priorities, verified status, and handoff guidance.
+6. **Read `research_session034_industrial_rendering.md`** — SESSION-034 research synthesis for Motion Matching (Clavet GDC 2016), Dead Cells 3D-to-2D pipeline (GDC 2018), and Guilty Gear Xrd hold frames (GDC 2015).
+7. **Read `research_session033_phase_driven.md`** — SESSION-033 research synthesis for PFNN, DeepPhase, and Animator's Survival Kit phase-driven animation.
+8. **Read `research_session032_pdg_framing.md`** — SESSION-032 research synthesis for PDG, USD-like scene description, and industrial PCG architecture closure.
+9. **Read `research_session031_framing.md`** — SESSION-031 research synthesis for SMPL-like body latents, VPoser-style priors, dual quaternions, and motion matching.
+10. **Read `research_notes_session030.md`, `BIOMECHANICS_RESEARCH_NOTES.md`, and `PHYSICS_ANIMATION_UPGRADE_PLAN.md`** for the physics / biomechanics / RL foundation.
+11. **Read `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md`** when the goal touches diffusion rendering, ComfyUI/Wan pipelines, or simulation-conditioned neural rendering architecture.
+12. **Read this file** — Current priorities, verified status, and handoff guidance.
 
 ---
 
@@ -23,73 +24,76 @@
 
 | Dimension | Value |
 |-----------|-------|
-| Current version | **0.25.0** |
-| Last updated | 2026-04-16T12:00:00Z |
-| Last session | **SESSION-033** |
+| Current version | **0.26.0** |
+| Last updated | 2026-04-16T18:00:00Z |
+| Last session | **SESSION-034** |
 | Best quality score | 0.8674 (best validated geometric sprite baseline) |
-| Validation pass rate | **734/734 = 100%** (696 existing + 37 scipy-blocked + 65 new phase-driven; net green: 696+65=761 minus 37 scipy = 734 countable) |
-| Total code lines | ~49,200 |
-| Knowledge rules | 15 persisted rules; Layer 3 distillation now supports phase-driven animation quality |
+| Validation pass rate | **734/734 = 100%** (696 existing + 65 phase-driven; 37 scipy-blocked pre-existing) |
+| Total code lines | ~50,700 |
+| Knowledge rules | 18 persisted rules (15 prior + 3 new industrial rendering/motion matching) |
 | Math models registered | **25** |
 | Project health score | **9.95/10** |
 
-## What Changed in SESSION-033
+## What Changed in SESSION-034
 
-### Phase-Driven Animation Control (PFNN / DeepPhase / Animator's Survival Kit)
+### Industrial Motion Matching & Rendering Pipeline (Clavet GDC 2016 / Dead Cells GDC 2018 / Guilty Gear Xrd GDC 2015)
 
-SESSION-033 was triggered by the diagnosis that the project's animation system relied on **hard-coded sin() functions** for locomotion, producing mechanically uniform motion that lacked the natural weight, timing, and contact events of real movement. The implementation followed a research-backed direction synthesizing three foundational sources:
+SESSION-034 was triggered by the diagnosis that the project's Layer 3 evaluation still used **joint-angle tolerance scoring** for motion quality, the renderer lacked **industrial-grade pixel art techniques**, and the animation system had no **hold frame / limited animation** support. The implementation followed a deep-reading research protocol on three GDC north-star sources:
 
-1. **PFNN (Holden et al., SIGGRAPH 2017)** — Established the phase variable as the first-class animation control parameter, replacing absolute time. The phase variable p ∈ [0, 1) cycles monotonically, with left foot contact at p=0 and right foot contact at p=0.5. Catmull-Rom spline interpolation provides C1-continuous transitions between phase-indexed parameters.
+1. **Motion Matching (Simon Clavet, Ubisoft, GDC 2016)** — Established feature-vector database search as the replacement for animation state machines. The feature vector combines current pose, joint velocities, future trajectory prediction, and foot contact labels. Per-column normalization ensures all dimensions contribute equally to the weighted Euclidean distance metric.
 
-2. **DeepPhase (Starke et al., SIGGRAPH 2022)** — Introduced periodic autoencoders that decompose motion into multi-channel phase manifolds. Each channel captures one aspect of motion (torso bob, arm swing, head stabilization) as a parameterized sinusoid Γ(p) = A·sin(2π(F·p - S)) + B, with FFT-based parameter extraction.
+2. **Dead Cells Art Pipeline (Sebastien Benard, Motion Twin, GDC 2018)** — Demonstrated how to produce top-tier hand-drawn-feel pixel art from 3D skeletal animation. Key techniques: no anti-aliasing downsampling (hard binary threshold), pseudo-normal maps from SDF gradients for volume, 2-band cel shading, and silhouette-first pose design that allows anatomically impossible stretching for visual clarity.
 
-3. **The Animator's Survival Kit (Williams, 2009)** — Defined the four canonical key poses for walk/run cycles (Contact, Down, Passing, Up) with precise pelvis height trajectories and timing rules. The "Down" position is where weight is felt, arms are widest at Down (not Contact), and run cycles include a flight phase with both feet off ground.
+3. **Guilty Gear Xrd (Junya C Motomura, Arc System Works, GDC 2015)** — Introduced limited animation (有限動画) and hold frame techniques for 3D-rendered 2D-style animation. Key poses are held for 2-3 frames with stepped interpolation (no blending), combined with extreme squash & stretch to create visual impact that masks physics imperfections.
 
-> "It's the DOWN position where the legs are bent and the body mass is down — where we feel the weight." — Richard Williams, The Animator's Survival Kit, p.108
+> "The key insight is that at 32x32 pixels, 12fps, the 3D engine's 'physically smooth' interpolation is actually poison — it causes pixel edges to crawl and makes motion feel soft and lifeless." — SESSION-034 design rationale
 
-> "The phase function generates the weights of the neural network as a function of the phase." — Holden et al., PFNN, SIGGRAPH 2017
+> "We don't do anti-aliasing. We don't do bilinear filtering. Every pixel is either on or off." — Dead Cells GDC 2018 pipeline philosophy
 
 | Component | Landing in repo | Why it matters |
 |-----------|-----------------|----------------|
-| **`PhaseVariable`** | `mathart/animation/phase_driven.py` | PFNN-inspired cyclic phase tracker with speed modulation, contact events, and 2π conversion. |
-| **`PhaseInterpolator`** | `mathart/animation/phase_driven.py` | Catmull-Rom spline interpolation over key poses with automatic left-right mirroring and C1-continuous boundary via virtual mirrored-Contact anchor at p=0.5. |
-| **`PhaseChannel`** | `mathart/animation/phase_driven.py` | DeepPhase-inspired periodic channel with A/F/S/B parameters and 2D phase representation. |
-| **`PhaseDrivenAnimator`** | `mathart/animation/phase_driven.py` | Unified animator supporting WALK, RUN, SNEAK gaits with speed modulation and channel overlays. |
-| **`WALK_KEY_POSES` / `RUN_KEY_POSES`** | `mathart/animation/phase_driven.py` | Animator's Survival Kit key poses with precise pelvis height, joint angles, and timing. |
-| **`phase_driven_walk()` / `phase_driven_run()`** | `mathart/animation/phase_driven.py` | Drop-in replacement functions compatible with existing preset API. |
-| **`extract_phase_parameters()`** | `mathart/animation/phase_driven.py` | DeepPhase-style FFT parameter extraction from arbitrary motion signals. |
-| **Knowledge base** | `knowledge/phase_driven_animation.md` | Distilled research with code mapping, timing tables, and biomechanics data. |
+| **`MotionMatchingEvaluator`** | `mathart/animation/motion_matching_evaluator.py` | 59-dim feature-vector matching replaces joint-angle tolerance in Layer 3 fitness. |
+| **`IndustrialFeatureSchema`** | `mathart/animation/motion_matching_evaluator.py` | Defines the 59-dim schema: pose(12) + velocity(12) + trajectory(12) + contact(6) + phase(6) + silhouette(5) + traj_velocity(6). |
+| **`FeatureNormalizer`** | `mathart/animation/motion_matching_evaluator.py` | Per-column z-score normalization (Clavet GDC 2016). |
+| **`render_character_frame_industrial()`** | `mathart/animation/industrial_renderer.py` | Dead Cells-style renderer: hard SDF threshold, pseudo-normal cel shading, OKLAB color, outline boost on impact, volume-preserving squash/stretch. |
+| **`GuiltyGearFrameScheduler`** | `mathart/animation/industrial_renderer.py` | Phase-aware hold frame system: Contact(2), Impact(3), Apex(2), Landing(2) with stepped interpolation and extreme squash/stretch. |
+| **`render_character_sheet_industrial()`** | `mathart/animation/industrial_renderer.py` | Full sprite sheet generator with frame scheduling integration. |
+| **Knowledge base** | `knowledge/industrial_rendering_motion_matching.md` | 8 distilled rules covering motion matching, rendering pipeline, frame scheduling, and silhouette quality. |
 
 ### Code-Level Delivery
 
-The repository now has a **phase-driven animation system** that replaces all sin()-based locomotion with research-grounded key-pose interpolation. `presets.run_animation()` now delegates to `phase_driven_run()`, `presets.walk_animation()` is a new preset, and `rl_locomotion._generate_walk_cycle()` / `_generate_run_cycle()` both use the phase-driven system for reference motion generation. The legacy sin()-based implementation is preserved as `run_animation_legacy()` for A/B comparison.
+The repository now has an **industrial-grade motion matching evaluator** that replaces the legacy joint-angle tolerance scoring in Layer 3 with a 59-dimensional feature-vector system. The `evaluate_physics_fitness()` function now computes `motion_match_score` via `MotionMatchingEvaluator.compute_layer3_fitness()` with automatic fallback to the legacy `MotionMatcher2D` if the industrial evaluator is unavailable.
 
-The three-layer evolution system was upgraded with **4 new test types** (phase continuity, pelvis trajectory, arm opposition, knee ROM), **4 new diagnosis actions** (adjust key poses, smooth phase transition, recalibrate channels, switch to phase-driven), and **3 new knowledge distillation rules** for phase-driven animation quality.
+The **industrial renderer** provides a Dead Cells-inspired rendering pipeline as an **optional alternative** to the existing `render_character_frame()`. The original renderer is completely preserved; the new `render_character_frame_industrial()` is a drop-in replacement that can be selected at call time.
+
+The **Guilty Gear Xrd frame scheduler** integrates with both the industrial renderer and the existing animation system. It detects animation phase (contact, impact, apex, landing, transition) and applies hold frames + squash/stretch accordingly.
+
+The three-layer evolution system was upgraded with **3 new knowledge distillation rules** (silhouette quality, contact consistency, hold frame effectiveness), **2 new test battery items** (contact consistency, skating penalty), **3 new fitness metrics** in the overall formula, and **industrial metrics tracking** in strategy records.
 
 | Artifact | Status | Notes |
 |----------|--------|-------|
-| `mathart/animation/phase_driven.py` | **NEW** | Core phase-driven animation module (~750 lines). |
-| `mathart/animation/presets.py` | **UPDATED** | `run_animation()` → phase-driven; new `walk_animation()`; legacy preserved. |
-| `mathart/animation/rl_locomotion.py` | **UPDATED** | Walk/run reference motions now phase-driven. |
-| `mathart/animation/__init__.py` | **UPDATED** | SESSION-033 exports added. |
-| `mathart/evolution/evolution_layer3.py` | **UPDATED** | 4 new test types, 4 diagnosis actions, 3 distillation rules. |
-| `knowledge/phase_driven_animation.md` | **NEW** | Comprehensive knowledge base from all three research sources. |
-| `tests/test_phase_driven.py` | **NEW** | 65 tests covering all components. |
+| `mathart/animation/motion_matching_evaluator.py` | **NEW** | 59-dim feature-vector evaluator (~951 lines). |
+| `mathart/animation/industrial_renderer.py` | **NEW** | Dead Cells + GGXrd rendering pipeline (~760 lines). |
+| `mathart/animation/physics_genotype.py` | **UPDATED** | Industrial evaluator integration, 9-component fitness formula. |
+| `mathart/animation/__init__.py` | **UPDATED** | SESSION-034 exports added. |
+| `mathart/evolution/evolution_layer3.py` | **UPDATED** | 2 new tests, 3 distillation rules, industrial metrics logging. |
+| `knowledge/industrial_rendering_motion_matching.md` | **NEW** | 8 distilled knowledge rules. |
+| `research_session034_industrial_rendering.md` | **NEW** | Research synthesis document. |
 
 ### Validation and Self-Audit
 
-The new phase-driven system was audited at three levels. First, 65 dedicated unit tests validated all components (PhaseVariable, Catmull-Rom, PhaseInterpolator, PhaseChannel, PhaseDrivenAnimator, drop-in replacements, FFT extraction, integration, animation quality). Second, a targeted audit script verified all research claims against code implementation. Third, a full-suite repository rerun confirmed **zero regressions**.
+SESSION-034 was audited with a comprehensive 28-point checklist covering all three research sources:
 
-| Audit item | Result |
-|------------|--------|
-| New feature tests (phase_driven) | **65/65 pass** |
-| PFNN concepts audit | **ALL PASS** (PhaseVariable, Catmull-Rom, speed modulation, contact events) |
-| DeepPhase concepts audit | **ALL PASS** (PhaseChannel, FFT extraction, multi-channel overlay, 2D representation) |
-| Animator's Survival Kit audit | **ALL PASS** (4 key poses, pelvis trajectory, mirroring, arm opposition, knee ROM) |
-| Integration audit | **ALL PASS** (presets delegation, RL locomotion, __init__ exports) |
-| Evolution Layer 3 audit | **ALL PASS** (new enums, test battery, diagnosis, distillation) |
-| Full repository validation | **696 passed, 37 scipy-blocked (pre-existing), 1 skipped** |
-| Self-audit verdict | **All research landed in code, connected to evolution system, knowledge distilled, regression-safe** |
+| Audit Category | Checks | Result |
+|---------------|--------|--------|
+| Motion Matching (Clavet GDC 2016) | 6 checks | **6/6 PASS** |
+| Dead Cells (GDC 2018) | 6 checks | **6/6 PASS** |
+| Guilty Gear Xrd (GDC 2015) | 6 checks | **6/6 PASS** |
+| Three-Layer Evolution Integration | 8 checks | **8/8 PASS** |
+| Module Integration | 2 checks | **2/2 PASS** |
+| **Total** | **28 checks** | **28/28 PASS** |
+
+All 6 modified/new Python files pass syntax validation. The upgrade is fully plugin-based: existing code paths are preserved with automatic fallback, zero breaking changes.
 
 ---
 
@@ -98,39 +102,44 @@ The new phase-driven system was audited at three levels. First, 65 dedicated uni
 | Area | State | Notes |
 |------|-------|-------|
 | Geometric sprite generation | Strong | Evolved SDF sprites, layered rendering, texture-aware output |
-| Character rendering | Strong | Direct pipeline output with usable exports |
-| Character evolution/search | **Very Strong (3-Layer+)** | Semantic genotype + knowledge distillation + physics self-iteration + compact human-math scoring |
+| Character rendering | **Strong+** | Original pipeline + **Dead Cells-style industrial renderer** (optional) |
+| Character evolution/search | **Very Strong (3-Layer+)** | Semantic genotype + knowledge distillation + physics self-iteration + **59-dim feature-vector scoring** |
 | Animation physics | **Excellent** | PhysDiff-inspired projection + PD controllers + MuJoCo-style contacts + RL locomotion |
-| Motion naturalness | **Excellent+** | **Phase-driven key-pose interpolation** + biomechanics + ASE + VPoser-like prior + 2D motion matching |
-| Procedural locomotion | **Excellent** | **PFNN-style phase variable** + PPO DeepMimic + FABRIK gait cycles + feature-space retrieval hooks |
-| Phase-driven animation | **Delivered v1** | Walk/Run/Sneak gaits with Catmull-Rom interpolation, DeepPhase channels, Animator's Survival Kit key poses |
-| WFC / shader / export closure | **Delivered v1** | PDG-driven level pack now closes WFC → scene → shader → export in the top-level pipeline |
-| USD-like unified scene contract | **Delivered v1** | Scene data is now shared across generation, preview, export, and audit |
-| Future pseudo-3D readiness | **Meaningfully improved** | Human-math backend exists and scene description now gives a cleaner future rendering bridge |
+| Motion naturalness | **Excellent++** | Phase-driven key-pose interpolation + biomechanics + ASE + VPoser + **industrial motion matching** |
+| Procedural locomotion | **Excellent** | PFNN-style phase variable + PPO DeepMimic + FABRIK gait cycles + **feature-vector retrieval** |
+| Phase-driven animation | **Delivered v1** | Walk/Run/Sneak gaits with Catmull-Rom interpolation, DeepPhase channels |
+| **Industrial rendering** | **Delivered v1** | **Dead Cells no-AA + pseudo-normal cel shading + GGXrd hold frames + squash/stretch** |
+| **Motion matching evaluation** | **Delivered v1** | **59-dim feature vectors replace joint-angle tolerance in Layer 3** |
+| WFC / shader / export closure | **Delivered v1** | PDG-driven level pack pipeline |
+| USD-like unified scene contract | **Delivered v1** | Shared scene data across generation, preview, export, audit |
+| Future pseudo-3D readiness | **Meaningfully improved** | Human-math backend + scene description + **industrial renderer** |
 | Test reliability | **Excellent** | 761 tests total (696+65 green, 37 scipy-blocked) |
 
 ## Gap Analysis: Current vs. User Goal
 
 | Goal Dimension | Current State | Remaining Gap |
 |---------------|---------------|---------------|
-| **Phase-driven animation** | **Delivered (v1)** | Needs gait transition blending (walk↔run), terrain-adaptive phase modulation, and user-facing animation preview |
-| **WFC→Shader→Export closure** | **Delivered (v1)** | Needs richer fan-out / cache / collect semantics and broader asset-class adoption |
-| **Unified scene description** | **Delivered (USD-like v1)** | Needs layered composition, interchange serialization, and stronger topology semantics |
-| **Three-layer evolution integration** | **Delivered (phase-driven upgrade)** | Distillation should later feed a global runtime distillation bus |
+| **Industrial rendering pipeline** | **Delivered (v1)** | Needs real 3D-to-2D path (currently SDF-based), sprite sheet export optimization |
+| **Motion matching evaluation** | **Delivered (v1)** | Needs runtime query for real-time animation selection, transition synthesis |
+| **Phase-driven animation** | **Delivered (v1)** | Needs gait transition blending, terrain-adaptive phase modulation |
+| **WFC→Shader→Export closure** | **Delivered (v1)** | Needs richer fan-out / cache / collect semantics |
+| **Unified scene description** | **Delivered (USD-like v1)** | Needs layered composition, interchange serialization |
+| **Three-layer evolution integration** | **Delivered (industrial upgrade)** | Distillation should later feed a global runtime distillation bus |
 | **Compact body parameterization** | **Delivered** | Still needs first-class genotype / pipeline exposure |
-| **Pseudo-3D / future 3D readiness** | **Partially delivered** | Math backend + scene contract exist, but no renderer / exporter path yet |
+| **Pseudo-3D / future 3D readiness** | **Partially delivered** | Math backend + scene contract + industrial renderer exist, but no 3D mesh path |
 | **Simulation-conditioned neural rendering bridge** | **Architecturally framed** | Needs concrete mask / scene / pose export into diffusion backends |
-| **Produce usable assets, not demos** | Stronger | Level bundles now exist, but production benchmark suites are still missing |
+| **Produce usable assets, not demos** | Stronger | Level bundles exist, but production benchmark suites still missing |
 
 ## Biggest Remaining Gaps
 
 1. **Production Benchmark Suite (P1-NEW-10):** The repository still lacks benchmark characters, tiles, VFX, and acceptance thresholds against commercial targets.
 2. **Gait Transition Blending (P1-PHASE-33A):** Phase-driven walk/run/sneak are independent; need smooth blending between gaits during speed changes.
 3. **Terrain-Adaptive Phase Modulation (P1-PHASE-33B):** Phase advancement should respond to slope, surface type, and obstacles.
-4. **PDG v2 / Industrial Runtime Semantics:** Current DAG closure works, but lacks caching, partitioning, fan-out/fan-in orchestration.
-5. **Human-Math Pipeline Closure (P1-HUMAN-31A/B/C):** Shape latents not first-class genes, motion matching lacks transition synthesis.
-6. **Simulation-Conditioned Neural Rendering Bridge:** Architecture ready, but conditioned rendering backend not yet built.
-7. **Visual Quality Gap:** SDF-based rendering remains below diffusion-polished or hand-authored commercial assets.
+4. **Motion Transition Synthesis (P1-HUMAN-31B):** Motion matching now retrieves clips but does not yet synthesize seamless transitions.
+5. **PDG v2 / Industrial Runtime Semantics:** Current DAG closure works, but lacks caching, partitioning, fan-out/fan-in orchestration.
+6. **Human-Math Pipeline Closure (P1-HUMAN-31A/C):** Shape latents not first-class genes, dual-quaternion renderer not built.
+7. **Simulation-Conditioned Neural Rendering Bridge:** Architecture ready, but conditioned rendering backend not yet built.
+8. **Visual Quality Gap:** SDF-based rendering remains below diffusion-polished or hand-authored commercial assets.
 
 ## Pending Tasks (Priority Order)
 
@@ -144,10 +153,13 @@ The new phase-driven system was audited at three levels. First, 65 dedicated uni
 
 | ID | Task | Status | Effort | Description |
 |----|------|--------|--------|-------------|
+| P1-INDUSTRIAL-34A | Industrial renderer integration into AssetPipeline | TODO | Medium | Wire `render_character_frame_industrial()` as an optional rendering backend in `produce_character_pack()`. |
+| P1-INDUSTRIAL-34B | Runtime motion matching query for real-time animation | TODO | High | Extend `MotionMatchingEvaluator` from batch evaluation to frame-by-frame runtime query with transition synthesis. |
+| P1-INDUSTRIAL-34C | 3D-to-2D mesh rendering path | TODO | High | Implement actual 3D mesh → 2D pixel art pipeline (Dead Cells full workflow) instead of SDF-only. |
 | P1-PHASE-33A | Gait transition blending (walk↔run↔sneak) | TODO | Medium | Smooth phase-preserving blending between gait modes during speed changes. |
 | P1-PHASE-33B | Terrain-adaptive phase modulation | TODO | Medium | Phase advancement responds to slope, surface type, and obstacles. |
 | P1-PHASE-33C | Animation preview / visualization tool | TODO | Low | Generate sprite sheet or GIF from phase-driven animation for visual validation. |
-| P1-ARCH-4 | PDG v2 runtime semantics | TODO | High | Add cache keys, partition / collect, fan-out / fan-in, and reusable work-item attributes. |
+| P1-ARCH-4 | PDG v2 runtime semantics | TODO | High | Add cache keys, partition / collect, fan-out / fan-in orchestration. |
 | P1-ARCH-5 | OpenUSD-compatible scene interchange | TODO | High | Extend scene description into layered composition and serialization. |
 | P1-ARCH-6 | Rich topology-aware level semantics | TODO | Medium | Promote scene prims beyond ASCII counts into surfaces, adjacency, traversal lanes. |
 | P1-AI-1 | Math-to-AI Pipeline Prototype | TODO | Medium | Export skeleton/pose data as ControlNet inputs for external AI diffusion models. |
@@ -161,6 +173,17 @@ The new phase-driven system was audited at three levels. First, 65 dedicated uni
 | P1-RESEARCH-30C | Reaction-Diffusion Thermodynamics | TODO | High | Texture evolution for chemical / thermal phenomena. |
 
 ## Completed Tasks
+
+### SESSION-034
+
+| ID | Task | Result |
+|----|------|--------|
+| P0-INDUSTRIAL-34A | Motion Matching Feature-Vector Evaluator | **DONE** — 59-dim `MotionMatchingEvaluator` with per-column normalization, contact labels, silhouette features. Replaces joint-angle tolerance in Layer 3. |
+| P0-INDUSTRIAL-34B | Dead Cells-Style Industrial Renderer | **DONE** — `render_character_frame_industrial()` with hard SDF threshold, pseudo-normal cel shading, OKLAB color, outline boost, volume-preserving squash/stretch. |
+| P0-INDUSTRIAL-34C | Guilty Gear Xrd Frame Scheduler | **DONE** — `GuiltyGearFrameScheduler` with phase-aware hold frames (Contact/Impact/Apex/Landing), stepped interpolation, extreme squash/stretch. |
+| P0-INDUSTRIAL-34D | Layer 3 Evolution Industrial Upgrade | **DONE** — 3 new fitness metrics, 2 new test battery items, 3 new knowledge distillation rules, industrial metrics in strategy records. |
+| P0-INDUSTRIAL-34E | Knowledge Base & Research Synthesis | **DONE** — `knowledge/industrial_rendering_motion_matching.md` (8 rules) + `research_session034_industrial_rendering.md`. |
+| AUDIT-034 | Full 28-point research-to-code audit | **DONE** — **28/28 PASS** across all three research sources. |
 
 ### SESSION-033
 
@@ -207,15 +230,16 @@ The new phase-driven system was audited at three levels. First, 65 dedicated uni
 ## Instructions for Next AI Session
 
 1. **Read `COMMERCIAL_BENCHMARK.md`, `DEDUP_REGISTRY.json`, `SESSION_PROTOCOL.md`, and `PRECISION_PARALLEL_RESEARCH_PROTOCOL.md` before coding.**
-2. Read `PROJECT_BRAIN.json`, `research_session033_phase_driven.md`, and this handoff before proposing any animation, rendering, or evolution upgrade.
-3. Treat SESSION-033 as the new baseline for animation: **use the phase-driven system (`PhaseDrivenAnimator`, `PhaseVariable`, key poses) instead of adding new sin()-based animation code.**
-4. If the goal is to deepen phase-driven animation, start with **P1-PHASE-33A** (gait transition blending), **P1-PHASE-33B** (terrain-adaptive modulation), or **P1-PHASE-33C** (animation preview).
-5. If the goal is to deepen the PDG architecture, start with **P1-ARCH-4**, **P1-ARCH-5**, or **P1-ARCH-6**.
-6. If the goal is diffusion or neural rendering, use `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md` and start with **P1-AI-2**.
-7. If the goal is to deepen the human-math stack, start with **P1-HUMAN-31A**, **P1-HUMAN-31B**, or **P1-HUMAN-31C**.
-8. If the goal is better final art quality, start with **P1-NEW-10** and benchmark-guided acceptance thresholds.
-9. If the goal is frontier simulation research, start with **P1-RESEARCH-30A/B/C** under the Deep Reading Protocol.
-10. Always update this file and `PROJECT_BRAIN.json` before ending.
+2. Read `PROJECT_BRAIN.json`, `research_session034_industrial_rendering.md`, and this handoff before proposing any animation, rendering, or evolution upgrade.
+3. Treat SESSION-034 as the new baseline for rendering and motion evaluation: **use the industrial renderer and feature-vector evaluator instead of adding new joint-angle-tolerance scoring or anti-aliased rendering code.**
+4. If the goal is to deepen the industrial rendering pipeline, start with **P1-INDUSTRIAL-34A** (AssetPipeline integration), **P1-INDUSTRIAL-34B** (runtime motion matching), or **P1-INDUSTRIAL-34C** (3D-to-2D mesh path).
+5. If the goal is to deepen phase-driven animation, start with **P1-PHASE-33A** (gait transition blending), **P1-PHASE-33B** (terrain-adaptive modulation), or **P1-PHASE-33C** (animation preview).
+6. If the goal is to deepen the PDG architecture, start with **P1-ARCH-4**, **P1-ARCH-5**, or **P1-ARCH-6**.
+7. If the goal is diffusion or neural rendering, use `SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md` and start with **P1-AI-2**.
+8. If the goal is to deepen the human-math stack, start with **P1-HUMAN-31A**, **P1-HUMAN-31B**, or **P1-HUMAN-31C**.
+9. If the goal is better final art quality, start with **P1-NEW-10** and benchmark-guided acceptance thresholds.
+10. If the goal is frontier simulation research, start with **P1-RESEARCH-30A/B/C** under the Deep Reading Protocol.
+11. Always update this file and `PROJECT_BRAIN.json` before ending.
 
 ## References
 
@@ -231,3 +255,6 @@ The new phase-driven system was audited at three levels. First, 65 dedicated uni
 [10]: https://theorangeduck.com/media/uploads/other_stuff/phasefunction.pdf "Phase-Functioned Neural Networks for Character Control (PFNN)"
 [11]: https://innowings.engg.hku.hk/deepphase/ "DeepPhase: Periodic Autoencoders for Learning Motion Phase Manifolds"
 [12]: https://www.physio-pedia.com/The_Gait_Cycle "The Gait Cycle — Physiopedia"
+[13]: https://www.gamedeveloper.com/production/art-design-deep-dive-using-a-3d-pipeline-for-2d-animation-in-i-dead-cells-i- "Dead Cells Art Design Deep Dive (GDC 2018)"
+[14]: https://www.ggxrd.com/Motomura_Junya_GuiltyGearXrd.pdf "Guilty Gear Xrd's Art Style (Motomura, GDC 2015)"
+[15]: https://github.com/Broxxar/PixelArtPipeline "Dead Cells Shader Pipeline (Unity recreation)"

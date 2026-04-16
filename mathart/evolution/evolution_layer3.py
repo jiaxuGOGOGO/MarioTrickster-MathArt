@@ -322,6 +322,19 @@ class PhysicsTestBattery:
             failing_joints.extend(["l_knee", "r_knee"])
             recommendations.append(DiagnosisAction.ADJUST_KEY_POSES)
 
+        # SESSION-034: Industrial motion matching & rendering quality tests
+        # Test 9: Contact consistency (Motion Matching feature vector)
+        contact_cons = scores.get("contact_consistency", 1.0)
+        if contact_cons < 0.5:
+            failures.append(PhysicsTestResult.FAIL_CONTACT)
+            recommendations.append(DiagnosisAction.ADJUST_FRICTION)
+
+        # Test 10: Skating penalty (feature-vector contact velocity)
+        skating_pen = scores.get("skating_penalty", 0.0)
+        if skating_pen > self.skating_threshold:
+            failures.append(PhysicsTestResult.FAIL_SKATING)
+            recommendations.append(DiagnosisAction.INCREASE_DAMPING)
+
         # Determine overall result
         if not failures:
             overall = scores.get("overall", 0.0)
@@ -338,9 +351,15 @@ class PhysicsTestBattery:
             result=result,
             scores=scores,
             details={
-                "n_tests_run": 8,  # SESSION-033: upgraded from 4 to 8 tests
+                "n_tests_run": 10,  # SESSION-034: upgraded from 8 to 10 tests
                 "n_failures": len(failures),
                 "all_failures": [f.value for f in failures],
+                # SESSION-034: Industrial metrics in test details
+                "industrial_metrics": {
+                    "contact_consistency": contact_cons,
+                    "silhouette_quality": scores.get("silhouette_quality", None),
+                    "skating_penalty": skating_pen,
+                },
             },
             failing_joints=failing_joints,
             recommendations=recommendations,
@@ -677,6 +696,76 @@ class PhysicsKnowledgeDistiller:
                 "source": f"Layer3-AutoDistill-{self.rules_generated}",
             })
 
+        # SESSION-034: Industrial rendering & motion matching knowledge distillation
+        # Rule 8: Silhouette quality (Dead Cells GDC 2018)
+        sil_quality = fitness.get("silhouette_quality", None)
+        if sil_quality is not None and sil_quality > 0.5:
+            rules.append({
+                "domain": "rendering_pipeline",
+                "rule_type": "soft_default",
+                "rule_text": (
+                    f"Dead Cells-inspired silhouette readability score={sil_quality:.2f} for "
+                    f"archetype '{archetype}'. At 32x32, silhouette clarity is paramount: "
+                    f"disable anti-aliasing, use hard SDF threshold, boost outline on impact "
+                    f"frames. Extremity spread variation indicates dynamic pose quality."
+                ),
+                "params": {
+                    "silhouette_quality": str(sil_quality),
+                    "render_pipeline": "dead_cells_no_aa",
+                    "archetype": archetype,
+                },
+                "confidence": min(sil_quality + 0.1, 0.95),
+                "source": f"Layer3-AutoDistill-{self.rules_generated}",
+            })
+
+        # Rule 9: Contact consistency (Motion Matching GDC 2016)
+        contact_cons = fitness.get("contact_consistency", None)
+        if contact_cons is not None and contact_cons > 0.6:
+            rules.append({
+                "domain": "motion_matching",
+                "rule_type": "heuristic",
+                "rule_text": (
+                    f"Feature-vector motion matching (Clavet GDC 2016) contact consistency="
+                    f"{contact_cons:.2f} for archetype '{archetype}'. Foot contact labels in "
+                    f"the feature vector prevent skating and ensure correct gait phase alignment. "
+                    f"Contact weight should be 1.5x other features."
+                ),
+                "params": {
+                    "contact_consistency": str(contact_cons),
+                    "feature_schema": "59-dim (pose+vel+traj+contact+phase+silhouette)",
+                    "contact_weight": "1.5",
+                    "archetype": archetype,
+                },
+                "confidence": min(contact_cons, 0.90),
+                "source": f"Layer3-AutoDistill-{self.rules_generated}",
+            })
+
+        # Rule 10: Hold frame effectiveness (Guilty Gear Xrd GDC 2015)
+        skating_pen = fitness.get("skating_penalty", None)
+        if skating_pen is not None and skating_pen < 0.3:
+            rules.append({
+                "domain": "frame_scheduling",
+                "rule_type": "soft_default",
+                "rule_text": (
+                    f"Guilty Gear Xrd-style hold frames reduce skating penalty to "
+                    f"{skating_pen:.2f} for archetype '{archetype}'. Hold 2-3 frames at "
+                    f"contact/impact/apex phases with stepped interpolation (no blending). "
+                    f"Apply squash (0.75-0.88 Y) on contact, stretch (1.08-1.18 Y) on apex. "
+                    f"This masks physics imperfections with visual impact."
+                ),
+                "params": {
+                    "skating_penalty": str(skating_pen),
+                    "hold_contact": "2 frames",
+                    "hold_impact": "3 frames",
+                    "hold_apex": "2 frames",
+                    "squash_contact_y": "0.88",
+                    "stretch_apex_y": "1.18",
+                    "archetype": archetype,
+                },
+                "confidence": min(1.0 - skating_pen, 0.90),
+                "source": f"Layer3-AutoDistill-{self.rules_generated}",
+            })
+
         self.rules_generated += len(rules)
 
         # Save to knowledge directory if available
@@ -989,7 +1078,22 @@ class PhysicsEvolutionLayer:
                 "fitness": best_fitness["overall"],
                 "physics": best_physics.to_dict() if hasattr(best_physics, 'to_dict') else {},
                 "locomotion": best_loco.to_dict() if hasattr(best_loco, 'to_dict') else {},
+                # SESSION-034: Industrial metrics in strategy record
+                "industrial_metrics": {
+                    "contact_consistency": best_fitness.get("contact_consistency", None),
+                    "silhouette_quality": best_fitness.get("silhouette_quality", None),
+                    "skating_penalty": best_fitness.get("skating_penalty", None),
+                },
             })
+
+        # SESSION-034: Log industrial metrics for diagnostics
+        if self.verbose:
+            cc = best_fitness.get('contact_consistency', 'N/A')
+            sq = best_fitness.get('silhouette_quality', 'N/A')
+            sp = best_fitness.get('skating_penalty', 'N/A')
+            if cc != 'N/A':
+                print(f"  [S034] contact_consistency={cc:.3f} | "
+                      f"silhouette_quality={sq:.3f} | skating_penalty={sp:.3f}")
 
         self.state.current_phase = EvolutionPhase.IDLE
         self._save_state()

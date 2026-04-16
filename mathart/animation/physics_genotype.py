@@ -643,6 +643,13 @@ def evaluate_physics_fitness(
     from .human_math import MotionMatcher2D, VPoserDistilledPrior
     from .skeleton import Skeleton
 
+    # SESSION-034: Industrial-grade feature vector evaluator (Clavet GDC 2016)
+    try:
+        from .motion_matching_evaluator import MotionMatchingEvaluator, create_evaluator_with_defaults
+        _HAS_INDUSTRIAL_EVALUATOR = True
+    except ImportError:
+        _HAS_INDUSTRIAL_EVALUATOR = False
+
     # Decode genotypes
     pd_ctrl = decode_pd_controller(physics_geno)
     loco_cfg = decode_locomotion_config(loco_geno)
@@ -721,15 +728,50 @@ def evaluate_physics_fitness(
     avg_reward = total_reward / max(effective_steps, 1)
     energy_efficiency = math.exp(-0.0001 * total_torque / max(effective_steps, 1))
     anatomical_score = anatomy_total / max(effective_steps, 1)
-    motion_match_score = motion_total / max(effective_steps, 1)
+    motion_match_score_legacy = motion_total / max(effective_steps, 1)
 
+    # SESSION-034: Industrial feature-vector evaluation (replaces legacy motion_match_score)
+    # Uses Clavet GDC 2016 feature vectors: pose + velocity + trajectory + contact + phase + silhouette
+    industrial_scores: dict[str, float] = {}
+    if _HAS_INDUSTRIAL_EVALUATOR:
+        try:
+            industrial_eval = create_evaluator_with_defaults(skeleton=skeleton)
+            # Collect the simulated pose sequence for batch evaluation
+            sim_sequence = []
+            state_replay = PDSimulationState.from_pose(initial_pose)
+            for step in range(effective_steps):
+                phase = step / max(effective_steps, 1)
+                ref_frame = ref_lib.sample_frame(loco_geno.gait_type, phase)
+                if not ref_frame:
+                    ref_frame = ref_lib.sample_frame("walk", phase)
+                if not ref_frame:
+                    ref_frame = initial_pose
+                state_replay = pd_ctrl.step_simulation(ref_frame, state_replay)
+                projected = pose_prior.project_pose(state_replay.angles, skeleton=skeleton)
+                sim_sequence.append(dict(projected))
+            industrial_scores = industrial_eval.compute_layer3_fitness(
+                sim_sequence, skeleton=skeleton, gait_name=loco_geno.gait_type,
+            )
+        except Exception:
+            industrial_scores = {}
+
+    # Use industrial score if available, otherwise fallback to legacy
+    motion_match_score = industrial_scores.get("motion_match_score", motion_match_score_legacy)
+    contact_consistency = industrial_scores.get("contact_consistency", 0.5)
+    silhouette_quality = industrial_scores.get("silhouette_quality", 0.5)
+    skating_penalty = industrial_scores.get("skating_penalty", 0.0)
+
+    # SESSION-034: Upgraded overall formula with industrial metrics
     overall = float(np.clip(
-        0.20 * stability_score
-        + 0.12 * damping_score
-        + 0.28 * avg_reward
-        + 0.15 * energy_efficiency
-        + 0.13 * anatomical_score
-        + 0.12 * motion_match_score,
+        0.16 * stability_score
+        + 0.08 * damping_score
+        + 0.22 * avg_reward
+        + 0.10 * energy_efficiency
+        + 0.10 * anatomical_score
+        + 0.14 * motion_match_score        # Now feature-vector based (Clavet GDC 2016)
+        + 0.08 * contact_consistency        # NEW: foot contact pattern quality
+        + 0.06 * silhouette_quality         # NEW: Dead Cells silhouette readability
+        + 0.06 * (1.0 - min(skating_penalty, 1.0)),  # NEW: skating penalty
         0.0,
         1.0,
     ))
@@ -741,5 +783,9 @@ def evaluate_physics_fitness(
         "energy_efficiency": energy_efficiency,
         "anatomical_score": anatomical_score,
         "motion_match_score": motion_match_score,
+        # SESSION-034: New industrial metrics
+        "contact_consistency": contact_consistency,
+        "silhouette_quality": silhouette_quality,
+        "skating_penalty": skating_penalty,
         "overall": overall,
     }

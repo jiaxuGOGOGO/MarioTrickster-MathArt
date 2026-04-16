@@ -88,6 +88,18 @@ from .human_math import (
     MotionFeatureSchema2D, MotionMatchResult, MotionMatcher2D,
     DistilledHumanMathRuntime,
 )
+# SESSION-034: Industrial Motion Matching Evaluator (Clavet GDC 2016)
+from .motion_matching_evaluator import (
+    IndustrialFeatureSchema, FeatureNormalizer,
+    MotionFeatureExtractor, MatchResult, SequenceEvaluation,
+    MotionMatchingEvaluator, create_evaluator_with_defaults,
+)
+# SESSION-034: Industrial Renderer (Dead Cells GDC 2018 + Guilty Gear Xrd GDC 2015)
+from .industrial_renderer import (
+    AnimationPhaseType, HoldFrameConfig, HOLD_FRAME_DEFAULTS,
+    GuiltyGearFrameScheduler,
+    render_character_frame_industrial, render_character_sheet_industrial,
+)
 
 __all__ = [
     "Skeleton", "Bone", "Joint",
@@ -157,4 +169,12 @@ __all__ = [
     "DualQuaternion",
     "MotionFeatureSchema2D", "MotionMatchResult", "MotionMatcher2D",
     "DistilledHumanMathRuntime",
+    # SESSION-034: Industrial Motion Matching Evaluator
+    "IndustrialFeatureSchema", "FeatureNormalizer",
+    "MotionFeatureExtractor", "MatchResult", "SequenceEvaluation",
+    "MotionMatchingEvaluator", "create_evaluator_with_defaults",
+    # SESSION-034: Industrial Renderer (Dead Cells + Guilty Gear Xrd)
+    "AnimationPhaseType", "HoldFrameConfig", "HOLD_FRAME_DEFAULTS",
+    "GuiltyGearFrameScheduler",
+    "render_character_frame_industrial", "render_character_sheet_industrial",
 ]
