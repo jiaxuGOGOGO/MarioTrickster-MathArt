@@ -77,6 +77,7 @@ from typing import Any, Mapping, Optional, Sequence
 import numpy as np
 
 from .unified_motion import (
+    PhaseState,
     MotionContactState,
     MotionRootTransform,
     UnifiedMotionClip,
@@ -182,19 +183,26 @@ def extract_runtime_features(
     ct = frame.contact_tags
     joints = frame.joint_local_rotations
 
-    # Phase encoding (circular to avoid discontinuity at 0/1 boundary)
-    phase = float(frame.phase)
-    phase_sin = math.sin(2.0 * math.pi * phase)
-    phase_cos = math.cos(2.0 * math.pi * phase)
+    # Phase encoding via PhaseState (Gap 1: Generalized Phase State)
+    # Uses the canonical PhaseState if available, otherwise falls back to legacy.
+    ps = frame.phase_state
+    if ps is None:
+        ps = PhaseState(value=float(frame.phase), is_cyclic=True, phase_kind="cyclic")
+    phase = ps.to_float()
+    phase_sin, phase_cos = ps.to_sin_cos()
 
-    # Phase velocity
+    # Phase velocity — gate mechanism determines wrapping behavior
     if prev_frame is not None:
-        prev_phase = float(prev_frame.phase)
-        phase_kind = str(frame.metadata.get("phase_kind", "cyclic"))
-        if phase_kind in {"distance_to_apex", "distance_to_ground", "hit_recovery"}:
-            phase_vel = (phase - prev_phase) / max(dt, 1e-6)
-        else:
+        prev_ps = prev_frame.phase_state
+        if prev_ps is None:
+            prev_ps = PhaseState(value=float(prev_frame.phase), is_cyclic=True, phase_kind="cyclic")
+        prev_phase = prev_ps.to_float()
+        if ps.is_cyclic:
+            # Cyclic: wrap-aware velocity
             phase_vel = ((phase - prev_phase) % 1.0) / max(dt, 1e-6)
+        else:
+            # Transient: direct difference, no wrapping
+            phase_vel = (phase - prev_phase) / max(dt, 1e-6)
     else:
         phase_vel = 1.0
 

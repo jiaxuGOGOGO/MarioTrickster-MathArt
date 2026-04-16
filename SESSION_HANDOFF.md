@@ -4,35 +4,33 @@
 > This document is auto-generated and always reflects the latest project state.
 
 ## Project Overview
-- **Current version**: 0.32.0
+- **Current version**: 0.33.0
 - **Last updated**: 2026-04-16
-- **Last session**: SESSION-041
+- **Last session**: SESSION-042
 - **Best quality score achieved**: 0.867
 - **Total iterations run**: 500+
-- **Total code lines**: ~58,000+
-- **Test pass rate**: 799/799 (zero regressions)
+- **Total code lines**: ~59,000+
+- **Test pass rate**: 843/843 (zero regressions)
 
-## What SESSION-041 Delivered
+## What SESSION-042 Delivered
 
-SESSION-041 closes **Gap 3: End-to-End Reproducibility** with a production-grade visual regression pipeline.
+SESSION-042 closes **Gap 1: Incomplete Phase Backbone (Aperiodic Motion Integration)** and establishes a **Three-Layer Evolution Loop**.
 
 ### New Subsystems
-1. **`headless_e2e_ci.py`** — Hermetic three-level E2E audit pipeline (~600 lines)
-   - Level 0: Sandbox cold start with deterministic seed 42
-   - Level 1: Structural manifest SHA-256 tree-walk comparison
-   - Level 2: SSIM visual regression (threshold 0.9999) with diff heatmap on failure
-2. **`VisualRegressionEvolutionBridge`** — Three-layer visual regression integration (~500 lines)
-   - Layer 1: Visual gate (SSIM + structural audit)
-   - Layer 2: Knowledge distillation (4 rule families: enforcement, regression_guard, confidence_boost, trend_warning)
-   - Layer 3: Fitness bonus/penalty [-0.3, +0.15]
-3. **Golden Baselines** — `golden/golden_manifest.json`, `golden_atlas.png`, `golden_meta.json`
-4. **CI Visual Regression Job** — GitHub Actions workflow with artifact upload
+1. **Generalized Phase State (`PhaseState`)** — Unified representation for cyclic and transient motion phases.
+   - `is_cyclic=True`: value wraps in [0, 1) via modulo (walk, run, idle).
+   - `is_cyclic=False`: value clamped to [0, 1] with no wrapping (jump, fall, hit).
+2. **Gate Mechanism Multiplexer** — `PhaseDrivenAnimator.generate_frame()` acts as the absolute unified entry point.
+   - Cyclic path: standard trig-mapped Catmull-Rom interpolation.
+   - Transient path: direct scalar as Bezier/spline time parameter.
+3. **Three-Layer Evolution Loop (`evolution_loop.py`)** — Self-evolving architecture.
+   - Layer 1: Internal Evolution Engine (TODO/FIXME scanning).
+   - Layer 2: External Knowledge Distillation (Paper → Code provenance).
+   - Layer 3: Self-Iterative Testing (Metrics and regression detection).
 
 ### Research References
-- **Skia Gold** (Google Chrome): Hash-first triage, multi-baseline pixel testing
-- **OpenUSD Validation Framework** (Pixar): Schema-aware validation, structured errors
-- **SSIM** (Wang et al. 2004): Perceptual image quality metric
-- **Hermetic Builds** (Bazel): Deterministic, isolated execution
+- **Local Motion Phases** (Starke et al., SIGGRAPH 2020): Per-bone independent phase channels breaking the single-global-cycle assumption.
+- **DeepPhase / Periodic Autoencoder** (Starke et al., SIGGRAPH 2022): Multi-dimensional phase manifold where transient motions are one-shot activation spikes.
 
 ## Knowledge Base Status
 - **Distilled knowledge rules**: 43+
@@ -60,6 +58,7 @@ SESSION-041 closes **Gap 3: End-to-End Reproducibility** with a production-grade
 ## Pending Tasks (Priority Order)
 
 ### HIGH (P0/P1)
+- `P0-GAP-2`: Rigid Body/Soft Body Coupling (XPBD integration)
 - `P1-INDUSTRIAL-34A`: Industrial renderer integration into AssetPipeline
 - `P1-PHASE-37A`: Scene-aware distance matching sensors (raycast/terrain)
 - `P1-INDUSTRIAL-34C`: 3D-to-2D mesh rendering path (Dead Cells full workflow)
@@ -99,8 +98,8 @@ SESSION-041 closes **Gap 3: End-to-End Reproducibility** with a production-grade
 - `P3-3`: Unity/Godot exporter plugin
 - `P3-5`: End-to-end demo showcase script
 
-### DONE (SESSION-041)
-- `P3-4`: CI/CD + GitHub Actions — CLOSED by visual regression CI pipeline
+### DONE (SESSION-042)
+- `P0-GAP-1`: Incomplete Phase Backbone (Aperiodic Motion Integration) — CLOSED by PhaseState and Gate Mechanism.
 
 ## Capability Gaps (External Upgrades Needed)
 - **GPU**: Required for real RL training, neural rendering, and large-scale physics simulation
@@ -108,6 +107,11 @@ SESSION-041 closes **Gap 3: End-to-End Reproducibility** with a production-grade
 - **External AI API**: Required for ControlNet/diffusion-based visual polish
 
 ## Recent Evolution History (Last 5 Sessions)
+
+### SESSION-042 — v0.33.0 (2026-04-16)
+- Gap 1 closure: Generalized Phase State (`PhaseState`) and Gate Mechanism.
+- Three-Layer Evolution Loop (`evolution_loop.py`) for self-evolving architecture.
+- 843/843 tests PASS, zero regressions.
 
 ### SESSION-041 — v0.32.0 (2026-04-16)
 - Gap 3 closure: End-to-end reproducibility & visual regression pipeline
@@ -133,20 +137,13 @@ SESSION-041 closes **Gap 3: End-to-End Reproducibility** with a production-grade
 - Critically damped hit recovery variable
 - Layer 3 refined transient metadata bridge
 
-### SESSION-037 — v0.28.0
-- Native distance-driven jump/fall transient phases in UMR
-- Native hit recovery progress transient phase
-- Layer 3 transient phase metadata bridge
-
 ## Custom Notes
 
-**session041_headless_e2e_ci**: headless_e2e_ci.py: hermetic three-level audit (L0 cold start, L1 structural SHA-256, L2 SSIM 0.9999). 7 tests PASS.
-**session041_visual_regression_bridge**: VisualRegressionEvolutionBridge: L1 visual gate + L2 knowledge distillation (4 rule families) + L3 fitness [-0.3, +0.15]. 25 tests PASS.
-**session041_golden_baselines**: golden/golden_manifest.json + golden_atlas.png + golden_meta.json. Preset: mario, states: idle/run/jump/fall/hit, seed: 42, hash: dbd395575adf...
-**session041_ci_visual_regression**: GitHub Actions visual-regression job: installs scikit-image + opencv-python-headless, runs headless E2E audit, uploads diff heatmap on failure.
-**session041_research_references**: Skia Gold (Google Chrome pixel testing), OpenUSD Validation Framework (Pixar), SSIM (Wang et al. 2004), Hermetic Builds (Bazel).
-**session041_test_total**: 799/799 PASS (792 non-scipy + 7 E2E CI). Zero regressions.
-**session041_gap3_status**: CLOSED. End-to-end reproducibility with visual regression pipeline fully operational.
+**session042_phase_state**: `PhaseState` dataclass introduced to unify cyclic and transient phases. Replaces raw float phase.
+**session042_gate_mechanism**: `PhaseDrivenAnimator.generate_frame()` now uses `is_cyclic` to route to trig-mapped Catmull-Rom or direct Bezier/spline.
+**session042_evolution_loop**: `evolution_loop.py` implements a three-layer self-evolving architecture (Internal TODOs, External Distillation, Self-Iterative Testing).
+**session042_test_total**: 843/843 PASS. Zero regressions.
+**session042_gap1_status**: CLOSED. Aperiodic motion integration complete.
 
 ## Instructions for Next AI Session
 
@@ -162,4 +159,4 @@ SESSION-041 closes **Gap 3: End-to-End Reproducibility** with a production-grade
 10. **NEW**: Run `python -m mathart.headless_e2e_ci` to verify visual regression before pushing.
 
 ---
-*Auto-generated by SESSION-041 at 2026-04-16*
+*Auto-generated by SESSION-042 at 2026-04-16*

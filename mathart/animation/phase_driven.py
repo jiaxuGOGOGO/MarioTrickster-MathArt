@@ -77,6 +77,7 @@ import numpy as np
 
 from .curves import ease_in_out
 from .unified_motion import (
+    PhaseState,
     MotionContactState,
     MotionRootTransform,
     UnifiedMotionFrame,
@@ -834,17 +835,23 @@ class PhaseDrivenAnimator:
 
     def generate(
         self,
-        phase: float | PhaseVariable,
+        phase: float | PhaseVariable | PhaseState,
         gait: GaitMode = GaitMode.WALK,
         speed: float = 1.0,
     ) -> dict[str, float]:
-        """Generate a full-body pose at the given phase."""
+        """Generate a full-body pose at the given phase.
+
+        Supports PhaseState for unified cyclic/transient handling.
+        """
+        if isinstance(phase, PhaseState) and not phase.is_cyclic:
+            pose, _root_y = self._generate_transient_pose(phase, speed=speed)
+            return pose
         pose, _root_y = self._generate_pose_and_root(phase, gait=gait, speed=speed)
         return pose
 
     def generate_frame(
         self,
-        phase: float | PhaseVariable,
+        phase: float | PhaseVariable | PhaseState,
         gait: GaitMode = GaitMode.WALK,
         speed: float = 1.0,
         *,
@@ -856,13 +863,41 @@ class PhaseDrivenAnimator:
         root_velocity_x: float = 0.0,
         root_velocity_y: float = 0.0,
     ) -> UnifiedMotionFrame:
-        """Generate a UMR frame instead of a legacy pose dict.
+        """Generate a UMR frame — the ABSOLUTE UNIFIED ENTRY POINT.
 
-        This is the new strict internal contract for the motion trunk.
+        This method implements the Generalized Phase State gate mechanism
+        inspired by Local Motion Phases (SIGGRAPH 2020) and DeepPhase
+        (SIGGRAPH 2022). It accepts PhaseState, PhaseVariable, or bare
+        float and routes through the appropriate interpolation path:
+
+          - Cyclic (is_cyclic=True):  sin/cos trig mapping → Catmull-Rom.
+          - Transient (is_cyclic=False): direct scalar [0,1] → Bezier/spline.
+
+        This replaces the old adapter-bypass pattern where transient motions
+        had to go through a separate code path.
         """
-        p = phase.phase if isinstance(phase, PhaseVariable) else float(phase) % 1.0
-        pose, root_y = self._generate_pose_and_root(phase, gait=gait, speed=speed)
-        state_name = source_state or gait.value
+        # --- Phase State Resolution (Multiplexer Input) ---
+        if isinstance(phase, PhaseState):
+            ps = phase
+            p = ps.to_float()
+        elif isinstance(phase, PhaseVariable):
+            p = phase.phase
+            ps = PhaseState.cyclic(p)
+        else:
+            p = float(phase) % 1.0
+            ps = PhaseState.cyclic(p)
+
+        # --- Gate Mechanism: Cyclic vs Transient ---
+        if ps.is_cyclic:
+            # Cyclic path: standard trig-mapped Catmull-Rom interpolation
+            pose, root_y = self._generate_pose_and_root(p, gait=gait, speed=speed)
+        else:
+            # Transient path: direct scalar as Bezier/spline time parameter
+            # The transient pose generators (jump/fall/hit) use p directly
+            # as a [0,1] progress value, bypassing trig mapping.
+            pose, root_y = self._generate_transient_pose(ps, speed=speed)
+
+        state_name = source_state or (ps.phase_kind if not ps.is_cyclic else gait.value)
         return pose_to_umr(
             pose,
             time=float(time),
@@ -880,18 +915,59 @@ class PhaseDrivenAnimator:
             contact_tags=infer_contact_tags(p, state_name),
             metadata={
                 "generator": "phase_driven_animator",
-                "gait": gait.value,
-                "root_y_source": "pelvis_height_curve",
+                "gait": gait.value if ps.is_cyclic else ps.phase_kind,
+                "root_y_source": "pelvis_height_curve" if ps.is_cyclic else "transient_spline",
+                "phase_gate": "cyclic" if ps.is_cyclic else "transient",
             },
+            phase_state=ps,
         )
+
+    def _generate_transient_pose(
+        self,
+        ps: PhaseState,
+        speed: float = 1.0,
+    ) -> tuple[dict[str, float], float]:
+        """Generate pose for transient (non-cyclic) motions via direct spline mapping.
+
+        The PhaseState.value is used directly as the Bezier/spline time parameter t,
+        bypassing the sin/cos trig mapping used for cyclic locomotion.
+        This is the key architectural change from Gap 1 research:
+        transient motions are no longer forced into a cyclic phase topology.
+        """
+        t = ps.to_float()  # Direct [0,1] scalar, no trig wrapping
+        amplitude = ps.amplitude
+        kind = ps.phase_kind
+
+        if kind == "distance_to_apex":
+            pose = phase_driven_jump(t)
+            root_y = 0.18 * math.sin(t * math.pi)  # Parabolic arc approximation
+            return pose, root_y * amplitude
+        elif kind == "distance_to_ground":
+            pose = phase_driven_fall(t)
+            root_y = 0.22 * (1.0 - t)  # Descending
+            return pose, root_y * amplitude
+        elif kind == "hit_recovery":
+            pose = phase_driven_hit(t)
+            root_y = 0.0  # Grounded during hit
+            return pose, root_y
+        else:
+            # Generic transient: use ease_in_out as default spline
+            pose = phase_driven_jump(t)  # Fallback to jump-like pose
+            root_y = 0.0
+            return pose, root_y
 
     def _generate_pose_and_root(
         self,
-        phase: float | PhaseVariable,
+        phase: float | PhaseVariable | PhaseState,
         gait: GaitMode = GaitMode.WALK,
         speed: float = 1.0,
     ) -> tuple[dict[str, float], float]:
-        p = phase.phase if isinstance(phase, PhaseVariable) else float(phase) % 1.0
+        if isinstance(phase, PhaseState):
+            p = phase.to_float()
+        elif isinstance(phase, PhaseVariable):
+            p = phase.phase
+        else:
+            p = float(phase) % 1.0
         if gait == GaitMode.RUN:
             return self._generate_run(p, speed)
         if gait == GaitMode.SNEAK:

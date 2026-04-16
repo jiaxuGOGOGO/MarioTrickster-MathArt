@@ -86,6 +86,7 @@ from .phase_driven import (
     WALK_KEY_POSES, RUN_KEY_POSES, WALK_CHANNELS, RUN_CHANNELS,
 )
 from .unified_motion import (
+    PhaseState,
     MotionRootTransform, MotionContactState,
     UnifiedMotionFrame, UnifiedMotionClip,
     MotionPipelineAuditEntry, MotionPipelineResult, MotionPipelineNode,
@@ -200,6 +201,7 @@ __all__ = [
     "extract_phase_parameters", "create_phase_channel_from_signal",
     "WALK_KEY_POSES", "RUN_KEY_POSES", "WALK_CHANNELS", "RUN_CHANNELS",
     # SESSION-036: Unified Motion Representation (UMR)
+    "PhaseState",
     "MotionRootTransform", "MotionContactState",
     "UnifiedMotionFrame", "UnifiedMotionClip",
     "MotionPipelineAuditEntry", "MotionPipelineResult", "MotionPipelineNode",

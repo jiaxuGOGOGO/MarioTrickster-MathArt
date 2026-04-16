@@ -58,7 +58,7 @@ from typing import Mapping, Optional, Sequence
 
 import numpy as np
 
-from .unified_motion import UnifiedMotionFrame
+from .unified_motion import PhaseState, UnifiedMotionFrame
 
 
 # ── Feature Schema ──────────────────────────────────────────────────────────
@@ -352,17 +352,32 @@ class MotionFeatureExtractor:
         contract without having to rediscover phase and contact labels from raw
         poses every time.
         """
-        metadata = dict(frame.metadata)
-        phase_kind = str(metadata.get("phase_kind", "cyclic"))
+        # --- Gap 1: Use PhaseState for unified phase handling ---
+        ps = frame.phase_state
+        if ps is None:
+            metadata = dict(frame.metadata)
+            phase_kind = str(metadata.get("phase_kind", "cyclic"))
+            is_cyclic = phase_kind not in {
+                "distance_to_apex", "distance_to_ground", "hit_recovery", "transient",
+            }
+            ps = PhaseState(value=float(frame.phase), is_cyclic=is_cyclic, phase_kind=phase_kind)
+        else:
+            metadata = dict(frame.metadata)
+            phase_kind = ps.phase_kind
+
         dt = max(float(frame.time - prev_frame.time), 1e-6) if prev_frame is not None else (1.0 / 12.0)
         if prev_frame is None:
             phase_velocity = 1.0
-        elif phase_kind in {"distance_to_apex", "distance_to_ground", "hit_recovery"}:
-            phase_velocity = float(frame.phase - prev_frame.phase) / dt
         else:
-            phase_velocity = ((frame.phase - prev_frame.phase) % 1.0) / dt
+            prev_ps = prev_frame.phase_state
+            if prev_ps is None:
+                prev_ps = PhaseState(value=float(prev_frame.phase), is_cyclic=ps.is_cyclic, phase_kind=phase_kind)
+            if ps.is_cyclic:
+                phase_velocity = ((ps.to_float() - prev_ps.to_float()) % 1.0) / dt
+            else:
+                phase_velocity = (ps.to_float() - prev_ps.to_float()) / dt
         return {
-            "phase": float(frame.phase),
+            "phase": ps.to_float(),
             "phase_velocity": float(phase_velocity),
             "root_x": float(frame.root_transform.x),
             "root_y": float(frame.root_transform.y),

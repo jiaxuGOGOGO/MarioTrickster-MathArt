@@ -72,12 +72,100 @@ class MotionContactState:
 
 
 @dataclass(frozen=True)
+class PhaseState:
+    """Generalized Phase State — unified representation for cyclic and transient motion phases.
+
+    Inspired by:
+      - Local Motion Phases (Starke et al., SIGGRAPH 2020): per-bone local phases
+        that break the single-global-cycle assumption.
+      - DeepPhase / Periodic Autoencoder (Starke, Mason, Komura, SIGGRAPH 2022):
+        multi-dimensional phase manifold where cyclic motions are sustained
+        sinusoidal oscillations and transient motions are one-shot activation spikes.
+
+    Design:
+      - ``is_cyclic=True``:  value wraps in [0, 1) via modulo (walk, run, idle).
+      - ``is_cyclic=False``: value clamped to [0, 1] with no wrapping (jump, fall, hit).
+      - ``amplitude`` captures the DeepPhase-style activation strength (default 1.0).
+      - ``phase_kind`` is a semantic label for downstream consumers.
+
+    The gate mechanism inside ``PhaseDrivenAnimator.generate_frame()`` uses
+    ``is_cyclic`` to select the interpolation path:
+      - Cyclic  → sin/cos trig mapping → Catmull-Rom key-pose interpolation.
+      - Transient → direct scalar [0,1] → Bezier/spline time parameter.
+
+    References:
+      [1] S. Starke et al., "Local Motion Phases for Learning Multi-Contact
+          Character Movements", ACM TOG 39(4), 2020.
+      [2] S. Starke, I. Mason, T. Komura, "DeepPhase: Periodic Autoencoders
+          for Learning Motion Phase Manifolds", ACM TOG 41(4), 2022.
+    """
+
+    value: float
+    is_cyclic: bool = True
+    phase_kind: str = "cyclic"
+    amplitude: float = 1.0
+
+    def __post_init__(self) -> None:
+        if self.is_cyclic:
+            object.__setattr__(self, "value", float(self.value) % 1.0)
+        else:
+            object.__setattr__(self, "value", max(0.0, min(1.0, float(self.value))))
+        object.__setattr__(self, "amplitude", max(0.0, float(self.amplitude)))
+
+    def to_float(self) -> float:
+        """Backward-compatible scalar output for legacy consumers."""
+        return float(self.value)
+
+    def to_sin_cos(self) -> tuple[float, float]:
+        """Circular encoding to avoid discontinuity at 0/1 boundary.
+
+        For cyclic phases this gives the standard trig mapping.
+        For transient phases the mapping still works but the consumer
+        should prefer the raw ``value`` via the gate mechanism.
+        """
+        import math as _math
+        angle = 2.0 * _math.pi * float(self.value)
+        return (_math.sin(angle), _math.cos(angle))
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "value": float(self.value),
+            "is_cyclic": bool(self.is_cyclic),
+            "phase_kind": str(self.phase_kind),
+            "amplitude": float(self.amplitude),
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, object]) -> "PhaseState":
+        return cls(
+            value=float(d.get("value", d.get("phase", 0.0))),  # type: ignore[arg-type]
+            is_cyclic=bool(d.get("is_cyclic", True)),
+            phase_kind=str(d.get("phase_kind", "cyclic")),
+            amplitude=float(d.get("amplitude", 1.0)),
+        )
+
+    @classmethod
+    def cyclic(cls, value: float, phase_kind: str = "cyclic") -> "PhaseState":
+        """Factory for cyclic locomotion phases."""
+        return cls(value=value, is_cyclic=True, phase_kind=phase_kind)
+
+    @classmethod
+    def transient(cls, value: float, phase_kind: str = "transient", amplitude: float = 1.0) -> "PhaseState":
+        """Factory for one-shot transient phases (jump, fall, hit)."""
+        return cls(value=value, is_cyclic=False, phase_kind=phase_kind, amplitude=amplitude)
+
+
+@dataclass(frozen=True)
 class UnifiedMotionFrame:
     """Strict cross-module motion frame contract.
 
     Required fields intentionally mirror the architecture request from the user:
     time, normalized phase, root transform, local joint rotations, and explicit
     contact tags.
+
+    The ``phase_state`` field is the canonical phase representation (PhaseState).
+    The legacy ``phase`` float field is kept for backward compatibility and is
+    always derived from ``phase_state.to_float()``.
     """
 
     time: float
@@ -89,16 +177,36 @@ class UnifiedMotionFrame:
     source_state: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
     format_version: str = "umr_motion_frame_v1"
+    phase_state: Optional[PhaseState] = None
 
     def __post_init__(self) -> None:
         metadata = dict(self.metadata)
         phase_kind = str(metadata.get("phase_kind", "cyclic"))
         phase_value = float(self.phase)
-        if phase_kind in {"distance_to_apex", "distance_to_ground", "hit_recovery"}:
-            phase_value = max(0.0, min(1.0, phase_value))
+
+        # --- Generalized Phase State gate (Gap 1 resolution) ---
+        # If a PhaseState was explicitly provided, it is the canonical source.
+        # Otherwise, construct one from the legacy float + metadata.phase_kind.
+        if self.phase_state is not None:
+            ps = self.phase_state
+            phase_value = ps.to_float()
+            # Propagate phase_kind into metadata for legacy consumers
+            if "phase_kind" not in metadata:
+                metadata["phase_kind"] = ps.phase_kind
         else:
-            phase_value = phase_value % 1.0
+            is_cyclic = phase_kind not in {
+                "distance_to_apex", "distance_to_ground", "hit_recovery",
+                "transient",
+            }
+            ps = PhaseState(
+                value=phase_value,
+                is_cyclic=is_cyclic,
+                phase_kind=phase_kind,
+            )
+            phase_value = ps.to_float()
+
         object.__setattr__(self, "phase", phase_value)
+        object.__setattr__(self, "phase_state", ps)
         object.__setattr__(
             self,
             "joint_local_rotations",
@@ -107,7 +215,7 @@ class UnifiedMotionFrame:
         object.__setattr__(self, "metadata", metadata)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d: dict[str, Any] = {
             "format": self.format_version,
             "time": float(self.time),
             "phase": float(self.phase),
@@ -118,6 +226,9 @@ class UnifiedMotionFrame:
             "contact_tags": self.contact_tags.to_dict(),
             "metadata": dict(self.metadata),
         }
+        if self.phase_state is not None:
+            d["phase_state"] = self.phase_state.to_dict()
+        return d
 
     def with_pose(self, pose: Mapping[str, float], **metadata_updates: Any) -> "UnifiedMotionFrame":
         merged = dict(self.metadata)
@@ -242,16 +353,31 @@ def pose_to_umr(
     frame_index: int = 0,
     source_state: str = "",
     metadata: Optional[Mapping[str, Any]] = None,
+    phase_state: Optional[PhaseState] = None,
 ) -> UnifiedMotionFrame:
-    """Wrap a legacy pose dict in the UMR contract."""
+    """Wrap a legacy pose dict in the UMR contract.
+
+    If ``phase_state`` is provided, it becomes the canonical phase source.
+    Otherwise a PhaseState is auto-constructed from ``phase`` + ``metadata.phase_kind``.
+    """
 
     metadata_dict = dict(metadata or {})
-    phase_kind = str(metadata_dict.get("phase_kind", "cyclic"))
-    normalized_phase = float(phase)
-    if phase_kind in {"distance_to_apex", "distance_to_ground", "hit_recovery"}:
-        normalized_phase = max(0.0, min(1.0, normalized_phase))
+
+    if phase_state is not None:
+        # PhaseState is the canonical source; derive scalar for backward compat
+        normalized_phase = phase_state.to_float()
     else:
-        normalized_phase = normalized_phase % 1.0
+        phase_kind = str(metadata_dict.get("phase_kind", "cyclic"))
+        normalized_phase = float(phase)
+        is_cyclic = phase_kind not in {
+            "distance_to_apex", "distance_to_ground", "hit_recovery", "transient",
+        }
+        phase_state = PhaseState(
+            value=normalized_phase,
+            is_cyclic=is_cyclic,
+            phase_kind=phase_kind,
+        )
+        normalized_phase = phase_state.to_float()
 
     return UnifiedMotionFrame(
         time=float(time),
@@ -262,6 +388,7 @@ def pose_to_umr(
         frame_index=int(frame_index),
         source_state=source_state,
         metadata=metadata_dict,
+        phase_state=phase_state,
     )
 
 
@@ -351,6 +478,7 @@ def run_motion_pipeline(
 
 
 __all__ = [
+    "PhaseState",
     "MotionRootTransform",
     "MotionContactState",
     "UnifiedMotionFrame",
