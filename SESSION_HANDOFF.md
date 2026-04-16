@@ -131,54 +131,53 @@ The character evolution system is now **architecturally complete at the 2.5 leve
 
 | Dimension | Commercial Standard | Current | Gap |
 |-----------|-------------------|---------|-----|
+| **Animation Physics Realism** | Physics-driven, secondary motion, IK | 6 fps, pure skeletal, no physics/springs | **15%** |
+| **Motion Cognitive Naturalness** | Follows animation principles, non-linear easing | Linear interpolation, stiff, lacks anticipation | **20%** |
 | Character visual quality | Hand-drawn / AI-generated, pixel-precise | SDF math primitives, tech-demo level | **20%** |
-| Animation expressiveness | 8-12 fps, exaggerated motion, secondary anim | 6 fps, subtle skeletal, no secondary | **25%** |
 | Character diversity | 20+ visually distinct characters | Genotype mutations, mainly color/proportion | **15%** |
 | Environment / Tileset | Seamless tileable terrain, multi-elevation | WFC exists but disconnected from pipeline | **10%** |
-| VFX / Particles | Rich combat & environment effects | SDF VFX exists, not bound to actions | **20%** |
-| UI Elements | Buttons, health bars, icons, cursors | **Not started** | **0%** |
-| Multi-directional views | 4/8 direction or isometric | **Not started** | **0%** |
+| VFX / Particles | Physics-driven, bound to actions | SDF VFX exists, not bound to physics | **20%** |
 | Engine-ready export | PNG + Aseprite + Unity/Godot metadata | Export module exists but disconnected | **15%** |
-| Style consistency | Global visual unity across all assets | OKLAB color harmony, weak shape consistency | **30%** |
 | Engineering automation | One-click generation | Strong CLI + evolution pipeline | **60%** |
 | **OVERALL** | | | **~25-30%** |
 
-## Biggest Remaining Gaps (Based on SESSION-027 Audit)
+## Biggest Remaining Gaps (Based on Core Vision: Math Motion -> AI Polish)
 
-1. **SDF Visual Ceiling (Fundamental):** The mathematical SDF primitive approach has an inherent expressiveness ceiling. Characters look like "tech demos" rather than game-ready sprites. This is the single biggest blocker to commercial viability. **We must choose one of the new strategic paths (C, D, E, or F) discovered in the deep research to break through this ceiling.**
-2. **Architecture Integration Gaps (P1):** The `level` (WFC), `shader`, and `export` modules exist in the codebase but are completely disconnected from the main `AssetPipeline`. They need top-level `produce_*` methods.
-3. **Zero coverage on UI and Multi-direction:** Two entire asset categories (UI elements and multi-directional views) have not been started at all.
-4. **Part registry content is narrow.** Only hat and face_accessory slots have registered parts. Torso overlays, hand items, and foot accessories need SDF functions and renderer support.
-5. **Per-frame SDF parameter animation is still absent.** Geometric animation remains largely transform-driven.
-6. **Secondary motion and organic texture systems are still roadmap items.**
-7. **Test Coverage Blind Spots:** The `shader`, `workspace`, and `quality` modules lack dedicated test files.
+1. **Lack of Physical Simulation (Fundamental Blocker):** The current animation system is purely transform-driven. It lacks a physics engine (Verlet integration, Mass-Spring systems) to drive secondary motion (jiggle physics) and environmental interaction. This makes the motion look stiff and unnatural.
+2. **Lack of Cognitive Motion Constraints:** The animations do not follow human visual perception rules (easing functions, anticipation, follow-through). We need to implement mathematical constraints and fitness functions based on cognitive science.
+3. **Missing IK and Procedural Gait:** Characters lack Inverse Kinematics (IK) solvers (like FABRIK) to generate procedural walk/run cycles that adapt to the environment.
+4. **Architecture Integration Gaps (P1):** The `level` (WFC), `shader`, and `export` modules exist in the codebase but are completely disconnected from the main `AssetPipeline`. They need top-level `produce_*` methods.
 
 ## Pending Tasks (Priority Order)
 
-### P1 — Important
+### P0 — Critical (Physics & Motion Engine)
 
 | ID | Task | Status | Effort | Description |
 |----|------|--------|--------|-------------|
-| P1-NEW-1 | WFC tilemap pipeline integration | TODO | High | Add `produce_level()`, connect WFC to asset packs, include playability validation |
-| P1-NEW-7 | Export pipeline integration | TODO | High | Promote exporter to first-class stage with engine-ready bundles |
-| P1-NEW-6 | Shader pipeline integration | TODO | Medium | Wire `ShaderCodeGenerator` into `AssetPipeline` |
-| P1-NEW-9C | Character evolution 3.0: expand part registry | TODO | Medium | Add torso overlays, hand items, foot accessories with new SDF functions and renderer support |
-| P1-NEW-10 | Production benchmark asset suite | TODO | High | Add benchmark characters, tiles, and VFX with structured metadata, acceptance thresholds, and automated validators |
-| P1-2 | Per-frame SDF parameter animation | TODO | Medium | Add keyframed SDF parameter tracks |
-| P1-NEW-3 | Spring-based secondary animation | TODO | Medium | Add follow-through / overlap motion |
-| P1-NEW-2 | Reaction-diffusion textures | TODO | Medium | Add Gray-Scott organic texture generation |
-| P1-NEW-8 | Quality checkpoint mid-generation | TODO | Low | Wire mid-generation quality checkpoint |
+| P0-MOTION-1 | Verlet Integration Physics Engine | TODO | High | Build particle-constraint system to drive character motion dynamically |
+| P0-MOTION-2 | Mass-Spring Secondary Animation | TODO | Medium | Implement Hooke's law + damping for hair/clothing jiggle physics |
+| P0-MOTION-3 | FABRIK IK Solver & Procedural Gait | TODO | High | Implement 2D IK for keyframeless walk/run/jump cycles |
+| P0-MOTION-4 | Easing Functions & Motion Curves | TODO | Low | Add Robert Penner equations and Bezier curves for non-linear motion |
+| P0-MOTION-5 | Cognitive Motion Constraints | TODO | High | Add fitness functions based on anticipation, follow-through, and phase relationships |
+
+### P1 — Important (Architecture & AI Pipeline)
+
+| ID | Task | Status | Effort | Description |
+|----|------|--------|--------|-------------|
+| P1-AI-1 | Math-to-AI Pipeline Prototype | TODO | Medium | Export skeleton/pose data as ControlNet inputs for external AI diffusion models |
+| P1-ARCH-1 | WFC tilemap pipeline integration | TODO | High | Add `produce_level()`, connect WFC to asset packs |
+| P1-ARCH-2 | Export pipeline integration | TODO | High | Promote exporter to first-class stage with engine-ready bundles |
+| P1-ARCH-3 | Shader pipeline integration | TODO | Medium | Wire `ShaderCodeGenerator` into `AssetPipeline` |
+| P1-VFX-1 | Physics-driven Particle System | TODO | Medium | Upgrade SDF VFX to use emitters, gravity, and collision |
 
 ### P2 — Nice to Have
 
 | ID | Task | Status | Effort |
 |----|------|--------|--------|
-| P2-1 | Sub-pixel rendering | TODO | Medium |
-| P2-4 | Multi-objective optimization (NSGA-II) | TODO | High |
-| P2-5 | Procedural outline variation | PARTIAL | Low |
-| P2-6 | CMA-ES optimizer upgrade | TODO | Medium |
-| P2-7 | Performance benchmarks | TODO | Low |
-| P2-8 | Test coverage for missing modules | TODO | Medium | Add tests for shader, workspace, and quality modules |
+| P2-1 | Character evolution 3.0: expand part registry | TODO | Medium |
+| P2-2 | Production benchmark asset suite | TODO | High |
+| P2-3 | Reaction-diffusion textures | TODO | Medium |
+| P2-4 | Test coverage for missing modules | TODO | Medium |
 
 ### P3 — Future
 
@@ -187,8 +186,6 @@ The character evolution system is now **architecturally complete at the 2.5 leve
 | P3-1 | Auto knowledge distillation | PARTIAL | Medium |
 | P3-2 | Web preview UI | TODO | High |
 | P3-3 | Unity/Godot exporter plugin | TODO | Medium |
-| P3-4 | CI/CD + GitHub Actions | TODO | Medium |
-| P3-5 | End-to-end demo showcase script | TODO | Low |
 
 ## Completed Tasks
 

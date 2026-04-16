@@ -18,25 +18,20 @@
     "overall_completion": "25-30%",
     "last_assessed": "SESSION-027",
     "dimension_scores": {
+      "animation_physics_realism": 15,
+      "motion_cognitive_naturalness": 20,
       "character_visual_quality": 20,
-      "animation_expressiveness": 25,
+      "vfx_particles": 20,
       "character_diversity": 15,
       "environment_tileset": 10,
-      "vfx_particles": 20,
-      "ui_elements": 0,
-      "multi_directional_views": 0,
       "engine_ready_export": 15,
-      "style_consistency": 30,
       "engineering_automation": 60
     },
-    "fundamental_blocker": "SDF visual ceiling — math primitives cannot match hand-drawn or AI-generated pixel art expressiveness",
+    "fundamental_blocker": "Lack of physical simulation and cognitive motion constraints — animations are stiff and lack secondary motion/IK",
     "strategic_paths": {
-      "path_a_pure_math": "Deep optimization of SDF + pipeline integration → ceiling ~45-50%",
-      "path_b_heavy_ai": "Use math pipeline as structure generator + Heavy AI model (Stable Diffusion/PixelLab) for visual rendering → ceiling ~70-80%",
-      "path_c_sdf_mask_ca": "SDF as probability mask + Cellular Automata + Random Walk + Dithering (Pure CPU) → ceiling ~55-65%",
-      "path_d_modular_assembly": "Genetic algorithm assembling high-quality pre-made pixel art parts (Pure CPU) → ceiling ~60-75%",
-      "path_e_wfc_style_learning": "WFC overlapping model learning from examples to generate new content (Pure CPU) → ceiling ~55-65%",
-      "path_f_3d_to_2d": "SDF to 3D Voxel → Multi-angle 2D rendering (Solves multi-directional views) → ceiling ~60-70%"
+      "path_a_physics_motion_engine": "Build procedural physics engine (Verlet, Springs, IK, Easing) to guarantee 'moves right' (Highest Priority)",
+      "path_b_ai_visual_polish": "Use math motion data as ControlNet input for AI diffusion models to guarantee 'looks beautiful' (Mid-term)",
+      "path_c_architecture_closure": "Integrate WFC, Export, and Shader modules into the main pipeline (Parallel)"
     },
     "commercial_references": [
       {"name": "PixelLab", "url": "https://www.pixellab.ai/", "type": "AI SaaS tool"},
