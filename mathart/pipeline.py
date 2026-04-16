@@ -1563,6 +1563,8 @@ class AssetPipeline:
                     root_velocity_x=root.velocity_x,
                     root_velocity_y=root.velocity_y,
                     damping=4.0,
+                    half_life=0.18,
+                    recovery_velocity=0.0,
                     impact_energy=1.0,
                 )
             else:

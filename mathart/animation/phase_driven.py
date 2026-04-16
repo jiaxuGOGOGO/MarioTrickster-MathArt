@@ -1035,6 +1035,89 @@ def _resolve_apex_height(root_y: float, root_velocity_y: float, apex_height: flo
     return max(float(root_y) + ballistic_extra, float(root_y), 0.18)
 
 
+@dataclass(frozen=True)
+class TransientPhaseVariable:
+    """Explicit non-cyclic transient phase state carried through the UMR bus.
+
+    The contract keeps both the deficit-like state and its velocity so that
+    recovery can be audited and distilled later instead of being reduced to a
+    single scalar too early.
+    """
+
+    deficit: float
+    velocity: float
+    progress: float
+    target_state: str
+    contact_expectation: str
+    window_signal: bool
+    phase_source: str
+
+    def to_metadata(self) -> dict[str, float | bool | str]:
+        recovery_velocity = max(-float(self.velocity), 0.0)
+        return {
+            "phase": float(_clamp01(self.deficit)),
+            "impact_deficit": float(_clamp01(self.deficit)),
+            "deficit_velocity": float(self.velocity),
+            "recovery_velocity": float(recovery_velocity),
+            "recovery_progress": float(_clamp01(self.progress)),
+            "target_state": str(self.target_state),
+            "contact_expectation": str(self.contact_expectation),
+            "window_signal": bool(self.window_signal),
+            "is_recovery_complete": bool(self.window_signal),
+            "phase_source": str(self.phase_source),
+        }
+
+
+def _halflife_to_damping(half_life: float, eps: float = 1e-5) -> float:
+    return (4.0 * math.log(2.0)) / (max(float(half_life), eps) + eps)
+
+
+def _critical_decay_step(value: float, velocity: float, half_life: float, dt: float) -> tuple[float, float]:
+    y = _halflife_to_damping(half_life) / 2.0
+    j1 = float(velocity) + float(value) * y
+    eydt = math.exp(-y * max(float(dt), 0.0))
+    next_value = eydt * (float(value) + j1 * max(float(dt), 0.0))
+    next_velocity = eydt * (float(velocity) - j1 * y * max(float(dt), 0.0))
+    return next_value, next_velocity
+
+
+def critically_damped_hit_phase(
+    elapsed: float,
+    *,
+    impact_energy: float = 1.0,
+    half_life: float = 0.18,
+    recovery_velocity: float = 0.0,
+) -> TransientPhaseVariable:
+    """Construct a critically damped hit recovery variable.
+
+    ``deficit`` is the user-facing hit phase: 1.0 means peak stun, 0.0 means
+    stable balance restored. The underlying velocity is preserved so Layer 3
+    can distinguish between near-rest and still-recovering states.
+    """
+    deficit0 = _clamp01(impact_energy)
+    velocity0 = -abs(float(recovery_velocity))
+    deficit, deficit_velocity = _critical_decay_step(
+        deficit0,
+        velocity0,
+        half_life=max(float(half_life), 1e-4),
+        dt=max(float(elapsed), 0.0),
+    )
+    deficit = _clamp01(deficit)
+    is_complete = bool(deficit <= 0.02 and abs(deficit_velocity) <= 0.05)
+    if is_complete:
+        deficit = 0.0
+        deficit_velocity = 0.0
+    return TransientPhaseVariable(
+        deficit=deficit,
+        velocity=deficit_velocity,
+        progress=_clamp01(1.0 - deficit),
+        target_state="stable_balance",
+        contact_expectation="planted_recovery",
+        window_signal=is_complete,
+        phase_source="critical_damped_recovery",
+    )
+
+
 def jump_distance_phase(
     *,
     root_y: float,
@@ -1046,15 +1129,22 @@ def jump_distance_phase(
     current_height = max(float(root_y), 0.0)
     distance_to_apex = max(resolved_apex - current_height, 0.0)
     phase = _clamp01(1.0 - (distance_to_apex / resolved_apex))
-    apex_window = bool(distance_to_apex <= max(0.02, resolved_apex * 0.12) or phase >= 0.88)
+    apex_window_threshold = max(0.02, resolved_apex * 0.12)
+    apex_window = bool(distance_to_apex <= apex_window_threshold or phase >= 0.88)
     return {
         "phase": float(phase),
         "phase_kind": "distance_to_apex",
         "phase_source": "distance_matching",
         "distance_to_apex": float(distance_to_apex),
+        "distance_window": float(apex_window_threshold),
+        "target_distance": 0.0,
         "apex_height": float(resolved_apex),
         "vertical_velocity": float(root_velocity_y),
+        "target_state": "apex",
+        "contact_expectation": "apex_window" if apex_window else "airborne",
+        "desired_contact_state": "airborne",
         "is_apex_window": apex_window,
+        "window_signal": apex_window,
     }
 
 
@@ -1070,15 +1160,24 @@ def fall_distance_phase(
     reference_height = max(reference_height, 1e-4)
     distance_to_ground = max(current_height, 0.0)
     phase = _clamp01(1.0 - (distance_to_ground / reference_height))
-    landing_window = bool(distance_to_ground <= max(0.03, reference_height * 0.15) or phase >= 0.82)
+    landing_window_threshold = max(0.03, reference_height * 0.15)
+    landing_window = bool(distance_to_ground <= landing_window_threshold or phase >= 0.82)
+    landing_preparation = ease_in_out(_clamp01((phase - 0.42) / 0.58))
     return {
         "phase": float(phase),
         "phase_kind": "distance_to_ground",
         "phase_source": "distance_matching",
         "distance_to_ground": float(distance_to_ground),
+        "distance_window": float(landing_window_threshold),
+        "target_distance": 0.0,
         "ground_height": float(ground_height),
         "fall_reference_height": float(reference_height),
+        "landing_preparation": float(landing_preparation),
+        "target_state": "ground_contact",
+        "contact_expectation": "landing_window" if landing_window else "airborne",
+        "desired_contact_state": "ground_contact",
         "is_landing_window": landing_window,
+        "window_signal": landing_window,
     }
 
 
@@ -1088,30 +1187,56 @@ def hit_recovery_phase(
     damping: float = 4.0,
     impact_energy: float = 1.0,
     stability_score: float | None = None,
-) -> dict[str, float | str]:
-    """Map a hit reaction to a one-way recovery deficit phase.
+    half_life: float | None = None,
+    recovery_velocity: float = 0.0,
+) -> dict[str, float | bool | str]:
+    """Map a hit reaction to a one-way critically damped recovery phase.
 
     The returned ``phase`` follows the user's requested semantics:
     1.0 = peak stun / rigidity, 0.0 = recovered equilibrium.
     """
-    energy = max(float(impact_energy), 0.0)
+    energy = _clamp01(impact_energy)
     if stability_score is not None:
         phase = _clamp01((1.0 - _clamp01(stability_score)) * max(energy, 1.0))
-        phase_source = "action_goal_progress_stability"
-    else:
-        driver = max(float(progress_driver), 0.0)
-        phase = _clamp01(energy * math.exp(-max(float(damping), 0.0) * driver))
-        phase_source = "action_goal_progress_proxy"
-    recovery_progress = _clamp01(1.0 - phase)
-    return {
-        "phase": float(phase),
-        "phase_kind": "hit_recovery",
-        "phase_source": phase_source,
-        "impact_energy": float(energy),
-        "impact_deficit": float(phase),
-        "recovery_progress": float(recovery_progress),
-        "stability_score": float(1.0 - phase),
-    }
+        recovery_progress = _clamp01(1.0 - phase)
+        is_complete = bool(phase <= 0.02)
+        return {
+            "phase": float(phase),
+            "phase_kind": "hit_recovery",
+            "phase_source": "action_goal_progress_stability",
+            "impact_energy": float(energy),
+            "impact_deficit": float(phase),
+            "deficit_velocity": 0.0,
+            "recovery_velocity": 0.0,
+            "recovery_progress": float(recovery_progress),
+            "stability_score": float(1.0 - phase),
+            "target_state": "stable_balance",
+            "contact_expectation": "planted_recovery",
+            "window_signal": is_complete,
+            "is_recovery_complete": is_complete,
+        }
+
+    elapsed = max(float(progress_driver), 0.0)
+    resolved_half_life = float(half_life) if half_life is not None else max(0.12, (math.log(2.0) / max(float(damping), 1e-4)))
+    transient = critically_damped_hit_phase(
+        elapsed,
+        impact_energy=energy,
+        half_life=resolved_half_life,
+        recovery_velocity=recovery_velocity,
+    )
+    metadata = transient.to_metadata()
+    metadata.update(
+        {
+            "phase_kind": "hit_recovery",
+            "impact_energy": float(energy),
+            "stability_score": float(1.0 - transient.deficit),
+            "half_life": float(resolved_half_life),
+            "damping": float(damping),
+        }
+    )
+    return metadata
+
+
 
 
 def phase_driven_jump(
@@ -1194,29 +1319,35 @@ def phase_driven_hit(
     damping: float = 4.0,
     impact_energy: float = 1.0,
     stability_score: float | None = None,
+    half_life: float | None = None,
+    recovery_velocity: float = 0.0,
 ) -> dict[str, float]:
-    """Goal-progress hit reaction driven by recovery deficit rather than time slices."""
+    """Critically damped hit reaction driven by recovery deficit, not time slices."""
     metrics = hit_recovery_phase(
         t,
         damping=damping,
         impact_energy=impact_energy,
         stability_score=stability_score,
+        half_life=half_life,
+        recovery_velocity=recovery_velocity,
     )
     phase = float(metrics["phase"])
     recovery = float(metrics["recovery_progress"])
+    recovery_speed = float(metrics.get("recovery_velocity", 0.0) or 0.0)
+    settle = ease_in_out(_clamp01(recovery * 1.15))
 
     return {
-        "spine": -0.30 * phase + 0.06 * recovery,
-        "chest": 0.22 * phase - 0.05 * recovery,
-        "head": -0.38 * phase + 0.04 * recovery,
-        "l_shoulder": 0.42 * phase - 0.10 * recovery,
-        "r_shoulder": 0.46 * phase - 0.12 * recovery,
-        "l_elbow": 0.22 + 0.12 * phase,
-        "r_elbow": 0.22 + 0.12 * phase,
-        "l_hip": -0.12 * phase + 0.03 * recovery,
-        "r_hip": -0.12 * phase + 0.03 * recovery,
-        "l_knee": -0.14 * phase,
-        "r_knee": -0.14 * phase,
+        "spine": -0.30 * phase + 0.06 * recovery + 0.03 * settle,
+        "chest": 0.22 * phase - 0.05 * recovery - 0.02 * settle,
+        "head": -0.38 * phase + 0.04 * recovery + 0.02 * settle,
+        "l_shoulder": 0.42 * phase - 0.10 * recovery - 0.04 * settle,
+        "r_shoulder": 0.46 * phase - 0.12 * recovery - 0.05 * settle,
+        "l_elbow": 0.22 + 0.12 * phase + 0.03 * recovery_speed,
+        "r_elbow": 0.22 + 0.12 * phase + 0.03 * recovery_speed,
+        "l_hip": -0.12 * phase + 0.03 * recovery + 0.02 * settle,
+        "r_hip": -0.12 * phase + 0.03 * recovery + 0.02 * settle,
+        "l_knee": -0.14 * phase - 0.02 * recovery_speed,
+        "r_knee": -0.14 * phase - 0.02 * recovery_speed,
     }
 
 
@@ -1312,7 +1443,7 @@ def phase_driven_hit_frame(
     t: float,
     **kwargs: float,
 ) -> UnifiedMotionFrame:
-    """UMR-native hit frame driven by recovery deficit progress."""
+    """UMR-native hit frame driven by critically damped recovery deficit."""
     time = float(kwargs.pop("time", 0.0))
     frame_index = int(kwargs.pop("frame_index", 0))
     source_state = str(kwargs.pop("source_state", "hit"))
@@ -1324,17 +1455,23 @@ def phase_driven_hit_frame(
     damping = float(kwargs.pop("damping", 4.0))
     impact_energy = float(kwargs.pop("impact_energy", 1.0))
     stability_score = kwargs.pop("stability_score", None)
+    half_life = kwargs.pop("half_life", None)
+    recovery_velocity = float(kwargs.pop("recovery_velocity", 0.0))
     metrics = hit_recovery_phase(
         t,
         damping=damping,
         impact_energy=impact_energy,
         stability_score=stability_score,
+        half_life=half_life,
+        recovery_velocity=recovery_velocity,
     )
     pose = phase_driven_hit(
         t,
         damping=damping,
         impact_energy=impact_energy,
         stability_score=stability_score,
+        half_life=half_life,
+        recovery_velocity=recovery_velocity,
     )
     return pose_to_umr(
         pose,
@@ -1355,6 +1492,7 @@ def phase_driven_hit_frame(
             "generator": "phase_driven_hit_recovery",
             **metrics,
             "damping": damping,
+            "half_life": float(metrics.get("half_life", half_life or 0.0) or 0.0),
         },
     )
 

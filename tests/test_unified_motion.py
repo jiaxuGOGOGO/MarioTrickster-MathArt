@@ -73,18 +73,24 @@ def test_transient_phase_models_are_monotonic_and_semantic():
     jump_apex = jump_distance_phase(root_y=0.18, root_velocity_y=0.0, apex_height=0.18)
     assert jump_start["phase"] < jump_mid["phase"] < jump_apex["phase"]
     assert jump_apex["phase_kind"] == "distance_to_apex"
+    assert jump_apex["target_state"] == "apex"
+    assert jump_apex["contact_expectation"] == "apex_window"
 
     fall_far = fall_distance_phase(root_y=0.22, ground_height=0.0, fall_reference_height=0.22)
     fall_near = fall_distance_phase(root_y=0.04, ground_height=0.0, fall_reference_height=0.22)
     fall_ground = fall_distance_phase(root_y=0.0, ground_height=0.0, fall_reference_height=0.22)
     assert fall_far["phase"] < fall_near["phase"] < fall_ground["phase"]
     assert fall_ground["is_landing_window"] is True
+    assert fall_ground["landing_preparation"] >= fall_near["landing_preparation"] >= fall_far["landing_preparation"]
 
-    hit_peak = hit_recovery_phase(0.0, damping=4.0, impact_energy=1.0)
-    hit_recovering = hit_recovery_phase(0.4, damping=4.0, impact_energy=1.0)
-    hit_restored = hit_recovery_phase(2.0, damping=4.0, impact_energy=1.0)
+    hit_peak = hit_recovery_phase(0.0, damping=4.0, impact_energy=1.0, half_life=0.18)
+    hit_recovering = hit_recovery_phase(0.4, damping=4.0, impact_energy=1.0, half_life=0.18)
+    hit_restored = hit_recovery_phase(2.0, damping=4.0, impact_energy=1.0, half_life=0.18)
     assert hit_peak["phase"] > hit_recovering["phase"] > hit_restored["phase"]
     assert hit_restored["recovery_progress"] > hit_recovering["recovery_progress"]
+    assert hit_peak["phase_source"] == "critical_damped_recovery"
+    assert hit_recovering["recovery_velocity"] > 0.0
+    assert hit_restored["is_recovery_complete"] is True
 
 
 def test_transient_phase_frame_generators_write_umr_metadata():
@@ -99,6 +105,7 @@ def test_transient_phase_frame_generators_write_umr_metadata():
     )
     assert jump.metadata["phase_kind"] == "distance_to_apex"
     assert jump.metadata["distance_to_apex"] >= 0.0
+    assert jump.metadata["target_state"] == "apex"
 
     fall = phase_driven_fall_frame(
         0.5,
@@ -112,6 +119,7 @@ def test_transient_phase_frame_generators_write_umr_metadata():
     )
     assert fall.metadata["phase_kind"] == "distance_to_ground"
     assert fall.metadata["distance_to_ground"] >= 0.0
+    assert fall.metadata["landing_preparation"] >= 0.0
 
     hit = phase_driven_hit_frame(
         0.25,
@@ -119,10 +127,14 @@ def test_transient_phase_frame_generators_write_umr_metadata():
         frame_index=1,
         source_state="hit",
         damping=4.0,
+        half_life=0.18,
         impact_energy=1.0,
     )
     assert hit.metadata["phase_kind"] == "hit_recovery"
     assert 0.0 <= hit.metadata["recovery_progress"] <= 1.0
+    assert hit.metadata["phase_source"] == "critical_damped_recovery"
+    assert hit.metadata["target_state"] == "stable_balance"
+    assert hit.metadata["recovery_velocity"] >= 0.0
 
 
 def test_character_pipeline_exports_umr_artifacts(tmp_path: Path):
@@ -158,5 +170,9 @@ def test_character_pipeline_exports_umr_artifacts(tmp_path: Path):
     hit_umr = json.loads((output_dir / "umr_probe" / "umr_probe_hit.umr.json").read_text(encoding="utf-8"))
 
     assert jump_umr["frames"][0]["metadata"]["phase_kind"] == "distance_to_apex"
+    assert jump_umr["frames"][0]["metadata"]["target_state"] == "apex"
     assert fall_umr["frames"][0]["metadata"]["phase_kind"] == "distance_to_ground"
+    assert fall_umr["frames"][0]["metadata"]["target_state"] == "ground_contact"
     assert hit_umr["frames"][0]["metadata"]["phase_kind"] == "hit_recovery"
+    assert hit_umr["frames"][0]["metadata"]["phase_source"] == "critical_damped_recovery"
+    assert "recovery_velocity" in hit_umr["frames"][0]["metadata"]

@@ -345,18 +345,22 @@ class MotionFeatureExtractor:
         self,
         frame: UnifiedMotionFrame,
         prev_frame: Optional[UnifiedMotionFrame] = None,
-    ) -> dict[str, float]:
+    ) -> dict[str, float | str]:
         """Extract phase/contact/root context directly from a UMR frame.
 
         This is the bridge that lets Layer 3 evaluators consume the shared motion
         contract without having to rediscover phase and contact labels from raw
         poses every time.
         """
-        dt = max(float(frame.time - prev_frame.time), 1e-6) if prev_frame is not None else (1.0 / 12.0)
-        phase_velocity = (
-            ((frame.phase - prev_frame.phase) % 1.0) / dt if prev_frame is not None else 1.0
-        )
         metadata = dict(frame.metadata)
+        phase_kind = str(metadata.get("phase_kind", "cyclic"))
+        dt = max(float(frame.time - prev_frame.time), 1e-6) if prev_frame is not None else (1.0 / 12.0)
+        if prev_frame is None:
+            phase_velocity = 1.0
+        elif phase_kind in {"distance_to_apex", "distance_to_ground", "hit_recovery"}:
+            phase_velocity = float(frame.phase - prev_frame.phase) / dt
+        else:
+            phase_velocity = ((frame.phase - prev_frame.phase) % 1.0) / dt
         return {
             "phase": float(frame.phase),
             "phase_velocity": float(phase_velocity),
@@ -366,12 +370,18 @@ class MotionFeatureExtractor:
             "root_vy": float(frame.root_transform.velocity_y),
             "left_contact": 1.0 if frame.contact_tags.left_foot else 0.0,
             "right_contact": 1.0 if frame.contact_tags.right_foot else 0.0,
-            "phase_kind": str(metadata.get("phase_kind", "cyclic")),
+            "phase_kind": phase_kind,
             "phase_source": str(metadata.get("phase_source", metadata.get("generator", "unknown"))),
+            "target_state": str(metadata.get("target_state", "unknown")),
+            "contact_expectation": str(metadata.get("contact_expectation", "unknown")),
             "distance_to_apex": float(metadata.get("distance_to_apex", 0.0) or 0.0),
             "distance_to_ground": float(metadata.get("distance_to_ground", 0.0) or 0.0),
             "impact_deficit": float(metadata.get("impact_deficit", 0.0) or 0.0),
+            "deficit_velocity": float(metadata.get("deficit_velocity", 0.0) or 0.0),
+            "recovery_velocity": float(metadata.get("recovery_velocity", 0.0) or 0.0),
             "recovery_progress": float(metadata.get("recovery_progress", 1.0 if frame.source_state != "hit" else 0.0) or 0.0),
+            "landing_preparation": float(metadata.get("landing_preparation", 0.0) or 0.0),
+            "window_signal": 1.0 if bool(metadata.get("window_signal", False)) else 0.0,
         }
 
     def extract_silhouette_features(
