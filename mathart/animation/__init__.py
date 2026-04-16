@@ -72,6 +72,14 @@ from .physics_genotype import (
     crossover_physics_genotype, crossover_locomotion_genotype,
     evaluate_physics_fitness,
 )
+# SESSION-031: Distilled human math stack (SMPL/VPoser/DQ/Motion Matching)
+from .human_math import (
+    SMPLShapeLatent, DistilledSMPLBodyModel,
+    PosePriorScore, VPoserDistilledPrior,
+    DualQuaternion,
+    MotionFeatureSchema2D, MotionMatchResult, MotionMatcher2D,
+    DistilledHumanMathRuntime,
+)
 
 __all__ = [
     "Skeleton", "Bone", "Joint",
@@ -129,4 +137,10 @@ __all__ = [
     "mutate_physics_genotype", "mutate_locomotion_genotype",
     "crossover_physics_genotype", "crossover_locomotion_genotype",
     "evaluate_physics_fitness",
+    # SESSION-031: Distilled human math stack
+    "SMPLShapeLatent", "DistilledSMPLBodyModel",
+    "PosePriorScore", "VPoserDistilledPrior",
+    "DualQuaternion",
+    "MotionFeatureSchema2D", "MotionMatchResult", "MotionMatcher2D",
+    "DistilledHumanMathRuntime",
 ]

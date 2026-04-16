@@ -54,7 +54,7 @@ import copy
 import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Optional, Sequence
 
 import numpy as np
 
@@ -631,25 +631,17 @@ def evaluate_physics_fitness(
     Runs a short simulation and computes quality metrics:
     - stability: PD controller damping ratio analysis
     - energy_efficiency: total torque / distance traveled
-    - contact_quality: ground reaction force smoothness
     - imitation_score: DeepMimic reward against reference
+    - anatomical_score: VPoser-like pose prior plausibility on simulated poses
+    - motion_match_score: low-dimensional 2D motion retrieval consistency
 
-    Parameters
-    ----------
-    physics_geno : PhysicsGenotype
-        Physics genes.
-    loco_geno : LocomotionGenotype
-        Locomotion genes.
-    n_eval_steps : int
-        Number of simulation steps.
-
-    Returns
-    -------
-    dict[str, float]
-        Fitness components (all in [0, 1]).
+    The added SESSION-031 metrics connect Layer 3 physics evolution to the new
+    distilled human-math stack without requiring a full 3D mesh pipeline.
     """
     from .pd_controller import PDSimulationState, DeepMimicReward
-    from .rl_locomotion import LocomotionEnv, ReferenceMotionLibrary
+    from .rl_locomotion import ReferenceMotionLibrary
+    from .human_math import MotionMatcher2D, VPoserDistilledPrior
+    from .skeleton import Skeleton
 
     # Decode genotypes
     pd_ctrl = decode_pd_controller(physics_geno)
@@ -662,26 +654,53 @@ def evaluate_physics_fitness(
     stability_score = n_stable / max(len(stability_report), 1)
     damping_score = n_critical / max(len(stability_report), 1)
 
-    # Short simulation
+    # Reference motions and distilled human-math helpers
     ref_lib = ReferenceMotionLibrary()
     reward_fn = DeepMimicReward()
     ref_motion = ref_lib.get_motion(loco_geno.gait_type) or ref_lib.get_motion("walk")
+    skeleton = Skeleton.create_humanoid(head_units=3.0)
+    pose_prior = VPoserDistilledPrior()
+
+    motion_clips: dict[str, list[dict[str, float]]] = {}
+    trajectory_hints: dict[str, Sequence[float]] = {}
+    gait_defaults = {
+        "walk": (0.8, 0.0, 1.0, 0.0),
+        "run": (1.6, 0.0, 1.0, 0.0),
+        "jump": (0.6, 0.8, 1.0, 0.0),
+        "idle": (0.0, 0.0, 1.0, 0.0),
+        "fall": (0.1, -0.8, 1.0, 0.0),
+    }
+    for gait in ["walk", "run", "jump", "idle", "fall"]:
+        clip = ref_lib.get_motion(gait)
+        if clip:
+            motion_clips[gait] = clip
+            trajectory_hints[gait] = gait_defaults.get(gait, (loco_cfg.target_velocity, 0.0, 1.0, 0.0))
+    matcher = MotionMatcher2D()
+    matcher.build_from_clips(motion_clips, trajectory_hints=trajectory_hints)
 
     total_reward = 0.0
     total_torque = 0.0
-    state = PDSimulationState.from_pose(
-        ref_motion[0] if ref_motion else {}
-    )
+    anatomy_total = 0.0
+    motion_total = 0.0
+    prev_sim_pose = None
+    desired_traj = gait_defaults.get(loco_geno.gait_type, (loco_cfg.target_velocity, 0.0, 1.0, 0.0))
 
-    for step in range(min(n_eval_steps, len(ref_motion) if ref_motion else n_eval_steps)):
-        phase = step / max(n_eval_steps, 1)
+    initial_pose = ref_motion[0] if ref_motion else {}
+    state = PDSimulationState.from_pose(initial_pose)
+    effective_steps = min(n_eval_steps, len(ref_motion) if ref_motion else n_eval_steps)
+
+    for step in range(effective_steps):
+        phase = step / max(effective_steps, 1)
         ref_frame = ref_lib.sample_frame(loco_geno.gait_type, phase)
         if not ref_frame:
             ref_frame = ref_lib.sample_frame("walk", phase)
+        if not ref_frame:
+            ref_frame = initial_pose
 
+        # Simulate using the target motion frame.
         state = pd_ctrl.step_simulation(ref_frame, state)
 
-        # Compute reward
+        # DeepMimic-style reward.
         reward_result = reward_fn.compute(
             ref_angles=ref_frame,
             sim_angles=state.angles,
@@ -690,18 +709,37 @@ def evaluate_physics_fitness(
         total_reward += reward_result["total"]
         total_torque += sum(abs(t) for t in state.torques.values())
 
-    avg_reward = total_reward / max(n_eval_steps, 1)
-    energy_efficiency = math.exp(-0.0001 * total_torque / max(n_eval_steps, 1))
+        # VPoser-style anatomical prior score.
+        projected = pose_prior.project_pose(state.angles, skeleton=skeleton)
+        anatomy_total += pose_prior.score_pose(projected, skeleton=skeleton).total
+
+        # Motion matching consistency in compact feature space.
+        match = matcher.query(projected, prev_pose=prev_sim_pose, desired_trajectory=desired_traj)
+        motion_total += match.similarity
+        prev_sim_pose = dict(projected)
+
+    avg_reward = total_reward / max(effective_steps, 1)
+    energy_efficiency = math.exp(-0.0001 * total_torque / max(effective_steps, 1))
+    anatomical_score = anatomy_total / max(effective_steps, 1)
+    motion_match_score = motion_total / max(effective_steps, 1)
+
+    overall = float(np.clip(
+        0.20 * stability_score
+        + 0.12 * damping_score
+        + 0.28 * avg_reward
+        + 0.15 * energy_efficiency
+        + 0.13 * anatomical_score
+        + 0.12 * motion_match_score,
+        0.0,
+        1.0,
+    ))
 
     return {
         "stability": stability_score,
         "damping_quality": damping_score,
         "imitation_score": avg_reward,
         "energy_efficiency": energy_efficiency,
-        "overall": (
-            0.25 * stability_score
-            + 0.15 * damping_score
-            + 0.40 * avg_reward
-            + 0.20 * energy_efficiency
-        ),
+        "anatomical_score": anatomical_score,
+        "motion_match_score": motion_match_score,
+        "overall": overall,
     }

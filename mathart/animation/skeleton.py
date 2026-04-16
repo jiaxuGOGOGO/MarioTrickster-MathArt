@@ -148,12 +148,35 @@ class Skeleton:
         """Get current world positions of all joints (after FK)."""
         return self.forward_kinematics()
 
-    def apply_pose(self, pose: dict[str, float]) -> None:
-        """Apply a pose (joint_name → angle) with ROM clamping."""
+    def apply_pose(self, pose: dict[str, float], use_pose_prior: bool = False) -> None:
+        """Apply a pose (joint_name → angle) with optional anatomical projection.
+
+        Parameters
+        ----------
+        pose : dict[str, float]
+            Raw or already-corrected joint angle pose.
+        use_pose_prior : bool
+            If True, run the SESSION-031 VPoser-inspired anatomical projector
+            before writing angles into the skeleton. This keeps the 2D pipeline
+            compatible with future pseudo-3D / 3D pose generation systems.
+        """
+        if use_pose_prior:
+            from .human_math import VPoserDistilledPrior
+            pose = VPoserDistilledPrior().project_pose(pose, skeleton=self)
         for name, angle in pose.items():
             if name in self.joints:
                 self.joints[name].angle = angle
                 self.joints[name].clamp_angle()
+
+    def project_pose_with_prior(self, pose: dict[str, float]) -> dict[str, float]:
+        """Return an anatomically projected pose without mutating skeleton state."""
+        from .human_math import VPoserDistilledPrior
+        return VPoserDistilledPrior().project_pose(pose, skeleton=self)
+
+    def score_pose_with_prior(self, pose: dict[str, float]) -> dict[str, float]:
+        """Score a pose using the SESSION-031 VPoser-inspired prior."""
+        from .human_math import VPoserDistilledPrior
+        return VPoserDistilledPrior().score_pose(pose, skeleton=self).to_dict()
 
     def forward_kinematics(self) -> dict[str, tuple[float, float]]:
         """Compute world positions via forward kinematics from root."""

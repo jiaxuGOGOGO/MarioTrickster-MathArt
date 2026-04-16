@@ -519,16 +519,37 @@ class PhysicsKnowledgeDistiller:
                 "rule_text": (
                     f"Gait '{loco_geno.gait_type}' at {loco_geno.step_frequency:.1f} Hz "
                     f"with stride {loco_geno.stride_length:.2f} achieves "
-                    f"imitation={fitness.get('imitation_score', 0):.2f} "
+                    f"imitation={fitness.get('imitation_score', 0):.2f}, "
+                    f"motion_match={fitness.get('motion_match_score', 0):.2f} "
                     f"for archetype '{archetype}'"
                 ),
                 "params": {
                     "gait_type": loco_geno.gait_type,
                     "step_frequency": str(loco_geno.step_frequency),
                     "stride_length": str(loco_geno.stride_length),
+                    "motion_match_score": str(fitness.get('motion_match_score', 0.0)),
                     "archetype": archetype,
                 },
-                "confidence": fitness.get("imitation_score", 0.5),
+                "confidence": 0.5 * fitness.get("imitation_score", 0.5) + 0.5 * fitness.get("motion_match_score", 0.5),
+                "source": f"Layer3-AutoDistill-{self.rules_generated}",
+            })
+
+        # Rule 4: Anatomical plausibility prior
+        if fitness.get("anatomical_score") is not None:
+            rules.append({
+                "domain": "anatomy",
+                "rule_type": "heuristic",
+                "rule_text": (
+                    f"For archetype '{archetype}', locomotion candidates should maintain "
+                    f"anatomical_score >= {fitness.get('anatomical_score', 0):.2f} after "
+                    f"VPoser-like projection to avoid impossible knee/elbow solutions."
+                ),
+                "params": {
+                    "anatomical_score": str(fitness.get('anatomical_score', 0.0)),
+                    "gait_type": loco_geno.gait_type,
+                    "archetype": archetype,
+                },
+                "confidence": fitness.get("anatomical_score", 0.5),
                 "source": f"Layer3-AutoDistill-{self.rules_generated}",
             })
 
