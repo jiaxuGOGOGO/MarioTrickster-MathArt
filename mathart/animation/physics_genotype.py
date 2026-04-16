@@ -735,11 +735,25 @@ def evaluate_physics_fitness(
     transition_quality_score = 0.5  # Default: untested
     entry_frame_cost_score = 5.0    # Default: moderate cost
     try:
-        from .runtime_motion_query import RuntimeMotionDatabase, RuntimeMotionQuery
+        from .runtime_motion_query import (
+            RuntimeFeatureWeights,
+            RuntimeMotionDatabase,
+            RuntimeMotionQuery,
+        )
         from .transition_synthesizer import TransitionSynthesizer, TransitionStrategy
+        from ..evolution.layer3_closed_loop import load_distilled_transition_params
+
+        tuned = load_distilled_transition_params(transition_key="run->jump")
+        runtime_db = RuntimeMotionDatabase(weights=RuntimeFeatureWeights(
+            velocity=float(tuned.get("velocity_weight", 1.0)),
+            foot_contact=float(tuned.get("foot_contact_weight", 2.0)),
+            phase=float(tuned.get("phase_weight", 0.8)),
+            joint_pose=float(tuned.get("joint_pose_weight", 0.6)),
+            trajectory=float(tuned.get("trajectory_weight", 1.0)),
+            foot_velocity=float(tuned.get("foot_velocity_weight", 1.5)),
+        ))
 
         # Build runtime database from reference clips
-        runtime_db = RuntimeMotionDatabase()
         for gait in ["walk", "run", "jump", "idle", "fall"]:
             clip = ref_lib.get_motion(gait)
             if clip:
@@ -749,9 +763,9 @@ def evaluate_physics_fitness(
         # Test transition quality: simulate Run → Jump transition
         query_engine = RuntimeMotionQuery(runtime_db)
         synthesizer = TransitionSynthesizer(
-            strategy=TransitionStrategy.DEAD_BLENDING,
-            blend_time=0.2,
-            decay_halflife=0.05,
+            strategy=TransitionStrategy(str(tuned.get("transition_strategy", "dead_blending"))),
+            blend_time=float(tuned.get("blend_time", 0.2)),
+            decay_halflife=float(tuned.get("decay_halflife", 0.05)),
         )
 
         # Get representative frames from run and jump clips
@@ -781,11 +795,23 @@ def evaluate_physics_fitness(
                     prev_source_frame=prev_frame,
                     dt=1.0 / 24.0,
                 )
-                # Run a few frames of transition
-                for _ in range(6):
-                    synthesizer.update(target_frame, 1.0 / 24.0)
+                # Run a few frames of transition using sequential target frames
+                for frame_offset in range(6):
+                    eval_target = runtime_db.get_clip_frame(
+                        "jump",
+                        min(entry_result.entry_frame_idx + frame_offset, len(jump_frames) - 1),
+                    )
+                    if eval_target is not None:
+                        synthesizer.update(eval_target, 1.0 / 24.0)
                 tq = synthesizer.get_transition_quality()
-                transition_quality_score = 1.0 - min(tq.max_offset / max(tq.max_offset + 0.5, 1.0), 1.0)
+                displacement_avg = tq.total_displacement / max(tq.frames_processed, 1)
+                transition_quality_score = float(np.clip(
+                    tq.smoothness
+                    * tq.contact_preservation
+                    * math.exp(-0.25 * displacement_avg),
+                    0.0,
+                    1.0,
+                ))
     except Exception:
         pass
 

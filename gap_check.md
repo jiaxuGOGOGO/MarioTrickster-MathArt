@@ -23,8 +23,10 @@
 | 17 | 关卡生成→资产导出连接 | LevelSpecBridge + ExportBridge（各自完整） | TASK-003: 需桥接 | ✅ |
 | 18 | GPU/硬件加速 | differentiable_renderer_2d（骨架） | TASK-005: 需用户硬件 | ✅ |
 | 19 | AI 接手后给菜单选项 | SESSION_HANDOFF.md 第6条 CRITICAL | 无差距 | ✅ |
-| 20 | 定期审计差距并更新待办 | ？ | 需要写入 AI 指引 | ❌ 缺失 |
+| 20 | 定期审计差距并更新待办 | evolution_loop.py + collect_closed_loop_status() + run_evolution_cycle() + gap_check.md | 后续可继续把审计结果自动同步到更多看板文件 | ✅ |
+| 21 | Layer 3 闭环：Runtime Query → 自动合成 → 蒸馏写回 | Layer3ClosedLoopDistiller + transition_rules.json + LAYER3_CONVERGENCE_BRIDGE.json + physics_genotype 闭环回读 | 下一步可扩展到更多过渡对（如 walk->hit、idle->fall）与批量调优编排 | ✅ |
 
 ## 结论
-- 19/20 项需求已覆盖
-- 第 20 项"定期审计差距"机制尚未写入 AI 指引，需要补充
+- 21/21 项已建立代码级承接路径
+- 本轮新增 Gap 4 主动闭环已实现，并已实际生成 `run->jump` 蒸馏规则、桥接文件与演化报告
+- 后续重点从“是否具备机制”转为“扩展到更多难过渡目标与批量调优编排”

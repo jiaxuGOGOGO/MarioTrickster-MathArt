@@ -1,15 +1,15 @@
 {
-  "version": "0.33.0",
-  "last_session_id": "SESSION-042",
-  "last_updated": "2026-04-16T16:00:00Z",
+  "version": "0.34.0",
+  "last_session_id": "SESSION-043",
+  "last_updated": "2026-04-16T15:50:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "843/843 full-suite PASS (includes 36 SESSION-042 PhaseState tests + 15 SESSION-042 evolution loop tests + all prior tests)",
+  "validation_pass_rate": "17/17 targeted Gap 4 audit PASS; 845 tests tracked by evolution loop",
   "total_iterations": 500,
   "total_code_lines": 57542,
   "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 43,
+  "knowledge_rule_count": 46,
   "math_model_count": 28,
   "project_health_score": 9.99,
   "commercial_benchmark": {
@@ -29,9 +29,9 @@
     },
     "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-032: the original WFC/shader/export break is now closed by a lightweight PDG runtime and a USD-like scene contract. The main remaining blockers are industrial runtime depth (cache/partition/layering), benchmarked asset production, visual quality, and the simulation-conditioned neural-render bridge.",
     "strategic_paths": {
-      "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback.",
+      "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules.",
       "path_b_ai_visual_polish": "Now better conditioned by anatomically valid low-dimensional motion data; next step is ControlNet / diffusion export from the distilled body and pose representation.",
-      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop. Next step: Gap 2 (XPBD rigid/soft body coupling), terrain-aware sensing, gait transition blending, production benchmark suite."
+      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop. SESSION-043 closed Gap 4 (active Layer 3 closed loop) with runtime query → synthesis → write-back. Next step: Gap 2 (XPBD rigid/soft body coupling), terrain-aware sensing, gait transition blending, production benchmark suite."
     },
     "commercial_references": [
       {
@@ -45,12 +45,14 @@
         "type": "itch.io top-seller asset pack"
       }
     ],
-    "engineering_automation": 82
+    "engineering_automation": 84
   },
-  "current_focus": "SESSION-042 closes Gap 1 (Aperiodic Motion Integration) with PhaseState dataclass and Gate Mechanism in PhaseDrivenAnimator.generate_frame(). Research: Local Motion Phases (Starke 2020), DeepPhase (Starke 2022). Three-Layer Evolution Loop (evolution_loop.py) established for self-evolving architecture. 843/843 tests PASS, zero regressions. Next: Gap 2 (Rigid Body/Soft Body Coupling via XPBD).",
+  "current_focus": "SESSION-043 closes Gap 4 (Layer 3 Closed Loop) by upgrading runtime transition tuning from passive evaluation to an active Runtime Query → Synthesis → Optuna Search → Distillation Write-back loop. A real run->jump rule was distilled into transition_rules.json and LAYER3_CONVERGENCE_BRIDGE.json. Targeted Gap 4 audit: 17/17 PASS. Next: Gap 2 (XPBD), batch tuning of multiple hard transitions, and scheduled closed-loop audits.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "SESSION_HANDOFF.md",
+    "evolution_reports/session043_browser_research_notes.md",
+    "AUDIT_SESSION043.md",
     "research_session041_visual_regression_ci.md",
     "audit_session041_checklist.md",
     "research_session040_cli_pipeline_contract.md",
@@ -103,13 +105,32 @@
   },
   "pending_tasks": [
     {
+      "id": "P1-GAP4-CI",
+      "priority": "P1",
+      "title": "Scheduled or nightly Layer 3 closed-loop audits",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Run the SESSION-043 active tuning loop and evolution report generation in scheduled audit mode so distilled transition rules continue to improve over time.",
+      "added_in": "SESSION-043"
+    },
+    {
+      "id": "P1-GAP4-BATCH",
+      "priority": "P1",
+      "title": "Batch-tune multiple hard transitions through the active Layer 3 loop",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Extend SESSION-043 closed-loop tuning beyond run->jump to walk->hit, idle->fall, gait crossfades, and other difficult transitions.",
+      "added_in": "SESSION-043"
+    },
+    {
       "id": "P0-EVAL-BRIDGE",
       "priority": "P0",
       "title": "Parameter Convergence Bridge (Layer 3 Evaluation → Export Loop)",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "high",
-      "description": "Create a closed-loop optimizer that reads Layer 3 fitness scores and diagnostic rules, maps them to parameter adjustments (e.g., foot_lock_strength, bezier control points), and injects them into the next produce_character_pack() call.",
-      "added_in": "SESSION-042"
+      "description": "CLOSED in SESSION-043. Active Layer 3 closed loop now performs Runtime Query → Transition Synthesis → Optuna search → distillation write-back into transition_rules.json and LAYER3_CONVERGENCE_BRIDGE.json, with downstream readback in physics_genotype.py.",
+      "added_in": "SESSION-042",
+      "completed_in": "SESSION-043"
     },
     {
       "id": "P0-GAP-2",
@@ -1791,5 +1812,31 @@
       "P1-INDUSTRIAL-34A: wire industrial renderer as optional backend",
       "P1-INDUSTRIAL-34C: implement 3D mesh to 2D pixel art pipeline"
     ]
+  },
+  "completed_work": [
+    {
+      "id": "P0-GAP4-043",
+      "title": "Active Layer 3 closed loop (Runtime Query → Synthesis → Distillation Write-back)",
+      "completed_in": "SESSION-043",
+      "result": "layer3_closed_loop.py implements Optuna-based runtime transition tuning, writes best rules into transition_rules.json, mirrors downstream payload into LAYER3_CONVERGENCE_BRIDGE.json, and persists state in .layer3_closed_loop_state.json. Real run->jump optimization completed with best_loss 1.319902391027808 over 24 trials. tests/test_layer3_closed_loop.py added."
+    }
+  ],
+  "session_summaries": [
+    {
+      "session_id": "SESSION-043",
+      "summary": "Closed Gap 4 by implementing the active Layer 3 runtime tuning loop, generating a real run->jump distilled rule, updating the three-layer evolution report, and completing the audit with targeted tests.",
+      "top_gaps": [
+        "P0-GAP-2: XPBD rigid/soft body coupling",
+        "P1-GAP4-BATCH: batch-tune additional hard transitions",
+        "P1-GAP4-CI: scheduled closed-loop audits"
+      ]
+    }
+  ],
+  "custom_notes": {
+    "session043_gap4_status": "CLOSED. Active Layer 3 closed loop implemented.",
+    "session043_best_transition_rule": "run->jump / inertialization / blend_time=0.22353582207901024 / best_loss=1.319902391027808",
+    "session043_rule_store": "transition_rules.json now stores distilled runtime transition rules.",
+    "session043_bridge_file": "LAYER3_CONVERGENCE_BRIDGE.json mirrors deterministic downstream payload for the latest tuned transition.",
+    "session043_audit": "AUDIT_SESSION043.md verifies research → code → artifact → test closure."
   }
 }

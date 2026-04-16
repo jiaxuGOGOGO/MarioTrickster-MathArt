@@ -54,6 +54,8 @@ from .evolution_layer3 import PhysicsEvolutionLayer, PhysicsEvolutionRecord
 from .evolution_contract_bridge import ContractEvolutionBridge
 # SESSION-041: Visual Regression Evolution Bridge
 from .visual_regression_bridge import VisualRegressionEvolutionBridge
+from .layer3_closed_loop import Layer3ClosedLoopDistiller, TransitionTuningTarget
+from .evolution_loop import collect_closed_loop_status
 
 
 class SelfEvolutionEngine:
@@ -101,6 +103,14 @@ class SelfEvolutionEngine:
             project_root=self.project_root,
             verbose=verbose,
         ) if enable_physics else None
+
+        # SESSION-043: Active Layer 3 closed loop — runtime transition tuning
+        self.closed_loop_layer = Layer3ClosedLoopDistiller(
+            project_root=self.project_root,
+            session_id="SESSION-043",
+            random_seed=42,
+            verbose=verbose,
+        )
 
         # Supporting: Math model registry
         self.math_registry = MathModelRegistry()
@@ -306,6 +316,29 @@ class SelfEvolutionEngine:
             print(f"{'='*60}\n")
 
         return records
+
+    def run_transition_closed_loop(
+        self,
+        source_state: str = "run",
+        target_state: str = "jump",
+        source_phase: float = 0.8,
+        n_trials: int = 24,
+    ) -> dict[str, Any]:
+        """Run the active Layer 3 runtime transition tuning loop.
+
+        This is the formal engine-level entry point for Gap 4. It performs the
+        runtime query → synthesize → score → Optuna search → write-back cycle
+        and returns the distilled rule plus bridge payload.
+        """
+        result = self.closed_loop_layer.optimize_transition(
+            target=TransitionTuningTarget(
+                source_state=source_state,
+                target_state=target_state,
+                source_phase=source_phase,
+            ),
+            n_trials=n_trials,
+        )
+        return result.to_dict()
 
     def _run_physics_evolution(
         self,
@@ -567,8 +600,23 @@ class SelfEvolutionEngine:
         ).strip())
         lines.append("")
 
+        # ── SESSION-043: Active runtime tuning status ──
+        lines.append("--- Layer 3A: Active Runtime Closed Loop (SESSION-043) ---")
+        closed_loop = collect_closed_loop_status(self.project_root)
+        lines.extend([
+            f"   Distilled transition rules: {closed_loop.rule_count}",
+            f"   Last tuned transition: {closed_loop.last_transition_key or 'N/A'}",
+            f"   Last best loss: {closed_loop.last_best_loss:.6f}",
+            f"   Bridge active: {'yes' if closed_loop.bridge_exists else 'no'}",
+        ])
+        if closed_loop.tracked_rules:
+            lines.append(f"   Rule keys: {', '.join(closed_loop.tracked_rules)}")
+        if closed_loop.report_path:
+            lines.append(f"   Latest report: {closed_loop.report_path}")
+        lines.append("")
+
         # ── Layer 3: Physics Evolution Status ──
-        lines.append("--- Layer 3: Physics Evolution (Self-Iteration) ---")
+        lines.append("--- Layer 3B: Physics Evolution (Self-Iteration) ---")
         if self.physics_layer:
             ps = self.physics_layer.state
             lines.extend([

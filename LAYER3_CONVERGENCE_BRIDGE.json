@@ -1,0 +1,31 @@
+{
+  "transition_rule_key": "run->jump",
+  "transition_source_state": "run",
+  "transition_target_state": "jump",
+  "transition_source_phase": 0.8,
+  "transition_strategy": "inertialization",
+  "transition_blend_time": 0.22353582207901024,
+  "transition_decay_halflife": 0.05,
+  "runtime_query_velocity_weight": 1.8547176210752363,
+  "runtime_query_foot_contact_weight": 2.276487458996116,
+  "runtime_query_phase_weight": 0.2837169731569524,
+  "runtime_query_joint_pose_weight": 0.20203093379291856,
+  "runtime_query_trajectory_weight": 0.2195275751133935,
+  "runtime_query_foot_velocity_weight": 0.9767150013124388,
+  "transition_best_loss": 1.319902391027808,
+  "transition_quality": 0.5413409525200886,
+  "transition_best_trial_number": 21,
+  "transition_n_trials": 24,
+  "transition_tuned_at": "2026-04-16T15:48:22Z",
+  "transition_tuned_session": "SESSION-043",
+  "transition_objective_breakdown": {
+    "entry_cost": 1.701587438583374,
+    "displacement": 0.04349519051386206,
+    "quality_loss": 0.4527404952617643,
+    "pose_gap": 0.04914027138901389,
+    "root_gap": 0.17953156986242202,
+    "jerk": 0.19546464020193877,
+    "foot_slip": 0.17953156986242202,
+    "contact_instability": 0.0
+  }
+}

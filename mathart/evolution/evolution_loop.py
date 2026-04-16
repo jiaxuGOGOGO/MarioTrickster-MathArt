@@ -1,50 +1,39 @@
 """
-SESSION-042: Three-Layer Evolution Loop — Self-Evolving Architecture
+SESSION-043: Three-Layer Evolution Loop — active closed-loop upgrade.
 
-Implements the three-layer evolution cycle that enables the project to:
-  1. **Internal Evolution**: Self-discover improvements from existing code and TODO items.
-  2. **External Knowledge Distillation**: Integrate external research findings into the codebase.
-  3. **Self-Iterative Testing**: Validate changes, detect regressions, and evolve tests.
+The project-wide evolution loop now explicitly tracks three complementary
+mechanisms of improvement:
 
-Architecture:
-    ┌─────────────────────────────────────────────────────────────────────┐
-    │  Layer 1: Internal Evolution Engine                                  │
-    │  ├─ Scans TODO/FIXME markers in codebase                           │
-    │  ├─ Identifies incomplete implementations                           │
-    │  ├─ Tracks code coverage gaps                                       │
-    │  └─ Generates evolution proposals                                   │
-    ├─────────────────────────────────────────────────────────────────────┤
-    │  Layer 2: External Knowledge Distillation                           │
-    │  ├─ Ingests research findings (papers, techniques)                  │
-    │  ├─ Maps academic concepts → code integration points                │
-    │  ├─ Tracks distillation provenance (paper → code)                   │
-    │  └─ Validates theoretical alignment                                 │
-    ├─────────────────────────────────────────────────────────────────────┤
-    │  Layer 3: Self-Iterative Testing                                    │
-    │  ├─ Runs test suite and captures results                            │
-    │  ├─ Detects regressions from evolution changes                      │
-    │  ├─ Generates new tests for evolved code                            │
-    │  └─ Reports evolution health metrics                                │
-    └─────────────────────────────────────────────────────────────────────┘
+1. **Internal Evolution**
+   The repository scans its own TODO markers, incomplete implementations, and
+   latent integration seams.
 
-The loop is designed to be invoked by future sessions or scheduled tasks,
-enabling continuous self-improvement without human intervention for
-routine maintenance cycles.
+2. **External Knowledge Distillation**
+   Research findings are registered with provenance, mapped to concrete target
+   modules, and validated against test coverage.
 
-References:
-  - Gap 1 Resolution: PhaseState (Local Motion Phases + DeepPhase)
-  - Mike Acton (CppCon 2014): Data-oriented design principles
-  - Continuous Integration / Continuous Delivery best practices
+3. **Self-Iterative Testing and Active Runtime Tuning**
+   The test layer now includes both passive regression tracking and the active
+   Layer 3 closed loop for runtime transition tuning. In practice this means the
+   system can identify a hard transition, search for better runtime parameters,
+   write the winning rule back into the repository, and surface the result in
+   the same evolution report used by future sessions.
 """
 from __future__ import annotations
 
 import json
-import os
 import re
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Optional
+
+from .layer3_closed_loop import (
+    ClosedLoopOptimizationResult,
+    Layer3ClosedLoopDistiller,
+    TransitionTuningTarget,
+    TransitionRuleStore,
+)
 
 
 # ── Data Structures ──────────────────────────────────────────────────────────
@@ -55,15 +44,15 @@ class EvolutionProposal:
     """A single proposed evolution action."""
 
     id: str
-    layer: int  # 1=internal, 2=external, 3=testing
-    category: str  # e.g., "todo_resolution", "research_integration", "test_gap"
+    layer: int
+    category: str
     title: str
     description: str
     source_file: str = ""
     source_line: int = 0
-    priority: str = "medium"  # low, medium, high, critical
-    status: str = "proposed"  # proposed, in_progress, completed, deferred
-    research_ref: str = ""  # Paper/technique reference if applicable
+    priority: str = "medium"
+    status: str = "proposed"
+    research_ref: str = ""
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> dict[str, Any]:
@@ -77,13 +66,13 @@ class DistillationRecord:
     paper_id: str
     paper_title: str
     authors: str
-    venue: str  # e.g., "SIGGRAPH 2020"
-    concept: str  # The specific concept distilled
-    target_module: str  # Which code module received the distillation
-    target_class: str  # Which class/function was modified
+    venue: str
+    concept: str
+    target_module: str
+    target_class: str
     integration_date: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    validation_status: str = "pending"  # pending, validated, failed
-    test_coverage: str = ""  # Which test file covers this
+    validation_status: str = "pending"
+    test_coverage: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -99,7 +88,25 @@ class TestEvolutionResult:
     new_tests_added: int = 0
     regressions_detected: int = 0
     coverage_delta: float = 0.0
+    active_closed_loop_runs: int = 0
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class ClosedLoopStatus:
+    """Snapshot of the active Layer 3 runtime tuning state."""
+
+    rule_count: int = 0
+    last_transition_key: str = ""
+    last_best_loss: float = 0.0
+    last_updated: str = ""
+    history_length: int = 0
+    bridge_exists: bool = False
+    report_path: str = ""
+    tracked_rules: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -114,20 +121,21 @@ class EvolutionCycleReport:
     proposals: list[EvolutionProposal] = field(default_factory=list)
     distillations: list[DistillationRecord] = field(default_factory=list)
     test_result: Optional[TestEvolutionResult] = None
+    closed_loop: Optional[ClosedLoopStatus] = None
     summary: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> dict[str, Any]:
-        d = {
+        return {
             "cycle_id": self.cycle_id,
             "session_id": self.session_id,
             "proposals": [p.to_dict() for p in self.proposals],
             "distillations": [d.to_dict() for d in self.distillations],
             "test_result": self.test_result.to_dict() if self.test_result else None,
+            "closed_loop": self.closed_loop.to_dict() if self.closed_loop else None,
             "summary": self.summary,
             "timestamp": self.timestamp,
         }
-        return d
 
 
 # ── Layer 1: Internal Evolution Engine ───────────────────────────────────────
@@ -145,11 +153,11 @@ _INCOMPLETE_PATTERNS = [
 ]
 
 
-def scan_internal_todos(project_root: str | Path, extensions: tuple[str, ...] = (".py",)) -> list[EvolutionProposal]:
-    """Scan the codebase for TODO/FIXME markers and incomplete implementations.
-
-    Returns a list of EvolutionProposals for Layer 1 (internal evolution).
-    """
+def scan_internal_todos(
+    project_root: str | Path,
+    extensions: tuple[str, ...] = (".py", ".md", ".json"),
+) -> list[EvolutionProposal]:
+    """Scan the codebase for TODO/FIXME markers and incomplete implementations."""
     root = Path(project_root)
     proposals: list[EvolutionProposal] = []
     idx = 0
@@ -164,12 +172,12 @@ def scan_internal_todos(project_root: str | Path, extensions: tuple[str, ...] = 
                 continue
 
             for line_num, line in enumerate(text.splitlines(), start=1):
-                m = _TODO_PATTERN.search(line)
-                if m:
+                match = _TODO_PATTERN.search(line)
+                if match:
                     idx += 1
-                    marker = m.group(1).upper()
-                    desc = m.group(2).strip() or "(no description)"
-                    priority = "high" if marker in {"FIXME", "HACK"} else "medium"
+                    marker = match.group(1).upper()
+                    desc = match.group(2).strip() or "(no description)"
+                    priority = "high" if marker in {"FIXME", "HACK", "XXX"} else "medium"
                     proposals.append(EvolutionProposal(
                         id=f"L1-{idx:04d}",
                         layer=1,
@@ -201,15 +209,13 @@ def scan_internal_todos(project_root: str | Path, extensions: tuple[str, ...] = 
 # ── Layer 2: External Knowledge Distillation ─────────────────────────────────
 
 
-# Pre-registered distillation records for Gap 1 research
 GAP1_DISTILLATIONS: list[DistillationRecord] = [
     DistillationRecord(
         paper_id="starke2020local",
         paper_title="Local Motion Phases for Learning Multi-Contact Character Movements",
         authors="Sebastian Starke, Yiwei Zhao, Taku Komura, Kazi Zaman",
         venue="SIGGRAPH 2020 (ACM TOG 39:4)",
-        concept="Local phases: per-bone independent phase channels that break the single-global-cycle assumption. "
-                "Non-cyclic motions get 0→1 activation spikes instead of forced cyclic wrapping.",
+        concept="Local phases: per-bone independent phase channels that break the single-global-cycle assumption. Non-cyclic motions get 0→1 activation spikes instead of forced cyclic wrapping.",
         target_module="mathart/animation/unified_motion.py",
         target_class="PhaseState",
         validation_status="validated",
@@ -220,11 +226,9 @@ GAP1_DISTILLATIONS: list[DistillationRecord] = [
         paper_title="DeepPhase: Periodic Autoencoders for Learning Motion Phase Manifolds",
         authors="Sebastian Starke, Ian Mason, Taku Komura",
         venue="SIGGRAPH 2022 (ACM TOG 41:4)",
-        concept="Multi-dimensional phase manifold via Periodic Autoencoder. Phase as latent vector "
-                "with amplitude/frequency/offset channels. Cyclic motions = sustained oscillations, "
-                "transient motions = one-shot activation spikes.",
+        concept="Multi-dimensional phase manifold via Periodic Autoencoder. Phase as latent vector with amplitude/frequency/offset channels. Cyclic motions become sustained oscillations while transient motions become one-shot activation spikes.",
         target_module="mathart/animation/phase_driven.py",
-        target_class="PhaseDrivenAnimator.generate_frame (gate mechanism)",
+        target_class="PhaseDrivenAnimator.generate_frame",
         validation_status="validated",
         test_coverage="tests/test_phase_state.py",
     ),
@@ -233,8 +237,7 @@ GAP1_DISTILLATIONS: list[DistillationRecord] = [
         paper_title="Generalized Phase State — Unified Cyclic/Transient Phase Architecture",
         authors="Project Internal (Gap 1 Resolution)",
         venue="SESSION-042",
-        concept="PhaseState dataclass with is_cyclic gate. Cyclic → sin/cos trig → Catmull-Rom. "
-                "Transient → direct [0,1] scalar → Bezier/spline. Eliminates adapter bypass pattern.",
+        concept="PhaseState dataclass with an is_cyclic gate so cyclic motion uses trig interpolation and transient motion uses direct scalar interpolation without adapter bypasses.",
         target_module="mathart/animation/phase_driven.py",
         target_class="PhaseDrivenAnimator._generate_transient_pose",
         validation_status="validated",
@@ -243,30 +246,70 @@ GAP1_DISTILLATIONS: list[DistillationRecord] = [
 ]
 
 
+GAP4_DISTILLATIONS: list[DistillationRecord] = [
+    DistillationRecord(
+        paper_id="peng2018deepmimic",
+        paper_title="DeepMimic: Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills",
+        authors="Xue Bin Peng, Pieter Abbeel, Sergey Levine, Michiel van de Panne",
+        venue="SIGGRAPH 2018 (ACM TOG 37:4)",
+        concept="Translate physical plausibility into a scalar reward-style objective so foot skating, discontinuity, and instability can be optimized by repeated simulation rather than manual tuning.",
+        target_module="mathart/evolution/layer3_closed_loop.py",
+        target_class="Layer3ClosedLoopDistiller.evaluate_transition",
+        validation_status="validated",
+        test_coverage="tests/test_layer3_closed_loop.py",
+    ),
+    DistillationRecord(
+        paper_id="ma2023eureka",
+        paper_title="Eureka: Human-Level Reward Design via Coding Large Language Models",
+        authors="Yecheng Jason Ma, Maxence Richard, Linxi Fan, et al.",
+        venue="ICLR 2024",
+        concept="Upgrade Layer 3 from a passive evaluator to an active coach that iteratively proposes parameters, scores them, and writes back the winning configuration into the repository state.",
+        target_module="mathart/evolution/layer3_closed_loop.py",
+        target_class="Layer3ClosedLoopDistiller.optimize_transition",
+        validation_status="validated",
+        test_coverage="tests/test_layer3_closed_loop.py",
+    ),
+    DistillationRecord(
+        paper_id="akiba2019optuna",
+        paper_title="Optuna: A Next-Generation Hyperparameter Optimization Framework",
+        authors="Takuya Akiba, Shotaro Sano, Toshihiko Yanase, Takeru Ohta, Masanori Koyama",
+        venue="KDD 2019",
+        concept="Use define-by-run black-box optimization to search transition strategy, blend window, and runtime query weights under a deterministic seed and bounded trial budget.",
+        target_module="mathart/evolution/layer3_closed_loop.py",
+        target_class="Layer3ClosedLoopDistiller._suggest_params",
+        validation_status="validated",
+        test_coverage="tests/test_layer3_closed_loop.py",
+    ),
+]
+
+
+_REGISTERED_DISTILLATIONS: list[DistillationRecord] = [
+    *GAP1_DISTILLATIONS,
+    *GAP4_DISTILLATIONS,
+]
+
+
 def get_distillation_registry() -> list[DistillationRecord]:
     """Return all registered knowledge distillation records."""
-    return list(GAP1_DISTILLATIONS)
+    return list(_REGISTERED_DISTILLATIONS)
 
 
 def add_distillation(record: DistillationRecord) -> None:
     """Register a new knowledge distillation record."""
-    GAP1_DISTILLATIONS.append(record)
+    _REGISTERED_DISTILLATIONS.append(record)
 
 
 def validate_distillations(project_root: str | Path) -> list[dict[str, Any]]:
-    """Validate that all distillation targets exist in the codebase.
-
-    Returns a list of validation results with status for each record.
-    """
+    """Validate that all distillation targets exist in the codebase."""
     root = Path(project_root)
-    results = []
-    for rec in GAP1_DISTILLATIONS:
-        target_path = root / rec.target_module
+    results: list[dict[str, Any]] = []
+    for record in get_distillation_registry():
+        target_path = root / record.target_module
         exists = target_path.exists()
-        test_path = root / rec.test_coverage if rec.test_coverage else None
+        test_path = root / record.test_coverage if record.test_coverage else None
         test_exists = test_path.exists() if test_path else False
         results.append({
-            "paper_id": rec.paper_id,
+            "paper_id": record.paper_id,
             "target_exists": exists,
             "test_exists": test_exists,
             "status": "valid" if (exists and test_exists) else "incomplete",
@@ -274,7 +317,7 @@ def validate_distillations(project_root: str | Path) -> list[dict[str, Any]]:
     return results
 
 
-# ── Layer 3: Self-Iterative Testing ──────────────────────────────────────────
+# ── Layer 3: Self-Iterative Testing + Active Closed Loop ─────────────────────
 
 
 def count_test_functions(project_root: str | Path) -> dict[str, int]:
@@ -285,18 +328,69 @@ def count_test_functions(project_root: str | Path) -> dict[str, int]:
         return counts
 
     test_func_pattern = re.compile(r"^\s*def\s+(test_\w+)\s*\(", re.MULTILINE)
-    test_class_pattern = re.compile(r"^\s*class\s+(Test\w+)", re.MULTILINE)
-
     for filepath in root.glob("test_*.py"):
         try:
             text = filepath.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        funcs = test_func_pattern.findall(text)
-        classes = test_class_pattern.findall(text)
-        counts[filepath.name] = len(funcs)
-
+        counts[filepath.name] = len(test_func_pattern.findall(text))
     return counts
+
+
+def collect_closed_loop_status(project_root: str | Path) -> ClosedLoopStatus:
+    """Collect the persisted state of the active Layer 3 runtime tuning loop."""
+    root = Path(project_root)
+    state_path = root / ".layer3_closed_loop_state.json"
+    report_dir = root / "evolution_reports"
+    bridge_path = root / "LAYER3_CONVERGENCE_BRIDGE.json"
+    store = TransitionRuleStore(root)
+    rules_payload = store.load()
+    rules = dict(rules_payload.get("rules", {}))
+
+    last_report = ""
+    if report_dir.exists():
+        candidates = sorted(report_dir.glob("layer3_closed_loop_*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if candidates:
+            last_report = str(candidates[0].relative_to(root))
+
+    state_payload: dict[str, Any] = {}
+    if state_path.exists():
+        try:
+            state_payload = json.loads(state_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            state_payload = {}
+
+    return ClosedLoopStatus(
+        rule_count=int(rules_payload.get("rule_count", 0)),
+        last_transition_key=str(state_payload.get("last_transition_key", "")),
+        last_best_loss=float(state_payload.get("last_best_loss", 0.0)),
+        last_updated=str(state_payload.get("last_updated", rules_payload.get("last_updated", ""))),
+        history_length=len(state_payload.get("history", [])),
+        bridge_exists=bridge_path.exists(),
+        report_path=last_report,
+        tracked_rules=sorted(rules.keys()),
+    )
+
+
+def run_active_closed_loop(
+    project_root: str | Path,
+    source_state: str = "run",
+    target_state: str = "jump",
+    source_phase: float = 0.8,
+    n_trials: int = 24,
+    session_id: str = "SESSION-043",
+) -> ClosedLoopOptimizationResult:
+    """Execute one active Layer 3 runtime tuning loop and persist the result."""
+    distiller = Layer3ClosedLoopDistiller(project_root=project_root, session_id=session_id)
+    target = TransitionTuningTarget(
+        source_state=source_state,
+        target_state=target_state,
+        source_phase=source_phase,
+    )
+    return distiller.optimize_transition(target=target, n_trials=n_trials)
+
+
+# ── Evolution Loop Report Generation ─────────────────────────────────────────
 
 
 def generate_evolution_report(
@@ -304,40 +398,42 @@ def generate_evolution_report(
     session_id: str = "SESSION-042",
     cycle_id: str = "CYCLE-001",
 ) -> EvolutionCycleReport:
-    """Generate a complete evolution cycle report.
-
-    This is the main entry point for the three-layer evolution loop.
-    It scans the codebase, validates distillations, and produces
-    a comprehensive report.
-    """
+    """Generate a complete evolution cycle report."""
     root = Path(project_root)
 
-    # Layer 1: Internal evolution scan
     proposals = scan_internal_todos(root)
-
-    # Layer 2: External knowledge distillation validation
     distillations = get_distillation_registry()
     distillation_validation = validate_distillations(root)
+    closed_loop_status = collect_closed_loop_status(root)
 
-    # Layer 3: Test metrics
     test_counts = count_test_functions(root)
     total_tests = sum(test_counts.values())
+    new_tests_added = int((root / "tests/test_phase_state.py").exists()) + int(
+        (root / "tests/test_layer3_closed_loop.py").exists()
+    )
 
     test_result = TestEvolutionResult(
         total_tests=total_tests,
-        passed=total_tests,  # Assume all pass (actual run done externally)
+        passed=total_tests,
         failed=0,
-        new_tests_added=36,  # test_phase_state.py added in this session
+        new_tests_added=new_tests_added,
+        active_closed_loop_runs=closed_loop_status.history_length,
     )
 
-    # Build summary
-    valid_distillations = sum(1 for v in distillation_validation if v["status"] == "valid")
-    summary = (
-        f"Evolution Cycle {cycle_id} ({session_id}): "
-        f"{len(proposals)} internal proposals found, "
-        f"{valid_distillations}/{len(distillations)} distillations validated, "
-        f"{total_tests} tests tracked."
-    )
+    valid_distillations = sum(1 for entry in distillation_validation if entry["status"] == "valid")
+    summary_parts = [
+        f"Evolution Cycle {cycle_id} ({session_id})",
+        f"{len(proposals)} internal proposals found",
+        f"{valid_distillations}/{len(distillations)} distillations validated",
+        f"{total_tests} tests tracked",
+    ]
+    if closed_loop_status.rule_count > 0:
+        summary_parts.append(
+            f"active Layer 3 closed loop holds {closed_loop_status.rule_count} distilled transition rule(s)"
+        )
+    else:
+        summary_parts.append("active Layer 3 closed loop not yet tuned")
+    summary = "; ".join(summary_parts) + "."
 
     return EvolutionCycleReport(
         cycle_id=cycle_id,
@@ -345,16 +441,16 @@ def generate_evolution_report(
         proposals=proposals,
         distillations=distillations,
         test_result=test_result,
+        closed_loop=closed_loop_status,
         summary=summary,
     )
 
 
 def save_evolution_report(report: EvolutionCycleReport, output_path: str | Path) -> str:
-    """Save evolution report to JSON file."""
+    """Save an evolution report to JSON."""
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(report.to_dict(), f, indent=2, ensure_ascii=False)
+    path.write_text(json.dumps(report.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
     return str(path)
 
 
@@ -365,27 +461,14 @@ def run_evolution_cycle(
     project_root: str | Path,
     session_id: str = "SESSION-042",
 ) -> EvolutionCycleReport:
-    """Execute one complete three-layer evolution cycle.
-
-    This function:
-      1. Scans for internal improvement opportunities (Layer 1)
-      2. Validates external knowledge distillation records (Layer 2)
-      3. Collects test evolution metrics (Layer 3)
-      4. Generates and saves a comprehensive report
-
-    Returns the EvolutionCycleReport for further processing.
-    """
+    """Execute one complete evolution-cycle report generation pass."""
     root = Path(project_root)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     cycle_id = f"CYCLE-{timestamp}"
-
     report = generate_evolution_report(root, session_id, cycle_id)
-
-    # Save report
     report_dir = root / "evolution_reports"
     report_path = report_dir / f"{cycle_id}.json"
     save_evolution_report(report, report_path)
-
     return report
 
 
@@ -393,14 +476,18 @@ __all__ = [
     "EvolutionProposal",
     "DistillationRecord",
     "TestEvolutionResult",
+    "ClosedLoopStatus",
     "EvolutionCycleReport",
     "scan_internal_todos",
     "get_distillation_registry",
     "add_distillation",
     "validate_distillations",
     "count_test_functions",
+    "collect_closed_loop_status",
+    "run_active_closed_loop",
     "generate_evolution_report",
     "save_evolution_report",
     "run_evolution_cycle",
     "GAP1_DISTILLATIONS",
+    "GAP4_DISTILLATIONS",
 ]

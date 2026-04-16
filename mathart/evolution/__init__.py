@@ -46,6 +46,17 @@ from .visual_regression_bridge import (
     VisualRegressionMetrics,
     VisualRegressionState,
 )
+# SESSION-043: Active Layer 3 Closed Loop
+from .layer3_closed_loop import (
+    TransitionTuningTarget,
+    TransitionLossWeights,
+    ClosedLoopRuleRecord,
+    ClosedLoopOptimizationResult,
+    Layer3ClosedLoopState,
+    TransitionRuleStore,
+    Layer3ClosedLoopDistiller,
+    load_distilled_transition_params,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -66,4 +77,13 @@ __all__ = [
     "VisualRegressionEvolutionBridge",
     "VisualRegressionMetrics",
     "VisualRegressionState",
+    # SESSION-043: Active Layer 3 Closed Loop
+    "TransitionTuningTarget",
+    "TransitionLossWeights",
+    "ClosedLoopRuleRecord",
+    "ClosedLoopOptimizationResult",
+    "Layer3ClosedLoopState",
+    "TransitionRuleStore",
+    "Layer3ClosedLoopDistiller",
+    "load_distilled_transition_params",
 ]

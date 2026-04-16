@@ -1,0 +1,76 @@
+{
+  "session_id": "SESSION-043",
+  "generated_at": "2026-04-16T15:48:22Z",
+  "target": {
+    "source_state": "run",
+    "target_state": "jump",
+    "source_phase": 0.8,
+    "source_clip_name": "",
+    "target_clip_name": "",
+    "evaluation_window_frames": 6,
+    "note": ""
+  },
+  "loss_weights": {
+    "entry_cost": 0.32,
+    "displacement": 0.18,
+    "quality_loss": 1.5,
+    "pose_gap": 0.1,
+    "root_gap": 0.18,
+    "jerk": 0.06,
+    "foot_slip": 0.22,
+    "contact_instability": 0.1
+  },
+  "rule": {
+    "transition_key": "run->jump",
+    "source_state": "run",
+    "target_state": "jump",
+    "source_phase": 0.8,
+    "strategy": "inertialization",
+    "params": {
+      "blend_time": 0.22353582207901024,
+      "velocity_weight": 1.8547176210752363,
+      "foot_contact_weight": 2.276487458996116,
+      "phase_weight": 0.2837169731569524,
+      "joint_pose_weight": 0.20203093379291856,
+      "trajectory_weight": 0.2195275751133935,
+      "foot_velocity_weight": 0.9767150013124388,
+      "decay_halflife": 0.05
+    },
+    "best_loss": 1.319902391027808,
+    "best_trial_number": 21,
+    "n_trials": 24,
+    "objective_breakdown": {
+      "entry_cost": 1.701587438583374,
+      "displacement": 0.04349519051386206,
+      "quality_loss": 0.4527404952617643,
+      "pose_gap": 0.04914027138901389,
+      "root_gap": 0.17953156986242202,
+      "jerk": 0.19546464020193877,
+      "foot_slip": 0.17953156986242202,
+      "contact_instability": 0.0
+    },
+    "query_diagnostics": {
+      "query_clip": "jump",
+      "entry_frame": 0,
+      "cost": 1.701587438583374,
+      "similarity": 0.9482144327174045,
+      "breakdown": {
+        "velocity": 0.32519713044166565,
+        "foot_contact": 0.0,
+        "phase": 0.36698785424232483,
+        "foot_velocity": 0.36538368463516235,
+        "joint_pose": 0.6440185904502869,
+        "trajectory": 0.0
+      },
+      "total_candidates": 45
+    },
+    "transition_quality": 0.5413409525200886,
+    "research_basis": [
+      "DeepMimic (SIGGRAPH 2018): reward-style motion quality objective",
+      "Eureka (ICLR 2024): zero-human-in-the-loop improvement loop",
+      "Optuna (KDD 2019): define-by-run Bayesian optimization"
+    ],
+    "session_id": "SESSION-043",
+    "updated_at": "2026-04-16T15:48:22Z"
+  }
+}

@@ -1,0 +1,221 @@
+{
+  "cycle_id": "CYCLE-20260416_154834",
+  "session_id": "SESSION-043",
+  "proposals": [
+    {
+      "id": "L1-0001",
+      "layer": 1,
+      "category": "todo_resolution",
+      "title": "[OPTIMIZE] command",
+      "description": "command",
+      "source_file": "mathart/distill/cli.py",
+      "source_line": 43,
+      "priority": "medium",
+      "status": "proposed",
+      "research_ref": "",
+      "created_at": "2026-04-16T15:48:34.280957+00:00"
+    },
+    {
+      "id": "L1-0002",
+      "layer": 1,
+      "category": "todo_resolution",
+      "title": "[TODO] Fix this thing\\n\"",
+      "description": "Fix this thing\\n\"",
+      "source_file": "tests/test_evolution_loop.py",
+      "source_line": 84,
+      "priority": "medium",
+      "status": "proposed",
+      "research_ref": "",
+      "created_at": "2026-04-16T15:48:34.305867+00:00"
+    },
+    {
+      "id": "L1-0003",
+      "layer": 1,
+      "category": "todo_resolution",
+      "title": "[FIXME] Critical bug\\n\"",
+      "description": "Critical bug\\n\"",
+      "source_file": "tests/test_evolution_loop.py",
+      "source_line": 85,
+      "priority": "high",
+      "status": "proposed",
+      "research_ref": "",
+      "created_at": "2026-04-16T15:48:34.305905+00:00"
+    },
+    {
+      "id": "L1-0004",
+      "layer": 1,
+      "category": "incomplete_implementation",
+      "title": "Incomplete implementation at test_evolution_loop.py:87",
+      "description": "\"    raise NotImplementedError\\n\"",
+      "source_file": "tests/test_evolution_loop.py",
+      "source_line": 87,
+      "priority": "high",
+      "status": "proposed",
+      "research_ref": "",
+      "created_at": "2026-04-16T15:48:34.305926+00:00"
+    },
+    {
+      "id": "L1-0005",
+      "layer": 1,
+      "category": "incomplete_implementation",
+      "title": "Incomplete implementation at CYCLE-20260416_145724.json:49",
+      "description": "\"description\": \"\\\"    raise NotImplementedError\\\\n\\\"\",",
+      "source_file": "evolution_reports/CYCLE-20260416_145724.json",
+      "source_line": 49,
+      "priority": "high",
+      "status": "proposed",
+      "research_ref": "",
+      "created_at": "2026-04-16T15:48:34.340003+00:00"
+    },
+    {
+      "id": "L1-0006",
+      "layer": 1,
+      "category": "incomplete_implementation",
+      "title": "Incomplete implementation at CYCLE-20260416_145737.json:49",
+      "description": "\"description\": \"\\\"    raise NotImplementedError\\\\n\\\"\",",
+      "source_file": "evolution_reports/CYCLE-20260416_145737.json",
+      "source_line": 49,
+      "priority": "high",
+      "status": "proposed",
+      "research_ref": "",
+      "created_at": "2026-04-16T15:48:34.340158+00:00"
+    },
+    {
+      "id": "L1-0007",
+      "layer": 1,
+      "category": "incomplete_implementation",
+      "title": "Incomplete implementation at CYCLE-20260416_145754.json:49",
+      "description": "\"description\": \"\\\"    raise NotImplementedError\\\\n\\\"\",",
+      "source_file": "evolution_reports/CYCLE-20260416_145754.json",
+      "source_line": 49,
+      "priority": "high",
+      "status": "proposed",
+      "research_ref": "",
+      "created_at": "2026-04-16T15:48:34.340301+00:00"
+    },
+    {
+      "id": "L1-0008",
+      "layer": 1,
+      "category": "incomplete_implementation",
+      "title": "Incomplete implementation at CYCLE-20260416_145807.json:49",
+      "description": "\"description\": \"\\\"    raise NotImplementedError\\\\n\\\"\",",
+      "source_file": "evolution_reports/CYCLE-20260416_145807.json",
+      "source_line": 49,
+      "priority": "high",
+      "status": "proposed",
+      "research_ref": "",
+      "created_at": "2026-04-16T15:48:34.340452+00:00"
+    },
+    {
+      "id": "L1-0009",
+      "layer": 1,
+      "category": "incomplete_implementation",
+      "title": "Incomplete implementation at CYCLE-20260416_150314.json:49",
+      "description": "\"description\": \"\\\"    raise NotImplementedError\\\\n\\\"\",",
+      "source_file": "evolution_reports/CYCLE-20260416_150314.json",
+      "source_line": 49,
+      "priority": "high",
+      "status": "proposed",
+      "research_ref": "",
+      "created_at": "2026-04-16T15:48:34.340580+00:00"
+    }
+  ],
+  "distillations": [
+    {
+      "paper_id": "starke2020local",
+      "paper_title": "Local Motion Phases for Learning Multi-Contact Character Movements",
+      "authors": "Sebastian Starke, Yiwei Zhao, Taku Komura, Kazi Zaman",
+      "venue": "SIGGRAPH 2020 (ACM TOG 39:4)",
+      "concept": "Local phases: per-bone independent phase channels that break the single-global-cycle assumption. Non-cyclic motions get 0→1 activation spikes instead of forced cyclic wrapping.",
+      "target_module": "mathart/animation/unified_motion.py",
+      "target_class": "PhaseState",
+      "integration_date": "2026-04-16T15:48:34.251615+00:00",
+      "validation_status": "validated",
+      "test_coverage": "tests/test_phase_state.py"
+    },
+    {
+      "paper_id": "starke2022deepphase",
+      "paper_title": "DeepPhase: Periodic Autoencoders for Learning Motion Phase Manifolds",
+      "authors": "Sebastian Starke, Ian Mason, Taku Komura",
+      "venue": "SIGGRAPH 2022 (ACM TOG 41:4)",
+      "concept": "Multi-dimensional phase manifold via Periodic Autoencoder. Phase as latent vector with amplitude/frequency/offset channels. Cyclic motions become sustained oscillations while transient motions become one-shot activation spikes.",
+      "target_module": "mathart/animation/phase_driven.py",
+      "target_class": "PhaseDrivenAnimator.generate_frame",
+      "integration_date": "2026-04-16T15:48:34.251655+00:00",
+      "validation_status": "validated",
+      "test_coverage": "tests/test_phase_state.py"
+    },
+    {
+      "paper_id": "gap1_architecture",
+      "paper_title": "Generalized Phase State — Unified Cyclic/Transient Phase Architecture",
+      "authors": "Project Internal (Gap 1 Resolution)",
+      "venue": "SESSION-042",
+      "concept": "PhaseState dataclass with an is_cyclic gate so cyclic motion uses trig interpolation and transient motion uses direct scalar interpolation without adapter bypasses.",
+      "target_module": "mathart/animation/phase_driven.py",
+      "target_class": "PhaseDrivenAnimator._generate_transient_pose",
+      "integration_date": "2026-04-16T15:48:34.251660+00:00",
+      "validation_status": "validated",
+      "test_coverage": "tests/test_phase_state.py"
+    },
+    {
+      "paper_id": "peng2018deepmimic",
+      "paper_title": "DeepMimic: Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills",
+      "authors": "Xue Bin Peng, Pieter Abbeel, Sergey Levine, Michiel van de Panne",
+      "venue": "SIGGRAPH 2018 (ACM TOG 37:4)",
+      "concept": "Translate physical plausibility into a scalar reward-style objective so foot skating, discontinuity, and instability can be optimized by repeated simulation rather than manual tuning.",
+      "target_module": "mathart/evolution/layer3_closed_loop.py",
+      "target_class": "Layer3ClosedLoopDistiller.evaluate_transition",
+      "integration_date": "2026-04-16T15:48:34.251665+00:00",
+      "validation_status": "validated",
+      "test_coverage": "tests/test_layer3_closed_loop.py"
+    },
+    {
+      "paper_id": "ma2023eureka",
+      "paper_title": "Eureka: Human-Level Reward Design via Coding Large Language Models",
+      "authors": "Yecheng Jason Ma, Maxence Richard, Linxi Fan, et al.",
+      "venue": "ICLR 2024",
+      "concept": "Upgrade Layer 3 from a passive evaluator to an active coach that iteratively proposes parameters, scores them, and writes back the winning configuration into the repository state.",
+      "target_module": "mathart/evolution/layer3_closed_loop.py",
+      "target_class": "Layer3ClosedLoopDistiller.optimize_transition",
+      "integration_date": "2026-04-16T15:48:34.251669+00:00",
+      "validation_status": "validated",
+      "test_coverage": "tests/test_layer3_closed_loop.py"
+    },
+    {
+      "paper_id": "akiba2019optuna",
+      "paper_title": "Optuna: A Next-Generation Hyperparameter Optimization Framework",
+      "authors": "Takuya Akiba, Shotaro Sano, Toshihiko Yanase, Takeru Ohta, Masanori Koyama",
+      "venue": "KDD 2019",
+      "concept": "Use define-by-run black-box optimization to search transition strategy, blend window, and runtime query weights under a deterministic seed and bounded trial budget.",
+      "target_module": "mathart/evolution/layer3_closed_loop.py",
+      "target_class": "Layer3ClosedLoopDistiller._suggest_params",
+      "integration_date": "2026-04-16T15:48:34.251672+00:00",
+      "validation_status": "validated",
+      "test_coverage": "tests/test_layer3_closed_loop.py"
+    }
+  ],
+  "test_result": {
+    "total_tests": 845,
+    "passed": 845,
+    "failed": 0,
+    "new_tests_added": 2,
+    "regressions_detected": 0,
+    "coverage_delta": 0.0,
+    "active_closed_loop_runs": 1,
+    "timestamp": "2026-04-16T15:48:34.348149+00:00"
+  },
+  "closed_loop": {
+    "rule_count": 1,
+    "last_transition_key": "run->jump",
+    "last_best_loss": 1.319902391027808,
+    "last_updated": "2026-04-16T15:48:22Z",
+    "history_length": 1,
+    "bridge_exists": true,
+    "report_path": "evolution_reports/layer3_closed_loop_run_to_jump.json",
+    "tracked_rules": [
+      "run->jump"
+    ]
+  },
+  "summary": "Evolution Cycle CYCLE-20260416_154834 (SESSION-043); 9 internal proposals found; 6/6 distillations validated; 845 tests tracked; active Layer 3 closed loop holds 1 distilled transition rule(s).",
+  "timestamp": "2026-04-16T15:48:34.348188+00:00"
+}
