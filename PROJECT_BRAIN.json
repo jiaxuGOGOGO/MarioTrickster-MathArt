@@ -103,12 +103,48 @@
   },
   "pending_tasks": [
     {
+      "id": "P0-EVAL-BRIDGE",
+      "priority": "P0",
+      "title": "Parameter Convergence Bridge (Layer 3 Evaluation → Export Loop)",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Create a closed-loop optimizer that reads Layer 3 fitness scores and diagnostic rules, maps them to parameter adjustments (e.g., foot_lock_strength, bezier control points), and injects them into the next produce_character_pack() call.",
+      "added_in": "SESSION-042"
+    },
+    {
       "id": "P0-GAP-2",
       "priority": "P0",
       "title": "Rigid Body/Soft Body Coupling (XPBD integration)",
       "status": "TODO",
       "estimated_effort": "high",
       "description": "Research and integrate Extended Position Based Dynamics (XPBD) for soft body simulation, coupling it with the existing Rigid Body engine for two-way interaction.",
+      "added_in": "SESSION-042"
+    },
+    {
+      "id": "P1-E2E-COVERAGE",
+      "priority": "P1",
+      "title": "Expand E2E Reproducibility Tests",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Add 2-3 new E2E presets to headless_e2e_ci.py to cover BiomechanicsProjector, MotionMatchingRuntime, and TransitionSynthesizer paths.",
+      "added_in": "SESSION-042"
+    },
+    {
+      "id": "P2-PHYSICS-DEFAULT",
+      "priority": "P2",
+      "title": "Enforce Physics/Biomechanics defaults in CharacterSpec",
+      "status": "TODO",
+      "estimated_effort": "low",
+      "description": "Change default values of physics/biomechanics flags in CharacterSpec to True, or add validation in PipelineContractGuard to ensure they are not bypassed.",
+      "added_in": "SESSION-042"
+    },
+    {
+      "id": "P2-PHASE-CLEANUP",
+      "priority": "P2",
+      "title": "Deprecate and remove legacy animation API surface",
+      "status": "TODO",
+      "estimated_effort": "low",
+      "description": "Mark old functions like walk_animation() as @deprecated and remove them from __all__ in mathart/animation/__init__.py to prevent semantic confusion.",
       "added_in": "SESSION-042"
     },
     {

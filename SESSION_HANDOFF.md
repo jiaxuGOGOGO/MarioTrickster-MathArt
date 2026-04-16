@@ -58,7 +58,9 @@ SESSION-042 closes **Gap 1: Incomplete Phase Backbone (Aperiodic Motion Integrat
 ## Pending Tasks (Priority Order)
 
 ### HIGH (P0/P1)
+- `P0-EVAL-BRIDGE`: Parameter Convergence Bridge (Layer 3 Evaluation → Export Loop)
 - `P0-GAP-2`: Rigid Body/Soft Body Coupling (XPBD integration)
+- `P1-E2E-COVERAGE`: Expand E2E Reproducibility Tests (Physics/Transition/Non-cyclic presets)
 - `P1-INDUSTRIAL-34A`: Industrial renderer integration into AssetPipeline
 - `P1-PHASE-37A`: Scene-aware distance matching sensors (raycast/terrain)
 - `P1-INDUSTRIAL-34C`: 3D-to-2D mesh rendering path (Dead Cells full workflow)
@@ -70,7 +72,9 @@ SESSION-042 closes **Gap 1: Incomplete Phase Backbone (Aperiodic Motion Integrat
 - `P1-ARCH-5`: OpenUSD-compatible scene interchange
 - `P1-AI-2`: Simulation-conditioned neural rendering bridge
 
-### MEDIUM (P1)
+### MEDIUM (P1/P2)
+- `P2-PHYSICS-DEFAULT`: Enforce Physics/Biomechanics defaults in CharacterSpec
+- `P2-PHASE-CLEANUP`: Deprecate and remove legacy animation API surface (walk_animation, etc.)
 - `P1-PHASE-33C`: Animation preview / visualization tool
 - `P1-ARCH-6`: Rich topology-aware level semantics
 - `P1-DISTILL-3`: Distill Verlet & Gait Parameters
