@@ -98,6 +98,10 @@ from .animation.biomechanics import (
     compute_biomechanics_penalty,
 )
 from .evolution.evolution_layer3 import PhysicsKnowledgeDistiller
+# SESSION-040: Pipeline Contract & Auditor (攻坚战役三)
+from .pipeline_contract import UMR_Context, PipelineContractError, PipelineContractGuard
+from .pipeline_auditor import UMR_Auditor, ContactFlickerDetector
+from .animation.phase_driven_idle import phase_driven_idle_frame
 from .level import (
     LevelSpec,
     LevelSpecBridge,
@@ -1496,12 +1500,17 @@ class AssetPipeline:
         state_key = state.lower()
         frames: list[UnifiedMotionFrame] = []
         dt = 1.0 / max(1, fps)
-        use_phase_generator = state_key in {"run", "walk", "jump", "fall", "hit"}
+        # SESSION-040: idle is now phase-driven — all states covered
+        use_phase_generator = state_key in {"idle", "run", "walk", "jump", "fall", "hit"}
 
-        legacy_anim = CHARACTER_ANIMATION_MAP.get(state_key)
-        if not use_phase_generator and legacy_anim is None:
-            available = ", ".join(sorted(CHARACTER_ANIMATION_MAP))
-            raise ValueError(f"Unknown character state '{state_key}'. Available: {available}")
+        if not use_phase_generator:
+            # SESSION-040 CONTRACT: No legacy fallback. Unknown states are rejected.
+            available = "idle, run, walk, jump, fall, hit"
+            raise PipelineContractError(
+                "unknown_state",
+                f"Unknown character state '{state_key}'. "
+                f"All states must have phase-driven generators. Available: {available}"
+            )
 
         for i in range(frame_count):
             t = i / max(1, frame_count)
@@ -1567,20 +1576,25 @@ class AssetPipeline:
                     recovery_velocity=0.0,
                     impact_energy=1.0,
                 )
-            else:
-                pose = legacy_anim(t)
-                frame = pose_to_umr(
-                    pose,
+            elif state_key == "idle":
+                # SESSION-040: Phase-driven idle — eliminates legacy_pose_adapter bypass
+                frame = phase_driven_idle_frame(
+                    t,
                     time=time_s,
-                    phase=t,
                     frame_index=i,
                     source_state=state_key,
-                    root_transform=root,
-                    contact_tags=infer_contact_tags(t, state_key),
-                    metadata={
-                        "generator": "legacy_pose_adapter",
-                        "state": state_key,
-                    },
+                    root_x=root.x,
+                    root_y=root.y,
+                    root_velocity_x=root.velocity_x,
+                    root_velocity_y=root.velocity_y,
+                )
+            else:
+                # SESSION-040 CONTRACT: This branch should be unreachable.
+                # If we get here, the state validation above has a bug.
+                raise PipelineContractError(
+                    "legacy_path_invoked",
+                    f"Unreachable legacy path hit for state '{state_key}'. "
+                    f"This is a contract violation — all states must be phase-driven."
                 )
             frames.append(frame)
 
@@ -1591,7 +1605,7 @@ class AssetPipeline:
             frames=frames,
             metadata={
                 "base_stage": "phase_or_transient_generation",
-                "generator_mode": "phase_driven" if use_phase_generator else "legacy_pose_adapter",
+                "generator_mode": "phase_driven",  # SESSION-040: always phase-driven
                 "strict_contract": "UnifiedMotionFrame",
             },
         )
@@ -1650,6 +1664,9 @@ class AssetPipeline:
         this method renders each frame from skeletal poses and exports a usable
         state pack for direct game integration: per-state sheets, GIF previews,
         per-frame PNGs, a combined atlas, metadata, and palette provenance.
+
+        SESSION-040: Now enforces the UMR pipeline contract via UMR_Context,
+        PipelineContractGuard, and UMR_Auditor with deterministic hash sealing.
         """
         start = time.time()
         if char_spec.preset not in CHARACTER_PRESETS:
@@ -1803,6 +1820,21 @@ class AssetPipeline:
             "biomechanics_zmp_strength", char_spec.biomechanics_zmp_strength
         )
 
+        # SESSION-040: Build immutable UMR_Context and ContractGuard
+        _umr_context = UMR_Context.from_character_spec(
+            char_spec,
+            session_id="SESSION-040",
+            convergence_bridge=_convergence_bridge,
+            pipeline_version="0.31.0",
+        )
+        _contract_guard = PipelineContractGuard(_umr_context)
+        _umr_auditor = UMR_Auditor(_umr_context)
+        _flicker_detector = ContactFlickerDetector()
+        self._log(
+            f"SESSION-040: Pipeline contract initialized "
+            f"(context_hash={_umr_context.context_hash[:12]}...)"
+        )
+
         # SESSION-028: Initialize physics projector if enabled
         # SESSION-028-SUPP: Pass skeleton_ref for PhysDiff-inspired foot locking
         # SESSION-035: Now uses compliant_pd mode with convergence bridge params
@@ -1847,7 +1879,7 @@ class AssetPipeline:
             "format": "umr_motion_clip_v1",
             "pipeline_order": [
                 "intent_state_selection",
-                "phase_or_legacy_base_generation",
+                "phase_driven_base_generation",  # SESSION-040: no legacy path
                 "root_motion",
                 "physics_compliance",
                 "localized_grounding",
@@ -1882,6 +1914,27 @@ class AssetPipeline:
             motion_result = run_motion_pipeline(base_clip, pipeline_nodes, dt=dt)
             motion_clip = motion_result.clip
             motion_audit = self._audit_umr_pipeline(motion_clip, motion_result.audit_log)
+
+            # SESSION-040: Contract enforcement — reject legacy generator mode
+            _clip_gen_mode = motion_clip.metadata.get("generator_mode", "")
+            _contract_guard.reject_legacy_bypass(_clip_gen_mode, caller=f"state:{state}")
+
+            # SESSION-040: Register clip frames with the auditor for hash sealing
+            _clip_frame_dicts = [f.to_dict() for f in motion_clip.frames]
+            _node_order = motion_clip.metadata.get("motion_pipeline", {}).get("node_order", [])
+            _umr_auditor.register_clip(state, _clip_frame_dicts, node_order=_node_order)
+
+            # SESSION-040: Validate required UMR fields on every frame
+            for _fd in _clip_frame_dicts:
+                _contract_guard.validate_required_fields(_fd, caller=f"state:{state}")
+
+            # SESSION-040: Contact flicker detection
+            _flicker_report = _flicker_detector.check_clip(_clip_frame_dicts)
+            if not _flicker_report["clean"]:
+                self._log(
+                    f"SESSION-040 WARNING: Contact flicker detected in '{state}' "
+                    f"({_flicker_report['flicker_count']} frames: {_flicker_report['flicker_frames']})"
+                )
 
             umr_path = str(asset_dir / f"{char_spec.name}_{state}.umr.json")
             motion_clip.save(umr_path)
@@ -2021,10 +2074,30 @@ class AssetPipeline:
             "umr_pipeline_ready_for_layer3": True,
         }
 
+        # SESSION-040: Add pipeline contract summary to manifest
+        manifest["pipeline_contract"] = {
+            "session": "SESSION-040",
+            "context_hash": _umr_context.context_hash,
+            "contract_guard": _contract_guard.summary(),
+            "all_states_phase_driven": True,
+            "legacy_bypass_blocked": True,
+        }
+
         manifest_path = str(asset_dir / f"{char_spec.name}_character_manifest.json")
         with open(manifest_path, "w") as f:
             json.dump(manifest, f, indent=2)
         output_paths.append(manifest_path)
+
+        # SESSION-040: Compute and write deterministic hash seal (.umr_manifest.json)
+        _seal_path = str(asset_dir / ".umr_manifest.json")
+        _seal = _umr_auditor.save_manifest(_seal_path)
+        output_paths.append(_seal_path)
+        self._log(
+            f"SESSION-040: Hash seal written "
+            f"(pipeline_hash={_seal.pipeline_hash[:16]}..., "
+            f"frames={_seal.frame_count}, "
+            f"contact_hash={_seal.contact_tag_hash[:12]}...)"
+        )
 
         elapsed = time.time() - start
         self._log(

@@ -34,6 +34,12 @@ from .evolution_layer3 import (
     PhysicsDiagnosisEngine, DiagnosisAction,
     PhysicsKnowledgeDistiller,
 )
+# SESSION-040: Pipeline Contract Evolution Bridge
+from .evolution_contract_bridge import (
+    ContractEvolutionBridge,
+    ContractEvolutionMetrics,
+    ContractEvolutionState,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -46,4 +52,8 @@ __all__ = [
     "PhysicsTestBattery", "PhysicsTestReport", "PhysicsTestResult",
     "PhysicsDiagnosisEngine", "DiagnosisAction",
     "PhysicsKnowledgeDistiller",
+    # SESSION-040: Pipeline Contract Evolution Bridge
+    "ContractEvolutionBridge",
+    "ContractEvolutionMetrics",
+    "ContractEvolutionState",
 ]

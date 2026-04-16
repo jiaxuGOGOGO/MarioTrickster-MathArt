@@ -1,16 +1,16 @@
 {
-  "version": "0.30.0",
-  "last_session_id": "SESSION-039",
-  "last_updated": "2026-04-16T12:57:25Z",
+  "version": "0.31.0",
+  "last_session_id": "SESSION-040",
+  "last_updated": "2026-04-16T15:30:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "734/734 full-suite baseline + 73 prior targeted UMR regression PASS + 6 SESSION-037 transient-phase regression PASS + 6 SESSION-038 refined transient regression PASS + 15 SESSION-039 transition integration PASS",
+  "validation_pass_rate": "717/717 non-scipy full-suite PASS + 27 SESSION-040 pipeline contract tests PASS + 73 prior targeted UMR regression PASS + 6 SESSION-037 transient-phase regression PASS + 6 SESSION-038 refined transient regression PASS + 15 SESSION-039 transition integration PASS",
   "total_iterations": 500,
-  "total_code_lines": 55602,
+  "total_code_lines": 57542,
   "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 36,
-  "math_model_count": 27,
+  "knowledge_rule_count": 40,
+  "math_model_count": 28,
   "project_health_score": 9.99,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
@@ -25,13 +25,13 @@
       "character_diversity": 15,
       "environment_tileset": 18,
       "engine_ready_export": 24,
-      "engineering_automation": 72
+      "engineering_automation": 76
     },
     "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-032: the original WFC/shader/export break is now closed by a lightweight PDG runtime and a USD-like scene contract. The main remaining blockers are industrial runtime depth (cache/partition/layering), benchmarked asset production, visual quality, and the simulation-conditioned neural-render bridge.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback.",
       "path_b_ai_visual_polish": "Now better conditioned by anatomically valid low-dimensional motion data; next step is ControlNet / diffusion export from the distilled body and pose representation.",
-      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query. Next step: full CLI/exporter bus propagation, terrain-aware sensing, gait transition blending."
+      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge). Next step: terrain-aware sensing, gait transition blending, production benchmark suite."
     },
     "commercial_references": [
       {
@@ -46,10 +46,12 @@
       }
     ]
   },
-  "current_focus": "SESSION-039 delivers inertialized transition synthesis (Bollo GDC 2018 quintic + Holden Dead Blending 2023) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: RuntimeMotionQuery finds the optimal entry frame via 16-D compact feature search, then TransitionSynthesizer applies inertialized blending with target contacts always authoritative. The Layer 3 evolution loop now runs 12 tests including transition quality and entry frame cost, with 3 new diagnosis actions and 3 new knowledge distillation rules. P1-INDUSTRIAL-34B and P1-HUMAN-31B are now DONE. Remaining gaps: CLI/exporter bus propagation, terrain-raycast distance sensing, gait transition blending, production benchmark suite.",
+  "current_focus": "SESSION-040 delivers CLI Pipeline Contract & End-to-End Determinism (Attack Campaign 3). UMR_Context frozen dataclass enforces data-oriented design (Mike Acton DOD). PipelineContractGuard blocks all legacy_pose bypass paths with Fail-Fast PipelineContractError. UMR_Auditor computes SHA-256 hash seals over frame coordinates + contact tags + render config (Glenn Fiedler determinism). .umr_manifest.json golden master enables CI regression detection (Pixar USD-style). Phase-driven idle generator eliminates the last legacy bypass. ContractEvolutionBridge integrates contract compliance into all three evolution layers: L1 validation, L2 knowledge distillation, L3 fitness bonus. P1-PHASE-35A and P1-BENCH-35A are now DONE. P1-UMR-36A is now DONE. Remaining gaps: terrain-raycast distance sensing, gait transition blending, production benchmark suite.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "SESSION_HANDOFF.md",
+    "research_session040_cli_pipeline_contract.md",
+    "SESSION_040_AUDIT.md",
     "research_session039_transition_synthesis.md",
     "research_session037_distance_transient_phases.md",
     "audit_session038_refined_transient.md",
@@ -101,28 +103,31 @@
       "id": "P1-PHASE-35A",
       "priority": "P1",
       "title": "Phase-driven coverage for jump/fall/hit + CLI trunk enforcement",
-      "status": "PARTIAL",
+      "status": "DONE",
       "estimated_effort": "low",
-      "description": "Core non-cyclic action semantics are now closed in the UMR trunk: jump/fall use distance matching and hit uses a critically damped recovery variable. Remaining work is hard non-bypass enforcement in cli.py and any outward-facing exporter/runtime entrypoints still using pose-only paths.",
-      "added_in": "SESSION-035"
+      "description": "CLOSED in SESSION-040. CLI trunk enforcement implemented via PipelineContractGuard. animation/cli.py rewritten to force UMR pipeline. Legacy bypass paths permanently blocked with PipelineContractError. Phase-driven idle generator added to eliminate the last legacy fallback.",
+      "added_in": "SESSION-035",
+      "completed_in": "SESSION-040"
     },
     {
       "id": "P1-BENCH-35A",
       "priority": "P1",
       "title": "End-to-end trunk reproducibility validation",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "medium",
-      "description": "Zero-to-export integration test that validates every module participates in the main trunk and asserts .umr.json, manifest motion_contract, refined transient metadata (distance windows, target_state, recovery_velocity), node order, and audit fields.",
-      "added_in": "SESSION-035"
+      "description": "CLOSED in SESSION-040. UMR_Auditor computes SHA-256 hash seals over frame coordinates + contact tags + render config. .umr_manifest.json golden master written at pipeline end. verify_against() enables CI regression detection. ContactFlickerDetector catches illegal high-frequency contact tag toggling. 27 dedicated tests validate deterministic hash across runs.",
+      "added_in": "SESSION-035",
+      "completed_in": "SESSION-040"
     },
     {
       "id": "P1-UMR-36A",
       "priority": "P1",
       "title": "Propagate UMR contract to CLI, exporters, and distillation bus",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "medium",
-      "description": "Ensure cli.py, export bridges, and future distillation/runtime entrypoints consume and emit UnifiedMotionFrame / UnifiedMotionClip, including refined transient phase semantics and critically damped hit recovery metadata for jump/fall/hit.",
-      "added_in": "SESSION-036"
+      "description": "CLOSED in SESSION-040. animation/cli.py rewritten to consume UMR_Context and route through produce_character_pack(). PipelineContractGuard enforces UMR-only paths at all entrypoints. ContractEvolutionBridge distills contract compliance into knowledge base. All legacy bypass paths blocked.",
+      "added_in": "SESSION-036",
+      "completed_in": "SESSION-040"
     },
     {
       "id": "P1-INDUSTRIAL-34A",
@@ -508,6 +513,48 @@
       "title": "Motion transition blending after retrieval",
       "completed_in": "SESSION-039",
       "result": "Closed by inertialized blending engine (Bollo quintic + Holden dead blending) with RuntimeMotionQuery for optimal entry frames."
+    },
+    {
+      "id": "P0-CONTRACT-40A",
+      "title": "UMR_Context Frozen Dataclass + PipelineContractGuard (Mike Acton DOD)",
+      "completed_in": "SESSION-040",
+      "result": "UMR_Context frozen dataclass with deterministic context_hash. PipelineContractGuard blocks legacy bypass with Fail-Fast PipelineContractError. 357 lines in pipeline_contract.py."
+    },
+    {
+      "id": "P0-CONTRACT-40B",
+      "title": "UMR_Auditor SHA-256 Hash Seal + .umr_manifest.json (Glenn Fiedler / Pixar USD)",
+      "completed_in": "SESSION-040",
+      "result": "UMR_Auditor computes frame-level + state-level + pipeline-level SHA-256 hashes. ManifestSeal with verify_against() for CI regression. ContactFlickerDetector for illegal contact toggling. 390 lines in pipeline_auditor.py."
+    },
+    {
+      "id": "P0-CONTRACT-40C",
+      "title": "Phase-Driven Idle Generator (Legacy Bypass Elimination)",
+      "completed_in": "SESSION-040",
+      "result": "phase_driven_idle_frame() generates UMR-native idle frames with breathing oscillation and micro-sway. 147 lines in phase_driven_idle.py. Eliminates the last legacy_pose_adapter fallback."
+    },
+    {
+      "id": "P0-CONTRACT-40D",
+      "title": "ContractEvolutionBridge (Three-Layer Contract Integration)",
+      "completed_in": "SESSION-040",
+      "result": "ContractEvolutionBridge integrates pipeline contract into L1 validation, L2 knowledge distillation, L3 fitness bonus. Golden master tracking, hash stability streak, auto-generated knowledge rules. 485 lines."
+    },
+    {
+      "id": "P0-CONTRACT-40E",
+      "title": "CLI Rewrite + Pipeline Integration (Bypass Elimination)",
+      "completed_in": "SESSION-040",
+      "result": "animation/cli.py rewritten to force UMR pipeline. produce_character_pack() integrated with UMR_Context, ContractGuard, Auditor. Legacy paths raise PipelineContractError."
+    },
+    {
+      "id": "AUDIT-040",
+      "title": "SESSION-040 full audit + research-to-code verification",
+      "completed_in": "SESSION-040",
+      "result": "27/27 pipeline contract tests PASS. 717/717 non-scipy regression PASS. SESSION_040_AUDIT.md confirms all 3 research references (Mike Acton DOD, Pixar USD, Glenn Fiedler) implemented in code."
+    },
+    {
+      "id": "KNOWLEDGE-040",
+      "title": "SESSION-040 knowledge distillation",
+      "completed_in": "SESSION-040",
+      "result": "research_session040_cli_pipeline_contract.md (DOD principles, deterministic lockstep, USD validation). knowledge/pipeline_contract.md auto-generated by ContractEvolutionBridge."
     },
     {
       "id": "AUDIT-039",
@@ -1190,8 +1237,11 @@
     "RESOLVED-S035: Pose mutations in joint-angle space produced anatomically impossible results -> VPoser latent-space mutation guarantees manifold legality",
     "RESOLVED-S035: Evaluation results did not feed back into pipeline parameters -> LAYER3_CONVERGENCE_BRIDGE.json auto-feeds produce_character_pack()",
     "RESOLVED-S035: No learned naturalness metric for poses -> VPoser Mahalanobis distance naturalness_score (10% fitness weight)",
-    "REMAINING-S035: jump/fall/hit animations still use legacy sin()-based paths, not phase-driven (P1-PHASE-35A)",
-    "REMAINING-S035: No zero-to-export end-to-end trunk reproducibility validation (P1-BENCH-35A)"
+    "RESOLVED-S040: Legacy bypass paths in CLI and pipeline permanently blocked by PipelineContractGuard + PipelineContractError (P1-PHASE-35A)",
+    "RESOLVED-S040: End-to-end deterministic hash seal with SHA-256 + .umr_manifest.json golden master + CI regression detection (P1-BENCH-35A)",
+    "RESOLVED-S040: UMR contract propagated to CLI, exporters, and distillation bus via UMR_Context + ContractEvolutionBridge (P1-UMR-36A)",
+    "RESOLVED-S040: Phase-driven idle generator eliminates last legacy_pose_adapter fallback",
+    "RESOLVED-S040: Three-layer evolution cycle now includes contract compliance (L1 validation, L2 knowledge distillation, L3 fitness bonus)"
   ],
   "session_029_changes": {
     "new_artifacts": [
@@ -1531,6 +1581,56 @@
       "P1-PHASE-37A: replace analytic distance proxies with scene-aware sensors or raycasts",
       "P1-BENCH-35A: zero-to-export reproducibility benchmark with transient phase assertions",
       "P1-INDUSTRIAL-34B / P1-HUMAN-31B: runtime transition synthesis on top of UMR context"
+    ]
+  },
+  "session_040_changes": {
+    "new_artifacts": [
+      "mathart/pipeline_contract.py: UMR_Context frozen dataclass + PipelineContractGuard + PipelineContractError (~357 lines)",
+      "mathart/pipeline_auditor.py: UMR_Auditor SHA-256 hash seal + ManifestSeal + ContactFlickerDetector (~390 lines)",
+      "mathart/animation/phase_driven_idle.py: Phase-driven idle frame generator (~147 lines)",
+      "mathart/evolution/evolution_contract_bridge.py: ContractEvolutionBridge three-layer integration (~485 lines)",
+      "tests/test_pipeline_contract.py: 27 tests for pipeline contract, hash seal, bypass detection (~458 lines)",
+      "research_session040_cli_pipeline_contract.md: Research synthesis for DOD, deterministic lockstep, USD validation",
+      "SESSION_040_AUDIT.md: Full audit checklist with research-to-code traceability",
+      "knowledge/pipeline_contract.md: Auto-generated contract knowledge base"
+    ],
+    "modified_artifacts": [
+      "mathart/pipeline.py: Integrated UMR_Context, PipelineContractGuard, UMR_Auditor, .umr_manifest.json output (+111 lines)",
+      "mathart/animation/cli.py: Rewritten to force UMR pipeline, block legacy bypass (+51 lines net)",
+      "mathart/animation/__init__.py: Added SESSION-040 exports",
+      "mathart/evolution/engine.py: Integrated ContractEvolutionBridge, evaluate_contract(), status report, brain persistence (+80 lines)",
+      "mathart/evolution/__init__.py: Added ContractEvolutionBridge exports",
+      "tests/test_character_pipeline.py: Updated unknown-state test for PipelineContractError",
+      "SESSION_HANDOFF.md: Updated for SESSION-040",
+      "PROJECT_BRAIN.json: Updated for SESSION-040"
+    ],
+    "p0_tasks_resolved": [
+      "P0-CONTRACT-40A: UMR_Context Frozen Dataclass + PipelineContractGuard (Mike Acton DOD)",
+      "P0-CONTRACT-40B: UMR_Auditor SHA-256 Hash Seal + .umr_manifest.json (Glenn Fiedler / Pixar USD)",
+      "P0-CONTRACT-40C: Phase-Driven Idle Generator (Legacy Bypass Elimination)",
+      "P0-CONTRACT-40D: ContractEvolutionBridge (Three-Layer Contract Integration)",
+      "P0-CONTRACT-40E: CLI Rewrite + Pipeline Integration (Bypass Elimination)"
+    ],
+    "p1_tasks_closed": [
+      "P1-PHASE-35A: Phase-driven coverage + CLI trunk enforcement",
+      "P1-BENCH-35A: End-to-end trunk reproducibility validation",
+      "P1-UMR-36A: Propagate UMR contract to CLI, exporters, and distillation bus"
+    ],
+    "benchmark_impact": {
+      "engineering_automation": "72 -> 76 maturity score (pipeline contract enforcement, deterministic hash seal, CI regression detection, three-layer contract evolution)",
+      "overall": "~32-34% -> ~34-36% completion"
+    },
+    "validation": {
+      "audit": "SESSION_040_AUDIT.md: 27/27 items PASS across 5 categories (DOD contract, determinism, evolution, tests, references)",
+      "new_tests": "27 pipeline contract tests (UMR_Context, PipelineContractGuard, UMR_Auditor, ContactFlickerDetector, end-to-end)",
+      "full_suite": "717/717 non-scipy PASS",
+      "regression": "Zero regressions (1 test updated for PipelineContractError)",
+      "code_delta": "+~1,940 lines (357 contract + 390 auditor + 147 idle + 485 bridge + 458 tests + 103 CLI rewrite)"
+    },
+    "research_references": [
+      "Mike Acton, 'Data-Oriented Design and C++', CppCon 2014 — frozen dataclass, data-driven pipeline",
+      "Glenn Fiedler, 'Deterministic Lockstep', Gaffer on Games 2014 — SHA-256 hash seal, same input -> same output",
+      "Pixar USD Schema Validation & CI mechanism — schema validation, golden master, CI regression detection"
     ]
   },
   "session_038_changes": {

@@ -127,6 +127,10 @@ from .runtime_motion_query import (
     PlaybackState, MotionMatchingRuntime,
     create_runtime_database, create_motion_matching_runtime,
 )
+# SESSION-040: Phase-Driven Idle (UMR Contract Enforcement)
+from .phase_driven_idle import (
+    phase_driven_idle, phase_driven_idle_frame,
+)
 
 __all__ = [
     "Skeleton", "Bone", "Joint",
@@ -226,4 +230,6 @@ __all__ = [
     "RuntimeMotionDatabase", "RuntimeMotionQuery",
     "PlaybackState", "MotionMatchingRuntime",
     "create_runtime_database", "create_motion_matching_runtime",
+    # SESSION-040: Phase-Driven Idle (UMR Contract Enforcement)
+    "phase_driven_idle", "phase_driven_idle_frame",
 ]

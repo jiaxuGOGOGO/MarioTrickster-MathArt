@@ -50,6 +50,8 @@ from .inner_loop import InnerLoopRunner, InnerLoopResult, RunMode
 from .math_registry import MathModelRegistry, ModelCapability
 from .outer_loop import OuterLoopDistiller
 from .evolution_layer3 import PhysicsEvolutionLayer, PhysicsEvolutionRecord
+# SESSION-040: Pipeline Contract Evolution Bridge
+from .evolution_contract_bridge import ContractEvolutionBridge
 
 
 class SelfEvolutionEngine:
@@ -100,6 +102,12 @@ class SelfEvolutionEngine:
 
         # Supporting: Math model registry
         self.math_registry = MathModelRegistry()
+
+        # SESSION-040: Pipeline Contract Evolution Bridge
+        self.contract_bridge = ContractEvolutionBridge(
+            project_root=self.project_root,
+            verbose=verbose,
+        )
 
     # ── Unified run command ────────────────────────────────────────────────
 
@@ -184,6 +192,49 @@ class SelfEvolutionEngine:
         self._update_brain(result, physics_record)
 
         return result
+
+    # ── SESSION-040: Contract-Aware Evolution ─────────────────────────────
+
+    def evaluate_contract(
+        self,
+        manifest_path: str | Path,
+        umr_manifest_path: str | Path | None = None,
+    ) -> dict:
+        """Evaluate pipeline contract compliance and distill knowledge.
+
+        This is the unified entry point for contract-aware evolution.
+        It runs all three layers of the contract evolution cycle:
+        1. Layer 1: Validate contract compliance
+        2. Layer 2: Distill knowledge from results
+        3. Layer 3: Compute fitness bonus
+
+        Returns
+        -------
+        dict
+            Contract evaluation results including metrics, rules, and fitness.
+        """
+        metrics = self.contract_bridge.evaluate_contract_compliance(
+            manifest_path, umr_manifest_path
+        )
+        rules = self.contract_bridge.distill_contract_knowledge(metrics)
+        fitness_bonus = self.contract_bridge.compute_contract_fitness_bonus(metrics)
+
+        if self.verbose:
+            status = "PASS" if metrics.contract_checks_failed == 0 else "FAIL"
+            print(f"\n[CONTRACT] Evaluation: {status}")
+            print(f"  Checks: {metrics.contract_checks_passed} passed, "
+                  f"{metrics.contract_checks_failed} failed")
+            print(f"  Hash seal: {'verified' if metrics.hash_seal_verified else 'missing'} "
+                  f"({'stable' if metrics.hash_seal_stable else 'unstable'})")
+            print(f"  Knowledge rules: {len(rules)} generated")
+            print(f"  Fitness bonus: {fitness_bonus:+.3f}")
+
+        return {
+            "metrics": metrics.to_dict(),
+            "rules": rules,
+            "fitness_bonus": fitness_bonus,
+            "contract_status": "PASS" if metrics.contract_checks_failed == 0 else "FAIL",
+        }
 
     def run_physics_only(
         self,
@@ -357,6 +408,28 @@ class SelfEvolutionEngine:
                         encoding="utf-8",
                     )
 
+            # SESSION-040: Persist contract evolution bridge state
+            if self.contract_bridge:
+                cs = self.contract_bridge.state
+                mem.set_note(
+                    "session040_contract_cycles",
+                    str(cs.total_contract_cycles)
+                )
+                mem.set_note(
+                    "session040_contract_pass_rate",
+                    f"{cs.total_contract_passes}/{cs.total_contract_cycles}"
+                    if cs.total_contract_cycles > 0 else "N/A"
+                )
+                mem.set_note(
+                    "session040_hash_stability_streak",
+                    str(cs.hash_stability_streak)
+                )
+                if cs.golden_master_hash:
+                    mem.set_note(
+                        "session040_golden_master",
+                        cs.golden_master_hash[:24] + "..."
+                    )
+
             mem.generate_handoff()
         except Exception:
             pass  # Brain update is optional
@@ -400,6 +473,13 @@ class SelfEvolutionEngine:
             if physics_kb.exists():
                 pk_lines = len(physics_kb.read_text(encoding="utf-8").splitlines())
                 lines.append(f"   Physics knowledge: {pk_lines} lines")
+        lines.append("")
+
+        # ── SESSION-040: Pipeline Contract Status ──
+        lines.append("--- Pipeline Contract (SESSION-040) ---")
+        lines.append(self.contract_bridge.status_report().replace(
+            "--- Pipeline Contract Evolution Bridge (SESSION-040) ---", ""
+        ).strip())
         lines.append("")
 
         # ── Layer 3: Physics Evolution Status ──

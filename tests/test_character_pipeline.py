@@ -147,5 +147,7 @@ class TestCharacterPipeline:
         pipeline = AssetPipeline(output_dir=str(tmp_path), verbose=False)
         spec = CharacterSpec(name="bad_state_pack", preset="mario", states=["idle", "attack"])
 
-        with pytest.raises(ValueError):
+        # SESSION-040: Unknown states now raise PipelineContractError (not ValueError)
+        from mathart.pipeline_contract import PipelineContractError
+        with pytest.raises(PipelineContractError):
             pipeline.produce_character_pack(spec)
