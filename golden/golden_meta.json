@@ -1,0 +1,17 @@
+{
+  "created": "2026-04-16T14:10:47Z",
+  "session_id": "SESSION-041",
+  "preset": "mario",
+  "states": [
+    "idle",
+    "run",
+    "jump",
+    "fall",
+    "hit"
+  ],
+  "frame_width": 32,
+  "frame_height": 32,
+  "seed": 42,
+  "pipeline_hash": "dbd395575adf5f8d38ee29028c080b49f970a662b40fda17cdba9c35099d64c0",
+  "description": "Golden baseline for headless E2E CI visual regression testing"
+}

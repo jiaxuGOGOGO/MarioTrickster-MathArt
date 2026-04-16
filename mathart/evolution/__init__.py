@@ -40,6 +40,12 @@ from .evolution_contract_bridge import (
     ContractEvolutionMetrics,
     ContractEvolutionState,
 )
+# SESSION-041: Visual Regression Evolution Bridge
+from .visual_regression_bridge import (
+    VisualRegressionEvolutionBridge,
+    VisualRegressionMetrics,
+    VisualRegressionState,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -56,4 +62,8 @@ __all__ = [
     "ContractEvolutionBridge",
     "ContractEvolutionMetrics",
     "ContractEvolutionState",
+    # SESSION-041: Visual Regression Evolution Bridge
+    "VisualRegressionEvolutionBridge",
+    "VisualRegressionMetrics",
+    "VisualRegressionState",
 ]

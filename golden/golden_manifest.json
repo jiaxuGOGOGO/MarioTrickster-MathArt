@@ -1,0 +1,68 @@
+{
+  "seal": {
+    "context_hash": "fe649a4617774c08f18fbfb33f7c937e608757c3da108b0d30f28bd099f0bec2",
+    "pipeline_hash": "dbd395575adf5f8d38ee29028c080b49f970a662b40fda17cdba9c35099d64c0",
+    "state_hashes": {
+      "fall": "4eb510921bf84e07888df7995468d014635437913ca0dbbca08d4d467882a882",
+      "hit": "129925cd2ea3b16b696c0c45cdc9ae017f09e05f5854ca2e4e10681d9666548d",
+      "idle": "45e927d7304186ef734832d8ea9ab16cbbb9b3171d0160ed4986aa5584c7a23d",
+      "jump": "fe2096cbabc1992193fdfc56c777aec7a30ba5776f421f645399d2c52852a27b",
+      "run": "f5a83b646ab72a8a307c0cef55666cae0a3e9d543aa25ee4311183e4ca5a6876"
+    },
+    "contact_tag_hash": "dd865f3bf1d2292b4f69e140fdc464b9601c05abb0b65365279fd95d62a9306c",
+    "node_order": [
+      "physics_compliance",
+      "biomechanics_grounding"
+    ],
+    "frame_count": 40,
+    "timestamp": "2026-04-16T14:10:47Z",
+    "pipeline_version": "0.31.0",
+    "session_id": "SESSION-040",
+    "seal_version": "umr_manifest_seal_v1"
+  },
+  "context": {
+    "pipeline_version": "0.31.0",
+    "session_id": "SESSION-040",
+    "random_seed": 42,
+    "character_name": "golden_test",
+    "preset": "mario",
+    "states": [
+      "idle",
+      "run",
+      "jump",
+      "fall",
+      "hit"
+    ],
+    "frame_width": 32,
+    "frame_height": 32,
+    "fps": 12,
+    "head_units": 3.0,
+    "frames_per_state": 8,
+    "state_frames": {},
+    "enable_physics": true,
+    "enable_biomechanics": true,
+    "physics_stiffness": 1.0,
+    "physics_damping": 1.0,
+    "compliance_alpha": 0.6,
+    "biomechanics_zmp_strength": 0.3,
+    "enable_dither": true,
+    "enable_outline": true,
+    "enable_lighting": true,
+    "convergence_bridge": {},
+    "extra": {}
+  },
+  "audit": {
+    "states_registered": [
+      "fall",
+      "hit",
+      "idle",
+      "jump",
+      "run"
+    ],
+    "total_frames": 40,
+    "node_order": [
+      "physics_compliance",
+      "biomechanics_grounding"
+    ]
+  }
+}

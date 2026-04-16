@@ -1,15 +1,15 @@
 {
-  "version": "0.31.0",
-  "last_session_id": "SESSION-040",
-  "last_updated": "2026-04-16T15:30:00Z",
+  "version": "0.32.0",
+  "last_session_id": "SESSION-041",
+  "last_updated": "2026-04-16T14:29:50Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "717/717 non-scipy full-suite PASS + 27 SESSION-040 pipeline contract tests PASS + 73 prior targeted UMR regression PASS + 6 SESSION-037 transient-phase regression PASS + 6 SESSION-038 refined transient regression PASS + 15 SESSION-039 transition integration PASS",
+  "validation_pass_rate": "792/792 non-scipy full-suite PASS + 7 SESSION-041 headless E2E CI PASS + 25 SESSION-041 visual regression bridge PASS + 27 SESSION-040 pipeline contract tests PASS + 73 prior targeted UMR regression PASS + 6 SESSION-037 transient-phase regression PASS + 6 SESSION-038 refined transient regression PASS + 15 SESSION-039 transition integration PASS",
   "total_iterations": 500,
   "total_code_lines": 57542,
   "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 40,
+  "knowledge_rule_count": 43,
   "math_model_count": 28,
   "project_health_score": 9.99,
   "commercial_benchmark": {
@@ -25,13 +25,13 @@
       "character_diversity": 15,
       "environment_tileset": 18,
       "engine_ready_export": 24,
-      "engineering_automation": 76
+      "engineering_automation": 82
     },
     "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-032: the original WFC/shader/export break is now closed by a lightweight PDG runtime and a USD-like scene contract. The main remaining blockers are industrial runtime depth (cache/partition/layering), benchmarked asset production, visual quality, and the simulation-conditioned neural-render bridge.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback.",
       "path_b_ai_visual_polish": "Now better conditioned by anatomically valid low-dimensional motion data; next step is ControlNet / diffusion export from the distilled body and pose representation.",
-      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge). Next step: terrain-aware sensing, gait transition blending, production benchmark suite."
+      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge. Next step: terrain-aware sensing, gait transition blending, production benchmark suite."
     },
     "commercial_references": [
       {
@@ -44,12 +44,15 @@
         "url": "https://pixelfrog-assets.itch.io/tiny-swords",
         "type": "itch.io top-seller asset pack"
       }
-    ]
+    ],
+    "engineering_automation": 82
   },
-  "current_focus": "SESSION-040 delivers CLI Pipeline Contract & End-to-End Determinism (Attack Campaign 3). UMR_Context frozen dataclass enforces data-oriented design (Mike Acton DOD). PipelineContractGuard blocks all legacy_pose bypass paths with Fail-Fast PipelineContractError. UMR_Auditor computes SHA-256 hash seals over frame coordinates + contact tags + render config (Glenn Fiedler determinism). .umr_manifest.json golden master enables CI regression detection (Pixar USD-style). Phase-driven idle generator eliminates the last legacy bypass. ContractEvolutionBridge integrates contract compliance into all three evolution layers: L1 validation, L2 knowledge distillation, L3 fitness bonus. P1-PHASE-35A and P1-BENCH-35A are now DONE. P1-UMR-36A is now DONE. Remaining gaps: terrain-raycast distance sensing, gait transition blending, production benchmark suite.",
+  "current_focus": "SESSION-041 delivers Gap 3 closure: End-to-End Reproducibility & Visual Regression Pipeline. headless_e2e_ci.py implements a hermetic three-level audit (L0 sandbox cold start, L1 structural manifest SHA-256, L2 SSIM visual regression). Golden baselines checked into golden/ directory. VisualRegressionEvolutionBridge integrates visual fidelity into all three evolution layers: L1 visual gate, L2 knowledge distillation (4 rule families), L3 fitness bonus [-0.3, +0.15]. CI workflow updated with visual-regression job. Research: Skia Gold (Google Chrome), OpenUSD Validation (Pixar), SSIM (Wang 2004), Hermetic Builds (Bazel). P3-4 (CI/CD + GitHub Actions) is now DONE. Remaining gaps: terrain-raycast distance sensing, gait transition blending, production benchmark suite, industrial renderer integration.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "SESSION_HANDOFF.md",
+    "research_session041_visual_regression_ci.md",
+    "audit_session041_checklist.md",
     "research_session040_cli_pipeline_contract.md",
     "SESSION_040_AUDIT.md",
     "research_session039_transition_synthesis.md",
@@ -439,8 +442,10 @@
       "id": "P3-4",
       "priority": "P3",
       "title": "CI/CD + GitHub Actions",
-      "status": "TODO",
-      "estimated_effort": "medium"
+      "status": "DONE",
+      "estimated_effort": "medium",
+      "description": "CLOSED in SESSION-041. GitHub Actions CI workflow updated with visual-regression job running headless_e2e_ci.py. Three-level audit (cold start, structural manifest, SSIM visual regression) with golden baselines and diff heatmap artifacts.",
+      "completed_in": "SESSION-041"
     },
     {
       "id": "P3-5",
@@ -484,6 +489,54 @@
     }
   ],
   "completed_tasks": [
+    {
+      "id": "P0-VISUAL-41A",
+      "title": "Headless E2E CI Pipeline (headless_e2e_ci.py) — Hermetic Three-Level Audit",
+      "completed_in": "SESSION-041",
+      "result": "headless_e2e_ci.py implements hermetic sandbox cold start (seed 42), Level 0 pipeline execution, Level 1 structural manifest SHA-256 audit, Level 2 SSIM visual regression (threshold 0.9999), diff heatmap generation on failure. AuditReport + AuditFinding structured output. 7 pytest tests. ~600 lines."
+    },
+    {
+      "id": "P0-VISUAL-41B",
+      "title": "Golden Baseline Artifacts (golden/golden_manifest.json, golden_atlas.png, golden_meta.json)",
+      "completed_in": "SESSION-041",
+      "result": "Checked-in golden baselines for mario preset (idle/run/jump/fall/hit), 32x32 frames, seed 42. Pipeline hash: dbd395575adf5f8d... Enables CI regression detection via structural + visual comparison."
+    },
+    {
+      "id": "P0-VISUAL-41C",
+      "title": "VisualRegressionEvolutionBridge (Three-Layer Visual Regression Integration)",
+      "completed_in": "SESSION-041",
+      "result": "VisualRegressionEvolutionBridge integrates visual regression into L1 visual gate (SSIM + structural), L2 knowledge distillation (4 rule families: enforcement, regression_guard, confidence_boost, trend_warning), L3 fitness bonus [-0.3, +0.15]. SSIM trend tracking, golden baseline auto-set, consecutive pass counting. State persisted in .visual_regression_state.json. 25 pytest tests. ~500 lines."
+    },
+    {
+      "id": "P0-VISUAL-41D",
+      "title": "CI Workflow Visual Regression Job",
+      "completed_in": "SESSION-041",
+      "result": "GitHub Actions ci.yml updated with visual-regression job: installs scikit-image + opencv-python-headless, runs headless E2E audit, uploads diff heatmap artifacts on failure."
+    },
+    {
+      "id": "P0-VISUAL-41E",
+      "title": "Visual Regression CI Knowledge Base",
+      "completed_in": "SESSION-041",
+      "result": "knowledge/visual_regression_ci.md: Hard constraints (hermetic execution, three-level audit, SSIM-over-hash), heuristics (threshold tuning, state-level diagnostics), soft defaults (baseline preset/states), industrial references (Skia Gold, OpenUSD, SSIM, Bazel)."
+    },
+    {
+      "id": "AUDIT-041",
+      "title": "SESSION-041 full audit + research-to-code verification",
+      "completed_in": "SESSION-041",
+      "result": "799/799 tests PASS (792 non-scipy + 7 E2E CI). audit_session041_checklist.md confirms all Gap 3 research requirements (Skia Gold, OpenUSD usddiff, SSIM, Hermetic Builds) implemented in code. Three-layer evolution cycle verified."
+    },
+    {
+      "id": "KNOWLEDGE-041",
+      "title": "SESSION-041 knowledge distillation",
+      "completed_in": "SESSION-041",
+      "result": "research_session041_visual_regression_ci.md (Skia Gold, OpenUSD Validation, SSIM, Hermetic Builds). knowledge/visual_regression_ci.md auto-generated. VisualRegressionEvolutionBridge distills 4 rule families."
+    },
+    {
+      "id": "P3-4",
+      "title": "CI/CD + GitHub Actions",
+      "completed_in": "SESSION-041",
+      "result": "GitHub Actions CI workflow with unit tests + visual regression job. Hermetic three-level audit, golden baselines, diff heatmap artifacts."
+    },
     {
       "id": "P0-TRANSITION-39A",
       "title": "Inertialized Transition Synthesis (Bollo GDC 2018 / Holden Dead Blending 2023)",
@@ -1658,6 +1711,40 @@
       "P1-PHASE-37A: replace analytic distance proxies with terrain-aware sensors and extend hit to richer impact channels",
       "P1-BENCH-35A: add zero-to-export reproducibility benchmark asserting refined transient metadata and audit fields",
       "P1-INDUSTRIAL-34B / P1-HUMAN-31B: runtime transition synthesis on top of refined UMR context"
+    ]
+  },
+  "session_041_changes": {
+    "new_artifacts": [
+      "mathart/headless_e2e_ci.py: Hermetic three-level E2E audit pipeline (~600 lines)",
+      "mathart/evolution/visual_regression_bridge.py: Three-layer visual regression bridge (~500 lines)",
+      "tests/test_evolution_visual_regression.py: 25 tests for visual regression bridge",
+      "golden/golden_manifest.json: Golden baseline manifest (SHA-256 seals)",
+      "golden/golden_atlas.png: Golden baseline atlas image",
+      "golden/golden_meta.json: Golden baseline metadata",
+      "knowledge/visual_regression_ci.md: Visual regression CI knowledge rules",
+      "research_session041_visual_regression_ci.md: Deep research notes",
+      "audit_session041_checklist.md: Full audit checklist"
+    ],
+    "modified_artifacts": [
+      "mathart/evolution/engine.py: Added VisualRegressionEvolutionBridge integration, evaluate_visual_regression(), status report section, _update_brain() persistence",
+      "mathart/evolution/__init__.py: Exported VisualRegressionEvolutionBridge, VisualRegressionMetrics, VisualRegressionState",
+      ".github/workflows/ci.yml: Added visual-regression job with SSIM audit and artifact upload",
+      "pyproject.toml: Added scikit-image, opencv-python-headless dependencies and headless-e2e-ci script entry"
+    ],
+    "summary": "SESSION-041 closes Gap 3 (End-to-End Reproducibility) with a production-grade visual regression pipeline. headless_e2e_ci.py implements hermetic sandbox execution with three audit levels: L0 cold start, L1 structural manifest SHA-256, L2 SSIM visual regression (threshold 0.9999). Golden baselines are checked into golden/. VisualRegressionEvolutionBridge integrates visual fidelity into all three evolution layers. CI workflow updated with visual-regression job. Research: Skia Gold (Google Chrome), OpenUSD Validation (Pixar), SSIM (Wang 2004), Hermetic Builds (Bazel). 799/799 tests pass.",
+    "top_gaps": [
+      "Scene-aware raycast/runtime sensors for distance matching (P1-PHASE-37A)",
+      "Gait transition blending walk/run/sneak (P1-PHASE-33A)",
+      "Production benchmark asset suite (P1-NEW-10)",
+      "Industrial renderer integration into AssetPipeline (P1-INDUSTRIAL-34A)",
+      "3D-to-2D mesh rendering path (P1-INDUSTRIAL-34C)"
+    ],
+    "remaining_followups": [
+      "P1-PHASE-37A: replace analytic distance proxies with terrain-aware sensors",
+      "P1-PHASE-33A: smooth phase-preserving gait transition blending",
+      "P1-NEW-10: create benchmark characters, tiles, VFX with acceptance thresholds",
+      "P1-INDUSTRIAL-34A: wire industrial renderer as optional backend",
+      "P1-INDUSTRIAL-34C: implement 3D mesh to 2D pixel art pipeline"
     ]
   }
 }

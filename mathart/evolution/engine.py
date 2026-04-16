@@ -52,6 +52,8 @@ from .outer_loop import OuterLoopDistiller
 from .evolution_layer3 import PhysicsEvolutionLayer, PhysicsEvolutionRecord
 # SESSION-040: Pipeline Contract Evolution Bridge
 from .evolution_contract_bridge import ContractEvolutionBridge
+# SESSION-041: Visual Regression Evolution Bridge
+from .visual_regression_bridge import VisualRegressionEvolutionBridge
 
 
 class SelfEvolutionEngine:
@@ -105,6 +107,12 @@ class SelfEvolutionEngine:
 
         # SESSION-040: Pipeline Contract Evolution Bridge
         self.contract_bridge = ContractEvolutionBridge(
+            project_root=self.project_root,
+            verbose=verbose,
+        )
+
+        # SESSION-041: Visual Regression Evolution Bridge
+        self.visual_regression_bridge = VisualRegressionEvolutionBridge(
             project_root=self.project_root,
             verbose=verbose,
         )
@@ -338,6 +346,49 @@ class SelfEvolutionEngine:
                 print(f"[Engine] Layer 3 physics evolution skipped: {e}")
             return None
 
+    # ── SESSION-041: Visual Regression Evaluation ────────────────────────
+
+    def evaluate_visual_regression(
+        self,
+        audit_report: dict | None = None,
+    ) -> dict:
+        """Evaluate visual regression and distill knowledge.
+
+        This is the unified entry point for visual-regression-aware evolution.
+        It runs all three layers of the visual regression cycle:
+        1. Layer 1: Evaluate visual regression (SSIM + structural)
+        2. Layer 2: Distill knowledge from results
+        3. Layer 3: Compute fitness bonus
+
+        Returns
+        -------
+        dict
+            Visual regression evaluation results.
+        """
+        metrics = self.visual_regression_bridge.evaluate_visual_regression(
+            audit_report
+        )
+        rules = self.visual_regression_bridge.distill_visual_knowledge(metrics)
+        fitness_bonus = self.visual_regression_bridge.compute_visual_fitness_bonus(
+            metrics
+        )
+
+        if self.verbose:
+            status = "PASS" if metrics.all_pass else "FAIL"
+            ssim_str = f"{metrics.ssim_score:.6f}" if metrics.ssim_score else "N/A"
+            print(f"\n[VISUAL REGRESSION] Evaluation: {status}")
+            print(f"  SSIM: {ssim_str}")
+            print(f"  Levels: L0={metrics.level0_pass}, L1={metrics.level1_pass}, L2={metrics.level2_pass}")
+            print(f"  Knowledge rules: {len(rules)} generated")
+            print(f"  Fitness bonus: {fitness_bonus:+.3f}")
+
+        return {
+            "metrics": metrics.to_dict(),
+            "rules": rules,
+            "fitness_bonus": fitness_bonus,
+            "visual_status": "PASS" if metrics.all_pass else "FAIL",
+        }
+
     def _update_brain(
         self,
         result: InnerLoopResult,
@@ -347,6 +398,7 @@ class SelfEvolutionEngine:
 
         SESSION-035: Now also persists Layer 3 converged parameters
         for automatic export-time parameter selection (Gap #3 fix).
+        SESSION-041: Also persists visual regression bridge state.
         """
         try:
             from ..brain.memory import ProjectMemory
@@ -406,6 +458,32 @@ class SelfEvolutionEngine:
                     bridge_path.write_text(
                         json.dumps(converged, indent=2, ensure_ascii=False),
                         encoding="utf-8",
+                    )
+
+            # SESSION-041: Persist visual regression bridge state
+            if self.visual_regression_bridge:
+                vrs = self.visual_regression_bridge.state
+                mem.set_note(
+                    "session041_visual_regression_cycles",
+                    str(vrs.total_audit_cycles)
+                )
+                mem.set_note(
+                    "session041_visual_regression_pass_rate",
+                    f"{vrs.total_passes}/{vrs.total_audit_cycles}"
+                    if vrs.total_audit_cycles > 0 else "N/A"
+                )
+                mem.set_note(
+                    "session041_best_ssim",
+                    f"{vrs.best_ssim:.6f}"
+                )
+                mem.set_note(
+                    "session041_consecutive_passes",
+                    str(vrs.consecutive_passes)
+                )
+                if vrs.golden_baseline_hash:
+                    mem.set_note(
+                        "session041_golden_baseline",
+                        vrs.golden_baseline_hash[:24] + "..."
                     )
 
             # SESSION-040: Persist contract evolution bridge state
@@ -479,6 +557,13 @@ class SelfEvolutionEngine:
         lines.append("--- Pipeline Contract (SESSION-040) ---")
         lines.append(self.contract_bridge.status_report().replace(
             "--- Pipeline Contract Evolution Bridge (SESSION-040) ---", ""
+        ).strip())
+        lines.append("")
+
+        # ── SESSION-041: Visual Regression Status ──
+        lines.append("--- Visual Regression (SESSION-041) ---")
+        lines.append(self.visual_regression_bridge.status_report().replace(
+            "--- Visual Regression Evolution Bridge (SESSION-041) ---", ""
         ).strip())
         lines.append("")
 
