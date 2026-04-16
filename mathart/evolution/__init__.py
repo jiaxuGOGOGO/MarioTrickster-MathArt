@@ -27,6 +27,13 @@ from .inner_loop import InnerLoopRunner, InnerLoopResult
 from .outer_loop import OuterLoopDistiller, DistillResult
 from .math_registry import MathModelRegistry, ModelEntry
 from .cppn import CPPNGenome, CPPNEvolver, CPPNArchiveCell
+# SESSION-030: Layer 3 Physics Evolution
+from .evolution_layer3 import (
+    PhysicsEvolutionLayer, PhysicsEvolutionRecord, PhysicsEvolutionState,
+    PhysicsTestBattery, PhysicsTestReport, PhysicsTestResult,
+    PhysicsDiagnosisEngine, DiagnosisAction,
+    PhysicsKnowledgeDistiller,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -34,4 +41,9 @@ __all__ = [
     "OuterLoopDistiller", "DistillResult",
     "MathModelRegistry", "ModelEntry",
     "CPPNGenome", "CPPNEvolver", "CPPNArchiveCell",
+    # SESSION-030: Layer 3 Physics Evolution
+    "PhysicsEvolutionLayer", "PhysicsEvolutionRecord", "PhysicsEvolutionState",
+    "PhysicsTestBattery", "PhysicsTestReport", "PhysicsTestResult",
+    "PhysicsDiagnosisEngine", "DiagnosisAction",
+    "PhysicsKnowledgeDistiller",
 ]

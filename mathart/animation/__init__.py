@@ -43,6 +43,35 @@ from .biomechanics import (
     compute_biomechanics_penalty,
     DEFAULT_JOINT_MASSES,
 )
+# SESSION-030: Physics-based character animation (PD Controller, MuJoCo, RL, ASE)
+from .pd_controller import (
+    PDController, PDJointConfig, PDControllerConfig,
+    PDSimulationState, DeepMimicReward,
+    HumanoidPDPreset,
+)
+from .mujoco_bridge import (
+    PhysicsWorld, RigidBody, ContactMaterial,
+    ContactSolver, ContactResult, GroundPlane,
+    create_humanoid_world, create_contact_material_library,
+)
+from .rl_locomotion import (
+    LocomotionEnv, LocomotionConfig, GaitType,
+    PPOTrainer, ReferenceMotionLibrary,
+    LocomotionPolicy, PPOConfig,
+)
+from .skill_embeddings import (
+    ASEFramework, SkillEncoder, MotionDiscriminator,
+    LowLevelController, HighLevelController,
+    SkillLibrary, SkillType, SkillEntry,
+)
+from .physics_genotype import (
+    PhysicsGenotype, LocomotionGenotype,
+    create_physics_genotype, create_locomotion_genotype,
+    decode_pd_controller, decode_locomotion_config, decode_contact_material,
+    mutate_physics_genotype, mutate_locomotion_genotype,
+    crossover_physics_genotype, crossover_locomotion_genotype,
+    evaluate_physics_fitness,
+)
 
 __all__ = [
     "Skeleton", "Bone", "Joint",
@@ -82,4 +111,22 @@ __all__ = [
     "BiomechanicsProjector",
     "compute_biomechanics_penalty",
     "DEFAULT_JOINT_MASSES",
+    # SESSION-030: Physics-based character animation
+    "PDController", "PDJointConfig", "PDControllerConfig",
+    "PDSimulationState", "DeepMimicReward", "HumanoidPDPreset",
+    "PhysicsWorld", "RigidBody", "ContactMaterial",
+    "ContactSolver", "ContactResult", "GroundPlane",
+    "create_humanoid_world", "create_contact_material_library",
+    "LocomotionEnv", "LocomotionConfig", "GaitType",
+    "PPOTrainer", "ReferenceMotionLibrary",
+    "LocomotionPolicy", "PPOConfig",
+    "ASEFramework", "SkillEncoder", "MotionDiscriminator",
+    "LowLevelController", "HighLevelController",
+    "SkillLibrary", "SkillType", "SkillEntry",
+    "PhysicsGenotype", "LocomotionGenotype",
+    "create_physics_genotype", "create_locomotion_genotype",
+    "decode_pd_controller", "decode_locomotion_config", "decode_contact_material",
+    "mutate_physics_genotype", "mutate_locomotion_genotype",
+    "crossover_physics_genotype", "crossover_locomotion_genotype",
+    "evaluate_physics_fitness",
 ]
