@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from .sdf.primitives import circle, box, star, triangle, ring, segment
 from .sdf.operations import smooth_union, smooth_subtraction, union
@@ -81,6 +81,19 @@ from .animation.biomechanics import (
     SkatingCleanupCalculus, FABRIKGaitGenerator,
     compute_biomechanics_penalty,
 )
+from .evolution.evolution_layer3 import PhysicsKnowledgeDistiller
+from .level import (
+    LevelSpec,
+    LevelSpecBridge,
+    LevelTheme,
+    PDGNode,
+    ProceduralDependencyGraph,
+    RenderMode as LevelRenderMode,
+    UniversalSceneDescription,
+    WFCGenerator,
+)
+from .shader.generator import ShaderCodeGenerator
+from .export.bridge import AssetExporter, ExportConfig
 
 
 # ── Shape Library ─────────────────────────────────────────────────────────────
@@ -214,6 +227,26 @@ class AssetResult:
     evolution_history: list[float] = field(default_factory=list)
     elapsed_seconds: float = 0.0
     output_paths: list[str] = field(default_factory=list)
+
+
+@dataclass
+class LevelPipelineSpec:
+    """Specification for a PDG-driven procedural level pipeline run."""
+
+    level_id: str
+    width: int = 22
+    height: int = 7
+    tile_size: int = 16
+    theme: str = "grassland"
+    render_mode: str = "flat_2d"
+    palette_size: int = 16
+    shader_goal: str = "auto"
+    seed: Optional[int] = None
+    ensure_ground: bool = True
+    ensure_spawn: bool = True
+    ensure_goal: bool = True
+    export_preview: bool = True
+    required_assets: list[str] = field(default_factory=lambda: ["player", "enemy", "tile", "item", "background"])
 
 
 # ── Asset Pipeline ────────────────────────────────────────────────────────────
@@ -1824,15 +1857,296 @@ class AssetPipeline:
             output_paths=output_paths,
         )
 
+    def _resolve_level_theme(self, theme: str) -> LevelTheme:
+        try:
+            return LevelTheme(theme)
+        except ValueError:
+            return LevelTheme.GRASSLAND
+
+    def _resolve_level_render_mode(self, render_mode: str) -> LevelRenderMode:
+        try:
+            return LevelRenderMode(render_mode)
+        except ValueError:
+            return LevelRenderMode.FLAT_2D
+
+    def _render_level_preview(
+        self,
+        scene: UniversalSceneDescription,
+        tile_px: int = 16,
+    ) -> Image.Image:
+        rows = [line for line in scene.ascii_layout.strip("\n").splitlines() if line]
+        cols = max((len(line) for line in rows), default=1)
+        bg = tuple(scene.level_spec.bg_color) + (255,)
+        image = Image.new("RGBA", (cols * tile_px, len(rows) * tile_px), bg)
+        draw = ImageDraw.Draw(image)
+
+        color_map = {
+            "#": (124, 92, 70, 255),
+            "=": (170, 132, 96, 255),
+            "X": (186, 48, 48, 255),
+            "^": (236, 92, 44, 255),
+            "E": (140, 82, 255, 255),
+            "M": (255, 255, 255, 255),
+            "G": (255, 220, 74, 255),
+            "C": (104, 220, 140, 255),
+            ".": (0, 0, 0, 0),
+            " ": (0, 0, 0, 0),
+        }
+
+        for row_idx, row in enumerate(rows):
+            for col_idx, tile in enumerate(row):
+                fill = color_map.get(tile, (200, 200, 200, 255))
+                x0 = col_idx * tile_px
+                y0 = row_idx * tile_px
+                x1 = x0 + tile_px - 1
+                y1 = y0 + tile_px - 1
+                if fill[3] == 0:
+                    continue
+                draw.rectangle([x0, y0, x1, y1], fill=fill)
+                draw.rectangle([x0, y0, x1, y1], outline=(22, 22, 30, 255), width=1)
+
+        return image
+
+    def produce_level_pack(self, level_spec: LevelPipelineSpec) -> AssetResult:
+        """Produce a DAG-orchestrated procedural level bundle.
+
+        This method is the Gap 1 repair layer: WFC, scene description,
+        shader generation, export, and knowledge distillation are executed
+        as one traced dependency graph instead of isolated code paths.
+        """
+        self._log(f"=== Producing Level Pack via PDG: {level_spec.level_id} ===")
+        start = time.time()
+
+        run_seed = self.seed if level_spec.seed is None else level_spec.seed
+        theme = self._resolve_level_theme(level_spec.theme)
+        render_mode = self._resolve_level_render_mode(level_spec.render_mode)
+        runtime_level_spec = LevelSpec(
+            level_id=level_spec.level_id,
+            theme=theme,
+            render_mode=render_mode,
+            tile_width=level_spec.tile_size,
+            tile_height=level_spec.tile_size,
+            grid_cols=level_spec.width,
+            grid_rows=level_spec.height,
+            palette_size=level_spec.palette_size,
+            required_assets=list(level_spec.required_assets),
+        )
+
+        level_dir = self.output_dir / "levels" / level_spec.level_id
+        scene_dir = level_dir / "scene"
+        shader_dir = level_dir / "shaders"
+        export_dir = level_dir / "exports"
+        for directory in (level_dir, scene_dir, shader_dir, export_dir):
+            directory.mkdir(parents=True, exist_ok=True)
+
+        bridge = LevelSpecBridge(project_root=level_dir)
+        shader_generator = ShaderCodeGenerator()
+        exporter = AssetExporter(
+            ExportConfig(output_dir=str(export_dir), style_name="Style_MathArt", version=1)
+        )
+
+        graph = ProceduralDependencyGraph(name=f"pdg_{level_spec.level_id}")
+
+        def _node_wfc(_: dict[str, Any], __: dict[str, Any]) -> dict[str, Any]:
+            generator = WFCGenerator(seed=run_seed)
+            generator.learn()
+            ascii_level = generator.generate(
+                level_spec.width,
+                level_spec.height,
+                ensure_ground=level_spec.ensure_ground,
+                ensure_spawn=level_spec.ensure_spawn,
+                ensure_goal=level_spec.ensure_goal,
+            )
+            ascii_path = scene_dir / f"{level_spec.level_id}.level.txt"
+            ascii_path.write_text(ascii_level, encoding="utf-8")
+            return {
+                "ascii_level": ascii_level,
+                "ascii_path": str(ascii_path),
+                "seed": run_seed,
+            }
+
+        def _node_scene(_: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]:
+            ascii_level = deps["wfc_generate"]["ascii_level"]
+            scene = UniversalSceneDescription.from_ascii_level(
+                ascii_level,
+                runtime_level_spec,
+                metadata={
+                    "source": "wfc",
+                    "orchestration": "procedural_dependency_graph",
+                    "goal": "bridge_wfc_shader_export",
+                },
+            )
+            scene_path = scene.save(scene_dir / f"{level_spec.level_id}.scene.usd.json")
+            asset_spec = bridge.to_asset_spec(runtime_level_spec)
+            asset_spec_path = scene_dir / f"{level_spec.level_id}.asset_spec.json"
+            asset_spec_path.write_text(
+                json.dumps(asset_spec.to_dict(), indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            return {
+                "scene": scene,
+                "scene_path": str(scene_path),
+                "asset_spec": asset_spec,
+                "asset_spec_path": str(asset_spec_path),
+            }
+
+        def _node_shader_plan(_: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]:
+            scene = deps["scene_describe"]["scene"]
+            plan = scene.derive_shader_recipe(level_spec.shader_goal)
+            plan_path = shader_dir / "shader_plan.json"
+            plan_path.write_text(json.dumps(plan, indent=2, ensure_ascii=False), encoding="utf-8")
+            return {
+                "shader_plan": plan,
+                "shader_plan_path": str(plan_path),
+            }
+
+        def _node_shader_generate(_: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]:
+            plan = deps["shader_plan"]["shader_plan"]
+            shader_entries = [
+                {
+                    "shader_type": plan["shader_type"],
+                    "preset_name": plan.get("preset_name"),
+                    "subdir": "base",
+                },
+                *[
+                    {
+                        "shader_type": overlay["shader_type"],
+                        "preset_name": overlay.get("preset_name"),
+                        "subdir": overlay["shader_type"],
+                    }
+                    for overlay in plan.get("overlays", [])
+                ],
+            ]
+            shader_files: list[str] = []
+            for entry in shader_entries:
+                saved = shader_generator.save_all(
+                    shader_dir / entry["subdir"],
+                    entry["shader_type"],
+                    entry.get("preset_name"),
+                )
+                shader_files.extend(str(path) for path in saved)
+            return {"shader_files": shader_files}
+
+        def _node_preview(_: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]:
+            scene = deps["scene_describe"]["scene"]
+            preview = self._render_level_preview(scene, tile_px=level_spec.tile_size)
+            preview_path = level_dir / f"{level_spec.level_id}_preview.png"
+            preview.save(preview_path)
+            return {
+                "preview_image": preview,
+                "preview_path": str(preview_path),
+            }
+
+        def _node_export(_: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]:
+            if not level_spec.export_preview:
+                return {"exported_preview_path": None, "export_manifest_path": None}
+            preview = deps["preview_render"]["preview_image"]
+            export_path = exporter.export_sprite(
+                preview,
+                name=f"{level_spec.level_id}_scene_mask",
+                category="Environment",
+                level_id=level_spec.level_id,
+                render_mode=runtime_level_spec.render_mode.value,
+                tags=["level_preview", "wfc", "pdg", runtime_level_spec.theme.value],
+                validation={"scene_format": "usd_like_scene_v1"},
+            )
+            manifest_path = exporter.save_manifest()
+            return {
+                "exported_preview_path": str(export_path),
+                "export_manifest_path": str(manifest_path),
+            }
+
+        def _node_bundle(_: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]:
+            scene = deps["scene_describe"]["scene"]
+            bundle = {
+                "pipeline_type": "level_pdg",
+                "level_id": level_spec.level_id,
+                "seed": run_seed,
+                "scene_format": scene.format_version,
+                "ascii_level": deps["wfc_generate"]["ascii_level"],
+                "ascii_path": deps["wfc_generate"]["ascii_path"],
+                "scene_metrics": scene.metrics,
+                "scene_path": deps["scene_describe"]["scene_path"],
+                "asset_spec_path": deps["scene_describe"]["asset_spec_path"],
+                "shader_plan": deps["shader_plan"]["shader_plan"],
+                "shader_plan_path": deps["shader_plan"]["shader_plan_path"],
+                "shader_files": deps["shader_generate"]["shader_files"],
+                "preview_path": deps["preview_render"]["preview_path"],
+                "exported_preview_path": deps["export_preview"]["exported_preview_path"],
+                "export_manifest_path": deps["export_preview"]["export_manifest_path"],
+                "research_alignment": {
+                    "pdg": True,
+                    "usd_like_scene_description": True,
+                    "wfc_to_shader_bridge": True,
+                    "shader_to_export_bridge": True,
+                },
+            }
+            bundle_path = level_dir / f"{level_spec.level_id}_bundle.json"
+            bundle_path.write_text(json.dumps(bundle, indent=2, ensure_ascii=False), encoding="utf-8")
+            return {"bundle": bundle, "bundle_path": str(bundle_path)}
+
+        graph.add_node(PDGNode(name="wfc_generate", operation=_node_wfc, description="Generate WFC ASCII level"))
+        graph.add_node(PDGNode(name="scene_describe", operation=_node_scene, dependencies=["wfc_generate"], description="Build USD-like scene description"))
+        graph.add_node(PDGNode(name="shader_plan", operation=_node_shader_plan, dependencies=["scene_describe"], description="Infer shader recipe from scene metrics"))
+        graph.add_node(PDGNode(name="shader_generate", operation=_node_shader_generate, dependencies=["shader_plan"], description="Generate shader assets"))
+        graph.add_node(PDGNode(name="preview_render", operation=_node_preview, dependencies=["scene_describe"], description="Render deterministic level preview"))
+        graph.add_node(PDGNode(name="export_preview", operation=_node_export, dependencies=["preview_render"], description="Export preview through bridge"))
+        graph.add_node(PDGNode(name="bundle_level", operation=_node_bundle, dependencies=["wfc_generate", "scene_describe", "shader_plan", "shader_generate", "preview_render", "export_preview"], description="Collect bundle metadata"))
+
+        run = graph.run(["bundle_level"], initial_context={"level_spec": level_spec})
+        bundle = dict(run["target_outputs"]["bundle_level"]["bundle"])
+        bundle["pdg_execution_order"] = list(run["execution_order"])
+        bundle["pdg_trace"] = list(run["trace"])
+
+        knowledge_dir = (self.project_root / "knowledge") if self.project_root else (self.output_dir / "knowledge")
+        knowledge_dir.mkdir(parents=True, exist_ok=True)
+        distiller = PhysicsKnowledgeDistiller(knowledge_dir=knowledge_dir)
+        distilled_rules = distiller.distill_pipeline_success(bundle, archetype="level_pdg")
+        bundle["distilled_knowledge_rules"] = distilled_rules
+
+        bundle_path = Path(run["target_outputs"]["bundle_level"]["bundle_path"])
+        bundle_path.write_text(json.dumps(bundle, indent=2, ensure_ascii=False), encoding="utf-8")
+
+        output_paths = [
+            bundle["ascii_path"],
+            bundle["scene_path"],
+            bundle["asset_spec_path"],
+            bundle["shader_plan_path"],
+            *bundle["shader_files"],
+            bundle["preview_path"],
+            bundle_path.as_posix(),
+        ]
+        if bundle.get("exported_preview_path"):
+            output_paths.append(bundle["exported_preview_path"])
+        if bundle.get("export_manifest_path"):
+            output_paths.append(bundle["export_manifest_path"])
+        if distilled_rules:
+            output_paths.append(str(knowledge_dir / "procedural_pipeline.md"))
+
+        elapsed = time.time() - start
+        preview_image = run["results"]["preview_render"]["preview_image"]
+        self._log(
+            f"Level pack done: nodes={len(run['execution_order'])}, files={len(output_paths)}, time={elapsed:.1f}s"
+        )
+        return AssetResult(
+            name=level_spec.level_id,
+            image=preview_image,
+            metadata=bundle,
+            score=1.0,
+            elapsed_seconds=elapsed,
+            output_paths=output_paths,
+        )
+
     def produce_asset_pack(
         self,
         pack_name: str = "game_assets",
         sprites: Optional[list[AssetSpec]] = None,
         animations: Optional[list[AnimationSpec]] = None,
         characters: Optional[list[CharacterSpec]] = None,
+        levels: Optional[list[LevelPipelineSpec]] = None,
         include_textures: bool = True,
     ) -> list[AssetResult]:
-        """Produce a complete asset pack with sprites, props, and practical character assets."""
+        """Produce a complete asset pack with sprites, characters, textures, and optional PDG-driven levels."""
         self._log(f"=== Producing Asset Pack: {pack_name} ===")
         start = time.time()
         results = []
@@ -1900,6 +2214,15 @@ class AssetPipeline:
             except Exception as e:
                 self._log(f"ERROR producing character pack {char_spec.name}: {e}")
 
+        # Produce PDG-driven levels
+        if levels:
+            for level_pipeline_spec in levels:
+                try:
+                    result = self.produce_level_pack(level_pipeline_spec)
+                    results.append(result)
+                except Exception as e:
+                    self._log(f"ERROR producing level pack {level_pipeline_spec.level_id}: {e}")
+
         # Produce textures
         if include_textures:
             try:
@@ -1920,6 +2243,7 @@ class AssetPipeline:
         summary = {
             "pack_name": pack_name,
             "total_assets": len(results),
+            "total_levels": sum(1 for r in results if r.metadata.get("pipeline_type") == "level_pdg"),
             "total_time": elapsed,
             "assets": [
                 {
@@ -1927,6 +2251,7 @@ class AssetPipeline:
                     "score": r.score,
                     "time": r.elapsed_seconds,
                     "files": len(r.output_paths),
+                    "pipeline_type": r.metadata.get("pipeline_type", "asset"),
                 }
                 for r in results
             ],

@@ -17,6 +17,8 @@ from .spec_bridge import (
     AssetCategory,
     RenderMode,
 )
+from .pdg import ProceduralDependencyGraph, PDGNode, PDGError
+from .scene_description import UniversalSceneDescription, SceneLayer, ScenePrim
 
 __all__ = [
     "WFCGenerator",
@@ -30,4 +32,10 @@ __all__ = [
     "LevelTheme",
     "AssetCategory",
     "RenderMode",
+    "ProceduralDependencyGraph",
+    "PDGNode",
+    "PDGError",
+    "UniversalSceneDescription",
+    "SceneLayer",
+    "ScenePrim",
 ]

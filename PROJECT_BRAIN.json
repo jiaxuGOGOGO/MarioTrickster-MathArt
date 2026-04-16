@@ -1,37 +1,37 @@
 {
-  "version": "0.23.0",
-  "last_session_id": "SESSION-031",
-  "last_updated": "2026-04-16T06:15:27Z",
+  "version": "0.24.0",
+  "last_session_id": "SESSION-032",
+  "last_updated": "2026-04-16T07:08:12Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "665/665 = 100%",
+  "validation_pass_rate": "669/669 = 100%",
   "total_iterations": 500,
-  "total_code_lines": 44209,
+  "total_code_lines": 47594,
   "distill_session_id": "DISTILL-004",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
   "knowledge_rule_count": 12,
   "math_model_count": 25,
-  "project_health_score": 9.9,
+  "project_health_score": 9.95,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",
-    "overall_completion": "20-22%",
-    "last_assessed": "SESSION-031",
+    "overall_completion": "24-26%",
+    "last_assessed": "SESSION-032",
     "dimension_scores": {
       "animation_physics_realism": 2,
       "motion_cognitive_naturalness": 7,
       "character_visual_quality": 20,
       "vfx_particles": 20,
       "character_diversity": 15,
-      "environment_tileset": 10,
-      "engine_ready_export": 15,
-      "engineering_automation": 60
+      "environment_tileset": 18,
+      "engine_ready_export": 24,
+      "engineering_automation": 70
     },
-    "fundamental_blocker": "RESOLVED THROUGH SESSION-031: the repository now has a compact human-math intermediate layer spanning biomechanics, RL locomotion, anatomical pose prior, motion matching, and future-ready dual-quaternion transforms. The main remaining blockers are still architecture closure (WFC/shader/export), visual quality, and benchmarked asset production.",
+    "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-032: the original WFC/shader/export break is now closed by a lightweight PDG runtime and a USD-like scene contract. The main remaining blockers are industrial runtime depth (cache/partition/layering), benchmarked asset production, visual quality, and the simulation-conditioned neural-render bridge.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "FULLY DELIVERED THROUGH SESSION-031: PhysDiff + biomechanics + PD controller + MuJoCo contacts + RL locomotion + ASE + Layer 3 evolution + compact human-math layer (SMPL-like shape latents, VPoser-style pose prior, 2D motion matching, dual-quaternion backend).",
       "path_b_ai_visual_polish": "Now better conditioned by anatomically valid low-dimensional motion data; next step is ControlNet / diffusion export from the distilled body and pose representation.",
-      "path_c_architecture_closure": "Integrate WFC, Export, and Shader modules into the main pipeline (Parallel)"
+      "path_c_architecture_closure": "SESSION-032 delivered a first working closure through a lightweight PDG + USD-like scene description. Next step: PDG v2 semantics, OpenUSD-compatible interchange, and conditioned neural-render export."
     },
     "commercial_references": [
       {
@@ -46,14 +46,16 @@
       }
     ]
   },
-  "current_focus": "SESSION-031 delivered a compact human-math layer on top of the existing three-layer evolution engine: SMPL-like body parameterization for 2D rigs, a VPoser-inspired anatomical pose prior, dual-quaternion transform utilities for future pseudo-3D/3D expansion, and a 2D motion-matching database for low-dimensional locomotion retrieval. Layer 3 fitness now includes anatomical_score and motion_match_score, Skeleton can project poses through the prior, and automatic physics distillation now records anatomy + motion matching heuristics. Full suite status: 665/665 passing.",
+  "current_focus": "SESSION-032 delivered Gap 1 architecture closure: a lightweight ProceduralDependencyGraph now orchestrates WFC -> scene description -> shader planning/generation -> export bundling inside AssetPipeline. UniversalSceneDescription provides a USD-like shared contract, produce_level_pack() makes level generation first-class, produce_asset_pack(...levels=...) integrates level bundles into summary output, and Layer 3 can now distill successful procedural pipeline patterns. Full suite status: 669/669 passing.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "SESSION_HANDOFF.md",
+    "research_session032_pdg_framing.md",
     "research_session031_framing.md",
     "research_notes_session030.md",
     "BIOMECHANICS_RESEARCH_NOTES.md",
     "PHYSICS_ANIMATION_UPGRADE_PLAN.md",
+    "SIM_CONDITIONED_NEURAL_RENDERING_EVALUATION.md",
     "PRECISION_PARALLEL_RESEARCH_PROTOCOL.md"
   ],
   "default_research_skill": "/home/ubuntu/skills/mathart-precision-research/SKILL.md",
@@ -97,6 +99,38 @@
       "description": "Wire RuleCompiler to automatically inject ParameterSpace into all modules at runtime instead of hardcoding."
     },
     {
+      "id": "P1-ARCH-4",
+      "priority": "P1",
+      "title": "PDG v2 runtime semantics",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Add cache keys, partition / collect, fan-out / fan-in orchestration, and reusable work-item attributes to the lightweight DAG runtime."
+    },
+    {
+      "id": "P1-ARCH-5",
+      "priority": "P1",
+      "title": "OpenUSD-compatible scene interchange",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Extend the lightweight scene description into layered composition and export/import compatible serialization."
+    },
+    {
+      "id": "P1-ARCH-6",
+      "priority": "P1",
+      "title": "Rich topology-aware level semantics",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Promote scene prims beyond ASCII counts into surfaces, adjacency, traversal lanes, and decoration anchors."
+    },
+    {
+      "id": "P1-AI-2",
+      "priority": "P1",
+      "title": "Simulation-conditioned neural rendering bridge",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Export physics / scene / mask constraints from the new scene contract into ComfyUI / Wan-style rendering backends."
+    },
+    {
       "id": "P1-DISTILL-3",
       "priority": "P1",
       "title": "Distill Verlet & Gait Parameters",
@@ -119,30 +153,6 @@
       "status": "TODO",
       "estimated_effort": "medium",
       "description": "Export skeleton/pose data as ControlNet inputs for external AI diffusion models."
-    },
-    {
-      "id": "P1-ARCH-1",
-      "priority": "P1",
-      "title": "WFC tilemap pipeline integration",
-      "status": "TODO",
-      "estimated_effort": "high",
-      "description": "Add produce_level() to AssetPipeline, integrate WFC outputs into asset packs."
-    },
-    {
-      "id": "P1-ARCH-2",
-      "priority": "P1",
-      "title": "Export pipeline integration",
-      "status": "TODO",
-      "estimated_effort": "high",
-      "description": "Promote exporter to first-class stage with engine-ready bundles."
-    },
-    {
-      "id": "P1-ARCH-3",
-      "priority": "P1",
-      "title": "Shader pipeline integration",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Wire ShaderCodeGenerator into AssetPipeline."
     },
     {
       "id": "P1-VFX-1",
@@ -370,6 +380,31 @@
     }
   ],
   "completed_tasks": [
+    {
+      "id": "P0-ARCH-32A",
+      "title": "USD-like unified scene description for level bundles",
+      "completed_in": "SESSION-032"
+    },
+    {
+      "id": "P0-ARCH-32B",
+      "title": "Lightweight PDG / DAG orchestration for WFC, scene, shader, and export",
+      "completed_in": "SESSION-032"
+    },
+    {
+      "id": "P0-ARCH-32C",
+      "title": "Top-level AssetPipeline level-pack integration with bundle summaries",
+      "completed_in": "SESSION-032"
+    },
+    {
+      "id": "P0-ARCH-32D",
+      "title": "Layer 3 procedural-pipeline distillation path",
+      "completed_in": "SESSION-032"
+    },
+    {
+      "id": "VALIDATION-032",
+      "title": "Full repository validation (669/669 pass, SESSION-032 included)",
+      "completed_in": "SESSION-032"
+    },
     {
       "id": "P0-HUMAN-31A",
       "title": "Distilled human-math stack: SMPL-like shape model + dual-quaternion backend",
@@ -780,8 +815,6 @@
     "RESOLVED-S029: No inverted pendulum locomotion model -> InvertedPendulumModel with LIPM trajectory + bounce + sway",
     "RESOLVED-S029: No calculus-based skating cleanup -> SkatingCleanupCalculus with finite-difference velocity + Hermite blending",
     "REMAINING: No production benchmark asset suite",
-    "REMAINING: WFC tilemap not first-class in AssetPipeline",
-    "REMAINING: Shader/Export modules not first-class in AssetPipeline",
     "REMAINING: No per-frame SDF parameter animation",
     "REMAINING: No reaction-diffusion textures",
     "REMAINING: Visual quality still tech-demo level (SDF primitives vs hand-drawn/AI)",
@@ -794,7 +827,13 @@
     "RESOLVED-S031: No low-dimensional motion retrieval layer -> MotionMatcher2D + Layer 3 motion_match_score",
     "REMAINING-S031: Shape latents are not yet first-class genes in CharacterGenotype or AssetPipeline UI",
     "REMAINING-S031: Motion matching retrieves clips but does not yet synthesize transition blends / pose warping",
-    "REMAINING-S031: Dual quaternions are ready as a math backend but not yet wired into a pseudo-3D renderer or mesh-shell exporter"
+    "REMAINING-S031: Dual quaternions are ready as a math backend but not yet wired into a pseudo-3D renderer or mesh-shell exporter",
+    "RESOLVED-S032: No top-level orchestration for WFC/shader/export -> ProceduralDependencyGraph + AssetPipeline.produce_level_pack()",
+    "RESOLVED-S032: No shared scene contract across level/render/export -> UniversalSceneDescription (USD-like scene object)",
+    "RESOLVED-S032: No architecture feedback closure for procedural pipeline -> Layer 3 distill_pipeline_success()",
+    "REMAINING-S032: PDG runtime lacks cache / partition / collect / fan-out semantics of fuller industrial pipelines",
+    "REMAINING-S032: USD-like scene contract is lightweight and not yet OpenUSD-compatible layered interchange",
+    "REMAINING-S032: Simulation-conditioned neural rendering bridge is architecturally prepared but not yet implemented"
   ],
   "session_029_changes": {
     "new_artifacts": [
@@ -883,13 +922,14 @@
     }
   },
   "recent_audit": {
-    "session": "SESSION-031",
-    "summary": "SESSION-031 translated four research directions into a single compact human-math layer aligned to the repositorys 2D-first architecture. DistilledSMPLBodyModel maps low-dimensional shape latents into existing style and skeleton proportions. VPoserDistilledPrior projects invalid elbow/knee configurations back into an anatomically plausible manifold and now integrates with Skeleton and Layer 3 fitness. MotionMatcher2D provides feature-schema-driven low-dimensional retrieval for locomotion clips, and DualQuaternion supplies a future-ready rigid transform backend for pseudo-3D or mesh-shell work. Self-audit confirmed code landing, test coverage, and three-layer feedback closure. Full repository validation: 665/665 pass.",
+    "session": "SESSION-032",
+    "summary": "SESSION-032 closed the repository's main architecture break by introducing a lightweight PDG executor and a USD-like scene description that turn WFC output into a reusable shared contract for shader planning, preview generation, export bundling, and audit. The new level pipeline is now first-class inside AssetPipeline, can participate in asset-pack summaries, and feeds successful execution patterns back into Layer 3 distillation. Self-audit confirmed that the research conclusions were reflected in concrete code structure rather than documentation-only changes. Full repository validation: 669/669 pass.",
     "top_gaps": [
       "Production benchmark asset suite (P1-NEW-10)",
-      "WFC tilemap pipeline integration (P1-ARCH-1)",
-      "Export pipeline integration (P1-ARCH-2)",
-      "Shader pipeline integration (P1-ARCH-3)",
+      "PDG v2 runtime semantics with cache/partition/fan-out (P1-ARCH-4)",
+      "OpenUSD-compatible scene interchange (P1-ARCH-5)",
+      "Rich topology-aware level semantics (P1-ARCH-6)",
+      "Simulation-conditioned neural rendering bridge (P1-AI-2)",
       "Integrate shape latents into CharacterGenotype / AssetPipeline (P1-HUMAN-31A)",
       "Motion transition blending after retrieval (P1-HUMAN-31B)",
       "Pseudo-3D dual-quaternion renderer backend (P1-HUMAN-31C)",
@@ -926,6 +966,40 @@
       "new_tests": "10 SESSION-031 tests",
       "regression": "Zero regressions after full-suite rerun",
       "code_delta": "+~500 lines human-math integration + tests"
+    }
+  },
+  "session_032_changes": {
+    "new_artifacts": [
+      "mathart/level/scene_description.py: USD-like scene contract for level bundles",
+      "mathart/level/pdg.py: Lightweight PDG / DAG executor",
+      "tests/test_level_pdg.py: 4 tests for DAG, scene metrics, pipeline bundle, and asset-pack summary",
+      "research_session032_pdg_framing.md: SESSION-032 research synthesis for Gap 1 architecture closure"
+    ],
+    "modified_artifacts": [
+      "mathart/level/__init__.py: Exported scene description and PDG public API",
+      "mathart/pipeline.py: Added LevelPipelineSpec, produce_level_pack(), and asset-pack level integration",
+      "mathart/evolution/evolution_layer3.py: Added procedural pipeline distillation support",
+      "mathart/__init__.py: Version bump to 0.24.0",
+      "SESSION_HANDOFF.md: Updated for SESSION-032",
+      "PROJECT_BRAIN.json: Updated for SESSION-032"
+    ],
+    "p0_tasks_resolved": [
+      "P0-ARCH-32A: USD-like unified scene description",
+      "P0-ARCH-32B: Lightweight PDG / DAG orchestration",
+      "P0-ARCH-32C: Top-level WFC->Shader->Export pipeline closure",
+      "P0-ARCH-32D: Layer 3 procedural-pipeline distillation"
+    ],
+    "benchmark_impact": {
+      "environment_tileset": "10 -> 18 maturity score (WFC output now feeds a first-class pipeline instead of an isolated generator)",
+      "engine_ready_export": "15 -> 24 maturity score (level bundle export is now explicit and summary-visible)",
+      "engineering_automation": "60 -> 70 maturity score (dependency-aware orchestration replaces hand-wired flow in the level path)",
+      "overall": "~20-22% -> ~24-26% completion"
+    },
+    "validation": {
+      "full_suite": "669/669 PASS",
+      "new_tests": "4 SESSION-032 tests",
+      "regression": "Zero regressions after full-suite rerun",
+      "code_delta": "+~700 lines architecture integration + tests + state updates"
     }
   }
 }
