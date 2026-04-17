@@ -54,6 +54,8 @@ from typing import Optional, Callable
 
 import numpy as np
 
+from mathart.distill.runtime_bus import RuntimeRuleProgram
+
 from .unified_motion import UnifiedMotionFrame, umr_to_pose
 
 
@@ -346,6 +348,8 @@ class AnglePoseProjector:
         skeleton_ref=None,
         compliance_mode: str = "compliant_pd",
         compliance_alpha: float = 0.6,
+        runtime_distill_bus=None,
+        foot_contact_program: Optional[RuntimeRuleProgram] = None,
     ):
         self._configs = dict(joint_configs or DEFAULT_JOINT_PHYSICS)
         self._cognitive = cognitive_config or CognitiveMotionConfig()
@@ -369,10 +373,62 @@ class AnglePoseProjector:
         # Delayed target buffers for overlapping action
         self._delayed_targets: dict[str, list[float]] = {}
 
-        # SESSION-028-SUPP: PhysDiff-inspired foot contact & skating cleanup
+        # SESSION-028-SUPP / SESSION-050: PhysDiff-inspired foot contact & skating cleanup
         self._enable_foot_locking = enable_foot_locking
-        self._contact_detector = ContactDetector()
-        self._constraint_blender = ConstraintBlender(blend_in_frames=3, blend_out_frames=4)
+        self._runtime_distill_bus = runtime_distill_bus
+        contact_threshold = 0.05
+        velocity_threshold = 0.15
+        blend_in_frames = 3
+        blend_out_frames = 4
+        if runtime_distill_bus is not None:
+            contact_threshold = float(runtime_distill_bus.resolve_scalar(
+                [
+                    "physics.contact.height_threshold",
+                    "foot_contact_height",
+                    "contact_height",
+                    "contact_threshold",
+                ],
+                0.05,
+            ))
+            velocity_threshold = float(runtime_distill_bus.resolve_scalar(
+                [
+                    "physics.contact.velocity_threshold",
+                    "foot_contact_velocity",
+                    "contact_velocity",
+                    "velocity_threshold",
+                ],
+                0.15,
+            ))
+            blend_in_frames = max(1, int(round(runtime_distill_bus.resolve_scalar(
+                [
+                    "physics.constraint.blend_in_frames",
+                    "blend_in_frames",
+                    "constraint_blend_in",
+                ],
+                3.0,
+            ))))
+            blend_out_frames = max(1, int(round(runtime_distill_bus.resolve_scalar(
+                [
+                    "physics.constraint.blend_out_frames",
+                    "blend_out_frames",
+                    "constraint_blend_out",
+                ],
+                4.0,
+            ))))
+            if foot_contact_program is None:
+                foot_contact_program = runtime_distill_bus.build_foot_contact_program(
+                    contact_threshold=contact_threshold,
+                    velocity_threshold=velocity_threshold,
+                )
+        self._contact_detector = ContactDetector(
+            contact_threshold=contact_threshold,
+            velocity_threshold=velocity_threshold,
+            runtime_program=foot_contact_program,
+        )
+        self._constraint_blender = ConstraintBlender(
+            blend_in_frames=blend_in_frames,
+            blend_out_frames=blend_out_frames,
+        )
         self._foot_locker = FootLockingConstraint(skeleton_ref=skeleton_ref)
         self._skeleton_ref = skeleton_ref
 
@@ -1193,15 +1249,18 @@ class ContactDetector:
         contact_threshold: float = 0.05,
         velocity_threshold: float = 0.15,
         foot_joints: list[str] | None = None,
+        runtime_program: Optional[RuntimeRuleProgram] = None,
     ):
         self.contact_threshold = contact_threshold
         self.velocity_threshold = velocity_threshold
         self.foot_joints = foot_joints or ["l_foot", "r_foot"]
+        self._runtime_program = runtime_program
 
         self._states: dict[str, ContactState] = {
             name: ContactState() for name in self.foot_joints
         }
         self._prev_positions: dict[str, tuple[float, float]] = {}
+        self._feature_buffer = np.zeros(2, dtype=np.float64)
 
     def update(
         self,
@@ -1235,10 +1294,16 @@ class ContactDetector:
                 prev_y = self._prev_positions[foot_name][1]
                 vy = (foot_y - prev_y) / max(dt, 1e-8)
 
-            # Contact detection: height below threshold AND velocity small
-            height_ok = foot_y <= self.contact_threshold
-            velocity_ok = abs(vy) <= self.velocity_threshold
-            now_contacting = height_ok and velocity_ok
+            # SESSION-050: use the runtime-distilled JIT program when available.
+            if self._runtime_program is not None:
+                self._feature_buffer[0] = foot_y
+                self._feature_buffer[1] = vy
+                runtime_eval = self._runtime_program.evaluate_array(self._feature_buffer)
+                now_contacting = runtime_eval.accepted
+            else:
+                height_ok = foot_y <= self.contact_threshold
+                velocity_ok = abs(vy) <= self.velocity_threshold
+                now_contacting = height_ok and velocity_ok
 
             if now_contacting and not state.is_contacting:
                 # Transition: free → contact

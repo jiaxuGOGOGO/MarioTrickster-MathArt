@@ -1,22 +1,22 @@
 {
-  "version": "0.40.0",
-  "last_session_id": "SESSION-049",
-  "last_updated": "2026-04-17T18:00:00Z",
+  "version": "0.41.0",
+  "last_session_id": "SESSION-050",
+  "last_updated": "2026-04-17T03:46:13Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "54 new tests PASS (Gap B3); 949 core tests PASS; zero new regressions",
+  "validation_pass_rate": "5 new tests PASS (Gap A2); 118 targeted regression tests PASS; zero targeted regressions",
   "total_iterations": 500,
-  "total_code_lines": 66100,
+  "total_code_lines": 66800,
   "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 63,
+  "knowledge_rule_count": 66,
   "math_model_count": 28,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",
-    "overall_completion": "37-39%",
-    "last_assessed": "SESSION-049",
+    "overall_completion": "40-42%",
+    "last_assessed": "SESSION-050",
     "dimension_scores": {
       "animation_physics_realism": 12,
       "motion_cognitive_naturalness": 23,
@@ -31,7 +31,7 @@
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules. SESSION-049 closes Gap B3 by implementing Marker-based DTW gait transition blending: SyncMarker/GaitSyncProfile define foot-contact events, StrideWheel drives phase from distance (Rosen), GaitBlender performs Leader-Follower synchronized blend (UE Sync Groups), and adaptive_bounce provides speed-dependent vertical oscillation. Phase warping ensures sync marker alignment before pose interpolation, eliminating foot sliding during walk/run/sneak transitions.",
       "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. Combined with SESSION-044 auxiliary maps (normal/depth/mask), the project now has a complete Math→AI conditioning pipeline. Next: real-time EbSynth/ComfyUI integration demo.",
-      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge; SESSION-048 closes Gap B2 (scene-aware distance sensor) by implementing SDF terrain description, sphere-marching ray sensor, gravity-corrected TTC prediction, and phase-binding so transient phase reaches 1.0 at contact on arbitrary terrain. Next step: gait transition blending, production benchmark suite, and real-time EbSynth/ComfyUI demo."
+      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge; SESSION-048 closes Gap B2 (scene-aware distance sensor) by implementing SDF terrain description, sphere-marching ray sensor, gravity-corrected TTC prediction, and phase-binding so transient phase reaches 1.0 at contact on arbitrary terrain. Next step: gait transition blending, production benchmark suite, and real-time EbSynth/ComfyUI demo. SESSION-050 closes Gap A2 by adding RuntimeDistillationBus, CompiledParameterSpace, JIT runtime rule programs, physics hot-path foot-contact integration, quality-controller pre-generation propagation, and RuntimeDistillBridge."
     },
     "commercial_references": [
       {
@@ -48,9 +48,12 @@
     "engineering_automation": 87,
     "animation_physics_realism": 10
   },
-  "current_focus": "SESSION-049 closes Gap B3 by implementing Phase-Preserving Gait Transition Blending with Marker-based DTW, Stride Wheel (David Rosen), Leader-Follower Synchronized Blend (UE Sync Groups), and Adaptive Bounce. SyncMarker + GaitSyncProfile define foot-contact events; StrideWheel drives animation phase from distance traveled; GaitBlender performs Leader-Follower weight-based blending with phase warping; adaptive_bounce provides speed-dependent vertical oscillation. GaitBlendEvolutionBridge provides three-layer evaluation, distillation, and fitness integration. All previous SESSION-043/044/045/046/047/048 capabilities remain intact. Next: pipeline integration of GaitBlender, production benchmark assets, real-time EbSynth/ComfyUI demo, and full XPBD coupling.",
+  "current_focus": "SESSION-050 closes Gap A2 by implementing a Runtime Distillation Bus that lowers repository knowledge from KnowledgeParser/RuleCompiler/ParameterSpace into dense runtime arrays and Numba-compiled rule kernels. The bus now feeds the 60fps foot-contact path in physics_projector.py, global pre-generation adjustment in quality/controller.py, and a dedicated three-layer RuntimeDistillBridge that persists state and writes back runtime_distill_bus.md. Next: broaden bus rollout into gait blending, batch physics penalties, and optional Taichi backend.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "docs/research/GAP_A2_RUNTIME_DISTILL_BUS_JIT.md",
+    "docs/audit/SESSION_050_AUDIT.md",
+    "knowledge/runtime_distill_bus.md",
     "docs/research/GAP_B3_GAIT_TRANSITION_PHASE_BLEND.md",
     "docs/audit/SESSION_049_AUDIT.md",
     "docs/research/GAP_B2_TERRAIN_SENSOR_TTC.md",
@@ -273,9 +276,10 @@
       "id": "P0-DISTILL-1",
       "priority": "P0",
       "title": "Global Distillation Bus (The Brain)",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "high",
-      "description": "Wire RuleCompiler to automatically inject ParameterSpace into all modules at runtime instead of hardcoding."
+      "description": "CLOSED in SESSION-050. RuntimeDistillationBus now compiles repository knowledge into dense runtime arrays and Numba JIT evaluators, injects compiled constraints into quality/controller.py, feeds the 60fps foot-contact path in physics_projector.py, and persists three-layer evolution state via RuntimeDistillBridge.",
+      "completed_in": "SESSION-050"
     },
     {
       "id": "P1-PHASE-33A",
@@ -708,6 +712,24 @@
       "estimated_effort": "medium",
       "description": "Merge TransitionSynthesizer (inertialized blending) with GaitBlender (phase-preserving blending) into a complete transition pipeline.",
       "added_in": "SESSION-049"
+    },
+    {
+      "id": "P1-DISTILL-1A",
+      "priority": "P1",
+      "title": "Roll Runtime DistillBus into gait blending and batch physics penalties",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Extend the SESSION-050 runtime bus from foot-contact gating into gait blending, locomotion scoring, and compute_physics_penalty() batch evaluation so more hot loops consume compiled closures.",
+      "added_in": "SESSION-050"
+    },
+    {
+      "id": "P1-DISTILL-1B",
+      "priority": "P1",
+      "title": "Add Taichi backend and benchmark suite for Runtime DistillBus",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Keep SESSION-050's lowering boundary but add a Taichi backend plus larger benchmark scenes to compare array/JIT performance across runtime workloads.",
+      "added_in": "SESSION-050"
     }
   ],
   "completed_tasks": [
@@ -2055,11 +2077,17 @@
     "session049_gait_blend_bridge": "mathart/evolution/gait_blend_bridge.py implements three-layer evaluation, rule distillation, fitness scoring, and persistent state tracking.",
     "session049_stride_wheel_fix": "StrideWheel.set_circumference() now preserves current phase by rescaling accumulated distance — critical for eliminating phase jumps during gait transitions.",
     "session049_test_count": "54 new tests, all PASS.",
-    "session049_audit": "docs/audit/SESSION_049_AUDIT.md confirms research → code → artifact → test closure for all 8 research items."
+    "session049_audit": "docs/audit/SESSION_049_AUDIT.md confirms research → code → artifact → test closure for all 8 research items.",
+    "session050_gapa2_status": "CLOSED. Runtime Distillation Bus now compiles repository knowledge into dense runtime arrays and JIT kernels.",
+    "session050_runtime_bus": "mathart/distill/runtime_bus.py adds RuntimeDistillationBus, CompiledParameterSpace, RuntimeRuleProgram, and load_runtime_distillation_bus().",
+    "session050_runtime_integration": "mathart/animation/physics_projector.py now consumes a compiled foot-contact program in ContactDetector.update(), and mathart/quality/controller.py applies global compiled constraints during pre_generation().",
+    "session050_runtime_bridge": "mathart/evolution/runtime_distill_bridge.py implements Layer 1 evaluation, Layer 2 rule distillation to knowledge/runtime_distill_bus.md, and Layer 3 persistent state in .runtime_distill_state.json.",
+    "session050_test_count": "5 new tests PASS; 118 targeted regression tests PASS.",
+    "session050_audit": "docs/audit/SESSION_050_AUDIT.md confirms research -> code -> artifact -> runtime -> test closure for Gap A2."
   },
   "recent_focus_snapshot": {
     "top_open_loops": [
-      "Gait transition blending walk/run/sneak (P1-PHASE-33A)",
+      "Runtime DistillBus wider rollout into gait blending / batch physics penalties (P1-DISTILL-1A)",
       "Production benchmark asset suite (P1-NEW-10)",
       "Real-time EbSynth/ComfyUI integration demo (P1-AI-2A)"
     ],

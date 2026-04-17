@@ -1,0 +1,21 @@
+{
+  "total_cycles": 1,
+  "total_passes": 1,
+  "total_failures": 0,
+  "best_throughput_per_s": 458629.199869897,
+  "best_constraint_count": 297,
+  "history": [
+    {
+      "cycle_id": 1,
+      "module_count": 18,
+      "constraint_count": 297,
+      "program_count": 1,
+      "backend": "numba",
+      "sample_count": 6,
+      "expected_matches": 6,
+      "mean_contact_score": 0.6666666666666666,
+      "throughput_per_s": 458629.199869897,
+      "accepted": true
+    }
+  ]
+}

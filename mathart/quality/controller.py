@@ -43,6 +43,7 @@ from typing import Optional
 import numpy as np
 from PIL import Image
 
+from mathart.distill.runtime_bus import load_runtime_distillation_bus
 from mathart.quality.checkpoint import (
     CheckpointDecision,
     CheckpointResult,
@@ -90,6 +91,7 @@ class ArtMathQualityController:
         self._evaluator     = None
         self._stagnation    = None
         self._sprite_lib    = None
+        self._runtime_bus   = None
         self._knowledge     = self._load_knowledge()
         self._math_registry = self._load_math_registry()
 
@@ -121,6 +123,14 @@ class ArtMathQualityController:
                 # Auto-adjust if we know the target value
                 if viol.severity > 0.5 and rule.get("param") and rule.get("target"):
                     adjustments[rule["param"]] = rule["target"]
+
+        # 1.5. Runtime DistillBus injection (SESSION-050 / Gap A2)
+        runtime_bus = self._get_runtime_bus()
+        if runtime_bus is not None:
+            bus_adjusted = runtime_bus.apply_global_constraints(current_params)
+            for key, value in bus_adjusted.items():
+                if key in current_params and abs(float(value) - float(current_params[key])) > 1e-9:
+                    adjustments[key] = float(value)
 
         # 2. Check params against math model constraints
         for model_name, constraints in self._math_registry.items():
@@ -174,6 +184,22 @@ class ArtMathQualityController:
         if self.verbose:
             print(result.summary())
         return result
+
+    def _get_runtime_bus(self):
+        """Lazily load the runtime distillation bus.
+
+        The bus is optional. If knowledge parsing or runtime compilation fails,
+        quality control falls back to the legacy logic without interrupting the
+        generation loop.
+        """
+        if self._runtime_bus is not None:
+            return self._runtime_bus
+        try:
+            self._runtime_bus = load_runtime_distillation_bus(self.root)
+        except Exception as exc:
+            logger.debug("Runtime distillation bus unavailable: %s", exc)
+            self._runtime_bus = None
+        return self._runtime_bus
 
     # ── Checkpoint 2: MID-GENERATION ─────────────────────────────────────────
 

@@ -18,6 +18,15 @@ parameter configurations that drive the OKLAB, SDF, Animation, and Level modules
 from .parser import KnowledgeParser, KnowledgeRule, RuleType, TargetModule
 from .compiler import RuleCompiler, ParameterSpace, Constraint
 from .optimizer import EvolutionaryOptimizer, FitnessResult
+from .runtime_bus import (
+    NUMBA_AVAILABLE,
+    CompiledParameterSpace,
+    RuntimeConstraintEvaluation,
+    RuntimeDistillationBus,
+    RuntimeRuleClause,
+    RuntimeRuleProgram,
+    load_runtime_distillation_bus,
+)
 
 __all__ = [
     "KnowledgeParser",
@@ -29,4 +38,11 @@ __all__ = [
     "Constraint",
     "EvolutionaryOptimizer",
     "FitnessResult",
+    "NUMBA_AVAILABLE",
+    "CompiledParameterSpace",
+    "RuntimeConstraintEvaluation",
+    "RuntimeDistillationBus",
+    "RuntimeRuleClause",
+    "RuntimeRuleProgram",
+    "load_runtime_distillation_bus",
 ]

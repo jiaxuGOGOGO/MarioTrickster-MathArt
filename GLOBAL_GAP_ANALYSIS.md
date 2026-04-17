@@ -17,11 +17,21 @@
 - 游戏引擎中基于反馈的程序化动画调参方案（如基于梯度的可微物理，或贝叶斯优化）。
 - 诊断规则（文本/分类）到连续参数空间（如 `foot_lock_strength`）的自动映射算法。
 
-### Gap A2: 全局蒸馏总线未接入运行时 (P0-DISTILL-1)
-**现状**：项目拥有强大的知识蒸馏系统（`distill/`），能将论文解析为 `ParameterSpace` 约束。但目前这些约束仅在代码注释中被引用，**没有任何生产代码在运行时自动消费编译后的知识**。
-**搜集方向**：
-- 依赖注入（Dependency Injection）在 Python 科学计算/数据管线中的最佳实践。
-- 如何在不破坏性能的前提下，让底层数学模块（如 SDF 渲染、物理积分）在运行时动态读取并遵守全局 `ParameterSpace` 约束。
+### Gap A2: 全局蒸馏总线未接入运行时 (P0-DISTILL-1) — ✅ SESSION-050 RESOLVED
+**现状**：~~项目拥有强大的知识蒸馏系统（`distill/`），能将论文解析为 `ParameterSpace` 约束。但目前这些约束仅在代码注释中被引用，**没有任何生产代码在运行时自动消费编译后的知识**。~~
+
+**SESSION-050 解决方案（v0.41.0）**：
+- **RuntimeDistillationBus** (`mathart/distill/runtime_bus.py`)：把 `KnowledgeParser -> RuleCompiler -> ParameterSpace` 的输出降为 dense arrays（defaults / min / max / masks）和 runtime alias maps。
+- **CompiledParameterSpace**：将参数空间编译为可直接运行时消费的结构，并在 Numba 可用时生成 JIT evaluator，避免 60fps 热路径重复解释 JSON / dict。
+- **RuntimeRuleProgram**：把诸如 `foot_height <= threshold` 与 `abs(foot_vertical_velocity) <= threshold` 这样的规则编译为专用闭包，支持 acceptance / score / penalty / bitmask 输出。
+- **Physics 热路径接入**：`mathart/animation/physics_projector.py` 中的 `ContactDetector.update()` 已可调用编译后的 foot-contact 程序，证明 DistillBus 已进入真实逐帧执行路径。
+- **全局预生成接入**：`mathart/quality/controller.py` 的 `pre_generation()` 现会懒加载 RuntimeDistillBus，并对当前参数应用编译后的全局约束。
+- **三层进化闭环**：`mathart/evolution/runtime_distill_bridge.py` 评估 compiled module/constraint 数量、runtime correctness 与 throughput，并把结果写回 `knowledge/runtime_distill_bus.md` 与 `.runtime_distill_state.json`。
+- **验证结果**：首个 runtime cycle 编译 **18** 个模块、**297** 条约束，contact-rule correctness **6/6**，throughput **458629.2 eval/s**，验收通过。
+
+**研究文档**：`docs/research/GAP_A2_RUNTIME_DISTILL_BUS_JIT.md`
+**审计清单**：`docs/audit/SESSION_050_AUDIT.md`
+**代表人物/对标参考**：Mike Acton（Data-Oriented Design）、胡渊鸣（Taichi）、Numba Runtime JIT best practices
 
 ---
 
