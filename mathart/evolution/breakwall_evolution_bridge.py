@@ -55,6 +55,8 @@ class BreakwallMetrics:
     """Metrics from a single breakwall evolution cycle.
 
     Combines neural rendering temporal metrics and engine bundle quality.
+    SESSION-060 extends this with guide-lock, identity stability, and sparse
+    keyframe-planning signals for industrial anti-flicker production.
     """
     cycle_id: int = 0
     timestamp: str = ""
@@ -66,9 +68,16 @@ class BreakwallMetrics:
     flicker_score: float = 1.0
     ssim_proxy: float = 0.0
     coverage: float = 0.0
+    guide_lock_score: float = 0.0
+    identity_consistency_proxy: float = 0.0
+    long_range_drift: float = 1.0
+    temporal_stability_score: float = 0.0
+    keyframe_density: float = 0.0
     frame_count: int = 0
     keyframe_count: int = 0
     render_elapsed_seconds: float = 0.0
+    workflow_manifest: dict[str, Any] = field(default_factory=dict)
+    keyframe_plan: dict[str, Any] = field(default_factory=dict)
 
     # Engine bundle metrics
     bundle_valid: bool = False
@@ -89,9 +98,16 @@ class BreakwallMetrics:
             "flicker_score": self.flicker_score,
             "ssim_proxy": self.ssim_proxy,
             "coverage": self.coverage,
+            "guide_lock_score": self.guide_lock_score,
+            "identity_consistency_proxy": self.identity_consistency_proxy,
+            "long_range_drift": self.long_range_drift,
+            "temporal_stability_score": self.temporal_stability_score,
+            "keyframe_density": self.keyframe_density,
             "frame_count": self.frame_count,
             "keyframe_count": self.keyframe_count,
             "render_elapsed_seconds": self.render_elapsed_seconds,
+            "workflow_manifest": self.workflow_manifest,
+            "keyframe_plan": self.keyframe_plan,
             "bundle_valid": self.bundle_valid,
             "bundle_channels_found": self.bundle_channels_found,
             "bundle_contour_points": self.bundle_contour_points,
@@ -109,15 +125,21 @@ class BreakwallState:
     consecutive_passes: int = 0
     best_warp_error: float = 1.0
     best_flicker_score: float = 1.0
+    best_temporal_stability_score: float = 0.0
+    best_identity_consistency: float = 0.0
     best_bundle_channels: int = 0
     warp_error_trend: list[float] = field(default_factory=list)
     flicker_trend: list[float] = field(default_factory=list)
+    temporal_stability_trend: list[float] = field(default_factory=list)
+    identity_consistency_trend: list[float] = field(default_factory=list)
     bundle_quality_trend: list[float] = field(default_factory=list)
     knowledge_rules_total: int = 0
     optimal_keyframe_interval: int = 4
     optimal_ebsynth_uniformity: float = 4000.0
     optimal_controlnet_normal_weight: float = 1.0
     optimal_controlnet_depth_weight: float = 1.0
+    optimal_ip_adapter_weight: float = 0.85
+    optimal_mask_guide_weight: float = 1.25
     history: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -128,15 +150,21 @@ class BreakwallState:
             "consecutive_passes": self.consecutive_passes,
             "best_warp_error": self.best_warp_error,
             "best_flicker_score": self.best_flicker_score,
+            "best_temporal_stability_score": self.best_temporal_stability_score,
+            "best_identity_consistency": self.best_identity_consistency,
             "best_bundle_channels": self.best_bundle_channels,
             "warp_error_trend": self.warp_error_trend[-50:],
             "flicker_trend": self.flicker_trend[-50:],
+            "temporal_stability_trend": self.temporal_stability_trend[-50:],
+            "identity_consistency_trend": self.identity_consistency_trend[-50:],
             "bundle_quality_trend": self.bundle_quality_trend[-50:],
             "knowledge_rules_total": self.knowledge_rules_total,
             "optimal_keyframe_interval": self.optimal_keyframe_interval,
             "optimal_ebsynth_uniformity": self.optimal_ebsynth_uniformity,
             "optimal_controlnet_normal_weight": self.optimal_controlnet_normal_weight,
             "optimal_controlnet_depth_weight": self.optimal_controlnet_depth_weight,
+            "optimal_ip_adapter_weight": self.optimal_ip_adapter_weight,
+            "optimal_mask_guide_weight": self.optimal_mask_guide_weight,
             "history": self.history[-20:],
         }
 
@@ -149,15 +177,21 @@ class BreakwallState:
             consecutive_passes=data.get("consecutive_passes", 0),
             best_warp_error=data.get("best_warp_error", 1.0),
             best_flicker_score=data.get("best_flicker_score", 1.0),
+            best_temporal_stability_score=data.get("best_temporal_stability_score", 0.0),
+            best_identity_consistency=data.get("best_identity_consistency", 0.0),
             best_bundle_channels=data.get("best_bundle_channels", 0),
             warp_error_trend=data.get("warp_error_trend", []),
             flicker_trend=data.get("flicker_trend", []),
+            temporal_stability_trend=data.get("temporal_stability_trend", []),
+            identity_consistency_trend=data.get("identity_consistency_trend", []),
             bundle_quality_trend=data.get("bundle_quality_trend", []),
             knowledge_rules_total=data.get("knowledge_rules_total", 0),
             optimal_keyframe_interval=data.get("optimal_keyframe_interval", 4),
             optimal_ebsynth_uniformity=data.get("optimal_ebsynth_uniformity", 4000.0),
             optimal_controlnet_normal_weight=data.get("optimal_controlnet_normal_weight", 1.0),
             optimal_controlnet_depth_weight=data.get("optimal_controlnet_depth_weight", 1.0),
+            optimal_ip_adapter_weight=data.get("optimal_ip_adapter_weight", 0.85),
+            optimal_mask_guide_weight=data.get("optimal_mask_guide_weight", 1.25),
             history=data.get("history", []),
         )
 
@@ -300,6 +334,11 @@ class BreakwallEvolutionBridge:
                 ebsynth_uniformity=self.state.optimal_ebsynth_uniformity,
                 controlnet_normal_weight=self.state.optimal_controlnet_normal_weight,
                 controlnet_depth_weight=self.state.optimal_controlnet_depth_weight,
+                ip_adapter_weight=self.state.optimal_ip_adapter_weight,
+                mask_guide_weight=self.state.optimal_mask_guide_weight,
+                use_ip_adapter_identity=True,
+                use_mask_guide=True,
+                keyframe_selection_strategy="motion_adaptive",
                 warp_error_threshold=warp_error_threshold,
                 output_dir=str(self.project_root / "output" / "breakwall_eval"),
             )
@@ -323,9 +362,18 @@ class BreakwallEvolutionBridge:
             metrics.flicker_score = tm.get("flicker_score", 1.0)
             metrics.ssim_proxy = tm.get("mean_ssim_proxy", 0.0)
             metrics.coverage = tm.get("mean_coverage", 0.0)
+            metrics.guide_lock_score = tm.get("guide_lock_score", 0.0)
+            metrics.identity_consistency_proxy = tm.get("identity_consistency_proxy", 0.0)
+            metrics.long_range_drift = tm.get("long_range_drift", 1.0)
+            metrics.temporal_stability_score = tm.get("temporal_stability_score", 0.0)
+            metrics.keyframe_density = tm.get("keyframe_density", 0.0)
             metrics.frame_count = result.frame_count
             metrics.keyframe_count = len(result.keyframe_indices)
             metrics.render_elapsed_seconds = result.elapsed_seconds
+            metrics.workflow_manifest = dict(getattr(result, "workflow_manifest", {}) or {})
+            metrics.keyframe_plan = (
+                result.keyframe_plan.to_dict() if getattr(result, "keyframe_plan", None) else {}
+            )
 
         except Exception as e:
             logger.warning(f"Neural rendering evaluation failed: {e}")
@@ -480,11 +528,23 @@ class BreakwallEvolutionBridge:
         self.state.best_flicker_score = min(
             self.state.best_flicker_score, render_metrics.flicker_score
         )
+        self.state.best_temporal_stability_score = max(
+            self.state.best_temporal_stability_score,
+            render_metrics.temporal_stability_score,
+        )
+        self.state.best_identity_consistency = max(
+            self.state.best_identity_consistency,
+            render_metrics.identity_consistency_proxy,
+        )
         self.state.best_bundle_channels = max(
             self.state.best_bundle_channels, render_metrics.bundle_channels_found
         )
         self.state.warp_error_trend.append(render_metrics.mean_warp_error)
         self.state.flicker_trend.append(render_metrics.flicker_score)
+        self.state.temporal_stability_trend.append(render_metrics.temporal_stability_score)
+        self.state.identity_consistency_trend.append(
+            render_metrics.identity_consistency_proxy
+        )
         bundle_quality = render_metrics.bundle_channels_found / 6.0
         self.state.bundle_quality_trend.append(bundle_quality)
         self.state.history.append(render_metrics.to_dict())
@@ -496,6 +556,8 @@ class BreakwallEvolutionBridge:
                 f"[Breakwall] Cycle {render_metrics.cycle_id}: {status} "
                 f"(WarpErr={render_metrics.mean_warp_error:.4f}, "
                 f"Flicker={render_metrics.flicker_score:.4f}, "
+                f"Identity={render_metrics.identity_consistency_proxy:.4f}, "
+                f"Stability={render_metrics.temporal_stability_score:.4f}, "
                 f"Bundle={render_metrics.bundle_channels_found}/6)"
             )
 
@@ -566,6 +628,44 @@ class BreakwallEvolutionBridge:
                 "source": f"BreakwallBridge-Cycle-{metrics.cycle_id}",
             })
 
+        if metrics.long_range_drift > 0.20 or metrics.identity_consistency_proxy < 0.60:
+            rules.append({
+                "domain": "breakwall_temporal_consistency",
+                "rule_type": "identity_lock_enforcement",
+                "rule_text": (
+                    f"Temporal identity drift detected: drift={metrics.long_range_drift:.4f}, "
+                    f"identity_consistency={metrics.identity_consistency_proxy:.4f}. "
+                    "Lock sparse keyframes with IP-Adapter identity reference and preserve "
+                    "optical-flow-guided propagation across the full sequence. "
+                    "Research ref: Ye et al. IP-Adapter 2023, Liang et al. FlowVid CVPR 2024."
+                ),
+                "params": {
+                    "long_range_drift": f"{metrics.long_range_drift:.4f}",
+                    "identity_consistency_proxy": f"{metrics.identity_consistency_proxy:.4f}",
+                    "guide_lock_score": f"{metrics.guide_lock_score:.4f}",
+                },
+                "confidence": 0.91,
+                "source": f"BreakwallBridge-Cycle-{metrics.cycle_id}",
+            })
+
+        if metrics.guide_lock_score < 0.70:
+            rules.append({
+                "domain": "breakwall_temporal_consistency",
+                "rule_type": "multi_condition_lock_warning",
+                "rule_text": (
+                    f"Guide lock score is low ({metrics.guide_lock_score:.4f}). "
+                    "Industrial anti-flicker mode should keep Normal, Depth, Mask, Motion Vectors "
+                    "and identity reference aligned so AI only paints sparse keyframes. "
+                    "Research ref: Zhang ControlNet ICCV 2023, Jamriška SIGGRAPH 2019."
+                ),
+                "params": {
+                    "guide_lock_score": f"{metrics.guide_lock_score:.4f}",
+                    "keyframe_density": f"{metrics.keyframe_density:.4f}",
+                },
+                "confidence": 0.89,
+                "source": f"BreakwallBridge-Cycle-{metrics.cycle_id}",
+            })
+
         # Rule: Engine bundle issues
         if not metrics.bundle_valid:
             rules.append({
@@ -582,6 +682,26 @@ class BreakwallEvolutionBridge:
                     "issues": metrics.bundle_issues[:5],
                 },
                 "confidence": 0.90,
+                "source": f"BreakwallBridge-Cycle-{metrics.cycle_id}",
+            })
+
+        if metrics.accepted and metrics.guide_lock_score >= 0.80:
+            rules.append({
+                "domain": "breakwall_temporal_consistency",
+                "rule_type": "production_recipe",
+                "rule_text": (
+                    "Accepted industrial anti-flicker recipe: generate sparse AI keyframes only, "
+                    "lock geometry with ControlNet Normal+Depth, keep procedural masks and motion vectors "
+                    "available for propagation, and preserve a stable identity reference path. "
+                    "This is the recommended production baseline for SESSION-060 visual animation batches."
+                ),
+                "params": {
+                    "keyframe_density": f"{metrics.keyframe_density:.4f}",
+                    "guide_lock_score": f"{metrics.guide_lock_score:.4f}",
+                    "identity_consistency_proxy": f"{metrics.identity_consistency_proxy:.4f}",
+                    "temporal_stability_score": f"{metrics.temporal_stability_score:.4f}",
+                },
+                "confidence": 0.93,
                 "source": f"BreakwallBridge-Cycle-{metrics.cycle_id}",
             })
 
@@ -660,6 +780,13 @@ class BreakwallEvolutionBridge:
         if metrics.flicker_score < 0.02:
             bonus += 0.03
 
+        if metrics.temporal_stability_score > 0.75:
+            bonus += 0.03
+        if metrics.identity_consistency_proxy > 0.70:
+            bonus += 0.02
+        if metrics.guide_lock_score > 0.70:
+            bonus += 0.02
+
         # Bundle completeness bonus
         if metrics.bundle_valid:
             bonus += 0.03
@@ -679,6 +806,11 @@ class BreakwallEvolutionBridge:
 
         if metrics.flicker_score > 0.1:
             bonus -= min(0.15, metrics.flicker_score * 1.5)
+
+        if metrics.long_range_drift < 0.999 and metrics.long_range_drift > 0.25:
+            bonus -= min(0.12, metrics.long_range_drift * 0.4)
+        if metrics.identity_consistency_proxy > 0.0 and metrics.identity_consistency_proxy < 0.55:
+            bonus -= min(0.10, (0.55 - metrics.identity_consistency_proxy) * 0.5)
 
         if not metrics.bundle_valid:
             bonus -= 0.05
@@ -717,6 +849,22 @@ class BreakwallEvolutionBridge:
                 )
                 changes["ebsynth_uniformity"] = self.state.optimal_ebsynth_uniformity
 
+        if len(self.state.identity_consistency_trend) >= 3:
+            recent_identity = self.state.identity_consistency_trend[-3:]
+            if np.mean(recent_identity) < 0.60:
+                self.state.optimal_ip_adapter_weight = min(
+                    1.2, self.state.optimal_ip_adapter_weight + 0.05
+                )
+                changes["ip_adapter_weight"] = self.state.optimal_ip_adapter_weight
+
+        if len(self.state.temporal_stability_trend) >= 3:
+            recent_stability = self.state.temporal_stability_trend[-3:]
+            if np.mean(recent_stability) < 0.60:
+                self.state.optimal_mask_guide_weight = min(
+                    2.0, self.state.optimal_mask_guide_weight + 0.1
+                )
+                changes["mask_guide_weight"] = self.state.optimal_mask_guide_weight
+
         # If everything is stable, try increasing keyframe interval for efficiency
         if (
             self.state.consecutive_passes >= 5
@@ -735,17 +883,21 @@ class BreakwallEvolutionBridge:
     def status_report(self) -> str:
         """Generate a status report for the breakwall evolution bridge."""
         lines = [
-            "--- Breakwall Evolution Bridge (SESSION-056 / Phase 1) ---",
+            "--- Breakwall Evolution Bridge (SESSION-056/060 / Phase 1+2) ---",
             f"   Total cycles: {self.state.total_cycles}",
             f"   Passes: {self.state.total_passes}",
             f"   Failures: {self.state.total_failures}",
             f"   Consecutive passes: {self.state.consecutive_passes}",
             f"   Best warp error: {self.state.best_warp_error:.4f}",
             f"   Best flicker score: {self.state.best_flicker_score:.4f}",
+            f"   Best temporal stability: {self.state.best_temporal_stability_score:.4f}",
+            f"   Best identity consistency: {self.state.best_identity_consistency:.4f}",
             f"   Best bundle channels: {self.state.best_bundle_channels}/6",
             f"   Knowledge rules: {self.state.knowledge_rules_total}",
             f"   Optimal keyframe interval: {self.state.optimal_keyframe_interval}",
             f"   Optimal EbSynth uniformity: {self.state.optimal_ebsynth_uniformity:.0f}",
+            f"   Optimal IP-Adapter weight: {self.state.optimal_ip_adapter_weight:.2f}",
+            f"   Optimal mask guide weight: {self.state.optimal_mask_guide_weight:.2f}",
         ]
         if self.state.warp_error_trend:
             recent = self.state.warp_error_trend[-5:]
@@ -763,10 +915,10 @@ class BreakwallEvolutionBridge:
         lines = []
         if not knowledge_file.exists():
             lines = [
-                "# Breakwall Phase 1 Knowledge Base",
+                "# Breakwall Knowledge Base",
                 "",
-                "> Auto-generated by SESSION-056 Breakwall Evolution Bridge.",
-                "> Research provenance: Jamriška (EbSynth), Zhang (ControlNet), "
+                "> Auto-generated by SESSION-056/060 Breakwall Evolution Bridge.",
+                "> Research provenance: Jamriška (EbSynth), Zhang (ControlNet), Ye (IP-Adapter), Liang (FlowVid), "
                 "Bénard (Dead Cells).",
                 "",
             ]

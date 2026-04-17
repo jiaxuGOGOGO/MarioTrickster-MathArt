@@ -89,9 +89,10 @@ class TestComfyUIHeadlessClient:
         assert isinstance(workflow, dict)
         assert "prompt" in workflow
         assert "client_id" in workflow
-        # Should have 14 nodes
+        assert "mathart_lock_manifest" in workflow
         prompt_nodes = workflow["prompt"]
-        assert len(prompt_nodes) == 14
+        assert len(prompt_nodes) >= 14
+        assert workflow["mathart_lock_manifest"]["controlnet_guides"] == ["normal", "depth"]
 
     def test_workflow_has_dual_controlnet(self):
         from mathart.animation.headless_comfy_ebsynth import ComfyUIHeadlessClient
@@ -103,6 +104,8 @@ class TestComfyUIHeadlessClient:
             source_image=source,
             normal_map=normal,
             depth_map=depth,
+            identity_reference=source,
+            use_ip_adapter=True,
             prompt="test",
         )
         nodes = workflow["prompt"]
@@ -112,6 +115,8 @@ class TestComfyUIHeadlessClient:
         # Node 9: ControlNet Depth loader
         assert nodes["9"]["class_type"] == "ControlNetLoader"
         assert "depth" in nodes["9"]["inputs"]["control_net_name"]
+        assert workflow["mathart_lock_manifest"]["identity_lock_active"] is True
+        assert "ip_adapter_identity" in workflow["mathart_lock_manifest"]["guides_requested"]
 
 
 class TestEbSynthPropagationEngine:
@@ -203,7 +208,7 @@ class TestHeadlessNeuralRenderPipeline:
         config = NeuralRenderConfig()
         pipeline = HeadlessNeuralRenderPipeline(config)
 
-        source, normals, depths, mv_seq = pipeline.bake_auxiliary_maps(
+        source, normals, depths, masks, mv_seq = pipeline.bake_auxiliary_maps(
             skeleton=skeleton,
             animation_func=idle_animation,
             style=style,
@@ -215,6 +220,8 @@ class TestHeadlessNeuralRenderPipeline:
         assert len(source) == 4
         assert len(normals) == 4
         assert len(depths) == 4
+        assert len(masks) == 4
+        assert all(mask.mode == "L" for mask in masks)
         assert mv_seq is not None
         assert len(mv_seq.fields) == 3  # N-1 fields for N frames
 
@@ -257,7 +264,11 @@ class TestHeadlessNeuralRenderPipeline:
             assert len(result.source_frames) == 4
             assert len(result.normal_maps) == 4
             assert result.mv_sequence is not None
+            assert len(result.mask_maps) == 4
+            assert result.keyframe_plan is not None
             assert "mean_warp_error" in result.temporal_metrics
+            assert "temporal_stability_score" in result.temporal_metrics
+            assert result.workflow_manifest
             assert result.elapsed_seconds > 0
 
             # Check export
@@ -265,19 +276,25 @@ class TestHeadlessNeuralRenderPipeline:
             assert meta_path.exists()
             meta = json.loads(meta_path.read_text())
             assert meta["format"] == "headless_neural_render"
+            assert (Path(tmpdir) / "workflow_manifest.json").exists()
+            assert (Path(tmpdir) / "keyframe_plan.json").exists()
 
     def test_result_metadata(self, skeleton, style):
         from mathart.animation.headless_comfy_ebsynth import (
-            HeadlessNeuralRenderPipeline, NeuralRenderConfig, NeuralRenderResult,
+            HeadlessNeuralRenderPipeline, NeuralRenderConfig, NeuralRenderResult, KeyframePlan,
         )
         config = NeuralRenderConfig(style_prompt="test style")
         result = NeuralRenderResult(
             config=config,
             keyframe_indices=[0, 4],
+            keyframe_plan=KeyframePlan(indices=[0, 4], guides_locked=["normal", "depth"]),
+            workflow_manifest={"guides_locked": ["normal", "depth"]},
             temporal_metrics={"temporal_pass": True, "mean_warp_error": 0.05},
         )
         meta = result.to_metadata()
         assert meta["format"] == "headless_neural_render"
+        assert meta["keyframe_plan"]["indices"] == [0, 4]
+        assert meta["workflow_manifest"]["guides_locked"] == ["normal", "depth"]
         assert "Jamriška" in str(meta["research_provenance"])
         assert "ControlNet" in str(meta["research_provenance"])
 

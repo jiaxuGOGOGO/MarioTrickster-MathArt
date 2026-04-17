@@ -1,0 +1,196 @@
+{
+  "total_cycles": 2,
+  "total_passes": 2,
+  "total_failures": 0,
+  "consecutive_passes": 2,
+  "best_warp_error": 0.06955156286307973,
+  "best_flicker_score": 0.046046253469285696,
+  "best_temporal_stability_score": 0.7126313500453754,
+  "best_identity_consistency": 0.9990284443440438,
+  "best_bundle_channels": 6,
+  "warp_error_trend": [
+    0.06955156286307973,
+    0.06955156286307973
+  ],
+  "flicker_trend": [
+    0.046046253469285696,
+    0.046046253469285696
+  ],
+  "temporal_stability_trend": [
+    0.7126313500453754,
+    0.7126313500453754
+  ],
+  "identity_consistency_trend": [
+    0.9990284443440438,
+    0.9990284443440438
+  ],
+  "bundle_quality_trend": [
+    1.0,
+    1.0
+  ],
+  "knowledge_rules_total": 0,
+  "optimal_keyframe_interval": 4,
+  "optimal_ebsynth_uniformity": 4000.0,
+  "optimal_controlnet_normal_weight": 1.0,
+  "optimal_controlnet_depth_weight": 1.0,
+  "optimal_ip_adapter_weight": 0.85,
+  "optimal_mask_guide_weight": 1.25,
+  "history": [
+    {
+      "cycle_id": 1,
+      "timestamp": "2026-04-17T17:31:49Z",
+      "neural_render_pass": true,
+      "mean_warp_error": 0.06955156286307973,
+      "max_warp_error": 0.13438430548257138,
+      "flicker_score": 0.046046253469285696,
+      "ssim_proxy": 0.9304484371369203,
+      "coverage": 0.466552734375,
+      "guide_lock_score": 1.0,
+      "identity_consistency_proxy": 0.9990284443440438,
+      "long_range_drift": 0.002023492623229714,
+      "temporal_stability_score": 0.7126313500453754,
+      "keyframe_density": 0.5,
+      "frame_count": 4,
+      "keyframe_count": 2,
+      "render_elapsed_seconds": 0.4353325366973877,
+      "workflow_manifest": {
+        "identity_lock_active": false,
+        "fallback_reason": "deterministic_style_transfer",
+        "controlnet_guides": [
+          "normal",
+          "depth"
+        ],
+        "mask_present": true,
+        "planned_keyframes": [
+          0,
+          3
+        ],
+        "guides_locked": [
+          "normal",
+          "depth",
+          "motion_vectors",
+          "mask",
+          "ip_adapter_identity"
+        ]
+      },
+      "keyframe_plan": {
+        "indices": [
+          0,
+          3
+        ],
+        "motion_scores": {
+          "0": 0.0,
+          "1": 0.607497,
+          "2": 1.0,
+          "3": 0.656469
+        },
+        "silhouette_scores": {
+          "0": 0.0,
+          "1": 0.021973,
+          "2": 0.038574,
+          "3": 0.027832
+        },
+        "priority_scores": {
+          "0": 0.0,
+          "1": 0.43184,
+          "2": 0.711572,
+          "3": 0.467878
+        },
+        "strategy": "motion_adaptive",
+        "max_gap": 3,
+        "density": 0.5,
+        "identity_reference_index": 0,
+        "guides_locked": [
+          "normal",
+          "depth",
+          "motion_vectors",
+          "mask",
+          "ip_adapter_identity"
+        ]
+      },
+      "bundle_valid": true,
+      "bundle_channels_found": 6,
+      "bundle_contour_points": 57,
+      "bundle_issues": [],
+      "accepted": true
+    },
+    {
+      "cycle_id": 2,
+      "timestamp": "2026-04-17T17:32:29Z",
+      "neural_render_pass": true,
+      "mean_warp_error": 0.06955156286307973,
+      "max_warp_error": 0.13438430548257138,
+      "flicker_score": 0.046046253469285696,
+      "ssim_proxy": 0.9304484371369203,
+      "coverage": 0.466552734375,
+      "guide_lock_score": 1.0,
+      "identity_consistency_proxy": 0.9990284443440438,
+      "long_range_drift": 0.002023492623229714,
+      "temporal_stability_score": 0.7126313500453754,
+      "keyframe_density": 0.5,
+      "frame_count": 4,
+      "keyframe_count": 2,
+      "render_elapsed_seconds": 0.4261741638183594,
+      "workflow_manifest": {
+        "identity_lock_active": false,
+        "fallback_reason": "deterministic_style_transfer",
+        "controlnet_guides": [
+          "normal",
+          "depth"
+        ],
+        "mask_present": true,
+        "planned_keyframes": [
+          0,
+          3
+        ],
+        "guides_locked": [
+          "normal",
+          "depth",
+          "motion_vectors",
+          "mask",
+          "ip_adapter_identity"
+        ]
+      },
+      "keyframe_plan": {
+        "indices": [
+          0,
+          3
+        ],
+        "motion_scores": {
+          "0": 0.0,
+          "1": 0.607497,
+          "2": 1.0,
+          "3": 0.656469
+        },
+        "silhouette_scores": {
+          "0": 0.0,
+          "1": 0.021973,
+          "2": 0.038574,
+          "3": 0.027832
+        },
+        "priority_scores": {
+          "0": 0.0,
+          "1": 0.43184,
+          "2": 0.711572,
+          "3": 0.467878
+        },
+        "strategy": "motion_adaptive",
+        "max_gap": 3,
+        "density": 0.5,
+        "identity_reference_index": 0,
+        "guides_locked": [
+          "normal",
+          "depth",
+          "motion_vectors",
+          "mask",
+          "ip_adapter_identity"
+        ]
+      },
+      "bundle_valid": true,
+      "bundle_channels_found": 6,
+      "bundle_contour_points": 57,
+      "bundle_issues": [],
+      "accepted": true
+    }
+  ]
+}

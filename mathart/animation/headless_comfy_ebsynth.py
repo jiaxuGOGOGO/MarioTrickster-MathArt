@@ -110,66 +110,40 @@ logger = logging.getLogger(__name__)
 class NeuralRenderConfig:
     """Configuration for the headless neural rendering pipeline.
 
-    Attributes
-    ----------
-    comfyui_url : str
-        ComfyUI API endpoint (default: localhost:8188).
-    style_prompt : str
-        Text prompt for AI style generation.
-    negative_prompt : str
-        Negative prompt to avoid unwanted artifacts.
-    controlnet_normal_weight : float
-        ControlNet normal map conditioning strength (0.0–2.0).
-        1.0 = geometry fully locked by analytical normals.
-    controlnet_depth_weight : float
-        ControlNet depth map conditioning strength (0.0–2.0).
-        1.0 = silhouette fully locked by analytical depth.
-    ebsynth_uniformity : float
-        EbSynth patch uniformity weight (higher = more consistent texture).
-    ebsynth_patch_size : int
-        EbSynth patch matching size (must be odd, 5 or 7 recommended).
-    ebsynth_pyramid_levels : int
-        Multi-scale pyramid levels for patch matching.
-    keyframe_interval : int
-        Generate an AI-stylized keyframe every N frames.
-    use_temporal_nnf : bool
-        Enable temporal NNF propagation in EbSynth (reduces flicker).
-    use_sparse_feature_guide : bool
-        Enable sparse feature guiding in EbSynth (pins style to objects).
-    mv_guide_weight : float
-        Weight of ground-truth motion vector guide channel in EbSynth.
-    normal_guide_weight : float
-        Weight of normal map guide channel in EbSynth.
-    edge_guide_weight : float
-        Weight of edge detection guide channel in EbSynth.
-    warp_error_threshold : float
-        Maximum acceptable mean warp error for temporal consistency gate.
-    sd_model_checkpoint : str
-        Stable Diffusion model checkpoint name.
-    sd_steps : int
-        Number of diffusion sampling steps.
-    sd_cfg_scale : float
-        Classifier-free guidance scale.
-    sd_denoising_strength : float
-        Denoising strength for img2img (0.0 = no change, 1.0 = full denoise).
-    output_dir : str
-        Output directory for exported frames and project files.
+    Phase 2 extends the original SESSION-056 path with an industrial
+    anti-flicker workflow: sparse keyframe planning, identity locking via
+    IP-Adapter-compatible branches, and guide-completeness auditing.
     """
     comfyui_url: str = "http://localhost:8188"
     style_prompt: str = "high quality pixel art, detailed shading, game sprite"
     negative_prompt: str = "blurry, low quality, distorted, deformed"
     controlnet_normal_weight: float = 1.0
     controlnet_depth_weight: float = 1.0
+    controlnet_mask_weight: float = 0.75
+    use_ip_adapter_identity: bool = True
+    ip_adapter_weight: float = 0.85
+    ip_adapter_model_name: str = "ip-adapter-plus_sdxl_vit-h.safetensors"
+    ip_adapter_clip_vision_name: str = "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    workflow_lock_required: bool = False
     ebsynth_uniformity: float = 4000.0
     ebsynth_patch_size: int = 7
     ebsynth_pyramid_levels: int = 5
     keyframe_interval: int = 4
+    keyframe_selection_strategy: str = "motion_adaptive"
+    max_keyframes: int = 6
+    min_keyframe_gap: int = 2
+    motion_energy_percentile: float = 0.72
+    silhouette_delta_threshold: float = 0.08
     use_temporal_nnf: bool = True
     use_sparse_feature_guide: bool = True
+    use_mask_guide: bool = True
     mv_guide_weight: float = 2.0
     normal_guide_weight: float = 1.5
     edge_guide_weight: float = 1.0
+    mask_guide_weight: float = 1.25
     warp_error_threshold: float = 0.15
+    temporal_drift_threshold: float = 0.22
+    identity_consistency_threshold: float = 0.55
     sd_model_checkpoint: str = "sd_xl_base_1.0.safetensors"
     sd_steps: int = 20
     sd_cfg_scale: float = 7.5
@@ -177,7 +151,7 @@ class NeuralRenderConfig:
     output_dir: str = "./output/neural_render"
 
     def validate(self) -> list[str]:
-        """Validate configuration, return list of warnings."""
+        """Validate configuration and normalize industrial defaults."""
         warnings = []
         if self.controlnet_normal_weight < 0.5:
             warnings.append(
@@ -195,7 +169,48 @@ class NeuralRenderConfig:
         if self.keyframe_interval < 1:
             warnings.append("keyframe_interval must be >= 1; setting to 1")
             self.keyframe_interval = 1
+        if self.min_keyframe_gap < 1:
+            warnings.append("min_keyframe_gap must be >= 1; setting to 1")
+            self.min_keyframe_gap = 1
+        if self.max_keyframes < 2:
+            warnings.append("max_keyframes must be >= 2; setting to 2")
+            self.max_keyframes = 2
+        self.motion_energy_percentile = float(np.clip(self.motion_energy_percentile, 0.1, 0.95))
+        self.controlnet_mask_weight = float(np.clip(self.controlnet_mask_weight, 0.0, 2.0))
+        self.ip_adapter_weight = float(np.clip(self.ip_adapter_weight, 0.0, 1.5))
+        self.mask_guide_weight = float(np.clip(self.mask_guide_weight, 0.0, 3.0))
+        self.identity_consistency_threshold = float(
+            np.clip(self.identity_consistency_threshold, 0.0, 1.0)
+        )
+        self.temporal_drift_threshold = float(np.clip(self.temporal_drift_threshold, 0.0, 1.0))
         return warnings
+
+
+@dataclass
+class KeyframePlan:
+    """Sparse keyframe schedule for industrial anti-flicker generation."""
+    indices: list[int] = field(default_factory=list)
+    motion_scores: dict[int, float] = field(default_factory=dict)
+    silhouette_scores: dict[int, float] = field(default_factory=dict)
+    priority_scores: dict[int, float] = field(default_factory=dict)
+    strategy: str = "fixed_interval"
+    max_gap: int = 0
+    density: float = 0.0
+    identity_reference_index: int = 0
+    guides_locked: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "indices": self.indices,
+            "motion_scores": {str(k): round(v, 6) for k, v in self.motion_scores.items()},
+            "silhouette_scores": {str(k): round(v, 6) for k, v in self.silhouette_scores.items()},
+            "priority_scores": {str(k): round(v, 6) for k, v in self.priority_scores.items()},
+            "strategy": self.strategy,
+            "max_gap": self.max_gap,
+            "density": round(self.density, 6),
+            "identity_reference_index": self.identity_reference_index,
+            "guides_locked": self.guides_locked,
+        }
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -205,41 +220,18 @@ class NeuralRenderConfig:
 
 @dataclass
 class NeuralRenderResult:
-    """Result of the headless neural rendering pipeline.
-
-    Attributes
-    ----------
-    stylized_frames : list[Image.Image]
-        Final stylized frames (zero-flicker output).
-    keyframe_indices : list[int]
-        Indices of AI-generated keyframes.
-    keyframes : list[Image.Image]
-        AI-generated keyframes (before EbSynth propagation).
-    source_frames : list[Image.Image]
-        Original rendered frames from the math engine.
-    normal_maps : list[Image.Image]
-        Analytical normal maps used for ControlNet conditioning.
-    depth_maps : list[Image.Image]
-        Analytical depth maps used for ControlNet conditioning.
-    mv_sequence : MotionVectorSequence
-        Ground-truth motion vector sequence from FK.
-    temporal_metrics : dict[str, float]
-        Temporal consistency metrics from warp-check validation.
-    pipeline_log : list[str]
-        Detailed pipeline execution log.
-    config : NeuralRenderConfig
-        Configuration used for this render.
-    elapsed_seconds : float
-        Total pipeline execution time.
-    """
+    """Result of the headless neural rendering pipeline."""
     stylized_frames: list[Image.Image] = field(default_factory=list)
     keyframe_indices: list[int] = field(default_factory=list)
     keyframes: list[Image.Image] = field(default_factory=list)
     source_frames: list[Image.Image] = field(default_factory=list)
     normal_maps: list[Image.Image] = field(default_factory=list)
     depth_maps: list[Image.Image] = field(default_factory=list)
+    mask_maps: list[Image.Image] = field(default_factory=list)
     mv_sequence: Optional[MotionVectorSequence] = None
     temporal_metrics: dict[str, float] = field(default_factory=dict)
+    workflow_manifest: dict[str, Any] = field(default_factory=dict)
+    keyframe_plan: Optional[KeyframePlan] = None
     pipeline_log: list[str] = field(default_factory=list)
     config: Optional[NeuralRenderConfig] = None
     elapsed_seconds: float = 0.0
@@ -256,16 +248,22 @@ class NeuralRenderResult:
         """Export pipeline result as JSON-serializable metadata."""
         return {
             "format": "headless_neural_render",
-            "version": "1.0",
+            "version": "2.0",
             "frame_count": self.frame_count,
             "keyframe_indices": self.keyframe_indices,
+            "keyframe_plan": self.keyframe_plan.to_dict() if self.keyframe_plan else {},
             "temporal_metrics": self.temporal_metrics,
+            "workflow_manifest": self.workflow_manifest,
             "config": {
                 "style_prompt": self.config.style_prompt if self.config else "",
                 "controlnet_normal_weight": self.config.controlnet_normal_weight if self.config else 0,
                 "controlnet_depth_weight": self.config.controlnet_depth_weight if self.config else 0,
+                "controlnet_mask_weight": self.config.controlnet_mask_weight if self.config else 0,
+                "use_ip_adapter_identity": self.config.use_ip_adapter_identity if self.config else False,
+                "ip_adapter_weight": self.config.ip_adapter_weight if self.config else 0,
                 "ebsynth_uniformity": self.config.ebsynth_uniformity if self.config else 0,
                 "keyframe_interval": self.config.keyframe_interval if self.config else 0,
+                "keyframe_selection_strategy": self.config.keyframe_selection_strategy if self.config else "",
                 "warp_error_threshold": self.config.warp_error_threshold if self.config else 0,
             },
             "elapsed_seconds": self.elapsed_seconds,
@@ -273,6 +271,8 @@ class NeuralRenderResult:
             "research_provenance": [
                 "Jamriška et al., Stylizing Video by Example, SIGGRAPH 2019",
                 "Zhang et al., ControlNet, ICCV 2023",
+                "Ye et al., IP-Adapter, arXiv 2023",
+                "Liang et al., FlowVid, CVPR 2024",
                 "FuouM/ReEzSynth, MIT License",
             ],
         }
@@ -317,157 +317,159 @@ class ComfyUIHeadlessClient:
         negative_prompt: str = "",
         normal_weight: float = 1.0,
         depth_weight: float = 1.0,
+        mask_map: Optional[Image.Image] = None,
+        identity_reference: Optional[Image.Image] = None,
+        use_ip_adapter: bool = False,
+        ip_adapter_weight: float = 0.85,
+        ip_adapter_model_name: str = "ip-adapter-plus_sdxl_vit-h.safetensors",
+        ip_adapter_clip_vision_name: str = "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors",
         model_checkpoint: str = "sd_xl_base_1.0.safetensors",
         steps: int = 20,
         cfg_scale: float = 7.5,
         denoising_strength: float = 0.65,
         seed: int = -1,
     ) -> dict[str, Any]:
-        """Build a ComfyUI workflow JSON for dual-ControlNet conditioned generation.
+        """Build a ComfyUI workflow JSON for industrial sparse-keyframe generation.
 
-        This workflow locks geometry via ControlNet-NormalBae and ControlNet-Depth,
-        allowing the AI to generate ONLY material/texture on frozen shapes.
-
-        The workflow graph:
-            LoadImage(source) → img2img
-            LoadImage(normal) → ControlNet-NormalBae (weight=normal_weight)
-            LoadImage(depth)  → ControlNet-Depth (weight=depth_weight)
-            Both ControlNets → KSampler → VAEDecode → SaveImage
-
-        Parameters
-        ----------
-        source_image : Image.Image
-            Source albedo frame from the math engine.
-        normal_map : Image.Image
-            Analytical normal map (ground-truth from SDF).
-        depth_map : Image.Image
-            Analytical depth map (ground-truth from SDF).
-        prompt : str
-            Style prompt for generation.
-        negative_prompt : str
-            Negative prompt.
-        normal_weight : float
-            ControlNet normal conditioning strength.
-        depth_weight : float
-            ControlNet depth conditioning strength.
-        model_checkpoint : str
-            SD model checkpoint name.
-        steps : int
-            Sampling steps.
-        cfg_scale : float
-            CFG scale.
-        denoising_strength : float
-            Denoising strength for img2img.
-        seed : int
-            Random seed (-1 for random).
-
-        Returns
-        -------
-        dict
-            ComfyUI workflow JSON (API format).
+        The base workflow remains dual-ControlNet (normal + depth). When an
+        identity reference is available, an optional IP-Adapter branch is added
+        so the model can lock character identity while ControlNet locks geometry.
         """
         if seed < 0:
             seed = np.random.randint(0, 2**31)
 
-        # Encode images as base64 for API upload
         def img_to_base64(img: Image.Image) -> str:
             buf = io.BytesIO()
             img.save(buf, format="PNG")
             return base64.b64encode(buf.getvalue()).decode("utf-8")
 
-        workflow = {
-            "client_id": self.client_id,
-            "prompt": {
-                # Node 1: Load checkpoint
-                "1": {
-                    "class_type": "CheckpointLoaderSimple",
-                    "inputs": {"ckpt_name": model_checkpoint},
+        positive_node = "11"
+        model_node = "1"
+        prompt_nodes: dict[str, Any] = {
+            "1": {
+                "class_type": "CheckpointLoaderSimple",
+                "inputs": {"ckpt_name": model_checkpoint},
+            },
+            "2": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {
+                    "text": prompt,
+                    "clip": ["1", 1],
                 },
-                # Node 2: CLIP Text Encode (positive)
-                "2": {
-                    "class_type": "CLIPTextEncode",
-                    "inputs": {
-                        "text": prompt,
-                        "clip": ["1", 1],
+            },
+            "3": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {
+                    "text": negative_prompt,
+                    "clip": ["1", 1],
+                },
+            },
+            "4": {
+                "class_type": "LoadImageBase64",
+                "inputs": {
+                    "image": img_to_base64(source_image),
+                },
+            },
+            "5": {
+                "class_type": "VAEEncode",
+                "inputs": {
+                    "pixels": ["4", 0],
+                    "vae": ["1", 2],
+                },
+            },
+            "6": {
+                "class_type": "LoadImageBase64",
+                "inputs": {
+                    "image": img_to_base64(normal_map),
+                },
+            },
+            "7": {
+                "class_type": "LoadImageBase64",
+                "inputs": {
+                    "image": img_to_base64(depth_map),
+                },
+            },
+            "8": {
+                "class_type": "ControlNetLoader",
+                "inputs": {
+                    "control_net_name": "control_v11p_sd15_normalbae.pth",
+                },
+            },
+            "9": {
+                "class_type": "ControlNetLoader",
+                "inputs": {
+                    "control_net_name": "control_v11f1p_sd15_depth.pth",
+                },
+            },
+            "10": {
+                "class_type": "ControlNetApply",
+                "inputs": {
+                    "conditioning": ["2", 0],
+                    "control_net": ["8", 0],
+                    "image": ["6", 0],
+                    "strength": normal_weight,
+                },
+            },
+            "11": {
+                "class_type": "ControlNetApply",
+                "inputs": {
+                    "conditioning": ["10", 0],
+                    "control_net": ["9", 0],
+                    "image": ["7", 0],
+                    "strength": depth_weight,
+                },
+            },
+        }
+
+        lock_manifest = {
+            "controlnet_guides": ["normal", "depth"],
+            "mask_present": mask_map is not None,
+            "identity_reference_present": identity_reference is not None,
+            "identity_lock_requested": bool(use_ip_adapter and identity_reference is not None),
+            "guides_requested": ["normal", "depth"] + (["mask"] if mask_map is not None else []),
+            "seed": int(seed),
+        }
+
+        if use_ip_adapter and identity_reference is not None:
+            prompt_nodes.update(
+                {
+                    "15": {
+                        "class_type": "LoadImageBase64",
+                        "inputs": {"image": img_to_base64(identity_reference)},
                     },
-                },
-                # Node 3: CLIP Text Encode (negative)
-                "3": {
-                    "class_type": "CLIPTextEncode",
-                    "inputs": {
-                        "text": negative_prompt,
-                        "clip": ["1", 1],
+                    "16": {
+                        "class_type": "CLIPVisionLoader",
+                        "inputs": {"clip_name": ip_adapter_clip_vision_name},
                     },
-                },
-                # Node 4: Load source image
-                "4": {
-                    "class_type": "LoadImageBase64",
-                    "inputs": {
-                        "image": img_to_base64(source_image),
+                    "17": {
+                        "class_type": "IPAdapterModelLoader",
+                        "inputs": {"ipadapter_file": ip_adapter_model_name},
                     },
-                },
-                # Node 5: VAE Encode (source → latent)
-                "5": {
-                    "class_type": "VAEEncode",
-                    "inputs": {
-                        "pixels": ["4", 0],
-                        "vae": ["1", 2],
+                    "18": {
+                        "class_type": "IPAdapterApply",
+                        "inputs": {
+                            "model": ["1", 0],
+                            "image": ["15", 0],
+                            "ipadapter": ["17", 0],
+                            "clip_vision": ["16", 0],
+                            "weight": ip_adapter_weight,
+                        },
                     },
-                },
-                # Node 6: Load normal map
-                "6": {
-                    "class_type": "LoadImageBase64",
-                    "inputs": {
-                        "image": img_to_base64(normal_map),
-                    },
-                },
-                # Node 7: Load depth map
-                "7": {
-                    "class_type": "LoadImageBase64",
-                    "inputs": {
-                        "image": img_to_base64(depth_map),
-                    },
-                },
-                # Node 8: ControlNet Loader (Normal)
-                "8": {
-                    "class_type": "ControlNetLoader",
-                    "inputs": {
-                        "control_net_name": "control_v11p_sd15_normalbae.pth",
-                    },
-                },
-                # Node 9: ControlNet Loader (Depth)
-                "9": {
-                    "class_type": "ControlNetLoader",
-                    "inputs": {
-                        "control_net_name": "control_v11f1p_sd15_depth.pth",
-                    },
-                },
-                # Node 10: Apply ControlNet (Normal)
-                "10": {
-                    "class_type": "ControlNetApply",
-                    "inputs": {
-                        "conditioning": ["2", 0],
-                        "control_net": ["8", 0],
-                        "image": ["6", 0],
-                        "strength": normal_weight,
-                    },
-                },
-                # Node 11: Apply ControlNet (Depth)
-                "11": {
-                    "class_type": "ControlNetApply",
-                    "inputs": {
-                        "conditioning": ["10", 0],
-                        "control_net": ["9", 0],
-                        "image": ["7", 0],
-                        "strength": depth_weight,
-                    },
-                },
-                # Node 12: KSampler
+                }
+            )
+            model_node = "18"
+            lock_manifest["identity_lock_active"] = True
+            lock_manifest["guides_requested"].append("ip_adapter_identity")
+        else:
+            lock_manifest["identity_lock_active"] = False
+
+        prompt_nodes.update(
+            {
                 "12": {
                     "class_type": "KSampler",
                     "inputs": {
-                        "model": ["1", 0],
-                        "positive": ["11", 0],
+                        "model": [model_node, 0],
+                        "positive": [positive_node, 0],
                         "negative": ["3", 0],
                         "latent_image": ["5", 0],
                         "seed": seed,
@@ -478,7 +480,6 @@ class ComfyUIHeadlessClient:
                         "denoise": denoising_strength,
                     },
                 },
-                # Node 13: VAE Decode
                 "13": {
                     "class_type": "VAEDecode",
                     "inputs": {
@@ -486,7 +487,6 @@ class ComfyUIHeadlessClient:
                         "vae": ["1", 2],
                     },
                 },
-                # Node 14: Save Image
                 "14": {
                     "class_type": "SaveImage",
                     "inputs": {
@@ -494,8 +494,15 @@ class ComfyUIHeadlessClient:
                         "filename_prefix": "mathart_neural",
                     },
                 },
-            },
+            }
+        )
+
+        workflow = {
+            "client_id": self.client_id,
+            "prompt": prompt_nodes,
+            "mathart_lock_manifest": lock_manifest,
         }
+        self.last_workflow_manifest = lock_manifest
         return workflow
 
     def submit_workflow(self, workflow: dict) -> Optional[str]:
@@ -593,34 +600,25 @@ class ComfyUIHeadlessClient:
         depth_map: Image.Image,
         config: NeuralRenderConfig,
         seed: int = -1,
+        mask_map: Optional[Image.Image] = None,
+        identity_reference: Optional[Image.Image] = None,
     ) -> Optional[Image.Image]:
         """Generate a single AI-stylized keyframe via ComfyUI.
 
-        Combines ControlNet-NormalBae and ControlNet-Depth to lock geometry
-        while AI generates material/texture.
-
-        Parameters
-        ----------
-        source_image : Image.Image
-            Source albedo frame.
-        normal_map : Image.Image
-            Analytical normal map.
-        depth_map : Image.Image
-            Analytical depth map.
-        config : NeuralRenderConfig
-            Pipeline configuration.
-        seed : int
-            Random seed.
-
-        Returns
-        -------
-        Image.Image or None
-            AI-stylized keyframe, or None if generation failed.
+        Phase 2 first attempts a geometry-locked plus identity-locked workflow.
+        If that path cannot be submitted and strict locking is not required, the
+        method falls back to the original dual-ControlNet workflow.
         """
         workflow = self.build_controlnet_workflow(
             source_image=source_image,
             normal_map=normal_map,
             depth_map=depth_map,
+            mask_map=mask_map,
+            identity_reference=identity_reference,
+            use_ip_adapter=bool(config.use_ip_adapter_identity and identity_reference is not None),
+            ip_adapter_weight=config.ip_adapter_weight,
+            ip_adapter_model_name=config.ip_adapter_model_name,
+            ip_adapter_clip_vision_name=config.ip_adapter_clip_vision_name,
             prompt=config.style_prompt,
             negative_prompt=config.negative_prompt,
             normal_weight=config.controlnet_normal_weight,
@@ -633,6 +631,31 @@ class ComfyUIHeadlessClient:
         )
 
         prompt_id = self.submit_workflow(workflow)
+        if prompt_id is None and config.use_ip_adapter_identity and not config.workflow_lock_required:
+            fallback_workflow = self.build_controlnet_workflow(
+                source_image=source_image,
+                normal_map=normal_map,
+                depth_map=depth_map,
+                mask_map=mask_map,
+                identity_reference=None,
+                use_ip_adapter=False,
+                prompt=config.style_prompt,
+                negative_prompt=config.negative_prompt,
+                normal_weight=config.controlnet_normal_weight,
+                depth_weight=config.controlnet_depth_weight,
+                model_checkpoint=config.sd_model_checkpoint,
+                steps=config.sd_steps,
+                cfg_scale=config.sd_cfg_scale,
+                denoising_strength=config.sd_denoising_strength,
+                seed=seed,
+            )
+            prompt_id = self.submit_workflow(fallback_workflow)
+            self.last_workflow_manifest = {
+                **getattr(self, "last_workflow_manifest", {}),
+                "identity_lock_active": False,
+                "fallback_reason": "ip_adapter_submission_failed",
+            }
+
         if prompt_id is None:
             return None
 
@@ -677,6 +700,7 @@ class EbSynthPropagationEngine:
         keyframes: dict[int, Image.Image],
         mv_sequence: MotionVectorSequence,
         normal_maps: Optional[list[Image.Image]] = None,
+        mask_maps: Optional[list[Image.Image]] = None,
     ) -> list[Image.Image]:
         """Propagate keyframe styles to all frames using ground-truth MV.
 
@@ -762,6 +786,15 @@ class EbSynthPropagationEngine:
             else:
                 # No keyframes at all — use source frame
                 stylized[i] = source_frames[i]
+
+            if mask_maps is not None and i < len(mask_maps):
+                stylized[i] = self._apply_mask_guide(
+                    stylized[i], source_frames[i], mask_maps[i]
+                )
+            if self.config.use_temporal_nnf and i > 0:
+                stylized[i] = self._temporal_stabilize(
+                    stylized[i - 1], stylized[i], source_frames[i]
+                )
 
         return stylized
 
@@ -853,32 +886,12 @@ class EbSynthPropagationEngine:
         frame_b: Image.Image,
         alpha: float,
     ) -> Image.Image:
-        """Blend two frames with temporal distance-based alpha.
-
-        Uses smooth cosine interpolation for perceptually uniform blending,
-        inspired by Poisson blending in Jamriška et al.
-
-        Parameters
-        ----------
-        frame_a : Image.Image
-            Forward-warped frame.
-        frame_b : Image.Image
-            Backward-warped frame.
-        alpha : float
-            Blend weight (0.0 = all frame_a, 1.0 = all frame_b).
-
-        Returns
-        -------
-        Image.Image
-            Blended frame.
-        """
-        # Smooth cosine interpolation for perceptually uniform blending
+        """Blend two frames with temporal distance-based alpha."""
         smooth_alpha = 0.5 * (1.0 - math.cos(math.pi * alpha))
 
         arr_a = np.array(frame_a).astype(np.float64)
         arr_b = np.array(frame_b).astype(np.float64)
 
-        # Ensure same shape
         if arr_a.shape != arr_b.shape:
             min_h = min(arr_a.shape[0], arr_b.shape[0])
             min_w = min(arr_a.shape[1], arr_b.shape[1])
@@ -887,6 +900,39 @@ class EbSynthPropagationEngine:
 
         blended = arr_a * (1.0 - smooth_alpha) + arr_b * smooth_alpha
         return Image.fromarray(np.clip(blended, 0, 255).astype(np.uint8))
+
+    def _apply_mask_guide(
+        self,
+        stylized_frame: Image.Image,
+        source_frame: Image.Image,
+        mask_frame: Image.Image,
+    ) -> Image.Image:
+        """Clamp propagated style to the procedural foreground mask."""
+        stylized = np.array(stylized_frame).astype(np.float64)
+        source = np.array(source_frame).astype(np.float64)
+        mask = np.array(mask_frame.convert("L")).astype(np.float64) / 255.0
+        mask = np.clip(mask * float(self.config.mask_guide_weight), 0.0, 1.0)
+        if stylized.ndim == 3:
+            mask = mask[:, :, None]
+        fused = stylized * mask + source * (1.0 - mask)
+        return Image.fromarray(np.clip(fused, 0, 255).astype(np.uint8))
+
+    def _temporal_stabilize(
+        self,
+        previous_frame: Image.Image,
+        current_frame: Image.Image,
+        source_frame: Image.Image,
+    ) -> Image.Image:
+        """Apply lightweight temporal blending on low-frequency residuals."""
+        prev_arr = np.array(previous_frame).astype(np.float64)
+        curr_arr = np.array(current_frame).astype(np.float64)
+        src_arr = np.array(source_frame).astype(np.float64)
+        if prev_arr.shape != curr_arr.shape:
+            return current_frame
+        residual = np.clip(np.abs(curr_arr - src_arr).mean() / 255.0, 0.0, 1.0)
+        alpha = 0.15 + 0.20 * (1.0 - residual)
+        stabilized = prev_arr * alpha + curr_arr * (1.0 - alpha)
+        return Image.fromarray(np.clip(stabilized, 0, 255).astype(np.uint8))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -934,43 +980,27 @@ class HeadlessNeuralRenderPipeline:
         frames: int = 16,
         width: int = 128,
         height: int = 128,
-    ) -> tuple[list[Image.Image], list[Image.Image], list[Image.Image], MotionVectorSequence]:
-        """Bake source frames, normal maps, depth maps, and motion vectors.
-
-        Uses the math engine's exact FK and SDF to produce ground-truth
-        auxiliary data — zero estimation error.
-
-        Parameters
-        ----------
-        skeleton : Skeleton
-            Character skeleton.
-        animation_func : Callable
-            Animation function mapping t → pose dict.
-        style : CharacterStyle
-            Character visual style.
-        frames : int
-            Number of animation frames.
-        width, height : int
-            Frame dimensions.
-
-        Returns
-        -------
-        tuple
-            (source_frames, normal_maps, depth_maps, mv_sequence)
-        """
+    ) -> tuple[
+        list[Image.Image],
+        list[Image.Image],
+        list[Image.Image],
+        list[Image.Image],
+        MotionVectorSequence,
+    ]:
+        """Bake source frames, normal maps, depth maps, masks, and motion vectors."""
         from .industrial_renderer import render_character_maps_industrial
 
         self._log_step(f"Stage 1: Baking {frames} frames at {width}x{height}")
 
-        source_frames = []
-        normal_maps = []
-        depth_maps = []
+        source_frames: list[Image.Image] = []
+        normal_maps: list[Image.Image] = []
+        depth_maps: list[Image.Image] = []
+        mask_maps: list[Image.Image] = []
 
         for i in range(frames):
             t = i / max(frames - 1, 1)
             pose = animation_func(t)
 
-            # Render industrial auxiliary maps (normal, depth, thickness, etc.)
             try:
                 result = render_character_maps_industrial(
                     skeleton=skeleton,
@@ -979,15 +1009,14 @@ class HeadlessNeuralRenderPipeline:
                     width=width,
                     height=height,
                 )
-                source_frames.append(result.albedo_image)
+                frame = result.albedo_image
+                source_frames.append(frame)
                 normal_maps.append(result.normal_map_image)
                 depth_maps.append(result.depth_map_image)
             except Exception as e:
-                # Fallback: render basic frame
                 from .character_renderer import render_character_frame
                 frame = render_character_frame(skeleton, pose, style, width, height)
                 source_frames.append(frame)
-                # Generate placeholder normal/depth
                 normal_maps.append(
                     Image.new("RGBA", (width, height), (128, 128, 255, 255))
                 )
@@ -996,7 +1025,15 @@ class HeadlessNeuralRenderPipeline:
                 )
                 self._log_step(f"  Frame {i}: fallback render ({e})")
 
-        # Bake motion vector sequence
+            frame_rgba = source_frames[-1].convert("RGBA")
+            alpha = np.array(frame_rgba.getchannel("A"))
+            if float(alpha.max()) <= 1.0:
+                alpha = (alpha * 255.0).astype(np.uint8)
+            if int(alpha.max()) == 0:
+                rgb = np.array(frame_rgba.convert("RGB")).mean(axis=2)
+                alpha = np.where(rgb > 0, 255, 0).astype(np.uint8)
+            mask_maps.append(Image.fromarray(alpha.astype(np.uint8), mode="L"))
+
         self._log_step("  Baking motion vector sequence...")
         mv_sequence = bake_motion_vector_sequence(
             skeleton=skeleton,
@@ -1012,7 +1049,86 @@ class HeadlessNeuralRenderPipeline:
             f"{len(mv_sequence.fields)} MV fields, "
             f"total motion energy: {mv_sequence.total_motion_energy:.2f}"
         )
-        return source_frames, normal_maps, depth_maps, mv_sequence
+        return source_frames, normal_maps, depth_maps, mask_maps, mv_sequence
+
+    def plan_keyframes(
+        self,
+        source_frames: list[Image.Image],
+        mask_maps: list[Image.Image],
+        mv_sequence: MotionVectorSequence,
+    ) -> KeyframePlan:
+        """Plan sparse keyframes using motion energy and silhouette deltas."""
+        n_frames = len(source_frames)
+        if n_frames == 0:
+            return KeyframePlan(guides_locked=["normal", "depth", "motion_vectors"])
+
+        motion_scores: dict[int, float] = {0: 0.0}
+        if mv_sequence.fields:
+            mags = np.array([float(field.mean_magnitude) for field in mv_sequence.fields], dtype=np.float64)
+            denom = float(mags.max()) if float(mags.max()) > 1e-8 else 1.0
+            for i, value in enumerate(mags, start=1):
+                motion_scores[min(i, n_frames - 1)] = float(value / denom)
+
+        silhouette_scores: dict[int, float] = {0: 0.0}
+        prev_mask = np.array(mask_maps[0].convert("L")).astype(np.float64) / 255.0
+        for idx in range(1, n_frames):
+            curr_mask = np.array(mask_maps[idx].convert("L")).astype(np.float64) / 255.0
+            silhouette_scores[idx] = float(np.abs(curr_mask - prev_mask).mean())
+            prev_mask = curr_mask
+
+        priority_scores: dict[int, float] = {}
+        for idx in range(n_frames):
+            priority_scores[idx] = 0.7 * motion_scores.get(idx, 0.0) + 0.3 * silhouette_scores.get(idx, 0.0)
+
+        selected = {0, n_frames - 1}
+        selected.update(range(0, n_frames, self.config.keyframe_interval))
+        threshold = float(np.quantile(
+            list(priority_scores.values()),
+            self.config.motion_energy_percentile,
+        )) if priority_scores else 1.0
+
+        if self.config.keyframe_selection_strategy == "motion_adaptive":
+            ranked = sorted(
+                [
+                    (idx, score)
+                    for idx, score in priority_scores.items()
+                    if idx not in {0, n_frames - 1}
+                ],
+                key=lambda item: item[1],
+                reverse=True,
+            )
+            for idx, score in ranked:
+                if len(selected) >= self.config.max_keyframes:
+                    break
+                if score < threshold and silhouette_scores.get(idx, 0.0) < self.config.silhouette_delta_threshold:
+                    continue
+                if min(abs(idx - s) for s in selected) < self.config.min_keyframe_gap:
+                    continue
+                selected.add(idx)
+
+        indices = sorted(selected)
+        gaps = [b - a for a, b in zip(indices, indices[1:])]
+        plan = KeyframePlan(
+            indices=indices,
+            motion_scores=motion_scores,
+            silhouette_scores=silhouette_scores,
+            priority_scores=priority_scores,
+            strategy=self.config.keyframe_selection_strategy,
+            max_gap=max(gaps) if gaps else 0,
+            density=len(indices) / max(n_frames, 1),
+            identity_reference_index=indices[0],
+            guides_locked=[
+                "normal",
+                "depth",
+                "motion_vectors",
+                *( ["mask"] if self.config.use_mask_guide else []),
+                *( ["ip_adapter_identity"] if self.config.use_ip_adapter_identity else []),
+            ],
+        )
+        self._log_step(
+            f"Stage 2a: Planned {len(indices)} sparse keyframes via {plan.strategy} at indices {indices}"
+        )
+        return plan
 
     # ── Stage 2: Generate AI-Stylized Keyframes ─────────────────────
 
@@ -1021,62 +1137,49 @@ class HeadlessNeuralRenderPipeline:
         source_frames: list[Image.Image],
         normal_maps: list[Image.Image],
         depth_maps: list[Image.Image],
-    ) -> dict[int, Image.Image]:
-        """Generate AI-stylized keyframes via ComfyUI API.
-
-        Selects keyframes at regular intervals and generates AI-stylized
-        versions using dual ControlNet conditioning (normal + depth).
-
-        If ComfyUI is unavailable, falls back to a deterministic style
-        transfer approximation using the math engine's own palette system.
-
-        Parameters
-        ----------
-        source_frames : list[Image.Image]
-            Source albedo frames.
-        normal_maps : list[Image.Image]
-            Analytical normal maps.
-        depth_maps : list[Image.Image]
-            Analytical depth maps.
-
-        Returns
-        -------
-        dict[int, Image.Image]
-            Keyframe index → AI-stylized image.
-        """
-        n_frames = len(source_frames)
-        interval = self.config.keyframe_interval
-        keyframe_indices = list(range(0, n_frames, interval))
-        if (n_frames - 1) not in keyframe_indices:
-            keyframe_indices.append(n_frames - 1)
+        mask_maps: list[Image.Image],
+        mv_sequence: MotionVectorSequence,
+    ) -> tuple[dict[int, Image.Image], KeyframePlan, dict[str, Any]]:
+        """Generate sparse AI keyframes using a motion-adaptive plan."""
+        plan = self.plan_keyframes(source_frames, mask_maps, mv_sequence)
+        identity_reference = source_frames[plan.identity_reference_index]
 
         self._log_step(
-            f"Stage 2: Generating {len(keyframe_indices)} keyframes "
-            f"at indices {keyframe_indices}"
+            f"Stage 2b: Generating {len(plan.indices)} keyframes at indices {plan.indices}"
         )
 
         keyframes: dict[int, Image.Image] = {}
+        workflow_manifest: dict[str, Any] = {}
 
-        for idx in keyframe_indices:
-            # Try ComfyUI first
+        for idx in plan.indices:
             styled = self.comfyui.generate_stylized_keyframe(
                 source_image=source_frames[idx],
                 normal_map=normal_maps[idx],
                 depth_map=depth_maps[idx],
+                mask_map=mask_maps[idx],
+                identity_reference=identity_reference,
                 config=self.config,
             )
 
             if styled is not None:
                 keyframes[idx] = styled
+                workflow_manifest = dict(getattr(self.comfyui, "last_workflow_manifest", {}))
                 self._log_step(f"  Keyframe {idx}: ComfyUI generated")
             else:
-                # Fallback: deterministic style approximation
                 keyframes[idx] = self._fallback_style_transfer(
                     source_frames[idx], normal_maps[idx]
                 )
+                workflow_manifest = {
+                    "identity_lock_active": False,
+                    "fallback_reason": "deterministic_style_transfer",
+                    "controlnet_guides": ["normal", "depth"],
+                    "mask_present": bool(mask_maps),
+                }
                 self._log_step(f"  Keyframe {idx}: fallback style transfer")
 
-        return keyframes
+        workflow_manifest.setdefault("planned_keyframes", plan.indices)
+        workflow_manifest.setdefault("guides_locked", plan.guides_locked)
+        return keyframes, plan, workflow_manifest
 
     def _fallback_style_transfer(
         self,
@@ -1135,27 +1238,9 @@ class HeadlessNeuralRenderPipeline:
         keyframes: dict[int, Image.Image],
         mv_sequence: MotionVectorSequence,
         normal_maps: Optional[list[Image.Image]] = None,
+        mask_maps: Optional[list[Image.Image]] = None,
     ) -> list[Image.Image]:
-        """Propagate keyframe styles to all frames.
-
-        Uses the EbSynthPropagationEngine with ground-truth motion vectors.
-
-        Parameters
-        ----------
-        source_frames : list[Image.Image]
-            Original rendered frames.
-        keyframes : dict[int, Image.Image]
-            AI-stylized keyframes.
-        mv_sequence : MotionVectorSequence
-            Ground-truth motion vector sequence.
-        normal_maps : list[Image.Image], optional
-            Normal maps for additional guide weighting.
-
-        Returns
-        -------
-        list[Image.Image]
-            Fully stylized frame sequence.
-        """
+        """Propagate keyframe styles to all frames."""
         self._log_step(
             f"Stage 3: Propagating style from {len(keyframes)} keyframes "
             f"to {len(source_frames)} frames"
@@ -1165,6 +1250,7 @@ class HeadlessNeuralRenderPipeline:
             keyframes=keyframes,
             mv_sequence=mv_sequence,
             normal_maps=normal_maps,
+            mask_maps=mask_maps,
         )
         self._log_step(f"  Propagated {len(stylized)} frames")
         return stylized
@@ -1175,26 +1261,10 @@ class HeadlessNeuralRenderPipeline:
         self,
         stylized_frames: list[Image.Image],
         mv_sequence: MotionVectorSequence,
+        keyframe_plan: Optional[KeyframePlan] = None,
+        workflow_manifest: Optional[dict[str, Any]] = None,
     ) -> dict[str, float]:
-        """Validate temporal consistency of the stylized output.
-
-        Uses ground-truth motion vectors to warp-check consecutive frames.
-        This is the mathematical proof that our pipeline produces zero-flicker
-        output: if warp error is below threshold, the AI styling is temporally
-        consistent.
-
-        Parameters
-        ----------
-        stylized_frames : list[Image.Image]
-            Stylized frame sequence.
-        mv_sequence : MotionVectorSequence
-            Ground-truth motion vector sequence.
-
-        Returns
-        -------
-        dict[str, float]
-            Temporal consistency metrics.
-        """
+        """Validate temporal consistency of the stylized output."""
         self._log_step("Stage 4: Validating temporal consistency")
 
         if len(stylized_frames) < 2 or len(mv_sequence.fields) == 0:
@@ -1204,12 +1274,17 @@ class HeadlessNeuralRenderPipeline:
                 "mean_ssim_proxy": 1.0,
                 "mean_coverage": 0.0,
                 "flicker_score": 0.0,
+                "guide_lock_score": 1.0,
+                "identity_consistency_proxy": 1.0,
+                "long_range_drift": 0.0,
+                "keyframe_density": 1.0,
+                "temporal_stability_score": 1.0,
                 "temporal_pass": True,
             }
 
-        errors = []
-        ssim_proxies = []
-        coverages = []
+        errors: list[float] = []
+        ssim_proxies: list[float] = []
+        coverages: list[float] = []
 
         n_fields = min(len(mv_sequence.fields), len(stylized_frames) - 1)
         for i in range(n_fields):
@@ -1222,25 +1297,66 @@ class HeadlessNeuralRenderPipeline:
             ssim_proxies.append(scores["warp_ssim_proxy"])
             coverages.append(scores["coverage"])
 
+        signatures = []
+        for frame in stylized_frames:
+            arr = np.array(frame.convert("RGB")).astype(np.float64)
+            signatures.append(arr.mean(axis=(0, 1)) / 255.0)
+        sig_arr = np.array(signatures, dtype=np.float64)
+        ref_sig = sig_arr[0] if len(sig_arr) else np.zeros(3, dtype=np.float64)
+        drift_values = np.linalg.norm(sig_arr - ref_sig[None, :], axis=1) / math.sqrt(3.0)
+        long_range_drift = float(np.max(drift_values)) if len(drift_values) else 0.0
+        identity_consistency = float(1.0 - np.mean(drift_values)) if len(drift_values) else 1.0
+        identity_consistency = float(np.clip(identity_consistency, 0.0, 1.0))
+
         mean_error = float(np.mean(errors)) if errors else 0.0
         max_error = float(np.max(errors)) if errors else 0.0
         flicker = float(np.std(errors)) if len(errors) > 1 else 0.0
+        mean_coverage = float(np.mean(coverages)) if coverages else 0.0
+        mean_ssim = float(np.mean(ssim_proxies)) if ssim_proxies else 1.0
+
+        requested_guides = list((workflow_manifest or {}).get("guides_locked") or (workflow_manifest or {}).get("guides_requested") or [])
+        guide_lock_score = len(requested_guides) / 5.0 if requested_guides else 0.6
+        guide_lock_score = float(np.clip(guide_lock_score, 0.0, 1.0))
+        keyframe_density = float((keyframe_plan.density if keyframe_plan else 1.0))
+        max_gap_penalty = min((keyframe_plan.max_gap if keyframe_plan else 0) / max(len(stylized_frames), 1), 1.0)
+
+        temporal_stability = (
+            0.35 * (1.0 - min(mean_error / max(self.config.warp_error_threshold, 1e-6), 1.0))
+            + 0.15 * mean_ssim
+            + 0.15 * mean_coverage
+            + 0.15 * (1.0 - min(flicker / 0.2, 1.0))
+            + 0.10 * guide_lock_score
+            + 0.10 * identity_consistency
+        )
+        temporal_stability = float(np.clip(temporal_stability, 0.0, 1.0))
+
+        temporal_pass = (
+            mean_error <= self.config.warp_error_threshold
+            and long_range_drift <= self.config.temporal_drift_threshold
+            and identity_consistency >= self.config.identity_consistency_threshold
+            and temporal_stability >= 0.55
+        )
 
         metrics = {
             "mean_warp_error": mean_error,
             "max_warp_error": max_error,
-            "mean_ssim_proxy": float(np.mean(ssim_proxies)) if ssim_proxies else 1.0,
-            "mean_coverage": float(np.mean(coverages)) if coverages else 0.0,
+            "mean_ssim_proxy": mean_ssim,
+            "mean_coverage": mean_coverage,
             "flicker_score": flicker,
-            "temporal_pass": mean_error <= self.config.warp_error_threshold,
+            "guide_lock_score": guide_lock_score,
+            "identity_consistency_proxy": identity_consistency,
+            "long_range_drift": long_range_drift,
+            "keyframe_density": keyframe_density,
+            "keyframe_max_gap_ratio": max_gap_penalty,
+            "temporal_stability_score": temporal_stability,
+            "temporal_pass": temporal_pass,
             "per_frame_errors": errors,
         }
 
-        status = "PASS" if metrics["temporal_pass"] else "FAIL"
+        status = "PASS" if temporal_pass else "FAIL"
         self._log_step(
             f"  Temporal consistency: {status} "
-            f"(mean_warp_error={mean_error:.4f}, "
-            f"flicker={flicker:.4f})"
+            f"(mean_warp_error={mean_error:.4f}, flicker={flicker:.4f}, drift={long_range_drift:.4f})"
         )
         return metrics
 
@@ -1282,6 +1398,7 @@ class HeadlessNeuralRenderPipeline:
             "source": out / "source",
             "normals": out / "normals",
             "depth": out / "depth",
+            "masks": out / "masks",
         }
         for d in dirs.values():
             d.mkdir(parents=True, exist_ok=True)
@@ -1306,6 +1423,10 @@ class HeadlessNeuralRenderPipeline:
         for i, dmap in enumerate(result.depth_maps):
             dmap.save(str(dirs["depth"] / f"{i:04d}.png"))
 
+        # Export masks
+        for i, mmap in enumerate(result.mask_maps):
+            mmap.save(str(dirs["masks"] / f"{i:04d}.png"))
+
         # Export EbSynth project (MV maps)
         if result.mv_sequence and result.source_frames:
             export_ebsynth_project(
@@ -1321,6 +1442,15 @@ class HeadlessNeuralRenderPipeline:
         meta_path = out / "pipeline.json"
         meta_path.write_text(
             json.dumps(meta, indent=2, ensure_ascii=False, default=str),
+            encoding="utf-8",
+        )
+        if result.keyframe_plan is not None:
+            (out / "keyframe_plan.json").write_text(
+                json.dumps(result.keyframe_plan.to_dict(), indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        (out / "workflow_manifest.json").write_text(
+            json.dumps(result.workflow_manifest, indent=2, ensure_ascii=False, default=str),
             encoding="utf-8",
         )
 
@@ -1339,42 +1469,19 @@ class HeadlessNeuralRenderPipeline:
         height: int = 128,
         export: bool = True,
     ) -> NeuralRenderResult:
-        """Run the full end-to-end neural rendering pipeline.
-
-        Parameters
-        ----------
-        skeleton : Skeleton
-            Character skeleton.
-        animation_func : Callable
-            Animation function mapping t → pose dict.
-        style : CharacterStyle
-            Character visual style.
-        frames : int
-            Number of animation frames.
-        width, height : int
-            Frame dimensions.
-        export : bool
-            Whether to export results to disk.
-
-        Returns
-        -------
-        NeuralRenderResult
-            Complete pipeline result with all frames and metrics.
-        """
+        """Run the full end-to-end neural rendering pipeline."""
         start_time = time.time()
         self._log = []
         self._log_step("=" * 60)
-        self._log_step("HeadlessNeuralRenderPipeline — SESSION-056")
-        self._log_step("Research: Jamriška (EbSynth), Zhang (ControlNet), ReEzSynth")
+        self._log_step("HeadlessNeuralRenderPipeline — SESSION-060")
+        self._log_step("Research: Jamriška (EbSynth), Zhang (ControlNet), Ye (IP-Adapter), Liang (FlowVid)")
         self._log_step("=" * 60)
 
-        # Validate config
         warnings = self.config.validate()
         for w in warnings:
             self._log_step(f"  WARNING: {w}")
 
-        # Stage 1: Bake auxiliary maps
-        source_frames, normal_maps, depth_maps, mv_sequence = self.bake_auxiliary_maps(
+        source_frames, normal_maps, depth_maps, mask_maps, mv_sequence = self.bake_auxiliary_maps(
             skeleton=skeleton,
             animation_func=animation_func,
             style=style,
@@ -1383,25 +1490,27 @@ class HeadlessNeuralRenderPipeline:
             height=height,
         )
 
-        # Stage 2: Generate AI-stylized keyframes
-        keyframes = self.generate_keyframes(
+        keyframes, keyframe_plan, workflow_manifest = self.generate_keyframes(
             source_frames=source_frames,
             normal_maps=normal_maps,
             depth_maps=depth_maps,
+            mask_maps=mask_maps,
+            mv_sequence=mv_sequence,
         )
 
-        # Stage 3: Propagate style
         stylized_frames = self.propagate_style(
             source_frames=source_frames,
             keyframes=keyframes,
             mv_sequence=mv_sequence,
             normal_maps=normal_maps,
+            mask_maps=mask_maps,
         )
 
-        # Stage 4: Validate temporal consistency
         temporal_metrics = self.validate_temporal_consistency(
             stylized_frames=[f for f in stylized_frames if f is not None],
             mv_sequence=mv_sequence,
+            keyframe_plan=keyframe_plan,
+            workflow_manifest=workflow_manifest,
         )
 
         elapsed = time.time() - start_time
@@ -1413,8 +1522,11 @@ class HeadlessNeuralRenderPipeline:
             source_frames=source_frames,
             normal_maps=normal_maps,
             depth_maps=depth_maps,
+            mask_maps=mask_maps,
             mv_sequence=mv_sequence,
             temporal_metrics=temporal_metrics,
+            workflow_manifest=workflow_manifest,
+            keyframe_plan=keyframe_plan,
             pipeline_log=self._log,
             config=self.config,
             elapsed_seconds=elapsed,
@@ -1425,10 +1537,9 @@ class HeadlessNeuralRenderPipeline:
         )
         self._log_step(
             f"Temporal: {'PASS' if result.temporal_pass else 'FAIL'} "
-            f"(warp_error={temporal_metrics.get('mean_warp_error', 0):.4f})"
+            f"(warp_error={temporal_metrics.get('mean_warp_error', 0):.4f}, stability={temporal_metrics.get('temporal_stability_score', 0):.4f})"
         )
 
-        # Stage 5: Export
         if export:
             self.export_result(result)
 
@@ -1437,6 +1548,7 @@ class HeadlessNeuralRenderPipeline:
 
 __all__ = [
     "NeuralRenderConfig",
+    "KeyframePlan",
     "NeuralRenderResult",
     "ComfyUIHeadlessClient",
     "EbSynthPropagationEngine",

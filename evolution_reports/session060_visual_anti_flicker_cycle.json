@@ -1,0 +1,103 @@
+{
+  "session_id": "SESSION-060",
+  "generated_at": "2026-04-17T17:32:29Z",
+  "bridge": "BreakwallEvolutionBridge",
+  "phase": "Phase 2 industrial anti-flicker",
+  "metrics": {
+    "cycle_id": 2,
+    "timestamp": "2026-04-17T17:32:29Z",
+    "neural_render_pass": true,
+    "mean_warp_error": 0.06955156286307973,
+    "max_warp_error": 0.13438430548257138,
+    "flicker_score": 0.046046253469285696,
+    "ssim_proxy": 0.9304484371369203,
+    "coverage": 0.466552734375,
+    "guide_lock_score": 1.0,
+    "identity_consistency_proxy": 0.9990284443440438,
+    "long_range_drift": 0.002023492623229714,
+    "temporal_stability_score": 0.7126313500453754,
+    "keyframe_density": 0.5,
+    "frame_count": 4,
+    "keyframe_count": 2,
+    "render_elapsed_seconds": 0.4261741638183594,
+    "workflow_manifest": {
+      "identity_lock_active": false,
+      "fallback_reason": "deterministic_style_transfer",
+      "controlnet_guides": [
+        "normal",
+        "depth"
+      ],
+      "mask_present": true,
+      "planned_keyframes": [
+        0,
+        3
+      ],
+      "guides_locked": [
+        "normal",
+        "depth",
+        "motion_vectors",
+        "mask",
+        "ip_adapter_identity"
+      ]
+    },
+    "keyframe_plan": {
+      "indices": [
+        0,
+        3
+      ],
+      "motion_scores": {
+        "0": 0.0,
+        "1": 0.607497,
+        "2": 1.0,
+        "3": 0.656469
+      },
+      "silhouette_scores": {
+        "0": 0.0,
+        "1": 0.021973,
+        "2": 0.038574,
+        "3": 0.027832
+      },
+      "priority_scores": {
+        "0": 0.0,
+        "1": 0.43184,
+        "2": 0.711572,
+        "3": 0.467878
+      },
+      "strategy": "motion_adaptive",
+      "max_gap": 3,
+      "density": 0.5,
+      "identity_reference_index": 0,
+      "guides_locked": [
+        "normal",
+        "depth",
+        "motion_vectors",
+        "mask",
+        "ip_adapter_identity"
+      ]
+    },
+    "bundle_valid": true,
+    "bundle_channels_found": 6,
+    "bundle_contour_points": 57,
+    "bundle_issues": [],
+    "accepted": true
+  },
+  "rules_count": 1,
+  "rules": [
+    {
+      "domain": "breakwall_temporal_consistency",
+      "rule_type": "production_recipe",
+      "rule_text": "Accepted industrial anti-flicker recipe: generate sparse AI keyframes only, lock geometry with ControlNet Normal+Depth, keep procedural masks and motion vectors available for propagation, and preserve a stable identity reference path. This is the recommended production baseline for SESSION-060 visual animation batches.",
+      "params": {
+        "keyframe_density": "0.5000",
+        "guide_lock_score": "1.0000",
+        "identity_consistency_proxy": "0.9990",
+        "temporal_stability_score": "0.7126"
+      },
+      "confidence": 0.93,
+      "source": "BreakwallBridge-Cycle-2"
+    }
+  ],
+  "fitness_bonus": 0.19,
+  "auto_tune": {},
+  "status_report": "--- Breakwall Evolution Bridge (SESSION-056/060 / Phase 1+2) ---\n   Total cycles: 2\n   Passes: 2\n   Failures: 0\n   Consecutive passes: 2\n   Best warp error: 0.0696\n   Best flicker score: 0.0460\n   Best temporal stability: 0.7126\n   Best identity consistency: 0.9990\n   Best bundle channels: 6/6\n   Knowledge rules: 1\n   Optimal keyframe interval: 4\n   Optimal EbSynth uniformity: 4000\n   Optimal IP-Adapter weight: 0.85\n   Optimal mask guide weight: 1.25\n   Recent warp error trend: ['0.0696', '0.0696']"
+}

@@ -223,7 +223,7 @@ from .nsm_gait import (
 )
 # SESSION-056: Headless Neural Render Pipeline (Jamriška EbSynth + Zhang ControlNet)
 from .headless_comfy_ebsynth import (
-    NeuralRenderConfig, NeuralRenderResult,
+    NeuralRenderConfig, KeyframePlan, NeuralRenderResult,
     ComfyUIHeadlessClient, EbSynthPropagationEngine,
     HeadlessNeuralRenderPipeline,
 )

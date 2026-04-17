@@ -1,36 +1,36 @@
 {
-  "version": "0.50.0",
-  "last_session_id": "SESSION-059",
-  "last_updated": "2026-04-17T16:51:49Z",
+  "version": "0.51.0",
+  "last_session_id": "SESSION-060",
+  "last_updated": "2026-04-17T17:39:53Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "32/32 SESSION-059 Unity/VAT + Breakwall regression PASS; tests/test_unity_urp_native.py 4/4 PASS; real repository root cycle persisted; prior 13/13 SESSION-058 Phase 3 tests remain PASS",
-  "total_iterations": 520,
-  "total_code_lines": 89418,
-  "distill_session_id": "DISTILL-008",
+  "validation_pass_rate": "28/28 Breakwall regression PASS; py_compile PASS; real SESSION-060 anti-flicker cycle persisted; prior SESSION-059 Unity/VAT regression remained green at session start",
+  "total_iterations": 522,
+  "total_code_lines": 90000,
+  "distill_session_id": "DISTILL-009",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 108,
+  "knowledge_rule_count": 109,
   "math_model_count": 35,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",
-    "overall_completion": "64-66%",
-    "last_assessed": "SESSION-059",
+    "overall_completion": "66-68%",
+    "last_assessed": "SESSION-060",
     "dimension_scores": {
       "animation_physics_realism": 60,
       "motion_cognitive_naturalness": 43,
-      "character_visual_quality": 45,
+      "character_visual_quality": 51,
       "vfx_particles": 34,
       "character_diversity": 35,
       "environment_tileset": 32,
       "engine_ready_export": 58,
-      "engineering_automation": 93
+      "engineering_automation": 94
     },
-    "fundamental_blocker": "SESSION-059 closes the orchestration blocker for SESSION-057/058/059 bridge families and adds Unity URP 2D native hookup plus Taichi XPBD VAT export. Main remaining blockers: expose the Unity-native pipeline through the standard AssetPipeline/CLI, deliver the upstream full 3D-to-2D mesh bake workflow, bind quadruped planning to real IK rigs, and run formal GPU benchmarks on CUDA hardware.",
+    "fundamental_blocker": "SESSION-060 upgrades the visual path from single-frame styling to an industrial anti-flicker baseline with sparse keyframe planning, guide locking, mask-guided propagation, and persistent Breakwall state. Main remaining blockers: expose this Phase 2 visual path through the standard AssetPipeline/CLI, ship real ComfyUI node-template packs for batch production, extend planner coverage to higher-nonlinearity action segments, and complete the upstream 3D-to-2D mesh bake workflow.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules. SESSION-049 closes Gap B3 by implementing Marker-based DTW gait transition blending: SyncMarker/GaitSyncProfile define foot-contact events, StrideWheel drives phase from distance (Rosen), GaitBlender performs Leader-Follower synchronized blend (UE Sync Groups), and adaptive_bounce provides speed-dependent vertical oscillation. Phase warping ensures sync marker alignment before pose interpolation, eliminating foot sliding during walk/run/sneak transitions. SESSION-052 closes the Physics Singularity by replacing Jakobsen one-way visual-following with full XPBD (Macklin & Müller 2016). The solver uses compliance α̃ = α/Δt² for timestep-independent stability, Lagrange multiplier accumulation for force estimation, and puts rigid CoM + soft nodes in one solve pool with inverse-mass weighted reaction impulses (Müller 2020). Spatial hash self-collision with connectivity exclusion (Ten Minute Physics). Three-layer evolution loop: InternalEvolver auto-tunes, KnowledgeDistiller absorbs external papers, PhysicsTestHarness validates 7 scenarios. 14/14 tests PASS. SESSION-053 adds the locomotion CNS bridge between gait blending, inertialized switching, and the runtime bus: walk/run pipeline generation can use CNS gait sampling, `locomotion_cns.py` phase-aligns target gait support phases before switching, `InertializationChannel` decays only residual source offsets, and compiled runtime rules score phase jump, sliding error, contact mismatch, foot lock, and transition cost in batch. The new LocomotionCNSBridge persists knowledge and Layer 3 state after accepted batch runs.",
-      "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. SESSION-054 materially advances the visual-delivery side of the same path: canonical body primitives now provide analytical gradients, the industrial renderer exports albedo/normal/depth/thickness/roughness/mask packs, and export metadata is engine-ready for downstream 2.5D lighting workflows. SESSION-056 CLOSES the real-time EbSynth/ComfyUI integration gap: HeadlessNeuralRenderPipeline builds 14-node dual-ControlNet (NormalBae + Depth) ComfyUI workflows via headless HTTP API, EbSynthPropagationEngine performs PatchMatch-style NNF temporal propagation with bidirectional keyframe blending, and EngineImportPluginGenerator produces Godot 4 (gdshader + plugin.gd) and Unity URP 2D (ScriptedImporter.cs + shader) import plugins with SSS thickness, rim light, and auto PolygonCollider2D from SDF contour extraction. BreakwallEvolutionBridge integrates both subsystems into the three-layer self-evolution architecture. Next: 3D-to-2D mesh rendering path, expanded asset factory with engine-specific export templates. SESSION-059 extends the same path into engine-native delivery: unity_urp_native.py now generates a Unity URP 2D Secondary Texture postprocessor, VAT playback runtime, and lit shader so multi-channel outputs can be consumed directly by SpriteRenderer/Light 2D workflows; unity_urp_2d_bridge.py distills those rules and persists state for continued iteration.",
+      "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. SESSION-054 materially advances the visual-delivery side of the same path: canonical body primitives now provide analytical gradients, the industrial renderer exports albedo/normal/depth/thickness/roughness/mask packs, and export metadata is engine-ready for downstream 2.5D lighting workflows. SESSION-056 CLOSES the real-time EbSynth/ComfyUI integration gap: HeadlessNeuralRenderPipeline builds 14-node dual-ControlNet (NormalBae + Depth) ComfyUI workflows via headless HTTP API, EbSynthPropagationEngine performs PatchMatch-style NNF temporal propagation with bidirectional keyframe blending, and EngineImportPluginGenerator produces Godot 4 (gdshader + plugin.gd) and Unity URP 2D (ScriptedImporter.cs + shader) import plugins with SSS thickness, rim light, and auto PolygonCollider2D from SDF contour extraction. BreakwallEvolutionBridge integrates both subsystems into the three-layer self-evolution architecture. Next: 3D-to-2D mesh rendering path, expanded asset factory with engine-specific export templates. SESSION-059 extends the same path into engine-native delivery: unity_urp_native.py now generates a Unity URP 2D Secondary Texture postprocessor, VAT playback runtime, and lit shader so multi-channel outputs can be consumed directly by SpriteRenderer/Light 2D workflows; unity_urp_2d_bridge.py distills those rules and persists state for continued iteration. SESSION-060 converts the same path into an industrial anti-flicker production baseline: headless_comfy_ebsynth.py now produces sparse motion-adaptive keyframe plans, mask outputs, workflow manifests, identity-lock metadata, long-range drift metrics, and temporal stability scores; breakwall_evolution_bridge.py now persists those signals, distills positive production recipes, and auto-tunes identity/mask guide weights across cycles.",
       "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge; SESSION-048 closes Gap B2 (scene-aware distance sensor) by implementing SDF terrain description, sphere-marching ray sensor, gravity-corrected TTC prediction, and phase-binding so transient phase reaches 1.0 at contact on arbitrary terrain. Next step: gait transition blending, production benchmark suite, and real-time EbSynth/ComfyUI demo. SESSION-050 closes Gap A2 by adding RuntimeDistillationBus, CompiledParameterSpace, JIT runtime rule programs, physics hot-path foot-contact integration, quality-controller pre-generation propagation, and RuntimeDistillBridge. SESSION-051 materially advances Gap D1 by adding an explicit runtime state graph, Hypothesis rule-based graph fuzzing, canonical edge walks, and a StateMachineCoverageBridge that writes knowledge and persistent coverage history. SESSION-054 extends the architecture closure on the visual/output side by upgrading auxiliary-map baking to analytical gradients plus industrial material bundles, adding a formal export bridge for those bundles, and persisting industrial visual quality through IndustrialSkinBridge Layer 3 state. SESSION-055 executes Battle 4 (Headless Automated Testing & The Asset Factory): property-based graph-fuzz CI generates adversarial state-transition sequences from RuntimeStateGraph and monitors XPBD for NaN/penetration/constraint-error/energy-drift; multi-modal visual fitness scoring (Laplacian + SSIM + depth + channels) provides automated quality assessment; commercial asset factory batch-generates assets with quality gates and auto-rejection; unified EvolutionOrchestrator coordinates all three layers (internal evaluation, external knowledge distillation, self-iterating test) into a self-evolving feedback loop with persistent state. SESSION-056 executes Phase 1 Breakwall Battle: headless_comfy_ebsynth.py implements zero-flicker neural rendering via ComfyUI headless API + EbSynth PatchMatch temporal propagation + dual ControlNet (NormalBae + Depth) conditioning; engine_import_plugin.py generates Godot 4 and Unity URP 2D import plugins with .mathart bundle format, SSS/rim light shaders, and PolygonCollider2D from SDF contour extraction; breakwall_evolution_bridge.py integrates both into three-layer self-evolution with auto-tuning and knowledge distillation. P1-AI-2A, P1-AI-2B, and P3-3 are now CLOSED. SESSION-057 executes Phase 2 Cross-Dimensional Spawning: smooth_morphology.py implements parametric SDF morphology with Inigo Quilez smin (polynomial, exponential, cubic) for genotype-driven character diversity explosion across 5 archetypes (humanoid, monster, mech, slime, insectoid); constraint_wfc.py implements constraint-aware WFC with TTC reachability validation (inverted-pendulum physics model) ensuring 100% playable level generation; smooth_morphology_bridge.py and constraint_wfc_bridge.py integrate both into three-layer self-evolution with fitness evaluation, knowledge distillation, and trend persistence. P2-CROSSDIM-3 and P2-CROSSDIM-4 are now CLOSED. SESSION-059 closes the remaining subsystem-looseness gap by wiring SmoothMorphologyEvolutionBridge, ConstraintWFCEvolutionBridge, Phase3PhysicsEvolutionBridge, and UnityURP2DEvolutionBridge into EvolutionOrchestrator as a unified bridge suite, while SelfEvolutionEngine now surfaces Unity-native bridge status in the global report."
     },
     "commercial_references": [
@@ -48,9 +48,13 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-059 executes the Unity URP 2D native hookup and orchestrator unification push: Secondary Textures are now wired for native Sprite/Light 2D consumption, Taichi XPBD cloth is baked into VAT for offline replay, and EvolutionOrchestrator now runs the SESSION-057/058/059 bridge suite in one three-layer cycle. Immediate next priorities: expose this Unity-native path through the standard AssetPipeline/CLI, land the upstream full 3D-to-2D Dead Cells-style bake workflow, and extend nightly closed-loop audits.",
+  "current_focus": "SESSION-060 executes the industrial anti-flicker push for the visual AI path: sparse AI keyframes, multi-guide locking, mask-guided propagation, identity-aware metadata, and Breakwall three-layer evolution now form a production baseline. Immediate next priorities: expose this path via standard CLI/AssetPipeline entrypoints, ship real ComfyUI node-template presets for batch jobs, and extend segment-aware planning to jump/fall/hit sequences.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "research/session060_research_notes.md",
+    "evolution_reports/session060_visual_anti_flicker_cycle.json",
+    "evolution_reports/session060_visual_anti_flicker_audit.md",
+    "SESSION_HANDOFF.md",
     "research/session059_research_notes.md",
     "evolution_reports/session059_runtime_cycle.json",
     "evolution_reports/session059_unity_orchestrator_audit.md",
@@ -85,7 +89,6 @@
     "docs/research/GAP_B1_JAKOBSEN_SECONDARY_CHAINS.md",
     "evolution_reports/session047_gapb1_research_notes.md",
     "evolution_reports/session047_gapb1_audit.json",
-    "SESSION_HANDOFF.md",
     "docs/research/GAP_C2_STABLE_FLUIDS_VFX.md",
     "evolution_reports/session046_gapc2_research_notes.md",
     "evolution_reports/session046_gapc2_audit.json",
@@ -913,6 +916,18 @@
     }
   ],
   "completed_tasks": [
+    {
+      "id": "KNOWLEDGE-060",
+      "title": "SESSION-060 visual anti-flicker knowledge distillation",
+      "completed_in": "SESSION-060",
+      "result": "Research from EbSynth, ControlNet, IP-Adapter, and FlowVid was fused into the visual pipeline and Breakwall bridge. The repository now persists sparse-keyframe, guide-lock, identity, drift, and temporal-stability knowledge in code, state, and runtime evidence."
+    },
+    {
+      "id": "AUDIT-060",
+      "title": "SESSION-060 visual anti-flicker industrialization audit",
+      "completed_in": "SESSION-060",
+      "result": "Breakwall visual pipeline upgraded with sparse keyframe planning, mask-guided propagation, identity-lock metadata, temporal stability metrics, and positive production-rule distillation. 28/28 Breakwall regression PASS. Real repository anti-flicker cycle persisted in evolution_reports/session060_visual_anti_flicker_cycle.json."
+    },
     {
       "id": "CROSSDIM-PHASE2",
       "title": "Phase 2 Cross-Dimensional Spawning: Parametric SDF Morphology + Constraint-Aware WFC",
@@ -2414,6 +2429,24 @@
   },
   "recent_sessions": [
     {
+      "id": "SESSION-060",
+      "version": "0.51.0",
+      "date": "2026-04-18",
+      "title": "Industrial Anti-Flicker Upgrade for the Visual AI Pipeline",
+      "summary": "Upgraded headless_comfy_ebsynth.py and BreakwallEvolutionBridge with sparse keyframe planning, identity-lock metadata, mask-guided propagation, temporal-stability metrics, and positive production-rule distillation. Real anti-flicker cycle PASS; Breakwall regression 28/28 PASS.",
+      "tasks_closed": [
+        "P1-AI-2F",
+        "P1-AI-2G"
+      ],
+      "artifacts": [
+        "mathart/animation/headless_comfy_ebsynth.py",
+        "mathart/evolution/breakwall_evolution_bridge.py",
+        "tests/test_breakwall_phase1.py",
+        "evolution_reports/session060_visual_anti_flicker_audit.md",
+        "evolution_reports/session060_visual_anti_flicker_cycle.json"
+      ]
+    },
+    {
       "id": "SESSION-059",
       "version": "0.50.0",
       "date": "2026-04-18",
@@ -2470,148 +2503,6 @@
         "Hypothesis Rule-Based Stateful Testing article",
         "NetworkX traversal docs",
         "Model-based testing state machine coverage guidance"
-      ]
-    },
-    {
-      "session_id": "SESSION-049",
-      "version": "0.40.0",
-      "date": "2026-04-17",
-      "gap_closed": "B3",
-      "title": "Phase-Preserving Gait Transition Blending (Marker-based DTW)",
-      "new_modules": [
-        "mathart/animation/gait_blend.py",
-        "mathart/evolution/gait_blend_bridge.py"
-      ],
-      "new_tests": 54,
-      "total_tests_pass": 949,
-      "key_references": [
-        "David Rosen (GDC 2014): Stride Wheel + Synchronized Blend + Bounce Gravity",
-        "UE Sync Groups / Sync Markers: Leader-Follower architecture",
-        "Bruderlin & Williams (SIGGRAPH 1995): Motion Signal Processing / DTW",
-        "Kovar & Gleicher (SCA 2003): Registration Curves",
-        "Ménardais et al. (SCA 2004): Support-Phase Synchronization",
-        "Rune Skovbo Johansen (2009): Semi-Procedural Locomotion"
-      ]
-    },
-    {
-      "session_id": "SESSION-048",
-      "date": "2026-04-17",
-      "version": "0.39.0",
-      "title": "Gap B2 closure: Scene-Aware Distance Sensor (SDF Terrain + TTC)",
-      "highlights": [
-        "Implemented mathart/animation/terrain_sensor.py with TerrainSDF (5 terrain factories), TerrainRaySensor (sphere-marching), TTCPredictor (gravity-corrected TTC), scene-aware phase/pose/frame generators.",
-        "Pipeline fall state upgraded to scene_aware_fall_frame() with backward-compatible terrain=None fallback.",
-        "Added mathart/evolution/terrain_sensor_bridge.py and integrated into engine status + evolution report.",
-        "Registered 5 Gap B2 distillation records (Clavet, Delayen, Pontón, Ha/Ye/Liu, internal bridge).",
-        "51 new tests all PASS; 895 total tests PASS; zero regressions."
-      ],
-      "artifacts": [
-        "mathart/animation/terrain_sensor.py",
-        "mathart/evolution/terrain_sensor_bridge.py",
-        "tests/test_terrain_sensor.py",
-        "docs/research/GAP_B2_TERRAIN_SENSOR_TTC.md",
-        "docs/audit/SESSION_048_AUDIT.md"
-      ],
-      "tests": [
-        "python3.11 -m pytest tests/test_terrain_sensor.py (51/51 PASS)",
-        "python3.11 -m pytest tests/ (895 passed, 2 skipped)"
-      ]
-    },
-    {
-      "session_id": "SESSION-047",
-      "date": "2026-04-17",
-      "version": "0.38.0",
-      "title": "Gap B1-lite closure: Jakobsen lightweight rigid-soft secondary animation",
-      "highlights": [
-        "Implemented mathart/animation/jakobsen_chain.py with Verlet integration, distance constraints, body collision proxies, and UMR projector wiring.",
-        "Integrated secondary_chain_projection into AssetPipeline and character metadata for cape/hair presets.",
-        "Added mathart/evolution/jakobsen_bridge.py and registered Gap B1 distillation records in evolution_loop.py.",
-        "Generated targeted audit with pass_gate=true, mean_constraint_error=0.0319, mean_tip_lag=0.3710.",
-        "Added 5 focused tests covering solver, collisions, projector, pipeline persistence, and three-layer bridge state."
-      ],
-      "artifacts": [
-        "mathart/animation/jakobsen_chain.py",
-        "mathart/evolution/jakobsen_bridge.py",
-        "tests/test_jakobsen_chain.py",
-        "docs/research/GAP_B1_JAKOBSEN_SECONDARY_CHAINS.md",
-        "evolution_reports/session047_gapb1_audit.json"
-      ],
-      "tests": [
-        "python3.11 -m pytest -q tests/test_jakobsen_chain.py (5/5 PASS)",
-        "python3.11 -m py_compile mathart/animation/jakobsen_chain.py mathart/evolution/jakobsen_bridge.py mathart/evolution/engine.py mathart/evolution/evolution_loop.py mathart/evolution/__init__.py (PASS)"
-      ]
-    },
-    {
-      "session_id": "SESSION-046",
-      "date": "2026-04-17",
-      "version": "0.37.0",
-      "title": "Gap C2 closure: Stable Fluids physics-driven particle VFX",
-      "highlights": [
-        "Implemented mathart/animation/fluid_vfx.py with FluidGrid2D, Stable Fluids stepping, obstacle masks, and fluid-guided particles.",
-        "Added AssetPipeline fluid presets: smoke_fluid, dash_smoke, slash_smoke, plus optional obstacle_mask and driver_impulses.",
-        "Integrated mathart/evolution/fluid_vfx_bridge.py into the three-layer evolution status and PROJECT_BRAIN write-back.",
-        "Registered 3 Gap C2 distillation records and added docs/research/GAP_C2_STABLE_FLUIDS_VFX.md.",
-        "Generated audit artifacts and passed 6/6 new Gap C2 tests."
-      ],
-      "artifacts": [
-        "mathart/animation/fluid_vfx.py",
-        "mathart/evolution/fluid_vfx_bridge.py",
-        "tests/test_fluid_vfx.py",
-        "docs/research/GAP_C2_STABLE_FLUIDS_VFX.md",
-        "evolution_reports/session046_gapc2_audit.json"
-      ],
-      "tests": [
-        "python3.11 -m pytest -q tests/test_fluid_vfx.py (6/6 PASS)"
-      ]
-    },
-    {
-      "session_id": "SESSION-045",
-      "date": "2026-04-17",
-      "version": "0.36.0",
-      "title": "Gap C3 closure: Neural Rendering Bridge (防闪烁终极杀器)",
-      "highlights": [
-        "Ground-truth motion vector baker from procedural FK with SDF-weighted Gaussian skinning.",
-        "Three encoding formats: RGB (128-neutral, Unity/ControlNet), HSV (direction visualization), Raw float32 (ComfyUI).",
-        "EbSynth project export: frames + optical flow + keyframes + metadata.",
-        "NeuralRenderingEvolutionBridge: temporal consistency gate + knowledge distillation + fitness integration.",
-        "5 distillation records: Jamriška (SIGGRAPH 2019), OnlyFlow (CVPR 2025W), MotionPrompt (CVPR 2025), internal MV Baker, internal Neural Bridge.",
-        "37 new tests all PASS, engine integration complete, GLOBAL_GAP_ANALYSIS.md updated."
-      ],
-      "artifacts": [
-        "mathart/animation/motion_vector_baker.py",
-        "mathart/evolution/neural_rendering_bridge.py",
-        "tests/test_motion_vector_baker.py",
-        "docs/research/GAP_C3_NEURAL_RENDERING_BRIDGE.md",
-        "docs/research/GAP_C3_AUDIT_CHECKLIST.md"
-      ],
-      "tests": [
-        "pytest -q tests/test_motion_vector_baker.py (37/37 PASS)"
-      ]
-    },
-    {
-      "session_id": "SESSION-044",
-      "date": "2026-04-17",
-      "version": "0.35.0",
-      "title": "Gap C1 closure: analytical SDF normal/depth auxiliary-map pipeline",
-      "highlights": [
-        "Added `mathart/animation/sdf_aux_maps.py` for grid-sampled SDF normal/depth/mask baking.",
-        "Upgraded `render_character_maps_industrial()` to export albedo plus engine-consumable auxiliary maps.",
-        "Registered SESSION-044 rendering provenance in `evolution_loop.py` and exposed status in `engine.py`.",
-        "Generated real Mario idle auxiliary-map artifacts and wrote `AUDIT_SESSION044.md`."
-      ],
-      "artifacts": [
-        "evolution_reports/session044_aux_demo/mario_idle_albedo.png",
-        "evolution_reports/session044_aux_demo/mario_idle_normal.png",
-        "evolution_reports/session044_aux_demo/mario_idle_depth.png",
-        "evolution_reports/session044_aux_demo/mario_idle_mask.png",
-        "evolution_reports/session044_aux_demo/session044_aux_demo.json",
-        "evolution_reports/CYCLE-SESSION044.json",
-        "AUDIT_SESSION044.md"
-      ],
-      "tests": [
-        "pytest -q tests/test_sdf_aux_maps.py",
-        "pytest -q tests/test_sdf_aux_maps.py tests/test_evolution_loop.py tests/test_layer3_closed_loop.py",
-        "pytest -q tests/test_evolution.py"
       ]
     }
   ],
@@ -2781,5 +2672,54 @@
       "Unity URP 2D (MathArtImporter.cs + MathArtLitShader.shader)"
     ],
     "bundle_format": ".mathart (manifest.json + 6 PBR channels + contour.json)"
-  }
+  },
+  "open_tasks": [
+    {
+      "id": "P1-AI-2C",
+      "priority": "P1",
+      "title": "Expose Phase 2 anti-flicker visual pipeline through CLI / AssetPipeline",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Promote the SESSION-060 sparse-keyframe + guide-lock + mask-guided propagation pipeline from bridge/runtime-helper status into the repository's standard export flow.",
+      "added_in": "SESSION-060"
+    },
+    {
+      "id": "P1-AI-2D",
+      "priority": "P1",
+      "title": "Ship real ComfyUI batch preset packs for IP-Adapter + ControlNet anti-flicker jobs",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Provide reusable node-template presets and parameter bundles for real ComfyUI-backed production jobs using sparse keyframes, IP-Adapter identity lock, dual ControlNet, masks, and motion vectors.",
+      "added_in": "SESSION-060"
+    },
+    {
+      "id": "P1-AI-2E",
+      "priority": "P1",
+      "title": "Extend motion-adaptive keyframe planning to high-nonlinearity action segments",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Generalize SESSION-060 motion-adaptive keyframe planning from idle-like sequences to jump, fall, hit, attack, and segmented action clips with tighter max-gap control.",
+      "added_in": "SESSION-060"
+    },
+    {
+      "id": "P1-AI-2F",
+      "priority": "P1",
+      "title": "Sequence-level anti-flicker audit data model for neural rendering",
+      "status": "DONE",
+      "estimated_effort": "medium",
+      "description": "CLOSED in SESSION-060. The neural rendering pipeline now records keyframe plans, workflow manifests, mask outputs, temporal stability, drift, identity consistency, and guide-lock metrics.",
+      "added_in": "SESSION-060",
+      "closed_in": "SESSION-060"
+    },
+    {
+      "id": "P1-AI-2G",
+      "priority": "P1",
+      "title": "Breakwall Phase 2 anti-flicker bridge upgrade",
+      "status": "DONE",
+      "estimated_effort": "medium",
+      "description": "CLOSED in SESSION-060. BreakwallEvolutionBridge now persists and distills guide-lock, identity stability, long-range drift, temporal stability, and positive production recipes for visual anti-flicker cycles.",
+      "added_in": "SESSION-060",
+      "closed_in": "SESSION-060"
+    }
+  ]
 }
