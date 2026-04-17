@@ -138,6 +138,14 @@ from .constraint_wfc_bridge import (
     collect_constraint_wfc_status,
     ConstraintWFCEvolutionBridge,
 )
+# SESSION-058: Phase 3 Physics Bridge (Taichi XPBD + SDF CCD + NSM Gait)
+from .phase3_physics_bridge import (
+    Phase3PhysicsMetrics,
+    Phase3PhysicsState,
+    Phase3PhysicsStatus,
+    collect_phase3_physics_status,
+    Phase3PhysicsEvolutionBridge,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -226,4 +234,10 @@ __all__ = [
     "ConstraintWFCStatus",
     "collect_constraint_wfc_status",
     "ConstraintWFCEvolutionBridge",
+    # SESSION-058: Phase 3 Physics Bridge (P3)
+    "Phase3PhysicsMetrics",
+    "Phase3PhysicsState",
+    "Phase3PhysicsStatus",
+    "collect_phase3_physics_status",
+    "Phase3PhysicsEvolutionBridge",
 ]

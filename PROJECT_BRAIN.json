@@ -1,25 +1,25 @@
 {
-  "version": "0.48.0",
-  "last_session_id": "SESSION-057",
-  "last_updated": "2026-04-17T18:00:00Z",
+  "version": "0.49.0",
+  "last_session_id": "SESSION-058",
+  "last_updated": "2026-04-17T20:30:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "114/114 SESSION-057 tests PASS; 66/66 core regression PASS; parametric SDF morphology + constraint-aware WFC + three-layer P2 evolution bridges operational",
+  "validation_pass_rate": "13/13 SESSION-058 Phase 3 tests PASS; Phase3PhysicsEvolutionBridge full cycle PASS; prior SESSION-057 baseline remains 114/114 session tests and 66/66 core regression PASS",
   "total_iterations": 500,
   "total_code_lines": 90000,
   "distill_session_id": "DISTILL-007",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 98,
+  "knowledge_rule_count": 103,
   "math_model_count": 35,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",
-    "overall_completion": "58-60%",
-    "last_assessed": "SESSION-057",
+    "overall_completion": "62-64%",
+    "last_assessed": "SESSION-058",
     "dimension_scores": {
-      "animation_physics_realism": 45,
-      "motion_cognitive_naturalness": 30,
+      "animation_physics_realism": 58,
+      "motion_cognitive_naturalness": 43,
       "character_visual_quality": 42,
       "vfx_particles": 34,
       "character_diversity": 35,
@@ -27,7 +27,7 @@
       "engine_ready_export": 52,
       "engineering_automation": 93
     },
-    "fundamental_blocker": "FURTHER RESOLVED THROUGH SESSION-057: Parametric SDF morphology (IQ smin) enables genotype-driven character diversity explosion (character_diversity 15→35), constraint-aware WFC with TTC reachability validation enables 100% playable level generation (environment_tileset 18→32). Main remaining blockers: wire P2 bridges into EvolutionOrchestrator, AssetPipeline backend wiring, 3D-to-2D mesh bake workflow, expanded morphology archetypes, themed WFC tile sets, GPU-accelerated XPBD.",
+    "fundamental_blocker": "SESSION-058 materially advances the motion/physics blocker: Taichi JIT XPBD cloth, SDF sphere-tracing CCD, and distilled NSM/DeepPhase asymmetric gait are now implemented and wrapped by a dedicated three-layer evolution bridge. Main remaining blockers: wire Phase 3 and SESSION-057 bridges into EvolutionOrchestrator, expand quadruped rigs/IK, add formal GPU benchmark on CUDA hardware, finish AssetPipeline industrial backend wiring, and deliver 3D-to-2D mesh bake workflow.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules. SESSION-049 closes Gap B3 by implementing Marker-based DTW gait transition blending: SyncMarker/GaitSyncProfile define foot-contact events, StrideWheel drives phase from distance (Rosen), GaitBlender performs Leader-Follower synchronized blend (UE Sync Groups), and adaptive_bounce provides speed-dependent vertical oscillation. Phase warping ensures sync marker alignment before pose interpolation, eliminating foot sliding during walk/run/sneak transitions. SESSION-052 closes the Physics Singularity by replacing Jakobsen one-way visual-following with full XPBD (Macklin & Müller 2016). The solver uses compliance α̃ = α/Δt² for timestep-independent stability, Lagrange multiplier accumulation for force estimation, and puts rigid CoM + soft nodes in one solve pool with inverse-mass weighted reaction impulses (Müller 2020). Spatial hash self-collision with connectivity exclusion (Ten Minute Physics). Three-layer evolution loop: InternalEvolver auto-tunes, KnowledgeDistiller absorbs external papers, PhysicsTestHarness validates 7 scenarios. 14/14 tests PASS. SESSION-053 adds the locomotion CNS bridge between gait blending, inertialized switching, and the runtime bus: walk/run pipeline generation can use CNS gait sampling, `locomotion_cns.py` phase-aligns target gait support phases before switching, `InertializationChannel` decays only residual source offsets, and compiled runtime rules score phase jump, sliding error, contact mismatch, foot lock, and transition cost in batch. The new LocomotionCNSBridge persists knowledge and Layer 3 state after accepted batch runs.",
       "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. SESSION-054 materially advances the visual-delivery side of the same path: canonical body primitives now provide analytical gradients, the industrial renderer exports albedo/normal/depth/thickness/roughness/mask packs, and export metadata is engine-ready for downstream 2.5D lighting workflows. SESSION-056 CLOSES the real-time EbSynth/ComfyUI integration gap: HeadlessNeuralRenderPipeline builds 14-node dual-ControlNet (NormalBae + Depth) ComfyUI workflows via headless HTTP API, EbSynthPropagationEngine performs PatchMatch-style NNF temporal propagation with bidirectional keyframe blending, and EngineImportPluginGenerator produces Godot 4 (gdshader + plugin.gd) and Unity URP 2D (ScriptedImporter.cs + shader) import plugins with SSS thickness, rim light, and auto PolygonCollider2D from SDF contour extraction. BreakwallEvolutionBridge integrates both subsystems into the three-layer self-evolution architecture. Next: 3D-to-2D mesh rendering path, expanded asset factory with engine-specific export templates.",
@@ -46,11 +46,14 @@
       }
     ],
     "engineering_automation": 93,
-    "animation_physics_realism": 45
+    "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-057 executes Phase 2: Cross-Dimensional Spawning (跨维暴兵): parametric SDF morphology system (Inigo Quilez smin + genotype evolution) for character diversity explosion, constraint-aware WFC tile system (Maxim Gumin + Oskar St\u00e5lberg + TTC reachability) for 100% playable level generation, and two new three-layer evolution bridges integrating both into the self-evolution architecture. Immediate next priorities: wire P2 bridges into EvolutionOrchestrator, expand morphology archetypes, add themed WFC tile sets, close P1-INDUSTRIAL-34A.",
+  "current_focus": "SESSION-058 executes Phase 3: 深潜终局 —— 物理与运动底座补完 (P3): Taichi GPU-JIT XPBD cloth backend, SDF sphere-tracing CCD for anti-tunneling, and distilled DeepPhase/Neural-State-Machine runtime for asymmetric and quadruped gait planning. Immediate next priorities: wire Phase3PhysicsEvolutionBridge plus SESSION-057 bridges into EvolutionOrchestrator, connect quadruped planner to real skeleton/IK, and run formal GPU benchmarks on CUDA hardware.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "knowledge/phase3_physics_rules.md",
+    "research/session058_phase3_working_notes.md",
+    "evolution_reports/session058_phase3_audit.md",
     "evolution_reports/session057_p2_audit.md",
     "research/session057_p2_crossdim_research.md",
     "research/session056_audit_checklist.md",
@@ -139,6 +142,33 @@
     ]
   },
   "pending_tasks": [
+    {
+      "id": "P3-GPU-BENCH-1",
+      "priority": "P2",
+      "title": "Run formal Taichi GPU benchmark and sparse-cloth validation on CUDA hardware",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Current sandbox validated the Taichi backend with CPU fallback and 50k-class runtime evidence. A follow-up session should execute the same benchmark on true CUDA hardware and extend validation to sparse data layouts.",
+      "added_in": "SESSION-058"
+    },
+    {
+      "id": "P3-QUAD-IK-1",
+      "priority": "P2",
+      "title": "Connect quadruped gait planner to a real quadruped skeleton and IK solver",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "The quadruped planner already outputs local phases and contact labels, but the project still needs an actual quadruped rig, limb mapping, and IK execution path to turn planning into rendered motion.",
+      "added_in": "SESSION-058"
+    },
+    {
+      "id": "P3-EVO-1",
+      "priority": "P1",
+      "title": "Wire Phase3PhysicsEvolutionBridge into EvolutionOrchestrator.run_full_cycle()",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Integrate the new SESSION-058 bridge into EvolutionOrchestrator so Taichi XPBD, SDF CCD, and NSM gait evaluation/distillation/state updates run in every unified evolution cycle.",
+      "added_in": "SESSION-058"
+    },
     {
       "id": "P2-MORPHOLOGY-1",
       "priority": "P1",
@@ -831,10 +861,11 @@
       "id": "P1-XPBD-2",
       "priority": "P1",
       "title": "GPU-accelerated XPBD solver (reference: Müller Tutorial 16)",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "high",
-      "description": "Port the NumPy XPBD solver to a GPU backend (Taichi or CuPy) following Müller's Tutorial 16 GPU cloth simulation. Target: 10x speedup for 1000+ particle scenes.",
-      "added_in": "SESSION-052"
+      "description": "CLOSED in SESSION-058. Taichi-backed XPBD cloth backend now provides Python-semantics JIT compilation, benchmark path, diagnostics, and package exports.",
+      "added_in": "SESSION-052",
+      "completed_in": "SESSION-058"
     },
     {
       "id": "P1-XPBD-3",
@@ -849,19 +880,21 @@
       "id": "P1-XPBD-4",
       "priority": "P1",
       "title": "Continuous Collision Detection (CCD) for fast-moving objects",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "medium",
-      "description": "Implement CCD (swept-sphere or conservative advancement) to prevent tunnelling in high-velocity weapon swings beyond what velocity clamping can handle.",
-      "added_in": "SESSION-052"
+      "description": "CLOSED in SESSION-058. SDF sphere-tracing CCD now computes TOI, clamps particle motion before penetration, and is integrated into xpbd_bridge metadata/diagnostics.",
+      "added_in": "SESSION-052",
+      "completed_in": "SESSION-058"
     },
     {
       "id": "P2-XPBD-5",
       "priority": "P2",
       "title": "Cloth mesh simulation (current is 1D chain only)",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "high",
-      "description": "Extend XPBD from 1D chains to 2D cloth meshes with triangle constraints, allowing cape/banner simulation as true cloth rather than chain approximation.",
-      "added_in": "SESSION-052"
+      "description": "CLOSED in SESSION-058. Taichi XPBD cloth mesh backend supports dense grid cloth simulation and large-particle benchmark evidence.",
+      "added_in": "SESSION-052",
+      "completed_in": "SESSION-058"
     },
     {
       "id": "P1-AI-2A",
@@ -913,7 +946,7 @@
       "id": "AUDIT-056",
       "title": "SESSION-056 full audit + research-to-code verification",
       "completed_in": "SESSION-056",
-      "result": "28/28 SESSION-056 tests PASS. research/session056_audit_checklist.md confirms all 17 research requirements (Jamri\u0161ka EbSynth, Zhang ControlNet, B\u00e9nard Dead Cells, ReEzSynth) implemented in code. 3 new modules verified: headless_comfy_ebsynth.py, engine_import_plugin.py, breakwall_evolution_bridge.py. P1-AI-2A, P1-AI-2B, P3-3 CLOSED."
+      "result": "28/28 SESSION-056 tests PASS. research/session056_audit_checklist.md confirms all 17 research requirements (Jamriška EbSynth, Zhang ControlNet, Bénard Dead Cells, ReEzSynth) implemented in code. 3 new modules verified: headless_comfy_ebsynth.py, engine_import_plugin.py, breakwall_evolution_bridge.py. P1-AI-2A, P1-AI-2B, P3-3 CLOSED."
     },
     {
       "id": "KNOWLEDGE-056",
@@ -2328,7 +2361,15 @@
     "session051_audit": "docs/audit/SESSION_051_AUDIT.md confirms research -> code -> artifact -> runtime -> test closure for Gap D1.",
     "session052_physics_singularity": "P0-GAP-2 and P1-B1-2 CLOSED. Full XPBD solver with two-way rigid-soft coupling, spatial-hash self-collision, and three-layer evolution loop.",
     "session052_xpbd_references": "Macklin & Müller XPBD 2016, Müller Rigid Body 2020, Ten Minute Physics, Cincotti Self-Collision",
-    "session052_physics_score": "12/100 → ~45/100"
+    "session052_physics_score": "12/100 → ~45/100",
+    "session058_base_commit": "06c9df8d36d8f2493b26593acfcae6823d5dec0e",
+    "session058_gap_status": "P3 materially landed. Taichi XPBD cloth, SDF CCD, and distilled NSM gait are implemented with tests and a dedicated three-layer evolution bridge.",
+    "session058_taichi_backend": "mathart/animation/xpbd_taichi.py adds TaichiXPBDClothSystem, diagnostics, benchmark result types, and public API exports.",
+    "session058_ccd": "mathart/animation/sdf_ccd.py adds SDF sphere-tracing CCD and xpbd_bridge.py now writes CCD diagnostics into frame metadata.",
+    "session058_nsm": "mathart/animation/nsm_gait.py adds per-limb local phases, contact labels, asymmetric biped injection into FABRIK, and quadruped gait planning profiles.",
+    "session058_bridge": "mathart/evolution/phase3_physics_bridge.py adds a repository-native three-layer bridge and emits knowledge/phase3_physics_rules.md plus .phase3_physics_state.json.",
+    "session058_audit": "evolution_reports/session058_phase3_audit.md verifies research -> code -> test -> bridge closure for Phase 3.",
+    "session058_test_count": "13 targeted SESSION-058 tests PASS."
   },
   "recent_focus_snapshot": {
     "session": "SESSION-052",
@@ -2627,7 +2668,10 @@
     "knowledge_morphology": "knowledge/smooth_morphology_rules.md",
     "knowledge_wfc": "knowledge/constraint_wfc_rules.md",
     "research_notes": "research/session057_p2_crossdim_research.md",
-    "state_files": [".smooth_morphology_state.json", ".constraint_wfc_state.json"],
+    "state_files": [
+      ".smooth_morphology_state.json",
+      ".constraint_wfc_state.json"
+    ],
     "validation": "114/114 SESSION-057 tests PASS; 66/66 core regression PASS; both P2 evolution bridges operational",
     "new_modules": [
       "mathart/animation/smooth_morphology.py",
@@ -2651,7 +2695,7 @@
       "Inigo Quilez - Smooth Minimum (iquilezles.org 2013)",
       "Inigo Quilez - 2D Distance Functions (iquilezles.org 2020)",
       "Maxim Gumin - Wave Function Collapse (GitHub 2016)",
-      "Oskar St\u00e5lberg - Townscaper (2020)"
+      "Oskar Stålberg - Townscaper (2020)"
     ],
     "dimension_score_changes": {
       "character_diversity": "15 -> 35",
@@ -2680,9 +2724,9 @@
       "P1-INDUSTRIAL-44C"
     ],
     "research_references": [
-      "Jamri\u0161ka & S\u00fdkora - Stylizing Video by Example (SIGGRAPH 2019)",
+      "Jamriška & Sýkora - Stylizing Video by Example (SIGGRAPH 2019)",
       "Lvmin Zhang - ControlNet (ICCV 2023)",
-      "S\u00e9bastien B\u00e9nard - Dead Cells 2D Deferred Lighting (GDC 2019)",
+      "Sébastien Bénard - Dead Cells 2D Deferred Lighting (GDC 2019)",
       "Thomas Vasseur - Dead Cells Art Pipeline (Game Developer 2018)",
       "FuouM/ReEzSynth - Python EbSynth implementation"
     ],

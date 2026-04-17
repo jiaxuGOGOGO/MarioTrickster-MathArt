@@ -66,6 +66,8 @@ from .jakobsen_bridge import JakobsenEvolutionBridge, collect_jakobsen_chain_sta
 from .terrain_sensor_bridge import TerrainSensorEvolutionBridge, collect_terrain_sensor_status
 # SESSION-049: Gait Blend Bridge (Gap B3)
 from .gait_blend_bridge import GaitBlendEvolutionBridge, collect_gait_blend_status
+# SESSION-058: Phase 3 Physics Bridge (P3)
+from .phase3_physics_bridge import Phase3PhysicsEvolutionBridge, collect_phase3_physics_status
 
 
 class SelfEvolutionEngine:
@@ -163,6 +165,12 @@ class SelfEvolutionEngine:
 
         # SESSION-049: Gait Blend Bridge (Gap B3)
         self.gait_blend_bridge = GaitBlendEvolutionBridge(
+            project_root=self.project_root,
+            verbose=verbose,
+        )
+
+        # SESSION-058: Phase 3 Physics Bridge (P3)
+        self.phase3_physics_bridge = Phase3PhysicsEvolutionBridge(
             project_root=self.project_root,
             verbose=verbose,
         )
@@ -854,6 +862,28 @@ class SelfEvolutionEngine:
             f"   Total cycles: {gait_status.total_cycles}",
             f"   Consecutive passes: {gait_status.consecutive_passes}",
             f"   Best sliding error: {gait_status.best_mean_sliding_error:.6f}",
+        ])
+        lines.append("")
+
+        # ── SESSION-058: Phase 3 Physics Bridge status ──
+        lines.append("--- Phase 3 Physics Bridge (SESSION-058 / P3) ---")
+        phase3_status = collect_phase3_physics_status(self.project_root)
+        lines.extend([
+            f"   Module active: {'yes' if phase3_status.module_exists else 'no'}",
+            f"   Bridge active: {'yes' if phase3_status.bridge_exists else 'no'}",
+            f"   Animation API export: {'yes' if phase3_status.animation_api_exports else 'no'}",
+            f"   Evolution API export: {'yes' if phase3_status.evolution_api_exports else 'no'}",
+            f"   Tests present: {'yes' if phase3_status.tests_exist else 'no'}",
+        ])
+        if phase3_status.tracked_exports:
+            lines.append(f"   Tracked exports: {', '.join(phase3_status.tracked_exports)}")
+        if phase3_status.knowledge_path:
+            lines.append(f"   Knowledge file: {phase3_status.knowledge_path}")
+        if phase3_status.state_path:
+            lines.append(f"   State file: {phase3_status.state_path}")
+        lines.extend([
+            f"   Total cycles: {phase3_status.total_cycles}",
+            f"   Consecutive passes: {phase3_status.consecutive_passes}",
         ])
         lines.append("")
 

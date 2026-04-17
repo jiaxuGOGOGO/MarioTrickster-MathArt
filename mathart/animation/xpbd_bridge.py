@@ -48,6 +48,11 @@ from .xpbd_collision import (
     BodyCollisionProxy,
     build_body_proxies_from_joints,
 )
+from .sdf_ccd import (
+    SDFCCDConfig,
+    SDFCCDBatchDiagnostics,
+    clamp_solver_particle_motion_with_sdf_ccd,
+)
 
 _EPS = 1e-8
 
@@ -66,12 +71,16 @@ class XPBDChainProjector:
         skeleton_ref: Optional[Skeleton] = None,
         head_units: float = 3.0,
         rigid_body_mass: float = 70.0,      # Character mass in kg
+        environment_sdf: Optional[object] = None,
+        ccd_config: Optional[SDFCCDConfig] = None,
     ):
         self._skeleton = skeleton_ref or Skeleton.create_humanoid(head_units=head_units)
         self._solver_config = solver_config or XPBDSolverConfig()
         self._presets = presets or create_default_xpbd_presets(head_units=head_units)
         self._rigid_body_mass = rigid_body_mass
         self._head_units = head_units
+        self._environment_sdf = environment_sdf
+        self._ccd_config = ccd_config or SDFCCDConfig()
 
         # State
         self._solver: Optional[XPBDSolver] = None
@@ -82,6 +91,7 @@ class XPBDChainProjector:
         self._all_soft_indices: list[int] = []
         self._initialized = False
         self._last_xpbd_diagnostics: Optional[XPBDDiagnostics] = None
+        self._last_ccd_diagnostics: Optional[SDFCCDBatchDiagnostics] = None
 
     def reset(self) -> None:
         """Reset solver state."""
@@ -93,6 +103,7 @@ class XPBDChainProjector:
         self._all_soft_indices.clear()
         self._initialized = False
         self._last_xpbd_diagnostics = None
+        self._last_ccd_diagnostics = None
 
     def _initialize(self, anchor_positions: dict[str, tuple[float, float]], root_pos: tuple[float, float]) -> None:
         """Build the solver, register particles and constraints."""
@@ -202,6 +213,17 @@ class XPBDChainProjector:
         xpbd_diag = self._solver.step(dt)
         self._last_xpbd_diagnostics = xpbd_diag
 
+        ccd_diag: Optional[SDFCCDBatchDiagnostics] = None
+        if self._environment_sdf is not None and self._all_soft_indices:
+            ccd_diag = clamp_solver_particle_motion_with_sdf_ccd(
+                self._solver,
+                self._environment_sdf,
+                particle_indices=self._all_soft_indices,
+                dt=dt,
+                config=self._ccd_config,
+            )
+        self._last_ccd_diagnostics = ccd_diag
+
         # --- Extract chain snapshots ---
         chain_tracks: dict[str, list[list[float]]] = {}
         chain_debug: dict[str, dict] = {}
@@ -248,6 +270,8 @@ class XPBDChainProjector:
                 "xpbd_self_collision_count": xpbd_diag.self_collision_count,
                 "xpbd_energy_estimate": xpbd_diag.energy_estimate,
                 "xpbd_max_velocity": xpbd_diag.max_velocity_observed,
+                "sdf_ccd_hits": int(ccd_diag.hits) if ccd_diag is not None else 0,
+                "sdf_ccd_min_toi": float(ccd_diag.min_toi) if ccd_diag is not None else 1.0,
             }
 
         # --- Merge into frame metadata ---
@@ -260,6 +284,8 @@ class XPBDChainProjector:
             "xpbd_enabled": True,
             "xpbd_two_way_coupling": self._solver_config.enable_two_way_coupling,
             "xpbd_solver_diagnostics": xpbd_diag.to_dict(),
+            "sdf_ccd_enabled": self._environment_sdf is not None,
+            "sdf_ccd_diagnostics": ccd_diag.to_dict() if ccd_diag is not None else None,
         })
 
         # If two-way coupling produced CoM displacement, record it
@@ -284,6 +310,10 @@ class XPBDChainProjector:
     @property
     def last_xpbd_diagnostics(self) -> Optional[XPBDDiagnostics]:
         return self._last_xpbd_diagnostics
+
+    @property
+    def last_ccd_diagnostics(self) -> Optional[SDFCCDBatchDiagnostics]:
+        return self._last_ccd_diagnostics
 
 
 __all__ = [
