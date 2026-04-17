@@ -81,6 +81,14 @@ from .terrain_sensor_bridge import (
     collect_terrain_sensor_status,
     TerrainSensorEvolutionBridge,
 )
+# SESSION-049: Gait Blend Bridge (Gap B3)
+from .gait_blend_bridge import (
+    GaitBlendMetrics,
+    GaitBlendState,
+    GaitBlendStatus,
+    collect_gait_blend_status,
+    GaitBlendEvolutionBridge,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -128,4 +136,10 @@ __all__ = [
     "TerrainSensorStatus",
     "collect_terrain_sensor_status",
     "TerrainSensorEvolutionBridge",
+    # SESSION-049: Gait Blend Bridge (Gap B3)
+    "GaitBlendMetrics",
+    "GaitBlendState",
+    "GaitBlendStatus",
+    "collect_gait_blend_status",
+    "GaitBlendEvolutionBridge",
 ]

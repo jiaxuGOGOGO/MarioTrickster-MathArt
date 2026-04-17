@@ -53,11 +53,20 @@
 **审计清单**：`docs/audit/SESSION_048_AUDIT.md`
 **代表人物/对标参考**：Simon Clavet（Motion Matching 发明者）、Laurent Delayen（UE5 Distance Matching）、Pontón et al.（Environment-aware MM, SIGGRAPH 2025）、Ha/Ye/Liu（Falling & Landing, SIGGRAPH Asia 2012）
 
-### Gap B3: 步态过渡的相位保持混合 (P1-PHASE-33A)
-**现状**：虽然实现了惯性化过渡（Inertialization），但在 Walk、Run、Sneak 等不同周期性步态之间切换时，缺乏对**相位连续性**的严格保持，可能导致脚步滑步或动作抽搐。
-**搜集方向**：
-- 基于相位的步态混合（Phase-Synchronized Blending）算法。
-- 频率不同（如 Walk 慢，Run 快）的周期动画如何进行时间扭曲（Time Warping）以对齐相位。
+### Gap B3: 步态过渡的相位保持混合 (P1-PHASE-33A) — ✅ SESSION-049 RESOLVED
+**现状**：~~虽然实现了惯性化过渡（Inertialization），但在 Walk、Run、Sneak 等不同周期性步态之间切换时，缺乏对**相位连续性**的严格保持，可能导致脚步滑步或动作抽搐。~~
+
+**SESSION-049 解决方案（v0.40.0）**：
+- **SyncMarker + GaitSyncProfile** (`mathart/animation/gait_blend.py`)：为每个步态定义同步标记（left_foot_down=0.0, right_foot_down=0.5），确保跳步事件对齐。
+- **PhaseWarper** (`phase_warp()`)：基于 Marker-based DTW 的相位规整算法，将 Follower 步态的播放速度强制对齐到 Leader 的同步标记。
+- **StrideWheel**：David Rosen 的步幅轮算法，动画相位由实际移动距离驱动，从根本上消除滑步。
+- **GaitBlender**：完整的 Leader-Follower 架构，支持 Walk/Run/Sneak 任意比例混合，权重平滑过渡。
+- **Adaptive Bounce**：速度自适应弹跳（Rosen 的重力洞察：越快弹跳越浅）。
+- **便捷函数**：`blend_walk_run()` 和 `blend_gaits_at_phase()` 支持无状态快速混合。
+- **54 个测试**全部通过，包含无滑步不变量验证。
+
+**研究文档**：`docs/research/GAP_B3_GAIT_TRANSITION_PHASE_BLEND.md`
+**代表人物/对标参考**：David Rosen (Wolfire/GDC 2014)、UE Sync Groups、Bruderlin & Williams (SIGGRAPH 1995)、Kovar & Gleicher (SCA 2003)、Ménardais et al. (SCA 2004)、Rune Skovbo Johansen (2009)
 
 ---
 
@@ -117,7 +126,7 @@
 | A2: 全局蒸馏总线运行时接入 | P0 | 🟡 部分解决 | — |
 | B1: 刚体与柔体双向耦合 | P0 | 🟢 已解决 (SESSION-047 Jakobsen) | SESSION-047 |
 | B2: 场景感知距离匹配传感器 | P1 | 🟢 **已解决** | **SESSION-048** |
-| B3: 步态过渡相位保持混合 | P1 | 🟡 部分解决 (SESSION-039 Inertialization) | SESSION-039 |
+| B3: 步态过渡相位保持混合 | P1 | 🟢 **已解决** | **SESSION-049** |
 | C1: 工业级渲染器 | P1 | 🟢 已解决 (SESSION-034/044) | SESSION-034, SESSION-044 |
 | C2: 物理驱动粒子特效 | P1 | 🟢 已解决 (SESSION-046 Stable Fluids) | SESSION-046 |
 | C3: 神经渲染桥接（防闪烁） | P1 | 🟢 **已解决** | **SESSION-045** |

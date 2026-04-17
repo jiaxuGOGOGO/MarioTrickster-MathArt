@@ -64,6 +64,8 @@ from .fluid_vfx_bridge import FluidVFXEvolutionBridge, collect_fluid_vfx_status
 from .jakobsen_bridge import JakobsenEvolutionBridge, collect_jakobsen_chain_status
 # SESSION-048: Terrain Sensor Bridge (Gap B2)
 from .terrain_sensor_bridge import TerrainSensorEvolutionBridge, collect_terrain_sensor_status
+# SESSION-049: Gait Blend Bridge (Gap B3)
+from .gait_blend_bridge import GaitBlendEvolutionBridge, collect_gait_blend_status
 
 
 class SelfEvolutionEngine:
@@ -155,6 +157,12 @@ class SelfEvolutionEngine:
 
         # SESSION-048: Terrain Sensor Bridge (Gap B2)
         self.terrain_sensor_bridge = TerrainSensorEvolutionBridge(
+            project_root=self.project_root,
+            verbose=verbose,
+        )
+
+        # SESSION-049: Gait Blend Bridge (Gap B3)
+        self.gait_blend_bridge = GaitBlendEvolutionBridge(
             project_root=self.project_root,
             verbose=verbose,
         )
@@ -827,6 +835,26 @@ class SelfEvolutionEngine:
             lines.append(f"   Tracked exports: {', '.join(terrain_status.tracked_exports)}")
         if terrain_status.research_notes_path:
             lines.append(f"   Research notes: {terrain_status.research_notes_path}")
+        lines.append("")
+
+        # ── SESSION-049: Gait Blend Bridge status ──
+        lines.append("--- Gait Blend Bridge (SESSION-049 / Gap B3) ---")
+        gait_status = collect_gait_blend_status(self.project_root)
+        lines.extend([
+            f"   Module active: {'yes' if gait_status.module_exists else 'no'}",
+            f"   Bridge active: {'yes' if gait_status.bridge_exists else 'no'}",
+            f"   Public API export: {'yes' if gait_status.public_api_exports_blender else 'no'}",
+            f"   Test present: {'yes' if gait_status.test_exists else 'no'}",
+        ])
+        if gait_status.tracked_exports:
+            lines.append(f"   Tracked exports: {', '.join(gait_status.tracked_exports)}")
+        if gait_status.research_notes_path:
+            lines.append(f"   Research notes: {gait_status.research_notes_path}")
+        lines.extend([
+            f"   Total cycles: {gait_status.total_cycles}",
+            f"   Consecutive passes: {gait_status.consecutive_passes}",
+            f"   Best sliding error: {gait_status.best_mean_sliding_error:.6f}",
+        ])
         lines.append("")
 
         # ── SESSION-044: Analytical SDF rendering status ──

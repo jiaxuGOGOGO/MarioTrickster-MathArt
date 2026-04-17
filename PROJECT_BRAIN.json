@@ -1,25 +1,25 @@
 {
-  "version": "0.39.0",
-  "last_session_id": "SESSION-048",
-  "last_updated": "2026-04-17T12:00:00Z",
+  "version": "0.40.0",
+  "last_session_id": "SESSION-049",
+  "last_updated": "2026-04-17T18:00:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "51 new tests PASS (Gap B2); 895 total tests PASS; zero regressions",
+  "validation_pass_rate": "54 new tests PASS (Gap B3); 949 core tests PASS; zero new regressions",
   "total_iterations": 500,
-  "total_code_lines": 65500,
+  "total_code_lines": 66100,
   "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 55,
+  "knowledge_rule_count": 63,
   "math_model_count": 28,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",
     "overall_completion": "37-39%",
-    "last_assessed": "SESSION-048",
+    "last_assessed": "SESSION-049",
     "dimension_scores": {
-      "animation_physics_realism": 10,
-      "motion_cognitive_naturalness": 21,
+      "animation_physics_realism": 12,
+      "motion_cognitive_naturalness": 23,
       "character_visual_quality": 25,
       "vfx_particles": 34,
       "character_diversity": 15,
@@ -27,9 +27,9 @@
       "engine_ready_export": 24,
       "engineering_automation": 88
     },
-    "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-048: analytical aux maps (Gap C1), neural rendering bridge (Gap C3), physics-driven particles (Gap C2), lightweight Jakobsen secondary chains (Gap B1-lite), and scene-aware distance sensor (Gap B2) are now closed. Main remaining blockers: full XPBD two-way rigid/soft coupling, industrial runtime depth (cache/partition/layering), gait transition blending, and benchmarked asset production.",
+    "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-049: analytical aux maps (Gap C1), neural rendering bridge (Gap C3), physics-driven particles (Gap C2), lightweight Jakobsen secondary chains (Gap B1-lite), scene-aware distance sensor (Gap B2), and gait transition blending (Gap B3) are now closed. Main remaining blockers: full XPBD two-way rigid/soft coupling, industrial runtime depth (cache/partition/layering), and benchmarked asset production.",
     "strategic_paths": {
-      "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules.",
+      "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules. SESSION-049 closes Gap B3 by implementing Marker-based DTW gait transition blending: SyncMarker/GaitSyncProfile define foot-contact events, StrideWheel drives phase from distance (Rosen), GaitBlender performs Leader-Follower synchronized blend (UE Sync Groups), and adaptive_bounce provides speed-dependent vertical oscillation. Phase warping ensures sync marker alignment before pose interpolation, eliminating foot sliding during walk/run/sneak transitions.",
       "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. Combined with SESSION-044 auxiliary maps (normal/depth/mask), the project now has a complete Math→AI conditioning pipeline. Next: real-time EbSynth/ComfyUI integration demo.",
       "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge; SESSION-048 closes Gap B2 (scene-aware distance sensor) by implementing SDF terrain description, sphere-marching ray sensor, gravity-corrected TTC prediction, and phase-binding so transient phase reaches 1.0 at contact on arbitrary terrain. Next step: gait transition blending, production benchmark suite, and real-time EbSynth/ComfyUI demo."
     },
@@ -45,11 +45,14 @@
         "type": "itch.io top-seller asset pack"
       }
     ],
-    "engineering_automation": 87
+    "engineering_automation": 87,
+    "animation_physics_realism": 10
   },
-  "current_focus": "SESSION-048 closes Gap B2 by implementing SDF Terrain + Time-to-Contact (TTC) + Distance Matching for scene-aware fall/jump phase binding. TerrainSDF describes arbitrary terrain geometry, TerrainRaySensor sphere-marches to compute exact distance-to-ground, TTCPredictor computes gravity-corrected contact time, and scene_aware_distance_phase() binds transient phase progress to TTC so phase=1.0 at contact on any SDF terrain. TerrainSensorEvolutionBridge provides three-layer evaluation, distillation, and fitness integration. All previous SESSION-043/044/045/046/047 capabilities remain intact. Next: gait transition blending, production benchmark assets, real-time EbSynth/ComfyUI demo, and full XPBD coupling.",
+  "current_focus": "SESSION-049 closes Gap B3 by implementing Phase-Preserving Gait Transition Blending with Marker-based DTW, Stride Wheel (David Rosen), Leader-Follower Synchronized Blend (UE Sync Groups), and Adaptive Bounce. SyncMarker + GaitSyncProfile define foot-contact events; StrideWheel drives animation phase from distance traveled; GaitBlender performs Leader-Follower weight-based blending with phase warping; adaptive_bounce provides speed-dependent vertical oscillation. GaitBlendEvolutionBridge provides three-layer evaluation, distillation, and fitness integration. All previous SESSION-043/044/045/046/047/048 capabilities remain intact. Next: pipeline integration of GaitBlender, production benchmark assets, real-time EbSynth/ComfyUI demo, and full XPBD coupling.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "docs/research/GAP_B3_GAIT_TRANSITION_PHASE_BLEND.md",
+    "docs/audit/SESSION_049_AUDIT.md",
     "docs/research/GAP_B2_TERRAIN_SENSOR_TTC.md",
     "docs/audit/SESSION_048_AUDIT.md",
     "docs/research/GAP_B1_JAKOBSEN_SECONDARY_CHAINS.md",
@@ -278,10 +281,11 @@
       "id": "P1-PHASE-33A",
       "priority": "P1",
       "title": "Gait transition blending (walk/run/sneak)",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "medium",
-      "description": "Smooth phase-preserving blending between gait modes during speed changes. Maintain phase continuity across walk<->run transitions.",
-      "added_in": "SESSION-033"
+      "description": "CLOSED in SESSION-049. Phase-Preserving Gait Transition Blending with Marker-based DTW, Stride Wheel, Leader-Follower Synchronized Blend, Adaptive Bounce. SyncMarker + GaitSyncProfile + StrideWheel + GaitBlender + phase_warp + adaptive_bounce + blend_walk_run + blend_gaits_at_phase. GaitBlendEvolutionBridge provides three-layer evaluation. 54 tests PASS.",
+      "added_in": "SESSION-033",
+      "completed_in": "SESSION-049"
     },
     {
       "id": "P1-PHASE-33B",
@@ -659,6 +663,51 @@
       "estimated_effort": "medium",
       "description": "Extend circular body proxies into richer collision envelopes and evaluate optional chain self-collision only if production assets need it.",
       "added_in": "SESSION-047"
+    },
+    {
+      "id": "P1-B3-1",
+      "priority": "P1",
+      "title": "Integrate GaitBlender into pipeline.py gait switching path",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Wire GaitBlender into AssetPipeline so gait transitions during walk/run/sneak use phase-preserving blending instead of hard cuts.",
+      "added_in": "SESSION-049"
+    },
+    {
+      "id": "P1-B3-2",
+      "priority": "P1",
+      "title": "Add GaitBlender reference motions to RL environment",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Use GaitBlender output as reference motions for rl_locomotion.py DeepMimic reward.",
+      "added_in": "SESSION-049"
+    },
+    {
+      "id": "P1-B3-3",
+      "priority": "P1",
+      "title": "Support asymmetric sync markers (limping, injured gaits)",
+      "status": "TODO",
+      "estimated_effort": "low",
+      "description": "Extend SyncMarker with non-uniform phase positions to support asymmetric gaits like limping or injured movement.",
+      "added_in": "SESSION-049"
+    },
+    {
+      "id": "P1-B3-4",
+      "priority": "P1",
+      "title": "Support quadruped/multi-legged sync marker extensions",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Extend GaitSyncProfile to support 4+ foot contacts for quadruped or multi-legged characters.",
+      "added_in": "SESSION-049"
+    },
+    {
+      "id": "P1-B3-5",
+      "priority": "P1",
+      "title": "Unify transition_synthesizer.py with gait_blend.py",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Merge TransitionSynthesizer (inertialized blending) with GaitBlender (phase-preserving blending) into a complete transition pipeline.",
+      "added_in": "SESSION-049"
     }
   ],
   "completed_tasks": [
@@ -2000,7 +2049,13 @@
     "session048_pipeline": "AssetPipeline fall state upgraded to scene_aware_fall_frame() with backward-compatible terrain=None fallback.",
     "session048_test_count": "51 new tests, all PASS. 895 total tests PASS.",
     "session048_audit": "docs/audit/SESSION_048_AUDIT.md confirms research -> code -> artifact -> test closure for all 6 research items.",
-    "session048_distillation_records": "5 new records (Clavet GDC 2016, Delayen UE5, Pont\u00f3n SIGGRAPH 2025, Ha/Ye/Liu SIGGRAPH Asia 2012, internal Terrain Bridge)."
+    "session048_distillation_records": "5 new records (Clavet GDC 2016, Delayen UE5, Pontón SIGGRAPH 2025, Ha/Ye/Liu SIGGRAPH Asia 2012, internal Terrain Bridge).",
+    "session049_gapb3_status": "CLOSED. Phase-Preserving Gait Transition Blending fully implemented with Marker-based DTW, Stride Wheel, Leader-Follower, and Adaptive Bounce.",
+    "session049_gait_blend_module": "mathart/animation/gait_blend.py adds SyncMarker, GaitSyncProfile, StrideWheel, GaitBlendLayer, GaitBlender, phase_warp, adaptive_bounce, blend_walk_run, blend_gaits_at_phase.",
+    "session049_gait_blend_bridge": "mathart/evolution/gait_blend_bridge.py implements three-layer evaluation, rule distillation, fitness scoring, and persistent state tracking.",
+    "session049_stride_wheel_fix": "StrideWheel.set_circumference() now preserves current phase by rescaling accumulated distance — critical for eliminating phase jumps during gait transitions.",
+    "session049_test_count": "54 new tests, all PASS.",
+    "session049_audit": "docs/audit/SESSION_049_AUDIT.md confirms research → code → artifact → test closure for all 8 research items."
   },
   "recent_focus_snapshot": {
     "top_open_loops": [
@@ -2010,7 +2065,7 @@
     ],
     "remaining_followups": [
       "P1-PHASE-33A: smooth phase-preserving gait transition blending",
-      "P1-B2-1: add more terrain primitives (convex hull, B\u00e9zier, heightmap)",
+      "P1-B2-1: add more terrain primitives (convex hull, Bézier, heightmap)",
       "P1-B2-2: extend TTC to multi-bounce and moving platforms",
       "P1-B1-1: render visible cape/hair ribbons or meshes from Jakobsen chains",
       "P1-VFX-1A: bind true character masks into fluid VFX obstacle grids",
@@ -2018,6 +2073,27 @@
     ]
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-049",
+      "version": "0.40.0",
+      "date": "2026-04-17",
+      "gap_closed": "B3",
+      "title": "Phase-Preserving Gait Transition Blending (Marker-based DTW)",
+      "new_modules": [
+        "mathart/animation/gait_blend.py",
+        "mathart/evolution/gait_blend_bridge.py"
+      ],
+      "new_tests": 54,
+      "total_tests_pass": 949,
+      "key_references": [
+        "David Rosen (GDC 2014): Stride Wheel + Synchronized Blend + Bounce Gravity",
+        "UE Sync Groups / Sync Markers: Leader-Follower architecture",
+        "Bruderlin & Williams (SIGGRAPH 1995): Motion Signal Processing / DTW",
+        "Kovar & Gleicher (SCA 2003): Registration Curves",
+        "Ménardais et al. (SCA 2004): Support-Phase Synchronization",
+        "Rune Skovbo Johansen (2009): Semi-Procedural Locomotion"
+      ]
+    },
     {
       "session_id": "SESSION-048",
       "date": "2026-04-17",
@@ -2027,7 +2103,7 @@
         "Implemented mathart/animation/terrain_sensor.py with TerrainSDF (5 terrain factories), TerrainRaySensor (sphere-marching), TTCPredictor (gravity-corrected TTC), scene-aware phase/pose/frame generators.",
         "Pipeline fall state upgraded to scene_aware_fall_frame() with backward-compatible terrain=None fallback.",
         "Added mathart/evolution/terrain_sensor_bridge.py and integrated into engine status + evolution report.",
-        "Registered 5 Gap B2 distillation records (Clavet, Delayen, Pont\u00f3n, Ha/Ye/Liu, internal bridge).",
+        "Registered 5 Gap B2 distillation records (Clavet, Delayen, Pontón, Ha/Ye/Liu, internal bridge).",
         "51 new tests all PASS; 895 total tests PASS; zero regressions."
       ],
       "artifacts": [

@@ -164,6 +164,14 @@ from .jakobsen_chain import (
     SecondaryChainProjector,
     create_default_secondary_chain_configs,
 )
+# SESSION-049: Phase-Preserving Gait Transition Blending (Gap B3 — Marker-based DTW)
+from .gait_blend import (
+    SyncMarker, GaitSyncProfile, GaitBlendLayer,
+    GaitBlender, StrideWheel,
+    BIPEDAL_SYNC_MARKERS, WALK_SYNC_PROFILE, RUN_SYNC_PROFILE, SNEAK_SYNC_PROFILE,
+    phase_warp, adaptive_bounce,
+    blend_walk_run, blend_gaits_at_phase,
+)
 # SESSION-048: Scene-Aware Distance Sensor (Gap B2 — SDF Terrain + TTC)
 from .terrain_sensor import (
     TerrainSDF,
@@ -326,4 +334,10 @@ __all__ = [
     "create_step_terrain",
     "create_sine_terrain",
     "create_platform_terrain",
+    # SESSION-049: Phase-Preserving Gait Transition Blending (Gap B3)
+    "SyncMarker", "GaitSyncProfile", "GaitBlendLayer",
+    "GaitBlender", "StrideWheel",
+    "BIPEDAL_SYNC_MARKERS", "WALK_SYNC_PROFILE", "RUN_SYNC_PROFILE", "SNEAK_SYNC_PROFILE",
+    "phase_warp", "adaptive_bounce",
+    "blend_walk_run", "blend_gaits_at_phase",
 ]

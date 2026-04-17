@@ -1,0 +1,105 @@
+{
+  "total_cycles": 6,
+  "total_passes": 1,
+  "total_failures": 5,
+  "consecutive_passes": 1,
+  "best_mean_sliding_error": 0.0025431330784191097,
+  "best_phase_continuity": 0.02100555685289927,
+  "knowledge_rules_total": 8,
+  "sliding_error_trend": [
+    0.08899010268975566,
+    0.25737615869005137,
+    0.0025431330784191097,
+    0.0025431330784191097,
+    0.0025431330784191097,
+    0.0025431330784191097
+  ],
+  "phase_continuity_trend": [
+    0.05305435446556202,
+    0.02100555685289927,
+    0.02100555685289927,
+    0.02100555685289927,
+    0.02100555685289927,
+    0.02100555685289927
+  ],
+  "history": [
+    {
+      "cycle_id": 1,
+      "frame_count": 390,
+      "transition_count": 4,
+      "mean_phase_continuity_error": 0.05305435446556202,
+      "max_phase_jump": 0.4845515552965036,
+      "mean_sliding_error": 0.08899010268975566,
+      "weight_convergence_frames": 0,
+      "all_poses_finite": true,
+      "leader_transitions_smooth": false,
+      "pass_gate": false,
+      "timestamp": "2026-04-17T02:58:49.927775+00:00"
+    },
+    {
+      "cycle_id": 2,
+      "frame_count": 390,
+      "transition_count": 4,
+      "mean_phase_continuity_error": 0.02100555685289927,
+      "max_phase_jump": 0.05681818181818182,
+      "mean_sliding_error": 0.25737615869005137,
+      "weight_convergence_frames": 0,
+      "all_poses_finite": true,
+      "leader_transitions_smooth": false,
+      "pass_gate": false,
+      "timestamp": "2026-04-17T03:00:26.289791+00:00"
+    },
+    {
+      "cycle_id": 3,
+      "frame_count": 390,
+      "transition_count": 4,
+      "mean_phase_continuity_error": 0.02100555685289927,
+      "max_phase_jump": 0.05681818181818182,
+      "mean_sliding_error": 0.0025431330784191097,
+      "weight_convergence_frames": 0,
+      "all_poses_finite": true,
+      "leader_transitions_smooth": false,
+      "pass_gate": false,
+      "timestamp": "2026-04-17T03:01:12.339106+00:00"
+    },
+    {
+      "cycle_id": 4,
+      "frame_count": 390,
+      "transition_count": 4,
+      "mean_phase_continuity_error": 0.02100555685289927,
+      "max_phase_jump": 0.05681818181818182,
+      "mean_sliding_error": 0.0025431330784191097,
+      "weight_convergence_frames": 0,
+      "all_poses_finite": true,
+      "leader_transitions_smooth": false,
+      "pass_gate": false,
+      "timestamp": "2026-04-17T03:01:12.367188+00:00"
+    },
+    {
+      "cycle_id": 5,
+      "frame_count": 390,
+      "transition_count": 4,
+      "mean_phase_continuity_error": 0.02100555685289927,
+      "max_phase_jump": 0.05681818181818182,
+      "mean_sliding_error": 0.0025431330784191097,
+      "weight_convergence_frames": 0,
+      "all_poses_finite": true,
+      "leader_transitions_smooth": false,
+      "pass_gate": false,
+      "timestamp": "2026-04-17T03:01:12.394366+00:00"
+    },
+    {
+      "cycle_id": 6,
+      "frame_count": 390,
+      "transition_count": 4,
+      "mean_phase_continuity_error": 0.02100555685289927,
+      "max_phase_jump": 0.05681818181818182,
+      "mean_sliding_error": 0.0025431330784191097,
+      "weight_convergence_frames": 0,
+      "all_poses_finite": true,
+      "leader_transitions_smooth": true,
+      "pass_gate": true,
+      "timestamp": "2026-04-17T03:01:36.396077+00:00"
+    }
+  ]
+}
