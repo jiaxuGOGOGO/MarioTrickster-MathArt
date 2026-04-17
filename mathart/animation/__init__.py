@@ -172,6 +172,24 @@ from .jakobsen_chain import (
     SecondaryChainProjector,
     create_default_secondary_chain_configs,
 )
+# SESSION-052: XPBD Physics Singularity (Gap P0-2 — Full Two-Way Rigid-Soft Coupling)
+from .xpbd_solver import (
+    ParticleKind, ConstraintKind,
+    XPBDSolverConfig, XPBDChainPreset,
+    XPBDDiagnostics, XPBDConstraint,
+    XPBDSolver, build_xpbd_chain, create_default_xpbd_presets,
+)
+from .xpbd_collision import (
+    SpatialHashGrid, BodyCollisionProxy,
+    XPBDCollisionManager, build_body_proxies_from_joints,
+)
+from .xpbd_bridge import XPBDChainProjector
+from .xpbd_evolution import (
+    TuningAction, EvolutionDiagnosticSnapshot, InternalEvolver,
+    KnowledgeEntry, KnowledgeDistiller,
+    TestResult, PhysicsTestHarness,
+    XPBDEvolutionOrchestrator,
+)
 # SESSION-049: Phase-Preserving Gait Transition Blending (Gap B3 — Marker-based DTW)
 from .gait_blend import (
     SyncMarker, GaitSyncProfile, GaitBlendLayer,
@@ -354,4 +372,16 @@ __all__ = [
     "BIPEDAL_SYNC_MARKERS", "WALK_SYNC_PROFILE", "RUN_SYNC_PROFILE", "SNEAK_SYNC_PROFILE",
     "phase_warp", "adaptive_bounce",
     "blend_walk_run", "blend_gaits_at_phase",
+    # SESSION-052: XPBD Physics Singularity (Gap P0-2 + P1-B1-2)
+    "ParticleKind", "ConstraintKind",
+    "XPBDSolverConfig", "XPBDChainPreset",
+    "XPBDDiagnostics", "XPBDConstraint",
+    "XPBDSolver", "build_xpbd_chain", "create_default_xpbd_presets",
+    "SpatialHashGrid", "BodyCollisionProxy",
+    "XPBDCollisionManager", "build_body_proxies_from_joints",
+    "XPBDChainProjector",
+    "TuningAction", "EvolutionDiagnosticSnapshot", "InternalEvolver",
+    "KnowledgeEntry", "KnowledgeDistiller",
+    "TestResult", "PhysicsTestHarness",
+    "XPBDEvolutionOrchestrator",
 ]

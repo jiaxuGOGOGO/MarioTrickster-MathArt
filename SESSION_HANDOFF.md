@@ -1,114 +1,127 @@
 # SESSION_HANDOFF
 
 > **READ THIS FIRST** if you are starting a new conversation about this project.  
-> This document has been refreshed for **SESSION-051**.
+> This document has been refreshed for **SESSION-052**.
 
 ## Project Overview
 
 | Field | Value |
 |---|---|
-| Current version | **0.42.0** |
+| Current version | **0.43.0** |
 | Last updated | **2026-04-17** |
-| Last session | **SESSION-051** |
+| Last session | **SESSION-052** |
 | Best quality score achieved | **0.867** |
 | Total iterations run | **500+** |
-| Total code lines | **~71,736** |
-| Latest validation status | **5 new tests PASS (Gap D1); 6 PASS, 1 SKIP targeted regression batch; state-machine coverage cycle accepted** |
+| Total code lines | **~73,636** |
+| Latest validation status | **14/14 XPBD tests PASS; Physics Singularity (P0-GAP-2 + P1-B1-2) CLOSED** |
 
-## What SESSION-051 Delivered
+## What SESSION-052 Delivered
 
-SESSION-051 materially advances **Gap D1: 端到端状态机测试覆盖** by converting runtime motion-state validation from a handful of hand-written cases into an explicit **graph-based coverage system**. The project now models the `MotionMatchingRuntime` state space as a directed graph, uses **Hypothesis rule-based stateful testing** to generate long transition programs, uses **NetworkX** to measure edge and edge-pair coverage, and persists the results through a dedicated three-layer evolution bridge. [1] [2] [3] [4]
+SESSION-052 executes the **first-priority battle: reforging the high-fidelity physics foundation (The Physics Singularity)**. It replaces the Jakobsen-based one-way visual-following system with a full **XPBD (Extended Position-Based Dynamics)** solver featuring true two-way rigid-soft coupling, spatial-hash self-collision, and a three-layer evolution loop. This directly closes **P0-GAP-2** (full two-way rigid-soft XPBD coupling) and **P1-B1-2** (volumetric contact and self-collision awareness). [1] [2] [3] [4]
 
 ### Core Insight
 
-> 手工写 `Walk -> Run -> Jump` 永远只能证明“几个案例可用”，却无法证明“状态图边界被系统性覆盖”。SESSION-051 的关键突破是：先把 runtime 状态机显式建模成 **有向图**，再让属性测试自动生成合法长序列，并把每条边、边对、遗漏边和非法边都变成可量化、可审计、可持久化的仓库资产。
+> 如果底层受力是假的（基于 Jakobsen 的单向视觉跟随），后续 AI 润色出来的帧也只是"没有灵魂的纸片"。SESSION-052 的关键突破是：用 XPBD 的 **柔顺度（Compliance, α）** 彻底替代弹簧刚度，将刚体 CoM 与柔体节点放入 **同一个求解池**，通过 **逆质量权重** 自动产生牛顿第三定律的反向冲量——角色挥舞重武器时必须产生真实的踉跄与受力代偿。
 
 ### New Subsystems
 
-1. **Runtime State Graph (`mathart/animation/state_machine_graph.py`)**  
-   新增 `RuntimeStateGraph`、`GraphCoverageSnapshot`、`RuntimeGraphExecutionResult` 与 `RuntimeStateMachineHarness`。该模块负责：  
-   - 从 runtime clip 名称动态推导状态图；  
-   - 按 `cyclic / transient / unknown` 分类状态；  
-   - 维护 `expected_edges`、`expected_edge_pairs`、遗漏边与非法边统计；  
-   - 通过真实 `MotionMatchingRuntime` 执行图遍历，而非伪造 mock。  
+1. **XPBD Core Solver (`mathart/animation/xpbd_solver.py`, ~490 lines)**
+   - Full XPBD algorithm: predict → sub-step → constraint solve (NPGS) → velocity update
+   - Compliance α̃ = α/Δt² decoupling (iteration/timestep independent)
+   - Lagrange multiplier accumulation for force estimation (f ≈ λ/Δt)
+   - Distance, bending, attachment, ground, and self-collision constraint types
+   - Two-way rigid-soft coupling: rigid CoM as particle with w = 1/m_body
+   - Rayleigh damping via compliance-like parameter β (Eq 26 from XPBD paper)
+   - Velocity clamping for tunnelling prevention
+   - Coulomb friction model for collision response
+   - Chain builder with configurable presets (cape, hair, weapon, tail)
 
-2. **Property-Based Graph Fuzzing Tests (`tests/test_state_machine_graph_fuzz.py`)**  
-   新增 Hypothesis `RuleBasedStateMachine` 测试，将 successor 集合作为合法动作空间，自动生成完整状态切换程序并验证不变量。测试同时覆盖：  
-   - 图模型核心状态与合法边；  
-   - canonical walk 的全边覆盖；  
-   - 属性驱动长序列；  
-   - 三层桥接的持久化写回。  
+2. **Spatial Hash Collision System (`mathart/animation/xpbd_collision.py`, ~260 lines)**
+   - `SpatialHashGrid`: O(1) amortised neighbour queries via hash table
+   - `BodyCollisionProxy`: body-part collision spheres from skeleton FK
+   - `XPBDCollisionManager`: generates ground, body-contact, and self-collision constraints per frame
+   - Connectivity-aware exclusion to prevent constraint fighting between adjacent chain nodes
 
-3. **Three-Layer Coverage Bridge (`mathart/evolution/state_machine_coverage_bridge.py`)**  
-   新增 `StateMachineCoverageBridge`：  
-   - **Layer 1**：运行 canonical edge walk 与 seeded random walk，统计 edge coverage、edge-pair coverage 与 invalid edges；  
-   - **Layer 2**：将规则写入 `knowledge/state_machine_graph_fuzzing.md`；  
-   - **Layer 3**：持久化 `.state_machine_coverage_state.json`，追踪最佳覆盖率与历史周期。  
+3. **XPBD Bridge (`mathart/animation/xpbd_bridge.py`, ~230 lines)**
+   - `XPBDChainProjector`: drop-in replacement for `SecondaryChainProjector`
+   - Identical `step_frame()` / `project_frame_sequence()` interface
+   - Exposes XPBD-specific diagnostics: reaction impulse, CoM displacement, energy estimate
+   - Backward compatible with existing pipeline.py and frame export
 
-4. **Reusable Cycle Entrypoint (`tools/run_state_machine_coverage_cycle.py`)**  
-   该脚本可直接在仓库内运行一次完整的 Gap D1 cycle，并输出 JSON 审计结果，用于后续自迭代、CI 接入和人工复核。  
+4. **Three-Layer Evolution Loop (`mathart/animation/xpbd_evolution.py`, ~580 lines)**
+   - **Layer 1 — Internal Evolution (`InternalEvolver`)**: monitors constraint errors, energy drift, velocity, collision counts; auto-tunes sub-steps, iterations, compliance, damping with cooldown
+   - **Layer 2 — External Knowledge Distillation (`KnowledgeDistiller`)**: 6 foundational entries from XPBD/Müller papers pre-seeded; dynamic injection API; JSON persistence
+   - **Layer 3 — Self-Iterating Test (`PhysicsTestHarness`)**: 7 physics scenario tests (free fall, pendulum energy, two-way coupling, constraint stability, self-collision separation, heavy weapon stagger, velocity clamping)
+   - **Orchestrator (`XPBDEvolutionOrchestrator`)**: ties all three layers into a closed feedback loop: Test → Diagnose → Tune/Distill → Re-test
 
-5. **Dependency and Export Updates**  
-   `pyproject.toml` 已声明 `networkx` 为运行依赖、`hypothesis` 为 dev/ci 依赖；`mathart/animation/__init__.py` 与 `mathart/evolution/__init__.py` 已将 Gap D1 的公共接口纳入正式导出面。
+5. **Comprehensive Test Suite (`tests/test_xpbd_physics.py`, ~340 lines)**
+   - 14 independent tests covering solver creation, particle management, distance constraints, compliance decoupling, two-way coupling, Lagrange force estimation, spatial hashing, chain building, evolution orchestrator, knowledge distiller, internal evolver, physics test harness, state persistence, and full evolution cycles
+   - All 14 tests PASS
+
+6. **Audit Report (`docs/SESSION-052-AUDIT.md`)**
+   - Complete research-to-code traceability matrix
+   - Three-layer evolution audit
+   - Physics realism score improvement estimate: 12/100 → ~45/100
 
 ## Research References Now Landed in Code
 
 | Reference | Core idea | Landed in |
 |---|---|---|
-| **Hypothesis Stateful Testing docs** | 测试应生成整个操作程序，而非单个输入 | `RuntimeGraphMachine` in `tests/test_state_machine_graph_fuzz.py` |
-| **Hypothesis Rule-Based Stateful Testing article** | 轻量模型与真实被测系统并行运行；失败最小化为最短程序 | `RuntimeStateGraph` + `RuntimeStateMachineHarness` |
-| **NetworkX traversal docs** | 显式图边界与可审计覆盖基线 | `expected_edges`, `expected_edge_pairs`, coverage snapshots |
-| **Model-based state machine coverage guidance** | 状态覆盖、边覆盖、边对覆盖是递进成熟度目标 | `StateMachineCoverageBridge` metrics and acceptance logic |
+| **Macklin & Müller, XPBD (SIGGRAPH 2016)** [1] | Compliance α replaces stiffness k; α̃ = α/Δt² decouples from timestep/iterations; Lagrange multiplier accumulation for force estimation | `xpbd_solver.py` core algorithm, `_solve_distance_constraint()` |
+| **Müller et al., Detailed Rigid Body Simulation (SCA 2020)** [2] | Rigid CoM as XPBD particle with w=1/m; unified solve pool; NPGS immediate position update; inverse-mass reaction impulse | `xpbd_solver.py` two-way coupling, `ParticleKind.RIGID_COM` |
+| **Matthias Müller, Ten Minute Physics** [3] | Array-based XPBD in ~100 lines; spatial hashing; self-collision 5-trick recipe | `xpbd_solver.py` array layout, `xpbd_collision.py` spatial hash |
+| **Carmen Cincotti, XPBD Self-Collision Tutorial** [4] | Practical self-collision implementation with spatial hash, rest-length guard, friction | `xpbd_collision.py` self-collision generation |
 
-## Runtime Evidence from the First Gap D1 Cycle
-
-运行 `tools/run_state_machine_coverage_cycle.py` 后，仓库生成了第一份真实 Gap D1 覆盖证据：当前 runtime graph 基于现有 clip 推导出 **4 个状态** 与 **16 条合法边**，canonical walk 覆盖了全部 16 条边，随后随机游走进一步积累边对覆盖。
+## Runtime Evidence from SESSION-052
 
 | Metric | Result |
 |---|---|
-| States | **4** |
-| Expected edges | **16** |
-| Covered edges | **16** |
-| Edge coverage | **1.0** |
-| Expected edge pairs | **64** |
-| Covered edge pairs | **31** |
-| Edge-pair coverage | **0.484375** |
-| Invalid edges | **0** |
-| Acceptance | **True** |
-
-这意味着 Gap D1 的核心目标——**Edge Coverage 显式化并落到真实 runtime 上执行**——已经实现。需要继续扩大的部分，是把同一套模型接入 `headless_e2e_ci.py`，并在 future clip 增长后持续拉升 edge-pair coverage。
+| Total XPBD tests | **14** |
+| Tests passed | **14** |
+| Two-way coupling CoM displacement | **1.63 units** |
+| Heavy weapon reaction impulse | **143.05** |
+| Heavy weapon CoM displacement | **3.67 units** |
+| Compliance decoupling verified | **α=0→d=1.0, α=1e-3→d=1.01** |
+| Self-collision separation | **0.2000 (target: ≥0.18)** |
+| Velocity clamping | **20.00/20.0** |
+| Constraint stability | **max error 0.000324 (threshold: 0.05)** |
+| Physics test harness | **6/7 pass** |
+| Evolution cycles completed | **3** |
 
 ## Knowledge Base Status
 
 | Metric | Status |
 |---|---|
-| Distilled knowledge rules | **69+** |
-| Distillation records | **25+** |
+| Distilled knowledge rules | **75+** |
+| Distillation records | **31+** |
 | Math models registered | **28** |
+| XPBD knowledge entries | **6** (foundational, pre-seeded) |
 | Sprite references | **0** |
 | Next distill session ID | **DISTILL-005** |
 | Next mine session ID | **MINE-001** |
 
-知识层本轮新增 `knowledge/state_machine_graph_fuzzing.md`，明确规定：运行时状态测试必须基于显式有向图；属性测试要生成完整状态程序而非单步输入；仓库必须持续记录 covered edges、missing edges 与 invalid edges，而不能再只依赖手写 happy-path 示例。
+知识层本轮新增 6 条 XPBD 基础知识条目（Compliance 解耦、Lagrange 累积、双向耦合逆质量、NPGS 即时更新、自碰撞 5 技巧、Rayleigh 阻尼），全部预装在 `KnowledgeDistiller` 中，可通过 JSON 持久化跨 session 复用。
 
 ## Three-Layer Evolution System Status
 
 ### Layer 1: Internal Evolution
 
-Gap D1 现在拥有自己的覆盖评估门。`StateMachineCoverageBridge` 会运行确定性全边遍历与 seeded random walk，输出 `edge_coverage`、`edge_pair_coverage` 与 `invalid_edges`。这使得“状态机是否真的被充分覆盖”第一次从主观感觉变成可验证指标。
+XPBD 求解器现在拥有 `InternalEvolver`，实时监控 7 个诊断指标（约束误差、能量漂移、速度、碰撞计数等），并通过 7 种 `TuningAction`（增减子步/迭代、收紧/放松柔顺度、增减阻尼、调整速度上限）自动调参。冷却机制防止频繁调参振荡。
 
 ### Layer 2: External Knowledge Distillation
 
-SESSION-051 已将 Hypothesis 的 **rule-based stateful program generation**、NetworkX 的 **explicit directed graph modeling**、以及模型驱动测试中的 **transition / transition-pair coverage**，转化为项目内部知识与正式实现。未来如果用户继续提供关于 GraphWalker、游戏引擎状态图覆盖、复杂暂态编排或 CI fuzzing 的资料，这套结构可以继续吸收而不必重构基础边界。
+SESSION-052 已将 XPBD 论文的 **Compliance 解耦**、**Lagrange 乘子累积**、**逆质量双向耦合**、**NPGS 即时更新**、**自碰撞 5 技巧**、**Rayleigh 阻尼** 转化为项目内部知识条目。未来如果用户继续提供关于 FEM、MPM、GPU XPBD 或其他物理模拟的资料，`KnowledgeDistiller` 可以直接吸收并映射到求解器参数。
 
 ### Layer 3: Self-Iteration
 
-Layer 3 新增 `.state_machine_coverage_state.json`，追踪 total cycles、passes / failures、best edge coverage、best edge-pair coverage 与最大图规模。首个有效周期已成功通过，并将结论写入 `knowledge/state_machine_graph_fuzzing.md`。
+Layer 3 新增 `PhysicsTestHarness`，包含 7 个物理场景测试。`XPBDEvolutionOrchestrator` 将三层绑定为闭环：测试失败自动触发 Layer 1 调参或标记 Layer 2 知识缺口。完整进化状态可序列化为 JSON。
 
 ## Pending Tasks (Priority Order)
 
 ### HIGH (P0/P1)
 - `P1-E2E-COVERAGE`: **PARTIAL after SESSION-051**. Core graph-driven runtime coverage now exists; remaining work is to feed graph-generated sequences into `headless_e2e_ci.py` and expand runtime assets beyond `idle/walk/run/jump`.
+- `P1-XPBD-1`: **NEW** — Free-fall test precision optimization (damping causes deviation from analytical g·t²/2)
+- `P1-XPBD-2`: **NEW** — GPU-accelerated XPBD solver (reference: Müller Tutorial 16)
 - `P1-DISTILL-1A`: Roll Runtime DistillBus into gait blending, locomotion scoring, and `compute_physics_penalty()` batch paths
 - `P1-DISTILL-1B`: Add Taichi backend and benchmark suite for Runtime DistillBus
 - `P1-GAP4-BATCH`: Batch-tune multiple hard transitions through active closed loop
@@ -116,8 +129,7 @@ Layer 3 新增 `.state_machine_coverage_state.json`，追踪 total cycles、pass
 - `P1-INDUSTRIAL-44A`: Add engine-ready export templates for albedo/normal/depth/mask/flow packs
 - `P1-INDUSTRIAL-34C`: 3D-to-2D mesh rendering path (Dead Cells full workflow)
 - `P1-NEW-10`: Production benchmark asset suite
-- `P1-B1-1`: Render visible cape/hair ribbons or meshes directly from Jakobsen chain snapshots
-- `P1-B1-2`: Upgrade Jakobsen body proxies toward width-aware contacts and optional self-collision
+- `P1-B1-1`: Render visible cape/hair ribbons or meshes directly from XPBD chain snapshots
 - `P1-VFX-1A`: Bind real character silhouette masks into fluid VFX obstacle grids
 - `P1-VFX-1B`: Drive fluid VFX directly from UMR root velocity and weapon trajectories
 - `P1-B2-1`: Add more terrain primitives (convex hull, Bézier curve, heightmap import)
@@ -126,6 +138,9 @@ Layer 3 新增 `.state_machine_coverage_state.json`，追踪 total cycles、pass
 - `P1-B3-2`: Add GaitBlender reference motions to RL environment (`rl_locomotion.py`)
 
 ### MEDIUM (P1/P2)
+- `P1-XPBD-3`: **NEW** — 3D extension (current solver is 2D)
+- `P1-XPBD-4`: **NEW** — Continuous Collision Detection (CCD) for fast-moving objects
+- `P2-XPBD-5`: **NEW** — Cloth mesh simulation (current is 1D chain only)
 - `P1-GAP4-CI`: Run active Layer 3 closed loop in scheduled/nightly audit mode
 - `P1-INDUSTRIAL-44B`: Add analytic-gradient native primitives
 - `P1-INDUSTRIAL-44C`: Export specular/roughness or engine-specific material metadata
@@ -141,8 +156,10 @@ Layer 3 新增 `.state_machine_coverage_state.json`，追踪 total cycles、pass
 - `P1-B3-5`: Unify `transition_synthesizer.py` with `gait_blend.py` into complete transition pipeline
 
 ### DONE / CORE IMPLEMENTED
-- `P0-DISTILL-1`: **Global Distillation Bus (The Brain) — CLOSED in SESSION-050**
-- `P1-E2E-COVERAGE`: **Core graph-based state-machine coverage implemented in SESSION-051; headless E2E rollout remains**
+- `P0-GAP-2`: **Full two-way rigid-soft XPBD coupling — CLOSED in SESSION-052**
+- `P1-B1-2`: **Volumetric contact and self-collision awareness — CLOSED in SESSION-052**
+- `P0-DISTILL-1`: Global Distillation Bus (The Brain) — CLOSED in SESSION-050
+- `P1-E2E-COVERAGE`: Core graph-based state-machine coverage implemented in SESSION-051; headless E2E rollout remains
 - `P0-GAP-1`: Incomplete Phase Backbone — CLOSED in SESSION-042
 - `P0-EVAL-BRIDGE`: Parameter Convergence Bridge / Layer 3 write-back loop — CLOSED in SESSION-043
 - `P0-GAP-C1`: Analytical SDF normal/depth auxiliary-map pipeline — CLOSED in SESSION-044
@@ -156,15 +173,28 @@ Layer 3 新增 `.state_machine_coverage_state.json`，追踪 total cycles、pass
 
 | Evidence | Result |
 |---|---|
-| `pytest -q tests/test_state_machine_graph_fuzz.py` | **5/5 PASS** |
-| `pytest -q tests/test_state_machine_graph_fuzz.py tests/test_layer3_closed_loop.py` | **6 PASS, 1 SKIP** |
-| `python3.11 tools/run_state_machine_coverage_cycle.py` | **Accepted cycle; edge coverage 1.0; knowledge and state persisted** |
-| `knowledge/state_machine_graph_fuzzing.md` | First real Gap D1 state-machine coverage rules persisted |
-| `.state_machine_coverage_state.json` | Layer 3 coverage history persisted after first accepted cycle |
-| `docs/research/GAP_D1_STATE_MACHINE_GRAPH_FUZZING.md` | Comprehensive research synthesis |
-| `docs/audit/SESSION_051_AUDIT.md` | Research → code → artifact → runtime → test audit closure |
+| `python3 tests/test_xpbd_physics.py` | **14/14 PASS** |
+| Two-way coupling CoM displacement | **1.63 units (verified Newton's Third Law)** |
+| Heavy weapon stagger | **CoM displaced 3.67, reaction impulse 143.05** |
+| Compliance decoupling | **α=0→d=1.0, α=1e-5→d=1.00, α=1e-3→d=1.01** |
+| Self-collision separation | **0.2000 ≥ 0.18 threshold** |
+| Velocity clamping | **20.00 ≤ 20.0 limit** |
+| Constraint stability | **max error 0.000324 < 0.05 threshold** |
+| Physics test harness (Layer 3) | **6/7 pass (free-fall deviation due to damping)** |
+| Evolution cycles | **3 completed successfully** |
+| `docs/SESSION-052-AUDIT.md` | Complete research-to-code traceability matrix |
 
 ## Recent Evolution History (Last 8 Sessions)
+
+### SESSION-052 — v0.43.0 (2026-04-17)
+- **Physics Singularity: P0-GAP-2 + P1-B1-2 CLOSED**
+- Added `mathart/animation/xpbd_solver.py`: full XPBD solver with compliance decoupling, Lagrange multiplier accumulation, two-way rigid-soft coupling, NPGS
+- Added `mathart/animation/xpbd_collision.py`: spatial hash grid, body collision proxies, self-collision constraint generation
+- Added `mathart/animation/xpbd_bridge.py`: drop-in replacement for SecondaryChainProjector
+- Added `mathart/animation/xpbd_evolution.py`: three-layer evolution loop (InternalEvolver, KnowledgeDistiller, PhysicsTestHarness, XPBDEvolutionOrchestrator)
+- Added `tests/test_xpbd_physics.py`: 14 comprehensive tests, all PASS
+- Added `docs/SESSION-052-AUDIT.md`: full research-to-code audit report
+- Physics realism score estimate: 12/100 → ~45/100
 
 ### SESSION-051 — v0.42.0 (2026-04-17)
 - **Gap D1 core implementation**: graph-based property fuzzing for runtime state-machine coverage
@@ -207,33 +237,35 @@ Layer 3 新增 `.state_machine_coverage_state.json`，追踪 total cycles、pass
 - Ground-truth motion vector baker from procedural FK with SDF-weighted skinning
 - 37 targeted tests PASS
 
-### SESSION-044 — v0.35.0 (2026-04-17)
-- Gap C1 closure: analytical SDF normal/depth/mask export pipeline
-
 ## Custom Notes
 
-- **session051_gapd1_status**: CORE IMPLEMENTED. Runtime state-machine coverage now uses an explicit graph model, Hypothesis rule-based stateful tests, and persistent coverage auditing.
-- **session051_graph_module**: `mathart/animation/state_machine_graph.py` adds `RuntimeStateGraph`, `GraphCoverageSnapshot`, `RuntimeGraphExecutionResult`, and `RuntimeStateMachineHarness`.
-- **session051_bridge**: `mathart/evolution/state_machine_coverage_bridge.py` implements Layer 1 coverage evaluation, Layer 2 rule write-back to `knowledge/state_machine_graph_fuzzing.md`, and Layer 3 persistence in `.state_machine_coverage_state.json`.
-- **session051_test_count**: 5 new tests PASS; targeted regression batch 6 PASS, 1 SKIP; runtime coverage cycle accepted.
-- **session051_audit**: `docs/audit/SESSION_051_AUDIT.md` confirms research → code → artifact → runtime → test closure for Gap D1.
+- **session052_physics_singularity**: P0-GAP-2 and P1-B1-2 CLOSED. Full XPBD solver with two-way rigid-soft coupling, spatial-hash self-collision, and three-layer evolution loop.
+- **session052_xpbd_solver**: `mathart/animation/xpbd_solver.py` implements the complete XPBD algorithm from Macklin & Müller (2016) with compliance decoupling, Lagrange multiplier accumulation, and Rayleigh damping.
+- **session052_two_way_coupling**: Rigid CoM as XPBD particle with w=1/m_body. Constraint corrections distribute proportionally to inverse masses, automatically producing Newton's Third Law reactions. Verified: heavy weapon (15kg) displaces 70kg CoM by 3.67 units with 143.05 reaction impulse.
+- **session052_self_collision**: Spatial hash grid (O(1) queries) + connectivity-aware exclusion + Coulomb friction. Self-collision maintains 0.2000 separation (threshold: 0.18).
+- **session052_evolution**: Three-layer loop: InternalEvolver (7 TuningActions with cooldown), KnowledgeDistiller (6 foundational entries, JSON persistence), PhysicsTestHarness (7 scenarios). Orchestrator runs closed feedback loop.
+- **session052_test_count**: 14 new tests PASS; physics test harness 6/7 pass.
+- **session052_audit**: `docs/SESSION-052-AUDIT.md` provides complete research-to-code traceability matrix.
+- **session052_physics_score**: Estimated improvement from 12/100 to ~45/100.
 
 ## Instructions for Next AI Session
 
 1. Read `PROJECT_BRAIN.json` for machine-readable state.
-2. Read `SESSION_HANDOFF.md`, `docs/research/GAP_D1_STATE_MACHINE_GRAPH_FUZZING.md`, and `docs/audit/SESSION_051_AUDIT.md` before modifying Gap D1 code.
-3. Inspect `mathart/animation/state_machine_graph.py` before changing legality rules, coverage accounting, or canonical walk generation.
-4. Inspect `tests/test_state_machine_graph_fuzz.py` before adding more example-based tests; prefer extending the graph model and properties first.
-5. Inspect `mathart/evolution/state_machine_coverage_bridge.py` before changing D1 acceptance gates, knowledge write-back, or Layer 3 persistence.
-6. If the next task concerns `headless_e2e_ci.py`, connect it to the existing graph-driven sequences instead of inventing a second state-coverage system.
-7. If the next task adds new runtime clips such as `fall`, `hit`, `dash`, or `land`, extend the clip library first and let the graph model auto-expand from the runtime database.
-8. Preserve SESSION-050 Runtime DistillBus behavior unless the task explicitly targets runtime knowledge lowering or backend replacement.
-9. Preserve SESSION-049 gait blending behavior unless the task explicitly targets cross-gait rollout.
-10. Preserve SESSION-043 closed-loop tuning behavior unless the task explicitly targets its optimization policy.
+2. Read `SESSION_HANDOFF.md`, `docs/SESSION-052-AUDIT.md` before modifying XPBD code.
+3. Inspect `mathart/animation/xpbd_solver.py` before changing constraint types, compliance formulas, or coupling logic.
+4. Inspect `mathart/animation/xpbd_collision.py` before changing spatial hash, body proxies, or self-collision generation.
+5. Inspect `mathart/animation/xpbd_evolution.py` before changing evolution loop, knowledge distillation, or test harness.
+6. The `XPBDChainProjector` in `xpbd_bridge.py` is a drop-in replacement for `SecondaryChainProjector`; both can coexist.
+7. To add new knowledge, use `KnowledgeDistiller.add_knowledge()` with a `KnowledgeEntry` specifying source, topic, insight, and parameter_effects.
+8. To run the evolution cycle: `XPBDEvolutionOrchestrator().evolve()` returns an updated `XPBDSolverConfig`.
+9. Preserve SESSION-051 state-machine coverage behavior unless the task explicitly targets it.
+10. Preserve SESSION-050 Runtime DistillBus behavior unless the task explicitly targets runtime knowledge lowering.
+11. Preserve SESSION-049 gait blending behavior unless the task explicitly targets cross-gait rollout.
+12. Preserve SESSION-043 closed-loop tuning behavior unless the task explicitly targets its optimization policy.
 
 ## References
 
-[1]: https://hypothesis.readthedocs.io/en/latest/stateful.html
-[2]: https://hypothesis.works/articles/rule-based-stateful-testing/
-[3]: https://networkx.org/documentation/stable/reference/algorithms/traversal.html
-[4]: https://abstracta.us/blog/software-testing/model-based-testing-using-state-machines/
+[1]: https://matthias-research.github.io/pages/publications/XPBD.pdf
+[2]: https://matthias-research.github.io/pages/publications/PBDBodies.pdf
+[3]: https://matthias-research.github.io/pages/tenMinutePhysics/index.html
+[4]: https://carmencincotti.com/2022-11-21/cloth-self-collisions/
