@@ -140,6 +140,14 @@ from .runtime_motion_query import (
 from .phase_driven_idle import (
     phase_driven_idle, phase_driven_idle_frame,
 )
+# SESSION-051: Runtime state-machine graph coverage (Gap D1)
+from .state_machine_graph import (
+    RuntimeTransitionEdge,
+    GraphCoverageSnapshot,
+    RuntimeGraphExecutionResult,
+    RuntimeStateGraph,
+    RuntimeStateMachineHarness,
+)
 # SESSION-045: Motion Vector Baker (Gap C3 — Neural Rendering Bridge)
 from .motion_vector_baker import (
     MotionVectorField, MotionVectorSequence,
@@ -299,6 +307,12 @@ __all__ = [
     "create_runtime_database", "create_motion_matching_runtime",
     # SESSION-040: Phase-Driven Idle (UMR Contract Enforcement)
     "phase_driven_idle", "phase_driven_idle_frame",
+    # SESSION-051: Runtime state-machine graph coverage (Gap D1)
+    "RuntimeTransitionEdge",
+    "GraphCoverageSnapshot",
+    "RuntimeGraphExecutionResult",
+    "RuntimeStateGraph",
+    "RuntimeStateMachineHarness",
     # SESSION-045: Motion Vector Baker (Gap C3 — Neural Rendering Bridge)
     "MotionVectorField", "MotionVectorSequence",
     "compute_joint_displacement", "compute_pixel_motion_field",

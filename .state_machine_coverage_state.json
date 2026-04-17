@@ -1,0 +1,36 @@
+{
+  "total_cycles": 2,
+  "total_passes": 2,
+  "total_failures": 0,
+  "best_edge_coverage": 1.0,
+  "best_edge_pair_coverage": 0.484375,
+  "largest_graph_edges": 16,
+  "history": [
+    {
+      "cycle_id": 1,
+      "states": 4,
+      "edges": 16,
+      "covered_edges": 16,
+      "edge_coverage": 1.0,
+      "edge_pairs": 64,
+      "covered_edge_pairs": 31,
+      "edge_pair_coverage": 0.484375,
+      "invalid_edges": 0,
+      "random_walk_steps": 24,
+      "accepted": true
+    },
+    {
+      "cycle_id": 2,
+      "states": 4,
+      "edges": 16,
+      "covered_edges": 16,
+      "edge_coverage": 1.0,
+      "edge_pairs": 64,
+      "covered_edge_pairs": 31,
+      "edge_pair_coverage": 0.484375,
+      "invalid_edges": 0,
+      "random_walk_steps": 24,
+      "accepted": true
+    }
+  ]
+}

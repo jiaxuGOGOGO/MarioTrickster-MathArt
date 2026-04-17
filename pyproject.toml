@@ -17,6 +17,7 @@ dependencies = [
     "requests>=2.31",
     "optuna>=4.0",
     "numba>=0.65",
+    "networkx>=3.2",
 ]
 
 [project.optional-dependencies]
@@ -24,11 +25,13 @@ dev = [
     "pytest>=7.4",
     "pytest-cov>=4.1",
     "ruff>=0.1",
+    "hypothesis>=6.0",
 ]
 ci = [
     "pytest>=7.4",
     "pytest-cov>=4.1",
     "ruff>=0.1",
+    "hypothesis>=6.0",
     "scikit-image>=0.22",
     "opencv-python-headless>=4.8",
 ]

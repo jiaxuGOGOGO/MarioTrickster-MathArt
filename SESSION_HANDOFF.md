@@ -1,110 +1,117 @@
-# SESSION HANDOFF
+# SESSION_HANDOFF
 
 > **READ THIS FIRST** if you are starting a new conversation about this project.  
-> This document is auto-generated in spirit for continuity and has been refreshed for **SESSION-050**.
+> This document has been refreshed for **SESSION-051**.
 
 ## Project Overview
 
 | Field | Value |
 |---|---|
-| Current version | **0.41.0** |
+| Current version | **0.42.0** |
 | Last updated | **2026-04-17** |
-| Last session | **SESSION-050** |
+| Last session | **SESSION-051** |
 | Best quality score achieved | **0.867** |
 | Total iterations run | **500+** |
-| Total code lines | **~66,800** |
-| Latest validation status | **5 new tests PASS (Gap A2); 118 targeted regression tests PASS; zero targeted regressions** |
+| Total code lines | **~71,736** |
+| Latest validation status | **5 new tests PASS (Gap D1); 6 PASS, 1 SKIP targeted regression batch; state-machine coverage cycle accepted** |
 
-## What SESSION-050 Delivered
+## What SESSION-051 Delivered
 
-SESSION-050 closes **Gap A2: 全局蒸馏总线未接入运行时** by implementing a real **Runtime Distillation Bus** that compiles repository knowledge into dense runtime arrays and **Numba JIT** rule kernels, then connects those kernels to actual runtime consumers. The key result is that distilled rules no longer stop at `KnowledgeRule -> ParameterSpace`; they now reach the execution path. [1] [2] [3] [4] [5] [6]
+SESSION-051 materially advances **Gap D1: 端到端状态机测试覆盖** by converting runtime motion-state validation from a handful of hand-written cases into an explicit **graph-based coverage system**. The project now models the `MotionMatchingRuntime` state space as a directed graph, uses **Hypothesis rule-based stateful testing** to generate long transition programs, uses **NetworkX** to measure edge and edge-pair coverage, and persists the results through a dedicated three-layer evolution bridge. [1] [2] [3] [4]
 
 ### Core Insight
 
-> 蒸馏规则如果继续以 JSON / dict 形式停留在热路径里，就只是“知识仓库”，不是“运行时系统”。SESSION-050 的关键突破是：把知识先编译成 `ParameterSpace`，再降为密集数组和专用闭包，并在需要时 JIT 成机器码级别的约束核，让 60fps 运动学循环消费的是**编译结果**，而不是**解释过程**。
+> 手工写 `Walk -> Run -> Jump` 永远只能证明“几个案例可用”，却无法证明“状态图边界被系统性覆盖”。SESSION-051 的关键突破是：先把 runtime 状态机显式建模成 **有向图**，再让属性测试自动生成合法长序列，并把每条边、边对、遗漏边和非法边都变成可量化、可审计、可持久化的仓库资产。
 
 ### New Subsystems
 
-1. **Runtime Distillation Bus (`mathart/distill/runtime_bus.py`)**  
-   新增 `RuntimeDistillationBus`、`CompiledParameterSpace`、`RuntimeRuleProgram`、`RuntimeRuleClause` 与 `load_runtime_distillation_bus()`。该总线会：  
-   - 复用 `KnowledgeParser` / `RuleCompiler` / `ParameterSpace` 作为语义源；  
-   - 将约束降为 `defaults / min / max / mask` 等密集数组；  
-   - 生成专用 evaluator；  
-   - 在 Numba 可用时编译为 JIT 内核。  
+1. **Runtime State Graph (`mathart/animation/state_machine_graph.py`)**  
+   新增 `RuntimeStateGraph`、`GraphCoverageSnapshot`、`RuntimeGraphExecutionResult` 与 `RuntimeStateMachineHarness`。该模块负责：  
+   - 从 runtime clip 名称动态推导状态图；  
+   - 按 `cyclic / transient / unknown` 分类状态；  
+   - 维护 `expected_edges`、`expected_edge_pairs`、遗漏边与非法边统计；  
+   - 通过真实 `MotionMatchingRuntime` 执行图遍历，而非伪造 mock。  
 
-2. **Physics Hot-Path Integration (`mathart/animation/physics_projector.py`)**  
-   `AnglePoseProjector` 现可接受 `runtime_distill_bus` 或 `foot_contact_program`。`ContactDetector.update()` 使用预分配 feature buffer 并调用编译后的 foot-contact 规则程序，实现真实逐帧路径接入，而非停留在离线工具层。
+2. **Property-Based Graph Fuzzing Tests (`tests/test_state_machine_graph_fuzz.py`)**  
+   新增 Hypothesis `RuleBasedStateMachine` 测试，将 successor 集合作为合法动作空间，自动生成完整状态切换程序并验证不变量。测试同时覆盖：  
+   - 图模型核心状态与合法边；  
+   - canonical walk 的全边覆盖；  
+   - 属性驱动长序列；  
+   - 三层桥接的持久化写回。  
 
-3. **Global Pre-Generation Injection (`mathart/quality/controller.py`)**  
-   `ArtMathQualityController.pre_generation()` 现会懒加载 Runtime DistillBus，并在常规知识/数学约束检查前应用全局编译后的参数夹紧逻辑。这样蒸馏总线不仅影响 physics，也开始影响 repository-wide 约束注入。
+3. **Three-Layer Coverage Bridge (`mathart/evolution/state_machine_coverage_bridge.py`)**  
+   新增 `StateMachineCoverageBridge`：  
+   - **Layer 1**：运行 canonical edge walk 与 seeded random walk，统计 edge coverage、edge-pair coverage 与 invalid edges；  
+   - **Layer 2**：将规则写入 `knowledge/state_machine_graph_fuzzing.md`；  
+   - **Layer 3**：持久化 `.state_machine_coverage_state.json`，追踪最佳覆盖率与历史周期。  
 
-4. **Three-Layer Evolution Bridge (`mathart/evolution/runtime_distill_bridge.py`)**  
-   新增 `RuntimeDistillBridge`：  
-   - **Layer 1**：验证 compiled module count、constraint count、contact-gate correctness、throughput；  
-   - **Layer 2**：将结论写回 `knowledge/runtime_distill_bus.md`；  
-   - **Layer 3**：持久化 `.runtime_distill_state.json` 并返回 fitness bonus。  
+4. **Reusable Cycle Entrypoint (`tools/run_state_machine_coverage_cycle.py`)**  
+   该脚本可直接在仓库内运行一次完整的 Gap D1 cycle，并输出 JSON 审计结果，用于后续自迭代、CI 接入和人工复核。  
 
-5. **Repository Tooling and Coverage**  
-   新增 `tools/run_runtime_distill_cycle.py` 作为一次 Gap A2 runtime cycle 的可复现入口；新增 `tests/test_runtime_distill_bus.py` 覆盖 dense lowering、runtime programs、physics integration、quality-controller integration、bridge persistence。
+5. **Dependency and Export Updates**  
+   `pyproject.toml` 已声明 `networkx` 为运行依赖、`hypothesis` 为 dev/ci 依赖；`mathart/animation/__init__.py` 与 `mathart/evolution/__init__.py` 已将 Gap D1 的公共接口纳入正式导出面。
 
-### Research References Now Landed in Code
+## Research References Now Landed in Code
 
 | Reference | Core idea | Landed in |
 |---|---|---|
-| **Mike Acton — Data-Oriented Design** | 热路径应消费密集数据布局，而非层层对象/字典解释 | `CompiledParameterSpace` dense arrays + alias maps |
-| **胡渊鸣 / Taichi docs & paper** | 高层表达与底层数据导向执行应通过明确 lowering 边界衔接 | `RuntimeDistillationBus` 设计为 Taichi-ready lowering boundary |
-| **Numba performance guidance** | 数值循环应基于数组并移除 Python 容器干扰后再 JIT | `_build_numba_eval()` in runtime bus |
-| **PhysDiff / Kovar-style foot contact logic** | foot contact / skating constraints 是典型逐帧热点 | `ContactDetector.update()` compiled rule program path |
+| **Hypothesis Stateful Testing docs** | 测试应生成整个操作程序，而非单个输入 | `RuntimeGraphMachine` in `tests/test_state_machine_graph_fuzz.py` |
+| **Hypothesis Rule-Based Stateful Testing article** | 轻量模型与真实被测系统并行运行；失败最小化为最短程序 | `RuntimeStateGraph` + `RuntimeStateMachineHarness` |
+| **NetworkX traversal docs** | 显式图边界与可审计覆盖基线 | `expected_edges`, `expected_edge_pairs`, coverage snapshots |
+| **Model-based state machine coverage guidance** | 状态覆盖、边覆盖、边对覆盖是递进成熟度目标 | `StateMachineCoverageBridge` metrics and acceptance logic |
 
-## Runtime Evidence from the First Gap A2 Cycle
+## Runtime Evidence from the First Gap D1 Cycle
 
-Running `tools/run_runtime_distill_cycle.py` after implementation produced the following validated result:
+运行 `tools/run_state_machine_coverage_cycle.py` 后，仓库生成了第一份真实 Gap D1 覆盖证据：当前 runtime graph 基于现有 clip 推导出 **4 个状态** 与 **16 条合法边**，canonical walk 覆盖了全部 16 条边，随后随机游走进一步积累边对覆盖。
 
 | Metric | Result |
 |---|---|
-| Backend | **`numba`** |
-| Compiled module count | **18** |
-| Compiled constraint count | **297** |
-| Contact-gate expected matches | **6 / 6** |
-| Throughput | **458629.2 eval/s** |
+| States | **4** |
+| Expected edges | **16** |
+| Covered edges | **16** |
+| Edge coverage | **1.0** |
+| Expected edge pairs | **64** |
+| Covered edge pairs | **31** |
+| Edge-pair coverage | **0.484375** |
+| Invalid edges | **0** |
 | Acceptance | **True** |
 
-This is the strongest proof that Gap A2 is no longer just a plan item. The repository compiled real knowledge and executed a real runtime kernel successfully.
+这意味着 Gap D1 的核心目标——**Edge Coverage 显式化并落到真实 runtime 上执行**——已经实现。需要继续扩大的部分，是把同一套模型接入 `headless_e2e_ci.py`，并在 future clip 增长后持续拉升 edge-pair coverage。
 
 ## Knowledge Base Status
 
 | Metric | Status |
 |---|---|
-| Distilled knowledge rules | **66+** (63 prior + 3 Runtime DistillBus rules) |
-| Distillation records | **25** |
+| Distilled knowledge rules | **69+** |
+| Distillation records | **25+** |
 | Math models registered | **28** |
 | Sprite references | **0** |
 | Next distill session ID | **DISTILL-005** |
 | Next mine session ID | **MINE-001** |
 
-知识层现在新增 `knowledge/runtime_distill_bus.md`，明确规定：知识必须先被 lowering 为 dense runtime arrays，再进入逐帧执行；foot contact 应作为两条规则的 compiled gate 执行，而不是在热路径里继续解释字典。
+知识层本轮新增 `knowledge/state_machine_graph_fuzzing.md`，明确规定：运行时状态测试必须基于显式有向图；属性测试要生成完整状态程序而非单步输入；仓库必须持续记录 covered edges、missing edges 与 invalid edges，而不能再只依赖手写 happy-path 示例。
 
 ## Three-Layer Evolution System Status
 
 ### Layer 1: Internal Evolution
 
-Gap A2 现在拥有自己的运行时评估门。`RuntimeDistillBridge` 会验证 compiled module count、constraint count、contact-rule correctness、throughput_per_s，并给出接受/拒绝判断。换句话说，“DistillBus 是否真的接入运行时”现在已经变成可检测、可回归的问题，而不是纯主观描述。
+Gap D1 现在拥有自己的覆盖评估门。`StateMachineCoverageBridge` 会运行确定性全边遍历与 seeded random walk，输出 `edge_coverage`、`edge_pair_coverage` 与 `invalid_edges`。这使得“状态机是否真的被充分覆盖”第一次从主观感觉变成可验证指标。
 
 ### Layer 2: External Knowledge Distillation
 
-SESSION-050 已把 Mike Acton 的 **Data-Oriented Design**、胡渊鸣/Taichi 的 **data-oriented runtime boundary**、以及 Numba 的 **array-first JIT** 实践，真正映射到了仓库代码与知识文件中。后续如果继续输入新的物理接触、运动学约束、ParameterSpace 规则或运行时优化资料，系统可以沿这一 lowering boundary 继续内化。
+SESSION-051 已将 Hypothesis 的 **rule-based stateful program generation**、NetworkX 的 **explicit directed graph modeling**、以及模型驱动测试中的 **transition / transition-pair coverage**，转化为项目内部知识与正式实现。未来如果用户继续提供关于 GraphWalker、游戏引擎状态图覆盖、复杂暂态编排或 CI fuzzing 的资料，这套结构可以继续吸收而不必重构基础边界。
 
 ### Layer 3: Self-Iteration
 
-Layer 3 新增 `.runtime_distill_state.json`，追踪 Runtime DistillBus 的 total cycles、passes / failures、best throughput、best compiled constraint count、history。当前已完成第一个有效周期，并写回 `knowledge/runtime_distill_bus.md`。
+Layer 3 新增 `.state_machine_coverage_state.json`，追踪 total cycles、passes / failures、best edge coverage、best edge-pair coverage 与最大图规模。首个有效周期已成功通过，并将结论写入 `knowledge/state_machine_graph_fuzzing.md`。
 
 ## Pending Tasks (Priority Order)
 
 ### HIGH (P0/P1)
+- `P1-E2E-COVERAGE`: **PARTIAL after SESSION-051**. Core graph-driven runtime coverage now exists; remaining work is to feed graph-generated sequences into `headless_e2e_ci.py` and expand runtime assets beyond `idle/walk/run/jump`.
 - `P1-DISTILL-1A`: Roll Runtime DistillBus into gait blending, locomotion scoring, and `compute_physics_penalty()` batch paths
 - `P1-DISTILL-1B`: Add Taichi backend and benchmark suite for Runtime DistillBus
 - `P1-GAP4-BATCH`: Batch-tune multiple hard transitions through active closed loop
-- `P1-E2E-COVERAGE`: Expand E2E tests to include MV export regression and temporal consistency validation
 - `P1-INDUSTRIAL-34A`: Wire industrial renderer as optional backend inside AssetPipeline
 - `P1-INDUSTRIAL-44A`: Add engine-ready export templates for albedo/normal/depth/mask/flow packs
 - `P1-INDUSTRIAL-34C`: 3D-to-2D mesh rendering path (Dead Cells full workflow)
@@ -133,31 +140,38 @@ Layer 3 新增 `.runtime_distill_state.json`，追踪 Runtime DistillBus 的 tot
 - `P1-B3-4`: Support quadruped/multi-legged sync marker extensions
 - `P1-B3-5`: Unify `transition_synthesizer.py` with `gait_blend.py` into complete transition pipeline
 
-### DONE
-- `P0-DISTILL-1`: **Global Distillation Bus (The Brain) — CLOSED in SESSION-050**.
-- `P0-GAP-1`: Incomplete Phase Backbone — CLOSED in SESSION-042.
-- `P0-EVAL-BRIDGE`: Parameter Convergence Bridge / Layer 3 write-back loop — CLOSED in SESSION-043.
-- `P0-GAP-C1`: Analytical SDF normal/depth auxiliary-map pipeline — CLOSED in SESSION-044.
-- `P1-AI-2`: Neural Rendering Bridge (Gap C3 / 防闪烁终极杀器) — CLOSED in SESSION-045.
-- `P1-VFX-1`: Physics-driven Particle System / Stable Fluids VFX — CLOSED in SESSION-046.
-- `P1-GAP-B1`: Lightweight Jakobsen secondary chains for rigid-soft secondary animation — CLOSED-LITE in SESSION-047.
-- `P1-PHASE-37A`: Scene-Aware Distance Matching Sensors (SDF Terrain + TTC) — CLOSED in SESSION-048.
-- `P1-PHASE-33A`: Phase-Preserving Gait Transition Blending (Marker-based DTW) — CLOSED in SESSION-049.
+### DONE / CORE IMPLEMENTED
+- `P0-DISTILL-1`: **Global Distillation Bus (The Brain) — CLOSED in SESSION-050**
+- `P1-E2E-COVERAGE`: **Core graph-based state-machine coverage implemented in SESSION-051; headless E2E rollout remains**
+- `P0-GAP-1`: Incomplete Phase Backbone — CLOSED in SESSION-042
+- `P0-EVAL-BRIDGE`: Parameter Convergence Bridge / Layer 3 write-back loop — CLOSED in SESSION-043
+- `P0-GAP-C1`: Analytical SDF normal/depth auxiliary-map pipeline — CLOSED in SESSION-044
+- `P1-AI-2`: Neural Rendering Bridge (Gap C3 / 防闪烁终极杀器) — CLOSED in SESSION-045
+- `P1-VFX-1`: Physics-driven Particle System / Stable Fluids VFX — CLOSED in SESSION-046
+- `P1-GAP-B1`: Lightweight Jakobsen secondary chains for rigid-soft secondary animation — CLOSED-LITE in SESSION-047
+- `P1-PHASE-37A`: Scene-Aware Distance Matching Sensors (SDF Terrain + TTC) — CLOSED in SESSION-048
+- `P1-PHASE-33A`: Phase-Preserving Gait Transition Blending (Marker-based DTW) — CLOSED in SESSION-049
 
 ## Audit and Verification Evidence
 
 | Evidence | Result |
 |---|---|
-| `pytest -q tests/test_runtime_distill_bus.py` | **5/5 PASS** |
-| `pytest -q tests/test_physics_projector.py` | **24/24 PASS** |
-| `pytest -q tests/test_quality_brain_level.py -k quality` | **45/45 PASS** |
-| `pytest -q tests/test_distill.py` | **44/44 PASS** |
-| `knowledge/runtime_distill_bus.md` | First real Runtime DistillBus rule write-back persisted |
-| `.runtime_distill_state.json` | Layer 3 state persisted after first accepted cycle |
-| `docs/research/GAP_A2_RUNTIME_DISTILL_BUS_JIT.md` | Comprehensive research synthesis |
-| `docs/audit/SESSION_050_AUDIT.md` | Research → code → artifact → runtime → test audit closure |
+| `pytest -q tests/test_state_machine_graph_fuzz.py` | **5/5 PASS** |
+| `pytest -q tests/test_state_machine_graph_fuzz.py tests/test_layer3_closed_loop.py` | **6 PASS, 1 SKIP** |
+| `python3.11 tools/run_state_machine_coverage_cycle.py` | **Accepted cycle; edge coverage 1.0; knowledge and state persisted** |
+| `knowledge/state_machine_graph_fuzzing.md` | First real Gap D1 state-machine coverage rules persisted |
+| `.state_machine_coverage_state.json` | Layer 3 coverage history persisted after first accepted cycle |
+| `docs/research/GAP_D1_STATE_MACHINE_GRAPH_FUZZING.md` | Comprehensive research synthesis |
+| `docs/audit/SESSION_051_AUDIT.md` | Research → code → artifact → runtime → test audit closure |
 
 ## Recent Evolution History (Last 8 Sessions)
+
+### SESSION-051 — v0.42.0 (2026-04-17)
+- **Gap D1 core implementation**: graph-based property fuzzing for runtime state-machine coverage
+- Added `mathart/animation/state_machine_graph.py` with explicit state graph, coverage accounting, canonical walk, and runtime harness
+- Added `mathart/evolution/state_machine_coverage_bridge.py` with three-layer evaluation, rule write-back, and persistent state
+- Added `tests/test_state_machine_graph_fuzz.py`, `knowledge/state_machine_graph_fuzzing.md`, `.state_machine_coverage_state.json`, and `tools/run_state_machine_coverage_cycle.py`
+- 5 new tests PASS; targeted regression batch 6 PASS, 1 SKIP; first accepted coverage cycle persisted
 
 ### SESSION-050 — v0.41.0 (2026-04-17)
 - **Gap A2 closure**: Runtime Distillation Bus connected to runtime
@@ -196,36 +210,30 @@ Layer 3 新增 `.runtime_distill_state.json`，追踪 Runtime DistillBus 的 tot
 ### SESSION-044 — v0.35.0 (2026-04-17)
 - Gap C1 closure: analytical SDF normal/depth/mask export pipeline
 
-### SESSION-043 — v0.34.0 (2026-04-16)
-- Gap 4 closure: active Layer 3 runtime closed loop
-
 ## Custom Notes
 
-- **session050_gapa2_status**: CLOSED. Runtime Distillation Bus now compiles repository knowledge into dense runtime arrays and JIT kernels.
-- **session050_runtime_bus**: `mathart/distill/runtime_bus.py` adds `RuntimeDistillationBus`, `CompiledParameterSpace`, `RuntimeRuleProgram`, and `load_runtime_distillation_bus()`.
-- **session050_runtime_integration**: `mathart/animation/physics_projector.py` now consumes a compiled foot-contact program in `ContactDetector.update()`, and `mathart/quality/controller.py` applies global compiled constraints during `pre_generation()`.
-- **session050_runtime_bridge**: `mathart/evolution/runtime_distill_bridge.py` implements Layer 1 evaluation, Layer 2 rule distillation to `knowledge/runtime_distill_bus.md`, and Layer 3 persistent state in `.runtime_distill_state.json`.
-- **session050_test_count**: 5 new tests PASS; 118 targeted regression tests PASS.
-- **session050_audit**: `docs/audit/SESSION_050_AUDIT.md` confirms research → code → artifact → runtime → test closure for Gap A2.
+- **session051_gapd1_status**: CORE IMPLEMENTED. Runtime state-machine coverage now uses an explicit graph model, Hypothesis rule-based stateful tests, and persistent coverage auditing.
+- **session051_graph_module**: `mathart/animation/state_machine_graph.py` adds `RuntimeStateGraph`, `GraphCoverageSnapshot`, `RuntimeGraphExecutionResult`, and `RuntimeStateMachineHarness`.
+- **session051_bridge**: `mathart/evolution/state_machine_coverage_bridge.py` implements Layer 1 coverage evaluation, Layer 2 rule write-back to `knowledge/state_machine_graph_fuzzing.md`, and Layer 3 persistence in `.state_machine_coverage_state.json`.
+- **session051_test_count**: 5 new tests PASS; targeted regression batch 6 PASS, 1 SKIP; runtime coverage cycle accepted.
+- **session051_audit**: `docs/audit/SESSION_051_AUDIT.md` confirms research → code → artifact → runtime → test closure for Gap D1.
 
 ## Instructions for Next AI Session
 
 1. Read `PROJECT_BRAIN.json` for machine-readable state.
-2. Read `SESSION_HANDOFF.md`, `docs/research/GAP_A2_RUNTIME_DISTILL_BUS_JIT.md`, and `docs/audit/SESSION_050_AUDIT.md` before modifying the runtime bus.
-3. Inspect `mathart/distill/runtime_bus.py` before changing knowledge-lowering or JIT behavior.
-4. Inspect `mathart/evolution/runtime_distill_bridge.py` before changing Gap A2 evaluation, rule distillation, or state persistence.
-5. If the next task concerns runtime motion constraints, preserve the dense-array lowering boundary and avoid reintroducing dict interpretation into hot loops.
-6. If the next task concerns a Taichi backend, keep the authoring semantics (`KnowledgeRule` / `ParameterSpace`) stable and only swap the lowering/execution backend.
-7. If the next task concerns gait or locomotion rollout, extend the existing Runtime DistillBus into gait blending and physics penalty batch evaluation instead of forking a second rule pipeline.
-8. Preserve SESSION-049 gait blending behavior unless the task explicitly targets cross-gait rollout.
-9. Preserve SESSION-048 terrain sensor behavior unless the task explicitly targets terrain coupling.
+2. Read `SESSION_HANDOFF.md`, `docs/research/GAP_D1_STATE_MACHINE_GRAPH_FUZZING.md`, and `docs/audit/SESSION_051_AUDIT.md` before modifying Gap D1 code.
+3. Inspect `mathart/animation/state_machine_graph.py` before changing legality rules, coverage accounting, or canonical walk generation.
+4. Inspect `tests/test_state_machine_graph_fuzz.py` before adding more example-based tests; prefer extending the graph model and properties first.
+5. Inspect `mathart/evolution/state_machine_coverage_bridge.py` before changing D1 acceptance gates, knowledge write-back, or Layer 3 persistence.
+6. If the next task concerns `headless_e2e_ci.py`, connect it to the existing graph-driven sequences instead of inventing a second state-coverage system.
+7. If the next task adds new runtime clips such as `fall`, `hit`, `dash`, or `land`, extend the clip library first and let the graph model auto-expand from the runtime database.
+8. Preserve SESSION-050 Runtime DistillBus behavior unless the task explicitly targets runtime knowledge lowering or backend replacement.
+9. Preserve SESSION-049 gait blending behavior unless the task explicitly targets cross-gait rollout.
 10. Preserve SESSION-043 closed-loop tuning behavior unless the task explicitly targets its optimization policy.
 
 ## References
 
-[1]: https://dataorienteddesign.com/dodbook/
-[2]: https://neil3d.github.io/assets/img/ecs/DOD-Cpp.pdf
-[3]: https://www.taichi-lang.org/
-[4]: https://docs.taichi-lang.org/docs/odop
-[5]: https://docs.taichi-lang.org/docs/data_oriented_class
-[6]: https://numba.readthedocs.io/en/stable/user/performance-tips.html
+[1]: https://hypothesis.readthedocs.io/en/latest/stateful.html
+[2]: https://hypothesis.works/articles/rule-based-stateful-testing/
+[3]: https://networkx.org/documentation/stable/reference/algorithms/traversal.html
+[4]: https://abstracta.us/blog/software-testing/model-based-testing-using-state-machines/

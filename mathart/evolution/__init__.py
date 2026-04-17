@@ -89,6 +89,12 @@ from .gait_blend_bridge import (
     collect_gait_blend_status,
     GaitBlendEvolutionBridge,
 )
+# SESSION-051: State-machine graph coverage bridge (Gap D1)
+from .state_machine_coverage_bridge import (
+    StateMachineCoverageMetrics,
+    StateMachineCoverageState,
+    StateMachineCoverageBridge,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -142,4 +148,8 @@ __all__ = [
     "GaitBlendStatus",
     "collect_gait_blend_status",
     "GaitBlendEvolutionBridge",
+    # SESSION-051: State-machine graph coverage bridge (Gap D1)
+    "StateMachineCoverageMetrics",
+    "StateMachineCoverageState",
+    "StateMachineCoverageBridge",
 ]

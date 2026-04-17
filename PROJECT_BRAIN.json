@@ -1,22 +1,22 @@
 {
-  "version": "0.41.0",
-  "last_session_id": "SESSION-050",
-  "last_updated": "2026-04-17T03:46:13Z",
+  "version": "0.42.0",
+  "last_session_id": "SESSION-051",
+  "last_updated": "2026-04-17T04:18:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "5 new tests PASS (Gap A2); 118 targeted regression tests PASS; zero targeted regressions",
+  "validation_pass_rate": "5 new tests PASS (Gap D1); 6 PASS, 1 SKIP targeted regression batch; state-machine coverage cycle accepted",
   "total_iterations": 500,
-  "total_code_lines": 66800,
+  "total_code_lines": 71736,
   "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 66,
+  "knowledge_rule_count": 69,
   "math_model_count": 28,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",
-    "overall_completion": "40-42%",
-    "last_assessed": "SESSION-050",
+    "overall_completion": "42-44%",
+    "last_assessed": "SESSION-051",
     "dimension_scores": {
       "animation_physics_realism": 12,
       "motion_cognitive_naturalness": 23,
@@ -25,13 +25,13 @@
       "character_diversity": 15,
       "environment_tileset": 18,
       "engine_ready_export": 24,
-      "engineering_automation": 88
+      "engineering_automation": 90
     },
     "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-049: analytical aux maps (Gap C1), neural rendering bridge (Gap C3), physics-driven particles (Gap C2), lightweight Jakobsen secondary chains (Gap B1-lite), scene-aware distance sensor (Gap B2), and gait transition blending (Gap B3) are now closed. Main remaining blockers: full XPBD two-way rigid/soft coupling, industrial runtime depth (cache/partition/layering), and benchmarked asset production.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules. SESSION-049 closes Gap B3 by implementing Marker-based DTW gait transition blending: SyncMarker/GaitSyncProfile define foot-contact events, StrideWheel drives phase from distance (Rosen), GaitBlender performs Leader-Follower synchronized blend (UE Sync Groups), and adaptive_bounce provides speed-dependent vertical oscillation. Phase warping ensures sync marker alignment before pose interpolation, eliminating foot sliding during walk/run/sneak transitions.",
       "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. Combined with SESSION-044 auxiliary maps (normal/depth/mask), the project now has a complete Math→AI conditioning pipeline. Next: real-time EbSynth/ComfyUI integration demo.",
-      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge; SESSION-048 closes Gap B2 (scene-aware distance sensor) by implementing SDF terrain description, sphere-marching ray sensor, gravity-corrected TTC prediction, and phase-binding so transient phase reaches 1.0 at contact on arbitrary terrain. Next step: gait transition blending, production benchmark suite, and real-time EbSynth/ComfyUI demo. SESSION-050 closes Gap A2 by adding RuntimeDistillationBus, CompiledParameterSpace, JIT runtime rule programs, physics hot-path foot-contact integration, quality-controller pre-generation propagation, and RuntimeDistillBridge."
+      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge; SESSION-048 closes Gap B2 (scene-aware distance sensor) by implementing SDF terrain description, sphere-marching ray sensor, gravity-corrected TTC prediction, and phase-binding so transient phase reaches 1.0 at contact on arbitrary terrain. Next step: gait transition blending, production benchmark suite, and real-time EbSynth/ComfyUI demo. SESSION-050 closes Gap A2 by adding RuntimeDistillationBus, CompiledParameterSpace, JIT runtime rule programs, physics hot-path foot-contact integration, quality-controller pre-generation propagation, and RuntimeDistillBridge. SESSION-051 materially advances Gap D1 by adding an explicit runtime state graph, Hypothesis rule-based graph fuzzing, canonical edge walks, and a StateMachineCoverageBridge that writes knowledge and persistent coverage history."
     },
     "commercial_references": [
       {
@@ -45,12 +45,15 @@
         "type": "itch.io top-seller asset pack"
       }
     ],
-    "engineering_automation": 87,
+    "engineering_automation": 89,
     "animation_physics_realism": 10
   },
-  "current_focus": "SESSION-050 closes Gap A2 by implementing a Runtime Distillation Bus that lowers repository knowledge from KnowledgeParser/RuleCompiler/ParameterSpace into dense runtime arrays and Numba-compiled rule kernels. The bus now feeds the 60fps foot-contact path in physics_projector.py, global pre-generation adjustment in quality/controller.py, and a dedicated three-layer RuntimeDistillBridge that persists state and writes back runtime_distill_bus.md. Next: broaden bus rollout into gait blending, batch physics penalties, and optional Taichi backend.",
+  "current_focus": "SESSION-051 materially advances Gap D1 by introducing an explicit runtime state graph, Hypothesis rule-based graph fuzzing, edge/edge-pair coverage auditing, and a dedicated StateMachineCoverageBridge. The repository now achieves full edge coverage on the current MotionMatchingRuntime graph and persists knowledge/state for future expansion. Next: connect the same graph model to headless_e2e_ci.py and wider state assets such as fall/hit/dash.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "docs/research/GAP_D1_STATE_MACHINE_GRAPH_FUZZING.md",
+    "docs/audit/SESSION_051_AUDIT.md",
+    "knowledge/state_machine_graph_fuzzing.md",
     "docs/research/GAP_A2_RUNTIME_DISTILL_BUS_JIT.md",
     "docs/audit/SESSION_050_AUDIT.md",
     "knowledge/runtime_distill_bus.md",
@@ -163,10 +166,11 @@
       "id": "P1-E2E-COVERAGE",
       "priority": "P1",
       "title": "Expand E2E Reproducibility Tests",
-      "status": "TODO",
+      "status": "PARTIAL",
       "estimated_effort": "medium",
-      "description": "Add 2-3 new E2E presets to headless_e2e_ci.py to cover BiomechanicsProjector, MotionMatchingRuntime, and TransitionSynthesizer paths.",
-      "added_in": "SESSION-042"
+      "description": "Partially addressed in SESSION-051. The repository now has an explicit runtime state graph, Hypothesis rule-based graph fuzzing, canonical edge walk coverage, and StateMachineCoverageBridge persistence. Remaining work: feed graph-generated sequences into headless_e2e_ci.py and expand runtime assets beyond idle/walk/run/jump to fall/hit/dash-class states.",
+      "added_in": "SESSION-042",
+      "updated_in": "SESSION-051"
     },
     {
       "id": "P2-PHYSICS-DEFAULT",
@@ -2083,24 +2087,48 @@
     "session050_runtime_integration": "mathart/animation/physics_projector.py now consumes a compiled foot-contact program in ContactDetector.update(), and mathart/quality/controller.py applies global compiled constraints during pre_generation().",
     "session050_runtime_bridge": "mathart/evolution/runtime_distill_bridge.py implements Layer 1 evaluation, Layer 2 rule distillation to knowledge/runtime_distill_bus.md, and Layer 3 persistent state in .runtime_distill_state.json.",
     "session050_test_count": "5 new tests PASS; 118 targeted regression tests PASS.",
-    "session050_audit": "docs/audit/SESSION_050_AUDIT.md confirms research -> code -> artifact -> runtime -> test closure for Gap A2."
+    "session050_audit": "docs/audit/SESSION_050_AUDIT.md confirms research -> code -> artifact -> runtime -> test closure for Gap A2.",
+    "session051_gapd1_status": "CORE IMPLEMENTED. Runtime state-machine coverage now uses an explicit graph model, Hypothesis rule-based stateful tests, and persistent coverage auditing.",
+    "session051_graph_module": "mathart/animation/state_machine_graph.py adds RuntimeStateGraph, GraphCoverageSnapshot, RuntimeGraphExecutionResult, and RuntimeStateMachineHarness.",
+    "session051_bridge": "mathart/evolution/state_machine_coverage_bridge.py implements Layer 1 coverage evaluation, Layer 2 rule write-back to knowledge/state_machine_graph_fuzzing.md, and Layer 3 persistence in .state_machine_coverage_state.json.",
+    "session051_test_count": "5 new tests PASS; targeted regression batch 6 PASS, 1 SKIP; runtime coverage cycle accepted.",
+    "session051_audit": "docs/audit/SESSION_051_AUDIT.md confirms research -> code -> artifact -> runtime -> test closure for Gap D1."
   },
   "recent_focus_snapshot": {
     "top_open_loops": [
+      "Graph-driven headless E2E integration for MotionMatchingRuntime / TransitionSynthesizer coverage (P1-E2E-COVERAGE)",
       "Runtime DistillBus wider rollout into gait blending / batch physics penalties (P1-DISTILL-1A)",
-      "Production benchmark asset suite (P1-NEW-10)",
-      "Real-time EbSynth/ComfyUI integration demo (P1-AI-2A)"
+      "Production benchmark asset suite (P1-NEW-10)"
     ],
     "remaining_followups": [
-      "P1-PHASE-33A: smooth phase-preserving gait transition blending",
+      "P1-E2E-COVERAGE: feed graph-generated transition sequences into headless_e2e_ci.py",
+      "P1-E2E-COVERAGE: expand runtime graph assets to fall / hit / dash states",
       "P1-B2-1: add more terrain primitives (convex hull, Bézier, heightmap)",
       "P1-B2-2: extend TTC to multi-bounce and moving platforms",
       "P1-B1-1: render visible cape/hair ribbons or meshes from Jakobsen chains",
-      "P1-VFX-1A: bind true character masks into fluid VFX obstacle grids",
       "P1-AI-2A: real-time EbSynth/ComfyUI integration demo with exported MV data"
     ]
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-051",
+      "version": "0.42.0",
+      "date": "2026-04-17",
+      "gap_closed": "D1-core",
+      "title": "Graph-Based Property Fuzzing for Runtime State-Machine Coverage",
+      "new_modules": [
+        "mathart/animation/state_machine_graph.py",
+        "mathart/evolution/state_machine_coverage_bridge.py"
+      ],
+      "new_tests": 5,
+      "total_tests_pass": 6,
+      "key_references": [
+        "Hypothesis Stateful Testing docs",
+        "Hypothesis Rule-Based Stateful Testing article",
+        "NetworkX traversal docs",
+        "Model-based testing state machine coverage guidance"
+      ]
+    },
     {
       "session_id": "SESSION-049",
       "version": "0.40.0",

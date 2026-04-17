@@ -116,10 +116,10 @@
 ## 工程与测试覆盖差距 (The "Infrastructure" Gaps)
 
 ### Gap D1: 端到端测试覆盖面不足 (P1-E2E-COVERAGE)
-**现状**：`headless_e2e_ci.py` 实现了严密的视觉回归测试，但目前仅覆盖了 `mario` 预设的周期性动作。未显式触发 `BiomechanicsProjector`（肌肉张力）、`MotionMatchingRuntime`（运行时查询）和 `TransitionSynthesizer`（惯性化过渡）。
+**现状**：SESSION-051 已完成该差距的核心实现部分：仓库新增显式 `RuntimeStateGraph`、Hypothesis Rule-Based Stateful Testing、NetworkX 边/边对覆盖统计，以及 `StateMachineCoverageBridge` 三层进化闭环。当前 `MotionMatchingRuntime` 图在现有 clip 集合上已实现 **100% edge coverage**。剩余未完成部分是把同一套图驱动序列直接接入 `headless_e2e_ci.py`，并随着 `fall/hit/dash` 等未来 clip 扩张图规模。
 **搜集方向**：
-- 游戏引擎 CI/CD 中的复杂状态机遍历测试策略。
-- 自动化生成覆盖所有动画状态转换边（Transition Edges）的测试预设。
+- 游戏引擎 CI/CD 中将 graph-fuzzing 序列接入无头端到端回归的实践。
+- 自动化生成覆盖所有动画状态转换边与边对（Transition Pair）的测试预设。
 
 ### Gap D2: 遗留 API 表面积清理 (P2-PHASE-CLEANUP)
 **现状**：内部已完全统一到 `PhaseState` 和 `generate_frame()`，但旧的 API（如 `walk_animation()`）仍暴露在 `__all__` 中，存在语义混淆风险。
@@ -140,7 +140,7 @@
 | C1: 工业级渲染器 | P1 | 🟢 已解决 (SESSION-034/044) | SESSION-034, SESSION-044 |
 | C2: 物理驱动粒子特效 | P1 | 🟢 已解决 (SESSION-046 Stable Fluids) | SESSION-046 |
 | C3: 神经渲染桥接（防闪烁） | P1 | 🟢 **已解决** | **SESSION-045** |
-| D1: 端到端测试覆盖 | P1 | 🟡 部分解决 (SESSION-041 Visual Regression) | SESSION-041 |
+| D1: 端到端测试覆盖 | P1 | 🟡 核心已实现，E2E 接入待扩展 (SESSION-051 Graph Fuzzing) | SESSION-051 |
 | D2: 遗留 API 清理 | P2 | 🔴 未解决 | — |
 
 ### 下一步研究协议触发建议
