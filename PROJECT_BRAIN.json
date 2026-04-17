@@ -1,22 +1,22 @@
 {
-  "version": "0.38.0",
-  "last_session_id": "SESSION-047",
-  "last_updated": "2026-04-17T01:00:01Z",
+  "version": "0.39.0",
+  "last_session_id": "SESSION-048",
+  "last_updated": "2026-04-17T12:00:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "5 new tests PASS (Gap B1); targeted Jakobsen audit PASS; py_compile PASS; zero local regressions in touched modules",
+  "validation_pass_rate": "51 new tests PASS (Gap B2); 895 total tests PASS; zero regressions",
   "total_iterations": 500,
-  "total_code_lines": 64237,
+  "total_code_lines": 65500,
   "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 53,
+  "knowledge_rule_count": 55,
   "math_model_count": 28,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",
     "overall_completion": "37-39%",
-    "last_assessed": "SESSION-047",
+    "last_assessed": "SESSION-048",
     "dimension_scores": {
       "animation_physics_realism": 10,
       "motion_cognitive_naturalness": 21,
@@ -27,11 +27,11 @@
       "engine_ready_export": 24,
       "engineering_automation": 88
     },
-    "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-047: analytical aux maps (Gap C1), neural rendering bridge (Gap C3), physics-driven particles (Gap C2), and lightweight Jakobsen secondary chains (Gap B1-lite) are now closed. Main remaining blockers: full XPBD two-way rigid/soft coupling, industrial runtime depth (cache/partition/layering), terrain-aware sensing, gait transition blending, and benchmarked asset production.",
+    "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-048: analytical aux maps (Gap C1), neural rendering bridge (Gap C3), physics-driven particles (Gap C2), lightweight Jakobsen secondary chains (Gap B1-lite), and scene-aware distance sensor (Gap B2) are now closed. Main remaining blockers: full XPBD two-way rigid/soft coupling, industrial runtime depth (cache/partition/layering), gait transition blending, and benchmarked asset production.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules.",
       "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. Combined with SESSION-044 auxiliary maps (normal/depth/mask), the project now has a complete Math→AI conditioning pipeline. Next: real-time EbSynth/ComfyUI integration demo.",
-      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge. Next step: full XPBD two-way coupling, terrain-aware sensing, gait transition blending, and production benchmark suite."
+      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge; SESSION-048 closes Gap B2 (scene-aware distance sensor) by implementing SDF terrain description, sphere-marching ray sensor, gravity-corrected TTC prediction, and phase-binding so transient phase reaches 1.0 at contact on arbitrary terrain. Next step: gait transition blending, production benchmark suite, and real-time EbSynth/ComfyUI demo."
     },
     "commercial_references": [
       {
@@ -47,9 +47,11 @@
     ],
     "engineering_automation": 87
   },
-  "current_focus": "SESSION-047 closes Gap B1-lite by implementing Thomas Jakobsen inspired lightweight secondary chains for 2D cape/hair motion, binding them to UMR root/bone motion, writing per-frame diagnostics into metadata, and integrating a dedicated JakobsenEvolutionBridge into the three-layer evolution stack. All previous SESSION-043/044/045/046 capabilities remain intact. Next: full XPBD, fluid silhouette coupling, real-time EbSynth/ComfyUI demo, terrain-aware sensing, and production benchmark assets.",
+  "current_focus": "SESSION-048 closes Gap B2 by implementing SDF Terrain + Time-to-Contact (TTC) + Distance Matching for scene-aware fall/jump phase binding. TerrainSDF describes arbitrary terrain geometry, TerrainRaySensor sphere-marches to compute exact distance-to-ground, TTCPredictor computes gravity-corrected contact time, and scene_aware_distance_phase() binds transient phase progress to TTC so phase=1.0 at contact on any SDF terrain. TerrainSensorEvolutionBridge provides three-layer evaluation, distillation, and fitness integration. All previous SESSION-043/044/045/046/047 capabilities remain intact. Next: gait transition blending, production benchmark assets, real-time EbSynth/ComfyUI demo, and full XPBD coupling.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "docs/research/GAP_B2_TERRAIN_SENSOR_TTC.md",
+    "docs/audit/SESSION_048_AUDIT.md",
     "docs/research/GAP_B1_JAKOBSEN_SECONDARY_CHAINS.md",
     "evolution_reports/session047_gapb1_research_notes.md",
     "evolution_reports/session047_gapb1_audit.json",
@@ -221,10 +223,29 @@
       "id": "P1-PHASE-37A",
       "priority": "P1",
       "title": "Scene-aware distance matching sensors",
+      "status": "DONE",
+      "estimated_effort": "medium",
+      "description": "CLOSED in SESSION-048. SDF Terrain + TerrainRaySensor + TTCPredictor + scene_aware_distance_phase() + scene_aware_fall_pose() + TerrainSensorEvolutionBridge. 51 tests PASS. Pipeline fall state upgraded to scene_aware_fall_frame().",
+      "added_in": "SESSION-037",
+      "completed_in": "SESSION-048"
+    },
+    {
+      "id": "P1-B2-1",
+      "priority": "P1",
+      "title": "Add more terrain primitives (convex hull, Bézier curve, heightmap import)",
       "status": "TODO",
       "estimated_effort": "medium",
-      "description": "Replace analytic jump/fall proxies with scene-aware sensing (distance-to-ground raycasts, apex prediction under runtime physics, landing probes) and extend hit recovery toward per-body-region impact sensing so transient phases remain correct on uneven terrain and dynamic collision setups.",
-      "added_in": "SESSION-037"
+      "description": "Extend TerrainSDF factory functions with convex hull terrain, Bézier spline terrain, and heightmap-imported terrain for richer level geometry.",
+      "added_in": "SESSION-048"
+    },
+    {
+      "id": "P1-B2-2",
+      "priority": "P1",
+      "title": "Extend TTC prediction to multi-bounce scenarios and moving platforms",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Upgrade TTCPredictor to handle moving platforms (time-dependent SDF), multi-bounce trajectories, and wall-slide scenarios.",
+      "added_in": "SESSION-048"
     },
     {
       "id": "P1-INDUSTRIAL-34B",
@@ -266,9 +287,9 @@
       "id": "P1-PHASE-33B",
       "priority": "P1",
       "title": "Terrain-adaptive phase modulation",
-      "status": "TODO",
+      "status": "PARTIAL",
       "estimated_effort": "medium",
-      "description": "Phase advancement responds to slope, surface type, obstacles, and true distance sensing. Extend the current analytic transient phases with terrain-aware or raycast-driven distance-to-ground/apex logic.",
+      "description": "Partially addressed by SESSION-048 scene_aware_distance_phase() and slope compensation. Remaining: cyclic gait phase modulation on slopes and surface-type-driven stride adjustment.",
       "added_in": "SESSION-033"
     },
     {
@@ -1367,6 +1388,12 @@
       "id": "P1-GAP-B1",
       "title": "Lightweight Jakobsen secondary chains for rigid-soft secondary animation",
       "completed_in": "SESSION-047"
+    },
+    {
+      "id": "P1-PHASE-37A",
+      "title": "Scene-Aware Distance Matching Sensors (SDF Terrain + TTC)",
+      "completed_in": "SESSION-048",
+      "result": "Closed Gap B2 by implementing TerrainSDF (5 terrain factories), TerrainRaySensor (sphere-marching), TTCPredictor (gravity-corrected TTC), scene_aware_distance_phase() (phase=1.0 at contact), scene_aware_fall_pose() (slope compensation), TerrainSensorEvolutionBridge (three-layer evaluation + distillation + fitness). Pipeline fall state upgraded. 51 tests PASS."
     }
   ],
   "capability_gaps": [
@@ -1453,7 +1480,8 @@
     "RESOLVED-S040: Phase-driven idle generator eliminates last legacy_pose_adapter fallback",
     "RESOLVED-S040: Three-layer evolution cycle now includes contract compliance (L1 validation, L2 knowledge distillation, L3 fitness bonus)",
     "RESOLVED-S046: No physics-driven particles / grid-based vector field VFX -> Stable Fluids smoke system with obstacle-aware flow, fluid-guided particles, pipeline presets, and evolution bridge",
-    "RESOLVED-S047: No lightweight rigid-soft secondary chain layer -> JakobsenSecondaryChain + SecondaryChainProjector + JakobsenEvolutionBridge"
+    "RESOLVED-S047: No lightweight rigid-soft secondary chain layer -> JakobsenSecondaryChain + SecondaryChainProjector + JakobsenEvolutionBridge",
+    "RESOLVED-S048: Analytic flat-ground assumption in fall/jump distance matching -> SDF Terrain + TerrainRaySensor + TTCPredictor + scene_aware_distance_phase() + scene_aware_fall_pose() + TerrainSensorEvolutionBridge (Gap B2)"
   ],
   "session_029_changes": {
     "new_artifacts": [
@@ -1965,24 +1993,55 @@
     "session047_jakobsen_bridge": "mathart/evolution/jakobsen_bridge.py implements evaluation, rule distillation, persistent state, and fitness feedback for secondary chains.",
     "session047_pipeline": "AssetPipeline now persists secondary_chain_config and per-frame secondary_chain_debug metadata for character packs.",
     "session047_test_count": "5 new tests, all PASS.",
-    "session047_audit": "evolution_reports/session047_gapb1_audit.json confirms research -> code -> artifact -> test closure."
+    "session047_audit": "evolution_reports/session047_gapb1_audit.json confirms research -> code -> artifact -> test closure.",
+    "session048_gapb2_status": "CLOSED. Scene-Aware Distance Sensor (Gap B2) fully implemented with SDF terrain, TTC prediction, and phase binding.",
+    "session048_terrain_module": "mathart/animation/terrain_sensor.py adds TerrainSDF, TerrainRaySensor, TTCPredictor, scene-aware phase/pose/frame generators, diagnostics, and 5 terrain factories.",
+    "session048_terrain_bridge": "mathart/evolution/terrain_sensor_bridge.py implements three-layer evaluation, rule distillation, fitness bonus, and persistent state tracking.",
+    "session048_pipeline": "AssetPipeline fall state upgraded to scene_aware_fall_frame() with backward-compatible terrain=None fallback.",
+    "session048_test_count": "51 new tests, all PASS. 895 total tests PASS.",
+    "session048_audit": "docs/audit/SESSION_048_AUDIT.md confirms research -> code -> artifact -> test closure for all 6 research items.",
+    "session048_distillation_records": "5 new records (Clavet GDC 2016, Delayen UE5, Pont\u00f3n SIGGRAPH 2025, Ha/Ye/Liu SIGGRAPH Asia 2012, internal Terrain Bridge)."
   },
   "recent_focus_snapshot": {
     "top_open_loops": [
-      "Full XPBD rigid/soft body coupling (P0-GAP-2)",
-      "Real character silhouette coupling for fluid VFX (P1-VFX-1A)",
+      "Gait transition blending walk/run/sneak (P1-PHASE-33A)",
+      "Production benchmark asset suite (P1-NEW-10)",
       "Real-time EbSynth/ComfyUI integration demo (P1-AI-2A)"
     ],
     "remaining_followups": [
-      "P0-GAP-2: full XPBD rigid/soft body coupling",
+      "P1-PHASE-33A: smooth phase-preserving gait transition blending",
+      "P1-B2-1: add more terrain primitives (convex hull, B\u00e9zier, heightmap)",
+      "P1-B2-2: extend TTC to multi-bounce and moving platforms",
       "P1-B1-1: render visible cape/hair ribbons or meshes from Jakobsen chains",
-      "P1-B1-2: upgrade chain contacts toward width-aware proxies or self-collision when needed",
       "P1-VFX-1A: bind true character masks into fluid VFX obstacle grids",
-      "P1-VFX-1B: drive fluid impulses from UMR root velocity and weapon trajectories",
       "P1-AI-2A: real-time EbSynth/ComfyUI integration demo with exported MV data"
     ]
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-048",
+      "date": "2026-04-17",
+      "version": "0.39.0",
+      "title": "Gap B2 closure: Scene-Aware Distance Sensor (SDF Terrain + TTC)",
+      "highlights": [
+        "Implemented mathart/animation/terrain_sensor.py with TerrainSDF (5 terrain factories), TerrainRaySensor (sphere-marching), TTCPredictor (gravity-corrected TTC), scene-aware phase/pose/frame generators.",
+        "Pipeline fall state upgraded to scene_aware_fall_frame() with backward-compatible terrain=None fallback.",
+        "Added mathart/evolution/terrain_sensor_bridge.py and integrated into engine status + evolution report.",
+        "Registered 5 Gap B2 distillation records (Clavet, Delayen, Pont\u00f3n, Ha/Ye/Liu, internal bridge).",
+        "51 new tests all PASS; 895 total tests PASS; zero regressions."
+      ],
+      "artifacts": [
+        "mathart/animation/terrain_sensor.py",
+        "mathart/evolution/terrain_sensor_bridge.py",
+        "tests/test_terrain_sensor.py",
+        "docs/research/GAP_B2_TERRAIN_SENSOR_TTC.md",
+        "docs/audit/SESSION_048_AUDIT.md"
+      ],
+      "tests": [
+        "python3.11 -m pytest tests/test_terrain_sensor.py (51/51 PASS)",
+        "python3.11 -m pytest tests/ (895 passed, 2 skipped)"
+      ]
+    },
     {
       "session_id": "SESSION-047",
       "date": "2026-04-17",

@@ -73,6 +73,14 @@ from .jakobsen_bridge import (
     collect_jakobsen_chain_status,
     JakobsenEvolutionBridge,
 )
+# SESSION-048: Terrain Sensor Bridge (Gap B2)
+from .terrain_sensor_bridge import (
+    TerrainSensorMetrics,
+    TerrainSensorState,
+    TerrainSensorStatus,
+    collect_terrain_sensor_status,
+    TerrainSensorEvolutionBridge,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -114,4 +122,10 @@ __all__ = [
     "JakobsenChainStatus",
     "collect_jakobsen_chain_status",
     "JakobsenEvolutionBridge",
+    # SESSION-048: Terrain Sensor Bridge (Gap B2)
+    "TerrainSensorMetrics",
+    "TerrainSensorState",
+    "TerrainSensorStatus",
+    "collect_terrain_sensor_status",
+    "TerrainSensorEvolutionBridge",
 ]

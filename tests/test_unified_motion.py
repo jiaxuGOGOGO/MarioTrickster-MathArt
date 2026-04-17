@@ -117,7 +117,7 @@ def test_transient_phase_frame_generators_write_umr_metadata():
         ground_height=0.0,
         fall_reference_height=0.22,
     )
-    assert fall.metadata["phase_kind"] == "distance_to_ground"
+    assert fall.metadata["phase_kind"] in ("distance_to_ground", "scene_aware_distance")
     assert fall.metadata["distance_to_ground"] >= 0.0
     assert fall.metadata["landing_preparation"] >= 0.0
 
@@ -171,7 +171,7 @@ def test_character_pipeline_exports_umr_artifacts(tmp_path: Path):
 
     assert jump_umr["frames"][0]["metadata"]["phase_kind"] == "distance_to_apex"
     assert jump_umr["frames"][0]["metadata"]["target_state"] == "apex"
-    assert fall_umr["frames"][0]["metadata"]["phase_kind"] == "distance_to_ground"
+    assert fall_umr["frames"][0]["metadata"]["phase_kind"] in ("distance_to_ground", "scene_aware_distance")
     assert fall_umr["frames"][0]["metadata"]["target_state"] == "ground_contact"
     assert hit_umr["frames"][0]["metadata"]["phase_kind"] == "hit_recovery"
     assert hit_umr["frames"][0]["metadata"]["phase_source"] == "critical_damped_recovery"

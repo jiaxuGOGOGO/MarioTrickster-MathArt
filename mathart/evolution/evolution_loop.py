@@ -461,10 +461,70 @@ GAPC3_DISTILLATIONS: list[DistillationRecord] = [
 ]
 
 
+GAPB2_DISTILLATIONS: list[DistillationRecord] = [
+    DistillationRecord(
+        paper_id="clavet2016motionmatching",
+        paper_title="Motion Matching and The Road to Next-Gen Animation",
+        authors="Simon Clavet (Ubisoft)",
+        venue="GDC 2016",
+        concept="Trajectory prediction as spring-damper; obstacle reaction before contact; entity clamped to simulated point. Adopted: predict terrain contact via SDF query before it happens.",
+        target_module="mathart/animation/terrain_sensor.py",
+        target_class="TerrainRaySensor",
+        validation_status="validated",
+        test_coverage="tests/test_terrain_sensor.py",
+    ),
+    DistillationRecord(
+        paper_id="delayen2016distancematching",
+        paper_title="Distance Matching in Unreal Engine (Paragon)",
+        authors="Laurent Delayen (Epic Games)",
+        venue="nucl.ai 2016 / UE5 Documentation",
+        concept="Distance-curve-driven playback: advance fall animation to frame whose Distance Curve matches D. Adopted: bind transient phase to SDF distance so phase=1.0 at contact.",
+        target_module="mathart/animation/terrain_sensor.py",
+        target_class="scene_aware_distance_phase",
+        validation_status="validated",
+        test_coverage="tests/test_terrain_sensor.py",
+    ),
+    DistillationRecord(
+        paper_id="ponton2025envmm",
+        paper_title="Environment-aware Motion Matching",
+        authors="Pont\u00f3n, J.L. et al.",
+        venue="SIGGRAPH 2025",
+        concept="Environment features (2D ellipse body proxies) integrated into Motion Matching cost function. Adopted: terrain surface normal influences pose via slope compensation.",
+        target_module="mathart/animation/terrain_sensor.py",
+        target_class="scene_aware_fall_pose",
+        validation_status="validated",
+        test_coverage="tests/test_terrain_sensor.py",
+    ),
+    DistillationRecord(
+        paper_id="ha2012fallinglanding",
+        paper_title="Falling and Landing Motion Control for Character Animation",
+        authors="Ha, S., Ye, Y., Liu, C.K.",
+        venue="SIGGRAPH Asia 2012",
+        concept="Airborne + landing phase decomposition; moment of inertia optimization; impact distribution. Adopted: TTC-driven two-phase structure (stretch + brace/landing).",
+        target_module="mathart/animation/terrain_sensor.py",
+        target_class="TTCPredictor",
+        validation_status="validated",
+        test_coverage="tests/test_terrain_sensor.py",
+    ),
+    DistillationRecord(
+        paper_id="session048_terrain_bridge",
+        paper_title="Terrain Sensor Evolution Bridge \u2014 Three-Layer SDF Terrain + TTC Loop",
+        authors="Project Internal (SESSION-048 / Gap B2)",
+        venue="SESSION-048",
+        concept="SDF terrain query at foot position \u2192 sphere-traced distance \u2192 gravity-corrected TTC \u2192 phase binding \u2192 brace/landing signals \u2192 slope compensation. Three-layer bridge: evaluate accuracy, distill rules, compute fitness bonus.",
+        target_module="mathart/evolution/terrain_sensor_bridge.py",
+        target_class="TerrainSensorEvolutionBridge",
+        validation_status="validated",
+        test_coverage="tests/test_terrain_sensor.py",
+    ),
+]
+
+
 _REGISTERED_DISTILLATIONS: list[DistillationRecord] = [
     *GAP1_DISTILLATIONS,
     *GAP4_DISTILLATIONS,
     *GAPB1_DISTILLATIONS,
+    *GAPB2_DISTILLATIONS,
     *GAPC1_DISTILLATIONS,
     *GAPC2_DISTILLATIONS,
     *GAPC3_DISTILLATIONS,
@@ -637,6 +697,10 @@ def generate_evolution_report(
     from .jakobsen_bridge import collect_jakobsen_chain_status
     jakobsen_status = collect_jakobsen_chain_status(root)
 
+    # SESSION-048: Terrain sensor bridge status (Gap B2)
+    from .terrain_sensor_bridge import collect_terrain_sensor_status
+    terrain_sensor_status = collect_terrain_sensor_status(root)
+
     # SESSION-045: Neural rendering bridge status
     from .neural_rendering_bridge import collect_neural_rendering_status
     neural_rendering_status = collect_neural_rendering_status(root)
@@ -650,6 +714,7 @@ def generate_evolution_report(
         + int((root / "tests/test_motion_vector_baker.py").exists())
         + int((root / "tests/test_fluid_vfx.py").exists())
         + int((root / "tests/test_jakobsen_chain.py").exists())
+        + int((root / "tests/test_terrain_sensor.py").exists())
     )
 
     test_result = TestEvolutionResult(
@@ -691,6 +756,12 @@ def generate_evolution_report(
         )
     else:
         summary_parts.append("Jakobsen bridge (Gap B1) not yet integrated")
+    if terrain_sensor_status.module_exists:
+        summary_parts.append(
+            f"terrain sensor bridge tracks {len(terrain_sensor_status.tracked_exports)} SDF terrain + TTC hook(s)"
+        )
+    else:
+        summary_parts.append("terrain sensor bridge (Gap B2) not yet integrated")
     if neural_rendering_status.motion_vector_module_exists:
         summary_parts.append(
             f"neural rendering bridge exports {len(neural_rendering_status.tracked_exports)} tracked MV hooks"
@@ -761,7 +832,9 @@ __all__ = [
     "GAPB1_DISTILLATIONS",
     "GAPC1_DISTILLATIONS",
     "GAPC2_DISTILLATIONS",
+    "GAPB2_DISTILLATIONS",
     "GAPC3_DISTILLATIONS",
     "collect_neural_rendering_status",
     "collect_jakobsen_chain_status",
+    "collect_terrain_sensor_status",
 ]

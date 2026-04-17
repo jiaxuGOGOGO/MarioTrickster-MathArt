@@ -2,7 +2,7 @@
 
 > **文档目标**：全面梳理项目当前（v0.36.0 / SESSION-045）存在的所有技术差距、架构断裂与商业基准短板。本清单旨在为后续的"精准并行研究协议"和技术攻坚提供明确的靶点。
 >
-> **最近更新**：SESSION-045 完成 Gap C3（神经渲染桥接 / 防闪烁终极杀器）的完整研究与代码实践。
+> **最近更新**：SESSION-048 完成 Gap B2（场景感知距离传感器 / SDF 地形 + TTC 预测）的完整研究与代码实践。
 
 ---
 
@@ -36,12 +36,22 @@
 - 刚体骨骼与 XPBD 柔体网格的双向耦合（Two-way coupling）算法。
 - 适合像素画渲染的低分辨率质点-弹簧系统（Mass-Spring System）。
 
-### Gap B2: 场景感知的距离匹配传感器 (P1-PHASE-37A)
-**现状**：跳跃（Jump）和下落（Fall）虽然已升级为原生瞬态相位（Transient Phase），但其"距离到地面"（distance-to-ground）和"距离到顶点"（distance-to-apex）的计算是**解析式/分析式**的，假设地面永远是平的（$y=0$）。
-**搜集方向**：
-- 现代 3D 游戏（如《最后生还者2》、《战神》）中的 Motion Matching 射线检测（Raycast）传感器设计。
-- 2D 平台游戏中的地形自适应（Terrain-adaptive）相位调制算法。
-- 动态碰撞环境下的着陆预测（Landing Prediction）数学模型。
+### Gap B2: 场景感知的距离匹配传感器 (P1-PHASE-37A) — ✅ SESSION-048 RESOLVED
+**现状**：~~跳跃（Jump）和下落（Fall）虽然已升级为原生瞬态相位（Transient Phase），但其"距离到地面"（distance-to-ground）和"距离到顶点"（distance-to-apex）的计算是**解析式/分析式**的，假设地面永远是平的（$y=0$）。~~
+
+**SESSION-048 解决方案（v0.39.0）**：
+- **TerrainSDF** (`mathart/animation/terrain_sensor.py`)：用 SDF 描述地形（flat/slope/step/sine/platform），支持梯度计算和表面法线查询。
+- **TerrainRaySensor**：sphere-marching 射线传感器，脚尖坐标代入 `Terrain_SDF(x,y)` 直接得出绝对离地距离 D。
+- **TTCPredictor**：通过当前下落速度 + 重力计算抵达时间预测（Time-to-Contact），支持 brace 信号生成。
+- **scene_aware_distance_phase()**：Transient Phase 进度与 TTC 绑定，确保脚碰到任何奇形怪状的 SDF 地形瞬间，相位刚好到达 1.0。
+- **scene_aware_fall_pose()**：坡度补偿（slope compensation），根据地形法线调整落地姿态。
+- **TerrainSensorEvolutionBridge** (`mathart/evolution/terrain_sensor_bridge.py`)：三层进化桥接 — Layer 1 TTC 精度评估、Layer 2 知识蒸馏（5 条记录）、Layer 3 适应度集成 + 状态持久化。
+- **Pipeline 集成**：`pipeline.py` fall 状态自动使用 `scene_aware_fall_frame()`，向后兼容无地形场景。
+- **51 个测试**全部通过，Engine 集成完成。
+
+**研究文档**：`docs/research/GAP_B2_TERRAIN_SENSOR_TTC.md`
+**审计清单**：`docs/audit/SESSION_048_AUDIT.md`
+**代表人物/对标参考**：Simon Clavet（Motion Matching 发明者）、Laurent Delayen（UE5 Distance Matching）、Pontón et al.（Environment-aware MM, SIGGRAPH 2025）、Ha/Ye/Liu（Falling & Landing, SIGGRAPH Asia 2012）
 
 ### Gap B3: 步态过渡的相位保持混合 (P1-PHASE-33A)
 **现状**：虽然实现了惯性化过渡（Inertialization），但在 Walk、Run、Sneak 等不同周期性步态之间切换时，缺乏对**相位连续性**的严格保持，可能导致脚步滑步或动作抽搐。
@@ -105,11 +115,11 @@
 |-----|--------|------|----------|
 | A1: 评估→导出参数收敛闭环 | P0 | 🟡 部分解决 (SESSION-043 Closed Loop) | SESSION-043 |
 | A2: 全局蒸馏总线运行时接入 | P0 | 🟡 部分解决 | — |
-| B1: 刚体与柔体双向耦合 | P0 | 🔴 未解决 | — |
-| B2: 场景感知距离匹配传感器 | P1 | 🔴 未解决 | — |
+| B1: 刚体与柔体双向耦合 | P0 | 🟢 已解决 (SESSION-047 Jakobsen) | SESSION-047 |
+| B2: 场景感知距离匹配传感器 | P1 | 🟢 **已解决** | **SESSION-048** |
 | B3: 步态过渡相位保持混合 | P1 | 🟡 部分解决 (SESSION-039 Inertialization) | SESSION-039 |
 | C1: 工业级渲染器 | P1 | 🟢 已解决 (SESSION-034/044) | SESSION-034, SESSION-044 |
-| C2: 物理驱动粒子特效 | P1 | 🔴 未解决 | — |
+| C2: 物理驱动粒子特效 | P1 | 🟢 已解决 (SESSION-046 Stable Fluids) | SESSION-046 |
 | C3: 神经渲染桥接（防闪烁） | P1 | 🟢 **已解决** | **SESSION-045** |
 | D1: 端到端测试覆盖 | P1 | 🟡 部分解决 (SESSION-041 Visual Regression) | SESSION-041 |
 | D2: 遗留 API 清理 | P2 | 🔴 未解决 | — |

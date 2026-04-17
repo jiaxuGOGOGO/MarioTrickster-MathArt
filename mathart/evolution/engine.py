@@ -62,6 +62,8 @@ from .neural_rendering_bridge import NeuralRenderingEvolutionBridge, collect_neu
 from .fluid_vfx_bridge import FluidVFXEvolutionBridge, collect_fluid_vfx_status
 # SESSION-047: Jakobsen Secondary Chain Bridge (Gap B1)
 from .jakobsen_bridge import JakobsenEvolutionBridge, collect_jakobsen_chain_status
+# SESSION-048: Terrain Sensor Bridge (Gap B2)
+from .terrain_sensor_bridge import TerrainSensorEvolutionBridge, collect_terrain_sensor_status
 
 
 class SelfEvolutionEngine:
@@ -147,6 +149,12 @@ class SelfEvolutionEngine:
 
         # SESSION-047: Jakobsen Secondary Chain Bridge (Gap B1)
         self.jakobsen_bridge = JakobsenEvolutionBridge(
+            project_root=self.project_root,
+            verbose=verbose,
+        )
+
+        # SESSION-048: Terrain Sensor Bridge (Gap B2)
+        self.terrain_sensor_bridge = TerrainSensorEvolutionBridge(
             project_root=self.project_root,
             verbose=verbose,
         )
@@ -801,6 +809,24 @@ class SelfEvolutionEngine:
             lines.append(f"   Tracked exports: {', '.join(jakobsen_status.tracked_exports)}")
         if jakobsen_status.research_notes_path:
             lines.append(f"   Research notes: {jakobsen_status.research_notes_path}")
+        lines.append("")
+
+        # ── SESSION-048: Terrain Sensor Bridge status ──
+        lines.append("--- Terrain Sensor Bridge (SESSION-048 / Gap B2) ---")
+        lines.append(self.terrain_sensor_bridge.status_report().replace(
+            "--- Terrain Sensor Evolution Bridge (SESSION-048 / Gap B2) ---", ""
+        ).strip())
+        terrain_status = collect_terrain_sensor_status(self.project_root)
+        lines.extend([
+            f"   Module active: {'yes' if terrain_status.module_exists else 'no'}",
+            f"   Pipeline integration: {'yes' if terrain_status.pipeline_supports_terrain_sensor else 'no'}",
+            f"   Public API export: {'yes' if terrain_status.public_api_exports_sensor else 'no'}",
+            f"   Test present: {'yes' if terrain_status.test_exists else 'no'}",
+        ])
+        if terrain_status.tracked_exports:
+            lines.append(f"   Tracked exports: {', '.join(terrain_status.tracked_exports)}")
+        if terrain_status.research_notes_path:
+            lines.append(f"   Research notes: {terrain_status.research_notes_path}")
         lines.append("")
 
         # ── SESSION-044: Analytical SDF rendering status ──

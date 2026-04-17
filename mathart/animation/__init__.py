@@ -164,6 +164,25 @@ from .jakobsen_chain import (
     SecondaryChainProjector,
     create_default_secondary_chain_configs,
 )
+# SESSION-048: Scene-Aware Distance Sensor (Gap B2 — SDF Terrain + TTC)
+from .terrain_sensor import (
+    TerrainSDF,
+    TerrainRaySensor,
+    RayHit,
+    TTCPredictor,
+    TTCResult,
+    scene_aware_distance_phase,
+    scene_aware_fall_pose,
+    scene_aware_fall_frame,
+    scene_aware_jump_distance_phase,
+    TerrainSensorDiagnostics,
+    evaluate_terrain_sensor_accuracy,
+    create_flat_terrain,
+    create_slope_terrain,
+    create_step_terrain,
+    create_sine_terrain,
+    create_platform_terrain,
+)
 
 __all__ = [
     "Skeleton", "Bone", "Joint",
@@ -290,4 +309,21 @@ __all__ = [
     "JakobsenSecondaryChain",
     "SecondaryChainProjector",
     "create_default_secondary_chain_configs",
+    # SESSION-048: Scene-Aware Distance Sensor (Gap B2 — SDF Terrain + TTC)
+    "TerrainSDF",
+    "TerrainRaySensor",
+    "RayHit",
+    "TTCPredictor",
+    "TTCResult",
+    "scene_aware_distance_phase",
+    "scene_aware_fall_pose",
+    "scene_aware_fall_frame",
+    "scene_aware_jump_distance_phase",
+    "TerrainSensorDiagnostics",
+    "evaluate_terrain_sensor_accuracy",
+    "create_flat_terrain",
+    "create_slope_terrain",
+    "create_step_terrain",
+    "create_sine_terrain",
+    "create_platform_terrain",
 ]

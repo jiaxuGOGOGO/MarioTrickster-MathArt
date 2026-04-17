@@ -88,6 +88,12 @@ from .animation.unified_motion import (
 # SESSION-028: Physics-guided animation (PhysDiff-inspired)
 from .animation.physics_projector import AnglePoseProjector, CognitiveMotionConfig
 from .animation.jakobsen_chain import SecondaryChainProjector, create_default_secondary_chain_configs
+# SESSION-048: Scene-Aware Distance Sensor (Gap B2 — SDF Terrain + TTC)
+from .animation.terrain_sensor import (
+    TerrainSDF,
+    scene_aware_fall_frame,
+    create_flat_terrain,
+)
 # SESSION-027: Semantic genotype system
 from .animation.genotype import (
     CharacterGenotype, GENOTYPE_PRESETS, BODY_TEMPLATES,
@@ -1554,7 +1560,9 @@ class AssetPipeline:
                     apex_height=0.18,
                 )
             elif state_key == "fall":
-                frame = phase_driven_fall_frame(
+                # SESSION-048: Use scene_aware_fall_frame (Gap B2 upgrade)
+                # Falls back gracefully to flat ground when no terrain is provided.
+                frame = scene_aware_fall_frame(
                     t,
                     time=time_s,
                     frame_index=i,
@@ -1565,6 +1573,7 @@ class AssetPipeline:
                     root_velocity_y=root.velocity_y,
                     ground_height=0.0,
                     fall_reference_height=0.22,
+                    terrain=getattr(self, '_terrain_sdf', None),
                 )
             elif state_key == "hit":
                 frame = phase_driven_hit_frame(

@@ -1,0 +1,603 @@
+"""Gap B2 regression tests — SDF terrain sensor + TTC prediction.
+
+SESSION-048: Validates the full terrain sensing stack:
+  1. TerrainSDF primitives (flat, slope, step, sine, platform)
+  2. TerrainRaySensor sphere tracing
+  3. TTCPredictor (linear + gravity-corrected)
+  4. scene_aware_distance_phase backward compatibility
+  5. scene_aware_fall_frame UMR metadata
+  6. Pipeline integration (terrain-aware fall state)
+  7. TerrainSensorEvolutionBridge three-layer cycle
+"""
+from __future__ import annotations
+
+import json
+import math
+import os
+import sys
+import tempfile
+
+import numpy as np
+import pytest
+
+# ── 1. TerrainSDF Primitives ─────────────────────────────────────────────────
+
+from mathart.animation.terrain_sensor import (
+    TerrainSDF,
+    create_flat_terrain,
+    create_slope_terrain,
+    create_step_terrain,
+    create_sine_terrain,
+    create_platform_terrain,
+    TerrainRaySensor,
+    RayHit,
+    TTCPredictor,
+    TTCResult,
+    scene_aware_distance_phase,
+    scene_aware_fall_pose,
+    scene_aware_fall_frame,
+    scene_aware_jump_distance_phase,
+    TerrainSensorDiagnostics,
+    evaluate_terrain_sensor_accuracy,
+)
+
+
+class TestTerrainSDFPrimitives:
+    """Test SDF terrain factory functions."""
+
+    def test_flat_terrain_above(self):
+        terrain = create_flat_terrain(0.0)
+        assert terrain.query(0.0, 0.5) > 0  # above ground
+        assert abs(terrain.query(0.0, 0.5) - 0.5) < 1e-6
+
+    def test_flat_terrain_on_surface(self):
+        terrain = create_flat_terrain(0.0)
+        assert abs(terrain.query(0.0, 0.0)) < 1e-6  # on surface
+
+    def test_flat_terrain_below(self):
+        terrain = create_flat_terrain(0.0)
+        assert terrain.query(0.0, -0.3) < 0  # below ground
+
+    def test_flat_terrain_elevated(self):
+        terrain = create_flat_terrain(0.5)
+        assert abs(terrain.query(0.0, 0.5)) < 1e-6
+        assert terrain.query(0.0, 1.0) > 0
+
+    def test_slope_terrain(self):
+        terrain = create_slope_terrain(0.0, 0.0, 1.0, 0.5)
+        # At x=0: surface at y=0
+        assert abs(terrain.query(0.0, 0.0)) < 1e-6
+        # At x=1: surface at y=0.5
+        assert abs(terrain.query(1.0, 0.5)) < 1e-6
+        # At x=0.5: surface at y=0.25
+        assert abs(terrain.query(0.5, 0.25)) < 1e-6
+
+    def test_step_terrain(self):
+        terrain = create_step_terrain(0.5, 0.15, 0.0)
+        # Before step: surface near y=0
+        d_before = terrain.query(0.0, 0.0)
+        assert abs(d_before) < 0.05
+        # After step: surface near y=0.15
+        d_after = terrain.query(1.0, 0.15)
+        assert abs(d_after) < 0.05
+
+    def test_sine_terrain(self):
+        terrain = create_sine_terrain(0.1, 1.0, 0.0)
+        # At x=0: surface at y=0 (sin(0)=0)
+        assert abs(terrain.query(0.0, 0.0)) < 1e-6
+        # At x=0.25: surface at y=0.1 (sin(π/2)=1)
+        assert abs(terrain.query(0.25, 0.1)) < 1e-4
+
+    def test_platform_terrain(self):
+        platforms = [(0.0, 1.0, 0.2, 0.1), (2.0, 3.0, 0.5, 0.1)]
+        terrain = create_platform_terrain(platforms)
+        # On first platform
+        d = terrain.query(0.5, 0.2)
+        assert d <= 0.01  # on or near surface
+
+    def test_terrain_gradient(self):
+        terrain = create_flat_terrain(0.0)
+        gx, gy = terrain.gradient(0.0, 0.5)
+        # Flat terrain: gradient should point upward
+        assert abs(gx) < 0.01
+        assert gy > 0.5
+
+    def test_terrain_surface_normal(self):
+        terrain = create_flat_terrain(0.0)
+        nx, ny = terrain.surface_normal(0.0, 0.5)
+        assert abs(nx) < 0.01
+        assert abs(ny - 1.0) < 0.01
+
+    def test_terrain_compose_union(self):
+        flat = create_flat_terrain(0.0)
+        step = create_step_terrain(0.5, 0.2)
+        combined = flat.compose_union(step)
+        # The union should have the closer surface
+        d = combined.query(0.0, 0.1)
+        assert d >= 0  # above both surfaces
+
+    def test_batch_query(self):
+        terrain = create_flat_terrain(0.0)
+        x = np.array([0.0, 0.5, 1.0])
+        y = np.array([0.1, 0.2, 0.3])
+        d = terrain.query_batch(x, y)
+        assert d.shape == (3,)
+        np.testing.assert_allclose(d, y, atol=1e-6)
+
+
+# ── 2. TerrainRaySensor ──────────────────────────────────────────────────────
+
+class TestTerrainRaySensor:
+    """Test SDF-based ray casting."""
+
+    def test_cast_down_flat(self):
+        terrain = create_flat_terrain(0.0)
+        sensor = TerrainRaySensor(terrain)
+        d = sensor.cast_down(0.0, 0.5)
+        assert abs(d - 0.5) < 0.01
+
+    def test_cast_down_on_ground(self):
+        terrain = create_flat_terrain(0.0)
+        sensor = TerrainRaySensor(terrain)
+        d = sensor.cast_down(0.0, 0.0)
+        assert d < 0.01
+
+    def test_cast_down_step(self):
+        terrain = create_step_terrain(0.5, 0.15, 0.0)
+        sensor = TerrainRaySensor(terrain)
+        # Before step at height 0.3
+        d_before = sensor.cast_down(0.0, 0.3)
+        assert abs(d_before - 0.3) < 0.05
+        # After step at height 0.3 (step is at 0.15)
+        d_after = sensor.cast_down(1.0, 0.3)
+        assert abs(d_after - 0.15) < 0.05
+
+    def test_cast_down_with_normal(self):
+        terrain = create_flat_terrain(0.0)
+        sensor = TerrainRaySensor(terrain)
+        d, normal = sensor.cast_down_with_normal(0.0, 0.5)
+        assert abs(d - 0.5) < 0.01
+        assert abs(normal[1] - 1.0) < 0.1  # upward normal
+
+    def test_multi_point_query(self):
+        terrain = create_flat_terrain(0.0)
+        sensor = TerrainRaySensor(terrain)
+        points = [(0.0, 0.3), (0.5, 0.5), (1.0, 0.1)]
+        distances = sensor.multi_point_query(points)
+        assert len(distances) == 3
+        assert abs(distances[0] - 0.3) < 0.01
+        assert abs(distances[1] - 0.5) < 0.01
+        assert abs(distances[2] - 0.1) < 0.01
+
+    def test_cast_ray_custom_direction(self):
+        terrain = create_flat_terrain(0.0)
+        sensor = TerrainRaySensor(terrain)
+        # Cast at 45 degrees downward
+        hit = sensor.cast_ray(0.0, 0.5, 1.0, -1.0)
+        assert hit.hit
+        assert hit.distance > 0
+
+
+# ── 3. TTCPredictor ──────────────────────────────────────────────────────────
+
+class TestTTCPredictor:
+    """Test Time-to-Contact prediction."""
+
+    def test_ttc_simple_linear(self):
+        pred = TTCPredictor(gravity=0.0)
+        result = pred.compute_ttc(1.0, -2.0, use_gravity=False)
+        assert abs(result.ttc - 0.5) < 0.01  # D/|v| = 1/2
+
+    def test_ttc_with_gravity(self):
+        pred = TTCPredictor(gravity=9.81)
+        result = pred.compute_ttc(1.0, -1.0, use_gravity=True)
+        # Quadratic: 0.5*9.81*t² + 1.0*t - 1.0 = 0
+        # t = (-1 + sqrt(1 + 2*9.81*1)) / 9.81
+        expected = (-1.0 + math.sqrt(1.0 + 2 * 9.81 * 1.0)) / 9.81
+        assert abs(result.ttc - expected) < 0.01
+
+    def test_ttc_at_contact(self):
+        pred = TTCPredictor()
+        result = pred.compute_ttc(0.005, -1.0)
+        assert result.is_contact
+        assert result.ttc == 0.0
+        assert result.phase == 1.0
+
+    def test_ttc_moving_upward(self):
+        pred = TTCPredictor()
+        result = pred.compute_ttc(1.0, 1.0)
+        assert not result.is_approaching
+        assert result.phase == 0.0
+
+    def test_ttc_brace_signal(self):
+        pred = TTCPredictor(gravity=9.81)
+        # Very close to ground, falling fast → brace should be high
+        result = pred.compute_ttc(0.05, -3.0)
+        assert result.brace_signal > 0.5
+
+    def test_ttc_to_phase(self):
+        pred = TTCPredictor()
+        # At start: ttc = reference → phase = 0
+        assert abs(pred.ttc_to_phase(1.0, 1.0) - 0.0) < 1e-6
+        # At contact: ttc = 0 → phase = 1
+        assert abs(pred.ttc_to_phase(0.0, 1.0) - 1.0) < 1e-6
+        # Halfway: ttc = 0.5 → phase = 0.5
+        assert abs(pred.ttc_to_phase(0.5, 1.0) - 0.5) < 1e-6
+
+    def test_ttc_result_to_dict(self):
+        result = TTCResult(ttc=0.5, distance=1.0, velocity=-2.0)
+        d = result.to_dict()
+        assert "ttc" in d
+        assert "distance" in d
+        assert d["ttc"] == 0.5
+
+
+# ── 4. Scene-Aware Distance Phase ────────────────────────────────────────────
+
+class TestSceneAwareDistancePhase:
+    """Test the upgraded fall_distance_phase with terrain sensing."""
+
+    def test_flat_ground_backward_compatible(self):
+        """Without terrain, should behave like fall_distance_phase."""
+        result = scene_aware_distance_phase(
+            root_x=0.0, root_y=0.2, velocity_y=-1.0,
+            ground_height=0.0,
+        )
+        assert "phase" in result
+        assert 0.0 <= result["phase"] <= 1.0
+        assert result["terrain_query_mode"] == "flat_ground_fallback"
+        assert result["terrain_sensor_active"] is True
+
+    def test_with_flat_terrain(self):
+        terrain = create_flat_terrain(0.0)
+        result = scene_aware_distance_phase(
+            root_x=0.0, root_y=0.5, velocity_y=-2.0,
+            terrain=terrain,
+        )
+        assert result["terrain_query_mode"] == "sdf_terrain"
+        assert result["distance_to_ground"] > 0
+        assert result["ttc"] > 0
+
+    def test_with_step_terrain(self):
+        terrain = create_step_terrain(0.5, 0.15)
+        # Falling onto the step
+        result = scene_aware_distance_phase(
+            root_x=1.0, root_y=0.5, velocity_y=-2.0,
+            terrain=terrain,
+        )
+        # Distance should be ~0.35 (0.5 - 0.15)
+        assert abs(result["distance_to_ground"] - 0.35) < 0.1
+
+    def test_phase_increases_as_falling(self):
+        terrain = create_flat_terrain(0.0)
+        phases = []
+        for y in [0.5, 0.4, 0.3, 0.2, 0.1, 0.01]:
+            result = scene_aware_distance_phase(
+                root_x=0.0, root_y=y, velocity_y=-2.0,
+                terrain=terrain, fall_reference_height=0.5,
+            )
+            phases.append(result["phase"])
+        # Phase should be monotonically increasing
+        for i in range(len(phases) - 1):
+            assert phases[i + 1] >= phases[i] - 0.01
+
+    def test_phase_reaches_one_at_contact(self):
+        terrain = create_flat_terrain(0.0)
+        result = scene_aware_distance_phase(
+            root_x=0.0, root_y=0.001, velocity_y=-2.0,
+            terrain=terrain, fall_reference_height=0.5,
+        )
+        assert result["phase"] >= 0.95
+
+    def test_ttc_metadata_present(self):
+        terrain = create_flat_terrain(0.0)
+        result = scene_aware_distance_phase(
+            root_x=0.0, root_y=0.5, velocity_y=-2.0,
+            terrain=terrain,
+        )
+        assert "ttc" in result
+        assert "ttc_velocity" in result
+        assert "ttc_is_approaching" in result
+        assert "ttc_brace_signal" in result
+        assert "surface_normal_x" in result
+        assert "surface_normal_y" in result
+
+    def test_landing_window(self):
+        terrain = create_flat_terrain(0.0)
+        result = scene_aware_distance_phase(
+            root_x=0.0, root_y=0.02, velocity_y=-2.0,
+            terrain=terrain, fall_reference_height=0.5,
+        )
+        assert result["is_landing_window"] is True
+
+    def test_ttc_reference_mode(self):
+        terrain = create_flat_terrain(0.0)
+        result = scene_aware_distance_phase(
+            root_x=0.0, root_y=0.3, velocity_y=-2.0,
+            terrain=terrain, fall_reference_ttc=0.5,
+        )
+        assert result["phase_source"] == "ttc_bound"
+
+
+# ── 5. Scene-Aware Fall Frame (UMR) ──────────────────────────────────────────
+
+class TestSceneAwareFallFrame:
+    """Test UMR frame generation with terrain sensing."""
+
+    def test_fall_frame_basic(self):
+        frame = scene_aware_fall_frame(
+            0.5,
+            time=0.5, frame_index=3, source_state="fall",
+            root_x=0.0, root_y=0.3, root_velocity_y=-2.0,
+            ground_height=0.0, fall_reference_height=0.5,
+        )
+        assert frame.phase_state is not None
+        assert 0.0 <= frame.phase_state.value <= 1.0
+        assert frame.metadata.get("generator") == "scene_aware_fall_ttc_distance_matching"
+
+    def test_fall_frame_with_terrain(self):
+        terrain = create_flat_terrain(0.0)
+        frame = scene_aware_fall_frame(
+            0.5,
+            time=0.5, frame_index=3, source_state="fall",
+            root_x=0.0, root_y=0.3, root_velocity_y=-2.0,
+            terrain=terrain,
+        )
+        assert frame.metadata.get("terrain_sensor_active") is True
+        assert frame.metadata.get("terrain_query_mode") == "sdf_terrain"
+
+    def test_fall_frame_contact_tags(self):
+        terrain = create_flat_terrain(0.0)
+        frame = scene_aware_fall_frame(
+            1.0,
+            time=1.0, frame_index=10, source_state="fall",
+            root_x=0.0, root_y=0.001, root_velocity_y=-2.0,
+            terrain=terrain,
+        )
+        assert frame.contact_tags.left_foot is True
+        assert frame.contact_tags.right_foot is True
+
+
+# ── 6. Scene-Aware Fall Pose ──────────────────────────────────────────────────
+
+class TestSceneAwareFallPose:
+    """Test TTC-driven pose generation."""
+
+    def test_pose_has_all_joints(self):
+        pose = scene_aware_fall_pose(
+            0.5, root_y=0.3, velocity_y=-2.0,
+        )
+        expected_joints = ["spine", "chest", "head", "l_hip", "r_hip",
+                          "l_knee", "r_knee", "l_foot", "r_foot",
+                          "l_shoulder", "r_shoulder", "l_elbow", "r_elbow"]
+        for joint in expected_joints:
+            assert joint in pose, f"Missing joint: {joint}"
+
+    def test_pose_varies_with_phase(self):
+        pose_high = scene_aware_fall_pose(0.0, root_y=0.5, velocity_y=-1.0)
+        pose_low = scene_aware_fall_pose(1.0, root_y=0.01, velocity_y=-3.0)
+        # Knee bend should be deeper near landing
+        assert pose_low["l_knee"] < pose_high["l_knee"]
+
+    def test_slope_compensation(self):
+        slope = create_slope_terrain(0.0, 0.0, 1.0, 0.5)
+        pose = scene_aware_fall_pose(
+            0.5, root_x=0.5, root_y=0.5, velocity_y=-2.0,
+            terrain=slope,
+        )
+        # Spine should have some slope lean
+        assert isinstance(pose["spine"], float)
+
+
+# ── 7. Scene-Aware Jump Phase ─────────────────────────────────────────────────
+
+class TestSceneAwareJumpPhase:
+    """Test terrain-aware jump phase."""
+
+    def test_ascending_uses_standard_phase(self):
+        result = scene_aware_jump_distance_phase(
+            root_x=0.0, root_y=0.1, root_velocity_y=2.0,
+            apex_height=0.3,
+        )
+        assert result["phase_kind"] in ("distance_to_apex",)
+
+    def test_descending_uses_scene_aware(self):
+        terrain = create_flat_terrain(0.0)
+        result = scene_aware_jump_distance_phase(
+            root_x=0.0, root_y=0.2, root_velocity_y=-1.0,
+            terrain=terrain,
+        )
+        assert result["phase_kind"] == "scene_aware_jump_descent"
+        assert result["phase"] >= 0.5  # descent phase starts at 0.5
+
+
+# ── 8. Terrain Sensor Diagnostics ─────────────────────────────────────────────
+
+class TestTerrainSensorDiagnostics:
+    """Test evaluation diagnostics."""
+
+    def test_evaluate_flat_terrain(self):
+        terrain = create_flat_terrain(0.0)
+        trajectory = []
+        y = 0.5
+        vy = -1.0
+        dt = 0.05
+        g = 9.81
+        for i in range(20):
+            trajectory.append({
+                "root_x": 0.0,
+                "root_y": max(y, 0.0),
+                "velocity_y": vy,
+                "expected_distance": max(y, 0.0),
+            })
+            y += vy * dt
+            vy -= g * dt
+
+        diag = evaluate_terrain_sensor_accuracy(terrain, trajectory)
+        assert diag.frame_count == 20
+        assert diag.terrain_name == terrain.name
+        assert diag.mean_distance_error < 0.1
+        assert diag.phase_monotonic
+
+    def test_diagnostics_to_dict(self):
+        diag = TerrainSensorDiagnostics(cycle_id=1, frame_count=10)
+        d = diag.to_dict()
+        assert d["cycle_id"] == 1
+        assert d["frame_count"] == 10
+
+
+# ── 9. Evolution Bridge ──────────────────────────────────────────────────────
+
+class TestTerrainSensorEvolutionBridge:
+    """Test three-layer evolution bridge for Gap B2."""
+
+    def test_bridge_evaluate(self):
+        from mathart.evolution.terrain_sensor_bridge import (
+            TerrainSensorEvolutionBridge,
+            collect_terrain_sensor_status,
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bridge = TerrainSensorEvolutionBridge(tmpdir)
+            diagnostics = [
+                {
+                    "frame_count": 20,
+                    "mean_distance_error": 0.02,
+                    "max_distance_error": 0.05,
+                    "mean_ttc_error": 0.01,
+                    "phase_at_contact": 0.98,
+                    "phase_monotonic": True,
+                    "ttc_decreasing": True,
+                },
+                {
+                    "frame_count": 20,
+                    "mean_distance_error": 0.03,
+                    "max_distance_error": 0.06,
+                    "mean_ttc_error": 0.02,
+                    "phase_at_contact": 0.97,
+                    "phase_monotonic": True,
+                    "ttc_decreasing": True,
+                },
+            ]
+            metrics = bridge.evaluate_terrain_sensor(diagnostics)
+            assert metrics.pass_gate is True
+            assert metrics.terrain_count == 2
+            assert metrics.mean_phase_at_contact > 0.95
+
+    def test_bridge_distill(self):
+        from mathart.evolution.terrain_sensor_bridge import TerrainSensorEvolutionBridge
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bridge = TerrainSensorEvolutionBridge(tmpdir)
+            diagnostics = [{
+                "frame_count": 20,
+                "mean_distance_error": 0.02,
+                "max_distance_error": 0.05,
+                "mean_ttc_error": 0.01,
+                "phase_at_contact": 0.98,
+                "phase_monotonic": True,
+                "ttc_decreasing": True,
+            }]
+            metrics = bridge.evaluate_terrain_sensor(diagnostics)
+            rules = bridge.distill_terrain_sensor_knowledge(metrics)
+            assert len(rules) > 0
+            # Check knowledge file was created
+            knowledge_path = os.path.join(tmpdir, "knowledge", "terrain_sensor_ttc_rules.md")
+            assert os.path.exists(knowledge_path)
+
+    def test_bridge_fitness_bonus(self):
+        from mathart.evolution.terrain_sensor_bridge import (
+            TerrainSensorEvolutionBridge, TerrainSensorMetrics,
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bridge = TerrainSensorEvolutionBridge(tmpdir)
+            good_metrics = TerrainSensorMetrics(
+                terrain_count=3,
+                mean_distance_error=0.01,
+                mean_phase_at_contact=0.99,
+                phase_monotonic_rate=1.0,
+                ttc_decreasing_rate=1.0,
+                pass_gate=True,
+            )
+            bonus = bridge.compute_terrain_sensor_fitness_bonus(good_metrics)
+            assert bonus > 0
+
+            bad_metrics = TerrainSensorMetrics(
+                terrain_count=3,
+                mean_distance_error=0.15,
+                mean_phase_at_contact=0.7,
+                phase_monotonic_rate=0.6,
+                ttc_decreasing_rate=0.5,
+                pass_gate=False,
+            )
+            penalty = bridge.compute_terrain_sensor_fitness_bonus(bad_metrics)
+            assert penalty < 0
+
+    def test_bridge_status_report(self):
+        from mathart.evolution.terrain_sensor_bridge import TerrainSensorEvolutionBridge
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bridge = TerrainSensorEvolutionBridge(tmpdir)
+            report = bridge.status_report()
+            assert "Gap B2" in report
+            assert "Terrain Sensor" in report
+
+    def test_bridge_state_persistence(self):
+        from mathart.evolution.terrain_sensor_bridge import TerrainSensorEvolutionBridge
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bridge = TerrainSensorEvolutionBridge(tmpdir)
+            diagnostics = [{
+                "frame_count": 20,
+                "mean_distance_error": 0.02,
+                "max_distance_error": 0.05,
+                "mean_ttc_error": 0.01,
+                "phase_at_contact": 0.98,
+                "phase_monotonic": True,
+                "ttc_decreasing": True,
+            }]
+            bridge.evaluate_terrain_sensor(diagnostics)
+
+            state_path = os.path.join(tmpdir, ".terrain_sensor_state.json")
+            assert os.path.exists(state_path)
+
+            # Reload and verify
+            bridge2 = TerrainSensorEvolutionBridge(tmpdir)
+            assert bridge2.state.total_cycles == 1
+
+    def test_collect_status(self):
+        from mathart.evolution.terrain_sensor_bridge import collect_terrain_sensor_status
+        # Test against actual project root
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        status = collect_terrain_sensor_status(project_root)
+        assert status.module_exists is True
+        assert status.bridge_exists is True
+
+
+# ── 10. Integration: imports from public API ──────────────────────────────────
+
+class TestPublicAPIExports:
+    """Verify terrain sensor is accessible from public API."""
+
+    def test_animation_package_exports(self):
+        from mathart.animation import (
+            TerrainSDF,
+            TerrainRaySensor,
+            TTCPredictor,
+            scene_aware_distance_phase,
+            scene_aware_fall_frame,
+            create_flat_terrain,
+            create_step_terrain,
+        )
+        assert TerrainSDF is not None
+        assert TTCPredictor is not None
+
+    def test_evolution_package_exports(self):
+        from mathart.evolution import (
+            TerrainSensorEvolutionBridge,
+            TerrainSensorMetrics,
+            TerrainSensorState,
+            TerrainSensorStatus,
+            collect_terrain_sensor_status,
+        )
+        assert TerrainSensorEvolutionBridge is not None
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

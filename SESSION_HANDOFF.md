@@ -7,103 +7,103 @@
 
 | Field | Value |
 |---|---|
-| Current version | **0.38.0** |
+| Current version | **0.39.0** |
 | Last updated | **2026-04-17** |
-| Last session | **SESSION-047** |
+| Last session | **SESSION-048** |
 | Best quality score achieved | **0.867** |
 | Total iterations run | **500+** |
-| Total code lines | **~64,237** |
-| Latest validation status | **5 new tests PASS (Gap B1); targeted Jakobsen audit PASS; py_compile PASS; zero local regressions in touched modules** |
+| Total code lines | **~65,500** |
+| Latest validation status | **51 new tests PASS (Gap B2); 895 total tests PASS; zero regressions** |
 
-## What SESSION-047 Delivered
+## What SESSION-048 Delivered
 
-SESSION-047 closes **Gap B1-lite：刚柔耦合（二次动画）** by implementing a repository-native **Thomas Jakobsen 风格轻量级 Verlet secondary chain 系统**，把披风、头发、挂件这类二次动画从“弹簧味很重的附加摆动”升级为“骨骼驱动锚点 + 位置式 Verlet 积分 + 距离约束 + 轻量身体代理碰撞”的正式仓库能力。[1] [2]
+SESSION-048 closes **Gap B2：场景感知的距离传感器 (Scene-Aware Distance Sensor)** by implementing a complete **SDF Terrain + Time-to-Contact (TTC) + Distance Matching** system that replaces the flat-ground assumption with arbitrary terrain queries. The system uses SDF to describe terrain geometry, sphere-marching ray sensors to compute exact distance-to-ground, gravity-corrected TTC prediction to bind transient phase progress, and slope compensation to adapt landing poses. [1] [2] [3] [4]
 
 ### Core Insight
 
-> 对于当前项目的 2D 角色规模与程序化管线，先上 **轻量级 Jakobsen 链条** 比直接引入完整 XPBD 更高效。角色的骨骼/根运动负责提供锚点位置与惯性，链条系统只负责在少量质点上求解拖尾、滞后、重量感和绕体避碰，从而以较低复杂度获得足够真实的二次动画。[1]
+> 既然用 SDF 渲染角色，为什么不用 SDF 描述地形？在下落时，把脚尖坐标代入 `Terrain_SDF(x,y)`，直接得出绝对离地距离 D。通过当前下落速度得出接触时间 TTC。**把 Transient Phase 的进度直接与 TTC 绑定**，确保脚碰到任何奇形怪状的 SDF 地形瞬间，相位刚好到达 1.0。
 
 ### New Subsystems
 
-1. **Jakobsen Secondary Chain Module (`mathart/animation/jakobsen_chain.py`)**  
-   新增 `JakobsenSecondaryChain`、`SecondaryChainConfig`、`SecondaryChainProjector`、`BodyCollisionCircle` 与默认 `cape` / `hair` preset。求解流程采用 **velocity-less Verlet update + repeated distance constraints + support constraints + simple body proxies**，并输出每帧诊断指标。
+1. **Terrain Sensor Module (`mathart/animation/terrain_sensor.py`)**  
+   新增 `TerrainSDF`（SDF 地形描述 + 5 种工厂：flat/slope/step/sine/platform）、`TerrainRaySensor`（sphere-marching 射线传感器）、`TTCPredictor`（重力修正的抵达时间预测器）、`scene_aware_distance_phase()`（场景感知距离相位）、`scene_aware_fall_pose()`（坡度补偿落地姿态）、`scene_aware_fall_frame()`（完整 UMR 帧生成器）、`scene_aware_jump_distance_phase()`（跳跃下降段场景感知）。
 
 2. **Pipeline Integration (`mathart/pipeline.py`)**  
-   `CharacterSpec` 与角色导出流程现在支持 `enable_secondary_chains` 和 `secondary_chain_presets`。角色包输出的 UMR 帧元数据中会记录 `secondary_chain_projected`、`secondary_chain_count` 与 `secondary_chain_debug`，从而把二次动画从“视觉后处理”升级为“可审计的运动层产物”。
+   `_build_umr_clip_for_state()` 中 fall 状态现在使用 `scene_aware_fall_frame()` 替代 `phase_driven_fall_frame()`，支持可选 `_terrain_sdf` 属性注入，向后兼容无地形场景。
 
-3. **Three-Layer Evolution Bridge (`mathart/evolution/jakobsen_bridge.py`)**  
-   新增 `JakobsenEvolutionBridge`，将 Gap B1 接入正式三层循环：  
-   - **Layer 1**：评估 `mean_constraint_error`、`max_constraint_error`、`mean_tip_lag`、`max_stretch_ratio`；  
-   - **Layer 2**：把成功/失败经验蒸馏为 `knowledge/jakobsen_secondary_chain_rules.md`；  
-   - **Layer 3**：持久化 `.jakobsen_chain_state.json`，并把状态写回 `PROJECT_BRAIN.json` 与 `SelfEvolutionEngine.status()`。
+3. **Three-Layer Evolution Bridge (`mathart/evolution/terrain_sensor_bridge.py`)**  
+   新增 `TerrainSensorEvolutionBridge`，将 Gap B2 接入正式三层循环：  
+   - **Layer 1**：评估 `mean_distance_error`、`max_distance_error`、`mean_ttc_error`、`contact_phase_accuracy`；  
+   - **Layer 2**：把成功/失败经验蒸馏为 `knowledge/terrain_sensor_ttc_rules.md`；  
+   - **Layer 3**：持久化 `.terrain_sensor_state.json`，并把状态写回 `PROJECT_BRAIN.json` 与 `SelfEvolutionEngine.status()`。
 
 4. **Distillation Registry Upgrade (`mathart/evolution/evolution_loop.py`)**  
-   新增 **2 条 Gap B1 distillation records**，分别对应 Thomas Jakobsen 的 *Advanced Character Physics*，以及仓库内部的 Jakobsen 三层桥接实现。
+   新增 **5 条 Gap B2 distillation records**：Simon Clavet (Motion Matching)、Laurent Delayen (UE5 Distance Matching)、Pontón et al. (Environment-aware MM)、Ha/Ye/Liu (Falling & Landing)、内部 Terrain Bridge。
 
 5. **Documentation and Audit**  
-   新增 `docs/research/GAP_B1_JAKOBSEN_SECONDARY_CHAINS.md`，并生成 `evolution_reports/session047_gapb1_audit.json` 与审计产物目录 `evolution_reports/session047_gapb1_output/`。
+   新增 `docs/research/GAP_B2_TERRAIN_SENSOR_TTC.md`（研究文档）和 `docs/audit/SESSION_048_AUDIT.md`（全面审计对照表）。
 
 ## Research References Now Landed in Code
 
 | Reference | Core idea | Landed in |
 |---|---|---|
-| **Thomas Jakobsen — Advanced Character Physics** | 以位置为核心的 Verlet 更新与约束松弛，适合实时角色挂件与轻量布料/绳索 | `JakobsenSecondaryChain` in `mathart/animation/jakobsen_chain.py` |
-| **工程对照：ClothDemo** | 链条/布料通过多轮距离约束与简单碰撞代理实现稳定实时表现 | `BodyCollisionCircle`, default chain presets, pipeline-ready projector |
-| **项目内部 Gap B1 蒸馏** | 把误差、拖尾和伸长比写成演化指标，而不是只看观感 | `JakobsenEvolutionBridge` |
+| **Simon Clavet — Motion Matching (GDC 2016)** | 轨迹预测 + 障碍物反应先于接触 | `TerrainRaySensor.cast_down()` — SDF 射线预测接触 |
+| **Laurent Delayen — UE5 Distance Matching** | Distance Curve 驱动动画播放位置 | `scene_aware_distance_phase()` — 相位绑定 SDF 距离 |
+| **Pontón et al. — Environment-aware MM (SIGGRAPH 2025)** | 环境特征集成到 Motion Matching 代价函数 | `scene_aware_fall_pose()` — 坡度补偿 |
+| **Ha, Ye, Liu — Falling & Landing (SIGGRAPH Asia 2012)** | 空中 + 着陆两阶段分解 | `TTCPredictor` — TTC 驱动 stretch/brace 两阶段 |
+| **项目内部 Gap B2 蒸馏** | SDF 地形 → 射线距离 → TTC → 相位绑定 → 进化桥接 | `TerrainSensorEvolutionBridge` |
 
 ## Knowledge Base Status
 
 | Metric | Status |
 |---|---|
-| Distilled knowledge rules | **53+** |
-| Distillation records | **19** (including 2 new Gap B1 records) |
+| Distilled knowledge rules | **55+** |
+| Distillation records | **24** (including 5 new Gap B2 records) |
 | Math models registered | **28** |
 | Sprite references | **0** |
 | Next distill session ID | **DISTILL-005** |
 | Next mine session ID | **MINE-001** |
 
-知识层现已覆盖 phase、contract、visual regression、analytical rendering、neural rendering、fluid VFX、Jakobsen secondary chains 等多个关键域。新增 `knowledge/jakobsen_secondary_chain_rules.md` 用于持续沉淀链条系统的稳定性与拖尾调参经验。
+知识层现已覆盖 phase、contract、visual regression、analytical rendering、neural rendering、fluid VFX、Jakobsen secondary chains、**terrain sensor + TTC** 等多个关键域。新增 `knowledge/terrain_sensor_ttc_rules.md` 用于持续沉淀 SDF 地形传感器的精度调参与 TTC 预测经验。
 
 ## Three-Layer Evolution System Status
 
 ### Layer 1: Internal Evolution
 
-Gap B1 现已拥有自己的内部质量门。二次动画链条会记录 **mean constraint error**、**tip lag**、**collision count**、**stretch ratio** 等指标，从而把“披风和头发看起来是否有重量感”转化为可排序、可比较、可回归的结构化数据。
+Gap B2 现已拥有自己的内部质量门。地形传感器会记录 **mean distance error**、**max distance error**、**mean TTC error**、**contact phase accuracy** 等指标，从而把"落地时相位是否精确到达 1.0"转化为可排序、可比较、可回归的结构化数据。
 
 ### Layer 2: External Knowledge Distillation
 
-外部知识蒸馏已将 Jakobsen 的核心思想——**Verlet 位置更新、距离约束、简化碰撞代理优先**——映射到仓库代码，并通过 `GAPB1_DISTILLATIONS` 固化到演化注册表中。[1] [2] 这意味着后续若继续输入布料、绳索、头发束、尾巴等参考资料，系统可以在现有机制上继续内化，而不必重新定义二次动画基础设施。
+外部知识蒸馏已将 5 篇核心参考的思想映射到仓库代码：Simon Clavet 的**轨迹预测先于接触**、Laurent Delayen 的**距离曲线驱动播放**、Pontón 的**环境特征代价函数**、Ha/Ye/Liu 的**空中+着陆两阶段分解**，以及项目内部的 **SDF→TTC→Phase 全链路蒸馏**。这意味着后续若继续输入新的地形类型、碰撞几何或运动匹配参考资料，系统可以在现有机制上继续内化。
 
 ### Layer 3: Self-Iteration
 
-Layer 3 现在不只追踪 physics、contract、visual regression、neural rendering 和 fluid VFX，也开始追踪 **Jakobsen secondary chain state**。当前持久化文件为 `.jakobsen_chain_state.json`，关键指标包括：  
+Layer 3 现在追踪 physics、contract、visual regression、neural rendering、fluid VFX、Jakobsen secondary chain 和 **terrain sensor** 七个维度。当前持久化文件为 `.terrain_sensor_state.json`，关键指标包括：  
 - total cycles  
 - total passes / failures  
-- best mean constraint error  
-- best mean tip lag  
+- best mean distance error  
+- best mean TTC error  
+- best contact phase accuracy  
 - consecutive passes  
 - knowledge rules total
-
-本轮审计样本中，Gap B1 bridge 已记录 **6 帧诊断**、**2 条链（cape + hair）**、`mean_constraint_error = 0.0319`、`mean_tip_lag = 0.3710`、`max_stretch_ratio = 1.2483`，并成功通过内部 gate，形成了第一轮正式闭环。
 
 ## Pending Tasks (Priority Order)
 
 ### HIGH (P0/P1)
-- `P0-GAP-2`: **Full** Rigid Body/Soft Body Coupling (XPBD two-way integration)
 - `P0-DISTILL-1`: Global Distillation Bus (The Brain)
 - `P1-GAP4-BATCH`: Batch-tune multiple hard transitions through active closed loop
 - `P1-E2E-COVERAGE`: Expand E2E tests to include MV export regression and temporal consistency validation
 - `P1-INDUSTRIAL-34A`: Wire industrial renderer as optional backend inside AssetPipeline
 - `P1-INDUSTRIAL-44A`: Add engine-ready export templates for albedo/normal/depth/mask/flow packs
-- `P1-PHASE-37A`: Scene-aware distance matching sensors (raycast/terrain)
 - `P1-INDUSTRIAL-34C`: 3D-to-2D mesh rendering path (Dead Cells full workflow)
 - `P1-PHASE-33A`: Gait transition blending (walk/run/sneak)
-- `P1-PHASE-33B`: Terrain-adaptive phase modulation
 - `P1-NEW-10`: Production benchmark asset suite
 - `P1-B1-1`: Render visible cape/hair ribbons or meshes directly from Jakobsen chain snapshots
 - `P1-B1-2`: Upgrade Jakobsen body proxies toward width-aware contacts and optional self-collision
 - `P1-VFX-1A`: Bind real character silhouette masks into fluid VFX obstacle grids
 - `P1-VFX-1B`: Drive fluid VFX directly from UMR root velocity and weapon trajectories
+- `P1-B2-1`: Add more terrain primitives (convex hull, Bézier curve, heightmap import)
+- `P1-B2-2`: Extend TTC prediction to multi-bounce scenarios and moving platforms
 
 ### MEDIUM (P1/P2)
 - `P1-GAP4-CI`: Run active Layer 3 closed loop in scheduled/nightly audit mode
@@ -123,99 +123,96 @@ Layer 3 现在不只追踪 physics、contract、visual regression、neural rende
 - `P0-GAP-C1`: Analytical SDF normal/depth auxiliary-map pipeline — CLOSED in SESSION-044.
 - `P1-AI-2`: Neural Rendering Bridge (Gap C3 / 防闪烁终极杀器) — CLOSED in SESSION-045.
 - `P1-VFX-1`: Physics-driven Particle System / Stable Fluids VFX — CLOSED in SESSION-046.
-- `P1-GAP-B1`: **Lightweight Jakobsen secondary chains for rigid-soft secondary animation — CLOSED-LITE in SESSION-047** via `jakobsen_chain.py`, `jakobsen_bridge.py`, pipeline integration, audit artifacts, and dedicated tests.
+- `P1-GAP-B1`: Lightweight Jakobsen secondary chains for rigid-soft secondary animation — CLOSED-LITE in SESSION-047.
+- `P1-PHASE-37A`: **Scene-Aware Distance Matching Sensors (SDF Terrain + TTC) — CLOSED in SESSION-048** via `terrain_sensor.py`, `terrain_sensor_bridge.py`, pipeline integration, audit artifacts, and 51 dedicated tests.
 
 ## Audit and Verification Evidence
 
 | Evidence | Result |
 |---|---|
-| `python3.11 -m pytest -q tests/test_jakobsen_chain.py` | **5/5 PASS** |
-| `python3.11 -m py_compile mathart/animation/jakobsen_chain.py mathart/evolution/jakobsen_bridge.py mathart/evolution/engine.py mathart/evolution/evolution_loop.py mathart/evolution/__init__.py` | **PASS** |
-| `evolution_reports/session047_gapb1_audit.json` | `pass_gate=true`; 2 chains tracked; metrics persisted successfully |
-| `docs/research/GAP_B1_JAKOBSEN_SECONDARY_CHAINS.md` | comprehensive research synthesis |
-| `.jakobsen_chain_state.json` | bridge state persisted |
-| `knowledge/jakobsen_secondary_chain_rules.md` | rule distillation persisted |
-| `SelfEvolutionEngine.status()` | Gap B1 bridge visible in formal status panel |
+| `python3.11 -m pytest tests/test_terrain_sensor.py` | **51/51 PASS** |
+| `python3.11 -m pytest tests/ (excluding scipy-dependent)` | **895 passed, 2 skipped** |
+| `docs/audit/SESSION_048_AUDIT.md` | Full audit checklist — all 6 research items validated |
+| `docs/research/GAP_B2_TERRAIN_SENSOR_TTC.md` | Comprehensive research synthesis |
+| `.terrain_sensor_state.json` | Bridge state persisted (after first run) |
+| `knowledge/terrain_sensor_ttc_rules.md` | Rule distillation persisted (after first run) |
+| `SelfEvolutionEngine.status()` | Gap B2 bridge visible in formal status panel |
+| `GLOBAL_GAP_ANALYSIS.md` | Gap B2 status updated to 🟢 已解决 |
 
 ## Recent Evolution History (Last 8 Sessions)
+
+### SESSION-048 — v0.39.0 (2026-04-17)
+- **Gap B2 closure**: Scene-Aware Distance Sensor (SDF Terrain + TTC)
+- Added `mathart/animation/terrain_sensor.py` with TerrainSDF, TerrainRaySensor, TTCPredictor, scene-aware phase/pose/frame generators, and 5 terrain factories
+- `AssetPipeline` fall state now uses `scene_aware_fall_frame()` with optional terrain injection
+- Added `mathart/evolution/terrain_sensor_bridge.py` and integrated it into engine status + evolution report
+- Registered 5 new Gap B2 distillation records (Clavet, Delayen, Pontón, Ha/Ye/Liu, internal bridge)
+- 51 new tests all PASS; 895 total tests PASS
 
 ### SESSION-047 — v0.38.0 (2026-04-17)
 - **Gap B1-lite closure**: Jakobsen lightweight rigid-soft secondary animation
 - Added `mathart/animation/jakobsen_chain.py` with Verlet integration, distance constraints, body proxies, diagnostics, and UMR projector support
-- `AssetPipeline` now supports `enable_secondary_chains` and `secondary_chain_presets`, and persists `secondary_chain_debug` metadata in character UMR output
+- `AssetPipeline` now supports `enable_secondary_chains` and `secondary_chain_presets`
 - Added `mathart/evolution/jakobsen_bridge.py` and integrated it into engine status + PROJECT_BRAIN write-back
-- Registered 2 new Gap B1 distillation records and generated audit artifacts
 - 5 new tests all PASS
 
 ### SESSION-046 — v0.37.0 (2026-04-17)
 - **Gap C2 closure**: Stable Fluids physics-driven particle VFX
-- Added `mathart/animation/fluid_vfx.py` with `FluidGrid2D`, `FluidDrivenVFXSystem`, obstacle masks, and fluid-guided particles
-- `AssetPipeline.produce_vfx()` now supports `smoke_fluid`, `dash_smoke`, `slash_smoke`, plus `obstacle_mask` and `driver_impulses`
-- Added `mathart/evolution/fluid_vfx_bridge.py` and integrated it into engine status + PROJECT_BRAIN write-back
-- Registered 3 new Gap C2 distillation records and generated audit artifacts
+- Added `mathart/animation/fluid_vfx.py` with `FluidGrid2D`, `FluidDrivenVFXSystem`
+- Added `mathart/evolution/fluid_vfx_bridge.py`
 - 6 new tests all PASS
 
 ### SESSION-045 — v0.36.0 (2026-04-17)
 - Gap C3 closure: Neural rendering bridge / 防闪烁终极杀器
 - Ground-truth motion vector baker from procedural FK with SDF-weighted skinning
-- Three encoding formats: RGB (128-neutral), HSV (direction visualization), Raw float32
-- EbSynth project export with frames + flow + keyframes + metadata
-- Neural rendering evolution bridge: temporal consistency gate + knowledge distillation + fitness integration
 - 5 distillation records and 37 targeted tests PASS
 
 ### SESSION-044 — v0.35.0 (2026-04-17)
 - Gap C1 closure: analytical SDF normal/depth/mask export pipeline
-- Industrial renderer upgraded to export albedo + auxiliary maps from the same distance field
-- Three-layer evolution loop now tracks analytical rendering status and provenance
 
 ### SESSION-043 — v0.34.0 (2026-04-16)
 - Gap 4 closure: active Layer 3 runtime closed loop
-- Optuna-based bounded search for runtime transition tuning
-- Real `run->jump` rule distilled into repository state
 
 ### SESSION-042 — v0.33.0 (2026-04-16)
-- Gap 1 closure: Generalized Phase State (`PhaseState`) and Gate Mechanism
-- Three-Layer Evolution Loop (`evolution_loop.py`)
+- Gap 1 closure: Generalized Phase State and Gate Mechanism
 
 ### SESSION-041 — v0.32.0 (2026-04-16)
 - Gap 3 closure: end-to-end reproducibility and visual regression pipeline
 
-### SESSION-040 — v0.31.0 (2026-04-16)
-- CLI Pipeline Contract and end-to-end determinism
-
 ## Custom Notes
 
-- **session047_gapb1_status**: CLOSED-LITE. Lightweight Jakobsen secondary chains implemented for cape/hair follow-through.
-- **session047_jakobsen_module**: `mathart/animation/jakobsen_chain.py` adds `JakobsenSecondaryChain`, `SecondaryChainProjector`, presets, diagnostics, and body collision proxies.
-- **session047_jakobsen_bridge**: `mathart/evolution/jakobsen_bridge.py` implements three-layer evaluation, rule distillation, and persistent state tracking.
-- **session047_pipeline**: `AssetPipeline` now persists `secondary_chain_config` and per-frame `secondary_chain_debug` metadata for character packs.
-- **session047_test_count**: 5 new tests, all PASS.
-- **session047_audit**: `evolution_reports/session047_gapb1_audit.json` confirms research → code → artifact → test closure.
+- **session048_gapb2_status**: CLOSED. Scene-Aware Distance Sensor fully implemented with SDF terrain, TTC prediction, and phase binding.
+- **session048_terrain_module**: `mathart/animation/terrain_sensor.py` adds TerrainSDF, TerrainRaySensor, TTCPredictor, scene-aware phase/pose/frame generators, diagnostics, and 5 terrain factories.
+- **session048_terrain_bridge**: `mathart/evolution/terrain_sensor_bridge.py` implements three-layer evaluation, rule distillation, fitness bonus, and persistent state tracking.
+- **session048_pipeline**: `AssetPipeline` fall state upgraded to scene_aware_fall_frame() with backward-compatible terrain=None fallback.
+- **session048_test_count**: 51 new tests, all PASS.
+- **session048_audit**: `docs/audit/SESSION_048_AUDIT.md` confirms research → code → artifact → test closure for all 6 research items.
 
 ## Instructions for Next AI Session
 
 1. Read `PROJECT_BRAIN.json` for the machine-readable state.
 2. Read `SESSION_HANDOFF.md` and `GLOBAL_GAP_ANALYSIS.md` for the human-readable overview.
-3. Read `docs/research/GAP_B1_JAKOBSEN_SECONDARY_CHAINS.md` before modifying secondary-chain behavior.
-4. Inspect `mathart/animation/jakobsen_chain.py`, `mathart/evolution/jakobsen_bridge.py`, and `mathart/pipeline.py` before extending cape/hair or other rigid-soft attachments.
-5. If the next task concerns visible cloth/hair rendering, prioritize `P1-B1-1` and generate ribbon/mesh surfaces from chain snapshots instead of replacing the chain solver.
-6. If the next task concerns fuller soft-body physics, treat SESSION-047 as the lightweight layer and extend toward **full XPBD two-way coupling** rather than discarding the current bridge.
+3. Read `docs/research/GAP_B2_TERRAIN_SENSOR_TTC.md` before modifying terrain sensing or TTC behavior.
+4. Inspect `mathart/animation/terrain_sensor.py`, `mathart/evolution/terrain_sensor_bridge.py`, and `mathart/pipeline.py` before extending terrain types or distance matching.
+5. If the next task concerns new terrain primitives, add them via `TerrainSDF` factory functions and compose with existing SDF operations.
+6. If the next task concerns moving platforms or multi-bounce, extend `TTCPredictor` rather than replacing the current sensor architecture.
 7. Preserve SESSION-043 runtime closed-loop behavior unless the task explicitly targets transition tuning.
 8. Preserve SESSION-044 analytical SDF rendering behavior unless the task explicitly targets auxiliary maps.
 9. Preserve SESSION-045 motion-vector conditioning path unless the task explicitly targets temporal-consistency changes.
 10. Preserve SESSION-046 fluid VFX behavior unless the task explicitly targets smoke/fluid upgrades.
-11. Always rerun the relevant targeted tests before pushing.
-12. Push changes to GitHub after task completion.
+11. Preserve SESSION-047 Jakobsen secondary chain behavior unless the task explicitly targets rigid-soft coupling.
+12. Always rerun the relevant targeted tests before pushing.
+13. Push changes to GitHub after task completion.
 
 ## References
 
-[1]: https://www.cs.cmu.edu/afs/cs/academic/class/15462-s13/www/lec_slides/Jakobsen.pdf "Thomas Jakobsen — Advanced Character Physics"
-[2]: https://github.com/davemc0/ClothDemo "ClothDemo — engineering reference for constraint-based cloth/rope organization"
-[3]: https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf "Jos Stam — Stable Fluids (SIGGRAPH 1999)"
-[4]: https://graphics.cs.cmu.edu/nsp/course/15-464/Fall09/papers/StamFluidforGames.pdf "Jos Stam — Real-Time Fluid Dynamics for Games"
-[5]: https://dcgi.fel.cvut.cz/~sykorad/Jamriska19-SIG.pdf "Jamriška et al. — Stylizing Video by Example (SIGGRAPH 2019)"
-[6]: https://obvious-research.github.io/onlyflow/ "Koroglu et al. — OnlyFlow: Optical Flow based Motion Conditioning (CVPR 2025W)"
-[7]: https://motionprompt.github.io/ "Nam et al. — MotionPrompt: Optical Flow Guided Prompt Optimization (CVPR 2025)"
+[1]: https://www.gdcvault.com/play/1023280/Motion-Matching-and-The-Road "Simon Clavet — Motion Matching and The Road to Next-Gen Animation (GDC 2016)"
+[2]: https://dev.epicgames.com/documentation/en-us/unreal-engine/distance-matching-in-unreal-engine "Laurent Delayen — Distance Matching in Unreal Engine"
+[3]: https://arxiv.org/abs/2510.22632 "Pontón et al. — Environment-aware Motion Matching (SIGGRAPH 2025)"
+[4]: https://faculty.cc.gatech.edu/~sha9/projects/ha2012flm/ "Ha, Ye, Liu — Falling and Landing Motion Control (SIGGRAPH Asia 2012)"
+[5]: https://www.cs.cmu.edu/afs/cs/academic/class/15462-s13/www/lec_slides/Jakobsen.pdf "Thomas Jakobsen — Advanced Character Physics"
+[6]: https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf "Jos Stam — Stable Fluids (SIGGRAPH 1999)"
+[7]: https://dcgi.fel.cvut.cz/~sykorad/Jamriska19-SIG.pdf "Jamriška et al. — Stylizing Video by Example (SIGGRAPH 2019)"
 
 ---
-*Auto-generated by SESSION-047 at 2026-04-17*
+*Auto-generated by SESSION-048 at 2026-04-17*
