@@ -68,6 +68,8 @@ from .terrain_sensor_bridge import TerrainSensorEvolutionBridge, collect_terrain
 from .gait_blend_bridge import GaitBlendEvolutionBridge, collect_gait_blend_status
 # SESSION-058: Phase 3 Physics Bridge (P3)
 from .phase3_physics_bridge import Phase3PhysicsEvolutionBridge, collect_phase3_physics_status
+# SESSION-059: Unity URP 2D native bridge (Secondary Textures + XPBD VAT)
+from .unity_urp_2d_bridge import UnityURP2DEvolutionBridge, collect_unity_urp_2d_status
 
 
 class SelfEvolutionEngine:
@@ -171,6 +173,12 @@ class SelfEvolutionEngine:
 
         # SESSION-058: Phase 3 Physics Bridge (P3)
         self.phase3_physics_bridge = Phase3PhysicsEvolutionBridge(
+            project_root=self.project_root,
+            verbose=verbose,
+        )
+
+        # SESSION-059: Unity URP 2D native bridge (Secondary Textures + XPBD VAT)
+        self.unity_urp_2d_bridge = UnityURP2DEvolutionBridge(
             project_root=self.project_root,
             verbose=verbose,
         )
@@ -884,6 +892,28 @@ class SelfEvolutionEngine:
         lines.extend([
             f"   Total cycles: {phase3_status.total_cycles}",
             f"   Consecutive passes: {phase3_status.consecutive_passes}",
+        ])
+        lines.append("")
+
+        # ── SESSION-059: Unity URP 2D native bridge status ──
+        lines.append("--- Unity URP 2D Native Bridge (SESSION-059 / P1) ---")
+        unity_status = collect_unity_urp_2d_status(self.project_root)
+        lines.extend([
+            f"   Module active: {'yes' if unity_status.module_exists else 'no'}",
+            f"   Bridge active: {'yes' if unity_status.bridge_exists else 'no'}",
+            f"   Animation API export: {'yes' if unity_status.animation_api_exports else 'no'}",
+            f"   Evolution API export: {'yes' if unity_status.evolution_api_exports else 'no'}",
+            f"   Tests present: {'yes' if unity_status.tests_exist else 'no'}",
+        ])
+        if unity_status.tracked_exports:
+            lines.append(f"   Tracked exports: {', '.join(unity_status.tracked_exports)}")
+        if unity_status.knowledge_path:
+            lines.append(f"   Knowledge file: {unity_status.knowledge_path}")
+        if unity_status.state_path:
+            lines.append(f"   State file: {unity_status.state_path}")
+        lines.extend([
+            f"   Total cycles: {unity_status.total_cycles}",
+            f"   Consecutive passes: {unity_status.consecutive_passes}",
         ])
         lines.append("")
 

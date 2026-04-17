@@ -233,6 +233,21 @@ from .engine_import_plugin import (
     extract_sdf_contour, generate_mathart_bundle,
     validate_mathart_bundle,
 )
+# SESSION-059: Unity URP 2D native pipeline + XPBD VAT bridge
+from .unity_urp_native import (
+    SecondaryTextureBinding,
+    SECONDARY_TEXTURE_BINDINGS,
+    XPBDVATBakeConfig,
+    VATBakeManifest,
+    VATBakeResult,
+    UnityNativePipelineAudit,
+    UnityURP2DNativePipelineGenerator,
+    collect_taichi_cloth_frames,
+    encode_vat_position_texture,
+    build_vat_preview,
+    bake_cloth_vat,
+    generate_unity_urp_2d_native_pipeline,
+)
 # SESSION-049: Phase-Preserving Gait Transition Blending (Gap B3 — Marker-based DTW)
 from .gait_blend import (
     SyncMarker, GaitSyncProfile, GaitBlendLayer,
@@ -460,4 +475,10 @@ __all__ = [
     "MathArtBundle", "EngineImportPluginGenerator",
     "extract_sdf_contour", "generate_mathart_bundle",
     "validate_mathart_bundle",
+    "SecondaryTextureBinding", "SECONDARY_TEXTURE_BINDINGS",
+    "XPBDVATBakeConfig", "VATBakeManifest", "VATBakeResult",
+    "UnityNativePipelineAudit", "UnityURP2DNativePipelineGenerator",
+    "collect_taichi_cloth_frames", "encode_vat_position_texture",
+    "build_vat_preview", "bake_cloth_vat",
+    "generate_unity_urp_2d_native_pipeline",
 ]

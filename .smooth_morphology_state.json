@@ -1,0 +1,26 @@
+{
+  "total_cycles": 3,
+  "best_fitness_ever": 0.9427,
+  "fitness_trend": [
+    0.9427,
+    0.9427,
+    0.9427
+  ],
+  "diversity_trend": [
+    0.2898,
+    0.2898,
+    0.2898
+  ],
+  "distilled_rules": {
+    "target_fitness_range": [
+      0.7542,
+      1.0
+    ],
+    "fill_ratio_sweet_spot": [
+      0.2177,
+      0.4177
+    ],
+    "min_diversity": 0.2319
+  },
+  "last_updated": "2026-04-17T16:55:12.966481+00:00"
+}

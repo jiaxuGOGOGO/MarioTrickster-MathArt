@@ -1,0 +1,455 @@
+{
+  "total_cycles": 4,
+  "total_passes": 0,
+  "total_failures": 4,
+  "best_visual_fitness": 0.7628,
+  "best_edge_coverage": 1.0,
+  "knowledge_entries_count": 16,
+  "quality_trend": [
+    0.7628,
+    0.7628,
+    0.7628,
+    0.7628
+  ],
+  "cycle_history": [
+    {
+      "session_id": "SESSION-055",
+      "timestamp": "2026-04-17T16:49:00Z",
+      "cycle_id": 1,
+      "layer1_internal_evolution": {
+        "xpbd_tuning_actions": [],
+        "graph_fuzz_nan_count": 0,
+        "graph_fuzz_penetration_count": 0,
+        "graph_fuzz_edge_coverage": 1.0,
+        "visual_fitness_mean": 0.7628
+      },
+      "layer2_knowledge_distillation": {
+        "knowledge_entries_applied": 6,
+        "new_rules_distilled": 6
+      },
+      "layer3_self_iterating_test": {
+        "e2e_level0_pass": false,
+        "e2e_level1_pass": false,
+        "e2e_level2_pass": false,
+        "physics_tests_passed": 6,
+        "physics_tests_total": 7,
+        "asset_factory_accepted": 3,
+        "asset_factory_total": 3
+      },
+      "unified_bridge_suite": {
+        "passed": 2,
+        "total": 4,
+        "fitness_bonus": 0.75,
+        "status": {
+          "smooth_morphology": {
+            "pass": false,
+            "error": "SmoothMorphologyEvolutionBridge.__init__() got an unexpected keyword argument 'verbose'"
+          },
+          "constraint_wfc": {
+            "pass": false,
+            "error": "ConstraintWFCEvolutionBridge.__init__() got an unexpected keyword argument 'verbose'"
+          },
+          "phase3_physics": {
+            "pass": true,
+            "knowledge_ref": "/home/ubuntu/MarioTrickster-MathArt/knowledge/phase3_physics_rules.md",
+            "bonus": 0.4,
+            "metrics": {
+              "cycle_id": 2,
+              "timestamp": "2026-04-17T16:49:02.805406+00:00",
+              "taichi_backend_available": true,
+              "taichi_cloth_particles": 16,
+              "taichi_cloth_finite": true,
+              "ccd_hit": true,
+              "ccd_toi": 0.45,
+              "ccd_safe_height": 0.10049999999999992,
+              "nsm_biped_asymmetry": 0.39197015008398683,
+              "nsm_quadruped_diagonal_error": 0.0,
+              "all_pass": true
+            }
+          },
+          "unity_urp_2d": {
+            "pass": true,
+            "knowledge_ref": "/home/ubuntu/MarioTrickster-MathArt/knowledge/unity_urp_2d_rules.md",
+            "bonus": 0.35,
+            "metrics": {
+              "cycle_id": 2,
+              "timestamp": "2026-04-17T16:49:03.289549+00:00",
+              "importer_generated": true,
+              "secondary_texture_postprocessor_generated": true,
+              "vat_player_generated": true,
+              "vat_shader_generated": true,
+              "vat_manifest_valid": true,
+              "vat_frame_count": 12,
+              "vat_vertex_count": 144,
+              "taichi_backend_used": true,
+              "all_pass": true
+            }
+          }
+        }
+      },
+      "all_pass": false,
+      "evolution_triggered": true
+    },
+    {
+      "session_id": "SESSION-055",
+      "timestamp": "2026-04-17T16:50:08Z",
+      "cycle_id": 2,
+      "layer1_internal_evolution": {
+        "xpbd_tuning_actions": [],
+        "graph_fuzz_nan_count": 0,
+        "graph_fuzz_penetration_count": 0,
+        "graph_fuzz_edge_coverage": 1.0,
+        "visual_fitness_mean": 0.7628
+      },
+      "layer2_knowledge_distillation": {
+        "knowledge_entries_applied": 8,
+        "new_rules_distilled": 8
+      },
+      "layer3_self_iterating_test": {
+        "e2e_level0_pass": false,
+        "e2e_level1_pass": false,
+        "e2e_level2_pass": false,
+        "physics_tests_passed": 6,
+        "physics_tests_total": 7,
+        "asset_factory_accepted": 3,
+        "asset_factory_total": 3
+      },
+      "unified_bridge_suite": {
+        "passed": 3,
+        "total": 4,
+        "fitness_bonus": 1.0,
+        "status": {
+          "smooth_morphology": {
+            "pass": true,
+            "knowledge_ref": "{'target_fitness_range': [0.7542, 1.0], 'fill_ratio_sweet_spot': [0.2177, 0.4177], 'min_diversity': 0.2319}",
+            "bonus": 0.15,
+            "metrics": {
+              "cycle_id": 1,
+              "population_size": 10,
+              "best_fitness": 0.9427,
+              "avg_fitness": 0.8542,
+              "diversity_score": 0.2898,
+              "all_valid_sdf": true,
+              "avg_fill_ratio": 0.3177,
+              "avg_compactness": 3.4299,
+              "avg_part_count": 7.7,
+              "avg_symmetry": 1.0,
+              "pass_gate": true,
+              "timestamp": "2026-04-17T16:50:11.199317+00:00"
+            }
+          },
+          "constraint_wfc": {
+            "pass": false,
+            "knowledge_ref": "{'target_playability': 0.95, 'platform_density_target': 12.0, 'veto_effectiveness': 1.0}",
+            "bonus": 0.1,
+            "metrics": {
+              "cycle_id": 1,
+              "levels_generated": 4,
+              "playability_rate": 1.0,
+              "avg_difficulty": 0.0,
+              "difficulty_variance": 0.0,
+              "avg_platform_count": 12.0,
+              "avg_tile_types": 7.5,
+              "veto_rate": 0.0,
+              "avg_generation_attempts": 1.0,
+              "pass_gate": false,
+              "timestamp": "2026-04-17T16:50:11.220042+00:00"
+            }
+          },
+          "phase3_physics": {
+            "pass": true,
+            "knowledge_ref": "/home/ubuntu/MarioTrickster-MathArt/knowledge/phase3_physics_rules.md",
+            "bonus": 0.4,
+            "metrics": {
+              "cycle_id": 3,
+              "timestamp": "2026-04-17T16:50:11.249526+00:00",
+              "taichi_backend_available": true,
+              "taichi_cloth_particles": 16,
+              "taichi_cloth_finite": true,
+              "ccd_hit": true,
+              "ccd_toi": 0.45,
+              "ccd_safe_height": 0.10049999999999992,
+              "nsm_biped_asymmetry": 0.39197015008398683,
+              "nsm_quadruped_diagonal_error": 0.0,
+              "all_pass": true
+            }
+          },
+          "unity_urp_2d": {
+            "pass": true,
+            "knowledge_ref": "/home/ubuntu/MarioTrickster-MathArt/knowledge/unity_urp_2d_rules.md",
+            "bonus": 0.35,
+            "metrics": {
+              "cycle_id": 4,
+              "timestamp": "2026-04-17T16:50:11.710527+00:00",
+              "importer_generated": true,
+              "secondary_texture_postprocessor_generated": true,
+              "vat_player_generated": true,
+              "vat_shader_generated": true,
+              "vat_manifest_valid": true,
+              "vat_frame_count": 12,
+              "vat_vertex_count": 144,
+              "taichi_backend_used": true,
+              "all_pass": true
+            }
+          }
+        }
+      },
+      "all_pass": false,
+      "evolution_triggered": true
+    },
+    {
+      "session_id": "SESSION-055",
+      "timestamp": "2026-04-17T16:51:26Z",
+      "cycle_id": 3,
+      "layer1_internal_evolution": {
+        "xpbd_tuning_actions": [],
+        "graph_fuzz_nan_count": 0,
+        "graph_fuzz_penetration_count": 0,
+        "graph_fuzz_edge_coverage": 1.0,
+        "visual_fitness_mean": 0.7628
+      },
+      "layer2_knowledge_distillation": {
+        "knowledge_entries_applied": 8,
+        "new_rules_distilled": 8
+      },
+      "layer3_self_iterating_test": {
+        "e2e_level0_pass": false,
+        "e2e_level1_pass": false,
+        "e2e_level2_pass": false,
+        "physics_tests_passed": 6,
+        "physics_tests_total": 7,
+        "asset_factory_accepted": 3,
+        "asset_factory_total": 3
+      },
+      "unified_bridge_suite": {
+        "passed": 4,
+        "total": 4,
+        "fitness_bonus": 1.0,
+        "status": {
+          "smooth_morphology": {
+            "pass": true,
+            "bonus": 0.15,
+            "metrics": {
+              "cycle_id": 2,
+              "population_size": 10,
+              "best_fitness": 0.9427,
+              "avg_fitness": 0.8542,
+              "diversity_score": 0.2898,
+              "all_valid_sdf": true,
+              "avg_fill_ratio": 0.3177,
+              "avg_compactness": 3.4299,
+              "avg_part_count": 7.7,
+              "avg_symmetry": 1.0,
+              "pass_gate": true,
+              "timestamp": "2026-04-17T16:51:28.545447+00:00"
+            },
+            "distilled_rules": {
+              "target_fitness_range": [
+                0.7542,
+                1.0
+              ],
+              "fill_ratio_sweet_spot": [
+                0.2177,
+                0.4177
+              ],
+              "min_diversity": 0.2319
+            },
+            "knowledge_ref": "inline_rules"
+          },
+          "constraint_wfc": {
+            "pass": true,
+            "bonus": 0.1,
+            "metrics": {
+              "cycle_id": 7,
+              "levels_generated": 4,
+              "playability_rate": 1.0,
+              "avg_difficulty": 0.0028,
+              "difficulty_variance": 0.0028,
+              "avg_platform_count": 12.5,
+              "avg_tile_types": 9.0,
+              "veto_rate": 0.0,
+              "avg_generation_attempts": 1.0,
+              "pass_gate": false,
+              "timestamp": "2026-04-17T16:51:28.566309+00:00"
+            },
+            "distilled_rules": {
+              "target_playability": 0.95,
+              "difficulty_sweet_spot": [
+                0.0,
+                0.1528
+              ],
+              "platform_density_target": 12.5,
+              "veto_effectiveness": 1.0
+            },
+            "knowledge_ref": "inline_rules"
+          },
+          "phase3_physics": {
+            "pass": true,
+            "bonus": 0.4,
+            "metrics": {
+              "cycle_id": 4,
+              "timestamp": "2026-04-17T16:51:28.596154+00:00",
+              "taichi_backend_available": true,
+              "taichi_cloth_particles": 16,
+              "taichi_cloth_finite": true,
+              "ccd_hit": true,
+              "ccd_toi": 0.45,
+              "ccd_safe_height": 0.10049999999999992,
+              "nsm_biped_asymmetry": 0.39197015008398683,
+              "nsm_quadruped_diagonal_error": 0.0,
+              "all_pass": true
+            },
+            "knowledge_ref": "/home/ubuntu/MarioTrickster-MathArt/knowledge/phase3_physics_rules.md"
+          },
+          "unity_urp_2d": {
+            "pass": true,
+            "bonus": 0.35,
+            "metrics": {
+              "cycle_id": 6,
+              "timestamp": "2026-04-17T16:51:29.064337+00:00",
+              "importer_generated": true,
+              "secondary_texture_postprocessor_generated": true,
+              "vat_player_generated": true,
+              "vat_shader_generated": true,
+              "vat_manifest_valid": true,
+              "vat_frame_count": 12,
+              "vat_vertex_count": 144,
+              "taichi_backend_used": true,
+              "all_pass": true
+            },
+            "knowledge_ref": "/home/ubuntu/MarioTrickster-MathArt/knowledge/unity_urp_2d_rules.md"
+          }
+        }
+      },
+      "all_pass": false,
+      "evolution_triggered": true
+    },
+    {
+      "session_id": "SESSION-059",
+      "timestamp": "2026-04-17T16:55:10Z",
+      "cycle_id": 4,
+      "layer1_internal_evolution": {
+        "xpbd_tuning_actions": [],
+        "graph_fuzz_nan_count": 0,
+        "graph_fuzz_penetration_count": 0,
+        "graph_fuzz_edge_coverage": 1.0,
+        "visual_fitness_mean": 0.7628
+      },
+      "layer2_knowledge_distillation": {
+        "knowledge_entries_applied": 8,
+        "new_rules_distilled": 8
+      },
+      "layer3_self_iterating_test": {
+        "e2e_level0_pass": false,
+        "e2e_level1_pass": false,
+        "e2e_level2_pass": false,
+        "physics_tests_passed": 6,
+        "physics_tests_total": 7,
+        "asset_factory_accepted": 3,
+        "asset_factory_total": 3
+      },
+      "unified_bridge_suite": {
+        "passed": 4,
+        "total": 4,
+        "fitness_bonus": 1.0,
+        "status": {
+          "smooth_morphology": {
+            "pass": true,
+            "bonus": 0.15,
+            "metrics": {
+              "cycle_id": 3,
+              "population_size": 10,
+              "best_fitness": 0.9427,
+              "avg_fitness": 0.8542,
+              "diversity_score": 0.2898,
+              "all_valid_sdf": true,
+              "avg_fill_ratio": 0.3177,
+              "avg_compactness": 3.4299,
+              "avg_part_count": 7.7,
+              "avg_symmetry": 1.0,
+              "pass_gate": true,
+              "timestamp": "2026-04-17T16:55:12.945933+00:00"
+            },
+            "distilled_rules": {
+              "target_fitness_range": [
+                0.7542,
+                1.0
+              ],
+              "fill_ratio_sweet_spot": [
+                0.2177,
+                0.4177
+              ],
+              "min_diversity": 0.2319
+            },
+            "knowledge_ref": "inline_rules"
+          },
+          "constraint_wfc": {
+            "pass": true,
+            "bonus": 0.1,
+            "metrics": {
+              "cycle_id": 8,
+              "levels_generated": 4,
+              "playability_rate": 1.0,
+              "avg_difficulty": 0.0014,
+              "difficulty_variance": 0.0024,
+              "avg_platform_count": 11.75,
+              "avg_tile_types": 7.5,
+              "veto_rate": 0.0,
+              "avg_generation_attempts": 1.0,
+              "pass_gate": false,
+              "timestamp": "2026-04-17T16:55:12.966864+00:00"
+            },
+            "distilled_rules": {
+              "target_playability": 0.95,
+              "difficulty_sweet_spot": [
+                0.0,
+                0.1514
+              ],
+              "platform_density_target": 11.8,
+              "veto_effectiveness": 1.0
+            },
+            "knowledge_ref": "inline_rules"
+          },
+          "phase3_physics": {
+            "pass": true,
+            "bonus": 0.4,
+            "metrics": {
+              "cycle_id": 5,
+              "timestamp": "2026-04-17T16:55:12.997674+00:00",
+              "taichi_backend_available": true,
+              "taichi_cloth_particles": 16,
+              "taichi_cloth_finite": true,
+              "ccd_hit": true,
+              "ccd_toi": 0.45,
+              "ccd_safe_height": 0.10049999999999992,
+              "nsm_biped_asymmetry": 0.39197015008398683,
+              "nsm_quadruped_diagonal_error": 0.0,
+              "all_pass": true
+            },
+            "knowledge_ref": "/home/ubuntu/MarioTrickster-MathArt/knowledge/phase3_physics_rules.md"
+          },
+          "unity_urp_2d": {
+            "pass": true,
+            "bonus": 0.35,
+            "metrics": {
+              "cycle_id": 8,
+              "timestamp": "2026-04-17T16:55:13.539896+00:00",
+              "importer_generated": true,
+              "secondary_texture_postprocessor_generated": true,
+              "vat_player_generated": true,
+              "vat_shader_generated": true,
+              "vat_manifest_valid": true,
+              "vat_frame_count": 12,
+              "vat_vertex_count": 144,
+              "taichi_backend_used": true,
+              "all_pass": true
+            },
+            "knowledge_ref": "/home/ubuntu/MarioTrickster-MathArt/knowledge/unity_urp_2d_rules.md"
+          }
+        }
+      },
+      "all_pass": false,
+      "evolution_triggered": true
+    }
+  ]
+}

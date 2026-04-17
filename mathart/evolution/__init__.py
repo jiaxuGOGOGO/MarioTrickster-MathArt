@@ -146,6 +146,14 @@ from .phase3_physics_bridge import (
     collect_phase3_physics_status,
     Phase3PhysicsEvolutionBridge,
 )
+# SESSION-059: Unity URP 2D native bridge (Secondary Textures + XPBD VAT)
+from .unity_urp_2d_bridge import (
+    UnityURP2DMetrics,
+    UnityURP2DState,
+    UnityURP2DStatus,
+    collect_unity_urp_2d_status,
+    UnityURP2DEvolutionBridge,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -240,4 +248,10 @@ __all__ = [
     "Phase3PhysicsStatus",
     "collect_phase3_physics_status",
     "Phase3PhysicsEvolutionBridge",
+    # SESSION-059: Unity URP 2D native bridge
+    "UnityURP2DMetrics",
+    "UnityURP2DState",
+    "UnityURP2DStatus",
+    "collect_unity_urp_2d_status",
+    "UnityURP2DEvolutionBridge",
 ]

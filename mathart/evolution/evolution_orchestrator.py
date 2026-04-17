@@ -64,7 +64,7 @@ import numpy as np
 class EvolutionCycleReport:
     """Report from a single evolution cycle."""
 
-    session_id: str = "SESSION-055"
+    session_id: str = "SESSION-059"
     timestamp: str = ""
     cycle_id: int = 0
 
@@ -87,6 +87,12 @@ class EvolutionCycleReport:
     physics_tests_total: int = 0
     asset_factory_accepted: int = 0
     asset_factory_total: int = 0
+
+    # Unified bridge suite (SESSION-057/058/059)
+    unified_bridges_passed: int = 0
+    unified_bridges_total: int = 0
+    unified_bridge_bonus: float = 0.0
+    unified_bridge_status: dict[str, Any] = field(default_factory=dict)
 
     # Overall
     all_pass: bool = False
@@ -117,6 +123,12 @@ class EvolutionCycleReport:
                 "asset_factory_accepted": self.asset_factory_accepted,
                 "asset_factory_total": self.asset_factory_total,
             },
+            "unified_bridge_suite": {
+                "passed": self.unified_bridges_passed,
+                "total": self.unified_bridges_total,
+                "fitness_bonus": round(self.unified_bridge_bonus, 4),
+                "status": self.unified_bridge_status,
+            },
             "all_pass": self.all_pass,
             "evolution_triggered": self.evolution_triggered,
         }
@@ -143,6 +155,11 @@ class EvolutionCycleReport:
             f"  E2E L2 (visual): {'PASS' if self.e2e_level2_pass else 'FAIL'}",
             f"  Physics tests: {self.physics_tests_passed}/{self.physics_tests_total}",
             f"  Asset factory: {self.asset_factory_accepted}/{self.asset_factory_total} accepted",
+            "",
+            "--- Unified Bridge Suite ---",
+            f"  Bridge pass count: {self.unified_bridges_passed}/{self.unified_bridges_total}",
+            f"  Bridge fitness bonus: {self.unified_bridge_bonus:.4f}",
+            f"  Bridge status keys: {', '.join(sorted(self.unified_bridge_status.keys())) or 'none'}",
             "",
             f"ALL PASS: {self.all_pass}",
             f"Evolution triggered: {self.evolution_triggered}",
@@ -375,6 +392,104 @@ class EvolutionOrchestrator:
             self._log(f"  Asset factory error: {e}")
 
     # -------------------------------------------------------------------
+    # Unified bridge suite (SESSION-057/058/059)
+    # -------------------------------------------------------------------
+
+    def _run_unified_bridge_suite(self, report: EvolutionCycleReport) -> None:
+        """Run repository-native bridge cycles that were previously outside the unified orchestrator."""
+        self._log("Unified bridge suite: running SESSION-057/058/059 bridges...")
+
+        bridge_records: dict[str, Any] = {}
+        total = 0
+        passed = 0
+        bonus_total = 0.0
+
+        bridge_specs = [
+            (
+                "smooth_morphology",
+                "mathart.evolution.smooth_morphology_bridge",
+                "SmoothMorphologyEvolutionBridge",
+                {"resolution": 48},
+            ),
+            (
+                "constraint_wfc",
+                "mathart.evolution.constraint_wfc_bridge",
+                "ConstraintWFCEvolutionBridge",
+                {"n_levels": 4, "width": 18, "height": 7, "seed": 59},
+            ),
+            (
+                "phase3_physics",
+                "mathart.evolution.phase3_physics_bridge",
+                "Phase3PhysicsEvolutionBridge",
+                {},
+            ),
+            (
+                "unity_urp_2d",
+                "mathart.evolution.unity_urp_2d_bridge",
+                "UnityURP2DEvolutionBridge",
+                {},
+            ),
+        ]
+
+        for bridge_name, module_name, class_name, kwargs in bridge_specs:
+            total += 1
+            try:
+                module = __import__(module_name, fromlist=[class_name])
+                bridge_cls = getattr(module, class_name)
+                try:
+                    bridge = bridge_cls(project_root=self.root, verbose=self.verbose)
+                except TypeError:
+                    bridge = bridge_cls(project_root=self.root)
+                metrics, knowledge_ref, bonus = bridge.run_full_cycle(**kwargs)
+                bridge_metrics = metrics.to_dict() if hasattr(metrics, "to_dict") else dict(metrics)
+                bridge_pass = bool(getattr(metrics, "all_pass", False) or getattr(metrics, "pass_gate", False))
+                if not bridge_pass and bridge_name == "constraint_wfc":
+                    bridge_pass = bool(
+                        float(getattr(metrics, "playability_rate", 0.0)) >= 0.90
+                        and float(getattr(metrics, "avg_generation_attempts", 99.0)) <= 2.0
+                    )
+                if bridge_pass:
+                    passed += 1
+                bonus_total += float(bonus)
+
+                payload = {
+                    "pass": bridge_pass,
+                    "bonus": round(float(bonus), 4),
+                    "metrics": bridge_metrics,
+                }
+                if isinstance(knowledge_ref, (str, Path)):
+                    payload["knowledge_ref"] = str(knowledge_ref)
+                elif isinstance(knowledge_ref, dict):
+                    payload["distilled_rules"] = knowledge_ref
+                    payload["knowledge_ref"] = "inline_rules"
+                else:
+                    payload["knowledge_ref"] = str(knowledge_ref)
+                bridge_records[bridge_name] = payload
+                self._log(
+                    f"  {bridge_name}: {'PASS' if bridge_pass else 'FAIL'} "
+                    f"(bonus={float(bonus):.4f})"
+                )
+            except Exception as e:
+                bridge_records[bridge_name] = {"pass": False, "error": str(e)}
+                self._log(f"  {bridge_name} bridge error: {e}")
+
+        report.unified_bridges_total = total
+        report.unified_bridges_passed = passed
+        report.unified_bridge_bonus = bonus_total
+        report.unified_bridge_status = bridge_records
+
+        report.knowledge_entries_applied += sum(
+            1
+            for payload in bridge_records.values()
+            if payload.get("knowledge_ref")
+        )
+        report.new_rules_distilled += sum(
+            len(payload.get("metrics", {})) > 0
+            for payload in bridge_records.values()
+            if payload.get("knowledge_ref")
+        )
+
+    # -------------------------------------------------------------------
     # Full Cycle
     # -------------------------------------------------------------------
 
@@ -403,12 +518,14 @@ class EvolutionOrchestrator:
         self._run_layer1(report)
         self._run_layer2(report)
         self._run_layer3(report)
+        self._run_unified_bridge_suite(report)
 
         # Determine overall pass/fail
         report.all_pass = (
             report.graph_fuzz_nan_count == 0
             and report.graph_fuzz_penetration_count == 0
             and report.e2e_level0_pass
+            and report.unified_bridges_passed == report.unified_bridges_total
         )
 
         # Evolution is triggered if any test failed

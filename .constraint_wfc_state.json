@@ -1,0 +1,34 @@
+{
+  "total_cycles": 8,
+  "best_playability_ever": 1.0,
+  "playability_trend": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "difficulty_trend": [
+    0.0,
+    0.0,
+    0.0009,
+    0.0018,
+    0.0035,
+    0.0036,
+    0.0028,
+    0.0014
+  ],
+  "distilled_rules": {
+    "target_playability": 0.95,
+    "platform_density_target": 11.8,
+    "veto_effectiveness": 1.0,
+    "difficulty_sweet_spot": [
+      0.0,
+      0.1514
+    ]
+  },
+  "last_updated": "2026-04-17T16:55:12.997244+00:00"
+}
