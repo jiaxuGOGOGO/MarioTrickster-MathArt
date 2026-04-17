@@ -1,121 +1,129 @@
 # SESSION_HANDOFF
 
-> This document has been refreshed for **SESSION-060**.
+> This document has been refreshed for **SESSION-061**.
 
 ## Project Overview
 
 | Field | Value |
 |---|---|
-| Current version | **0.51.0** |
+| Current version | **0.52.0** |
 | Last updated | **2026-04-18** |
-| Last session | **SESSION-060** |
-| Base commit inspected at session start | `9ab0e18ee000882f35055fb9e90c171494bdf411` |
-| Best quality score achieved | **0.867** |
-| Total iterations run | **522+** |
-| Total code lines | **~90k** |
-| Latest validation status | **28/28 Breakwall regression PASS; `py_compile` PASS; real repository root anti-flicker cycle executed and persisted; prior SESSION-059 Unity/VAT regression remained green at handoff start** |
+| Last session | **SESSION-061** |
+| Base commit inspected at session start | `87af39a7e4ab68516725ac2f92b4670bdb5a137a` |
+| Best quality score achieved | **0.874** |
+| Total iterations run | **562+** |
+| Total code lines | **~95k** |
+| Latest validation status | **40/40 Motion 2D Pipeline tests PASS; Bridge full cycle PASS (bonus=0.537); Evolution orchestrator bridge registration verified; `py_compile` PASS** |
 
-## What SESSION-060 Delivered
+## What SESSION-061 Delivered
 
-SESSION-060 executes **第二阶段：视觉 AI 的工业化防抖与成片量产化**. The repository’s Headless ComfyUI / EbSynth path is no longer just a single-frame demo. It now behaves like a **sequence-aware production pipeline** with sparse keyframe planning, identity-lock metadata, mask-guided propagation, temporal-stability auditing, and persistent self-evolution state.
+SESSION-061 executes **第三阶段：运动认知降维与 2D IK 闭环（解决 57% 运动缺口）**. The repository now has a complete pipeline that takes 3D NSM/DeepPhase gait data, projects it to 2D via orthographic projection, applies terrain-adaptive FABRIK IK, quantifies animation quality against the 12 principles, and exports to Spine JSON — all wrapped in a three-layer evolution bridge.
 
 ### Core Insight
 
-> SESSION-060 treats anti-flicker as a systems problem rather than a prompt problem. The real upgrade is not “better-looking one frame”, but “a reproducible sequence recipe the repository can remember, audit, and evolve.”
+> SESSION-061 treats the 3D→2D motion gap as a **projection + IK + quality assurance** pipeline rather than a lossy downsampling problem. The real upgrade is not "flatten 3D to 2D", but "a mathematically rigorous projection that preserves bone lengths, joint angles, and sorting orders while enforcing terrain contact through FABRIK IK and measuring animation quality against Disney's 12 principles."
 
 ## New Subsystems and Upgrades
 
 | Subsystem | Landed in | What it now does |
 |---|---|---|
-| **Phase 2 neural render data model** | `mathart/animation/headless_comfy_ebsynth.py` | Adds `KeyframePlan`, sequence-level workflow manifests, identity-lock metadata, mask outputs, and extended temporal metrics |
-| **Sparse AI keyframe planning** | `headless_comfy_ebsynth.py` | Selects motion-adaptive sparse keyframes and records motion / silhouette / priority scores for replay and audit |
-| **Identity-lock capable workflow builder** | `ComfyUIHeadlessClient.build_controlnet_workflow()` | Tracks Normal/Depth locking, optional IP-Adapter identity path, fallback reasons, and guide manifests |
-| **Mask-guided temporal propagation** | `EbSynthPropagationEngine` | Uses mask-aware propagation and lightweight temporal smoothing on top of motion-vector guidance |
-| **Industrial anti-flicker bridge metrics** | `mathart/evolution/breakwall_evolution_bridge.py` | Adds guide-lock, identity consistency, long-range drift, temporal stability, and keyframe density into Layer 1/2/3 evolution loops |
-| **Positive production-rule distillation** | `breakwall_evolution_bridge.py` | Distills stable sparse-keyframe + guide-lock recipes into persistent knowledge rather than only failure warnings |
-| **Regression coverage refresh** | `tests/test_breakwall_phase1.py` | Verifies workflow manifests, mask outputs, keyframe plans, metadata exports, and bridge backward compatibility |
-| **Runtime evidence script** | `tools/session060_run_visual_anti_flicker_cycle.py` | Executes the real repository anti-flicker loop and writes `evolution_reports/session060_visual_anti_flicker_cycle.json` |
+| **Orthographic Projector** | `mathart/animation/orthographic_projector.py` | Projects 3D NSM bone data to 2D preserving X/Y displacement, Z-rotation, and converting Z-depth to integer sorting orders. Includes biped and quadruped skeleton factories. |
+| **Spine JSON Exporter** | `mathart/animation/orthographic_projector.py` | Exports projected 2D clips to Spine JSON format with skeleton metadata, bone hierarchy, slot definitions, IK constraints, and animation timelines (rotate, translate, scale). |
+| **FABRIK 2D Solver** | `mathart/animation/terrain_ik_2d.py` | Forward-And-Backward Reaching IK solver with angular constraints, O(n) convergence per iteration, configurable tolerance and max iterations. |
+| **Terrain Adaptive IK Loop** | `mathart/animation/terrain_ik_2d.py` | Closed-loop system that queries terrain height via `TerrainProbe2D`, computes IK targets for grounded feet, solves FABRIK chains, and adjusts hip height. Supports biped and quadruped. |
+| **Animation 12 Principles Quantifier** | `mathart/animation/principles_quantifier.py` | Systematic quantification of Squash & Stretch (volume preservation), Anticipation (velocity reversal), Arcs (curvature smoothness), Timing (frame distribution), and Solid Drawing (scale consistency). Produces aggregate scores and actionable recommendations. |
+| **Motion 2D Pipeline** | `mathart/animation/motion_2d_pipeline.py` | End-to-end integration: NSM gait → orthographic projection → terrain IK → principles scoring → Spine export. Supports biped walk and quadruped trot with pass/fail gates. |
+| **Motion 2D Pipeline Evolution Bridge** | `mathart/evolution/motion_2d_pipeline_bridge.py` | Three-layer bridge: Layer 1 evaluates projection quality, IK accuracy, and principles scores; Layer 2 distills 8 research rules + dynamic rules to Markdown; Layer 3 persists state and computes fitness bonus. |
+| **Taichi graceful fallback** | `mathart/animation/xpbd_taichi.py` | Fixed `AttributeError` when Taichi is not installed by wrapping `@ti.kernel`/`@ti.func`/`@ti.data_oriented` decorators and class definition in `if ti is not None:` guards. |
 
 ## Research References Now Landed in Code
 
 | Reference | Core idea | Landed in |
 |---|---|---|
-| **Jamriška / EbSynth** | Commercially usable stylized animation depends on sparse keyframes plus sequence propagation rather than per-frame regeneration | Motion-adaptive keyframe planning, mask-guided propagation, temporal metrics |
-| **Lvmin Zhang / ControlNet** | Multi-condition priors must lock geometry and silhouette | `workflow_manifest.controlnet_guides`, dual-guide workflow recording, bridge distillation rules |
-| **IP-Adapter** | Identity reference should be explicit, trackable, and degradable without breaking production | Optional identity-lock config, workflow manifest, `identity_reference_index`, identity metrics |
-| **FlowVid / optical-flow consistency** | Long-range consistency remains dependent on motion guidance and drift control | `long_range_drift`, `temporal_stability_score`, motion-vector-guided propagation |
+| **Sebastian Starke — MANN (SIGGRAPH 2018)** | Quadruped gating networks with asymmetric phase offsets and independent duty factors per limb | `nsm_gait.py` quadruped profiles + `motion_2d_pipeline_bridge.py` Rule 1 |
+| **Sebastian Starke — NSM (SIGGRAPH Asia 2019)** | Goal-driven scene interactions with terrain geometry as first-class input | `terrain_ik_2d.py` TerrainProbe2D + `motion_2d_pipeline_bridge.py` Rule 2 |
+| **Sebastian Starke — DeepPhase (SIGGRAPH 2022)** | Multi-dimensional phase space decomposition with per-limb independent phase channels | `nsm_gait.py` LimbPhaseModel + `motion_2d_pipeline_bridge.py` Rule 3 |
+| **Daniel Holden — PFNN (SIGGRAPH 2017)** | Terrain heightmap sampling at foot position for IK target adjustment | `terrain_ik_2d.py` TerrainAdaptiveIKLoop + `motion_2d_pipeline_bridge.py` Rule 4 |
+| **Aristidou & Lasenby — FABRIK (2011)** | Forward-And-Backward Reaching IK with O(n) convergence and angular constraint post-processing | `terrain_ik_2d.py` FABRIK2DSolver + `motion_2d_pipeline_bridge.py` Rule 5 |
+| **Thomas & Johnston — The Illusion of Life (1981)** | Disney's 12 animation principles as quantifiable quality metrics | `principles_quantifier.py` + `motion_2d_pipeline_bridge.py` Rule 6 |
+| **Esoteric Software — Spine JSON Format** | Industry-standard 2D skeletal animation interchange format | `orthographic_projector.py` SpineJSONExporter + `motion_2d_pipeline_bridge.py` Rule 8 |
 
-## Runtime Evidence from SESSION-060
+## Runtime Evidence from SESSION-061
 
 | Metric | Result |
 |---|---|
-| Breakwall regression file | **28/28 PASS** |
-| Real repository anti-flicker cycle | **PASS** |
-| `mean_warp_error` | **0.0696** |
-| `flicker_score` | **0.0460** |
-| `guide_lock_score` | **1.0000** |
-| `identity_consistency_proxy` | **0.9990** |
-| `long_range_drift` | **0.0020** |
-| `temporal_stability_score` | **0.7126** |
-| `keyframe_density` | **0.5000** |
-| Bundle validation | **6/6 channels found, valid** |
-| Fitness bonus | **0.19** |
-| Distilled rules generated | **1** |
-| Runtime evidence file | `evolution_reports/session060_visual_anti_flicker_cycle.json` |
-| Research traceability audit | `evolution_reports/session060_visual_anti_flicker_audit.md` |
-| Working notes | `research/session060_research_notes.md` |
+| Motion 2D Pipeline tests | **40/40 PASS** |
+| Bridge full cycle | **PASS** |
+| Bone length preservation | **1.0000** |
+| Joint angle fidelity | **1.0000** |
+| Sorting order stability | **1.0000** |
+| IK contact accuracy | **1.0000** |
+| Principles aggregate score | **0.3696** |
+| Biped pipeline pass | **True** |
+| Quadruped pipeline pass | **True** |
+| Spine export success | **True** |
+| Total frames processed | **40** |
+| Fitness bonus | **0.537** |
+| Quality score | **0.874** |
+| Research audit | `research/session061_audit_report.md` |
+| Research notes | `research/session061_phase3_motion_cognitive_research.md` |
 
 ## Knowledge Base Status
 
 | Metric | Status |
 |---|---|
-| Distilled knowledge rules | **109+** |
-| Knowledge files | `knowledge/breakwall_phase1.md`, `knowledge/unity_urp_2d_rules.md`, `knowledge/phase3_physics_rules.md`, `knowledge/smooth_morphology_rules.md`, `knowledge/constraint_wfc_rules.md`, `knowledge/industrial_skin.md` |
+| Distilled knowledge rules | **117+** (109 prior + 8 new) |
+| Knowledge files | `knowledge/motion_2d_pipeline_rules.md` (NEW), `knowledge/breakwall_phase1.md`, `knowledge/unity_urp_2d_rules.md`, `knowledge/phase3_physics_rules.md`, `knowledge/smooth_morphology_rules.md`, `knowledge/constraint_wfc_rules.md`, `knowledge/industrial_skin.md` |
+| Latest Motion 2D state file | `.motion_2d_pipeline_state.json` |
 | Latest Breakwall state file | `.breakwall_evolution_state.json` |
 | Latest Unity native state file | `.unity_urp_2d_state.json` |
 | Latest orchestrator state file | `.evolution_orchestrator_state.json` |
-| Latest SESSION audit | `evolution_reports/session060_visual_anti_flicker_audit.md` |
-| Next distill session ID | **DISTILL-009** |
+| Latest SESSION audit | `research/session061_audit_report.md` |
+| Next distill session ID | **DISTILL-010** |
 | Next mine session ID | **MINE-001** |
 
 ## Three-Layer Evolution System Status
 
 ### Layer 1: Internal Evaluation
 
-The Breakwall neural-render pipeline now evaluates more than raw warp error. It records **guide-lock integrity, identity consistency, long-range drift, temporal stability, keyframe density, workflow manifests, and keyframe plans**. That turns the system from a “did it run?” demo into a “did it run in a production-safe way?” evaluator.
+The Motion 2D Pipeline bridge evaluates **bone length preservation, joint angle fidelity, sorting order stability, IK contact accuracy, foot-terrain error, convergence iterations, and animation 12-principle scores** across both biped and quadruped pipelines. The pass gate requires projection quality >= 0.95, IK accuracy >= 0.80, and successful Spine export.
 
 ### Layer 2: External Knowledge Distillation
 
-`BreakwallEvolutionBridge.distill_knowledge()` now distills both failure and success states. The bridge can warn on identity drift or weak guide locking, and it can also persist a **positive production recipe** when sparse keyframe generation plus multi-guide propagation succeeds.
+`Motion2DPipelineEvolutionBridge.distill_knowledge()` writes 8 static research rules (from Starke, Holden, Aristidou, Thomas & Johnston, and Spine format) plus dynamic rules based on measured metrics. Dynamic rules warn on projection degradation, IK accuracy drops, principles score deficits, and terrain error spikes.
 
 ### Layer 3: Self-Iteration
 
-`BreakwallState` now persists:
+`Motion2DPipelineState` now persists:
 
-1. best temporal stability score
-2. best identity consistency score
-3. temporal stability trend
-4. identity consistency trend
-5. `optimal_ip_adapter_weight`
-6. `optimal_mask_guide_weight`
+1. best projection quality
+2. best IK accuracy
+3. best principles score
+4. quality trend (composite metric)
+5. cycle history with timestamps, pass/fail, bonus, and quality
 
-This means future sessions can continue evolving the visual anti-flicker recipe instead of re-discovering it manually.
+This means future sessions can continue evolving the motion 2D pipeline without re-discovering optimal parameters.
 
 ## Pending Tasks (Priority Order)
 
 ### HIGH (P0/P1)
-- `P1-AI-2C`: **NEW (SESSION-060)**. Expose the Phase 2 anti-flicker path through the standard CLI / AssetPipeline so users can request sparse-keyframe + propagation rendering without custom bridge scripts.
-- `P1-AI-2D`: **NEW (SESSION-060)**. Add real ComfyUI node-template export and batch preset packs for IP-Adapter + ControlNet + mask-guided sequence jobs.
-- `P1-AI-2E`: **NEW (SESSION-060)**. Extend the motion-adaptive keyframe planner to jump / fall / hit / attack sequences with segment-aware scheduling.
-- `P1-INDUSTRIAL-34A`: Industrial / Unity-native bundle export path exists, but the main `AssetPipeline` still needs an optional backend switch so users can request this output from the standard pack-generation flow.
-- `P1-URP2D-PIPE-1`: Expose `UnityURP2DNativePipelineGenerator` and VAT bundle generation through the standard CLI / pipeline entrypoints rather than only through bridge/runtime helpers.
-- `P1-GAP4-CI`: Scheduled or nightly Layer 3 closed-loop audits across more subsystems, now including Breakwall Phase 2 and the SESSION-057/058/059 bridges.
-- `P1-INDUSTRIAL-34C`: Dead Cells-style **full** 3D-to-2D mesh rendering path still needs the upstream mesh/animation bake stage; SESSION-059 delivered the Unity-native downstream hookup and VAT replay side.
-- `P1-VAT-PRECISION-1`: Add half/float VAT encodings, higher-precision manifests, and ready-made Unity material presets for larger cloth/soft-body assets.
+- `P1-AI-2C`: Expose the Phase 2 anti-flicker path through the standard CLI / AssetPipeline.
+- `P1-AI-2D`: Add real ComfyUI node-template export and batch preset packs.
+- `P1-AI-2E`: Extend the motion-adaptive keyframe planner to jump / fall / hit / attack sequences.
+- `P1-INDUSTRIAL-34A`: Main `AssetPipeline` backend switch for Unity-native bundle output.
+- `P1-URP2D-PIPE-1`: Expose `UnityURP2DNativePipelineGenerator` and VAT through CLI.
+- `P1-GAP4-CI`: Scheduled Layer 3 closed-loop audits including Motion 2D Pipeline bridge.
+- `P1-INDUSTRIAL-34C`: Dead Cells-style full 3D-to-2D mesh rendering path.
+- `P1-VAT-PRECISION-1`: Half/float VAT encodings and higher-precision manifests.
 
 ### MEDIUM (P1/P2)
-- `P3-QUAD-IK-1`: Connect the quadruped gait planner to a real quadruped skeleton and IK solver so contact-phase planning becomes visible motion.
-- `P3-GPU-BENCH-1`: Run formal Taichi GPU benchmarks and sparse-cloth validation on true CUDA hardware.
+- `P2-UNITY-2DANIM-1`: **NEW (SESSION-061)**. Unity 2D Animation native format export (currently Spine JSON only).
+- `P2-REALTIME-COMM-1`: **NEW (SESSION-061)**. Python↔Unity real-time gait inference communication protocol.
+- `P2-PRINCIPLES-FULL-1`: **NEW (SESSION-061)**. Extend principles quantifier to all 12 principles (Follow-Through, Staging, Secondary Action, Appeal, etc.).
+- `P2-DEEPPHASE-FFT-1`: **NEW (SESSION-061)**. Full FFT-based frequency-domain phase decomposition from DeepPhase.
+- `P2-MOTIONDB-IK-1`: **NEW (SESSION-061)**. Integrate motion matching database with 2D IK pipeline for runtime query.
+- `P2-SPINE-PREVIEW-1`: **NEW (SESSION-061)**. Spine JSON animation previewer for visual verification.
+- `P3-GPU-BENCH-1`: Run formal Taichi GPU benchmarks on true CUDA hardware.
 - `P2-MORPHOLOGY-2`: Expand morphology archetypes and add weapon/accessory attachment points.
 - `P2-WFC-2`: Add themed WFC tile sets and progression-aware difficulty curves.
 - `P2-MORPHOLOGY-3`: GPU-accelerated SDF evaluation for very large morphology populations.
@@ -124,77 +132,78 @@ This means future sessions can continue evolving the visual anti-flicker recipe 
 - `P1-B3-5`: Full locomotion CNS unification across export/orchestration layers.
 
 ### DONE / CORE IMPLEMENTED
-- `P1-AI-2F`: **CLOSED in SESSION-060**. Headless visual pipeline now records sparse keyframe plans, workflow manifests, mask-guided propagation, and sequence-level anti-flicker metrics.
-- `P1-AI-2G`: **CLOSED in SESSION-060**. Breakwall three-layer evolution bridge now tracks identity stability, drift, temporal stability, and positive production-rule distillation.
-- `P3-EVO-1`: **CLOSED in SESSION-059**. `Phase3PhysicsEvolutionBridge` is now wired into `EvolutionOrchestrator.run_full_cycle()`.
-- `P2-MORPHOLOGY-1`: **CLOSED in SESSION-059**. `SmoothMorphologyEvolutionBridge` is now wired into `EvolutionOrchestrator.run_full_cycle()`.
-- `P2-WFC-1`: **CLOSED in SESSION-059**. `ConstraintWFCEvolutionBridge` is now wired into `EvolutionOrchestrator.run_full_cycle()`.
-- `P1-XPBD-2`: **CLOSED in SESSION-058**. Taichi-backed GPU-JIT XPBD cloth backend landed.
-- `P1-XPBD-4`: **CLOSED in SESSION-058**. Continuous collision detection via SDF sphere tracing and TOI clamp landed.
-- `P2-XPBD-5`: **CLOSED in SESSION-058**. Cloth mesh simulation landed through Taichi XPBD backend.
-- `P2-CROSSDIM-3`: **CLOSED in SESSION-057**. Parametric SDF morphology with smooth CSG landed.
-- `P2-CROSSDIM-4`: **CLOSED in SESSION-057**. Constraint-aware WFC with TTC reachability validation landed.
-- `P1-AI-2A` / `P1-AI-2B` / `P3-3`: **CLOSED in SESSION-056**. Breakwall + ControlNet + engine plugin path landed.
-- `P0-GAP-2`: **CLOSED in SESSION-052**. Full two-way rigid-soft XPBD coupling landed.
+- `P3-MOTION2D-1`: **CLOSED in SESSION-061**. Full 3D→2D orthographic projection pipeline with quality metrics.
+- `P3-MOTION2D-2`: **CLOSED in SESSION-061**. FABRIK 2D terrain-adaptive IK closed loop for biped and quadruped.
+- `P3-MOTION2D-3`: **CLOSED in SESSION-061**. Animation 12 principles quantification system.
+- `P3-MOTION2D-4`: **CLOSED in SESSION-061**. Spine JSON export with IK constraints.
+- `P3-MOTION2D-5`: **CLOSED in SESSION-061**. Motion 2D Pipeline three-layer evolution bridge.
+- `P3-QUAD-IK-1`: **CLOSED in SESSION-061**. Quadruped gait planner connected to IK solver with visible motion.
+- `P1-AI-2F`: **CLOSED in SESSION-060**. Headless visual pipeline sparse keyframe plans and anti-flicker metrics.
+- `P1-AI-2G`: **CLOSED in SESSION-060**. Breakwall bridge identity stability and positive production-rule distillation.
+- `P3-EVO-1`: **CLOSED in SESSION-059**. `Phase3PhysicsEvolutionBridge` wired into orchestrator.
+- `P2-MORPHOLOGY-1`: **CLOSED in SESSION-059**. `SmoothMorphologyEvolutionBridge` wired into orchestrator.
+- `P2-WFC-1`: **CLOSED in SESSION-059**. `ConstraintWFCEvolutionBridge` wired into orchestrator.
+- `P1-XPBD-2`: **CLOSED in SESSION-058**. Taichi-backed GPU-JIT XPBD cloth backend.
+- `P1-XPBD-4`: **CLOSED in SESSION-058**. SDF sphere-tracing CCD.
+- `P2-XPBD-5`: **CLOSED in SESSION-058**. Cloth mesh simulation via Taichi XPBD.
+- `P2-CROSSDIM-3`: **CLOSED in SESSION-057**. Parametric SDF morphology with smooth CSG.
+- `P2-CROSSDIM-4`: **CLOSED in SESSION-057**. Constraint-aware WFC with TTC reachability.
+- `P1-AI-2A` / `P1-AI-2B` / `P3-3`: **CLOSED in SESSION-056**. Breakwall + ControlNet + engine plugin.
+- `P0-GAP-2`: **CLOSED in SESSION-052**. Full two-way rigid-soft XPBD coupling.
 
 ## Audit and Verification Evidence
 
 | Evidence | Result |
 |---|---|
-| `python3.11 -m py_compile mathart/animation/headless_comfy_ebsynth.py mathart/evolution/breakwall_evolution_bridge.py` | **PASS** |
-| `pytest -q tests/test_breakwall_phase1.py -k 'NeuralRenderConfig or ComfyUIHeadlessClient or HeadlessNeuralRenderPipeline'` | **9 passed** |
-| `pytest -q tests/test_breakwall_phase1.py -k 'BreakwallEvolutionBridge or status or fitness or distill'` | **8 passed** |
-| `pytest -q tests/test_breakwall_phase1.py` | **28 passed** |
-| `python3.11 tools/session060_run_visual_anti_flicker_cycle.py` | Real repository root anti-flicker cycle executed; emitted runtime evidence and persistent state |
-| `evolution_reports/session060_visual_anti_flicker_audit.md` | Full research-to-code traceability for SESSION-060 |
-| `evolution_reports/session060_visual_anti_flicker_cycle.json` | Persisted runtime evidence for Breakwall Phase 2 anti-flicker loop |
-| `.breakwall_evolution_state.json` | Breakwall Phase 2 bridge state persisted |
+| `python tests/run_pipeline_tests.py` | **40/40 PASS** |
+| Motion 2D Pipeline bridge full cycle | **PASS** (bonus=0.537, quality=0.874) |
+| `collect_motion_2d_pipeline_status('.')` | All 6 subsystems available |
+| Spine JSON export validation | Valid JSON with skeleton, bones, ik, animations |
+| FABRIK convergence | 8 iterations to 0.001 tolerance |
+| Research-to-code traceability | `research/session061_audit_report.md` |
+| Research notes | `research/session061_phase3_motion_cognitive_research.md` |
 
 ## Recent Evolution History (Last 5 Sessions)
 
+### SESSION-061 — v0.52.0 (2026-04-18)
+- Added `mathart/animation/orthographic_projector.py` — 3D→2D orthographic projection + Spine JSON export
+- Added `mathart/animation/terrain_ik_2d.py` — FABRIK 2D terrain-adaptive IK closed loop
+- Added `mathart/animation/principles_quantifier.py` — Animation 12 principles quantification
+- Added `mathart/animation/motion_2d_pipeline.py` — End-to-end NSM→2D integration pipeline
+- Added `mathart/evolution/motion_2d_pipeline_bridge.py` — Three-layer evolution bridge
+- Updated `mathart/animation/__init__.py` — 16 new exports + taichi conditional import
+- Updated `mathart/animation/xpbd_taichi.py` — Graceful fallback when Taichi unavailable
+- Updated `mathart/evolution/__init__.py` — 5 new bridge exports
+- Updated `mathart/evolution/evolution_orchestrator.py` — motion_2d_pipeline bridge registered
+- Added `tests/run_pipeline_tests.py` — 40 tests all PASS
+- Added `research/session061_phase3_motion_cognitive_research.md` and `research/session061_audit_report.md`
+- Bridge full cycle PASS; 40/40 tests PASS
+
 ### SESSION-060 — v0.51.0 (2026-04-18)
-- Upgraded `mathart/animation/headless_comfy_ebsynth.py` to Phase 2 industrial anti-flicker mode with sparse keyframe planning, mask output, identity-lock metadata, workflow manifests, and sequence-level temporal metrics
-- Upgraded `mathart/evolution/breakwall_evolution_bridge.py` with guide-lock, identity, drift, stability, density, and positive production-rule distillation
-- Updated `mathart/animation/__init__.py` and `tests/test_breakwall_phase1.py`
-- Added `tools/session060_run_visual_anti_flicker_cycle.py`
-- Added `evolution_reports/session060_visual_anti_flicker_audit.md` and `evolution_reports/session060_visual_anti_flicker_cycle.json`
+- Upgraded headless neural render to Phase 2 industrial anti-flicker mode
+- Upgraded breakwall bridge with guide-lock, identity, drift, stability metrics
 - Real anti-flicker loop PASS; Breakwall regression 28/28 PASS
 
 ### SESSION-059 — v0.50.0 (2026-04-18)
-- Added `mathart/animation/unity_urp_native.py` — Unity URP 2D native pipeline generator + VAT bake helpers
-- Added `mathart/evolution/unity_urp_2d_bridge.py` — Unity-native three-layer evolution bridge
-- Updated `mathart/evolution/evolution_orchestrator.py` — unified bridge suite now executes SESSION-057/058/059 bridges together
-- Updated `mathart/evolution/engine.py` and package exports — Unity bridge registration / status exposure
-- Added `tests/test_unity_urp_native.py`
-- Added `research/session059_research_notes.md`, `evolution_reports/session059_unity_orchestrator_audit.md`, `evolution_reports/session059_runtime_cycle.json`
-- Emitted `knowledge/unity_urp_2d_rules.md` and `.unity_urp_2d_state.json`
-- 4/4 Unity tests PASS; 32/32 combined regression PASS; unified bridge suite PASS 4/4
+- Added Unity URP 2D native pipeline generator + VAT bake helpers
+- Added Unity-native three-layer evolution bridge
+- Unified bridge suite 4/4 PASS; 32/32 combined regression PASS
 
 ### SESSION-058 — v0.49.0 (2026-04-17)
-- Added `mathart/animation/xpbd_taichi.py` — Taichi XPBD cloth backend
-- Added `mathart/animation/sdf_ccd.py` — SDF sphere-tracing CCD module
-- Added `mathart/animation/nsm_gait.py` — Distilled NSM / DeepPhase gait runtime
-- Updated `mathart/animation/xpbd_bridge.py` — CCD integration + metadata diagnostics
-- Added `mathart/evolution/phase3_physics_bridge.py` — Three-layer Phase 3 evolution bridge
-- 13/13 targeted Phase 3 tests PASS; bridge full cycle PASS
+- Added Taichi XPBD cloth backend, SDF CCD, NSM gait runtime
+- 13/13 Phase 3 tests PASS; bridge full cycle PASS
 
 ### SESSION-057 — v0.48.0 (2026-04-17)
-- Added parametric SDF morphology system and smooth morphology bridge
-- Added constraint-aware WFC tile generation and WFC bridge
-- 114/114 new tests PASS; 66/66 core regression tests PASS
-
-### SESSION-056 — v0.47.0 (2026-04-17)
-- Added headless neural render pipeline and engine import plugins
-- Added breakwall evolution bridge
-- 28/28 new tests PASS
+- Added parametric SDF morphology and constraint-aware WFC
+- 114/114 new tests PASS; 66/66 core regression PASS
 
 ## Recommended Next Entry Points
 
 | Goal | Start here |
 |---|---|
-| Continue visual anti-flicker pipeline work | `evolution_reports/session060_visual_anti_flicker_audit.md` |
-| Continue implementation details | `research/session060_research_notes.md` |
-| Continue Breakwall evolution work | `mathart/evolution/breakwall_evolution_bridge.py` |
-| Continue visual pipeline code | `mathart/animation/headless_comfy_ebsynth.py` |
+| Continue motion 2D pipeline work | `research/session061_audit_report.md` |
+| Extend principles quantifier | `mathart/animation/principles_quantifier.py` |
+| Add Unity native 2D format export | `mathart/animation/orthographic_projector.py` |
+| Continue visual anti-flicker work | `evolution_reports/session060_visual_anti_flicker_audit.md` |
 | Continue Unity-native pipeline work | `evolution_reports/session059_unity_orchestrator_audit.md` |
 | Continue global memory update work | `PROJECT_BRAIN.json` |

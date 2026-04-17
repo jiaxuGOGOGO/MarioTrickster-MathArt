@@ -190,15 +190,18 @@ from .xpbd_evolution import (
     TestResult, PhysicsTestHarness,
     XPBDEvolutionOrchestrator,
 )
-from .xpbd_taichi import (
-    TaichiXPBDBackendStatus,
-    TaichiXPBDClothConfig,
-    TaichiXPBDClothDiagnostics,
-    TaichiXPBDBenchmarkResult,
-    TaichiXPBDClothSystem,
-    get_taichi_xpbd_backend_status,
-    create_default_taichi_cloth_config,
-)
+try:
+    from .xpbd_taichi import (
+        TaichiXPBDBackendStatus,
+        TaichiXPBDClothConfig,
+        TaichiXPBDClothDiagnostics,
+        TaichiXPBDBenchmarkResult,
+        TaichiXPBDClothSystem,
+        get_taichi_xpbd_backend_status,
+        create_default_taichi_cloth_config,
+    )
+except (ImportError, AttributeError):  # taichi not available
+    pass
 from .sdf_ccd import (
     SDFCCDConfig,
     SDFCCDResult,
@@ -247,6 +250,24 @@ from .unity_urp_native import (
     build_vat_preview,
     bake_cloth_vat,
     generate_unity_urp_2d_native_pipeline,
+)
+# SESSION-061: Motion Cognitive Dimensionality Reduction & 2D IK Closed Loop
+from .orthographic_projector import (
+    OrthographicProjector, ProjectionConfig, SpineJSONExporter,
+    Bone3D, Bone2D, Clip3D, Clip2D, ProjectionQualityMetrics,
+    create_biped_skeleton_3d, create_quadruped_skeleton_3d,
+    create_sample_walk_clip_3d,
+)
+from .terrain_ik_2d import (
+    Joint2D, IKConfig, TerrainProbe2D, FABRIK2DSolver,
+    TerrainAdaptiveIKLoop, IKQualityMetrics,
+    create_terrain_ik_loop,
+)
+from .principles_quantifier import (
+    AnimFrame, PrincipleReport, PrincipleScorer,
+)
+from .motion_2d_pipeline import (
+    PipelineConfig, PipelineResult, Motion2DPipeline,
 )
 # SESSION-049: Phase-Preserving Gait Transition Blending (Gap B3 — Marker-based DTW)
 from .gait_blend import (
@@ -481,4 +502,14 @@ __all__ = [
     "collect_taichi_cloth_frames", "encode_vat_position_texture",
     "build_vat_preview", "bake_cloth_vat",
     "generate_unity_urp_2d_native_pipeline",
+    # SESSION-061: Motion Cognitive Dimensionality Reduction & 2D IK Closed Loop
+    "OrthographicProjector", "ProjectionConfig", "SpineJSONExporter",
+    "Bone3D", "Bone2D", "Clip3D", "Clip2D", "ProjectionQualityMetrics",
+    "create_biped_skeleton_3d", "create_quadruped_skeleton_3d",
+    "create_sample_walk_clip_3d",
+    "Joint2D", "IKConfig", "TerrainProbe2D", "FABRIK2DSolver",
+    "TerrainAdaptiveIKLoop", "IKQualityMetrics",
+    "create_terrain_ik_loop",
+    "AnimFrame", "PrincipleReport", "PrincipleScorer",
+    "PipelineConfig", "PipelineResult", "Motion2DPipeline",
 ]

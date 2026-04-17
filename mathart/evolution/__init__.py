@@ -154,6 +154,14 @@ from .unity_urp_2d_bridge import (
     collect_unity_urp_2d_status,
     UnityURP2DEvolutionBridge,
 )
+# SESSION-061: Motion 2D Pipeline Bridge (Orthographic Projection + 2D IK + Principles)
+from .motion_2d_pipeline_bridge import (
+    Motion2DPipelineMetrics,
+    Motion2DPipelineState,
+    Motion2DPipelineStatus,
+    collect_motion_2d_pipeline_status,
+    Motion2DPipelineEvolutionBridge,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -254,4 +262,10 @@ __all__ = [
     "UnityURP2DStatus",
     "collect_unity_urp_2d_status",
     "UnityURP2DEvolutionBridge",
+    # SESSION-061: Motion 2D Pipeline Bridge
+    "Motion2DPipelineMetrics",
+    "Motion2DPipelineState",
+    "Motion2DPipelineStatus",
+    "collect_motion_2d_pipeline_status",
+    "Motion2DPipelineEvolutionBridge",
 ]

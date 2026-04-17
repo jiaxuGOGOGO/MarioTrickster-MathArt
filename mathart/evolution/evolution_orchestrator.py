@@ -429,6 +429,12 @@ class EvolutionOrchestrator:
                 "UnityURP2DEvolutionBridge",
                 {},
             ),
+            (
+                "motion_2d_pipeline",
+                "mathart.evolution.motion_2d_pipeline_bridge",
+                "Motion2DPipelineEvolutionBridge",
+                {"n_frames": 30},
+            ),
         ]
 
         for bridge_name, module_name, class_name, kwargs in bridge_specs:
