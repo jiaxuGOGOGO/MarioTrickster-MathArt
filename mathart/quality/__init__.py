@@ -19,5 +19,29 @@ not just passive filters at the end.
 """
 from mathart.quality.controller import ArtMathQualityController
 from mathart.quality.checkpoint import QualityCheckpoint, CheckpointResult
+# SESSION-055: Multi-modal visual fitness scoring
+from mathart.quality.visual_fitness import (
+    VisualFitnessConfig,
+    VisualFitnessResult,
+    compute_laplacian_sharpness,
+    compute_laplacian_quality,
+    compute_frame_ssim,
+    compute_temporal_consistency,
+    compute_channel_dynamic_range,
+    compute_depth_smoothness,
+    compute_visual_fitness,
+)
 
-__all__ = ["ArtMathQualityController", "QualityCheckpoint", "CheckpointResult"]
+__all__ = [
+    "ArtMathQualityController", "QualityCheckpoint", "CheckpointResult",
+    # SESSION-055: Multi-modal visual fitness scoring
+    "VisualFitnessConfig",
+    "VisualFitnessResult",
+    "compute_laplacian_sharpness",
+    "compute_laplacian_quality",
+    "compute_frame_ssim",
+    "compute_temporal_consistency",
+    "compute_channel_dynamic_range",
+    "compute_depth_smoothness",
+    "compute_visual_fitness",
+]

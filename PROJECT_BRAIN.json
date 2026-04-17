@@ -1,15 +1,15 @@
 {
-  "version": "0.45.0",
-  "last_session_id": "SESSION-054",
-  "last_updated": "2026-04-17T10:30:00Z",
+  "version": "0.46.0",
+  "last_session_id": "SESSION-055",
+  "last_updated": "2026-04-17T12:00:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "17 industrial rendering/export/evolution tests PASS; Industrial Skin Layer 3 accepted; locomotion/runtime/XPBD foundations remain green",
+  "validation_pass_rate": "26/26 SESSION-055 tests PASS; 17/17 SESSION-054 industrial tests preserved; three-layer evolution orchestrator operational; asset factory production cycle accepted",
   "total_iterations": 500,
-  "total_code_lines": 78200,
+  "total_code_lines": 82500,
   "distill_session_id": "DISTILL-006",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 83,
+  "knowledge_rule_count": 87,
   "math_model_count": 31,
   "project_health_score": 10.0,
   "commercial_benchmark": {
@@ -25,13 +25,13 @@
       "character_diversity": 15,
       "environment_tileset": 18,
       "engine_ready_export": 36,
-      "engineering_automation": 90
+      "engineering_automation": 93
     },
-    "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-054: Physics Singularity and locomotion CNS are in place, and industrial skin delivery now has analytical gradients for canonical primitives, industrial material channels, engine-ready export metadata, and a Layer 3 bridge. Main remaining blockers: AssetPipeline backend wiring, engine-specific import presets, 3D-to-2D mesh bake workflow, benchmarked asset production, GPU-accelerated XPBD, 3D extension, and CCD for fast-moving objects.",
+    "fundamental_blocker": "FURTHER RESOLVED THROUGH SESSION-055: Property-based graph-fuzz CI, multi-modal visual fitness scoring, commercial asset factory with quality gates, and unified three-layer evolution orchestrator are now operational. Main remaining blockers: AssetPipeline backend wiring, engine-specific import presets, 3D-to-2D mesh bake workflow, expanded asset preset coverage, GPU-accelerated XPBD, 3D extension, and CCD for fast-moving objects.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules. SESSION-049 closes Gap B3 by implementing Marker-based DTW gait transition blending: SyncMarker/GaitSyncProfile define foot-contact events, StrideWheel drives phase from distance (Rosen), GaitBlender performs Leader-Follower synchronized blend (UE Sync Groups), and adaptive_bounce provides speed-dependent vertical oscillation. Phase warping ensures sync marker alignment before pose interpolation, eliminating foot sliding during walk/run/sneak transitions. SESSION-052 closes the Physics Singularity by replacing Jakobsen one-way visual-following with full XPBD (Macklin & Müller 2016). The solver uses compliance α̃ = α/Δt² for timestep-independent stability, Lagrange multiplier accumulation for force estimation, and puts rigid CoM + soft nodes in one solve pool with inverse-mass weighted reaction impulses (Müller 2020). Spatial hash self-collision with connectivity exclusion (Ten Minute Physics). Three-layer evolution loop: InternalEvolver auto-tunes, KnowledgeDistiller absorbs external papers, PhysicsTestHarness validates 7 scenarios. 14/14 tests PASS. SESSION-053 adds the locomotion CNS bridge between gait blending, inertialized switching, and the runtime bus: walk/run pipeline generation can use CNS gait sampling, `locomotion_cns.py` phase-aligns target gait support phases before switching, `InertializationChannel` decays only residual source offsets, and compiled runtime rules score phase jump, sliding error, contact mismatch, foot lock, and transition cost in batch. The new LocomotionCNSBridge persists knowledge and Layer 3 state after accepted batch runs.",
       "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. SESSION-054 materially advances the visual-delivery side of the same path: canonical body primitives now provide analytical gradients, the industrial renderer exports albedo/normal/depth/thickness/roughness/mask packs, and export metadata is engine-ready for downstream 2.5D lighting workflows. Next: real-time EbSynth/ComfyUI integration demo and engine-specific import presets.",
-      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge; SESSION-048 closes Gap B2 (scene-aware distance sensor) by implementing SDF terrain description, sphere-marching ray sensor, gravity-corrected TTC prediction, and phase-binding so transient phase reaches 1.0 at contact on arbitrary terrain. Next step: gait transition blending, production benchmark suite, and real-time EbSynth/ComfyUI demo. SESSION-050 closes Gap A2 by adding RuntimeDistillationBus, CompiledParameterSpace, JIT runtime rule programs, physics hot-path foot-contact integration, quality-controller pre-generation propagation, and RuntimeDistillBridge. SESSION-051 materially advances Gap D1 by adding an explicit runtime state graph, Hypothesis rule-based graph fuzzing, canonical edge walks, and a StateMachineCoverageBridge that writes knowledge and persistent coverage history. SESSION-054 extends the architecture closure on the visual/output side by upgrading auxiliary-map baking to analytical gradients plus industrial material bundles, adding a formal export bridge for those bundles, and persisting industrial visual quality through IndustrialSkinBridge Layer 3 state."
+      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge; SESSION-048 closes Gap B2 (scene-aware distance sensor) by implementing SDF terrain description, sphere-marching ray sensor, gravity-corrected TTC prediction, and phase-binding so transient phase reaches 1.0 at contact on arbitrary terrain. Next step: gait transition blending, production benchmark suite, and real-time EbSynth/ComfyUI demo. SESSION-050 closes Gap A2 by adding RuntimeDistillationBus, CompiledParameterSpace, JIT runtime rule programs, physics hot-path foot-contact integration, quality-controller pre-generation propagation, and RuntimeDistillBridge. SESSION-051 materially advances Gap D1 by adding an explicit runtime state graph, Hypothesis rule-based graph fuzzing, canonical edge walks, and a StateMachineCoverageBridge that writes knowledge and persistent coverage history. SESSION-054 extends the architecture closure on the visual/output side by upgrading auxiliary-map baking to analytical gradients plus industrial material bundles, adding a formal export bridge for those bundles, and persisting industrial visual quality through IndustrialSkinBridge Layer 3 state. SESSION-055 executes Battle 4 (Headless Automated Testing & The Asset Factory): property-based graph-fuzz CI generates adversarial state-transition sequences from RuntimeStateGraph and monitors XPBD for NaN/penetration/constraint-error/energy-drift; multi-modal visual fitness scoring (Laplacian + SSIM + depth + channels) provides automated quality assessment; commercial asset factory batch-generates assets with quality gates and auto-rejection; unified EvolutionOrchestrator coordinates all three layers (internal evaluation, external knowledge distillation, self-iterating test) into a self-evolving feedback loop with persistent state."
     },
     "commercial_references": [
       {
@@ -45,12 +45,15 @@
         "type": "itch.io top-seller asset pack"
       }
     ],
-    "engineering_automation": 89,
+    "engineering_automation": 93,
     "animation_physics_realism": 45
   },
-  "current_focus": "SESSION-054 advances the Industrial Skin roadmap by replacing finite-difference-first auxiliary-map baking with analytical gradients for canonical body primitives, adding thickness and roughness material channels, introducing engine-ready industrial bundle export, and establishing a dedicated three-layer industrial skin bridge. Immediate next priorities: wire the industrial backend into AssetPipeline, add Unity URP 2D / Godot 4 import presets, and extend the same industrial delivery path into benchmark assets and richer engine templates.",
+  "current_focus": "SESSION-055 executes Battle 4 (Headless Automated Testing & The Asset Factory): property-based graph-fuzz CI with XPBD health monitoring, multi-modal visual fitness scoring (Laplacian + SSIM + depth + channels), commercial asset factory with quality gates and auto-rejection, and a unified three-layer evolution orchestrator that coordinates all subsystems into a self-evolving feedback loop. Immediate next priorities: wire industrial backend into AssetPipeline, add engine-specific import presets, expand asset factory preset coverage, and integrate Optuna for automated threshold optimization.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "research/session055_audit_checklist.md",
+    "research/session055_headless_asset_factory_research.md",
+    "knowledge/asset_factory.md",
     "docs/SESSION-054-AUDIT.md",
     "knowledge/industrial_skin.md",
     "research/session054_industrial_skin_research_notes.md",
@@ -176,11 +179,11 @@
       "id": "P1-E2E-COVERAGE",
       "priority": "P1",
       "title": "Expand E2E Reproducibility Tests",
-      "status": "PARTIAL",
+      "status": "SUBSTANTIALLY-ADVANCED",
       "estimated_effort": "medium",
-      "description": "Partially addressed in SESSION-051. The repository now has an explicit runtime state graph, Hypothesis rule-based graph fuzzing, canonical edge walk coverage, and StateMachineCoverageBridge persistence. Remaining work: feed graph-generated sequences into headless_e2e_ci.py and expand runtime assets beyond idle/walk/run/jump to fall/hit/dash-class states.",
+      "description": "SESSION-055 adds headless_graph_fuzz_ci.py: property-based graph-fuzz CI generates adversarial state-transition sequences from RuntimeStateGraph, monitors XPBD solver for NaN/penetration/constraint-error/energy-drift, and reports edge coverage. Integrated into EvolutionOrchestrator Layer 3. Remaining work: widen runtime assets beyond idle/walk/run/jump, add more stress patterns.",
       "added_in": "SESSION-042",
-      "updated_in": "SESSION-051"
+      "updated_in": "SESSION-055"
     },
     {
       "id": "P2-PHYSICS-DEFAULT",
@@ -403,9 +406,10 @@
       "id": "P1-NEW-10",
       "priority": "P1",
       "title": "Production benchmark asset suite",
-      "status": "TODO",
+      "status": "SUBSTANTIALLY-ADVANCED",
       "estimated_effort": "high",
-      "description": "Create benchmark characters, tiles, and VFX with structured metadata, acceptance thresholds, and automated validators."
+      "description": "SESSION-055 adds AssetFactory with commercial quality gates (visual fitness > 0.45, Laplacian > 0.20, 100% export success), tileset benchmark specs, auto-rejection with detailed reasons, persistent state tracking, and quality trend analysis. Remaining: expand preset coverage, add VFX benchmark specs, integrate with engine-specific export templates.",
+      "updated_in": "SESSION-055"
     },
     {
       "id": "P1-2",
@@ -819,6 +823,24 @@
     }
   ],
   "completed_tasks": [
+    {
+      "id": "BATTLE-4-HEADLESS-ASSET-FACTORY",
+      "title": "Battle 4: Headless Automated Testing & The Asset Factory",
+      "completed_in": "SESSION-055",
+      "result": "Property-based graph-fuzz CI (headless_graph_fuzz_ci.py) generates adversarial state-transition sequences and monitors XPBD for NaN/penetration. Multi-modal visual fitness scoring (visual_fitness.py) combines Laplacian variance, SSIM temporal consistency, depth smoothness, and channel dynamic range. Commercial asset factory (asset_factory_bridge.py) batch-generates assets with quality gates and auto-rejection. Unified three-layer evolution orchestrator (evolution_orchestrator.py) coordinates XPBD tuning, knowledge distillation, E2E CI, graph-fuzz CI, and asset factory. 26/26 tests PASS."
+    },
+    {
+      "id": "AUDIT-055",
+      "title": "SESSION-055 full audit + research-to-code verification",
+      "completed_in": "SESSION-055",
+      "result": "26/26 SESSION-055 tests PASS. research/session055_audit_checklist.md confirms all research requirements (MacIver Hypothesis, SSIM, Laplacian NR-IQA, Dead Cells pipeline) implemented in code. All 4 new modules verified: headless_graph_fuzz_ci.py, visual_fitness.py, asset_factory_bridge.py, evolution_orchestrator.py."
+    },
+    {
+      "id": "KNOWLEDGE-055",
+      "title": "SESSION-055 knowledge distillation",
+      "completed_in": "SESSION-055",
+      "result": "4 new knowledge entries distilled into KnowledgeDistiller: graph-fuzz testing methodology (MacIver), SSIM temporal consistency thresholds (Wang et al.), Laplacian variance sweet-spot for normal maps, commercial asset quality gate specifications. research/session055_headless_asset_factory_research.md and knowledge/asset_factory.md generated."
+    },
     {
       "id": "P0-GAP-2",
       "title": "Full two-way rigid-soft XPBD coupling (Physics Singularity)",

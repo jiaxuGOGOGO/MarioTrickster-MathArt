@@ -95,6 +95,25 @@ from .state_machine_coverage_bridge import (
     StateMachineCoverageState,
     StateMachineCoverageBridge,
 )
+# SESSION-054: Industrial Skin Bridge
+from .industrial_skin_bridge import (
+    IndustrialSkinMetrics,
+    IndustrialSkinState,
+    IndustrialSkinBridge,
+)
+# SESSION-055: Asset Factory + Evolution Orchestrator
+from .asset_factory_bridge import (
+    AssetSpec,
+    AssetQualityReport,
+    FactoryProductionReport,
+    FactoryState,
+    AssetFactory,
+)
+from .evolution_orchestrator import (
+    EvolutionCycleReport,
+    EvolutionState,
+    EvolutionOrchestrator,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -152,4 +171,17 @@ __all__ = [
     "StateMachineCoverageMetrics",
     "StateMachineCoverageState",
     "StateMachineCoverageBridge",
+    # SESSION-054: Industrial Skin Bridge
+    "IndustrialSkinMetrics",
+    "IndustrialSkinState",
+    "IndustrialSkinBridge",
+    # SESSION-055: Asset Factory + Evolution Orchestrator
+    "AssetSpec",
+    "AssetQualityReport",
+    "FactoryProductionReport",
+    "FactoryState",
+    "AssetFactory",
+    "EvolutionCycleReport",
+    "EvolutionState",
+    "EvolutionOrchestrator",
 ]
