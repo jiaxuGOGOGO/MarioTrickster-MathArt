@@ -190,6 +190,18 @@ from .xpbd_evolution import (
     TestResult, PhysicsTestHarness,
     XPBDEvolutionOrchestrator,
 )
+# SESSION-056: Headless Neural Render Pipeline (Jamriška EbSynth + Zhang ControlNet)
+from .headless_comfy_ebsynth import (
+    NeuralRenderConfig, NeuralRenderResult,
+    ComfyUIHeadlessClient, EbSynthPropagationEngine,
+    HeadlessNeuralRenderPipeline,
+)
+# SESSION-056: Engine Import Plugin (Bénard Dead Cells 2D Deferred Lighting)
+from .engine_import_plugin import (
+    MathArtBundle, EngineImportPluginGenerator,
+    extract_sdf_contour, generate_mathart_bundle,
+    validate_mathart_bundle,
+)
 # SESSION-049: Phase-Preserving Gait Transition Blending (Gap B3 — Marker-based DTW)
 from .gait_blend import (
     SyncMarker, GaitSyncProfile, GaitBlendLayer,
@@ -384,4 +396,12 @@ __all__ = [
     "KnowledgeEntry", "KnowledgeDistiller",
     "TestResult", "PhysicsTestHarness",
     "XPBDEvolutionOrchestrator",
+    # SESSION-056: Headless Neural Render Pipeline (EbSynth + ControlNet)
+    "NeuralRenderConfig", "NeuralRenderResult",
+    "ComfyUIHeadlessClient", "EbSynthPropagationEngine",
+    "HeadlessNeuralRenderPipeline",
+    # SESSION-056: Engine Import Plugin (Godot 4 + Unity URP)
+    "MathArtBundle", "EngineImportPluginGenerator",
+    "extract_sdf_contour", "generate_mathart_bundle",
+    "validate_mathart_bundle",
 ]

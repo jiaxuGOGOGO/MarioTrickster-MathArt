@@ -114,6 +114,14 @@ from .evolution_orchestrator import (
     EvolutionState,
     EvolutionOrchestrator,
 )
+# SESSION-056: Breakwall Evolution Bridge (Phase 1 — Neural Rendering + Engine Import)
+from .breakwall_evolution_bridge import (
+    BreakwallMetrics,
+    BreakwallState,
+    BreakwallStatus,
+    collect_breakwall_status,
+    BreakwallEvolutionBridge,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -184,4 +192,10 @@ __all__ = [
     "EvolutionCycleReport",
     "EvolutionState",
     "EvolutionOrchestrator",
+    # SESSION-056: Breakwall Evolution Bridge
+    "BreakwallMetrics",
+    "BreakwallState",
+    "BreakwallStatus",
+    "collect_breakwall_status",
+    "BreakwallEvolutionBridge",
 ]

@@ -1,16 +1,16 @@
 {
-  "version": "0.46.0",
-  "last_session_id": "SESSION-055",
-  "last_updated": "2026-04-17T12:00:00Z",
+  "version": "0.47.0",
+  "last_session_id": "SESSION-056",
+  "last_updated": "2026-04-17T15:00:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "26/26 SESSION-055 tests PASS; 17/17 SESSION-054 industrial tests preserved; three-layer evolution orchestrator operational; asset factory production cycle accepted",
+  "validation_pass_rate": "28/28 SESSION-056 tests PASS; 66/66 core regression PASS; breakwall evolution bridge operational; engine import plugins generated",
   "total_iterations": 500,
-  "total_code_lines": 82500,
-  "distill_session_id": "DISTILL-006",
+  "total_code_lines": 86000,
+  "distill_session_id": "DISTILL-007",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 87,
-  "math_model_count": 31,
+  "knowledge_rule_count": 92,
+  "math_model_count": 33,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
@@ -20,18 +20,18 @@
     "dimension_scores": {
       "animation_physics_realism": 45,
       "motion_cognitive_naturalness": 30,
-      "character_visual_quality": 34,
+      "character_visual_quality": 42,
       "vfx_particles": 34,
       "character_diversity": 15,
       "environment_tileset": 18,
-      "engine_ready_export": 36,
+      "engine_ready_export": 52,
       "engineering_automation": 93
     },
-    "fundamental_blocker": "FURTHER RESOLVED THROUGH SESSION-055: Property-based graph-fuzz CI, multi-modal visual fitness scoring, commercial asset factory with quality gates, and unified three-layer evolution orchestrator are now operational. Main remaining blockers: AssetPipeline backend wiring, engine-specific import presets, 3D-to-2D mesh bake workflow, expanded asset preset coverage, GPU-accelerated XPBD, 3D extension, and CCD for fast-moving objects.",
+    "fundamental_blocker": "FURTHER RESOLVED THROUGH SESSION-056: Headless neural rendering pipeline (EbSynth + ControlNet) and engine-native import plugins (Godot 4 + Unity URP 2D) are now operational. Engine-ready export jumps from 36% to 52% with .mathart bundle format, SSS/rim light shaders, and PolygonCollider2D generation. Main remaining blockers: AssetPipeline backend wiring, 3D-to-2D mesh bake workflow, expanded asset preset coverage, GPU-accelerated XPBD, 3D extension, and CCD for fast-moving objects.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules. SESSION-049 closes Gap B3 by implementing Marker-based DTW gait transition blending: SyncMarker/GaitSyncProfile define foot-contact events, StrideWheel drives phase from distance (Rosen), GaitBlender performs Leader-Follower synchronized blend (UE Sync Groups), and adaptive_bounce provides speed-dependent vertical oscillation. Phase warping ensures sync marker alignment before pose interpolation, eliminating foot sliding during walk/run/sneak transitions. SESSION-052 closes the Physics Singularity by replacing Jakobsen one-way visual-following with full XPBD (Macklin & Müller 2016). The solver uses compliance α̃ = α/Δt² for timestep-independent stability, Lagrange multiplier accumulation for force estimation, and puts rigid CoM + soft nodes in one solve pool with inverse-mass weighted reaction impulses (Müller 2020). Spatial hash self-collision with connectivity exclusion (Ten Minute Physics). Three-layer evolution loop: InternalEvolver auto-tunes, KnowledgeDistiller absorbs external papers, PhysicsTestHarness validates 7 scenarios. 14/14 tests PASS. SESSION-053 adds the locomotion CNS bridge between gait blending, inertialized switching, and the runtime bus: walk/run pipeline generation can use CNS gait sampling, `locomotion_cns.py` phase-aligns target gait support phases before switching, `InertializationChannel` decays only residual source offsets, and compiled runtime rules score phase jump, sliding error, contact mismatch, foot lock, and transition cost in batch. The new LocomotionCNSBridge persists knowledge and Layer 3 state after accepted batch runs.",
-      "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. SESSION-054 materially advances the visual-delivery side of the same path: canonical body primitives now provide analytical gradients, the industrial renderer exports albedo/normal/depth/thickness/roughness/mask packs, and export metadata is engine-ready for downstream 2.5D lighting workflows. Next: real-time EbSynth/ComfyUI integration demo and engine-specific import presets.",
-      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge; SESSION-048 closes Gap B2 (scene-aware distance sensor) by implementing SDF terrain description, sphere-marching ray sensor, gravity-corrected TTC prediction, and phase-binding so transient phase reaches 1.0 at contact on arbitrary terrain. Next step: gait transition blending, production benchmark suite, and real-time EbSynth/ComfyUI demo. SESSION-050 closes Gap A2 by adding RuntimeDistillationBus, CompiledParameterSpace, JIT runtime rule programs, physics hot-path foot-contact integration, quality-controller pre-generation propagation, and RuntimeDistillBridge. SESSION-051 materially advances Gap D1 by adding an explicit runtime state graph, Hypothesis rule-based graph fuzzing, canonical edge walks, and a StateMachineCoverageBridge that writes knowledge and persistent coverage history. SESSION-054 extends the architecture closure on the visual/output side by upgrading auxiliary-map baking to analytical gradients plus industrial material bundles, adding a formal export bridge for those bundles, and persisting industrial visual quality through IndustrialSkinBridge Layer 3 state. SESSION-055 executes Battle 4 (Headless Automated Testing & The Asset Factory): property-based graph-fuzz CI generates adversarial state-transition sequences from RuntimeStateGraph and monitors XPBD for NaN/penetration/constraint-error/energy-drift; multi-modal visual fitness scoring (Laplacian + SSIM + depth + channels) provides automated quality assessment; commercial asset factory batch-generates assets with quality gates and auto-rejection; unified EvolutionOrchestrator coordinates all three layers (internal evaluation, external knowledge distillation, self-iterating test) into a self-evolving feedback loop with persistent state."
+      "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. SESSION-054 materially advances the visual-delivery side of the same path: canonical body primitives now provide analytical gradients, the industrial renderer exports albedo/normal/depth/thickness/roughness/mask packs, and export metadata is engine-ready for downstream 2.5D lighting workflows. SESSION-056 CLOSES the real-time EbSynth/ComfyUI integration gap: HeadlessNeuralRenderPipeline builds 14-node dual-ControlNet (NormalBae + Depth) ComfyUI workflows via headless HTTP API, EbSynthPropagationEngine performs PatchMatch-style NNF temporal propagation with bidirectional keyframe blending, and EngineImportPluginGenerator produces Godot 4 (gdshader + plugin.gd) and Unity URP 2D (ScriptedImporter.cs + shader) import plugins with SSS thickness, rim light, and auto PolygonCollider2D from SDF contour extraction. BreakwallEvolutionBridge integrates both subsystems into the three-layer self-evolution architecture. Next: 3D-to-2D mesh rendering path, expanded asset factory with engine-specific export templates.",
+      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge; SESSION-048 closes Gap B2 (scene-aware distance sensor) by implementing SDF terrain description, sphere-marching ray sensor, gravity-corrected TTC prediction, and phase-binding so transient phase reaches 1.0 at contact on arbitrary terrain. Next step: gait transition blending, production benchmark suite, and real-time EbSynth/ComfyUI demo. SESSION-050 closes Gap A2 by adding RuntimeDistillationBus, CompiledParameterSpace, JIT runtime rule programs, physics hot-path foot-contact integration, quality-controller pre-generation propagation, and RuntimeDistillBridge. SESSION-051 materially advances Gap D1 by adding an explicit runtime state graph, Hypothesis rule-based graph fuzzing, canonical edge walks, and a StateMachineCoverageBridge that writes knowledge and persistent coverage history. SESSION-054 extends the architecture closure on the visual/output side by upgrading auxiliary-map baking to analytical gradients plus industrial material bundles, adding a formal export bridge for those bundles, and persisting industrial visual quality through IndustrialSkinBridge Layer 3 state. SESSION-055 executes Battle 4 (Headless Automated Testing & The Asset Factory): property-based graph-fuzz CI generates adversarial state-transition sequences from RuntimeStateGraph and monitors XPBD for NaN/penetration/constraint-error/energy-drift; multi-modal visual fitness scoring (Laplacian + SSIM + depth + channels) provides automated quality assessment; commercial asset factory batch-generates assets with quality gates and auto-rejection; unified EvolutionOrchestrator coordinates all three layers (internal evaluation, external knowledge distillation, self-iterating test) into a self-evolving feedback loop with persistent state. SESSION-056 executes Phase 1 Breakwall Battle: headless_comfy_ebsynth.py implements zero-flicker neural rendering via ComfyUI headless API + EbSynth PatchMatch temporal propagation + dual ControlNet (NormalBae + Depth) conditioning; engine_import_plugin.py generates Godot 4 and Unity URP 2D import plugins with .mathart bundle format, SSS/rim light shaders, and PolygonCollider2D from SDF contour extraction; breakwall_evolution_bridge.py integrates both into three-layer self-evolution with auto-tuning and knowledge distillation. P1-AI-2A, P1-AI-2B, and P3-3 are now CLOSED."
     },
     "commercial_references": [
       {
@@ -48,9 +48,11 @@
     "engineering_automation": 93,
     "animation_physics_realism": 45
   },
-  "current_focus": "SESSION-055 executes Battle 4 (Headless Automated Testing & The Asset Factory): property-based graph-fuzz CI with XPBD health monitoring, multi-modal visual fitness scoring (Laplacian + SSIM + depth + channels), commercial asset factory with quality gates and auto-rejection, and a unified three-layer evolution orchestrator that coordinates all subsystems into a self-evolving feedback loop. Immediate next priorities: wire industrial backend into AssetPipeline, add engine-specific import presets, expand asset factory preset coverage, and integrate Optuna for automated threshold optimization.",
+  "current_focus": "SESSION-056 executes Phase 1 Breakwall Battle (破壁之战): headless zero-flicker neural rendering pipeline (Jamriška EbSynth PatchMatch + Zhang ControlNet dual conditioning) with temporal consistency validation, engine-native depth importer (Godot 4 + Unity URP 2D) with SSS/rim light/PolygonCollider2D, and breakwall evolution bridge integrating both into three-layer self-evolution. Immediate next priorities: wire industrial backend into AssetPipeline, integrate breakwall bridge into EvolutionOrchestrator, implement 3D-to-2D mesh rendering path, expand asset factory with engine-specific export templates.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "research/session056_audit_checklist.md",
+    "research/session056_breakwall_research.md",
     "research/session055_audit_checklist.md",
     "research/session055_headless_asset_factory_research.md",
     "knowledge/asset_factory.md",
@@ -562,8 +564,10 @@
       "id": "P3-3",
       "priority": "P3",
       "title": "Unity/Godot exporter plugin",
-      "status": "TODO",
-      "estimated_effort": "medium"
+      "status": "DONE",
+      "estimated_effort": "medium",
+      "description": "CLOSED in SESSION-056. EngineImportPluginGenerator generates Godot 4 addon (plugin.gd + plugin.cfg + mathart_material.gdshader) and Unity URP 2D ScriptedImporter (MathArtImporter.cs + MathArtLitShader.shader) with SSS, rim light, and PolygonCollider2D.",
+      "completed_in": "SESSION-056"
     },
     {
       "id": "P3-4",
@@ -618,11 +622,11 @@
       "id": "P1-INDUSTRIAL-44A",
       "priority": "P1",
       "title": "Engine-ready export templates for analytical SDF auxiliary maps",
-      "status": "PARTIAL",
+      "status": "SUBSTANTIALLY-CLOSED",
       "estimated_effort": "medium",
-      "description": "SESSION-054 packages albedo/normal/depth/thickness/roughness/mask into engine-facing industrial bundles and writes material metadata plus channel semantics to JSON. Remaining work: engine-specific Unity URP 2D / Godot 4 importer presets and higher-level pack templates.",
+      "description": "SESSION-056 generates Godot 4 (plugin.gd + plugin.cfg + gdshader) and Unity URP 2D (ScriptedImporter.cs + shader) import plugins via EngineImportPluginGenerator. .mathart bundle format with 6-channel PBR + contour.json + manifest.json. SSS thickness, rim light, and auto PolygonCollider2D. Remaining: integrate plugin generation into standard asset pipeline export flow.",
       "added_in": "SESSION-044",
-      "updated_in": "SESSION-054"
+      "updated_in": "SESSION-056"
     },
     {
       "id": "P1-INDUSTRIAL-44B",
@@ -639,11 +643,11 @@
       "id": "P1-INDUSTRIAL-44C",
       "priority": "P1",
       "title": "Specular/roughness and material metadata export for 2D lighting",
-      "status": "PARTIAL",
+      "status": "SUBSTANTIALLY-CLOSED",
       "estimated_effort": "medium",
-      "description": "SESSION-054 adds thickness and roughness material channels plus engine-ready material metadata export for 2D lighting. Remaining work: specular/emissive presets and engine-specific import templates.",
+      "description": "SESSION-056 generates engine-specific shaders with SSS thickness and rim light for both Godot 4 and Unity URP 2D. Material metadata and channel semantics are embedded in .mathart bundle manifest.json. Remaining: specular/emissive presets.",
       "added_in": "SESSION-044",
-      "updated_in": "SESSION-054"
+      "updated_in": "SESSION-056"
     },
     {
       "id": "P0-GAP-C1",
@@ -807,22 +811,42 @@
       "id": "P1-AI-2A",
       "priority": "P1",
       "title": "Real-time EbSynth/ComfyUI integration demo with exported MV data",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "medium",
-      "description": "Build a working demo that feeds SESSION-045 motion vector exports into EbSynth or ComfyUI for real-time style transfer.",
-      "added_in": "SESSION-052"
+      "description": "CLOSED in SESSION-056. HeadlessNeuralRenderPipeline implements full bake→stylize→propagate→validate closed loop. ComfyUIHeadlessClient builds 14-node dual-ControlNet workflows via HTTP API. EbSynthPropagationEngine performs PatchMatch-style NNF temporal propagation with bidirectional keyframe blending. Fallback local style transfer when ComfyUI unavailable.",
+      "added_in": "SESSION-052",
+      "completed_in": "SESSION-056"
     },
     {
       "id": "P1-AI-2B",
       "priority": "P1",
       "title": "ControlNet conditioning pipeline using motion vector maps",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "medium",
-      "description": "Create a ControlNet conditioning pipeline that uses SESSION-045 RGB motion vector maps as conditioning inputs for diffusion-based frame generation.",
-      "added_in": "SESSION-052"
+      "description": "CLOSED in SESSION-056. ComfyUIHeadlessClient.build_controlnet_workflow() constructs dual ControlNet (NormalBae + Depth) conditioning with configurable weights, using base64-encoded normal and depth maps from the math engine as conditioning inputs.",
+      "added_in": "SESSION-052",
+      "completed_in": "SESSION-056"
     }
   ],
   "completed_tasks": [
+    {
+      "id": "BREAKWALL-PHASE1",
+      "title": "Phase 1 Breakwall Battle: Zero-Flicker Neural Rendering + Engine-Native Import",
+      "completed_in": "SESSION-056",
+      "result": "headless_comfy_ebsynth.py implements headless ComfyUI + EbSynth PatchMatch temporal propagation + dual ControlNet (NormalBae + Depth) conditioning with temporal consistency validation. engine_import_plugin.py generates Godot 4 and Unity URP 2D import plugins with .mathart bundle format (6-channel PBR + contour + manifest), SSS thickness, rim light, and PolygonCollider2D. breakwall_evolution_bridge.py integrates both into three-layer self-evolution with auto-tuning and knowledge distillation. 28/28 tests PASS, 66/66 core regression PASS."
+    },
+    {
+      "id": "AUDIT-056",
+      "title": "SESSION-056 full audit + research-to-code verification",
+      "completed_in": "SESSION-056",
+      "result": "28/28 SESSION-056 tests PASS. research/session056_audit_checklist.md confirms all 17 research requirements (Jamri\u0161ka EbSynth, Zhang ControlNet, B\u00e9nard Dead Cells, ReEzSynth) implemented in code. 3 new modules verified: headless_comfy_ebsynth.py, engine_import_plugin.py, breakwall_evolution_bridge.py. P1-AI-2A, P1-AI-2B, P3-3 CLOSED."
+    },
+    {
+      "id": "KNOWLEDGE-056",
+      "title": "SESSION-056 knowledge distillation",
+      "completed_in": "SESSION-056",
+      "result": "5 new knowledge entries distilled: EbSynth PatchMatch temporal propagation, ControlNet dual conditioning for geometric locking, Dead Cells 2D deferred lighting with SSS/rim light, .mathart bundle format specification, breakwall evolution auto-tuning rules. research/session056_breakwall_research.md and knowledge/breakwall_phase1.md generated."
+    },
     {
       "id": "BATTLE-4-HEADLESS-ASSET-FACTORY",
       "title": "Battle 4: Headless Automated Testing & The Asset Factory",
@@ -2522,5 +2546,39 @@
       "mask"
     ],
     "gradient_policy": "analytic-first for canonical primitives with finite-difference fallback"
+  },
+  "session056_breakwall_status": {
+    "status": "implemented",
+    "audit": "research/session056_audit_checklist.md",
+    "knowledge": "knowledge/breakwall_phase1.md",
+    "research_notes": "research/session056_breakwall_research.md",
+    "state_file": ".breakwall_evolution_state.json",
+    "validation": "28/28 SESSION-056 tests PASS; 66/66 core regression PASS; BreakwallEvolutionBridge operational",
+    "new_modules": [
+      "mathart/animation/headless_comfy_ebsynth.py",
+      "mathart/animation/engine_import_plugin.py",
+      "mathart/evolution/breakwall_evolution_bridge.py"
+    ],
+    "closed_tasks": [
+      "P1-AI-2A",
+      "P1-AI-2B",
+      "P3-3"
+    ],
+    "substantially_closed_tasks": [
+      "P1-INDUSTRIAL-44A",
+      "P1-INDUSTRIAL-44C"
+    ],
+    "research_references": [
+      "Jamri\u0161ka & S\u00fdkora - Stylizing Video by Example (SIGGRAPH 2019)",
+      "Lvmin Zhang - ControlNet (ICCV 2023)",
+      "S\u00e9bastien B\u00e9nard - Dead Cells 2D Deferred Lighting (GDC 2019)",
+      "Thomas Vasseur - Dead Cells Art Pipeline (Game Developer 2018)",
+      "FuouM/ReEzSynth - Python EbSynth implementation"
+    ],
+    "engine_targets": [
+      "Godot 4 (plugin.gd + plugin.cfg + mathart_material.gdshader)",
+      "Unity URP 2D (MathArtImporter.cs + MathArtLitShader.shader)"
+    ],
+    "bundle_format": ".mathart (manifest.json + 6 PBR channels + contour.json)"
   }
 }
