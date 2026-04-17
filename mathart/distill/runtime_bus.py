@@ -479,6 +479,45 @@ class RuntimeRuleProgram:
     def evaluate(self, features: Mapping[str, float]) -> RuntimeConstraintEvaluation:
         return self.evaluate_array(self.make_vector(features))
 
+    def make_matrix(self, feature_rows: Sequence[Mapping[str, float]]) -> np.ndarray:
+        values = np.zeros((len(feature_rows), len(self.feature_names)), dtype=np.float64)
+        for row_idx, features in enumerate(feature_rows):
+            for name, idx in self._feature_index.items():
+                values[row_idx, idx] = float(features.get(name, 0.0))
+        return values
+
+    def evaluate_feature_rows(self, feature_rows: Sequence[Mapping[str, float]]) -> dict[str, Any]:
+        if not feature_rows:
+            return {
+                "accepted_ratio": 0.0,
+                "mean_score": 0.0,
+                "mean_penalty": 0.0,
+                "rows": [],
+            }
+        matrix = self.make_matrix(feature_rows)
+        rows: list[dict[str, Any]] = []
+        accepted = 0
+        score_total = 0.0
+        penalty_total = 0.0
+        for values in matrix:
+            evaluation = self.evaluate_array(values)
+            rows.append({
+                "accepted": bool(evaluation.accepted),
+                "score": float(evaluation.score),
+                "penalty": float(evaluation.penalty),
+                "mask": int(evaluation.satisfied_mask),
+            })
+            accepted += int(evaluation.accepted)
+            score_total += float(evaluation.score)
+            penalty_total += float(evaluation.penalty)
+        count = len(rows)
+        return {
+            "accepted_ratio": float(accepted / max(count, 1)),
+            "mean_score": float(score_total / max(count, 1)),
+            "mean_penalty": float(penalty_total / max(count, 1)),
+            "rows": rows,
+        }
+
     def benchmark(self, sample_count: int = 2000) -> dict[str, float]:
         rng = np.random.default_rng(7)
         samples = rng.normal(0.0, 0.25, size=(sample_count, len(self.feature_names))).astype(np.float64)
@@ -653,6 +692,69 @@ class RuntimeDistillationBus:
             feature_names=["foot_height", "foot_vertical_velocity"],
             clauses=clauses,
             min_score=1.0,
+        )
+
+    def build_gait_transition_program(
+        self,
+        *,
+        phase_jump_threshold: Optional[float] = None,
+        sliding_threshold: Optional[float] = None,
+        contact_mismatch_threshold: Optional[float] = None,
+        foot_lock_threshold: Optional[float] = None,
+        transition_cost_threshold: Optional[float] = None,
+    ) -> RuntimeRuleProgram:
+        phase_jump = float(phase_jump_threshold) if phase_jump_threshold is not None else self.resolve_scalar(
+            [
+                "locomotion.phase_jump_threshold",
+                "gait.phase_jump_threshold",
+                "phase_jump_threshold",
+            ],
+            0.08,
+        )
+        sliding = float(sliding_threshold) if sliding_threshold is not None else self.resolve_scalar(
+            [
+                "locomotion.sliding_threshold",
+                "gait.sliding_threshold",
+                "sliding_threshold",
+            ],
+            0.08,
+        )
+        contact_mismatch = float(contact_mismatch_threshold) if contact_mismatch_threshold is not None else self.resolve_scalar(
+            [
+                "locomotion.contact_mismatch_threshold",
+                "gait.contact_mismatch_threshold",
+                "contact_mismatch_threshold",
+            ],
+            0.25,
+        )
+        foot_lock = float(foot_lock_threshold) if foot_lock_threshold is not None else self.resolve_scalar(
+            [
+                "locomotion.foot_lock_threshold",
+                "gait.foot_lock_threshold",
+                "foot_lock_threshold",
+            ],
+            0.80,
+        )
+        transition_cost = float(transition_cost_threshold) if transition_cost_threshold is not None else self.resolve_scalar(
+            [
+                "locomotion.transition_cost_threshold",
+                "gait.transition_cost_threshold",
+                "transition_cost_threshold",
+            ],
+            0.75,
+        )
+        clauses = [
+            RuntimeRuleClause(feature="phase_jump", op="le", threshold=phase_jump, weight=1.0, tag="phase_gate"),
+            RuntimeRuleClause(feature="sliding_error", op="le", threshold=sliding, weight=1.0, tag="sliding_gate"),
+            RuntimeRuleClause(feature="contact_mismatch", op="le", threshold=contact_mismatch, weight=1.0, tag="contact_gate"),
+            RuntimeRuleClause(feature="foot_lock", op="ge", threshold=foot_lock, weight=1.0, tag="foot_lock_gate"),
+            RuntimeRuleClause(feature="transition_cost", op="le", threshold=transition_cost, weight=0.5, tag="transition_cost_gate"),
+        ]
+        return self.build_rule_program(
+            name="gait_transition_runtime",
+            feature_names=["phase_jump", "sliding_error", "contact_mismatch", "foot_lock", "transition_cost"],
+            clauses=clauses,
+            min_score=0.75,
         )
 
     def summary(self) -> dict[str, Any]:

@@ -1,0 +1,732 @@
+INERTIALIZATION: HIGH-PERFORMANCE
+ANIMATION TRANSITIONS IN GEARS OF WAR
+DAVID BOLLO
+PRINCIPAL SOFTWARE ENGINEER
+THE COALITION (MICROSOFT STUDIOS)
+
+ANIMATION TRANSITIONS
+
+ANIMATION TRANSITIONS
+●
+●
+
+Transition from one animation state to another
+Typically a cross-fade blend between poses
+
+Source
+Blend
+Target
+
+ANIMATION TRANSITIONS
+●
+●
+
+Optimizations are often focused on the blend step
+Fast SLERP, optimizing cache and memory usage, etc
+
+Source
+Blend
+Target
+
+ANIMATION TRANSITIONS
+●
+●
+
+Biggest cost is evaluating both Source and Target
+Source/Target cost is much greater than blend cost
+
+Source
+Blend
+Target
+
+MULTIPLE CHARACTERS
+●
+
+If we’re lucky…
+
+●
+
+Only a few active transitions
+at once
+
+MULTIPLE CHARACTERS
+●
+
+But in the worst case…
+
+●
+
+Everybody transitions at the
+same time
+Double the animation cost
+
+●
+
+CAN WE DO BETTER?
+●
+●
+
+Intuition: Real humans don’t “blend”
+(but they do have inertia)
+
+Source
+Blend
+Target
+
+CAN WE DO BETTER?
+●
+●
+
+IDEA: Eliminate blended transitions!
+Fix the discontinuities as a post-process
+
+Source
+Blend
+Target
+
+CAN WE DO BETTER?
+●
+●
+
+IDEA: Eliminate blended transitions!
+Fix the discontinuities as a post-process
+
+Source
+
+Target
+
+TRANSITIONS AS A POST-PROCESS
+
+TRANSITIONS AS A POST-PROCESS
+
+TRANSITIONS AS A POST-PROCESS
+
+GOALS
+Respect the original animation
+● No changes when not transitioning
+● Believable and aesthetically pleasing
+● Smooth and momentum-preserving
+● Stay on-model
+● No bad / unnatural poses
+● No overshoot
+●
+
+IDEA #0: FILTER DISCONTINUOUS POSE
+●
+●
+●
+●
+
+Apply a filter to the output pose stream
+Difficult to tune
+Introduces lag
+Deviates from input even when not transitioning
+
+IDEA #1: BLEND FROM POSE
+●
+●
+
+Capture pose difference between Source and Target
+Ease out the difference over time
+
+IDEA#1: BLEND FROM POSE
+
+IDEA #2: MATCH VELOCITY
+●
+●
+●
+●
+●
+
+Capture pose difference between Source and Target
+Ease out the difference over time
+Remember Source velocity (via finite differences)
+Match initial velocity
+Quintic polynomial [Flash and Hogan 1985]
+
+T. Flash and N. Hogan. 1985. The Coordination of Arm Movements: An Experimentally
+Confirmed Mathematical Model. Journal of Neuroscience 5, 7 (July 1985), 1688 – 1703
+
+IDEA #2: MATCH VELOCITY
+
+IDEA #3: LIMIT OVERSHOOT
+●
+●
+●
+●
+●
+●
+
+Capture pose difference between Source and Target
+Ease out the difference over time
+Remember Source velocity (via finite differences)
+Match initial velocity
+Limit overshoot by controlling initial acceleration
+Choose a0 to give us zero jerk at t1
+
+IDEA #3: LIMIT OVERSHOOT
+
+INERTIALIZATION
+
+INERTIALIZATION
+
+INERTIALIZATION – INITIAL VALUES
+𝑥𝑥0 = 10000 − 10000
+-1
+
+𝑥𝑥1 = 0
+𝑣𝑣1 = 0
+𝑎𝑎1 = 0
+
+INERTIALIZATION – INITIAL VELOCITY
+𝑥𝑥0 = 10000 − 10000
+-1
+
+10000
+-1 − 10000
+-2
+𝑣𝑣0 =
+d𝑡𝑡
+𝑥𝑥1 = 0
+𝑣𝑣1 = 0
+𝑎𝑎1 = 0
+
+INERTIALIZATION – INITIAL VELOCITY
+𝑥𝑥0 = 10000 − 10000
+-1
+
+10000
+-1 − 10000
+-2
+or 0
+𝑣𝑣0 =
+d𝑡𝑡
+𝑥𝑥1 = 0
+𝑣𝑣1 = 0
+𝑎𝑎1 = 0
+
+INERTIALIZATION – ACCELERATION
+𝑥𝑥0 = 10000 − 10000
+-1
+
+10000
+-1 − 10000
+-2
+or 0
+𝑣𝑣0 =
+d𝑡𝑡
+
+−8𝑣𝑣0 𝑡𝑡1 − 20𝑥𝑥0
+𝑎𝑎0 =
+𝑡𝑡12
+
+𝑥𝑥1 = 0
+𝑣𝑣1 = 0
+𝑎𝑎1 = 0
+
+INERTIALIZATION – ACCELERATION
+𝑥𝑥0 = 10000 − 10000
+-1
+
+10000
+-1 − 10000
+-2
+or 0
+𝑣𝑣0 =
+d𝑡𝑡
+
+−8𝑣𝑣0 𝑡𝑡1 − 20𝑥𝑥0
+or 0
+𝑎𝑎0 =
+2
+𝑡𝑡1
+𝑥𝑥1 = 0
+𝑣𝑣1 = 0
+𝑎𝑎1 = 0
+
+INERTIALIZATION – X(T)
+𝑎𝑎0 𝑡𝑡12 + 6𝑣𝑣0 𝑡𝑡1 + 12𝑥𝑥0
+𝐴𝐴 = −
+2𝑡𝑡15
+
+𝑥𝑥0 = 10000 − 10000
+-1
+
+10000
+-1 − 10000
+-2
+or 0
+𝑣𝑣0 =
+d𝑡𝑡
+
+−8𝑣𝑣0 𝑡𝑡1 − 20𝑥𝑥0
+or 0
+𝑎𝑎0 =
+2
+𝑡𝑡1
+𝑥𝑥1 = 0
+𝑣𝑣1 = 0
+𝑎𝑎1 = 0
+
+3𝑎𝑎0 𝑡𝑡12 + 16𝑣𝑣0 𝑡𝑡1 + 30𝑥𝑥0
+𝐵𝐵 =
+2𝑡𝑡14
+
+3𝑎𝑎0 𝑡𝑡12 + 12𝑣𝑣0 𝑡𝑡1 + 20𝑥𝑥0
+𝐶𝐶 = −
+2𝑡𝑡13
+
+𝑥𝑥𝑡𝑡
+
+= 𝐴𝐴𝑡𝑡 5 + 𝐵𝐵𝑡𝑡 4 + 𝐶𝐶𝑡𝑡 3 +
+
+𝑎𝑎0 2
+𝑡𝑡 + 𝑣𝑣0 𝑡𝑡 + 𝑥𝑥0
+2
+
+OVERSHOOT REVISITED
+
+OVERSHOOT REVISITED
+𝑥𝑥0 = 1.2
+𝑣𝑣0 = −12.6
+
+𝑡𝑡1 = 0.5
+
+OVERSHOOT REVISITED
+𝑥𝑥0 = 1.2
+𝑣𝑣0 = −20.0
+
+𝑡𝑡1 = 0.5
+
+IDEA #4: CLAMP TRANSITION TIME
+𝑥𝑥0 = 1.2
+𝑣𝑣0 = −20.0
+
+𝑡𝑡1 = 0.5
+
+IDEA #4: CLAMP TRANSITION TIME
+𝑥𝑥0 = 1.2
+𝑣𝑣0 = −20.0
+
+𝑡𝑡1 = 0.3
+
+IDEA #4: CLAMP TRANSITION TIME
+𝑥𝑥0 = 1.2
+𝑣𝑣0 = −20.0
+
+𝑡𝑡1 = 0.3
+
+𝑥𝑥0
+𝑡𝑡1 = min(𝑡𝑡1 , −5 )
+𝑣𝑣0
+
+INERTIALIZATION ON ONE SLIDE
+𝑥𝑥0 = 10000 − 10000
+-1
+
+10000
+-1 − 10000
+-2
+or 0
+𝑣𝑣0 =
+d𝑡𝑡
+
+−8𝑣𝑣0 𝑡𝑡1 − 20𝑥𝑥0
+or 0
+𝑎𝑎0 =
+2
+𝑡𝑡1
+𝑥𝑥0
+𝑡𝑡1 = min(𝑡𝑡1 , −5 )
+𝑣𝑣0
+
+𝑎𝑎0 𝑡𝑡12 + 6𝑣𝑣0 𝑡𝑡1 + 12𝑥𝑥0
+𝐴𝐴 = −
+2𝑡𝑡15
+
+3𝑎𝑎0 𝑡𝑡12 + 16𝑣𝑣0 𝑡𝑡1 + 30𝑥𝑥0
+𝐵𝐵 =
+2𝑡𝑡14
+
+3𝑎𝑎0 𝑡𝑡12 + 12𝑣𝑣0 𝑡𝑡1 + 20𝑥𝑥0
+𝐶𝐶 = −
+2𝑡𝑡13
+
+𝑥𝑥𝑡𝑡
+
+= 𝐴𝐴𝑡𝑡 5 + 𝐵𝐵𝑡𝑡 4 + 𝐶𝐶𝑡𝑡 3 +
+
+𝑎𝑎0 2
+𝑡𝑡 + 𝑣𝑣0 𝑡𝑡 + 𝑥𝑥0
+2
+
+VECTORS AND QUATERNIONS
+
+INERTIALIZING VECTORS
+Obvious choice:
+● Inertialize x,y,z independently
+● Visual artifacts if vx0,vy0,vz0 are too dissimilar
+(because of transition time clamping)
+● Instead:
+● Decompose vector into direction and magnitude
+● Inertialize the magnitude
+●
+
+INERTIALIZING VECTORS
+𝑥𝑥⃗0 = 10000 − 10000
+-1
+
+𝑥𝑥⃗−1 = 10000 − 10000
+-2
+
+INERTIALIZING VECTORS
+𝑥𝑥⃗0 = 10000 − 10000
+
+𝑥𝑥0 = 𝑥𝑥⃗0
+
+-1
+
+𝑥𝑥⃗−1 = 10000 − 10000
+-2
+
+INERTIALIZING VECTORS
+𝑥𝑥⃗0 = 10000 − 10000
+
+𝑥𝑥0 = 𝑥𝑥⃗0
+
+-1
+
+𝑥𝑥⃗−1 = 10000 − 10000
+-2
+
+𝑥𝑥⃗0
+𝑥𝑥−1 = 𝑥𝑥⃗−1 �
+𝑥𝑥0
+
+INERTIALIZING VECTORS
+𝑥𝑥⃗0 = 10000 − 10000
+
+𝑥𝑥0 = 𝑥𝑥⃗0
+
+-1
+
+𝑥𝑥0 − 𝑥𝑥−1
+𝑣𝑣0 =
+∆𝑡𝑡
+
+𝑥𝑥⃗−1 = 10000 − 10000
+-2
+
+𝑥𝑥⃗0
+𝑥𝑥−1 = 𝑥𝑥⃗−1 �
+𝑥𝑥0
+
+INERTIALIZING VECTORS
+𝑥𝑥⃗0 = 10000 − 10000
+
+𝑥𝑥0 = 𝑥𝑥⃗0
+
+-1
+
+𝑥𝑥0 − 𝑥𝑥−1
+𝑣𝑣0 =
+∆𝑡𝑡
+
+𝑥𝑥⃗0
+𝑥𝑥⃗t = 𝑥𝑥t +
+𝑥𝑥0
+
+t
+
+𝑥𝑥⃗−1 = 10000 − 10000
+-2
+
+𝑥𝑥⃗0
+𝑥𝑥−1 = 𝑥𝑥⃗−1 �
+𝑥𝑥0
+
+INERTIALIZING QUATERNIONS
+●
+
+Similar construction to vectors:
+● Decompose quaternion into axis and angle
+● Inertialize the angle
+
+INERTIALIZING QUATERNIONS
+-1
+
+𝑞𝑞0 = 10000 −
+∗ 10000
+-1
+
+-1
+
+𝑞𝑞−1 = 10000 −
+∗ 10000
+-2
+
+INERTIALIZING QUATERNIONS
+-1
+
+𝑞𝑞0 = 10000 −
+∗ 10000
+-1
+
+𝑥𝑥⃗0 = 𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴(𝑞𝑞0 )
+
+𝑥𝑥0 = 𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴(𝑞𝑞0 )
+
+-1
+
+𝑞𝑞−1 = 10000 −
+∗ 10000
+-2
+
+INERTIALIZING QUATERNIONS
+-1
+
+𝑞𝑞0 = 10000 −
+∗ 10000
+-1
+
+𝑥𝑥⃗0 = 𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴(𝑞𝑞0 )
+
+𝑥𝑥0 = 𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴(𝑞𝑞0 )
+
+-1
+
+𝑞𝑞−1 = 10000 −
+∗ 10000
+-2
+
+𝑥𝑥⃗0 𝑞𝑞xyz � 𝑥𝑥⃗0
+−1
+𝑥𝑥−1 = 2
+𝑥𝑥⃗−1
+tan�
+𝑥𝑥0 𝑞𝑞w
+
+Twist of 𝑞𝑞−1 around 𝑥𝑥⃗0
+K. Shoemake. 1994.
+Fiber Bundle Twist Reduction
+Graphics Gems IV, 230 – 236
+
+INERTIALIZING QUATERNIONS
+-1
+
+𝑞𝑞0 = 10000 −
+∗ 10000
+-1
+
+𝑥𝑥⃗0 = 𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴(𝑞𝑞0 )
+𝑥𝑥0 − 𝑥𝑥−1
+𝑣𝑣0 =
+∆𝑡𝑡
+
+𝑥𝑥0 = 𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴(𝑞𝑞0 )
+
+-1
+
+𝑞𝑞−1 = 10000 −
+∗ 10000
+-2
+
+𝑥𝑥⃗0 𝑞𝑞xyz � 𝑥𝑥⃗0
+−1
+𝑥𝑥−1 = 2
+𝑥𝑥⃗−1
+tan�
+𝑥𝑥0 𝑞𝑞w
+
+Twist of 𝑞𝑞−1 around 𝑥𝑥⃗0
+K. Shoemake. 1994.
+Fiber Bundle Twist Reduction
+Graphics Gems IV, 230 – 236
+
+INERTIALIZING QUATERNIONS
+-1
+
+-1
+
+𝑞𝑞0 = 10000 −
+∗ 10000
+-1
+
+𝑥𝑥⃗0 = 𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴(𝑞𝑞0 )
+𝑥𝑥0 − 𝑥𝑥−1
+𝑣𝑣0 =
+∆𝑡𝑡
+
+𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴: 𝑥𝑥⃗0
+𝑞𝑞t =
+𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴: 𝑥𝑥t
+
+𝑥𝑥0 = 𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴𝐴(𝑞𝑞0 )
+
+∗
+
+𝑞𝑞−1 = 10000 −
+∗ 10000
+-2
+
+𝑥𝑥⃗0 𝑞𝑞xyz � 𝑥𝑥⃗0
+−1
+𝑥𝑥−1 = 2
+𝑥𝑥⃗−1
+tan�
+𝑥𝑥0 𝑞𝑞w
+
+Twist of 𝑞𝑞−1 around 𝑥𝑥⃗0
+K. Shoemake. 1994.
+Fiber Bundle Twist Reduction
+Graphics Gems IV, 230 – 236
+
+t
+
+BLENDING VS INERTIALIZATION
+
+BLENDING VS INERTIALIZATION
+Blending
+●
+●
+
+Inertialization
+
+Evaluate both Source &
+Target during transition
+Variable anim frame cost
+Source
+
+●
+●
+
+Only evaluate Target
+during transition
+Fixed anim frame cost
+Source
+
+Blend
+Target
+
+Target
+
+BLENDING VS INERTIALIZATION
+Blending
+●
+●
+
+Inertialization
+
+Manage multiple sets of
+state during transitions
+Adds complexity
+Source
+
+●
+●
+
+Only maintain one set of
+state during transitions
+Fire and forget
+Source
+
+Blend
+Target
+
+Target
+
+BLENDING VS INERTIALIZATION
+Blending
+
+Inertialization
+
+BLENDING VS INERTIALIZATION
+Blending
+
+Inertialization
+
+INERTIALIZATION IN A GAME ENGINE
+
+INERTIALIZATION IN A GAME ENGINE
+●
+●
+●
+
+Inertialization Node / Filter
+Animation System Hooks
+Code Hooks
+
+INERTIALIZATION NODE
+●
+●
+●
+
+Evaluated after the main animation graph
+Input is discontinuous pose stream
+Output is inertialized pose stream
+
+INERTIALIZATION NODE
+When a new inertialization is requested:
+● Compute and store x0, v0 for all joints
+● Store t1 and set t = 0
+● Every frame:
+● Update t with delta time
+● Evaluate and apply x(t) for all joints
+● Store the OUTPUT pose in the pose history buffer
+●
+
+ANIMATION SYSTEM HOOKS
+Add “inertialization” as a new blend curve type
+● When a blend is requested with “inertialization” type:
+● Inertialize with the supplied blend time
+● Zero the blend time to bypass regular blending
+●
+
+CODE HOOKS
+●
+●
+●
+
+Expose “Request Inertialization” to code
+Eliminate other types of discontinuities
+And other tricks…
+
+TIPS AND TRICKS
+
+SMOOTHING OTHER DISCONTINUITIES
+Gears of War 3:
+● Snap character rotation when switching to sprint
+● Gears of War 4:
+● Snap character rotation when switching to sprint
+● Inertialize away the discontinuity
+●
+
+LOCOMOTION FILTERING
+Gears controls are very responsive (twitchy)
+● Filter inputs to locomotion blend spaces
+● If filtered values are too far from actual values…
+● Snap to actual values
+● Inertialize
+● Fluid pose even with twitchy inputs
+●
+
+FIRE & FORGET – MOTION WARPING
+●
+●
+●
+●
+
+Don’t need to maintain warp
+point data across transitions
+Only 1 active warp at a time
+Simplifies bookkeeping
+Simplifies replication
+
+S. Dickinson. Motion Warping in ‘Gears of War 4’: Doing More with Less. GDC 2017
+
+THANK YOU
+DAVID BOLLO
+
+dbollo@microsoft.com
+
+

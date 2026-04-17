@@ -110,6 +110,8 @@ from .evolution.evolution_layer3 import PhysicsKnowledgeDistiller
 from .pipeline_contract import UMR_Context, PipelineContractError, PipelineContractGuard
 from .pipeline_auditor import UMR_Auditor, ContactFlickerDetector
 from .animation.phase_driven_idle import phase_driven_idle_frame
+from .animation.gait_blend import GaitMode
+from .animation.locomotion_cns import sample_gait_umr_frame
 from .level import (
     LevelSpec,
     LevelSpecBridge,
@@ -217,6 +219,8 @@ class CharacterSpec:
     evolution_preview_states: list[str] = field(default_factory=lambda: ["idle", "run", "jump"])
     evolution_elite_size: int = 3
     evolution_stagnation_patience: int = 2
+    enable_cns_locomotion: bool = True
+    locomotion_transition_frames: int = 6
     # SESSION-028: Physics-guided animation
     enable_physics: bool = True
     physics_stiffness: float = 1.0
@@ -1528,25 +1532,55 @@ class AssetPipeline:
             time_s = i * dt
             root = self._infer_root_transform(state_key, t, frame_index=i, frame_count=frame_count, fps=fps)
             if state_key == "run":
-                frame = phase_driven_run_frame(
-                    t,
-                    time=time_s,
-                    frame_index=i,
-                    source_state=state_key,
-                    root_x=root.x,
-                    root_velocity_x=root.velocity_x,
-                    root_velocity_y=root.velocity_y,
-                )
+                if getattr(self, "_character_spec_enable_cns_locomotion", True):
+                    frame = sample_gait_umr_frame(
+                        GaitMode.RUN,
+                        phase=t,
+                        speed=max(root.velocity_x, 1e-4),
+                        time=time_s,
+                        frame_index=i,
+                        root_x=root.x,
+                        metadata={
+                            "generator": "locomotion_cns",
+                            "generator_mode": "gait_cns",
+                            "pipeline_source": "pipeline.run",
+                        },
+                    )
+                else:
+                    frame = phase_driven_run_frame(
+                        t,
+                        time=time_s,
+                        frame_index=i,
+                        source_state=state_key,
+                        root_x=root.x,
+                        root_velocity_x=root.velocity_x,
+                        root_velocity_y=root.velocity_y,
+                    )
             elif state_key == "walk":
-                frame = phase_driven_walk_frame(
-                    t,
-                    time=time_s,
-                    frame_index=i,
-                    source_state=state_key,
-                    root_x=root.x,
-                    root_velocity_x=root.velocity_x,
-                    root_velocity_y=root.velocity_y,
-                )
+                if getattr(self, "_character_spec_enable_cns_locomotion", True):
+                    frame = sample_gait_umr_frame(
+                        GaitMode.WALK,
+                        phase=t,
+                        speed=max(root.velocity_x, 1e-4),
+                        time=time_s,
+                        frame_index=i,
+                        root_x=root.x,
+                        metadata={
+                            "generator": "locomotion_cns",
+                            "generator_mode": "gait_cns",
+                            "pipeline_source": "pipeline.walk",
+                        },
+                    )
+                else:
+                    frame = phase_driven_walk_frame(
+                        t,
+                        time=time_s,
+                        frame_index=i,
+                        source_state=state_key,
+                        root_x=root.x,
+                        root_velocity_x=root.velocity_x,
+                        root_velocity_y=root.velocity_y,
+                    )
             elif state_key == "jump":
                 frame = phase_driven_jump_frame(
                     t,
@@ -1924,7 +1958,9 @@ class AssetPipeline:
             "pipeline_order": [
                 "intent_state_selection",
                 "phase_driven_base_generation",  # SESSION-040: no legacy path
+                "phase_aligned_gait_sampling",
                 "root_motion",
+                "inertial_transition_ready",
                 "physics_compliance",
                 "secondary_chain_projection",
                 "localized_grounding",
@@ -1939,6 +1975,7 @@ class AssetPipeline:
             ],
         }
 
+        self._character_spec_enable_cns_locomotion = bool(getattr(char_spec, "enable_cns_locomotion", True))
         for state in char_spec.states:
             frame_count = max(1, int(char_spec.state_frames.get(state, char_spec.frames_per_state)))
             frame_duration_ms = max(16, 1000 // max(1, char_spec.fps))

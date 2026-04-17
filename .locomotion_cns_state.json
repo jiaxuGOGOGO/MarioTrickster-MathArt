@@ -1,0 +1,20 @@
+{
+  "total_cycles": 1,
+  "total_passes": 1,
+  "total_failures": 0,
+  "best_accepted_ratio": 0.8,
+  "best_mean_sliding_error": 0.028784674140301437,
+  "best_runtime_score": 0.7777777777777779,
+  "history": [
+    {
+      "cycle_id": 1,
+      "case_count": 5,
+      "accepted_ratio": 0.8,
+      "mean_runtime_score": 0.7777777777777779,
+      "mean_sliding_error": 0.028784674140301437,
+      "worst_phase_jump": 9.020562075079397e-17,
+      "mean_contact_mismatch": 0.2,
+      "accepted": true
+    }
+  ]
+}

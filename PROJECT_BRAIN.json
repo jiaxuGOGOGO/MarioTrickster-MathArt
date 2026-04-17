@@ -1,25 +1,27 @@
 {
-  "version": "0.43.0",
-  "last_session_id": "SESSION-052",
-  "last_updated": "2026-04-17T05:30:00Z",
+  "version": "0.44.0",
+  "last_session_id": "SESSION-053",
+  "last_updated": "2026-04-17T08:30:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "14 new XPBD tests PASS; Physics Singularity (P0-GAP-2 + P1-B1-2) CLOSED",
+  "validation_pass_rate": "65 related locomotion/runtime tests PASS; Locomotion CNS Layer 3 accepted; XPBD foundation remains green",
   "total_iterations": 500,
-  "total_code_lines": 73636,
+  "total_code_lines": 77661,
   "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 75,
+  "knowledge_rule_count": 79,
   "math_model_count": 28,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",
-    "overall_completion": "48-50%",
-    "last_assessed": "SESSION-052",
+      "overall_completion": "50-52%",
+      "last_assessed": "SESSION-053",
+
     "dimension_scores": {
-      "animation_physics_realism": 45,
-      "motion_cognitive_naturalness": 23,
+        "animation_physics_realism": 45,
+        "motion_cognitive_naturalness": 30,
+
       "character_visual_quality": 25,
       "vfx_particles": 34,
       "character_diversity": 15,
@@ -27,9 +29,10 @@
       "engine_ready_export": 24,
       "engineering_automation": 90
     },
-    "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-052: Physics Singularity CLOSED. Full XPBD two-way rigid-soft coupling (P0-GAP-2) and volumetric contact/self-collision (P1-B1-2) now implemented. Physics realism score jumped from 12/100 to ~45/100. Main remaining blockers: industrial runtime depth (cache/partition/layering), benchmarked asset production, GPU-accelerated XPBD, 3D extension, and CCD for fast-moving objects.",
+      "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-053: Physics Singularity is closed and locomotion CNS is now materially advanced. The repo can phase-align gait contacts, inertialize hard gait switches, compile locomotion quality gates, and persist a locomotion Layer 3 loop. Main remaining blockers: full transition export/orchestration coverage, rollout of compiled scoring into more hot loops, industrial runtime depth (cache/partition/layering), benchmarked asset production, GPU-accelerated XPBD, 3D extension, and CCD for fast-moving objects.",
+
     "strategic_paths": {
-      "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules. SESSION-049 closes Gap B3 by implementing Marker-based DTW gait transition blending: SyncMarker/GaitSyncProfile define foot-contact events, StrideWheel drives phase from distance (Rosen), GaitBlender performs Leader-Follower synchronized blend (UE Sync Groups), and adaptive_bounce provides speed-dependent vertical oscillation. Phase warping ensures sync marker alignment before pose interpolation, eliminating foot sliding during walk/run/sneak transitions. SESSION-052 closes the Physics Singularity by replacing Jakobsen one-way visual-following with full XPBD (Macklin & Müller 2016). The solver uses compliance α̃ = α/Δt² for timestep-independent stability, Lagrange multiplier accumulation for force estimation, and puts rigid CoM + soft nodes in one solve pool with inverse-mass weighted reaction impulses (Müller 2020). Spatial hash self-collision with connectivity exclusion (Ten Minute Physics). Three-layer evolution loop: InternalEvolver auto-tunes, KnowledgeDistiller absorbs external papers, PhysicsTestHarness validates 7 scenarios. 14/14 tests PASS.",
+      "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules. SESSION-049 closes Gap B3 by implementing Marker-based DTW gait transition blending: SyncMarker/GaitSyncProfile define foot-contact events, StrideWheel drives phase from distance (Rosen), GaitBlender performs Leader-Follower synchronized blend (UE Sync Groups), and adaptive_bounce provides speed-dependent vertical oscillation. Phase warping ensures sync marker alignment before pose interpolation, eliminating foot sliding during walk/run/sneak transitions. SESSION-052 closes the Physics Singularity by replacing Jakobsen one-way visual-following with full XPBD (Macklin & Müller 2016). The solver uses compliance α̃ = α/Δt² for timestep-independent stability, Lagrange multiplier accumulation for force estimation, and puts rigid CoM + soft nodes in one solve pool with inverse-mass weighted reaction impulses (Müller 2020). Spatial hash self-collision with connectivity exclusion (Ten Minute Physics). Three-layer evolution loop: InternalEvolver auto-tunes, KnowledgeDistiller absorbs external papers, PhysicsTestHarness validates 7 scenarios. 14/14 tests PASS. SESSION-053 adds the locomotion CNS bridge between gait blending, inertialized switching, and the runtime bus: walk/run pipeline generation can use CNS gait sampling, `locomotion_cns.py` phase-aligns target gait support phases before switching, `InertializationChannel` decays only residual source offsets, and compiled runtime rules score phase jump, sliding error, contact mismatch, foot lock, and transition cost in batch. The new LocomotionCNSBridge persists knowledge and Layer 3 state after accepted batch runs.",
       "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. Combined with SESSION-044 auxiliary maps (normal/depth/mask), the project now has a complete Math→AI conditioning pipeline. Next: real-time EbSynth/ComfyUI integration demo.",
       "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge; SESSION-048 closes Gap B2 (scene-aware distance sensor) by implementing SDF terrain description, sphere-marching ray sensor, gravity-corrected TTC prediction, and phase-binding so transient phase reaches 1.0 at contact on arbitrary terrain. Next step: gait transition blending, production benchmark suite, and real-time EbSynth/ComfyUI demo. SESSION-050 closes Gap A2 by adding RuntimeDistillationBus, CompiledParameterSpace, JIT runtime rule programs, physics hot-path foot-contact integration, quality-controller pre-generation propagation, and RuntimeDistillBridge. SESSION-051 materially advances Gap D1 by adding an explicit runtime state graph, Hypothesis rule-based graph fuzzing, canonical edge walks, and a StateMachineCoverageBridge that writes knowledge and persistent coverage history."
     },
@@ -48,9 +51,11 @@
     "engineering_automation": 89,
     "animation_physics_realism": 45
   },
-  "current_focus": "SESSION-052 closes the Physics Singularity (P0-GAP-2 + P1-B1-2) by delivering a full XPBD solver with two-way rigid-soft coupling, spatial-hash self-collision, and a three-layer evolution loop. Physics realism score: 12/100 → ~45/100. Next priorities: GPU XPBD acceleration, 3D extension, CCD for fast-moving objects, and connecting XPBD chain output to visible ribbon/mesh rendering.",
+  "current_focus": "SESSION-053 advances the Central Nervous System roadmap by fusing phase-aligned gait sampling, inertialized hard gait transitions, compiled runtime locomotion scoring, and a dedicated three-layer locomotion bridge. Immediate next priorities: close full pipeline transition export/orchestration, widen batch audits to hit/fall/jump disruptions, and extend RuntimeDistillBus into additional hot loops such as compute_physics_penalty().",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "docs/SESSION-053-AUDIT.md",
+    "knowledge/locomotion_cns.md",
     "docs/SESSION-052-AUDIT.md",
     "research_notes_xpbd.md",
     "docs/research/GAP_D1_STATE_MACHINE_GRAPH_FUZZING.md",
@@ -140,10 +145,11 @@
       "id": "P1-GAP4-BATCH",
       "priority": "P1",
       "title": "Batch-tune multiple hard transitions through the active Layer 3 loop",
-      "status": "TODO",
+      "status": "PARTIAL",
       "estimated_effort": "medium",
-      "description": "Extend SESSION-043 closed-loop tuning beyond run->jump to walk->hit, idle->fall, gait crossfades, and other difficult transitions.",
-      "added_in": "SESSION-043"
+      "description": "SESSION-053 adds locomotion CNS batch evaluation and a dedicated Layer 3 bridge covering walk->run, run->walk, walk->sneak, sneak->run, and run acceleration. Remaining work: widen the batch to jump/fall/hit disruptions and recurring audit mode.",
+      "added_in": "SESSION-043",
+      "updated_in": "SESSION-053"
     },
     {
       "id": "P0-EVAL-BRIDGE",
@@ -680,10 +686,11 @@
       "id": "P1-B3-1",
       "priority": "P1",
       "title": "Integrate GaitBlender into pipeline.py gait switching path",
-      "status": "TODO",
+      "status": "PARTIAL",
       "estimated_effort": "medium",
-      "description": "Wire GaitBlender into AssetPipeline so gait transitions during walk/run/sneak use phase-preserving blending instead of hard cuts.",
-      "added_in": "SESSION-049"
+      "description": "SESSION-053 wires CNS locomotion sampling into the main pipeline walk/run path and adds a phase-aligned inertialized transition clip path. Remaining work: explicit transition-preview export and broader state-machine switching orchestration across walk/run/sneak.",
+      "added_in": "SESSION-049",
+      "updated_in": "SESSION-053"
     },
     {
       "id": "P1-B3-2",
@@ -716,19 +723,21 @@
       "id": "P1-B3-5",
       "priority": "P1",
       "title": "Unify transition_synthesizer.py with gait_blend.py",
-      "status": "TODO",
+      "status": "PARTIAL",
       "estimated_effort": "medium",
-      "description": "Merge TransitionSynthesizer (inertialized blending) with GaitBlender (phase-preserving blending) into a complete transition pipeline.",
-      "added_in": "SESSION-049"
+      "description": "SESSION-053 introduces `locomotion_cns.py` as the practical fusion layer between GaitBlender phase alignment and inertialized switching. Remaining work: propagate the unified path through full export/orchestration and non-locomotion interruptions.",
+      "added_in": "SESSION-049",
+      "updated_in": "SESSION-053"
     },
     {
       "id": "P1-DISTILL-1A",
       "priority": "P1",
       "title": "Roll Runtime DistillBus into gait blending and batch physics penalties",
-      "status": "TODO",
+      "status": "PARTIAL",
       "estimated_effort": "medium",
-      "description": "Extend the SESSION-050 runtime bus from foot-contact gating into gait blending, locomotion scoring, and compute_physics_penalty() batch evaluation so more hot loops consume compiled closures.",
-      "added_in": "SESSION-050"
+      "description": "SESSION-053 extends RuntimeDistillBus into locomotion CNS scoring with compiled gait-transition programs and dense batch evaluation. Remaining work: promote the same compiled path into compute_physics_penalty() and other hot loops.",
+      "added_in": "SESSION-050",
+      "updated_in": "SESSION-053"
     },
     {
       "id": "P1-DISTILL-1B",

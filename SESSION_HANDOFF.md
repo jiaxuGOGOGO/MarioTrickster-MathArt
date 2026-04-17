@@ -1,130 +1,123 @@
 # SESSION_HANDOFF
 
 > **READ THIS FIRST** if you are starting a new conversation about this project.  
-> This document has been refreshed for **SESSION-052**.
+> This document has been refreshed for **SESSION-053**.
 
 ## Project Overview
 
 | Field | Value |
 |---|---|
-| Current version | **0.43.0** |
+| Current version | **0.44.0** |
 | Last updated | **2026-04-17** |
-| Last session | **SESSION-052** |
+| Last session | **SESSION-053** |
 | Best quality score achieved | **0.867** |
 | Total iterations run | **500+** |
-| Total code lines | **~73,636** |
-| Latest validation status | **14/14 XPBD tests PASS; Physics Singularity (P0-GAP-2 + P1-B1-2) CLOSED** |
+| Total Python code lines | **~77,661** |
+| Latest validation status | **65/65 related locomotion/runtime tests PASS; Locomotion CNS Layer 3 accepted** |
 
-## What SESSION-052 Delivered
+## What SESSION-053 Delivered
 
-SESSION-052 executes the **first-priority battle: reforging the high-fidelity physics foundation (The Physics Singularity)**. It replaces the Jakobsen-based one-way visual-following system with a full **XPBD (Extended Position-Based Dynamics)** solver featuring true two-way rigid-soft coupling, spatial-hash self-collision, and a three-layer evolution loop. This directly closes **P0-GAP-2** (full two-way rigid-soft XPBD coupling) and **P1-B1-2** (volumetric contact and self-collision awareness). [1] [2] [3] [4]
+SESSION-053 executes the **second-priority battle: motion nerves and brain-pipeline interconnect (The Central Nervous System)**. The session fuses three lines of work that previously lived too separately in the repository: **phase-preserving gait alignment**, **inertialized target switching**, and **compiled runtime locomotion scoring**. The result is a new repository-native locomotion CNS layer that materially advances **`P1-B3-1`**, **`P1-GAP4-BATCH`**, and **`P1-DISTILL-1A`**.[1][2][3][4]
 
 ### Core Insight
 
-> 如果底层受力是假的（基于 Jakobsen 的单向视觉跟随），后续 AI 润色出来的帧也只是"没有灵魂的纸片"。SESSION-052 的关键突破是：用 XPBD 的 **柔顺度（Compliance, α）** 彻底替代弹簧刚度，将刚体 CoM 与柔体节点放入 **同一个求解池**，通过 **逆质量权重** 自动产生牛顿第三定律的反向冲量——角色挥舞重武器时必须产生真实的踉跄与受力代偿。
+> 物理受力已经开始变真，接下来必须让“大脑”真的接管四肢。SESSION-053 的关键不是再做一次 walk/run 普通混合，而是先做 **相位对齐**，再做 **立即切到目标步态**，最后只对“源动作残差”做 **惯性化衰减**。这样接触标签永远由目标动作主导，而运行时评分则由编译后的总线在热路径中完成。
 
-### New Subsystems
+## New Subsystems and Upgrades
 
-1. **XPBD Core Solver (`mathart/animation/xpbd_solver.py`, ~490 lines)**
-   - Full XPBD algorithm: predict → sub-step → constraint solve (NPGS) → velocity update
-   - Compliance α̃ = α/Δt² decoupling (iteration/timestep independent)
-   - Lagrange multiplier accumulation for force estimation (f ≈ λ/Δt)
-   - Distance, bending, attachment, ground, and self-collision constraint types
-   - Two-way rigid-soft coupling: rigid CoM as particle with w = 1/m_body
-   - Rayleigh damping via compliance-like parameter β (Eq 26 from XPBD paper)
-   - Velocity clamping for tunnelling prevention
-   - Coulomb friction model for collision response
-   - Chain builder with configurable presets (cape, hair, weapon, tail)
+1. **Locomotion CNS Module (`mathart/animation/locomotion_cns.py`)**
+   - New pure-gait UMR sampler `sample_gait_umr_frame()`
+   - New `build_phase_aligned_transition_clip()` path
+   - Uses `phase_warp()` to align support phases before switching
+   - Uses `InertializationChannel` to decay only source residuals after the hard switch
+   - Computes FK-based foot sliding metrics from actual skeleton world positions
+   - Exposes single-case and batch evaluation entry points
 
-2. **Spatial Hash Collision System (`mathart/animation/xpbd_collision.py`, ~260 lines)**
-   - `SpatialHashGrid`: O(1) amortised neighbour queries via hash table
-   - `BodyCollisionProxy`: body-part collision spheres from skeleton FK
-   - `XPBDCollisionManager`: generates ground, body-contact, and self-collision constraints per frame
-   - Connectivity-aware exclusion to prevent constraint fighting between adjacent chain nodes
+2. **Runtime DistillBus Promotion (`mathart/distill/runtime_bus.py`)**
+   - Added `build_gait_transition_program()`
+   - Added dense batch helpers `make_matrix()` and `evaluate_feature_rows()`
+   - Compiled locomotion features now include `phase_jump`, `sliding_error`, `contact_mismatch`, `foot_lock`, and `transition_cost`
+   - This is the first concrete promotion of `runtime_bus` beyond foot-contact gating into locomotion CNS scoring
 
-3. **XPBD Bridge (`mathart/animation/xpbd_bridge.py`, ~230 lines)**
-   - `XPBDChainProjector`: drop-in replacement for `SecondaryChainProjector`
-   - Identical `step_frame()` / `project_frame_sequence()` interface
-   - Exposes XPBD-specific diagnostics: reaction impulse, CoM displacement, energy estimate
-   - Backward compatible with existing pipeline.py and frame export
+3. **Main Pipeline Integration (`mathart/pipeline.py`)**
+   - Walk/run UMR generation can now route through the CNS locomotion sampler instead of the older direct state generators
+   - Motion contract pipeline order now explicitly records `phase_aligned_gait_sampling` and `inertial_transition_ready`
+   - `CharacterSpec` now includes `enable_cns_locomotion` and `locomotion_transition_frames`
 
-4. **Three-Layer Evolution Loop (`mathart/animation/xpbd_evolution.py`, ~580 lines)**
-   - **Layer 1 — Internal Evolution (`InternalEvolver`)**: monitors constraint errors, energy drift, velocity, collision counts; auto-tunes sub-steps, iterations, compliance, damping with cooldown
-   - **Layer 2 — External Knowledge Distillation (`KnowledgeDistiller`)**: 6 foundational entries from XPBD/Müller papers pre-seeded; dynamic injection API; JSON persistence
-   - **Layer 3 — Self-Iterating Test (`PhysicsTestHarness`)**: 7 physics scenario tests (free fall, pendulum energy, two-way coupling, constraint stability, self-collision separation, heavy weapon stagger, velocity clamping)
-   - **Orchestrator (`XPBDEvolutionOrchestrator`)**: ties all three layers into a closed feedback loop: Test → Diagnose → Tune/Distill → Re-test
+4. **Three-Layer Evolution Loop (`mathart/evolution/locomotion_cns_bridge.py`)**
+   - Layer 1: evaluate a repository-standard batch of hard gait transitions
+   - Layer 2: distill durable locomotion CNS rules into `knowledge/locomotion_cns.md`
+   - Layer 3: persist long-term state into `.locomotion_cns_state.json`
+   - Standard batch currently covers walk→run, run→walk, walk→sneak, sneak→run, and run acceleration
 
-5. **Comprehensive Test Suite (`tests/test_xpbd_physics.py`, ~340 lines)**
-   - 14 independent tests covering solver creation, particle management, distance constraints, compliance decoupling, two-way coupling, Lagrange force estimation, spatial hashing, chain building, evolution orchestrator, knowledge distiller, internal evolver, physics test harness, state persistence, and full evolution cycles
-   - All 14 tests PASS
+5. **Regression Coverage (`tests/test_locomotion_cns.py`)**
+   - Added 6 targeted tests for runtime gates, phase-aligned transition clips, sliding metrics, batch evaluation, pipeline sampler, and bridge persistence
+   - Related regression suite now passes with existing gait-blend and runtime-bus tests
 
-6. **Audit Report (`docs/SESSION-052-AUDIT.md`)**
-   - Complete research-to-code traceability matrix
-   - Three-layer evolution audit
-   - Physics realism score improvement estimate: 12/100 → ~45/100
+6. **Audit Report (`docs/SESSION-053-AUDIT.md`)**
+   - Research-to-code traceability
+   - Validation results
+   - Remaining-gaps judgment for follow-up sessions
 
 ## Research References Now Landed in Code
 
 | Reference | Core idea | Landed in |
 |---|---|---|
-| **Macklin & Müller, XPBD (SIGGRAPH 2016)** [1] | Compliance α replaces stiffness k; α̃ = α/Δt² decouples from timestep/iterations; Lagrange multiplier accumulation for force estimation | `xpbd_solver.py` core algorithm, `_solve_distance_constraint()` |
-| **Müller et al., Detailed Rigid Body Simulation (SCA 2020)** [2] | Rigid CoM as XPBD particle with w=1/m; unified solve pool; NPGS immediate position update; inverse-mass reaction impulse | `xpbd_solver.py` two-way coupling, `ParticleKind.RIGID_COM` |
-| **Matthias Müller, Ten Minute Physics** [3] | Array-based XPBD in ~100 lines; spatial hashing; self-collision 5-trick recipe | `xpbd_solver.py` array layout, `xpbd_collision.py` spatial hash |
-| **Carmen Cincotti, XPBD Self-Collision Tutorial** [4] | Practical self-collision implementation with spatial hash, rest-length guard, friction | `xpbd_collision.py` self-collision generation |
+| **David Bollo / GDC Inertialization** [1] | Switch to target immediately; decay only residual offset and residual velocity | `locomotion_cns.py` via `InertializationChannel.capture()` and `apply()` |
+| **Kovar & Gleicher / Registration Curves** [2] | Warp time first so corresponding contact/support events line up | `build_phase_aligned_transition_clip()` via `phase_warp()` |
+| **Holden / local phase reasoning lineage** [3] | Locomotion quality depends on phase-consistent transition landing rather than raw crossfade | `evaluate_transition_case()` and batch continuity/error metrics |
+| **Mike Acton / Data-Oriented Design** [4] | Dense feature arrays + compiled hot-path gates | `RuntimeRuleProgram.make_matrix()`, `evaluate_feature_rows()`, `build_gait_transition_program()` |
 
-## Runtime Evidence from SESSION-052
+## Runtime Evidence from SESSION-053
 
 | Metric | Result |
 |---|---|
-| Total XPBD tests | **14** |
-| Tests passed | **14** |
-| Two-way coupling CoM displacement | **1.63 units** |
-| Heavy weapon reaction impulse | **143.05** |
-| Heavy weapon CoM displacement | **3.67 units** |
-| Compliance decoupling verified | **α=0→d=1.0, α=1e-3→d=1.01** |
-| Self-collision separation | **0.2000 (target: ≥0.18)** |
-| Velocity clamping | **20.00/20.0** |
-| Constraint stability | **max error 0.000324 (threshold: 0.05)** |
-| Physics test harness | **6/7 pass** |
-| Evolution cycles completed | **3** |
+| New locomotion CNS tests | **6/6 PASS** |
+| Combined related regressions | **65/65 PASS** |
+| Layer 3 bridge cycle | **accepted = True** |
+| Standard batch case count | **5** |
+| Accepted ratio | **0.80** |
+| Mean runtime score | **0.7778** |
+| Mean sliding error | **0.0288** |
+| Worst phase jump | **~0.0** |
+| Mean contact mismatch | **0.20** |
 
 ## Knowledge Base Status
 
 | Metric | Status |
 |---|---|
-| Distilled knowledge rules | **75+** |
-| Distillation records | **31+** |
+| Distilled knowledge rules | **79+** |
+| Knowledge files | **32** |
 | Math models registered | **28** |
-| XPBD knowledge entries | **6** (foundational, pre-seeded) |
-| Sprite references | **0** |
+| Latest locomotion knowledge file | `knowledge/locomotion_cns.md` |
+| Latest locomotion state file | `.locomotion_cns_state.json` |
 | Next distill session ID | **DISTILL-005** |
 | Next mine session ID | **MINE-001** |
 
-知识层本轮新增 6 条 XPBD 基础知识条目（Compliance 解耦、Lagrange 累积、双向耦合逆质量、NPGS 即时更新、自碰撞 5 技巧、Rayleigh 阻尼），全部预装在 `KnowledgeDistiller` 中，可通过 JSON 持久化跨 session 复用。
-
 ## Three-Layer Evolution System Status
 
-### Layer 1: Internal Evolution
+### Layer 1: Internal Evaluation
 
-XPBD 求解器现在拥有 `InternalEvolver`，实时监控 7 个诊断指标（约束误差、能量漂移、速度、碰撞计数等），并通过 7 种 `TuningAction`（增减子步/迭代、收紧/放松柔顺度、增减阻尼、调整速度上限）自动调参。冷却机制防止频繁调参振荡。
+Locomotion now has a dedicated hard-transition batch evaluator. The current standard cases cover **walk→run**, **run→walk**, **walk→sneak**, **sneak→run**, and **run acceleration**. Each case is measured by **phase step continuity**, **FK-based foot sliding**, **contact mismatch**, **foot lock**, and **transition cost**.
 
 ### Layer 2: External Knowledge Distillation
 
-SESSION-052 已将 XPBD 论文的 **Compliance 解耦**、**Lagrange 乘子累积**、**逆质量双向耦合**、**NPGS 即时更新**、**自碰撞 5 技巧**、**Rayleigh 阻尼** 转化为项目内部知识条目。未来如果用户继续提供关于 FEM、MPM、GPU XPBD 或其他物理模拟的资料，`KnowledgeDistiller` 可以直接吸收并映射到求解器参数。
+The new bridge writes durable locomotion CNS rules into `knowledge/locomotion_cns.md`. The repository now preserves the rule that **support-phase alignment must happen before transition landing**, and that **runtime locomotion quality should be checked through compiled dense-feature gates rather than slow ad-hoc branching**.
 
 ### Layer 3: Self-Iteration
 
-Layer 3 新增 `PhysicsTestHarness`，包含 7 个物理场景测试。`XPBDEvolutionOrchestrator` 将三层绑定为闭环：测试失败自动触发 Layer 1 调参或标记 Layer 2 知识缺口。完整进化状态可序列化为 JSON。
+`.locomotion_cns_state.json` persists accepted ratio, best sliding error, best runtime score, and recent history. Future sessions can widen the batch set or tighten thresholds without re-deriving the architecture.
 
 ## Pending Tasks (Priority Order)
 
 ### HIGH (P0/P1)
-- `P1-E2E-COVERAGE`: **PARTIAL after SESSION-051**. Core graph-driven runtime coverage now exists; remaining work is to feed graph-generated sequences into `headless_e2e_ci.py` and expand runtime assets beyond `idle/walk/run/jump`.
-- `P1-XPBD-1`: **NEW** — Free-fall test precision optimization (damping causes deviation from analytical g·t²/2)
-- `P1-XPBD-2`: **NEW** — GPU-accelerated XPBD solver (reference: Müller Tutorial 16)
-- `P1-DISTILL-1A`: Roll Runtime DistillBus into gait blending, locomotion scoring, and `compute_physics_penalty()` batch paths
+- `P1-E2E-COVERAGE`: **PARTIAL after SESSION-051**. Core graph-driven runtime coverage exists; remaining work is to feed graph-generated sequences into `headless_e2e_ci.py` and expand runtime assets beyond `idle/walk/run/jump`.
+- `P1-XPBD-1`: Free-fall test precision optimization (damping causes deviation from analytical g·t²/2)
+- `P1-XPBD-2`: GPU-accelerated XPBD solver (reference: Müller Tutorial 16)
+- `P1-DISTILL-1A`: **PARTIAL after SESSION-053**. Runtime DistillBus now scores locomotion CNS transitions and batch gait audits; remaining work is to extend compiled scoring into `compute_physics_penalty()` and other hot loops.
 - `P1-DISTILL-1B`: Add Taichi backend and benchmark suite for Runtime DistillBus
-- `P1-GAP4-BATCH`: Batch-tune multiple hard transitions through active closed loop
+- `P1-GAP4-BATCH`: **PARTIAL after SESSION-053**. Batch evaluation and Layer 3 loop now cover locomotion CNS hard transitions; remaining work is to add jump/fall/hit disruptions and scheduled audit widening.
+- `P1-GAP4-CI`: Schedule active Layer 3 closed-loop audits, including the new locomotion CNS bridge
 - `P1-INDUSTRIAL-34A`: Wire industrial renderer as optional backend inside AssetPipeline
 - `P1-INDUSTRIAL-44A`: Add engine-ready export templates for albedo/normal/depth/mask/flow packs
 - `P1-INDUSTRIAL-34C`: 3D-to-2D mesh rendering path (Dead Cells full workflow)
@@ -134,14 +127,14 @@ Layer 3 新增 `PhysicsTestHarness`，包含 7 个物理场景测试。`XPBDEvol
 - `P1-VFX-1B`: Drive fluid VFX directly from UMR root velocity and weapon trajectories
 - `P1-B2-1`: Add more terrain primitives (convex hull, Bézier curve, heightmap import)
 - `P1-B2-2`: Extend TTC prediction to multi-bounce scenarios and moving platforms
-- `P1-B3-1`: Integrate GaitBlender into `pipeline.py` gait switching path
+- `P1-B3-1`: **PARTIAL after SESSION-053**. Main pipeline walk/run path now supports CNS locomotion sampling; remaining work is to export explicit transition-preview assets and broader state-machine-level switching paths.
 - `P1-B3-2`: Add GaitBlender reference motions to RL environment (`rl_locomotion.py`)
+- `P1-B3-5`: **PARTIAL after SESSION-053**. `transition_synthesizer.py` and `gait_blend.py` are now coupled through `locomotion_cns.py`; remaining work is full unification across export/orchestration layers.
 
 ### MEDIUM (P1/P2)
-- `P1-XPBD-3`: **NEW** — 3D extension (current solver is 2D)
-- `P1-XPBD-4`: **NEW** — Continuous Collision Detection (CCD) for fast-moving objects
-- `P2-XPBD-5`: **NEW** — Cloth mesh simulation (current is 1D chain only)
-- `P1-GAP4-CI`: Run active Layer 3 closed loop in scheduled/nightly audit mode
+- `P1-XPBD-3`: 3D extension (current solver is 2D)
+- `P1-XPBD-4`: Continuous Collision Detection (CCD) for fast-moving objects
+- `P2-XPBD-5`: Cloth mesh simulation (current is 1D chain only)
 - `P1-INDUSTRIAL-44B`: Add analytic-gradient native primitives
 - `P1-INDUSTRIAL-44C`: Export specular/roughness or engine-specific material metadata
 - `P1-AI-2A`: Real-time EbSynth/ComfyUI integration demo with exported MV data
@@ -153,119 +146,66 @@ Layer 3 新增 `PhysicsTestHarness`，包含 7 个物理场景测试。`XPBDEvol
 - `P1-DISTILL-4`: Distill Cognitive Science Rules
 - `P1-B3-3`: Support asymmetric sync markers (limping, injured gaits)
 - `P1-B3-4`: Support quadruped/multi-legged sync marker extensions
-- `P1-B3-5`: Unify `transition_synthesizer.py` with `gait_blend.py` into complete transition pipeline
 
 ### DONE / CORE IMPLEMENTED
 - `P0-GAP-2`: **Full two-way rigid-soft XPBD coupling — CLOSED in SESSION-052**
 - `P1-B1-2`: **Volumetric contact and self-collision awareness — CLOSED in SESSION-052**
 - `P0-DISTILL-1`: Global Distillation Bus (The Brain) — CLOSED in SESSION-050
-- `P1-E2E-COVERAGE`: Core graph-based state-machine coverage implemented in SESSION-051; headless E2E rollout remains
 - `P0-GAP-1`: Incomplete Phase Backbone — CLOSED in SESSION-042
 - `P0-EVAL-BRIDGE`: Parameter Convergence Bridge / Layer 3 write-back loop — CLOSED in SESSION-043
 - `P0-GAP-C1`: Analytical SDF normal/depth auxiliary-map pipeline — CLOSED in SESSION-044
-- `P1-AI-2`: Neural Rendering Bridge (Gap C3 / 防闪烁终极杀器) — CLOSED in SESSION-045
+- `P1-AI-2`: Neural Rendering Bridge — CLOSED in SESSION-045
 - `P1-VFX-1`: Physics-driven Particle System / Stable Fluids VFX — CLOSED in SESSION-046
 - `P1-GAP-B1`: Lightweight Jakobsen secondary chains for rigid-soft secondary animation — CLOSED-LITE in SESSION-047
-- `P1-PHASE-37A`: Scene-Aware Distance Matching Sensors (SDF Terrain + TTC) — CLOSED in SESSION-048
-- `P1-PHASE-33A`: Phase-Preserving Gait Transition Blending (Marker-based DTW) — CLOSED in SESSION-049
+- `P1-PHASE-37A`: Scene-Aware Distance Matching Sensors — CLOSED in SESSION-048
+- `P1-PHASE-33A`: Marker-based gait transition blending — CLOSED in SESSION-049
 
 ## Audit and Verification Evidence
 
 | Evidence | Result |
 |---|---|
-| `python3 tests/test_xpbd_physics.py` | **14/14 PASS** |
-| Two-way coupling CoM displacement | **1.63 units (verified Newton's Third Law)** |
-| Heavy weapon stagger | **CoM displaced 3.67, reaction impulse 143.05** |
-| Compliance decoupling | **α=0→d=1.0, α=1e-5→d=1.00, α=1e-3→d=1.01** |
-| Self-collision separation | **0.2000 ≥ 0.18 threshold** |
-| Velocity clamping | **20.00 ≤ 20.0 limit** |
-| Constraint stability | **max error 0.000324 < 0.05 threshold** |
-| Physics test harness (Layer 3) | **6/7 pass (free-fall deviation due to damping)** |
-| Evolution cycles | **3 completed successfully** |
-| `docs/SESSION-052-AUDIT.md` | Complete research-to-code traceability matrix |
+| `python3.11 -m pytest -q tests/test_locomotion_cns.py` | **6/6 PASS** |
+| `python3.11 -m pytest -q tests/test_runtime_distill_bus.py tests/test_gait_blend.py tests/test_locomotion_cns.py` | **65/65 PASS** |
+| `python3.11 -m pytest -q tests/test_xpbd_physics.py` | **14/14 PASS** |
+| `LocomotionCNSBridge.run_cycle()` | **accepted=True** |
+| `docs/SESSION-053-AUDIT.md` | Complete research-to-code traceability for locomotion CNS rollout |
 
 ## Recent Evolution History (Last 8 Sessions)
 
+### SESSION-053 — v0.44.0 (2026-04-17)
+- Added `mathart/animation/locomotion_cns.py`
+- Added phase-aligned inertialized locomotion transition clip generation
+- Promoted `runtime_bus.py` into locomotion transition scoring and batch evaluation
+- Wired CNS locomotion sampling into `pipeline.py` walk/run main path
+- Added `mathart/evolution/locomotion_cns_bridge.py`
+- Added `tests/test_locomotion_cns.py` and passed 65 related regressions
+- Generated `knowledge/locomotion_cns.md` and `.locomotion_cns_state.json`
+
 ### SESSION-052 — v0.43.0 (2026-04-17)
-- **Physics Singularity: P0-GAP-2 + P1-B1-2 CLOSED**
-- Added `mathart/animation/xpbd_solver.py`: full XPBD solver with compliance decoupling, Lagrange multiplier accumulation, two-way rigid-soft coupling, NPGS
-- Added `mathart/animation/xpbd_collision.py`: spatial hash grid, body collision proxies, self-collision constraint generation
-- Added `mathart/animation/xpbd_bridge.py`: drop-in replacement for SecondaryChainProjector
-- Added `mathart/animation/xpbd_evolution.py`: three-layer evolution loop (InternalEvolver, KnowledgeDistiller, PhysicsTestHarness, XPBDEvolutionOrchestrator)
-- Added `tests/test_xpbd_physics.py`: 14 comprehensive tests, all PASS
-- Added `docs/SESSION-052-AUDIT.md`: full research-to-code audit report
-- Physics realism score estimate: 12/100 → ~45/100
+- Physics Singularity: full XPBD solver with two-way rigid-soft coupling, spatial-hash self-collision, and three-layer evolution loop
+- Added `xpbd_solver.py`, `xpbd_collision.py`, `xpbd_bridge.py`, `xpbd_evolution.py`
+- Added `tests/test_xpbd_physics.py`: 14 tests PASS
+- Added `docs/SESSION-052-AUDIT.md`
 
 ### SESSION-051 — v0.42.0 (2026-04-17)
-- **Gap D1 core implementation**: graph-based property fuzzing for runtime state-machine coverage
-- Added `mathart/animation/state_machine_graph.py` with explicit state graph, coverage accounting, canonical walk, and runtime harness
-- Added `mathart/evolution/state_machine_coverage_bridge.py` with three-layer evaluation, rule write-back, and persistent state
-- Added `tests/test_state_machine_graph_fuzz.py`, `knowledge/state_machine_graph_fuzzing.md`, `.state_machine_coverage_state.json`, and `tools/run_state_machine_coverage_cycle.py`
-- 5 new tests PASS; targeted regression batch 6 PASS, 1 SKIP; first accepted coverage cycle persisted
+- Added graph-based property fuzzing and state-machine coverage bridge for runtime path closure
 
 ### SESSION-050 — v0.41.0 (2026-04-17)
-- **Gap A2 closure**: Runtime Distillation Bus connected to runtime
-- Added `mathart/distill/runtime_bus.py` with dense ParameterSpace lowering and Numba JIT runtime rule programs
-- Added `mathart/evolution/runtime_distill_bridge.py` with three-layer evaluation, rule write-back, and persistent state
-- Integrated compiled foot-contact rule path into `mathart/animation/physics_projector.py`
-- Integrated global compiled constraint injection into `mathart/quality/controller.py`
-- Added `knowledge/runtime_distill_bus.md`, `.runtime_distill_state.json`, `tools/run_runtime_distill_cycle.py`
-- 5 new tests PASS; 118 targeted regression tests PASS
+- Added RuntimeDistillationBus, compiled parameter spaces, JIT runtime rule programs, and runtime distillation bridge
 
 ### SESSION-049 — v0.40.0 (2026-04-17)
-- Gap B3 closure: Phase-Preserving Gait Transition Blending (Marker-based DTW)
-- Added `mathart/animation/gait_blend.py` and `mathart/evolution/gait_blend_bridge.py`
-- 54 new tests all PASS; 949 core tests PASS
+- Added marker-based gait transition blending (`gait_blend.py`) and dedicated gait evolution bridge
 
-### SESSION-048 — v0.39.0 (2026-04-17)
-- Gap B2 closure: Scene-Aware Distance Sensor (SDF Terrain + TTC)
-- Added `mathart/animation/terrain_sensor.py`
-- 51 new tests all PASS; 895 total tests PASS
+## Recommended Next Session Entry Points
 
-### SESSION-047 — v0.38.0 (2026-04-17)
-- Gap B1-lite closure: Jakobsen lightweight rigid-soft secondary animation
-- Added `mathart/animation/jakobsen_chain.py`
-- 5 new tests all PASS
-
-### SESSION-046 — v0.37.0 (2026-04-17)
-- Gap C2 closure: Stable Fluids physics-driven particle VFX
-- Added `mathart/animation/fluid_vfx.py`
-- 6 new tests all PASS
-
-### SESSION-045 — v0.36.0 (2026-04-17)
-- Gap C3 closure: Neural rendering bridge / 防闪烁终极杀器
-- Ground-truth motion vector baker from procedural FK with SDF-weighted skinning
-- 37 targeted tests PASS
-
-## Custom Notes
-
-- **session052_physics_singularity**: P0-GAP-2 and P1-B1-2 CLOSED. Full XPBD solver with two-way rigid-soft coupling, spatial-hash self-collision, and three-layer evolution loop.
-- **session052_xpbd_solver**: `mathart/animation/xpbd_solver.py` implements the complete XPBD algorithm from Macklin & Müller (2016) with compliance decoupling, Lagrange multiplier accumulation, and Rayleigh damping.
-- **session052_two_way_coupling**: Rigid CoM as XPBD particle with w=1/m_body. Constraint corrections distribute proportionally to inverse masses, automatically producing Newton's Third Law reactions. Verified: heavy weapon (15kg) displaces 70kg CoM by 3.67 units with 143.05 reaction impulse.
-- **session052_self_collision**: Spatial hash grid (O(1) queries) + connectivity-aware exclusion + Coulomb friction. Self-collision maintains 0.2000 separation (threshold: 0.18).
-- **session052_evolution**: Three-layer loop: InternalEvolver (7 TuningActions with cooldown), KnowledgeDistiller (6 foundational entries, JSON persistence), PhysicsTestHarness (7 scenarios). Orchestrator runs closed feedback loop.
-- **session052_test_count**: 14 new tests PASS; physics test harness 6/7 pass.
-- **session052_audit**: `docs/SESSION-052-AUDIT.md` provides complete research-to-code traceability matrix.
-- **session052_physics_score**: Estimated improvement from 12/100 to ~45/100.
-
-## Instructions for Next AI Session
-
-1. Read `PROJECT_BRAIN.json` for machine-readable state.
-2. Read `SESSION_HANDOFF.md`, `docs/SESSION-052-AUDIT.md` before modifying XPBD code.
-3. Inspect `mathart/animation/xpbd_solver.py` before changing constraint types, compliance formulas, or coupling logic.
-4. Inspect `mathart/animation/xpbd_collision.py` before changing spatial hash, body proxies, or self-collision generation.
-5. Inspect `mathart/animation/xpbd_evolution.py` before changing evolution loop, knowledge distillation, or test harness.
-6. The `XPBDChainProjector` in `xpbd_bridge.py` is a drop-in replacement for `SecondaryChainProjector`; both can coexist.
-7. To add new knowledge, use `KnowledgeDistiller.add_knowledge()` with a `KnowledgeEntry` specifying source, topic, insight, and parameter_effects.
-8. To run the evolution cycle: `XPBDEvolutionOrchestrator().evolve()` returns an updated `XPBDSolverConfig`.
-9. Preserve SESSION-051 state-machine coverage behavior unless the task explicitly targets it.
-10. Preserve SESSION-050 Runtime DistillBus behavior unless the task explicitly targets runtime knowledge lowering.
-11. Preserve SESSION-049 gait blending behavior unless the task explicitly targets cross-gait rollout.
-12. Preserve SESSION-043 closed-loop tuning behavior unless the task explicitly targets its optimization policy.
+1. **Close `P1-DISTILL-1A` fully** by extending compiled runtime evaluation into `compute_physics_penalty()` and any remaining batch hot loops.
+2. **Close `P1-B3-1` fully** by exporting explicit gait-transition assets/previews from `pipeline.py`, not just pure walk/run state sampling.
+3. **Widen `P1-GAP4-BATCH`** from locomotion-only gaits to hit/fall/jump disruptions and then schedule it under `P1-GAP4-CI`.
+4. If physics remains the dominant quality blocker, return to **GPU XPBD**, **CCD**, and **visible chain rendering**.
 
 ## References
 
-[1]: https://matthias-research.github.io/pages/publications/XPBD.pdf
-[2]: https://matthias-research.github.io/pages/publications/PBDBodies.pdf
-[3]: https://matthias-research.github.io/pages/tenMinutePhysics/index.html
-[4]: https://carmencincotti.com/2022-11-21/cloth-self-collisions/
+[1]: https://www.gdcvault.com/play/1025331/Inertialization-High-Performance-Animation-Transitions
+[2]: https://graphics.cs.wisc.edu/Papers/2003/KG03/regCurves.pdf
+[3]: https://www.pure.ed.ac.uk/ws/files/157671564/Local_Motion_Phases_STARKE_DOA27042020_AFV.pdf
+[4]: https://dataorienteddesign.com/site.php
