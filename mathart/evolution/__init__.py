@@ -122,6 +122,22 @@ from .breakwall_evolution_bridge import (
     collect_breakwall_status,
     BreakwallEvolutionBridge,
 )
+# SESSION-057: Smooth Morphology Bridge (P2 — Cross-Dimensional Spawning)
+from .smooth_morphology_bridge import (
+    SmoothMorphologyMetrics,
+    SmoothMorphologyState,
+    SmoothMorphologyStatus,
+    collect_smooth_morphology_status,
+    SmoothMorphologyEvolutionBridge,
+)
+# SESSION-057: Constraint WFC Bridge (P2 — Cross-Dimensional Spawning)
+from .constraint_wfc_bridge import (
+    ConstraintWFCMetrics,
+    ConstraintWFCState,
+    ConstraintWFCStatus,
+    collect_constraint_wfc_status,
+    ConstraintWFCEvolutionBridge,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -198,4 +214,16 @@ __all__ = [
     "BreakwallStatus",
     "collect_breakwall_status",
     "BreakwallEvolutionBridge",
+    # SESSION-057: Smooth Morphology Bridge (P2)
+    "SmoothMorphologyMetrics",
+    "SmoothMorphologyState",
+    "SmoothMorphologyStatus",
+    "collect_smooth_morphology_status",
+    "SmoothMorphologyEvolutionBridge",
+    # SESSION-057: Constraint WFC Bridge (P2)
+    "ConstraintWFCMetrics",
+    "ConstraintWFCState",
+    "ConstraintWFCStatus",
+    "collect_constraint_wfc_status",
+    "ConstraintWFCEvolutionBridge",
 ]

@@ -19,6 +19,13 @@ from .spec_bridge import (
 )
 from .pdg import ProceduralDependencyGraph, PDGNode, PDGError
 from .scene_description import UniversalSceneDescription, SceneLayer, ScenePrim
+# SESSION-057: Constraint-Aware WFC (P2 — Cross-Dimensional Spawning)
+from .constraint_wfc import (
+    ConstraintAwareWFC,
+    PhysicsConstraint,
+    ReachabilityValidator,
+    TilePlatformExtractor,
+)
 
 __all__ = [
     "WFCGenerator",
@@ -38,4 +45,9 @@ __all__ = [
     "UniversalSceneDescription",
     "SceneLayer",
     "ScenePrim",
+    # SESSION-057: Constraint-Aware WFC
+    "ConstraintAwareWFC",
+    "PhysicsConstraint",
+    "ReachabilityValidator",
+    "TilePlatformExtractor",
 ]

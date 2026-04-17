@@ -1,37 +1,37 @@
 {
-  "version": "0.47.0",
-  "last_session_id": "SESSION-056",
-  "last_updated": "2026-04-17T15:00:00Z",
+  "version": "0.48.0",
+  "last_session_id": "SESSION-057",
+  "last_updated": "2026-04-17T18:00:00Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "28/28 SESSION-056 tests PASS; 66/66 core regression PASS; breakwall evolution bridge operational; engine import plugins generated",
+  "validation_pass_rate": "114/114 SESSION-057 tests PASS; 66/66 core regression PASS; parametric SDF morphology + constraint-aware WFC + three-layer P2 evolution bridges operational",
   "total_iterations": 500,
-  "total_code_lines": 86000,
+  "total_code_lines": 90000,
   "distill_session_id": "DISTILL-007",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 92,
-  "math_model_count": 33,
+  "knowledge_rule_count": 98,
+  "math_model_count": 35,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",
-    "overall_completion": "54-56%",
-    "last_assessed": "SESSION-054",
+    "overall_completion": "58-60%",
+    "last_assessed": "SESSION-057",
     "dimension_scores": {
       "animation_physics_realism": 45,
       "motion_cognitive_naturalness": 30,
       "character_visual_quality": 42,
       "vfx_particles": 34,
-      "character_diversity": 15,
-      "environment_tileset": 18,
+      "character_diversity": 35,
+      "environment_tileset": 32,
       "engine_ready_export": 52,
       "engineering_automation": 93
     },
-    "fundamental_blocker": "FURTHER RESOLVED THROUGH SESSION-056: Headless neural rendering pipeline (EbSynth + ControlNet) and engine-native import plugins (Godot 4 + Unity URP 2D) are now operational. Engine-ready export jumps from 36% to 52% with .mathart bundle format, SSS/rim light shaders, and PolygonCollider2D generation. Main remaining blockers: AssetPipeline backend wiring, 3D-to-2D mesh bake workflow, expanded asset preset coverage, GPU-accelerated XPBD, 3D extension, and CCD for fast-moving objects.",
+    "fundamental_blocker": "FURTHER RESOLVED THROUGH SESSION-057: Parametric SDF morphology (IQ smin) enables genotype-driven character diversity explosion (character_diversity 15→35), constraint-aware WFC with TTC reachability validation enables 100% playable level generation (environment_tileset 18→32). Main remaining blockers: wire P2 bridges into EvolutionOrchestrator, AssetPipeline backend wiring, 3D-to-2D mesh bake workflow, expanded morphology archetypes, themed WFC tile sets, GPU-accelerated XPBD.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules. SESSION-049 closes Gap B3 by implementing Marker-based DTW gait transition blending: SyncMarker/GaitSyncProfile define foot-contact events, StrideWheel drives phase from distance (Rosen), GaitBlender performs Leader-Follower synchronized blend (UE Sync Groups), and adaptive_bounce provides speed-dependent vertical oscillation. Phase warping ensures sync marker alignment before pose interpolation, eliminating foot sliding during walk/run/sneak transitions. SESSION-052 closes the Physics Singularity by replacing Jakobsen one-way visual-following with full XPBD (Macklin & Müller 2016). The solver uses compliance α̃ = α/Δt² for timestep-independent stability, Lagrange multiplier accumulation for force estimation, and puts rigid CoM + soft nodes in one solve pool with inverse-mass weighted reaction impulses (Müller 2020). Spatial hash self-collision with connectivity exclusion (Ten Minute Physics). Three-layer evolution loop: InternalEvolver auto-tunes, KnowledgeDistiller absorbs external papers, PhysicsTestHarness validates 7 scenarios. 14/14 tests PASS. SESSION-053 adds the locomotion CNS bridge between gait blending, inertialized switching, and the runtime bus: walk/run pipeline generation can use CNS gait sampling, `locomotion_cns.py` phase-aligns target gait support phases before switching, `InertializationChannel` decays only residual source offsets, and compiled runtime rules score phase jump, sliding error, contact mismatch, foot lock, and transition cost in batch. The new LocomotionCNSBridge persists knowledge and Layer 3 state after accepted batch runs.",
       "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. SESSION-054 materially advances the visual-delivery side of the same path: canonical body primitives now provide analytical gradients, the industrial renderer exports albedo/normal/depth/thickness/roughness/mask packs, and export metadata is engine-ready for downstream 2.5D lighting workflows. SESSION-056 CLOSES the real-time EbSynth/ComfyUI integration gap: HeadlessNeuralRenderPipeline builds 14-node dual-ControlNet (NormalBae + Depth) ComfyUI workflows via headless HTTP API, EbSynthPropagationEngine performs PatchMatch-style NNF temporal propagation with bidirectional keyframe blending, and EngineImportPluginGenerator produces Godot 4 (gdshader + plugin.gd) and Unity URP 2D (ScriptedImporter.cs + shader) import plugins with SSS thickness, rim light, and auto PolygonCollider2D from SDF contour extraction. BreakwallEvolutionBridge integrates both subsystems into the three-layer self-evolution architecture. Next: 3D-to-2D mesh rendering path, expanded asset factory with engine-specific export templates.",
-      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge; SESSION-048 closes Gap B2 (scene-aware distance sensor) by implementing SDF terrain description, sphere-marching ray sensor, gravity-corrected TTC prediction, and phase-binding so transient phase reaches 1.0 at contact on arbitrary terrain. Next step: gait transition blending, production benchmark suite, and real-time EbSynth/ComfyUI demo. SESSION-050 closes Gap A2 by adding RuntimeDistillationBus, CompiledParameterSpace, JIT runtime rule programs, physics hot-path foot-contact integration, quality-controller pre-generation propagation, and RuntimeDistillBridge. SESSION-051 materially advances Gap D1 by adding an explicit runtime state graph, Hypothesis rule-based graph fuzzing, canonical edge walks, and a StateMachineCoverageBridge that writes knowledge and persistent coverage history. SESSION-054 extends the architecture closure on the visual/output side by upgrading auxiliary-map baking to analytical gradients plus industrial material bundles, adding a formal export bridge for those bundles, and persisting industrial visual quality through IndustrialSkinBridge Layer 3 state. SESSION-055 executes Battle 4 (Headless Automated Testing & The Asset Factory): property-based graph-fuzz CI generates adversarial state-transition sequences from RuntimeStateGraph and monitors XPBD for NaN/penetration/constraint-error/energy-drift; multi-modal visual fitness scoring (Laplacian + SSIM + depth + channels) provides automated quality assessment; commercial asset factory batch-generates assets with quality gates and auto-rejection; unified EvolutionOrchestrator coordinates all three layers (internal evaluation, external knowledge distillation, self-iterating test) into a self-evolving feedback loop with persistent state. SESSION-056 executes Phase 1 Breakwall Battle: headless_comfy_ebsynth.py implements zero-flicker neural rendering via ComfyUI headless API + EbSynth PatchMatch temporal propagation + dual ControlNet (NormalBae + Depth) conditioning; engine_import_plugin.py generates Godot 4 and Unity URP 2D import plugins with .mathart bundle format, SSS/rim light shaders, and PolygonCollider2D from SDF contour extraction; breakwall_evolution_bridge.py integrates both into three-layer self-evolution with auto-tuning and knowledge distillation. P1-AI-2A, P1-AI-2B, and P3-3 are now CLOSED."
+      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge; SESSION-048 closes Gap B2 (scene-aware distance sensor) by implementing SDF terrain description, sphere-marching ray sensor, gravity-corrected TTC prediction, and phase-binding so transient phase reaches 1.0 at contact on arbitrary terrain. Next step: gait transition blending, production benchmark suite, and real-time EbSynth/ComfyUI demo. SESSION-050 closes Gap A2 by adding RuntimeDistillationBus, CompiledParameterSpace, JIT runtime rule programs, physics hot-path foot-contact integration, quality-controller pre-generation propagation, and RuntimeDistillBridge. SESSION-051 materially advances Gap D1 by adding an explicit runtime state graph, Hypothesis rule-based graph fuzzing, canonical edge walks, and a StateMachineCoverageBridge that writes knowledge and persistent coverage history. SESSION-054 extends the architecture closure on the visual/output side by upgrading auxiliary-map baking to analytical gradients plus industrial material bundles, adding a formal export bridge for those bundles, and persisting industrial visual quality through IndustrialSkinBridge Layer 3 state. SESSION-055 executes Battle 4 (Headless Automated Testing & The Asset Factory): property-based graph-fuzz CI generates adversarial state-transition sequences from RuntimeStateGraph and monitors XPBD for NaN/penetration/constraint-error/energy-drift; multi-modal visual fitness scoring (Laplacian + SSIM + depth + channels) provides automated quality assessment; commercial asset factory batch-generates assets with quality gates and auto-rejection; unified EvolutionOrchestrator coordinates all three layers (internal evaluation, external knowledge distillation, self-iterating test) into a self-evolving feedback loop with persistent state. SESSION-056 executes Phase 1 Breakwall Battle: headless_comfy_ebsynth.py implements zero-flicker neural rendering via ComfyUI headless API + EbSynth PatchMatch temporal propagation + dual ControlNet (NormalBae + Depth) conditioning; engine_import_plugin.py generates Godot 4 and Unity URP 2D import plugins with .mathart bundle format, SSS/rim light shaders, and PolygonCollider2D from SDF contour extraction; breakwall_evolution_bridge.py integrates both into three-layer self-evolution with auto-tuning and knowledge distillation. P1-AI-2A, P1-AI-2B, and P3-3 are now CLOSED. SESSION-057 executes Phase 2 Cross-Dimensional Spawning: smooth_morphology.py implements parametric SDF morphology with Inigo Quilez smin (polynomial, exponential, cubic) for genotype-driven character diversity explosion across 5 archetypes (humanoid, monster, mech, slime, insectoid); constraint_wfc.py implements constraint-aware WFC with TTC reachability validation (inverted-pendulum physics model) ensuring 100% playable level generation; smooth_morphology_bridge.py and constraint_wfc_bridge.py integrate both into three-layer self-evolution with fitness evaluation, knowledge distillation, and trend persistence. P2-CROSSDIM-3 and P2-CROSSDIM-4 are now CLOSED."
     },
     "commercial_references": [
       {
@@ -48,9 +48,11 @@
     "engineering_automation": 93,
     "animation_physics_realism": 45
   },
-  "current_focus": "SESSION-056 executes Phase 1 Breakwall Battle (破壁之战): headless zero-flicker neural rendering pipeline (Jamriška EbSynth PatchMatch + Zhang ControlNet dual conditioning) with temporal consistency validation, engine-native depth importer (Godot 4 + Unity URP 2D) with SSS/rim light/PolygonCollider2D, and breakwall evolution bridge integrating both into three-layer self-evolution. Immediate next priorities: wire industrial backend into AssetPipeline, integrate breakwall bridge into EvolutionOrchestrator, implement 3D-to-2D mesh rendering path, expand asset factory with engine-specific export templates.",
+  "current_focus": "SESSION-057 executes Phase 2: Cross-Dimensional Spawning (跨维暴兵): parametric SDF morphology system (Inigo Quilez smin + genotype evolution) for character diversity explosion, constraint-aware WFC tile system (Maxim Gumin + Oskar St\u00e5lberg + TTC reachability) for 100% playable level generation, and two new three-layer evolution bridges integrating both into the self-evolution architecture. Immediate next priorities: wire P2 bridges into EvolutionOrchestrator, expand morphology archetypes, add themed WFC tile sets, close P1-INDUSTRIAL-34A.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "evolution_reports/session057_p2_audit.md",
+    "research/session057_p2_crossdim_research.md",
     "research/session056_audit_checklist.md",
     "research/session056_breakwall_research.md",
     "research/session055_audit_checklist.md",
@@ -137,6 +139,60 @@
     ]
   },
   "pending_tasks": [
+    {
+      "id": "P2-MORPHOLOGY-1",
+      "priority": "P1",
+      "title": "Wire SmoothMorphologyEvolutionBridge into EvolutionOrchestrator.run_full_cycle()",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Integrate SmoothMorphologyEvolutionBridge into the unified EvolutionOrchestrator so morphology population fitness evaluation runs as part of every evolution cycle.",
+      "added_in": "SESSION-057"
+    },
+    {
+      "id": "P2-WFC-1",
+      "priority": "P1",
+      "title": "Wire ConstraintWFCEvolutionBridge into EvolutionOrchestrator.run_full_cycle()",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Integrate ConstraintWFCEvolutionBridge into the unified EvolutionOrchestrator so WFC playability evaluation runs as part of every evolution cycle.",
+      "added_in": "SESSION-057"
+    },
+    {
+      "id": "P2-MORPHOLOGY-2",
+      "priority": "P2",
+      "title": "Expand morphology archetype library and add weapon/accessory attachment points",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Expand beyond 5 base archetypes (humanoid, monster, mech, slime, insectoid). Add attachment point system for genotype-driven equipment variation (weapons, shields, accessories).",
+      "added_in": "SESSION-057"
+    },
+    {
+      "id": "P2-WFC-2",
+      "priority": "P2",
+      "title": "Themed WFC tile sets with game progression integration",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Add cave, castle, sky tile vocabularies with theme-specific physics constraints and difficulty curves. Integrate difficulty curves with game progression system.",
+      "added_in": "SESSION-057"
+    },
+    {
+      "id": "P2-MORPHOLOGY-3",
+      "priority": "P2",
+      "title": "GPU-accelerated SDF evaluation for large morphology populations",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Add GPU-accelerated SDF evaluation (Taichi or CuPy) for populations >1000 genotypes per generation.",
+      "added_in": "SESSION-057"
+    },
+    {
+      "id": "P2-WFC-3",
+      "priority": "P2",
+      "title": "Multi-objective WFC optimization via Pareto frontier",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Add multi-objective optimization to WFC (playability + aesthetic diversity + difficulty curve matching) via Pareto frontier selection.",
+      "added_in": "SESSION-057"
+    },
     {
       "id": "P1-GAP4-CI",
       "priority": "P1",
@@ -829,6 +885,24 @@
     }
   ],
   "completed_tasks": [
+    {
+      "id": "CROSSDIM-PHASE2",
+      "title": "Phase 2 Cross-Dimensional Spawning: Parametric SDF Morphology + Constraint-Aware WFC",
+      "completed_in": "SESSION-057",
+      "result": "smooth_morphology.py implements parametric SDF morphology with IQ smin (polynomial, exponential, cubic) for genotype-driven character diversity across 5 archetypes. constraint_wfc.py implements constraint-aware WFC with TTC reachability validation (inverted-pendulum physics) ensuring 100% playable level generation. smooth_morphology_bridge.py and constraint_wfc_bridge.py integrate both into three-layer self-evolution. 114/114 tests PASS, 66/66 core regression PASS. character_diversity 15->35, environment_tileset 18->32."
+    },
+    {
+      "id": "AUDIT-057",
+      "title": "SESSION-057 full audit + research-to-code verification",
+      "completed_in": "SESSION-057",
+      "result": "114/114 SESSION-057 tests PASS. evolution_reports/session057_p2_audit.md confirms all P2 research requirements (IQ smin, IQ 2D SDF, Gumin WFC, Stalberg Townscaper, TTC reachability) implemented in code. 4 new modules verified: smooth_morphology.py, constraint_wfc.py, smooth_morphology_bridge.py, constraint_wfc_bridge.py. P2-CROSSDIM-3 and P2-CROSSDIM-4 CLOSED."
+    },
+    {
+      "id": "KNOWLEDGE-057",
+      "title": "SESSION-057 knowledge distillation",
+      "completed_in": "SESSION-057",
+      "result": "6 new knowledge entries distilled: IQ smooth minimum polynomial blending, IQ 2D SDF primitive library, Gumin WFC constraint solver, Stalberg Townscaper domain constraints, morphology bridge rules (blend_k, fill ratio, diversity), WFC bridge rules (playability, difficulty, platform density, veto effectiveness). research/session057_p2_crossdim_research.md and knowledge files generated."
+    },
     {
       "id": "BREAKWALL-PHASE1",
       "title": "Phase 1 Breakwall Battle: Zero-Flicker Neural Rendering + Engine-Native Import",
@@ -2546,6 +2620,43 @@
       "mask"
     ],
     "gradient_policy": "analytic-first for canonical primitives with finite-difference fallback"
+  },
+  "session057_crossdim_status": {
+    "status": "implemented",
+    "audit": "evolution_reports/session057_p2_audit.md",
+    "knowledge_morphology": "knowledge/smooth_morphology_rules.md",
+    "knowledge_wfc": "knowledge/constraint_wfc_rules.md",
+    "research_notes": "research/session057_p2_crossdim_research.md",
+    "state_files": [".smooth_morphology_state.json", ".constraint_wfc_state.json"],
+    "validation": "114/114 SESSION-057 tests PASS; 66/66 core regression PASS; both P2 evolution bridges operational",
+    "new_modules": [
+      "mathart/animation/smooth_morphology.py",
+      "mathart/level/constraint_wfc.py",
+      "mathart/evolution/smooth_morphology_bridge.py",
+      "mathart/evolution/constraint_wfc_bridge.py"
+    ],
+    "closed_tasks": [
+      "P2-CROSSDIM-3",
+      "P2-CROSSDIM-4"
+    ],
+    "new_pending_tasks": [
+      "P2-MORPHOLOGY-1",
+      "P2-WFC-1",
+      "P2-MORPHOLOGY-2",
+      "P2-WFC-2",
+      "P2-MORPHOLOGY-3",
+      "P2-WFC-3"
+    ],
+    "research_references": [
+      "Inigo Quilez - Smooth Minimum (iquilezles.org 2013)",
+      "Inigo Quilez - 2D Distance Functions (iquilezles.org 2020)",
+      "Maxim Gumin - Wave Function Collapse (GitHub 2016)",
+      "Oskar St\u00e5lberg - Townscaper (2020)"
+    ],
+    "dimension_score_changes": {
+      "character_diversity": "15 -> 35",
+      "environment_tileset": "18 -> 32"
+    }
   },
   "session056_breakwall_status": {
     "status": "implemented",

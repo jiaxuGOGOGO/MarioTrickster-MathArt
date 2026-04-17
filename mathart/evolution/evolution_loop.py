@@ -520,6 +520,76 @@ GAPB2_DISTILLATIONS: list[DistillationRecord] = [
 ]
 
 
+P2_CROSSDIM_DISTILLATIONS: list[DistillationRecord] = [
+    DistillationRecord(
+        paper_id="quilez2013smin",
+        paper_title="Smooth Minimum",
+        authors="Inigo Quilez",
+        venue="iquilezles.org article (2013)",
+        concept="Polynomial smooth minimum (smin) with tunable k parameter for organic SDF blending. Enables parametric morphology where genotype parameters control blend radius, producing 'muscle-like' smooth adhesion between body parts without manual sculpting.",
+        target_module="mathart/animation/smooth_morphology.py",
+        target_class="MorphologyGenotype",
+        validation_status="validated",
+        test_coverage="tests/test_smooth_morphology.py",
+    ),
+    DistillationRecord(
+        paper_id="quilez2020sdf2d",
+        paper_title="2D Distance Functions",
+        authors="Inigo Quilez",
+        venue="iquilezles.org article (2020)",
+        concept="Comprehensive library of 2D SDF primitives (circle, box, rounded box, segment, hexagon, star, heart, cross, egg, vesica, moon, arc) with exact distance formulas. Used as the primitive vocabulary for parametric character morphology.",
+        target_module="mathart/animation/smooth_morphology.py",
+        target_class="MorphologyFactory",
+        validation_status="validated",
+        test_coverage="tests/test_smooth_morphology.py",
+    ),
+    DistillationRecord(
+        paper_id="gumin2016wfc",
+        paper_title="Wave Function Collapse",
+        authors="Maxim Gumin",
+        venue="GitHub (2016)",
+        concept="WFC as a constraint solver with saved stationary distribution. Observe (lowest entropy) → Collapse (weighted selection) → Propagate (arc consistency). Natively supports domain constraints during collapse phase, making it ideal for injecting physics-based reachability vetoes.",
+        target_module="mathart/level/constraint_wfc.py",
+        target_class="ConstraintAwareWFC",
+        validation_status="validated",
+        test_coverage="tests/test_constraint_wfc.py",
+    ),
+    DistillationRecord(
+        paper_id="stalberg2020townscaper",
+        paper_title="Townscaper: WFC with Domain Constraints",
+        authors="Oskar Stålberg",
+        venue="GDC / Independent (2020)",
+        concept="Extended WFC to irregular grids and 3D structures with arbitrary domain constraints (structural, aesthetic, gameplay). Key insight: WFC is not just tile matching — it is a constraint solver that can incorporate physics-based playability guarantees.",
+        target_module="mathart/level/constraint_wfc.py",
+        target_class="ReachabilityValidator",
+        validation_status="validated",
+        test_coverage="tests/test_constraint_wfc.py",
+    ),
+    DistillationRecord(
+        paper_id="session057_morphology_bridge",
+        paper_title="Smooth Morphology Evolution Bridge — Three-Layer SDF Character Loop",
+        authors="Project Internal (SESSION-057 / P2)",
+        venue="SESSION-057",
+        concept="Parametric SDF morphology with smooth CSG blending, connected to three-layer evolution: evaluate fitness (fill, compactness, symmetry), distill optimal blend_k and primitive preferences, persist trends for cross-session learning.",
+        target_module="mathart/evolution/smooth_morphology_bridge.py",
+        target_class="SmoothMorphologyEvolutionBridge",
+        validation_status="validated",
+        test_coverage="tests/test_evolution_bridges_057.py",
+    ),
+    DistillationRecord(
+        paper_id="session057_wfc_bridge",
+        paper_title="Constraint-Aware WFC Evolution Bridge — Three-Layer Level Loop",
+        authors="Project Internal (SESSION-057 / P2)",
+        venue="SESSION-057",
+        concept="Physics-vetoed WFC collapse with TTC reachability validation, connected to three-layer evolution: evaluate playability and difficulty, distill optimal gap sizes and platform density, persist trends for cross-session learning.",
+        target_module="mathart/evolution/constraint_wfc_bridge.py",
+        target_class="ConstraintWFCEvolutionBridge",
+        validation_status="validated",
+        test_coverage="tests/test_evolution_bridges_057.py",
+    ),
+]
+
+
 _REGISTERED_DISTILLATIONS: list[DistillationRecord] = [
     *GAP1_DISTILLATIONS,
     *GAP4_DISTILLATIONS,
@@ -528,6 +598,7 @@ _REGISTERED_DISTILLATIONS: list[DistillationRecord] = [
     *GAPC1_DISTILLATIONS,
     *GAPC2_DISTILLATIONS,
     *GAPC3_DISTILLATIONS,
+    *P2_CROSSDIM_DISTILLATIONS,
 ]
 
 
@@ -705,6 +776,14 @@ def generate_evolution_report(
     from .neural_rendering_bridge import collect_neural_rendering_status
     neural_rendering_status = collect_neural_rendering_status(root)
 
+    # SESSION-057: Smooth morphology bridge status (P2)
+    from .smooth_morphology_bridge import collect_smooth_morphology_status
+    smooth_morphology_status = collect_smooth_morphology_status(root)
+
+    # SESSION-057: Constraint WFC bridge status (P2)
+    from .constraint_wfc_bridge import collect_constraint_wfc_status
+    constraint_wfc_status = collect_constraint_wfc_status(root)
+
     test_counts = count_test_functions(root)
     total_tests = sum(test_counts.values())
     new_tests_added = (
@@ -715,6 +794,9 @@ def generate_evolution_report(
         + int((root / "tests/test_fluid_vfx.py").exists())
         + int((root / "tests/test_jakobsen_chain.py").exists())
         + int((root / "tests/test_terrain_sensor.py").exists())
+        + int((root / "tests/test_smooth_morphology.py").exists())
+        + int((root / "tests/test_constraint_wfc.py").exists())
+        + int((root / "tests/test_evolution_bridges_057.py").exists())
     )
 
     test_result = TestEvolutionResult(
@@ -768,6 +850,18 @@ def generate_evolution_report(
         )
     else:
         summary_parts.append("neural rendering bridge (Gap C3) not yet integrated")
+    if smooth_morphology_status.module_exists:
+        summary_parts.append(
+            f"smooth morphology bridge tracks {len(smooth_morphology_status.tracked_exports)} parametric SDF hook(s)"
+        )
+    else:
+        summary_parts.append("smooth morphology bridge (P2) not yet integrated")
+    if constraint_wfc_status.module_exists:
+        summary_parts.append(
+            f"constraint WFC bridge tracks {len(constraint_wfc_status.tracked_exports)} physics-vetoed WFC hook(s)"
+        )
+    else:
+        summary_parts.append("constraint WFC bridge (P2) not yet integrated")
     summary = "; ".join(summary_parts) + "."
 
     return EvolutionCycleReport(
@@ -834,6 +928,7 @@ __all__ = [
     "GAPC2_DISTILLATIONS",
     "GAPB2_DISTILLATIONS",
     "GAPC3_DISTILLATIONS",
+    "P2_CROSSDIM_DISTILLATIONS",
     "collect_neural_rendering_status",
     "collect_jakobsen_chain_status",
     "collect_terrain_sensor_status",
