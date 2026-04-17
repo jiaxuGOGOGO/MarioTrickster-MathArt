@@ -1,0 +1,33 @@
+{
+  "total_cycles": 1,
+  "total_passes": 1,
+  "total_failures": 0,
+  "consecutive_passes": 1,
+  "best_mean_constraint_error": 0.03194696962422445,
+  "best_mean_tip_lag": 0.3710362990208773,
+  "knowledge_rules_total": 1,
+  "constraint_error_trend": [
+    0.03194696962422445
+  ],
+  "tip_lag_trend": [
+    0.3710362990208773
+  ],
+  "stretch_ratio_trend": [
+    1.2482598706296724
+  ],
+  "history": [
+    {
+      "cycle_id": 1,
+      "frame_count": 6,
+      "chain_count": 2,
+      "mean_constraint_error": 0.03194696962422445,
+      "max_constraint_error": 0.10874145240316163,
+      "mean_tip_lag": 0.3710362990208773,
+      "mean_collision_count": 16.166666666666668,
+      "max_stretch_ratio": 1.2482598706296724,
+      "mean_anchor_speed": 0.5600000000000002,
+      "pass_gate": true,
+      "timestamp": "2026-04-17T00:58:26.674837+00:00"
+    }
+  ]
+}

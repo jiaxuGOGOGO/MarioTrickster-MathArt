@@ -60,6 +60,8 @@ from .evolution_loop import collect_closed_loop_status, collect_analytical_rende
 from .neural_rendering_bridge import NeuralRenderingEvolutionBridge, collect_neural_rendering_status
 # SESSION-046: Stable Fluids VFX Bridge (Gap C2)
 from .fluid_vfx_bridge import FluidVFXEvolutionBridge, collect_fluid_vfx_status
+# SESSION-047: Jakobsen Secondary Chain Bridge (Gap B1)
+from .jakobsen_bridge import JakobsenEvolutionBridge, collect_jakobsen_chain_status
 
 
 class SelfEvolutionEngine:
@@ -139,6 +141,12 @@ class SelfEvolutionEngine:
 
         # SESSION-046: Stable Fluids VFX Bridge (Gap C2)
         self.fluid_vfx_bridge = FluidVFXEvolutionBridge(
+            project_root=self.project_root,
+            verbose=verbose,
+        )
+
+        # SESSION-047: Jakobsen Secondary Chain Bridge (Gap B1)
+        self.jakobsen_bridge = JakobsenEvolutionBridge(
             project_root=self.project_root,
             verbose=verbose,
         )
@@ -631,6 +639,31 @@ class SelfEvolutionEngine:
                     str(fvs.knowledge_rules_total)
                 )
 
+            # SESSION-047: Persist Jakobsen secondary-chain bridge state
+            if self.jakobsen_bridge:
+                jbs = self.jakobsen_bridge.state
+                mem.set_note(
+                    "session047_jakobsen_cycles",
+                    str(jbs.total_cycles)
+                )
+                mem.set_note(
+                    "session047_jakobsen_pass_rate",
+                    f"{jbs.total_passes}/{jbs.total_cycles}"
+                    if jbs.total_cycles > 0 else "N/A"
+                )
+                mem.set_note(
+                    "session047_best_constraint_error",
+                    f"{jbs.best_mean_constraint_error:.6f}"
+                )
+                mem.set_note(
+                    "session047_best_tip_lag",
+                    f"{jbs.best_mean_tip_lag:.6f}"
+                )
+                mem.set_note(
+                    "session047_jakobsen_knowledge_rules",
+                    str(jbs.knowledge_rules_total)
+                )
+
             # SESSION-040: Persist contract evolution bridge state
             if self.contract_bridge:
                 cs = self.contract_bridge.state
@@ -750,6 +783,24 @@ class SelfEvolutionEngine:
             lines.append(f"   Tracked exports: {', '.join(fluid_status.tracked_exports)}")
         if fluid_status.research_notes_path:
             lines.append(f"   Research notes: {fluid_status.research_notes_path}")
+        lines.append("")
+
+        # ── SESSION-047: Jakobsen Secondary Chain Bridge status ──
+        lines.append("--- Jakobsen Secondary Chain Bridge (SESSION-047 / Gap B1) ---")
+        lines.append(self.jakobsen_bridge.status_report().replace(
+            "--- Jakobsen Secondary Chain Evolution Bridge (SESSION-047 / Gap B1) ---", ""
+        ).strip())
+        jakobsen_status = collect_jakobsen_chain_status(self.project_root)
+        lines.extend([
+            f"   Module active: {'yes' if jakobsen_status.module_exists else 'no'}",
+            f"   Pipeline integration: {'yes' if jakobsen_status.pipeline_supports_secondary_chains else 'no'}",
+            f"   Public API export: {'yes' if jakobsen_status.public_api_exports_chain else 'no'}",
+            f"   Test present: {'yes' if jakobsen_status.test_exists else 'no'}",
+        ])
+        if jakobsen_status.tracked_exports:
+            lines.append(f"   Tracked exports: {', '.join(jakobsen_status.tracked_exports)}")
+        if jakobsen_status.research_notes_path:
+            lines.append(f"   Research notes: {jakobsen_status.research_notes_path}")
         lines.append("")
 
         # ── SESSION-044: Analytical SDF rendering status ──

@@ -65,6 +65,14 @@ from .fluid_vfx_bridge import (
     collect_fluid_vfx_status,
     FluidVFXEvolutionBridge,
 )
+# SESSION-047: Jakobsen Secondary Chain Bridge (Gap B1)
+from .jakobsen_bridge import (
+    JakobsenChainMetrics,
+    JakobsenChainState,
+    JakobsenChainStatus,
+    collect_jakobsen_chain_status,
+    JakobsenEvolutionBridge,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -100,4 +108,10 @@ __all__ = [
     "FluidVFXStatus",
     "collect_fluid_vfx_status",
     "FluidVFXEvolutionBridge",
+    # SESSION-047: Jakobsen Secondary Chain Bridge (Gap B1)
+    "JakobsenChainMetrics",
+    "JakobsenChainState",
+    "JakobsenChainStatus",
+    "collect_jakobsen_chain_status",
+    "JakobsenEvolutionBridge",
 ]

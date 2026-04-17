@@ -138,6 +138,7 @@ class EvolutionCycleReport:
     test_result: Optional[TestEvolutionResult] = None
     closed_loop: Optional[ClosedLoopStatus] = None
     analytical_rendering: Optional[AnalyticalRenderingStatus] = None
+    jakobsen_secondary: Optional[dict[str, Any]] = None
     summary: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
@@ -150,6 +151,7 @@ class EvolutionCycleReport:
             "test_result": self.test_result.to_dict() if self.test_result else None,
             "closed_loop": self.closed_loop.to_dict() if self.closed_loop else None,
             "analytical_rendering": self.analytical_rendering.to_dict() if self.analytical_rendering else None,
+            "jakobsen_secondary": dict(self.jakobsen_secondary) if self.jakobsen_secondary else None,
             "summary": self.summary,
             "timestamp": self.timestamp,
         }
@@ -300,6 +302,32 @@ GAP4_DISTILLATIONS: list[DistillationRecord] = [
 ]
 
 
+GAPB1_DISTILLATIONS: list[DistillationRecord] = [
+    DistillationRecord(
+        paper_id="jakobsen2001advancedcharacterphysics",
+        paper_title="Advanced Character Physics",
+        authors="Thomas Jakobsen",
+        venue="GDC 2001",
+        concept="Use velocity-less Verlet integration and repeated distance-constraint relaxation to build lightweight articulated secondary motion that is stable enough for real-time characters without a heavy full-body solver.",
+        target_module="mathart/animation/jakobsen_chain.py",
+        target_class="JakobsenSecondaryChain",
+        validation_status="validated",
+        test_coverage="tests/test_jakobsen_chain.py",
+    ),
+    DistillationRecord(
+        paper_id="session047_jakobsen_bridge",
+        paper_title="Jakobsen Secondary Chain Evolution Bridge — Three-Layer Lightweight Rigid-Soft Loop",
+        authors="Project Internal (SESSION-047 / Gap B1)",
+        venue="SESSION-047",
+        concept="Track constraint error, tip lag, and stretch ratio for kinematic secondary chains; distill successful recipes back into knowledge and persist trend data for future auto-tuning.",
+        target_module="mathart/evolution/jakobsen_bridge.py",
+        target_class="JakobsenEvolutionBridge",
+        validation_status="validated",
+        test_coverage="tests/test_jakobsen_chain.py",
+    ),
+]
+
+
 GAPC1_DISTILLATIONS: list[DistillationRecord] = [
     DistillationRecord(
         paper_id="quilez2015normalssdf",
@@ -436,6 +464,7 @@ GAPC3_DISTILLATIONS: list[DistillationRecord] = [
 _REGISTERED_DISTILLATIONS: list[DistillationRecord] = [
     *GAP1_DISTILLATIONS,
     *GAP4_DISTILLATIONS,
+    *GAPB1_DISTILLATIONS,
     *GAPC1_DISTILLATIONS,
     *GAPC2_DISTILLATIONS,
     *GAPC3_DISTILLATIONS,
@@ -604,6 +633,10 @@ def generate_evolution_report(
     from .fluid_vfx_bridge import collect_fluid_vfx_status
     fluid_vfx_status = collect_fluid_vfx_status(root)
 
+    # SESSION-047: Jakobsen secondary-chain bridge status
+    from .jakobsen_bridge import collect_jakobsen_chain_status
+    jakobsen_status = collect_jakobsen_chain_status(root)
+
     # SESSION-045: Neural rendering bridge status
     from .neural_rendering_bridge import collect_neural_rendering_status
     neural_rendering_status = collect_neural_rendering_status(root)
@@ -616,6 +649,7 @@ def generate_evolution_report(
         + int((root / "tests/test_sdf_aux_maps.py").exists())
         + int((root / "tests/test_motion_vector_baker.py").exists())
         + int((root / "tests/test_fluid_vfx.py").exists())
+        + int((root / "tests/test_jakobsen_chain.py").exists())
     )
 
     test_result = TestEvolutionResult(
@@ -651,6 +685,12 @@ def generate_evolution_report(
         )
     else:
         summary_parts.append("fluid VFX bridge (Gap C2) not yet integrated")
+    if jakobsen_status.module_exists:
+        summary_parts.append(
+            f"Jakobsen bridge tracks {len(jakobsen_status.tracked_exports)} lightweight secondary-chain hook(s)"
+        )
+    else:
+        summary_parts.append("Jakobsen bridge (Gap B1) not yet integrated")
     if neural_rendering_status.motion_vector_module_exists:
         summary_parts.append(
             f"neural rendering bridge exports {len(neural_rendering_status.tracked_exports)} tracked MV hooks"
@@ -667,6 +707,7 @@ def generate_evolution_report(
         test_result=test_result,
         closed_loop=closed_loop_status,
         analytical_rendering=analytical_rendering_status,
+        jakobsen_secondary=jakobsen_status.to_dict(),
         summary=summary,
     )
 
@@ -717,8 +758,10 @@ __all__ = [
     "run_evolution_cycle",
     "GAP1_DISTILLATIONS",
     "GAP4_DISTILLATIONS",
+    "GAPB1_DISTILLATIONS",
     "GAPC1_DISTILLATIONS",
     "GAPC2_DISTILLATIONS",
     "GAPC3_DISTILLATIONS",
     "collect_neural_rendering_status",
+    "collect_jakobsen_chain_status",
 ]

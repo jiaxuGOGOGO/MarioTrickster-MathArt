@@ -1,0 +1,61 @@
+{
+  "seal": {
+    "context_hash": "b004cad39561794208a9fc9c287d4703241a0bb5c6a291616288f73344d6a6de",
+    "pipeline_hash": "ed037200e80fdc8d14d42735ce94cca2e4fad4196e139c80aa13c6fbc4197ccc",
+    "state_hashes": {
+      "idle": "783ce178019a7f897e79928460b7e3be675ea56d75961e3464dfd6fdf1aac816",
+      "run": "a3eeb85f0d0a1651dc9f55236e63ea9b3d3b8d34b72430b58e465e47762f8b3e"
+    },
+    "contact_tag_hash": "8853d588ef1e5928a729a8ba265c8ab5118cf796f829b33d8c96173326429044",
+    "node_order": [
+      "physics_compliance",
+      "secondary_chain_projection",
+      "biomechanics_grounding"
+    ],
+    "frame_count": 12,
+    "timestamp": "2026-04-17T00:58:26Z",
+    "pipeline_version": "0.31.0",
+    "session_id": "SESSION-040",
+    "seal_version": "umr_manifest_seal_v1"
+  },
+  "context": {
+    "pipeline_version": "0.31.0",
+    "session_id": "SESSION-040",
+    "random_seed": 42,
+    "character_name": "session047_gapb1_character",
+    "preset": "mario",
+    "states": [
+      "idle",
+      "run"
+    ],
+    "frame_width": 32,
+    "frame_height": 32,
+    "fps": 10,
+    "head_units": 3.0,
+    "frames_per_state": 6,
+    "state_frames": {},
+    "enable_physics": true,
+    "enable_biomechanics": true,
+    "physics_stiffness": 1.0,
+    "physics_damping": 1.0,
+    "compliance_alpha": 0.6,
+    "biomechanics_zmp_strength": 0.3,
+    "enable_dither": true,
+    "enable_outline": true,
+    "enable_lighting": true,
+    "convergence_bridge": {},
+    "extra": {}
+  },
+  "audit": {
+    "states_registered": [
+      "idle",
+      "run"
+    ],
+    "total_frames": 12,
+    "node_order": [
+      "physics_compliance",
+      "secondary_chain_projection",
+      "biomechanics_grounding"
+    ]
+  }
+}

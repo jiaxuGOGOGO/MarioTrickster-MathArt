@@ -1,0 +1,109 @@
+{
+  "state": "run",
+  "frames": 6,
+  "fps": 10,
+  "loop": true,
+  "frame_size": {
+    "w": 32,
+    "h": 32
+  },
+  "sheet": "session047_gapb1_character_run_sheet.png",
+  "gif": "session047_gapb1_character_run.gif",
+  "frame_duration_ms": 100,
+  "score": 0.7394412946674632,
+  "frame_files": [
+    "session047_gapb1_character_run_frame_00.png",
+    "session047_gapb1_character_run_frame_01.png",
+    "session047_gapb1_character_run_frame_02.png",
+    "session047_gapb1_character_run_frame_03.png",
+    "session047_gapb1_character_run_frame_04.png",
+    "session047_gapb1_character_run_frame_05.png"
+  ],
+  "motion_bus": {
+    "format": "umr_motion_clip_v1",
+    "file": "session047_gapb1_character_run.umr.json",
+    "audit": {
+      "frame_count": 6,
+      "audit_entries": 18,
+      "grounding_guarded_frames": 6,
+      "upper_body_override_flags": 0,
+      "node_order": [
+        "physics_compliance",
+        "secondary_chain_projection",
+        "biomechanics_grounding"
+      ],
+      "stage_order": [
+        "root_motion_to_compliance",
+        "secondary_follow_through",
+        "localized_grounding"
+      ],
+      "contract": "UnifiedMotionFrame"
+    },
+    "contact_coverage": {
+      "left_foot_frames": 2,
+      "right_foot_frames": 2
+    }
+  },
+  "sheet_frames": [
+    {
+      "name": "session047_gapb1_character_run_0",
+      "rect": [
+        0,
+        0,
+        32,
+        32
+      ],
+      "duration": 100
+    },
+    {
+      "name": "session047_gapb1_character_run_1",
+      "rect": [
+        32,
+        0,
+        32,
+        32
+      ],
+      "duration": 100
+    },
+    {
+      "name": "session047_gapb1_character_run_2",
+      "rect": [
+        64,
+        0,
+        32,
+        32
+      ],
+      "duration": 100
+    },
+    {
+      "name": "session047_gapb1_character_run_3",
+      "rect": [
+        96,
+        0,
+        32,
+        32
+      ],
+      "duration": 100
+    },
+    {
+      "name": "session047_gapb1_character_run_4",
+      "rect": [
+        128,
+        0,
+        32,
+        32
+      ],
+      "duration": 100
+    },
+    {
+      "name": "session047_gapb1_character_run_5",
+      "rect": [
+        160,
+        0,
+        32,
+        32
+      ],
+      "duration": 100
+    }
+  ]
+}

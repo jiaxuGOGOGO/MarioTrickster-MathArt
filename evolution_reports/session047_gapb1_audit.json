@@ -1,0 +1,58 @@
+{
+  "session": "SESSION-047",
+  "gap": "B1",
+  "character_asset_dir": "evolution_reports/session047_gapb1_output/session047_gapb1_character",
+  "umr_path": "evolution_reports/session047_gapb1_output/session047_gapb1_character/session047_gapb1_character_run.umr.json",
+  "diagnostic_frames": 6,
+  "metrics": {
+    "cycle_id": 1,
+    "frame_count": 6,
+    "chain_count": 2,
+    "mean_constraint_error": 0.03194696962422445,
+    "max_constraint_error": 0.10874145240316163,
+    "mean_tip_lag": 0.3710362990208773,
+    "mean_collision_count": 16.166666666666668,
+    "max_stretch_ratio": 1.2482598706296724,
+    "mean_anchor_speed": 0.5600000000000002,
+    "pass_gate": true,
+    "timestamp": "2026-04-17T00:58:26.674837+00:00"
+  },
+  "rules": [
+    {
+      "rule_id": "jakobsen_pass_1",
+      "rule_text": "Preferred Gap B1 recipe: kinematic root pin + Verlet position update + repeated distance relaxation + simple body proxies + per-frame diagnostics written into UMR metadata."
+    }
+  ],
+  "fitness_bonus": 0.07305303037577555,
+  "status": {
+    "module_exists": true,
+    "bridge_exists": true,
+    "public_api_exports_chain": true,
+    "pipeline_supports_secondary_chains": true,
+    "test_exists": true,
+    "research_notes_path": "docs/research/GAP_B1_JAKOBSEN_SECONDARY_CHAINS.md",
+    "tracked_exports": [
+      "JakobsenSecondaryChain",
+      "SecondaryChainProjector",
+      "SecondaryChainConfig",
+      "create_default_secondary_chain_configs"
+    ],
+    "total_cycles": 1,
+    "consecutive_passes": 1,
+    "best_mean_constraint_error": 0.03194696962422445
+  },
+  "result_metadata_excerpt": {
+    "secondary_chain_config": {
+      "enabled": true,
+      "presets": [
+        "cape",
+        "hair"
+      ],
+      "engine": "SecondaryChainProjector (Jakobsen 2001 Verlet + distance constraints)"
+    },
+    "states": [
+      "idle",
+      "run"
+    ]
+  }
+}

@@ -154,6 +154,16 @@ from .fluid_vfx import (
     FluidVFXConfig, FluidGrid2D, FluidDrivenVFXSystem,
     resize_mask_to_grid, default_character_obstacle_mask,
 )
+# SESSION-047: Jakobsen-style secondary chains (Gap B1 — lightweight rigid-soft coupling)
+from .jakobsen_chain import (
+    BodyCollisionCircle,
+    SecondaryChainConfig,
+    SecondaryChainDiagnostics,
+    SecondaryChainSnapshot,
+    JakobsenSecondaryChain,
+    SecondaryChainProjector,
+    create_default_secondary_chain_configs,
+)
 
 __all__ = [
     "Skeleton", "Bone", "Joint",
@@ -272,4 +282,12 @@ __all__ = [
     "FluidGridConfig", "FluidImpulse", "FluidFrameDiagnostics", "FluidParticle",
     "FluidVFXConfig", "FluidGrid2D", "FluidDrivenVFXSystem",
     "resize_mask_to_grid", "default_character_obstacle_mask",
+    # SESSION-047: Jakobsen-style secondary chains
+    "BodyCollisionCircle",
+    "SecondaryChainConfig",
+    "SecondaryChainDiagnostics",
+    "SecondaryChainSnapshot",
+    "JakobsenSecondaryChain",
+    "SecondaryChainProjector",
+    "create_default_secondary_chain_configs",
 ]

@@ -1,37 +1,37 @@
 {
-  "version": "0.37.0",
-  "last_session_id": "SESSION-046",
-  "last_updated": "2026-04-17T16:30:00Z",
+  "version": "0.38.0",
+  "last_session_id": "SESSION-047",
+  "last_updated": "2026-04-17T01:00:01Z",
   "best_quality_score": 0.8674,
-  "validation_pass_rate": "6 new tests PASS (Gap C2); targeted Stable Fluids audit PASS; zero local regressions in touched modules",
+  "validation_pass_rate": "5 new tests PASS (Gap B1); targeted Jakobsen audit PASS; py_compile PASS; zero local regressions in touched modules",
   "total_iterations": 500,
-  "total_code_lines": 63100,
+  "total_code_lines": 64237,
   "distill_session_id": "DISTILL-005",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 52,
+  "knowledge_rule_count": 53,
   "math_model_count": 28,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",
-    "overall_completion": "35-37%",
-    "last_assessed": "SESSION-046",
+    "overall_completion": "37-39%",
+    "last_assessed": "SESSION-047",
     "dimension_scores": {
-      "animation_physics_realism": 7,
-      "motion_cognitive_naturalness": 18,
+      "animation_physics_realism": 10,
+      "motion_cognitive_naturalness": 21,
       "character_visual_quality": 25,
       "vfx_particles": 34,
       "character_diversity": 15,
       "environment_tileset": 18,
       "engine_ready_export": 24,
-      "engineering_automation": 82
+      "engineering_automation": 88
     },
-    "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-046: analytical aux maps (Gap C1), neural rendering bridge (Gap C3), and physics-driven particles (Gap C2) are now closed. Main remaining blockers: XPBD rigid/soft body coupling, industrial runtime depth (cache/partition/layering), terrain-aware sensing, gait transition blending, and benchmarked asset production.",
+    "fundamental_blocker": "PARTIALLY RESOLVED THROUGH SESSION-047: analytical aux maps (Gap C1), neural rendering bridge (Gap C3), physics-driven particles (Gap C2), and lightweight Jakobsen secondary chains (Gap B1-lite) are now closed. Main remaining blockers: full XPBD two-way rigid/soft coupling, industrial runtime depth (cache/partition/layering), terrain-aware sensing, gait transition blending, and benchmarked asset production.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules.",
       "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. Combined with SESSION-044 auxiliary maps (normal/depth/mask), the project now has a complete Math→AI conditioning pipeline. Next: real-time EbSynth/ComfyUI integration demo.",
-      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge). Next step: Gap B1 (XPBD rigid/soft body coupling), terrain-aware sensing, gait transition blending, production benchmark suite."
+      "path_c_architecture_closure": "SESSION-032 delivered lightweight PDG + USD-like scene description; SESSION-036 added UMR architecture closure; SESSION-037 removed the largest action-state bypass; SESSION-038 hardened the contract with refined metadata; SESSION-039 closed the runtime transition synthesis gap with inertialized blending and motion matching query; SESSION-040 closed the CLI/exporter bus propagation gap with pipeline contract enforcement (UMR_Context, PipelineContractGuard, UMR_Auditor SHA-256 seal, ContractEvolutionBridge); SESSION-041 closed Gap 3 (end-to-end reproducibility) with headless E2E CI, SSIM visual regression, golden baselines, and VisualRegressionEvolutionBridge; SESSION-042 closed Gap 1 (aperiodic motion integration) with PhaseState dataclass, Gate Mechanism, and Three-Layer Evolution Loop; SESSION-043 closed Gap 4 (active Layer 3 closed loop); SESSION-044 closed Gap C1 (analytical SDF auxiliary maps); SESSION-045 closed Gap C3 (neural rendering bridge / temporal consistency); SESSION-046 closed Gap C2 (Stable Fluids physics-driven particles and fluid VFX evolution bridge); SESSION-047 closes Gap B1-lite by integrating Jakobsen-style lightweight secondary chains for cape/hair, UMR metadata diagnostics, and a dedicated three-layer evolution bridge. Next step: full XPBD two-way coupling, terrain-aware sensing, gait transition blending, and production benchmark suite."
     },
     "commercial_references": [
       {
@@ -47,13 +47,16 @@
     ],
     "engineering_automation": 87
   },
-  "current_focus": "SESSION-046 closes Gap C2 (physics-driven particles / Stable Fluids VFX) by implementing a grid-based vector-field smoke system, obstacle-aware flow, fluid-guided particles, pipeline presets (`smoke_fluid`, `dash_smoke`, `slash_smoke`), and a three-layer FluidVFXEvolutionBridge. All previous SESSION-043/044/045 capabilities remain intact. Next: XPBD, real-time EbSynth/ComfyUI integration demo, terrain-aware sensing, and production benchmark assets.",
+  "current_focus": "SESSION-047 closes Gap B1-lite by implementing Thomas Jakobsen inspired lightweight secondary chains for 2D cape/hair motion, binding them to UMR root/bone motion, writing per-frame diagnostics into metadata, and integrating a dedicated JakobsenEvolutionBridge into the three-layer evolution stack. All previous SESSION-043/044/045/046 capabilities remain intact. Next: full XPBD, fluid silhouette coupling, real-time EbSynth/ComfyUI demo, terrain-aware sensing, and production benchmark assets.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "docs/research/GAP_B1_JAKOBSEN_SECONDARY_CHAINS.md",
+    "evolution_reports/session047_gapb1_research_notes.md",
+    "evolution_reports/session047_gapb1_audit.json",
+    "SESSION_HANDOFF.md",
     "docs/research/GAP_C2_STABLE_FLUIDS_VFX.md",
     "evolution_reports/session046_gapc2_research_notes.md",
     "evolution_reports/session046_gapc2_audit.json",
-    "SESSION_HANDOFF.md",
     "docs/research/GAP_C3_NEURAL_RENDERING_BRIDGE.md",
     "docs/research/GAP_C3_AUDIT_CHECKLIST.md",
     "evolution_reports/session044_sdf_rendering_research_notes.md",
@@ -142,10 +145,10 @@
     {
       "id": "P0-GAP-2",
       "priority": "P0",
-      "title": "Rigid Body/Soft Body Coupling (XPBD integration)",
+      "title": "Full Rigid Body/Soft Body Coupling (XPBD two-way integration)",
       "status": "TODO",
       "estimated_effort": "high",
-      "description": "Research and integrate Extended Position Based Dynamics (XPBD) for soft body simulation, coupling it with the existing Rigid Body engine for two-way interaction.",
+      "description": "SESSION-047 delivered a lightweight Jakobsen secondary-chain layer for cape/hair follow-through. The remaining gap is full XPBD-grade two-way rigid/soft coupling with richer deformation, contacts, and bidirectional response.",
       "added_in": "SESSION-042"
     },
     {
@@ -617,6 +620,24 @@
       "estimated_effort": "medium",
       "description": "Convert runtime root transform velocity, slash tangents, and motion-vector-derived impulses into automated driver_impulses for slash/dash smoke presets.",
       "added_in": "SESSION-046"
+    },
+    {
+      "id": "P1-B1-1",
+      "priority": "P1",
+      "title": "Render cape/hair ribbons or meshes directly from Jakobsen chain snapshots",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Convert secondary-chain points into visible ribbon, strip, or mesh surfaces so Gap B1 moves from metadata-ready motion to full rendered attachment output.",
+      "added_in": "SESSION-047"
+    },
+    {
+      "id": "P1-B1-2",
+      "priority": "P1",
+      "title": "Upgrade Jakobsen body proxies toward width-aware contacts and optional self-collision",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Extend circular body proxies into richer collision envelopes and evaluate optional chain self-collision only if production assets need it.",
+      "added_in": "SESSION-047"
     }
   ],
   "completed_tasks": [
@@ -1341,6 +1362,11 @@
       "id": "VALIDATION-029",
       "title": "Full repository validation (655/655 pass, 57 new tests)",
       "completed_in": "SESSION-029"
+    },
+    {
+      "id": "P1-GAP-B1",
+      "title": "Lightweight Jakobsen secondary chains for rigid-soft secondary animation",
+      "completed_in": "SESSION-047"
     }
   ],
   "capability_gaps": [
@@ -1426,7 +1452,8 @@
     "RESOLVED-S040: UMR contract propagated to CLI, exporters, and distillation bus via UMR_Context + ContractEvolutionBridge (P1-UMR-36A)",
     "RESOLVED-S040: Phase-driven idle generator eliminates last legacy_pose_adapter fallback",
     "RESOLVED-S040: Three-layer evolution cycle now includes contract compliance (L1 validation, L2 knowledge distillation, L3 fitness bonus)",
-    "RESOLVED-S046: No physics-driven particles / grid-based vector field VFX -> Stable Fluids smoke system with obstacle-aware flow, fluid-guided particles, pipeline presets, and evolution bridge"
+    "RESOLVED-S046: No physics-driven particles / grid-based vector field VFX -> Stable Fluids smoke system with obstacle-aware flow, fluid-guided particles, pipeline presets, and evolution bridge",
+    "RESOLVED-S047: No lightweight rigid-soft secondary chain layer -> JakobsenSecondaryChain + SecondaryChainProjector + JakobsenEvolutionBridge"
   ],
   "session_029_changes": {
     "new_artifacts": [
@@ -1932,24 +1959,54 @@
     "session046_pipeline_presets": "AssetPipeline.produce_vfx() now supports smoke_fluid, dash_smoke, slash_smoke with optional obstacle_mask and driver_impulses.",
     "session046_test_count": "6 new tests, all PASS.",
     "session046_audit": "evolution_reports/session046_gapc2_audit.json confirms research → code → artifact → test closure.",
-    "session046_artifacts": "evolution_reports/session046_gapc2_audit_assets/ contains generated smoke_fluid, dash_smoke, and slash_smoke demo packs."
+    "session046_artifacts": "evolution_reports/session046_gapc2_audit_assets/ contains generated smoke_fluid, dash_smoke, and slash_smoke demo packs.",
+    "session047_gapb1_status": "CLOSED-LITE. Lightweight Jakobsen secondary chains implemented for cape/hair style rigid-soft follow-through.",
+    "session047_jakobsen_module": "mathart/animation/jakobsen_chain.py adds JakobsenSecondaryChain, SecondaryChainProjector, presets, diagnostics, and body collision proxies.",
+    "session047_jakobsen_bridge": "mathart/evolution/jakobsen_bridge.py implements evaluation, rule distillation, persistent state, and fitness feedback for secondary chains.",
+    "session047_pipeline": "AssetPipeline now persists secondary_chain_config and per-frame secondary_chain_debug metadata for character packs.",
+    "session047_test_count": "5 new tests, all PASS.",
+    "session047_audit": "evolution_reports/session047_gapb1_audit.json confirms research -> code -> artifact -> test closure."
   },
   "recent_focus_snapshot": {
     "top_open_loops": [
-      "XPBD rigid/soft body coupling (P0-GAP-2)",
+      "Full XPBD rigid/soft body coupling (P0-GAP-2)",
       "Real character silhouette coupling for fluid VFX (P1-VFX-1A)",
       "Real-time EbSynth/ComfyUI integration demo (P1-AI-2A)"
     ],
     "remaining_followups": [
-      "P0-GAP-2: XPBD rigid/soft body coupling",
+      "P0-GAP-2: full XPBD rigid/soft body coupling",
+      "P1-B1-1: render visible cape/hair ribbons or meshes from Jakobsen chains",
+      "P1-B1-2: upgrade chain contacts toward width-aware proxies or self-collision when needed",
       "P1-VFX-1A: bind true character masks into fluid VFX obstacle grids",
       "P1-VFX-1B: drive fluid impulses from UMR root velocity and weapon trajectories",
-      "P1-AI-2A: real-time EbSynth/ComfyUI integration demo with exported MV data",
-      "P1-AI-2B: ControlNet conditioning pipeline using motion vector maps",
-      "P1-INDUSTRIAL-44A: package albedo/normal/depth/mask for engine import"
+      "P1-AI-2A: real-time EbSynth/ComfyUI integration demo with exported MV data"
     ]
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-047",
+      "date": "2026-04-17",
+      "version": "0.38.0",
+      "title": "Gap B1-lite closure: Jakobsen lightweight rigid-soft secondary animation",
+      "highlights": [
+        "Implemented mathart/animation/jakobsen_chain.py with Verlet integration, distance constraints, body collision proxies, and UMR projector wiring.",
+        "Integrated secondary_chain_projection into AssetPipeline and character metadata for cape/hair presets.",
+        "Added mathart/evolution/jakobsen_bridge.py and registered Gap B1 distillation records in evolution_loop.py.",
+        "Generated targeted audit with pass_gate=true, mean_constraint_error=0.0319, mean_tip_lag=0.3710.",
+        "Added 5 focused tests covering solver, collisions, projector, pipeline persistence, and three-layer bridge state."
+      ],
+      "artifacts": [
+        "mathart/animation/jakobsen_chain.py",
+        "mathart/evolution/jakobsen_bridge.py",
+        "tests/test_jakobsen_chain.py",
+        "docs/research/GAP_B1_JAKOBSEN_SECONDARY_CHAINS.md",
+        "evolution_reports/session047_gapb1_audit.json"
+      ],
+      "tests": [
+        "python3.11 -m pytest -q tests/test_jakobsen_chain.py (5/5 PASS)",
+        "python3.11 -m py_compile mathart/animation/jakobsen_chain.py mathart/evolution/jakobsen_bridge.py mathart/evolution/engine.py mathart/evolution/evolution_loop.py mathart/evolution/__init__.py (PASS)"
+      ]
+    },
     {
       "session_id": "SESSION-046",
       "date": "2026-04-17",

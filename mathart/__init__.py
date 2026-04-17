@@ -8,4 +8,4 @@ A procedural pixel art generation toolkit using:
 All outputs are compatible with MarioTrickster Unity project constraints:
   PPU=32, Point filter, RGBA, Bottom Center pivot (characters).
 """
-__version__ = "0.37.0"
+__version__ = "0.38.0"

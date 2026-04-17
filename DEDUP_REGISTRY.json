@@ -1,7 +1,7 @@
 {
   "version": "1.1",
   "purpose": "Prevent duplicate research, duplicate code changes, and duplicate knowledge distillation across sessions. Every new session MUST read this file before starting work.",
-  "last_updated": "SESSION-046",
+  "last_updated": "SESSION-047",
 
   "absorbed_references": {
     "description": "External resources already studied and integrated. Do NOT re-research these.",
@@ -22,7 +22,8 @@
       {"id": "REF-P014", "title": "Procedural Creature Generation and Animation for Games", "used_in": "mathart/pipeline.py", "session": "SESSION-022"},
       {"id": "REF-P015", "title": "Programmatic multi-state 2D character animation references", "used_in": "mathart/pipeline.py", "session": "SESSION-022"},
       {"id": "REF-P016", "title": "Stable Fluids (Jos Stam 1999)", "used_in": "mathart/animation/fluid_vfx.py", "session": "SESSION-046"},
-      {"id": "REF-P017", "title": "Real-Time Fluid Dynamics for Games (Jos Stam)", "used_in": "mathart/animation/fluid_vfx.py", "session": "SESSION-046"}
+      {"id": "REF-P017", "title": "Real-Time Fluid Dynamics for Games (Jos Stam)", "used_in": "mathart/animation/fluid_vfx.py", "session": "SESSION-046"},
+      {"id": "REF-P018", "title": "Advanced Character Physics (Thomas Jakobsen 2001)", "used_in": "mathart/animation/jakobsen_chain.py", "session": "SESSION-047"}
     ],
     "tutorials": [
       {"id": "REF-T001", "title": "Pedro Medeiros pixel art tutorials", "used_in": "knowledge/pixel_art.md", "session": "SESSION-006"},
@@ -32,7 +33,8 @@
     "github_repos": [
       {"id": "REF-G001", "title": "sdf-2d (various)", "used_in": "mathart/sdf/", "session": "SESSION-002"},
       {"id": "REF-G002", "title": "neat-python concepts", "used_in": "mathart/evolution/cppn.py", "session": "SESSION-001"},
-      {"id": "REF-G003", "title": "ohjay/stable_fluids", "used_in": "mathart/animation/fluid_vfx.py", "session": "SESSION-046"}
+      {"id": "REF-G003", "title": "ohjay/stable_fluids", "used_in": "mathart/animation/fluid_vfx.py", "session": "SESSION-046"},
+      {"id": "REF-G004", "title": "davemc0/ClothDemo", "used_in": "mathart/animation/jakobsen_chain.py", "session": "SESSION-047"}
     ],
     "research_session_018": [
       {"id": "REF-R001", "topic": "Procedural pixel art generation algorithms", "findings": "CPPN+NEAT, WFC, L-systems, reaction-diffusion", "status": "integrated"},
@@ -60,6 +62,10 @@
       {"id": "REF-R046-001", "topic": "Stable Fluids for physics-driven VFX", "findings": "A 2D colocated grid with semi-Lagrangian advection, implicit diffusion, pressure projection, ghost cells, and obstacle masks is sufficient to deliver convincing dash/slash smoke in the current NumPy pipeline.", "status": "integrated", "note_file": "docs/research/GAP_C2_STABLE_FLUIDS_VFX.md"},
       {"id": "REF-R046-002", "topic": "Fluid-guided particles over grid density", "findings": "Do not replace particles entirely; keep a stylized particle overlay that samples the fluid velocity field so readability and pixel-art texture survive while motion becomes physically coherent.", "status": "integrated", "note_file": "docs/research/GAP_C2_STABLE_FLUIDS_VFX.md"},
       {"id": "REF-R046-003", "topic": "Three-layer evolution hook for VFX", "findings": "Flow energy, obstacle leakage, and alpha coverage can be persisted as repository-native evolution metrics, letting Gap C2 continue improving across sessions instead of remaining a one-off effect implementation.", "status": "integrated", "note_file": "evolution_reports/session046_gapc2_audit.json"}
+    ],
+    "research_session_047": [
+      {"id": "REF-R047-001", "topic": "Jakobsen lightweight secondary chains for 2D cape/hair follow-through", "findings": "For the current repository scale, velocity-less Verlet integration plus repeated distance constraints is a better first closure than immediately jumping to full XPBD; bone-driven anchors and simple collision proxies already deliver convincing drag and lag.", "status": "integrated", "note_file": "docs/research/GAP_B1_JAKOBSEN_SECONDARY_CHAINS.md"},
+      {"id": "REF-R047-002", "topic": "Secondary-chain diagnostics as evolution metrics", "findings": "Constraint error, tip lag, stretch ratio, and collision counts can be written into UMR metadata and persisted as a repository-native three-layer evolution signal for future tuning.", "status": "integrated", "note_file": "evolution_reports/session047_gapb1_audit.json"}
     ],
     "research_session_027": [
       {"id": "REF-R027-001", "topic": "Hierarchical Component Model for Characters", "findings": "Characters should be represented as a tree of components (Archetype -> Slots -> Parts) rather than a flat parameter vector, enabling true semantic variation.", "status": "planned_for_integration", "note_file": "research_notes_session027.md"},

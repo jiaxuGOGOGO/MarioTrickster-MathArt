@@ -87,6 +87,7 @@ from .animation.unified_motion import (
 )
 # SESSION-028: Physics-guided animation (PhysDiff-inspired)
 from .animation.physics_projector import AnglePoseProjector, CognitiveMotionConfig
+from .animation.jakobsen_chain import SecondaryChainProjector, create_default_secondary_chain_configs
 # SESSION-027: Semantic genotype system
 from .animation.genotype import (
     CharacterGenotype, GENOTYPE_PRESETS, BODY_TEMPLATES,
@@ -215,6 +216,9 @@ class CharacterSpec:
     physics_stiffness: float = 1.0
     physics_damping: float = 1.0
     physics_cognitive_strength: float = 1.0
+    # SESSION-047: Lightweight rigid-soft coupling (Jakobsen 2001)
+    enable_secondary_chains: bool = True
+    secondary_chain_presets: list[str] = field(default_factory=lambda: ["cape", "hair"])
     # SESSION-027: Semantic genotype evolution
     use_genotype: bool = False
     genotype: Optional[CharacterGenotype] = None
@@ -1615,6 +1619,7 @@ class AssetPipeline:
         self,
         physics_projector: Optional[AnglePoseProjector],
         biomechanics_projector: Optional[BiomechanicsProjector],
+        secondary_chain_projector: Optional[SecondaryChainProjector] = None,
     ) -> list[MotionPipelineNode]:
         nodes: list[MotionPipelineNode] = []
         if physics_projector is not None:
@@ -1623,6 +1628,14 @@ class AssetPipeline:
                     name="physics_compliance",
                     stage="root_motion_to_compliance",
                     processor=lambda frame, dt: physics_projector.step_frame(frame, dt=dt, enforce_layer_guard=True),
+                )
+            )
+        if secondary_chain_projector is not None:
+            nodes.append(
+                MotionPipelineNode(
+                    name="secondary_chain_projection",
+                    stage="secondary_follow_through",
+                    processor=lambda frame, dt: secondary_chain_projector.step_frame(frame, dt=dt),
                 )
             )
         if biomechanics_projector is not None:
@@ -1754,6 +1767,7 @@ class AssetPipeline:
                     "outline": char_spec.enable_outline,
                     "lighting": char_spec.enable_lighting,
                     "physics": char_spec.enable_physics,
+                    "secondary_chains": char_spec.enable_secondary_chains,
                     "biomechanics": char_spec.enable_biomechanics,
                 },
                 "physics_config": {
@@ -1762,6 +1776,11 @@ class AssetPipeline:
                     "damping_scale": char_spec.physics_damping,
                     "cognitive_strength": char_spec.physics_cognitive_strength,
                     "engine": "AnglePoseProjector (PhysDiff-inspired)",
+                },
+                "secondary_chain_config": {
+                    "enabled": char_spec.enable_secondary_chains,
+                    "presets": list(char_spec.secondary_chain_presets),
+                    "engine": "SecondaryChainProjector (Jakobsen 2001 Verlet + distance constraints)",
                 },
                 "biomechanics_config": {
                     "enabled": char_spec.enable_biomechanics,
@@ -1855,6 +1874,21 @@ class AssetPipeline:
                 compliance_alpha=_eff_compliance,
             )
 
+        # SESSION-047: Initialize lightweight Jakobsen secondary chains if enabled
+        _secondary_chain_projector = None
+        if char_spec.enable_secondary_chains:
+            _secondary_chain_configs = [
+                cfg
+                for cfg in create_default_secondary_chain_configs(head_units=char_spec.head_units)
+                if cfg.name in set(char_spec.secondary_chain_presets)
+            ]
+            if _secondary_chain_configs:
+                _secondary_chain_projector = SecondaryChainProjector(
+                    configs=_secondary_chain_configs,
+                    skeleton_ref=Skeleton.create_humanoid(head_units=char_spec.head_units),
+                    head_units=char_spec.head_units,
+                )
+
         # SESSION-029: Initialize biomechanics projector if enabled
         _biomechanics_projector = None
         if char_spec.enable_biomechanics:
@@ -1883,6 +1917,7 @@ class AssetPipeline:
                 "phase_driven_base_generation",  # SESSION-040: no legacy path
                 "root_motion",
                 "physics_compliance",
+                "secondary_chain_projection",
                 "localized_grounding",
                 "render_export",
             ],
@@ -1903,6 +1938,8 @@ class AssetPipeline:
 
             if _physics_projector is not None:
                 _physics_projector.reset()
+            if _secondary_chain_projector is not None:
+                _secondary_chain_projector.reset()
             if _biomechanics_projector is not None:
                 _biomechanics_projector.reset()
 
@@ -1911,7 +1948,11 @@ class AssetPipeline:
                 frame_count=frame_count,
                 fps=char_spec.fps,
             )
-            pipeline_nodes = self._build_motion_nodes(_physics_projector, _biomechanics_projector)
+            pipeline_nodes = self._build_motion_nodes(
+                _physics_projector,
+                _biomechanics_projector,
+                _secondary_chain_projector,
+            )
             motion_result = run_motion_pipeline(base_clip, pipeline_nodes, dt=dt)
             motion_clip = motion_result.clip
             motion_audit = self._audit_umr_pipeline(motion_clip, motion_result.audit_log)
