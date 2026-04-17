@@ -21,6 +21,14 @@ from dataclasses import dataclass, field
 from typing import Callable
 import numpy as np
 
+from .analytic_sdf import (
+    DistanceGradient2D,
+    SDFGradientFunc2D,
+    capsule_distance_gradient,
+    circle_distance_gradient,
+    rounded_box_distance_gradient,
+)
+
 SDFFunc = Callable[[np.ndarray, np.ndarray], np.ndarray]
 
 
@@ -66,11 +74,12 @@ class CharacterStyle:
 
 def head_sdf(style: CharacterStyle) -> SDFFunc:
     """Head: circle + optional hat + eyes + optional mustache."""
-    r = style.head_radius
+    return lambda x, y: circle_distance_gradient(style.head_radius)(x, y).distance
 
-    def sdf(x: np.ndarray, y: np.ndarray) -> np.ndarray:
-        return np.sqrt(x**2 + y**2) - r
-    return sdf
+
+def head_sdf_gradient(style: CharacterStyle) -> SDFGradientFunc2D:
+    """Exact local-space distance and gradient for the head circle."""
+    return circle_distance_gradient(style.head_radius)
 
 
 def hat_sdf(style: CharacterStyle) -> SDFFunc | None:
@@ -200,17 +209,12 @@ def mustache_sdf(style: CharacterStyle) -> SDFFunc | None:
 
 def torso_sdf(style: CharacterStyle) -> SDFFunc:
     """Torso: rounded rectangle."""
-    hw = style.torso_width
-    hh = style.torso_height
-    rounding = 0.04  # Corner rounding
+    return lambda x, y: torso_sdf_gradient(style)(x, y).distance
 
-    def sdf(x: np.ndarray, y: np.ndarray) -> np.ndarray:
-        dx = np.abs(x) - (hw - rounding)
-        dy = np.abs(y) - (hh - rounding)
-        outside = np.sqrt(np.maximum(dx, 0)**2 + np.maximum(dy, 0)**2) - rounding
-        inside = np.minimum(np.maximum(dx, dy), 0) - rounding
-        return np.where((dx > 0) | (dy > 0), outside, inside)
-    return sdf
+
+def torso_sdf_gradient(style: CharacterStyle) -> SDFGradientFunc2D:
+    """Exact local-space distance and gradient for the torso rounded box."""
+    return rounded_box_distance_gradient(style.torso_width, style.torso_height, 0.04)
 
 
 def limb_sdf(thickness: float, length: float = 1.0) -> SDFFunc:
@@ -218,39 +222,32 @@ def limb_sdf(thickness: float, length: float = 1.0) -> SDFFunc:
 
     In local space, the limb goes from (0, 0) to (0, -length).
     """
-    r = thickness
+    return lambda x, y: limb_sdf_gradient(thickness, length)(x, y).distance
 
-    def sdf(x: np.ndarray, y: np.ndarray) -> np.ndarray:
-        # Capsule from (0,0) to (0,-length)
-        t = np.clip(-y / (length + 1e-10), 0, 1)
-        dx = x
-        dy = y + t * length
-        return np.sqrt(dx**2 + dy**2) - r
-    return sdf
+
+def limb_sdf_gradient(thickness: float, length: float = 1.0) -> SDFGradientFunc2D:
+    """Exact local-space distance and gradient for a limb capsule."""
+    return capsule_distance_gradient(thickness, length)
 
 
 def hand_sdf(style: CharacterStyle) -> SDFFunc:
     """Hand: small circle."""
-    r = style.hand_radius
+    return lambda x, y: hand_sdf_gradient(style)(x, y).distance
 
-    def sdf(x: np.ndarray, y: np.ndarray) -> np.ndarray:
-        return np.sqrt(x**2 + y**2) - r
-    return sdf
+
+def hand_sdf_gradient(style: CharacterStyle) -> SDFGradientFunc2D:
+    """Exact local-space distance and gradient for the hand circle."""
+    return circle_distance_gradient(style.hand_radius)
 
 
 def foot_sdf(style: CharacterStyle) -> SDFFunc:
     """Foot: small rounded rectangle, slightly wider than tall."""
-    hw = style.foot_width
-    hh = style.foot_height
-    rounding = 0.02
+    return lambda x, y: foot_sdf_gradient(style)(x, y).distance
 
-    def sdf(x: np.ndarray, y: np.ndarray) -> np.ndarray:
-        dx = np.abs(x) - (hw - rounding)
-        dy = np.abs(y) - (hh - rounding)
-        outside = np.sqrt(np.maximum(dx, 0)**2 + np.maximum(dy, 0)**2) - rounding
-        inside = np.minimum(np.maximum(dx, dy), 0) - rounding
-        return np.where((dx > 0) | (dy > 0), outside, inside)
-    return sdf
+
+def foot_sdf_gradient(style: CharacterStyle) -> SDFGradientFunc2D:
+    """Exact local-space distance and gradient for the foot rounded box."""
+    return rounded_box_distance_gradient(style.foot_width, style.foot_height, 0.02)
 
 
 # ── Part Assembly ──
@@ -267,6 +264,7 @@ class BodyPart:
     rotation: float = 0.0   # Additional local rotation
     z_order: int = 0         # Drawing order (higher = on top)
     is_outline_only: bool = False  # For eyes, mustache
+    sdf_gradient: SDFGradientFunc2D | None = None  # Optional exact local-space gradient provider
 
 
 def assemble_character(style: CharacterStyle) -> list[BodyPart]:
@@ -280,56 +278,70 @@ def assemble_character(style: CharacterStyle) -> list[BodyPart]:
     # Back arm (drawn first, behind body)
     parts.append(BodyPart(
         "r_upper_arm", limb_sdf(style.arm_thickness, hu * 0.5),
-        style.shirt_color_idx, "r_shoulder", z_order=-2))
+        style.shirt_color_idx, "r_shoulder", z_order=-2,
+        sdf_gradient=limb_sdf_gradient(style.arm_thickness, hu * 0.5)))
     parts.append(BodyPart(
         "r_forearm", limb_sdf(style.arm_thickness * 0.85, hu * 0.45),
-        style.skin_color_idx, "r_elbow", z_order=-2))
+        style.skin_color_idx, "r_elbow", z_order=-2,
+        sdf_gradient=limb_sdf_gradient(style.arm_thickness * 0.85, hu * 0.45)))
     parts.append(BodyPart(
         "r_hand", hand_sdf(style),
-        style.skin_color_idx, "r_hand", z_order=-2))
+        style.skin_color_idx, "r_hand", z_order=-2,
+        sdf_gradient=hand_sdf_gradient(style)))
 
     # Back leg
     parts.append(BodyPart(
         "r_thigh", limb_sdf(style.leg_thickness, hu * 0.5),
-        style.pants_color_idx, "r_hip", z_order=-1))
+        style.pants_color_idx, "r_hip", z_order=-1,
+        sdf_gradient=limb_sdf_gradient(style.leg_thickness, hu * 0.5)))
     parts.append(BodyPart(
         "r_shin", limb_sdf(style.leg_thickness * 0.85, hu * 0.45),
-        style.pants_color_idx, "r_knee", z_order=-1))
+        style.pants_color_idx, "r_knee", z_order=-1,
+        sdf_gradient=limb_sdf_gradient(style.leg_thickness * 0.85, hu * 0.45)))
     parts.append(BodyPart(
         "r_foot", foot_sdf(style),
-        style.shoe_color_idx, "r_foot", offset_y=-0.01, z_order=-1))
+        style.shoe_color_idx, "r_foot", offset_y=-0.01, z_order=-1,
+        sdf_gradient=foot_sdf_gradient(style)))
 
     # Torso (middle layer)
     parts.append(BodyPart(
         "torso", torso_sdf(style),
-        style.shirt_color_idx, "spine", z_order=0))
+        style.shirt_color_idx, "spine", z_order=0,
+        sdf_gradient=torso_sdf_gradient(style)))
 
     # Front leg
     parts.append(BodyPart(
         "l_thigh", limb_sdf(style.leg_thickness, hu * 0.5),
-        style.pants_color_idx, "l_hip", z_order=1))
+        style.pants_color_idx, "l_hip", z_order=1,
+        sdf_gradient=limb_sdf_gradient(style.leg_thickness, hu * 0.5)))
     parts.append(BodyPart(
         "l_shin", limb_sdf(style.leg_thickness * 0.85, hu * 0.45),
-        style.pants_color_idx, "l_knee", z_order=1))
+        style.pants_color_idx, "l_knee", z_order=1,
+        sdf_gradient=limb_sdf_gradient(style.leg_thickness * 0.85, hu * 0.45)))
     parts.append(BodyPart(
         "l_foot", foot_sdf(style),
-        style.shoe_color_idx, "l_foot", offset_y=-0.01, z_order=1))
+        style.shoe_color_idx, "l_foot", offset_y=-0.01, z_order=1,
+        sdf_gradient=foot_sdf_gradient(style)))
 
     # Front arm
     parts.append(BodyPart(
         "l_upper_arm", limb_sdf(style.arm_thickness, hu * 0.5),
-        style.shirt_color_idx, "l_shoulder", z_order=2))
+        style.shirt_color_idx, "l_shoulder", z_order=2,
+        sdf_gradient=limb_sdf_gradient(style.arm_thickness, hu * 0.5)))
     parts.append(BodyPart(
         "l_forearm", limb_sdf(style.arm_thickness * 0.85, hu * 0.45),
-        style.skin_color_idx, "l_elbow", z_order=2))
+        style.skin_color_idx, "l_elbow", z_order=2,
+        sdf_gradient=limb_sdf_gradient(style.arm_thickness * 0.85, hu * 0.45)))
     parts.append(BodyPart(
         "l_hand", hand_sdf(style),
-        style.skin_color_idx, "l_hand", z_order=2))
+        style.skin_color_idx, "l_hand", z_order=2,
+        sdf_gradient=hand_sdf_gradient(style)))
 
     # Head (on top)
     parts.append(BodyPart(
         "head", head_sdf(style),
-        style.skin_color_idx, "head", z_order=3))
+        style.skin_color_idx, "head", z_order=3,
+        sdf_gradient=head_sdf_gradient(style)))
 
     # Hat (on top of head)
     hat = hat_sdf(style)

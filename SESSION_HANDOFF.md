@@ -1,191 +1,176 @@
 # SESSION_HANDOFF
 
 > **READ THIS FIRST** if you are starting a new conversation about this project.  
-> This document has been refreshed for **SESSION-053**.
+> This document has been refreshed for **SESSION-054**.
 
 ## Project Overview
 
 | Field | Value |
 |---|---|
-| Current version | **0.44.0** |
+| Current version | **0.45.0** |
 | Last updated | **2026-04-17** |
-| Last session | **SESSION-053** |
+| Last session | **SESSION-054** |
 | Best quality score achieved | **0.867** |
 | Total iterations run | **500+** |
-| Total Python code lines | **~77,661** |
-| Latest validation status | **65/65 related locomotion/runtime tests PASS; Locomotion CNS Layer 3 accepted** |
+| Total Python code lines | **~78k+** |
+| Latest validation status | **17/17 industrial rendering/export/evolution tests PASS; industrial skin Layer 3 accepted; locomotion/XPBD foundations preserved** |
 
-## What SESSION-053 Delivered
+## What SESSION-054 Delivered
 
-SESSION-053 executes the **second-priority battle: motion nerves and brain-pipeline interconnect (The Central Nervous System)**. The session fuses three lines of work that previously lived too separately in the repository: **phase-preserving gait alignment**, **inertialized target switching**, and **compiled runtime locomotion scoring**. The result is a new repository-native locomotion CNS layer that materially advances **`P1-B3-1`**, **`P1-GAP4-BATCH`**, and **`P1-DISTILL-1A`**.[1][2][3][4]
+SESSION-054 executes the **third-priority battle: industrial-grade visual and material delivery (The Industrial Skin)**. The session upgrades the repository from a good analytical-SDF auxiliary-map prototype into a much more production-facing **industrial material bundle pipeline**. The key change is not cosmetic shading polish; it is the move from noisy sampled gradients toward **exact analytical gradients for canonical character primitives**, combined with **engine-ready albedo/normal/depth/thickness/roughness/mask export** and a new **three-layer industrial skin bridge**.[1][2][3][4]
 
 ### Core Insight
 
-> 物理受力已经开始变真，接下来必须让“大脑”真的接管四肢。SESSION-053 的关键不是再做一次 walk/run 普通混合，而是先做 **相位对齐**，再做 **立即切到目标步态**，最后只对“源动作残差”做 **惯性化衰减**。这样接触标签永远由目标动作主导，而运行时评分则由编译后的总线在热路径中完成。
+> 既然骨肉和神经已经进入主管线，视觉层就不能继续依赖容易产生高频噪点的数值法线。SESSION-054 的核心不是“再多出几张贴图”，而是让 **基础原语自己给出解析梯度**，让厚度与粗糙度从距离场微分中直接推导出来，再把整套结果以 **引擎就绪材质包** 的形式稳定导出。
 
 ## New Subsystems and Upgrades
 
-1. **Locomotion CNS Module (`mathart/animation/locomotion_cns.py`)**
-   - New pure-gait UMR sampler `sample_gait_umr_frame()`
-   - New `build_phase_aligned_transition_clip()` path
-   - Uses `phase_warp()` to align support phases before switching
-   - Uses `InertializationChannel` to decay only source residuals after the hard switch
-   - Computes FK-based foot sliding metrics from actual skeleton world positions
-   - Exposes single-case and batch evaluation entry points
+1. **Analytical Primitive Gradient Layer (`mathart/animation/analytic_sdf.py`)**
+   - Added distance-plus-gradient evaluators for **circle**, **vertical capsule**, and **rounded box**
+   - Provides repository-native exact gradient contracts instead of forcing downstream normal recovery through finite differences
 
-2. **Runtime DistillBus Promotion (`mathart/distill/runtime_bus.py`)**
-   - Added `build_gait_transition_program()`
-   - Added dense batch helpers `make_matrix()` and `evaluate_feature_rows()`
-   - Compiled locomotion features now include `phase_jump`, `sliding_error`, `contact_mismatch`, `foot_lock`, and `transition_cost`
-   - This is the first concrete promotion of `runtime_bus` beyond foot-contact gating into locomotion CNS scoring
+2. **Body-Part Analytical Contracts (`mathart/animation/parts.py`)**
+   - `BodyPart` now supports optional `sdf_gradient`
+   - Head, torso, limbs, hands, and feet now expose exact analytical gradients for industrial rendering
+   - Keeps legacy distance-only path intact for unsupported or decorative shapes
 
-3. **Main Pipeline Integration (`mathart/pipeline.py`)**
-   - Walk/run UMR generation can now route through the CNS locomotion sampler instead of the older direct state generators
-   - Motion contract pipeline order now explicitly records `phase_aligned_gait_sampling` and `inertial_transition_ready`
-   - `CharacterSpec` now includes `enable_cns_locomotion` and `locomotion_transition_frames`
+3. **Industrial Auxiliary Map Baker Upgrade (`mathart/animation/sdf_aux_maps.py`)**
+   - Reworked from normal/depth helper into industrial material baker
+   - Now outputs **normal**, **depth**, **thickness**, **roughness**, and **mask**
+   - Supports analytic-first gradient resolution with finite-difference fallback
+   - Adds curvature proxy and inverse-curvature roughness mapping
 
-4. **Three-Layer Evolution Loop (`mathart/evolution/locomotion_cns_bridge.py`)**
-   - Layer 1: evaluate a repository-standard batch of hard gait transitions
-   - Layer 2: distill durable locomotion CNS rules into `knowledge/locomotion_cns.md`
-   - Layer 3: persist long-term state into `.locomotion_cns_state.json`
-   - Standard batch currently covers walk→run, run→walk, walk→sneak, sneak→run, and run acceleration
+4. **Industrial Renderer Upgrade (`mathart/animation/industrial_renderer.py`)**
+   - Builds an analytic-union gradient field across character parts
+   - Exports `thickness_map_image` and `roughness_map_image` in addition to existing albedo/normal/depth/mask outputs
+   - Writes richer metadata including `gradient_source`, `analytic_inside_coverage_pixels`, engine channel semantics, and downstream engine targets
 
-5. **Regression Coverage (`tests/test_locomotion_cns.py`)**
-   - Added 6 targeted tests for runtime gates, phase-aligned transition clips, sliding metrics, batch evaluation, pipeline sampler, and bridge persistence
-   - Related regression suite now passes with existing gait-blend and runtime-bus tests
+5. **Engine-Ready Export Path (`mathart/export/bridge.py`)**
+   - Added `export_industrial_bundle()`
+   - Saves albedo plus all auxiliary material maps beside it
+   - Injects a `material_bundle` block into JSON metadata with workflow, channel paths, channel semantics, bundle metadata, and engine targets
 
-6. **Audit Report (`docs/SESSION-053-AUDIT.md`)**
-   - Research-to-code traceability
-   - Validation results
-   - Remaining-gaps judgment for follow-up sessions
+6. **Three-Layer Evolution Loop (`mathart/evolution/industrial_skin_bridge.py`)**
+   - Layer 1: render a benchmark pose set and score analytic coverage plus material-map dynamic range
+   - Layer 2: distill durable industrial skin rules into `knowledge/industrial_skin.md`
+   - Layer 3: persist long-term state into `.industrial_skin_state.json`
+   - Closed-loop run executed successfully in-repo with `accepted = True`
+
+7. **Regression Coverage and Audit**
+   - Added/expanded tests in `tests/test_sdf_aux_maps.py`, `tests/test_export.py`, and `tests/test_industrial_skin_bridge.py`
+   - Added `docs/SESSION-054-AUDIT.md`
+   - Added `research/session054_industrial_skin_research_notes.md`
 
 ## Research References Now Landed in Code
 
 | Reference | Core idea | Landed in |
 |---|---|---|
-| **David Bollo / GDC Inertialization** [1] | Switch to target immediately; decay only residual offset and residual velocity | `locomotion_cns.py` via `InertializationChannel.capture()` and `apply()` |
-| **Kovar & Gleicher / Registration Curves** [2] | Warp time first so corresponding contact/support events line up | `build_phase_aligned_transition_clip()` via `phase_warp()` |
-| **Holden / local phase reasoning lineage** [3] | Locomotion quality depends on phase-consistent transition landing rather than raw crossfade | `evaluate_transition_case()` and batch continuity/error metrics |
-| **Mike Acton / Data-Oriented Design** [4] | Dense feature arrays + compiled hot-path gates | `RuntimeRuleProgram.make_matrix()`, `evaluate_feature_rows()`, `build_gait_transition_program()` |
+| **Inigo Quilez — Analytical Normals / DistGrad 2D** [1][2] | Canonical primitives should provide distance and gradient together, not recover normals from blind central differences | `analytic_sdf.py`, `parts.py`, `industrial_renderer.py` |
+| **Dead Cells industrial sprite pipeline** [3] | A sprite frame should behave like a compact material bundle, not a color-only image | `sdf_aux_maps.py`, `industrial_renderer.py`, `export/bridge.py` |
+| **Distance-field curvature reasoning** [4] | Curvature can be approximated from field differentials and inverted into roughness-style material response | `sdf_aux_maps.py` |
 
-## Runtime Evidence from SESSION-053
+## Runtime Evidence from SESSION-054
 
 | Metric | Result |
 |---|---|
-| New locomotion CNS tests | **6/6 PASS** |
-| Combined related regressions | **65/65 PASS** |
-| Layer 3 bridge cycle | **accepted = True** |
-| Standard batch case count | **5** |
-| Accepted ratio | **0.80** |
-| Mean runtime score | **0.7778** |
-| Mean sliding error | **0.0288** |
-| Worst phase jump | **~0.0** |
-| Mean contact mismatch | **0.20** |
+| New / updated industrial tests | **17/17 PASS** |
+| Layer 3 industrial skin bridge | **accepted = True** |
+| Standard benchmark case count | **5** |
+| Mean inside analytic coverage | **1.00** |
+| Mean depth range | **1.00** |
+| Mean thickness range | **1.00** |
+| Mean roughness range | **1.00** |
+| Export success ratio | **1.00** |
 
 ## Knowledge Base Status
 
 | Metric | Status |
 |---|---|
-| Distilled knowledge rules | **79+** |
-| Knowledge files | **32** |
-| Math models registered | **28** |
-| Latest locomotion knowledge file | `knowledge/locomotion_cns.md` |
-| Latest locomotion state file | `.locomotion_cns_state.json` |
-| Next distill session ID | **DISTILL-005** |
+| Distilled knowledge rules | **80+** |
+| Knowledge files | **33+** |
+| Math models registered | **30+** |
+| Latest industrial knowledge file | `knowledge/industrial_skin.md` |
+| Latest industrial state file | `.industrial_skin_state.json` |
+| Latest audit report | `docs/SESSION-054-AUDIT.md` |
+| Next distill session ID | **DISTILL-006** |
 | Next mine session ID | **MINE-001** |
 
 ## Three-Layer Evolution System Status
 
 ### Layer 1: Internal Evaluation
 
-Locomotion now has a dedicated hard-transition batch evaluator. The current standard cases cover **walk→run**, **run→walk**, **walk→sneak**, **sneak→run**, and **run acceleration**. Each case is measured by **phase step continuity**, **FK-based foot sliding**, **contact mismatch**, **foot lock**, and **transition cost**.
+Industrial skin delivery now has a dedicated benchmark loop. The current standard cases cover **idle**, **walk_00**, **walk_05**, **run_00**, and **hit_00**. Each case is measured by **inside analytic gradient coverage**, **depth range**, **thickness range**, **roughness range**, and **export success ratio**.
 
 ### Layer 2: External Knowledge Distillation
 
-The new bridge writes durable locomotion CNS rules into `knowledge/locomotion_cns.md`. The repository now preserves the rule that **support-phase alignment must happen before transition landing**, and that **runtime locomotion quality should be checked through compiled dense-feature gates rather than slow ad-hoc branching**.
+The new bridge writes durable rules into `knowledge/industrial_skin.md`. The repository now preserves the rule that **canonical body primitives should provide exact gradients**, that **industrial sprite delivery must include a full material bundle**, and that **roughness/thickness channels must remain non-flat on accepted benchmark cases**.
 
 ### Layer 3: Self-Iteration
 
-`.locomotion_cns_state.json` persists accepted ratio, best sliding error, best runtime score, and recent history. Future sessions can widen the batch set or tighten thresholds without re-deriving the architecture.
+`.industrial_skin_state.json` persists evaluation cycles, pass/fail counts, best analytic coverage, best export success ratio, best depth range, and recent history. Future sessions can tighten thresholds, widen benchmark poses, or add engine-specific template validators without re-deriving the architecture.
 
 ## Pending Tasks (Priority Order)
 
 ### HIGH (P0/P1)
-- `P1-E2E-COVERAGE`: **PARTIAL after SESSION-051**. Core graph-driven runtime coverage exists; remaining work is to feed graph-generated sequences into `headless_e2e_ci.py` and expand runtime assets beyond `idle/walk/run/jump`.
-- `P1-XPBD-1`: Free-fall test precision optimization (damping causes deviation from analytical g·t²/2)
-- `P1-XPBD-2`: GPU-accelerated XPBD solver (reference: Müller Tutorial 16)
-- `P1-DISTILL-1A`: **PARTIAL after SESSION-053**. Runtime DistillBus now scores locomotion CNS transitions and batch gait audits; remaining work is to extend compiled scoring into `compute_physics_penalty()` and other hot loops.
-- `P1-DISTILL-1B`: Add Taichi backend and benchmark suite for Runtime DistillBus
-- `P1-GAP4-BATCH`: **PARTIAL after SESSION-053**. Batch evaluation and Layer 3 loop now cover locomotion CNS hard transitions; remaining work is to add jump/fall/hit disruptions and scheduled audit widening.
-- `P1-GAP4-CI`: Schedule active Layer 3 closed-loop audits, including the new locomotion CNS bridge
-- `P1-INDUSTRIAL-34A`: Wire industrial renderer as optional backend inside AssetPipeline
-- `P1-INDUSTRIAL-44A`: Add engine-ready export templates for albedo/normal/depth/mask/flow packs
+- `P1-INDUSTRIAL-34A`: **PARTIAL after SESSION-054**. Industrial material bundle export path is now ready, but the main `AssetPipeline` still needs an optional backend switch so users can request industrial output through the standard pack-generation path.
+- `P1-INDUSTRIAL-44A`: **PARTIAL-NEAR-CLOSE after SESSION-054**. Engine-ready albedo/normal/depth/thickness/roughness/mask packs now export with metadata; remaining work is engine-specific Unity URP 2D / Godot 4 template presets and higher-level pack orchestration.
+- `P1-INDUSTRIAL-44C`: **PARTIAL after SESSION-054**. Roughness-style channel and material metadata now export; remaining work is specular or engine-specific surface template presets.
+- `P1-E2E-COVERAGE`: Core graph-driven runtime coverage exists; remaining work is feeding graph-generated sequences into `headless_e2e_ci.py` and widening runtime assets beyond `idle/walk/run/jump`.
+- `P1-DISTILL-1A`: Runtime DistillBus now scores locomotion CNS transitions and batch gait audits; remaining work is to extend compiled scoring into `compute_physics_penalty()` and other hot loops.
+- `P1-GAP4-BATCH`: Batch evaluation and Layer 3 loops now cover locomotion CNS and industrial skin; remaining work is to add jump/fall/hit disruptions for locomotion and scheduled recurring audits across more subsystems.
+- `P1-GAP4-CI`: Schedule active Layer 3 closed-loop audits, now including the industrial skin bridge.
 - `P1-INDUSTRIAL-34C`: 3D-to-2D mesh rendering path (Dead Cells full workflow)
+- `P1-XPBD-1`: Free-fall test precision optimization (damping causes deviation from analytical g·t²/2)
+- `P1-XPBD-2`: GPU-accelerated XPBD solver
 - `P1-NEW-10`: Production benchmark asset suite
-- `P1-B1-1`: Render visible cape/hair ribbons or meshes directly from XPBD chain snapshots
-- `P1-VFX-1A`: Bind real character silhouette masks into fluid VFX obstacle grids
-- `P1-VFX-1B`: Drive fluid VFX directly from UMR root velocity and weapon trajectories
-- `P1-B2-1`: Add more terrain primitives (convex hull, Bézier curve, heightmap import)
-- `P1-B2-2`: Extend TTC prediction to multi-bounce scenarios and moving platforms
-- `P1-B3-1`: **PARTIAL after SESSION-053**. Main pipeline walk/run path now supports CNS locomotion sampling; remaining work is to export explicit transition-preview assets and broader state-machine-level switching paths.
-- `P1-B3-2`: Add GaitBlender reference motions to RL environment (`rl_locomotion.py`)
-- `P1-B3-5`: **PARTIAL after SESSION-053**. `transition_synthesizer.py` and `gait_blend.py` are now coupled through `locomotion_cns.py`; remaining work is full unification across export/orchestration layers.
 
 ### MEDIUM (P1/P2)
-- `P1-XPBD-3`: 3D extension (current solver is 2D)
-- `P1-XPBD-4`: Continuous Collision Detection (CCD) for fast-moving objects
-- `P2-XPBD-5`: Cloth mesh simulation (current is 1D chain only)
-- `P1-INDUSTRIAL-44B`: Add analytic-gradient native primitives
-- `P1-INDUSTRIAL-44C`: Export specular/roughness or engine-specific material metadata
-- `P1-AI-2A`: Real-time EbSynth/ComfyUI integration demo with exported MV data
-- `P1-AI-2B`: ControlNet conditioning pipeline using motion vector maps
-- `P2-PHYSICS-DEFAULT`: Enforce Physics/Biomechanics defaults in CharacterSpec
-- `P2-PHASE-CLEANUP`: Deprecate and remove legacy animation API surface
+- `P1-INDUSTRIAL-44B`: **CLOSED IN PRACTICE by SESSION-054 for canonical primitives**. Keep open only if future sessions add unsupported accessory/body-part primitives requiring new analytic contracts.
+- `P1-AI-2A`: Real-time EbSynth/ComfyUI integration demo with exported conditioning data
+- `P1-AI-2B`: ControlNet conditioning pipeline using auxiliary maps and motion vectors
+- `P1-B3-1`: Pipeline walk/run path already supports CNS locomotion sampling; remaining work is explicit transition-preview export and broader state-machine switching paths.
+- `P1-B3-5`: `transition_synthesizer.py` and `gait_blend.py` are fused practically through `locomotion_cns.py`; remaining work is full unification across export/orchestration layers.
+- `P1-XPBD-3`: 3D extension
+- `P1-XPBD-4`: Continuous Collision Detection (CCD)
+- `P2-XPBD-5`: Cloth mesh simulation
 - `P1-PHASE-33C`: Animation preview / visualization tool
-- `P1-DISTILL-3`: Distill Verlet & Gait Parameters
-- `P1-DISTILL-4`: Distill Cognitive Science Rules
-- `P1-B3-3`: Support asymmetric sync markers (limping, injured gaits)
-- `P1-B3-4`: Support quadruped/multi-legged sync marker extensions
 
 ### DONE / CORE IMPLEMENTED
-- `P0-GAP-2`: **Full two-way rigid-soft XPBD coupling — CLOSED in SESSION-052**
-- `P1-B1-2`: **Volumetric contact and self-collision awareness — CLOSED in SESSION-052**
-- `P0-DISTILL-1`: Global Distillation Bus (The Brain) — CLOSED in SESSION-050
-- `P0-GAP-1`: Incomplete Phase Backbone — CLOSED in SESSION-042
-- `P0-EVAL-BRIDGE`: Parameter Convergence Bridge / Layer 3 write-back loop — CLOSED in SESSION-043
-- `P0-GAP-C1`: Analytical SDF normal/depth auxiliary-map pipeline — CLOSED in SESSION-044
-- `P1-AI-2`: Neural Rendering Bridge — CLOSED in SESSION-045
-- `P1-VFX-1`: Physics-driven Particle System / Stable Fluids VFX — CLOSED in SESSION-046
-- `P1-GAP-B1`: Lightweight Jakobsen secondary chains for rigid-soft secondary animation — CLOSED-LITE in SESSION-047
-- `P1-PHASE-37A`: Scene-Aware Distance Matching Sensors — CLOSED in SESSION-048
-- `P1-PHASE-33A`: Marker-based gait transition blending — CLOSED in SESSION-049
+- `P0-GAP-C1`: Analytical SDF auxiliary-map pipeline — **CLOSED in SESSION-044**
+- `P1-INDUSTRIAL-44B`: **Substantially landed in SESSION-054 for circle/capsule/rounded-box character primitives**
+- `P0-DISTILL-1`: Global Distillation Bus — **CLOSED in SESSION-050**
+- `P0-GAP-2`: Full two-way rigid-soft XPBD coupling — **CLOSED in SESSION-052**
+- `P1-AI-2`: Neural Rendering Bridge — **CLOSED in SESSION-045**
+- `P1-PHASE-33A`: Marker-based gait transition blending — **CLOSED in SESSION-049**
+- `P1-B3-1` CNS main-path sampling — **materially advanced in SESSION-053**
 
 ## Audit and Verification Evidence
 
 | Evidence | Result |
 |---|---|
-| `python3.11 -m pytest -q tests/test_locomotion_cns.py` | **6/6 PASS** |
-| `python3.11 -m pytest -q tests/test_runtime_distill_bus.py tests/test_gait_blend.py tests/test_locomotion_cns.py` | **65/65 PASS** |
-| `python3.11 -m pytest -q tests/test_xpbd_physics.py` | **14/14 PASS** |
-| `LocomotionCNSBridge.run_cycle()` | **accepted=True** |
-| `docs/SESSION-053-AUDIT.md` | Complete research-to-code traceability for locomotion CNS rollout |
+| `python3.11 -m pytest -q tests/test_sdf_aux_maps.py tests/test_export.py tests/test_industrial_skin_bridge.py` | **17/17 PASS** |
+| `IndustrialSkinBridge.run_cycle()` | **accepted=True** |
+| `docs/SESSION-054-AUDIT.md` | Complete research-to-code traceability for industrial skin rollout |
+| `knowledge/industrial_skin.md` | Distilled rules persisted |
+| `.industrial_skin_state.json` | Layer 3 state persisted |
 
-## Recent Evolution History (Last 8 Sessions)
+## Recent Evolution History (Last 9 Sessions)
+
+### SESSION-054 — v0.45.0 (2026-04-17)
+- Added `mathart/animation/analytic_sdf.py`
+- Upgraded `parts.py` so major body primitives expose exact analytical gradients
+- Reworked `sdf_aux_maps.py` to emit normal/depth/thickness/roughness/mask
+- Upgraded `industrial_renderer.py` to assemble analytic-union gradients and richer industrial metadata
+- Added `export_industrial_bundle()` to `mathart/export/bridge.py`
+- Added `mathart/evolution/industrial_skin_bridge.py`
+- Added/expanded industrial regression tests and passed 17/17 targeted checks
+- Generated `knowledge/industrial_skin.md`, `.industrial_skin_state.json`, and `docs/SESSION-054-AUDIT.md`
 
 ### SESSION-053 — v0.44.0 (2026-04-17)
-- Added `mathart/animation/locomotion_cns.py`
-- Added phase-aligned inertialized locomotion transition clip generation
-- Promoted `runtime_bus.py` into locomotion transition scoring and batch evaluation
-- Wired CNS locomotion sampling into `pipeline.py` walk/run main path
-- Added `mathart/evolution/locomotion_cns_bridge.py`
-- Added `tests/test_locomotion_cns.py` and passed 65 related regressions
-- Generated `knowledge/locomotion_cns.md` and `.locomotion_cns_state.json`
+- Added locomotion CNS integration across gait blending, inertialization, runtime scoring, and Layer 3 persistence
 
 ### SESSION-052 — v0.43.0 (2026-04-17)
 - Physics Singularity: full XPBD solver with two-way rigid-soft coupling, spatial-hash self-collision, and three-layer evolution loop
-- Added `xpbd_solver.py`, `xpbd_collision.py`, `xpbd_bridge.py`, `xpbd_evolution.py`
-- Added `tests/test_xpbd_physics.py`: 14 tests PASS
-- Added `docs/SESSION-052-AUDIT.md`
 
 ### SESSION-051 — v0.42.0 (2026-04-17)
 - Added graph-based property fuzzing and state-machine coverage bridge for runtime path closure
@@ -193,19 +178,16 @@ The new bridge writes durable locomotion CNS rules into `knowledge/locomotion_cn
 ### SESSION-050 — v0.41.0 (2026-04-17)
 - Added RuntimeDistillationBus, compiled parameter spaces, JIT runtime rule programs, and runtime distillation bridge
 
-### SESSION-049 — v0.40.0 (2026-04-17)
-- Added marker-based gait transition blending (`gait_blend.py`) and dedicated gait evolution bridge
-
 ## Recommended Next Session Entry Points
 
-1. **Close `P1-DISTILL-1A` fully** by extending compiled runtime evaluation into `compute_physics_penalty()` and any remaining batch hot loops.
-2. **Close `P1-B3-1` fully** by exporting explicit gait-transition assets/previews from `pipeline.py`, not just pure walk/run state sampling.
-3. **Widen `P1-GAP4-BATCH`** from locomotion-only gaits to hit/fall/jump disruptions and then schedule it under `P1-GAP4-CI`.
-4. If physics remains the dominant quality blocker, return to **GPU XPBD**, **CCD**, and **visible chain rendering**.
+1. **Close `P1-INDUSTRIAL-34A`** by wiring industrial rendering and industrial bundle export into the standard `AssetPipeline` / character-pack entry path.
+2. **Close `P1-INDUSTRIAL-44A` fully** by adding engine-specific import templates and pack manifests for Unity URP 2D and Godot 4.
+3. **Extend `P1-INDUSTRIAL-44C`** into richer surface templates, e.g. specular/emission presets or engine-native material parameter packs.
+4. If visual production parity becomes the top benchmark blocker, move next to **`P1-INDUSTRIAL-34C`** and the **production benchmark asset suite**.
 
 ## References
 
-[1]: https://www.gdcvault.com/play/1025331/Inertialization-High-Performance-Animation-Transitions
-[2]: https://graphics.cs.wisc.edu/Papers/2003/KG03/regCurves.pdf
-[3]: https://www.pure.ed.ac.uk/ws/files/157671564/Local_Motion_Phases_STARKE_DOA27042020_AFV.pdf
-[4]: https://dataorienteddesign.com/site.php
+[1]: https://iquilezles.org/articles/normalsSDF/
+[2]: https://iquilezles.org/articles/distgradfunctions2d/
+[3]: https://www.gamedeveloper.com/production/art-design-deep-dive-using-a-3d-pipeline-for-2d-animation-in-i-dead-cells-i-
+[4]: https://rodolphe-vaillant.fr/entry/118/curvature-of-a-distance-field-implicit-surface

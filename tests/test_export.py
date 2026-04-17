@@ -4,6 +4,9 @@ import json
 import pytest
 from PIL import Image
 
+from mathart.animation import Skeleton, render_character_maps_industrial
+from mathart.animation.character_presets import get_preset
+from mathart.animation.presets import idle_animation
 from mathart.export.bridge import AssetExporter, ExportConfig, STANDARD_PPU
 from mathart.level.spec_bridge import AssetCategory as LevelAssetCategory
 from mathart.level.spec_bridge import LevelSpec, LevelSpecBridge, LevelTheme
@@ -76,6 +79,36 @@ class TestExporter:
         with open(manifest_path, encoding="utf-8") as f:
             data = json.load(f)
         assert len(data["assets"]) == 2
+
+    @pytest.mark.unit
+    def test_export_industrial_bundle(self, tmp_path):
+        config = ExportConfig(output_dir=str(tmp_path))
+        exporter = AssetExporter(config)
+        skeleton = Skeleton.create_humanoid()
+        style, palette = get_preset("mario")
+        bundle = render_character_maps_industrial(
+            skeleton,
+            idle_animation(0.0),
+            style,
+            width=32,
+            height=32,
+            palette=palette,
+        )
+
+        path = exporter.export_industrial_bundle(bundle, "mario_industrial", "Characters")
+
+        assert path.exists()
+        meta_path = path.with_suffix(".meta.json")
+        with open(meta_path, encoding="utf-8") as f:
+            meta = json.load(f)
+        assert meta["material_bundle"]["workflow"] == "industrial_2p5d"
+        assert "normal" in meta["material_bundle"]["channels"]
+        assert "depth" in meta["material_bundle"]["channels"]
+        assert "thickness" in meta["material_bundle"]["channels"]
+        assert "roughness" in meta["material_bundle"]["channels"]
+        assert "mask" in meta["material_bundle"]["channels"]
+        for rel_path in meta["material_bundle"]["channels"].values():
+            assert (tmp_path / rel_path).exists()
 
     @pytest.mark.unit
     def test_rejects_non_rgba(self, tmp_path):

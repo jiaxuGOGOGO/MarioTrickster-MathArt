@@ -21,6 +21,7 @@ import json
 
 from PIL import Image
 
+from ..animation.industrial_renderer import IndustrialRenderAuxiliaryResult
 from ..level.spec_bridge import (
     AssetCategory as LevelAssetCategory,
     AssetSpec,
@@ -262,6 +263,64 @@ class AssetExporter:
             tags=tags or [],
             validation=validation or {},
         )
+
+    def export_industrial_bundle(
+        self,
+        bundle: IndustrialRenderAuxiliaryResult,
+        name: str,
+        category: AssetCategory,
+        element_key: str | None = None,
+        variant: str = "a",
+        *,
+        level_id: str | None = None,
+        render_mode: str | None = "industrial_2p5d",
+        source_sprite_name: str | None = None,
+        tags: list[str] | None = None,
+        validation: dict[str, object] | None = None,
+    ) -> Path:
+        """Export an industrial sprite plus its engine-ready material bundle."""
+        albedo_path = self.export_sprite(
+            bundle.albedo_image,
+            name=name,
+            category=category,
+            element_key=element_key,
+            variant=variant,
+            level_id=level_id,
+            render_mode=render_mode,
+            source_sprite_name=source_sprite_name,
+            tags=tags or [],
+            validation=validation or {},
+        )
+        aux_images = {
+            "normal": bundle.normal_map_image,
+            "depth": bundle.depth_map_image,
+            "thickness": bundle.thickness_map_image,
+            "roughness": bundle.roughness_map_image,
+            "mask": bundle.mask_image,
+        }
+        aux_paths: dict[str, str] = {}
+        for channel, image in aux_images.items():
+            channel_path = albedo_path.with_name(f"{albedo_path.stem}_{channel}.png")
+            image.save(str(channel_path))
+            aux_paths[channel] = str(channel_path.relative_to(self.config.output_dir))
+
+        meta_path = albedo_path.with_suffix(".meta.json")
+        with open(meta_path, encoding="utf-8") as f:
+            meta = json.load(f)
+        material_bundle = {
+            "workflow": "industrial_2p5d",
+            "channels": aux_paths,
+            "engine_targets": bundle.metadata.get("engine_targets", ["Unity URP 2D", "Godot 4"]),
+            "channel_semantics": bundle.metadata.get("engine_channels", {}),
+            "bundle_metadata": bundle.metadata,
+        }
+        meta["material_bundle"] = material_bundle
+        with open(meta_path, "w", encoding="utf-8") as f:
+            json.dump(meta, f, indent=2, ensure_ascii=False)
+
+        if self.manifest:
+            self.manifest[-1]["material_bundle"] = material_bundle
+        return albedo_path
 
     def export_from_asset_spec(
         self,

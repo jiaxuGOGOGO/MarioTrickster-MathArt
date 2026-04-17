@@ -69,9 +69,14 @@ from .sdf_aux_maps import (
     SDFBakeConfig,
     compute_sdf_gradients,
     compute_depth_map,
+    compute_thickness_map,
+    compute_curvature_proxy,
+    compute_roughness_map,
     compute_normal_vectors,
     encode_normal_map,
     encode_depth_map,
+    encode_thickness_map,
+    encode_roughness_map,
     encode_mask,
 )
 from ..oklab.color_space import srgb_to_oklab, oklab_to_srgb
@@ -333,8 +338,10 @@ class IndustrialRenderAuxiliaryResult:
     albedo_image: Image.Image
     normal_map_image: Image.Image
     depth_map_image: Image.Image
+    thickness_map_image: Image.Image
+    roughness_map_image: Image.Image
     mask_image: Image.Image
-    metadata: dict[str, float | int | str]
+    metadata: dict[str, float | int | str | dict[str, object]]
 
 
 def _compute_pseudo_normal(
@@ -454,6 +461,64 @@ def _binary_dilate(mask: np.ndarray, iterations: int = 1) -> np.ndarray:
         ]
         result = np.logical_or.reduce(neighbors)
     return result
+
+
+def _transform_local_gradient_to_world(
+    gradient_x: np.ndarray,
+    gradient_y: np.ndarray,
+    *,
+    angle: float,
+    scale_x: float,
+    scale_y: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Map a local-space gradient back to world/sample space via the Jacobian transpose."""
+    c = float(np.cos(angle))
+    s = float(np.sin(angle))
+    inv_sx = 1.0 / max(scale_x, 0.1)
+    inv_sy = 1.0 / max(scale_y, 0.1)
+    world_gx = (c * gradient_x - s * gradient_y) * inv_sx
+    world_gy = (s * gradient_x + c * gradient_y) * inv_sy
+    length = np.sqrt(world_gx * world_gx + world_gy * world_gy)
+    length = np.maximum(length, 1e-8)
+    return world_gx / length, world_gy / length
+
+
+def _build_union_gradient_field(
+    part_layers: list[tuple[BodyPart, np.ndarray, np.ndarray, np.ndarray]],
+    union_dist: np.ndarray,
+    *,
+    scale_x: float,
+    scale_y: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Assemble a union gradient field from per-part analytical gradients.
+
+    For the min-union of SDFs, the active gradient is the gradient of the part
+    that currently provides the smallest distance. Where a part has no analytic
+    gradient, the caller can later fall back to finite differences.
+    """
+    best_dist = np.full_like(union_dist, np.inf, dtype=np.float64)
+    grad_x = np.zeros_like(union_dist, dtype=np.float64)
+    grad_y = np.zeros_like(union_dist, dtype=np.float64)
+    covered = np.zeros_like(union_dist, dtype=bool)
+
+    for part, dist, local_x, local_y in part_layers:
+        if part.is_outline_only or part.sdf_gradient is None:
+            continue
+        local = part.sdf_gradient(local_x, local_y)
+        world_gx, world_gy = _transform_local_gradient_to_world(
+            np.asarray(local.gradient_x, dtype=np.float64),
+            np.asarray(local.gradient_y, dtype=np.float64),
+            angle=part.rotation,
+            scale_x=scale_x,
+            scale_y=scale_y,
+        )
+        use = dist < best_dist
+        best_dist[use] = dist[use]
+        grad_x[use] = world_gx[use]
+        grad_y[use] = world_gy[use]
+        covered[use] = True
+
+    return grad_x, grad_y, covered
 
 
 def _transform_coords_with_squash(
@@ -712,11 +777,36 @@ def render_character_maps_industrial(
         scale_y=scale_y,
     )
     inside = union_dist < 0.0
-    grad_x, grad_y = compute_sdf_gradients(union_dist, xs, ys, edge_order=bake_config.edge_order)
+    fd_grad_x, fd_grad_y = compute_sdf_gradients(union_dist, xs, ys, edge_order=bake_config.edge_order)
+    analytic_grad_x, analytic_grad_y, analytic_coverage = _build_union_gradient_field(
+        part_layers,
+        union_dist,
+        scale_x=scale_x,
+        scale_y=scale_y,
+    )
+    if bake_config.gradient_mode == "central_difference":
+        grad_x, grad_y = fd_grad_x, fd_grad_y
+        gradient_source = "central_difference"
+    else:
+        grad_x = np.where(analytic_coverage, analytic_grad_x, fd_grad_x)
+        grad_y = np.where(analytic_coverage, analytic_grad_y, fd_grad_y)
+        coverage_ratio = float(np.count_nonzero(analytic_coverage)) / float(max(1, analytic_coverage.size))
+        gradient_source = "analytic_union" if coverage_ratio > 0.995 else "analytic_union_hybrid"
     depth_values, depth_scale = compute_depth_map(
         union_dist,
         percentile=bake_config.depth_percentile,
         min_depth_span=bake_config.min_depth_span,
+    )
+    thickness_values, thickness_scale = compute_thickness_map(
+        union_dist,
+        percentile=bake_config.thickness_percentile,
+        min_depth_span=bake_config.min_depth_span,
+    )
+    curvature_values = compute_curvature_proxy(grad_x, grad_y, xs, ys, inside)
+    roughness_values, roughness_scale = compute_roughness_map(
+        curvature_values,
+        inside,
+        percentile=bake_config.roughness_percentile,
     )
     normal_vectors = compute_normal_vectors(
         grad_x,
@@ -742,22 +832,38 @@ def render_character_maps_industrial(
         enable_cel_shading=True,
         enable_outline=True,
     )
-    metadata: dict[str, float | int | str] = {
+    metadata: dict[str, float | int | str | dict[str, object]] = {
         "width": width,
         "height": height,
         "part_count": len(part_layers),
         "inside_pixel_count": int(np.count_nonzero(inside)),
         "depth_scale": float(depth_scale),
+        "thickness_scale": float(thickness_scale),
+        "roughness_scale": float(roughness_scale),
         "outline_boost": float(outline_boost),
         "gradient_mode": bake_config.gradient_mode,
+        "gradient_source": gradient_source,
+        "analytic_coverage_pixels": int(np.count_nonzero(analytic_coverage)),
+        "analytic_inside_coverage_pixels": int(np.count_nonzero(analytic_coverage & inside)),
         "normal_z_base": float(bake_config.normal_z_base),
         "depth_to_z_scale": float(bake_config.depth_to_z_scale),
+        "engine_channels": {
+            "albedo": "Primary sprite color",
+            "normal": "RGB=XYZ, A=coverage",
+            "depth": "RGBA grayscale depth proxy",
+            "thickness": "RGBA grayscale subsurface thickness proxy",
+            "roughness": "RGBA grayscale inverse-curvature proxy",
+            "mask": "RGBA silhouette mask",
+        },
+        "engine_targets": ["Unity URP 2D", "Godot 4 CanvasItem/2D lighting"],
     }
 
     return IndustrialRenderAuxiliaryResult(
         albedo_image=albedo_image,
         normal_map_image=encode_normal_map(normal_vectors, inside),
         depth_map_image=encode_depth_map(depth_values, inside),
+        thickness_map_image=encode_thickness_map(thickness_values, inside),
+        roughness_map_image=encode_roughness_map(roughness_values, inside),
         mask_image=encode_mask(inside),
         metadata=metadata,
     )
