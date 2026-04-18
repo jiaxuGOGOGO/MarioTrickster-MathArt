@@ -82,6 +82,14 @@ class BackendCapability(Enum):
     # that a backend can consume an upstream MOTION_UMR manifest and produce
     # a 3D-enriched motion clip plus contact manifold.
     PHYSICS_SIMULATION = auto()
+    # SESSION-072 (P1-DISTILL-1A): Hot-path instrumentation capability.
+    # Backends declaring this flag are expected to read a TelemetrySink from
+    # the context reserved key ``__telemetry_sink__`` and call
+    # ``sink.record(...)`` from their inner loops.  Backends that do NOT
+    # declare this capability MUST NOT read the sink — the bridge enforces
+    # this invariant.  Design reference: eBPF / DTrace zero-overhead dynamic
+    # tracing — the probe is opt-in and zero-cost when absent.
+    HOT_PATH_INSTRUMENTED = auto()
 
 
 # ---------------------------------------------------------------------------

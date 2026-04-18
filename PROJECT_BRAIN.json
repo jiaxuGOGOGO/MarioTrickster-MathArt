@@ -1,15 +1,15 @@
 {
-  "version": "0.62.0",
-  "last_session_id": "SESSION-071",
-  "last_updated": "2026-04-19T12:00:00Z",
+  "version": "0.63.0",
+  "last_session_id": "SESSION-072",
+  "last_updated": "2026-04-19T18:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
     "baseline_session": "SESSION-071",
     "head_commit": "02327b7",
-    "active_total": 80,
-    "by_priority": {"P1": 43, "P2": 33, "P3": 4},
-    "by_status": {"TODO": 66, "PARTIAL": 7, "SUBSTANTIALLY-CLOSED": 5, "SUBSTANTIALLY-ADVANCED": 2},
+    "active_total": 79,
+    "by_priority": {"P1": 42, "P2": 33, "P3": 4},
+    "by_status": {"TODO": 66, "PARTIAL": 6, "SUBSTANTIALLY-CLOSED": 5, "SUBSTANTIALLY-ADVANCED": 2, "CLOSED": 1},
     "status_conflicts": 0,
     "top_priorities_ordered": ["P1-DISTILL-1A", "P1-MIGRATE-3", "P1-MIGRATE-2", "P1-DISTILL-1B", "P1-DISTILL-3", "P1-DISTILL-4", "P1-B3-1", "P1-GAP4-BATCH", "P1-XPBD-1", "P1-AI-2D", "P1-AI-2D-SPARSECTRL", "P1-INDUSTRIAL-34C"]
   },
@@ -60,7 +60,7 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-069 completes the motion trunk fusion pass: UnifiedGaitBlender now owns gait phase evolution, FFT-guided phase anchoring, sync-marker alignment, and inertialized/dead-blended transition decay in one numerical core; pipeline.py now emits motion clips through MotionStateLaneRegistry; targeted 68/68 regressions PASS.",
+  "current_focus": "SESSION-072 completes P1-DISTILL-1A: eBPF/DTrace-inspired zero-overhead TelemetrySink injection into the microkernel, Borgmon/Prometheus time-series sidecar output from Physics3DBackend, 3D XPBD compliance knobs exposed to the Optuna closed loop, and MLMD/W3C PROV-DM upstream_manifest_hash provenance tracing on DistillationRecord. 14/14 new red-line tests PASS, 70/70 targeted suite PASS, zero regression on 1309 baseline.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research/session069_motion_research_notes.md",
@@ -965,11 +965,12 @@
       "id": "P1-DISTILL-1A",
       "priority": "P1",
       "title": "Roll Runtime DistillBus into gait blending and batch physics penalties",
-      "status": "PARTIAL",
+      "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "SESSION-053 extends RuntimeDistillBus into locomotion CNS scoring with compiled gait-transition programs and dense batch evaluation. Remaining work: promote the same compiled path into compute_physics_penalty() and other hot loops.",
+      "description": "SESSION-072 completes all four P1-DISTILL-1A micro-tweaks: (a) BackendCapability.HOT_PATH_INSTRUMENTED + TelemetrySink Protocol in pipeline_bridge.py, (b) Physics3DBackend v1.1.0 emits per-frame solver_wall_time_ms[T] and contact_count[T] time-series in physics3d_telemetry sidecar (Borgmon/Prometheus model), (c) CompiledParameterSpace keys physics3d.compliance_distance / physics3d.compliance_bending wired through XPBDSolver3DConfig into the Optuna closed loop, (d) DistillationRecord.upstream_manifest_hash enables MLMD/W3C PROV-DM cryptographic provenance tracing. 14/14 new red-line tests PASS, 70/70 targeted suite PASS, zero regression on 1309 baseline.",
       "added_in": "SESSION-050",
-      "updated_in": "SESSION-053"
+      "updated_in": "SESSION-072",
+      "completed_in": "SESSION-072"
     },
     {
       "id": "P1-DISTILL-1B",

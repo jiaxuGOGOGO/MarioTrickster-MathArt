@@ -73,6 +73,11 @@ class DistillationRecord:
     integration_date: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     validation_status: str = "pending"
     test_coverage: str = ""
+    # SESSION-072 (P1-DISTILL-1A): MLMD / W3C PROV-DM provenance link.
+    # When a distillation rule is derived from a specific ArtifactManifest,
+    # this field records the ``schema_hash`` of that upstream manifest,
+    # enabling cryptographic-grade closed-loop traceability.
+    upstream_manifest_hash: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

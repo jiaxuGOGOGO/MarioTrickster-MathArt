@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time as _time
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, Optional
@@ -188,17 +189,19 @@ def _classify_input_dimensionality(clip: UnifiedMotionClip) -> tuple[bool, str]:
 @register_backend(
     BackendType.PHYSICS_3D,
     display_name="3D XPBD Physics Backend",
-    version="1.0.0",
+    version="1.1.0",
     artifact_families=(
         ArtifactFamily.PHYSICS_3D_MOTION_UMR.value,
     ),
     capabilities=(
         BackendCapability.PHYSICS_SIMULATION,
         BackendCapability.ANIMATION_EXPORT,
+        # SESSION-072 (P1-DISTILL-1A): opt-in hot-path instrumentation.
+        BackendCapability.HOT_PATH_INSTRUMENTED,
     ),
     input_requirements=("state",),
     dependencies=(BackendType.UNIFIED_MOTION,),
-    session_origin="SESSION-071",
+    session_origin="SESSION-072",
 )
 class Physics3DBackend:
     """Microkernel plugin that lifts a UMR clip into a 3D XPBD-simulated clip.
@@ -288,9 +291,26 @@ class Physics3DBackend:
 
     # ---------------------------------------------------------------- execute
 
+    # Reserved context key for the telemetry sink (eBPF/DTrace pattern).
+    _TELEMETRY_SINK_KEY: str = "__telemetry_sink__"
+
     def execute(self, context: dict[str, Any]) -> ArtifactManifest:
         clip, clip_path, upstream_meta = _read_upstream_clip(context)
         is_pure_2d, in_schema = _classify_input_dimensionality(clip)
+
+        # SESSION-072 (P1-DISTILL-1A): detect opt-in telemetry sink.
+        _sink = context.get(self._TELEMETRY_SINK_KEY)
+
+        # Pre-allocate per-frame time-series arrays for the telemetry
+        # sidecar (Prometheus / Borgmon time-series model).
+        _ts_solver_wall_ms: list[float] = []
+        _ts_contact_count: list[int] = []
+
+        # SESSION-072 (P1-DISTILL-1A): read compliance knobs from context.
+        _cd_raw = context.get("physics3d_compliance_distance")
+        _cb_raw = context.get("physics3d_compliance_bending")
+        _compliance_distance = float(_cd_raw) if _cd_raw is not None else None
+        _compliance_bending = float(_cb_raw) if _cb_raw is not None else None
 
         cfg = XPBDSolver3DConfig(
             sub_steps=int(context.get("physics3d_sub_steps", 4)),
@@ -298,6 +318,8 @@ class Physics3DBackend:
             gravity=tuple(context.get("physics3d_gravity", (0.0, -9.81, 0.0))),
             enable_self_collision=False,  # cape/hair self-coll handled by 2D bridge
             enable_two_way_coupling=True,
+            compliance_distance=_compliance_distance,
+            compliance_bending=_compliance_bending,
         )
         ground_y = float(context.get("physics3d_ground_y", 0.0))
         root_mass = float(context.get("physics3d_root_mass", 65.0))
@@ -336,7 +358,16 @@ class Physics3DBackend:
                 rest_distance=0.0,
                 normal=(0.0, 1.0, 0.0),
             )
+            _t0 = _time.perf_counter()
             diag = solver.step(dt_default)
+            _wall_ms = (_time.perf_counter() - _t0) * 1000.0
+
+            # Per-frame telemetry recording (zero-overhead when sink absent)
+            _ts_solver_wall_ms.append(_wall_ms)
+            _ts_contact_count.append(int(diag.contact_collision_count))
+            if _sink is not None:
+                _sink.record("solver_wall_time_ms", _wall_ms)
+                _sink.record("contact_count", int(diag.contact_collision_count))
 
             # ---- aggregate diagnostics ----------------------------------
             agg_diag.total_particles = max(agg_diag.total_particles, diag.total_particles)
@@ -451,7 +482,7 @@ class Physics3DBackend:
                 "physics_input_clip_path": str(clip_path),
                 "physics_downgraded_to_2d_input": bool(is_pure_2d),
                 "physics_contact_manifold_count": int(contact_total),
-                "session_origin": "SESSION-071",
+                "session_origin": "SESSION-072",
                 "backend_type": BackendType.PHYSICS_3D.value,
             },
         )
@@ -459,11 +490,31 @@ class Physics3DBackend:
         new_clip_path = output_dir / f"{stem}_{clip.state}.physics3d.umr.json"
         new_clip.save(new_clip_path)
 
+        # SESSION-072 (P1-DISTILL-1A): build the physics3d_telemetry sidecar.
+        assert len(_ts_solver_wall_ms) == len(new_frames), (
+            f"Telemetry array length mismatch: "
+            f"{len(_ts_solver_wall_ms)} vs {len(new_frames)} frames"
+        )
+        _telemetry_sidecar: dict[str, Any] = {
+            "solver_wall_time_ms": _ts_solver_wall_ms,
+            "contact_count": _ts_contact_count,
+            "frame_count": len(new_frames),
+            "fps": clip.fps,
+        }
+
+        # SESSION-072 (P1-DISTILL-1A): upstream provenance hash.
+        _upstream_hash: Optional[str] = None
+        _upstream_manifest = context.get("unified_motion_manifest")
+        if isinstance(_upstream_manifest, ArtifactManifest):
+            _upstream_hash = _upstream_manifest.schema_hash
+        elif isinstance(_upstream_manifest, dict):
+            _upstream_hash = _upstream_manifest.get("schema_hash")
+
         manifest = ArtifactManifest(
             artifact_family=ArtifactFamily.PHYSICS_3D_MOTION_UMR.value,
             backend_type=BackendType.PHYSICS_3D,
-            version="1.0.0",
-            session_id="SESSION-071",
+            version="1.1.0",
+            session_id="SESSION-072",
             outputs={
                 "motion_clip_json": str(new_clip_path),
                 "upstream_motion_clip_json": str(clip_path),
@@ -483,6 +534,8 @@ class Physics3DBackend:
                 "max_constraint_error": float(agg_diag.max_constraint_error),
                 "max_velocity_observed": float(agg_diag.max_velocity_observed),
                 "upstream_motion_metadata": upstream_meta,
+                "physics3d_telemetry": _telemetry_sidecar,
+                "upstream_manifest_hash": _upstream_hash,
                 "payload": {
                     "type": "physics_3d_motion_umr",
                     "state": clip.state,
@@ -498,7 +551,7 @@ class Physics3DBackend:
                 "max_penetration_depth": float(max_pen),
                 "max_constraint_error": float(agg_diag.max_constraint_error),
             },
-            tags=["physics", "xpbd", "3d", clip.state, "session-071"],
+            tags=["physics", "xpbd", "3d", clip.state, "session-072"],
         )
 
         manifest_path = output_dir / f"{stem}_{clip.state}.physics3d_manifest.json"

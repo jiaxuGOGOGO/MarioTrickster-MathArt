@@ -61,6 +61,18 @@ _RUNTIME_PARAM_SYNONYMS: dict[str, tuple[str, ...]] = {
         "blend_out_frames",
         "constraint_blend_out",
     ),
+    # SESSION-072 (P1-DISTILL-1A): 3D XPBD compliance knobs exposed to
+    # the global JIT and Layer 3 (Optuna) tuning closed loop.
+    "physics3d.compliance_distance": (
+        "compliance_distance",
+        "xpbd_compliance_distance",
+        "distance_compliance",
+    ),
+    "physics3d.compliance_bending": (
+        "compliance_bending",
+        "xpbd_compliance_bending",
+        "bending_compliance",
+    ),
 }
 
 

@@ -22,17 +22,42 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Protocol, runtime_checkable
 
 from mathart.core.artifact_schema import (
     ArtifactFamily,
     ArtifactManifest,
     validate_artifact,
 )
-from mathart.core.backend_registry import get_registry
+from mathart.core.backend_registry import BackendCapability, get_registry
 from mathart.core.niche_registry import get_niche_registry
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# TelemetrySink Protocol — SESSION-072 (P1-DISTILL-1A)
+# ---------------------------------------------------------------------------
+
+@runtime_checkable
+class TelemetrySink(Protocol):
+    """Duck-typed sink for hot-path telemetry data.
+
+    Design reference: eBPF / DTrace zero-overhead dynamic tracing.  The sink
+    is injected into the backend context *only* when the caller explicitly
+    requests instrumented execution via
+    :meth:`MicrokernelPipelineBridge.run_backend_with_telemetry`.  Backends
+    interact with the sink through this protocol alone — they never import
+    the concrete class, preserving absolute purity of the plugin boundary.
+
+    The ``record`` method is intentionally minimal (a single key-value pair)
+    so the per-frame overhead stays in the nanosecond range.  Batch
+    aggregation and serialization happen *outside* the hot loop.
+    """
+
+    def record(self, key: str, value: Any) -> None:
+        """Record a single telemetry datum."""
+        ...
 
 
 def legacy_to_manifest(
@@ -205,6 +230,54 @@ class MicrokernelPipelineBridge:
             except Exception as e:
                 logger.error("Backend %s failed: %s", name, e)
         return manifests
+
+    # ------------------------------------------------------------------ telemetry
+    # SESSION-072 (P1-DISTILL-1A): eBPF / DTrace-inspired opt-in telemetry
+    # injection.  The bridge injects a TelemetrySink into the context under
+    # the reserved key ``__telemetry_sink__`` *only* when the target backend
+    # declares ``BackendCapability.HOT_PATH_INSTRUMENTED``.  Backends that do
+    # not declare the capability never see the sink, guaranteeing zero
+    # overhead on the normal production path.
+
+    _TELEMETRY_SINK_KEY: str = "__telemetry_sink__"
+
+    def run_backend_with_telemetry(
+        self,
+        backend_name: str,
+        context: dict[str, Any],
+        sink: "TelemetrySink",
+    ) -> ArtifactManifest:
+        """Run a backend with an attached TelemetrySink.
+
+        Parameters
+        ----------
+        backend_name : str
+            Name of the registered backend.
+        context : dict
+            Execution context (will be shallow-copied before mutation).
+        sink : TelemetrySink
+            Duck-typed sink instance.  Must expose ``record(key, value)``.
+
+        Returns
+        -------
+        ArtifactManifest
+            Validated artifact manifest.
+
+        Raises
+        ------
+        RuntimeError
+            If the target backend does not declare
+            ``BackendCapability.HOT_PATH_INSTRUMENTED``.
+        """
+        meta, _cls = self.backend_registry.get_or_raise(backend_name)
+        if BackendCapability.HOT_PATH_INSTRUMENTED not in meta.capabilities:
+            raise RuntimeError(
+                f"Backend {backend_name!r} does not declare "
+                f"HOT_PATH_INSTRUMENTED; telemetry injection is forbidden."
+            )
+        ctx = dict(context)
+        ctx[self._TELEMETRY_SINK_KEY] = sink
+        return self.run_backend(backend_name, ctx)
 
     def get_registry_summary(self) -> str:
         """Get a Markdown summary of all registered backends and niches."""

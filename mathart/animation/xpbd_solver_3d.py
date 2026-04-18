@@ -63,6 +63,11 @@ class XPBDSolver3DConfig:
     self_collision_radius: float = 0.015
     friction_coefficient: float = 0.3
     enable_two_way_coupling: bool = True
+    # SESSION-072 (P1-DISTILL-1A): per-constraint-type compliance knobs.
+    # Exposed to the global JIT and Layer 3 (Optuna) tuning closed loop.
+    # When ``None``, the solver falls back to ``default_compliance``.
+    compliance_distance: float | None = None
+    compliance_bending: float | None = None
 
 
 @dataclass
