@@ -3433,16 +3433,6 @@
       "added_in": "SESSION-064"
     },
     {
-      "id": "P1-AI-2C",
-      "priority": "P1",
-      "title": "Expose Phase 2 anti-flicker visual pipeline through CLI / AssetPipeline",
-      "status": "PARTIAL",
-      "estimated_effort": "medium",
-      "description": "Advanced in SESSION-067. anti_flicker_render already rides the dynamic CLI / AssetPipeline bus and can reuse the new dotted-key parameter transport plus stdout-safe manifest delivery, but the backend still needs real ComfyUI/EbSynth execution presets, temporal asset schema enrichment, and production runtime validation.",
-      "added_in": "SESSION-060",
-      "updated_in": "SESSION-067"
-    },
-    {
       "id": "P1-AI-2D",
       "priority": "P1",
       "title": "Ship real ComfyUI batch preset packs for IP-Adapter + ControlNet anti-flicker jobs",
