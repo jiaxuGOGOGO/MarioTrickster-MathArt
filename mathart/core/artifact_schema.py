@@ -95,6 +95,7 @@ class ArtifactFamily(Enum):
     AOT_MODULE = "aot_module"
     CEL_SHADING = "cel_shading"
     DISPLACEMENT_MAP = "displacement_map"
+    MOTION_UMR = "motion_umr"
     COMPOSITE = "composite"
 
 
@@ -378,6 +379,11 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     ArtifactFamily.DISPLACEMENT_MAP.value: {
         "required_outputs": ["displacement"],
         "required_metadata": ["resolution", "depth_range"],
+        "required_quality": [],
+    },
+    ArtifactFamily.MOTION_UMR.value: {
+        "required_outputs": ["motion_clip_json"],
+        "required_metadata": ["frame_count", "fps", "joint_channel_schema"],
         "required_quality": [],
     },
     ArtifactFamily.COMPOSITE.value: {

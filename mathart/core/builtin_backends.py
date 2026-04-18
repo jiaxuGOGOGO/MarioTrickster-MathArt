@@ -1062,6 +1062,239 @@ class KnowledgeDistillBackend:
         )
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  Unified Motion Backend (SESSION-070 — P1-MIGRATE-1)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Promotes the MotionStateLaneRegistry from a domain-internal side registry
+#  into a first-class BackendMeta-compliant plugin discovered by the
+#  MicrokernelOrchestrator.
+#
+#  Architecture alignment:
+#    - EA Frostbite FrameGraph (GDC 2017): data-driven scheduling via
+#      context dict → manifest output.
+#    - Mach/QNX Microkernel: motion trunk is a Backend, not kernel code.
+#    - Clean Architecture: Context-in / Manifest-out boundary.
+#    - Pixar OpenUSD Schema: backward-compatible 3D extension via
+#      joint_channel_schema metadata.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@register_backend(
+    BackendType.UNIFIED_MOTION,
+    display_name="Unified Motion Trunk Backend",
+    version="1.0.0",
+    artifact_families=(
+        ArtifactFamily.MOTION_UMR.value,
+    ),
+    capabilities=(
+        BackendCapability.ANIMATION_EXPORT,
+    ),
+    input_requirements=("state", "frame_count"),
+    session_origin="SESSION-070",
+)
+class UnifiedMotionBackend:
+    """First-class motion backend wrapping the MotionStateLaneRegistry.
+
+    This backend replaces direct lane-registry calls in ``pipeline.py`` with
+    a proper Context-in / Manifest-out boundary. The lane registry remains
+    the authoritative motion generation engine; this backend simply provides
+    the microkernel-compliant interface.
+
+    Context Keys
+    ------------
+    state : str
+        Motion state name (e.g., "run", "walk", "jump").
+    frame_count : int
+        Number of frames to generate.
+    fps : int, optional
+        Frames per second (default 12).
+    output_dir : str | Path, optional
+        Directory for clip JSON output.
+    name : str, optional
+        Stem name for output files.
+    speed : float, optional
+        Motion speed multiplier.
+    joint_channel_schema : str, optional
+        Rotation encoding declaration (default "2d_scalar").
+    """
+
+    @property
+    def name(self) -> str:
+        return BackendType.UNIFIED_MOTION.value
+
+    @property
+    def meta(self) -> BackendMeta:
+        return self._backend_meta
+
+    def validate_config(
+        self, context: dict[str, Any],
+    ) -> tuple[dict[str, Any], list[str]]:
+        """Backend-owned config validation (Hexagonal Architecture).
+
+        Normalizes motion context parameters and returns warnings for
+        any defaulted or corrected values.
+        """
+        warnings: list[str] = []
+        ctx = dict(context)
+
+        # --- state ---
+        state = str(ctx.get("state", "")).strip().lower()
+        if not state:
+            state = "idle"
+            warnings.append("state not provided, defaulting to 'idle'")
+        ctx["state"] = state
+
+        # --- frame_count ---
+        try:
+            fc = int(ctx.get("frame_count", 12))
+        except (ValueError, TypeError):
+            fc = 12
+            warnings.append("frame_count invalid, defaulting to 12")
+        ctx["frame_count"] = max(1, fc)
+
+        # --- fps ---
+        try:
+            fps = int(ctx.get("fps", 12))
+        except (ValueError, TypeError):
+            fps = 12
+            warnings.append("fps invalid, defaulting to 12")
+        ctx["fps"] = max(1, fps)
+
+        # --- joint_channel_schema ---
+        from mathart.animation.unified_motion import (
+            JOINT_CHANNEL_2D_SCALAR,
+            VALID_JOINT_CHANNEL_SCHEMAS,
+        )
+        jcs = str(ctx.get("joint_channel_schema", JOINT_CHANNEL_2D_SCALAR))
+        if jcs not in VALID_JOINT_CHANNEL_SCHEMAS:
+            warnings.append(
+                f"joint_channel_schema '{jcs}' unknown, defaulting to '{JOINT_CHANNEL_2D_SCALAR}'"
+            )
+            jcs = JOINT_CHANNEL_2D_SCALAR
+        ctx["joint_channel_schema"] = jcs
+
+        # --- output_dir ---
+        ctx.setdefault("output_dir", "output")
+        ctx.setdefault("name", "motion")
+
+        return ctx, warnings
+
+    def execute(self, context: dict[str, Any]) -> ArtifactManifest:
+        """Generate a UMR motion clip via the lane registry and return a manifest.
+
+        The lane registry is the authoritative motion generation engine.
+        This method wraps it in the Context-in / Manifest-out discipline.
+        """
+        from mathart.animation.unified_gait_blender import (
+            MotionStateRequest,
+            get_motion_lane_registry,
+        )
+        from mathart.animation.unified_motion import (
+            JOINT_CHANNEL_2D_SCALAR,
+            UnifiedMotionClip,
+            infer_contact_tags,
+        )
+
+        state = str(context.get("state", "idle"))
+        frame_count = int(context.get("frame_count", 12))
+        fps = int(context.get("fps", 12))
+        output_dir = Path(context.get("output_dir", "output")).resolve()
+        stem = str(context.get("name", "motion"))
+        jcs = str(context.get("joint_channel_schema", JOINT_CHANNEL_2D_SCALAR))
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        registry = get_motion_lane_registry()
+        lane = registry.get(state)
+
+        frames = []
+        for i in range(frame_count):
+            progress = float(i) / max(frame_count - 1, 1)
+            phase = progress
+            t = float(i) / max(fps, 1)
+
+            root = lane.infer_root_transform(
+                progress=progress,
+                frame_index=i,
+                frame_count=frame_count,
+                fps=fps,
+            )
+
+            request = MotionStateRequest(
+                state=state,
+                phase=phase,
+                time=t,
+                frame_index=i,
+                frame_count=frame_count,
+                fps=fps,
+                metadata={
+                    "generator": "motion_lane_registry",
+                    "motion_lane": state,
+                    "pipeline_source": "unified_motion_backend",
+                    "joint_channel_schema": jcs,
+                },
+                root_x=root.x,
+            )
+            frame = lane.build_frame(request)
+            frames.append(frame)
+
+        clip = UnifiedMotionClip(
+            clip_id=f"{stem}_{state}_umr",
+            state=state,
+            fps=fps,
+            frames=frames,
+            metadata={
+                "generator": "unified_motion_backend",
+                "motion_lane": state,
+                "joint_channel_schema": jcs,
+                "backend_type": BackendType.UNIFIED_MOTION.value,
+                "session_origin": "SESSION-070",
+            },
+        )
+
+        clip_path = output_dir / f"{stem}_{state}.umr.json"
+        clip.save(clip_path)
+
+        manifest = ArtifactManifest(
+            artifact_family=ArtifactFamily.MOTION_UMR.value,
+            backend_type=BackendType.UNIFIED_MOTION,
+            version="1.0.0",
+            session_id="SESSION-070",
+            outputs={
+                "motion_clip_json": str(clip_path),
+            },
+            metadata={
+                "state": state,
+                "frame_count": frame_count,
+                "fps": fps,
+                "joint_channel_schema": jcs,
+                "clip_id": clip.clip_id,
+                "motion_lane": state,
+                "generator": "unified_motion_backend",
+                "payload": {
+                    "type": "motion_umr_clip",
+                    "state": state,
+                    "frame_count": frame_count,
+                    "fps": fps,
+                    "clip_path": str(clip_path),
+                    "joint_channel_schema": jcs,
+                },
+            },
+            quality_metrics={},
+            tags=["motion", "umr", state, "session-070"],
+        )
+
+        manifest_path = output_dir / f"{stem}_{state}.umr_manifest.json"
+        manifest.save(manifest_path)
+
+        logger.info(
+            "UnifiedMotionBackend: generated %d frames for state=%s → %s",
+            frame_count, state, clip_path,
+        )
+        return manifest
+
+
 __all__ = [
     "Motion2DBackend",
     "IndustrialSpriteBackend",
@@ -1072,4 +1305,5 @@ __all__ = [
     "PhysicsVFXBackend",
     "CelShadingBackend",
     "KnowledgeDistillBackend",
+    "UnifiedMotionBackend",
 ]

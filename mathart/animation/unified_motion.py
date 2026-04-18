@@ -13,13 +13,106 @@ communicate through the same frame structure instead of ad-hoc pose dicts.
 Backward compatibility is preserved through `pose_to_umr()` and `umr_to_pose()`.
 The renderer and legacy APIs can keep using raw `dict[str, float]` while the
 internal trunk progressively converges on UMR.
+
+SESSION-070 Extension — 3D-Safe Schema Widening (P1-XPBD-3 Prep)
+-----------------------------------------------------------------
+Following Pixar OpenUSD Schema backward-compatible extension principles:
+
+1. ``MotionRootTransform`` gains optional ``z``, ``velocity_z``, and
+   ``angular_velocity_3d`` fields (all default ``None``). Existing 2D
+   consumers see unchanged scalar defaults.
+
+2. ``MotionContactState`` gains an optional ``manifold`` dict for rich
+   Contact Manifold records (support-point identity, lock weight, local
+   contact offset, contact normal). Boolean tags remain the primary
+   interface for 2D consumers.
+
+3. ``UnifiedMotionFrame.metadata`` now enforces a ``joint_channel_schema``
+   key (default ``"2d_scalar"``) that explicitly declares the rotation
+   encoding used by the frame's joint data.
 """
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Callable, Mapping, Optional
+from typing import Any, Callable, Mapping, Optional, Sequence
+
+
+# ---------------------------------------------------------------------------
+# Joint Channel Schema Constants (SESSION-070)
+# ---------------------------------------------------------------------------
+
+JOINT_CHANNEL_2D_SCALAR = "2d_scalar"
+JOINT_CHANNEL_2D_PLUS_DEPTH = "2d_plus_depth"
+JOINT_CHANNEL_3D_EULER = "3d_euler"
+
+VALID_JOINT_CHANNEL_SCHEMAS = frozenset({
+    JOINT_CHANNEL_2D_SCALAR,
+    JOINT_CHANNEL_2D_PLUS_DEPTH,
+    JOINT_CHANNEL_3D_EULER,
+})
+
+
+# ---------------------------------------------------------------------------
+# Contact Manifold Record (SESSION-070 — XPBD-3 Prep)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class ContactManifoldRecord:
+    """Rich contact information for a single support point.
+
+    This replaces the boolean-only contact representation for 3D solver
+    coupling. XPBD-3 grounding, friction, and anti-sliding constraints
+    need support-point identity, lock weight, local offset, and contact
+    normal.
+
+    For 2D consumers, the boolean ``active`` flag is the only required
+    field. All other fields default to safe neutral values.
+    """
+
+    limb: str = ""
+    active: bool = False
+    lock_weight: float = 0.0
+    local_offset_x: float = 0.0
+    local_offset_y: float = 0.0
+    local_offset_z: float = 0.0
+    normal_x: float = 0.0
+    normal_y: float = 1.0
+    normal_z: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "limb": self.limb,
+            "active": bool(self.active),
+            "lock_weight": float(self.lock_weight),
+            "local_offset": [
+                float(self.local_offset_x),
+                float(self.local_offset_y),
+                float(self.local_offset_z),
+            ],
+            "normal": [
+                float(self.normal_x),
+                float(self.normal_y),
+                float(self.normal_z),
+            ],
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "ContactManifoldRecord":
+        offset = d.get("local_offset", [0.0, 0.0, 0.0])
+        normal = d.get("normal", [0.0, 1.0, 0.0])
+        return cls(
+            limb=str(d.get("limb", "")),
+            active=bool(d.get("active", False)),
+            lock_weight=float(d.get("lock_weight", 0.0)),
+            local_offset_x=float(offset[0]) if len(offset) > 0 else 0.0,
+            local_offset_y=float(offset[1]) if len(offset) > 1 else 0.0,
+            local_offset_z=float(offset[2]) if len(offset) > 2 else 0.0,
+            normal_x=float(normal[0]) if len(normal) > 0 else 0.0,
+            normal_y=float(normal[1]) if len(normal) > 1 else 1.0,
+            normal_z=float(normal[2]) if len(normal) > 2 else 0.0,
+        )
 
 
 @dataclass(frozen=True)
@@ -28,6 +121,10 @@ class MotionRootTransform:
 
     The repository is still largely 2D and pose-centric, so the transform stays
     lightweight: planar translation, rotation, and first-order velocities.
+
+    SESSION-070 Extension: Optional 3D fields for XPBD-3 preparation.
+    These are ``None`` by default, preserving full 2D backward compatibility.
+    Existing consumers that only read ``x``, ``y``, ``rotation`` are unaffected.
     """
 
     x: float = 0.0
@@ -36,9 +133,13 @@ class MotionRootTransform:
     velocity_x: float = 0.0
     velocity_y: float = 0.0
     angular_velocity: float = 0.0
+    # SESSION-070: Optional 3D expansion (None = 2D-only frame)
+    z: Optional[float] = None
+    velocity_z: Optional[float] = None
+    angular_velocity_3d: Optional[Sequence[float]] = None  # [wx, wy, wz] Euler rates
 
-    def to_dict(self) -> dict[str, float]:
-        return {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "x": float(self.x),
             "y": float(self.y),
             "rotation": float(self.rotation),
@@ -46,6 +147,14 @@ class MotionRootTransform:
             "velocity_y": float(self.velocity_y),
             "angular_velocity": float(self.angular_velocity),
         }
+        # SESSION-070: Only serialize 3D fields when populated (backward compat)
+        if self.z is not None:
+            d["z"] = float(self.z)
+        if self.velocity_z is not None:
+            d["velocity_z"] = float(self.velocity_z)
+        if self.angular_velocity_3d is not None:
+            d["angular_velocity_3d"] = [float(v) for v in self.angular_velocity_3d]
+        return d
 
 
 @dataclass(frozen=True)
@@ -55,20 +164,32 @@ class MotionContactState:
     At minimum, left/right foot contact must be explicit because the current
     repository repeatedly needs this information in phase logic, skating
     cleanup, motion matching, and rendering heuristics.
+
+    SESSION-070 Extension: Optional ``manifold`` list for rich Contact Manifold
+    records. When present, each entry is a ``ContactManifoldRecord`` providing
+    support-point identity, lock weight, local offset, and contact normal for
+    XPBD-3 solver coupling. The boolean tags remain the primary interface for
+    2D consumers and are always authoritative.
     """
 
     left_foot: bool = False
     right_foot: bool = False
     left_hand: bool = False
     right_hand: bool = False
+    # SESSION-070: Optional rich contact manifold for 3D solver coupling
+    manifold: Optional[tuple[ContactManifoldRecord, ...]] = None
 
-    def to_dict(self) -> dict[str, bool]:
-        return {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "left_foot": bool(self.left_foot),
             "right_foot": bool(self.right_foot),
             "left_hand": bool(self.left_hand),
             "right_hand": bool(self.right_hand),
         }
+        # SESSION-070: Only serialize manifold when populated
+        if self.manifold is not None:
+            d["manifold"] = [rec.to_dict() for rec in self.manifold]
+        return d
 
 
 @dataclass(frozen=True)
@@ -166,6 +287,12 @@ class UnifiedMotionFrame:
     The ``phase_state`` field is the canonical phase representation (PhaseState).
     The legacy ``phase`` float field is kept for backward compatibility and is
     always derived from ``phase_state.to_float()``.
+
+    SESSION-070 Extension: ``metadata["joint_channel_schema"]`` is now enforced
+    to always be present (default ``"2d_scalar"``). This declares the rotation
+    encoding used by the frame's joint data, enabling downstream consumers to
+    discriminate between 2D scalar angles and future 3D Euler rotations without
+    inspecting the actual joint values.
     """
 
     time: float
@@ -204,6 +331,10 @@ class UnifiedMotionFrame:
                 phase_kind=phase_kind,
             )
             phase_value = ps.to_float()
+
+        # SESSION-070: Enforce joint_channel_schema metadata (default 2d_scalar)
+        if "joint_channel_schema" not in metadata:
+            metadata["joint_channel_schema"] = JOINT_CHANNEL_2D_SCALAR
 
         object.__setattr__(self, "phase", phase_value)
         object.__setattr__(self, "phase_state", ps)
@@ -277,6 +408,68 @@ class UnifiedMotionClip:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(self.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
         return path
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "UnifiedMotionClip":
+        """Deserialize a clip from a dictionary (SESSION-070).
+
+        This enables round-trip serialization through the Context-in /
+        Manifest-out boundary: the motion backend serializes clips to JSON,
+        and the pipeline deserializes them back for downstream processing.
+        """
+        frames: list[UnifiedMotionFrame] = []
+        for fd in data.get("frames", []):
+            root_d = fd.get("root_transform", {})
+            root = MotionRootTransform(
+                x=float(root_d.get("x", 0.0)),
+                y=float(root_d.get("y", 0.0)),
+                rotation=float(root_d.get("rotation", 0.0)),
+                velocity_x=float(root_d.get("velocity_x", 0.0)),
+                velocity_y=float(root_d.get("velocity_y", 0.0)),
+                angular_velocity=float(root_d.get("angular_velocity", 0.0)),
+                z=float(root_d["z"]) if "z" in root_d else None,
+                velocity_z=float(root_d["velocity_z"]) if "velocity_z" in root_d else None,
+                angular_velocity_3d=(
+                    [float(v) for v in root_d["angular_velocity_3d"]]
+                    if "angular_velocity_3d" in root_d else None
+                ),
+            )
+            contact_d = fd.get("contact_tags", {})
+            manifold_raw = contact_d.get("manifold")
+            manifold = None
+            if manifold_raw is not None:
+                manifold = tuple(ContactManifoldRecord.from_dict(m) for m in manifold_raw)
+            contacts = MotionContactState(
+                left_foot=bool(contact_d.get("left_foot", False)),
+                right_foot=bool(contact_d.get("right_foot", False)),
+                left_hand=bool(contact_d.get("left_hand", False)),
+                right_hand=bool(contact_d.get("right_hand", False)),
+                manifold=manifold,
+            )
+            ps_d = fd.get("phase_state")
+            ps = PhaseState.from_dict(ps_d) if ps_d else None
+            frames.append(UnifiedMotionFrame(
+                time=float(fd.get("time", 0.0)),
+                phase=float(fd.get("phase", 0.0)),
+                root_transform=root,
+                joint_local_rotations={
+                    k: float(v) for k, v in fd.get("joint_local_rotations", {}).items()
+                },
+                contact_tags=contacts,
+                frame_index=int(fd.get("frame_index", 0)),
+                source_state=str(fd.get("source_state", "")),
+                metadata=dict(fd.get("metadata", {})),
+                format_version=str(fd.get("format", "umr_motion_frame_v1")),
+                phase_state=ps,
+            ))
+        return cls(
+            clip_id=str(data.get("clip_id", "")),
+            state=str(data.get("state", "")),
+            fps=int(data.get("fps", 12)),
+            frames=frames,
+            metadata=dict(data.get("metadata", {})),
+            format_version=str(data.get("format", "umr_motion_clip_v1")),
+        )
 
 
 @dataclass(frozen=True)
@@ -478,6 +671,11 @@ def run_motion_pipeline(
 
 
 __all__ = [
+    "ContactManifoldRecord",
+    "JOINT_CHANNEL_2D_SCALAR",
+    "JOINT_CHANNEL_2D_PLUS_DEPTH",
+    "JOINT_CHANNEL_3D_EULER",
+    "VALID_JOINT_CHANNEL_SCHEMAS",
     "PhaseState",
     "MotionRootTransform",
     "MotionContactState",

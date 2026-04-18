@@ -1562,11 +1562,30 @@ class AssetPipeline:
         frame_count: int,
         fps: int,
     ) -> UnifiedMotionClip:
-        """Build the base UMR clip through the registered motion lane trunk."""
+        """Build the base UMR clip through the microkernel UnifiedMotionBackend.
+
+        SESSION-070 (P1-MIGRATE-1): This method now routes through the
+        registered ``unified_motion`` backend via the MicrokernelPipelineBridge,
+        enforcing the Context-in / Manifest-out discipline.
+
+        Architecture alignment:
+          - EA Frostbite FrameGraph: data-driven scheduling via context dict.
+          - Mach/QNX Microkernel: motion trunk is a Backend, not kernel code.
+          - Clean Architecture: no internal Python objects cross the boundary;
+            the clip is serialized to JSON and deserialized back.
+
+        Backward compatibility:
+          - Clip-level metadata preserves ``generator == 'motion_lane_registry'``
+            and ``motion_lane`` keys for downstream contract guards.
+          - Frame-level metadata preserves ``pipeline_source == 'pipeline.<state>'``
+            for existing regression tests.
+        """
         state_key = state.lower()
+
+        # --- Validate state availability before invoking backend ---
         registry = get_motion_lane_registry()
         try:
-            lane = registry.get(state_key)
+            registry.get(state_key)
         except KeyError as exc:
             available = ", ".join(registry.names())
             raise PipelineContractError(
@@ -1574,42 +1593,51 @@ class AssetPipeline:
                 f"Unknown character state '{state_key}'. Available motion lanes: {available}"
             ) from exc
 
-        frames: list[UnifiedMotionFrame] = []
-        dt = 1.0 / max(1, fps)
-        for i in range(frame_count):
-            phase = i / max(1, frame_count)
-            time_s = i * dt
-            root = self._infer_root_transform(state_key, phase, frame_index=i, frame_count=frame_count, fps=fps)
-            request = MotionStateRequest(
-                state=state_key,
-                phase=phase,
-                time=time_s,
-                frame_index=i,
-                frame_count=frame_count,
-                fps=fps,
-                root_x=root.x,
-                metadata={
-                    "generator": "motion_lane_registry",
-                    "generator_mode": "registry_lane",
-                    "pipeline_source": f"pipeline.{state_key}",
-                    "cns_locomotion_requested": bool(getattr(self, "_character_spec_enable_cns_locomotion", True)),
-                },
-            )
-            frame = lane.build_frame(request)
-            frames.append(frame)
+        # --- Build context for the UnifiedMotionBackend ---
+        motion_context = {
+            "state": state_key,
+            "frame_count": frame_count,
+            "fps": fps,
+            "output_dir": str(self.output_dir),
+            "name": "_pipeline_motion",
+        }
 
-        return UnifiedMotionClip(
-            clip_id=state_key,
-            state=state_key,
-            frames=frames,
-            fps=fps,
-            metadata={
-                "generator": "motion_lane_registry",
-                "frame_count": frame_count,
-                "fps": fps,
-                "motion_lane": state_key,
-            },
+        # --- Execute through microkernel bridge (Context-in / Manifest-out) ---
+        manifest = self._microkernel_bridge.run_backend(
+            "unified_motion", motion_context,
         )
+
+        # --- Deserialize clip from manifest output (boundary crossing) ---
+        import json as _json
+        clip_path = manifest.outputs["motion_clip_json"]
+        clip_data = _json.loads(Path(clip_path).read_text(encoding="utf-8"))
+        clip = UnifiedMotionClip.from_dict(clip_data)
+
+        # --- Stamp backward-compatible metadata for existing contract guards ---
+        # Clip-level: preserve 'generator' and 'motion_lane' keys
+        clip.metadata["generator"] = "motion_lane_registry"
+        clip.metadata["motion_lane"] = state_key
+        clip.metadata["frame_count"] = frame_count
+        clip.metadata["fps"] = fps
+        clip.metadata["microkernel_backend"] = "unified_motion"
+        clip.metadata["manifest_hash"] = manifest.schema_hash
+
+        # Frame-level: stamp pipeline_source for regression test compat
+        cns_requested = bool(getattr(self, "_character_spec_enable_cns_locomotion", True))
+        patched_frames: list[UnifiedMotionFrame] = []
+        for frame in clip.frames:
+            merged_meta = dict(frame.metadata)
+            merged_meta["generator"] = "motion_lane_registry"
+            merged_meta["generator_mode"] = "registry_lane"
+            merged_meta["pipeline_source"] = f"pipeline.{state_key}"
+            merged_meta["cns_locomotion_requested"] = cns_requested
+            patched_frames.append(replace(
+                frame,
+                metadata=merged_meta,
+            ))
+        clip.frames = patched_frames
+
+        return clip
 
 
     def _build_motion_nodes(

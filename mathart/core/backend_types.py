@@ -26,6 +26,7 @@ class BackendType(str, Enum):
     KNOWLEDGE_DISTILL = "knowledge_distill"
     COMPOSITE = "composite"
     LEGACY = "legacy"
+    UNIFIED_MOTION = "unified_motion"
     MICROKERNEL = "microkernel"
 
 
@@ -42,6 +43,7 @@ _BACKEND_ALIASES: dict[str, str] = {
     BackendType.KNOWLEDGE_DISTILL.value: BackendType.KNOWLEDGE_DISTILL.value,
     BackendType.COMPOSITE.value: BackendType.COMPOSITE.value,
     BackendType.LEGACY.value: BackendType.LEGACY.value,
+    BackendType.UNIFIED_MOTION.value: BackendType.UNIFIED_MOTION.value,
     BackendType.MICROKERNEL.value: BackendType.MICROKERNEL.value,
     # Historical / user-requested variants
     "dimension_uplift": BackendType.DIMENSION_UPLIFT_MESH.value,
@@ -55,6 +57,9 @@ _BACKEND_ALIASES: dict[str, str] = {
     "breakwall": BackendType.ANTI_FLICKER_RENDER.value,
     "sparse_ctrl": BackendType.ANTI_FLICKER_RENDER.value,
     "anti_flicker": BackendType.ANTI_FLICKER_RENDER.value,
+    "motion_trunk": BackendType.UNIFIED_MOTION.value,
+    "unified_motion_trunk": BackendType.UNIFIED_MOTION.value,
+    "motion_lane_registry": BackendType.UNIFIED_MOTION.value,
 }
 
 

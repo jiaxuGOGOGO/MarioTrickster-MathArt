@@ -1164,6 +1164,38 @@ class _LocomotionLane(MotionStateLane):
         )
 
 
+# ---------------------------------------------------------------------------
+# Transient Phase Metadata Profiles (SESSION-070)
+# ---------------------------------------------------------------------------
+# These profiles inject the correct phase_kind, target_state, and phase_source
+# metadata for transient (non-cyclic) motion states. This aligns with the
+# DeepPhase / distance-matching discipline from phase_driven.py.
+
+_TRANSIENT_PHASE_PROFILES: dict[str, dict[str, Any]] = {
+    "jump": {
+        "phase_kind": "distance_to_apex",
+        "phase_source": "distance_matching",
+        "target_state": "apex",
+        "contact_expectation": "airborne",
+        "desired_contact_state": "airborne",
+    },
+    "fall": {
+        "phase_kind": "distance_to_ground",
+        "phase_source": "distance_matching",
+        "target_state": "ground_contact",
+        "contact_expectation": "airborne",
+        "desired_contact_state": "ground_contact",
+    },
+    "hit": {
+        "phase_kind": "hit_recovery",
+        "phase_source": "critical_damped_recovery",
+        "target_state": "stable_balance",
+        "contact_expectation": "planted_recovery",
+        "recovery_velocity": 0.0,
+    },
+}
+
+
 class _ProceduralStateLane(MotionStateLane):
     def __init__(self, state_name: str, pose_fn, vx: float = 0.0, vy: float = 0.0) -> None:
         self.state_name = state_name
@@ -1196,6 +1228,24 @@ class _ProceduralStateLane(MotionStateLane):
             rotation=root.rotation,
             angular_velocity=root.angular_velocity,
         )
+        # SESSION-070: Inject transient phase metadata for jump/fall/hit
+        # This aligns the lane-generated frames with the DeepPhase /
+        # distance-matching discipline expected by downstream consumers.
+        merged_meta = {**request.metadata, "lane": self.state_name, "registry": "motion_state_lane"}
+        transient_profile = _TRANSIENT_PHASE_PROFILES.get(self.state_name)
+        if transient_profile is not None:
+            for k, v in transient_profile.items():
+                merged_meta.setdefault(k, v)
+
+        # Determine phase_state for transient vs cyclic
+        from .unified_motion import PhaseState
+        phase_state = None
+        if transient_profile is not None:
+            phase_state = PhaseState.transient(
+                value=request.phase,
+                phase_kind=str(transient_profile.get("phase_kind", "transient")),
+            )
+
         return pose_to_umr(
             pose,
             time=request.time,
@@ -1204,7 +1254,8 @@ class _ProceduralStateLane(MotionStateLane):
             root_transform=root,
             contact_tags=MotionContactState(left_foot=False, right_foot=False),
             frame_index=request.frame_index,
-            metadata={**request.metadata, "lane": self.state_name, "registry": "motion_state_lane"},
+            metadata=merged_meta,
+            phase_state=phase_state,
         )
 
 
