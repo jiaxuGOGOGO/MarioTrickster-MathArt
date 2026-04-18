@@ -1,48 +1,15 @@
-"""Three-Layer Evolution Orchestrator — Unified Self-Evolving System.
+"""Federated evolution orchestrator facade.
 
-SESSION-055: Battle 4 — The Three-Layer Evolution Loop
+SESSION-066 repositions the legacy ``EvolutionOrchestrator`` as a compatibility
+facade over the Golden Path architecture:
 
-This module is the **apex orchestrator** that unifies all SESSION-055
-subsystems into a single self-evolving feedback loop:
+1. **Layer 1** delegates to ``MicrokernelOrchestrator`` so lanes evolve in
+   parallel and only produce meta-reports.
+2. **Layer 2** delegates to ``ThreeLayerEvolutionLoop`` knowledge distillation.
+3. **Layer 3** delegates to ``ThreeLayerEvolutionLoop`` self-iterating tests.
 
-    ┌─────────────────────────────────────────────────────────────────┐
-    │              THREE-LAYER EVOLUTION LOOP                        │
-    │                                                                │
-    │  ┌──────────────────────────────────────────────────────────┐  │
-    │  │  Layer 1: INTERNAL EVOLUTION (自我进化)                  │  │
-    │  │  ├── XPBD solver auto-tuning (InternalEvolver)          │  │
-    │  │  ├── Graph-fuzz NaN/penetration monitoring               │  │
-    │  │  └── Visual fitness self-optimization                    │  │
-    │  └──────────────────────────────────────────────────────────┘  │
-    │                          ↓ findings                           │
-    │  ┌──────────────────────────────────────────────────────────┐  │
-    │  │  Layer 2: EXTERNAL KNOWLEDGE DISTILLATION (外部知识蒸馏) │  │
-    │  │  ├── Research paper ingestion (KnowledgeDistiller)       │  │
-    │  │  ├── User-provided insights                              │  │
-    │  │  └── Cross-session learning persistence                  │  │
-    │  └──────────────────────────────────────────────────────────┘  │
-    │                          ↓ rules                              │
-    │  ┌──────────────────────────────────────────────────────────┐  │
-    │  │  Layer 3: SELF-ITERATING TEST (自我迭代测试)             │  │
-    │  │  ├── Headless E2E CI (structural + visual regression)   │  │
-    │  │  ├── Graph-fuzz CI (state-machine coverage)              │  │
-    │  │  ├── Asset Factory (commercial quality gates)            │  │
-    │  │  └── Physics test harness (Newton's law validation)      │  │
-    │  └──────────────────────────────────────────────────────────┘  │
-    │                          ↓ failures                           │
-    │                    ┌──→ Layer 1 (re-tune) ──→ ...             │
-    └─────────────────────────────────────────────────────────────────┘
-
-The orchestrator is designed to be **self-contained**: it can run
-autonomously, or accept new information from the user to trigger
-knowledge distillation and re-evolution.
-
-Usage::
-
-    from mathart.evolution.evolution_orchestrator import EvolutionOrchestrator
-    orch = EvolutionOrchestrator(project_root=".")
-    report = orch.run_full_cycle()
-    print(report.summary())
+The public class and report fields remain stable so older callers continue to
+work, but the implementation no longer centralizes hard-coded business logic.
 """
 from __future__ import annotations
 
@@ -53,18 +20,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-import numpy as np
+from mathart.core.evolution_loop import (
+    EvolutionLoopConfig,
+    KnowledgeRule,
+    ThreeLayerEvolutionLoop,
+)
+from mathart.core.microkernel_orchestrator import MicrokernelOrchestrator
 
-
-# ---------------------------------------------------------------------------
-# Data Classes
-# ---------------------------------------------------------------------------
 
 @dataclass
 class EvolutionCycleReport:
-    """Report from a single evolution cycle."""
+    """Backward-compatible report from a single federated evolution cycle."""
 
-    session_id: str = "SESSION-059"
+    session_id: str = "SESSION-066"
     timestamp: str = ""
     cycle_id: int = 0
 
@@ -88,7 +56,7 @@ class EvolutionCycleReport:
     asset_factory_accepted: int = 0
     asset_factory_total: int = 0
 
-    # Unified bridge suite (SESSION-057/058/059)
+    # Unified bridge suite / federated status
     unified_bridges_passed: int = 0
     unified_bridges_total: int = 0
     unified_bridge_bonus: float = 0.0
@@ -139,22 +107,20 @@ class EvolutionCycleReport:
             f"Timestamp: {self.timestamp}",
             "",
             "--- Layer 1: Internal Evolution ---",
-            f"  XPBD tuning actions: {', '.join(self.xpbd_tuning_actions) or 'none'}",
-            f"  Graph-fuzz NaN: {self.graph_fuzz_nan_count}",
-            f"  Graph-fuzz penetration: {self.graph_fuzz_penetration_count}",
-            f"  Graph-fuzz edge coverage: {self.graph_fuzz_edge_coverage:.2%}",
-            f"  Visual fitness mean: {self.visual_fitness_mean:.4f}",
+            f"  Federated actions: {', '.join(self.xpbd_tuning_actions) or 'none'}",
+            f"  Lane pass ratio proxy: {self.graph_fuzz_edge_coverage:.2%}",
+            f"  Validation pass ratio proxy: {self.visual_fitness_mean:.4f}",
             "",
             "--- Layer 2: Knowledge Distillation ---",
             f"  Knowledge entries applied: {self.knowledge_entries_applied}",
             f"  New rules distilled: {self.new_rules_distilled}",
             "",
             "--- Layer 3: Self-Iterating Test ---",
-            f"  E2E L0 (cold start): {'PASS' if self.e2e_level0_pass else 'FAIL'}",
-            f"  E2E L1 (structural): {'PASS' if self.e2e_level1_pass else 'FAIL'}",
-            f"  E2E L2 (visual): {'PASS' if self.e2e_level2_pass else 'FAIL'}",
-            f"  Physics tests: {self.physics_tests_passed}/{self.physics_tests_total}",
-            f"  Asset factory: {self.asset_factory_accepted}/{self.asset_factory_total} accepted",
+            f"  E2E L0 (loop started): {'PASS' if self.e2e_level0_pass else 'FAIL'}",
+            f"  E2E L1 (artifacts valid): {'PASS' if self.e2e_level1_pass else 'FAIL'}",
+            f"  E2E L2 (no cross-lane averaging): {'PASS' if self.e2e_level2_pass else 'FAIL'}",
+            f"  Federated tests: {self.physics_tests_passed}/{self.physics_tests_total}",
+            f"  Lane acceptance: {self.asset_factory_accepted}/{self.asset_factory_total}",
             "",
             "--- Unified Bridge Suite ---",
             f"  Bridge pass count: {self.unified_bridges_passed}/{self.unified_bridges_total}",
@@ -169,7 +135,7 @@ class EvolutionCycleReport:
 
 @dataclass
 class EvolutionState:
-    """Persistent state for the evolution orchestrator."""
+    """Persistent state for the federated evolution facade."""
 
     total_cycles: int = 0
     total_passes: int = 0
@@ -206,15 +172,8 @@ class EvolutionState:
         )
 
 
-# ---------------------------------------------------------------------------
-# Evolution Orchestrator
-# ---------------------------------------------------------------------------
-
 class EvolutionOrchestrator:
-    """Unified three-layer evolution orchestrator.
-
-    Coordinates all SESSION-055 subsystems into a single self-evolving loop.
-    """
+    """Compatibility facade for the Golden Path federated evolution stack."""
 
     STATE_FILE = ".evolution_orchestrator_state.json"
 
@@ -239,6 +198,7 @@ class EvolutionOrchestrator:
         return EvolutionState.from_dict(data)
 
     def _save_state(self) -> None:
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
         self.state_path.write_text(
             json.dumps(self.state.to_dict(), ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
@@ -248,307 +208,80 @@ class EvolutionOrchestrator:
         if self.verbose:
             print(f"[evolution] {msg}")
 
-    # -------------------------------------------------------------------
-    # Layer 1: Internal Evolution
-    # -------------------------------------------------------------------
-
-    def _run_layer1(self, report: EvolutionCycleReport) -> None:
-        """Layer 1: Internal evolution — XPBD tuning + graph-fuzz monitoring."""
-        self._log("Layer 1: Running XPBD evolution cycle...")
-
-        # 1a. XPBD auto-tuning via existing orchestrator
-        try:
-            from mathart.animation.xpbd_evolution import XPBDEvolutionOrchestrator
-            xpbd_orch = XPBDEvolutionOrchestrator()
-            new_config = xpbd_orch.evolve()
-            test_results = xpbd_orch.run_test_cycle()
-            report.physics_tests_passed = sum(1 for r in test_results if r.passed)
-            report.physics_tests_total = len(test_results)
-            for action in xpbd_orch._evolver._history[-5:]:
-                if action.tuning_action != "NO_ACTION":
-                    report.xpbd_tuning_actions.append(action.tuning_action)
-            self._log(f"  XPBD tests: {report.physics_tests_passed}/{report.physics_tests_total}")
-        except Exception as e:
-            self._log(f"  XPBD evolution error: {e}")
-
-        # 1b. Graph-fuzz monitoring
-        try:
-            from mathart.headless_graph_fuzz_ci import run_graph_fuzz_audit
-            fuzz_report = run_graph_fuzz_audit(
-                num_random_walks=10, random_walk_steps=30,
-            )
-            report.graph_fuzz_nan_count = fuzz_report.nan_explosions
-            report.graph_fuzz_penetration_count = fuzz_report.penetration_violations
-            report.graph_fuzz_edge_coverage = fuzz_report.coverage_edge
-            self._log(f"  Graph-fuzz: NaN={fuzz_report.nan_explosions}, "
-                       f"penetration={fuzz_report.penetration_violations}, "
-                       f"coverage={fuzz_report.coverage_edge:.2%}")
-        except Exception as e:
-            self._log(f"  Graph-fuzz error: {e}")
-
-    # -------------------------------------------------------------------
-    # Layer 2: Knowledge Distillation
-    # -------------------------------------------------------------------
-
-    def _run_layer2(self, report: EvolutionCycleReport) -> None:
-        """Layer 2: External knowledge distillation."""
-        self._log("Layer 2: Running knowledge distillation...")
-
-        try:
-            from mathart.animation.xpbd_evolution import (
-                KnowledgeDistiller, KnowledgeEntry,
-            )
-
-            knowledge_path = self.root / "knowledge" / "xpbd_knowledge.json"
-            distiller = KnowledgeDistiller(knowledge_path)
-
-            # Inject SESSION-055 research findings as knowledge entries
-            session_055_entries = [
-                KnowledgeEntry(
-                    source="SESSION-055: David R. MacIver, Hypothesis JOSS 2019",
-                    topic="Property-based graph-fuzz testing for XPBD",
-                    insight="Property-based stateful testing with RuleBasedStateMachine "
-                            "can generate adversarial state-transition sequences that "
-                            "expose NaN explosions and penetration violations in XPBD.",
-                    parameter_effects={"testing.graph_fuzz_enabled": True},
-                ),
-                KnowledgeEntry(
-                    source="SESSION-055: Wang et al., SSIM IEEE TIP 2004",
-                    topic="SSIM temporal consistency for animation quality",
-                    insight="SSIM temporal consistency between adjacent animation frames "
-                            "should be above 0.85 to prevent visible geometric deformation. "
-                            "Combined with Laplacian variance for normal map quality.",
-                    parameter_effects={"quality.ssim_min_threshold": 0.85},
-                ),
-                KnowledgeEntry(
-                    source="SESSION-055: Laplacian Variance NR-IQA",
-                    topic="Normal map quality via Laplacian variance sweet-spot",
-                    insight="Normal map quality is best measured by Laplacian variance "
-                            "in a sweet-spot range (50-5000). Too low = blurry, too high = noisy.",
-                    parameter_effects={"quality.laplacian_optimal": 500.0},
-                ),
-                KnowledgeEntry(
-                    source="SESSION-055: Asset Factory Design",
-                    topic="Commercial asset quality gates",
-                    insight="Commercial asset packs require multi-modal quality gates: "
-                            "visual fitness > 0.45, Laplacian score > 0.20, and 100% export success.",
-                    parameter_effects={"factory.min_visual_fitness": 0.45},
-                ),
-            ]
-
-            for entry in session_055_entries:
-                distiller.add_knowledge(entry)
-
-            report.knowledge_entries_applied = len(session_055_entries)
-            report.new_rules_distilled = len(session_055_entries)
-            self.state.knowledge_entries_count += len(session_055_entries)
-            self._log(f"  Distilled {len(session_055_entries)} knowledge entries")
-
-        except Exception as e:
-            self._log(f"  Knowledge distillation error: {e}")
-
-    # -------------------------------------------------------------------
-    # Layer 3: Self-Iterating Test
-    # -------------------------------------------------------------------
-
-    def _run_layer3(self, report: EvolutionCycleReport) -> None:
-        """Layer 3: Self-iterating test — E2E + asset factory."""
-        self._log("Layer 3: Running self-iterating tests...")
-
-        # 3a. Headless E2E CI
-        try:
-            from mathart.headless_e2e_ci import run_full_audit
-            e2e_report = run_full_audit()
-            report.e2e_level0_pass = e2e_report.level0_pass
-            report.e2e_level1_pass = e2e_report.level1_pass
-            report.e2e_level2_pass = e2e_report.level2_pass
-            self._log(f"  E2E: L0={'PASS' if e2e_report.level0_pass else 'FAIL'}, "
-                       f"L1={'PASS' if e2e_report.level1_pass else 'FAIL'}, "
-                       f"L2={'PASS' if e2e_report.level2_pass else 'FAIL'}")
-        except Exception as e:
-            self._log(f"  E2E CI error: {e}")
-
-        # 3b. Asset Factory
-        try:
-            from mathart.evolution.asset_factory_bridge import AssetFactory, AssetSpec
-            factory = AssetFactory(project_root=str(self.root), verbose=self.verbose)
-            # Use minimal specs for CI speed
-            specs = [
-                AssetSpec(name="evo_idle", preset="mario", state="idle",
-                          width=32, height=32),
-                AssetSpec(name="evo_walk", preset="mario", state="walk",
-                          width=32, height=32),
-                AssetSpec(name="evo_run", preset="mario", state="run",
-                          width=32, height=32),
-            ]
-            factory_report = factory.run_production_cycle(specs=specs)
-            report.asset_factory_accepted = factory_report.accepted_assets
-            report.asset_factory_total = factory_report.total_assets
-            report.visual_fitness_mean = factory_report.mean_visual_fitness
-            self._log(f"  Asset factory: {factory_report.accepted_assets}/"
-                       f"{factory_report.total_assets} accepted, "
-                       f"fitness={factory_report.mean_visual_fitness:.4f}")
-        except Exception as e:
-            self._log(f"  Asset factory error: {e}")
-
-    # -------------------------------------------------------------------
-    # Unified bridge suite (SESSION-057/058/059)
-    # -------------------------------------------------------------------
-
-    def _run_unified_bridge_suite(self, report: EvolutionCycleReport) -> None:
-        """Run repository-native bridge cycles that were previously outside the unified orchestrator."""
-        self._log("Unified bridge suite: running SESSION-057/058/059 bridges...")
-
-        bridge_records: dict[str, Any] = {}
-        total = 0
-        passed = 0
-        bonus_total = 0.0
-
-        bridge_specs = [
-            (
-                "smooth_morphology",
-                "mathart.evolution.smooth_morphology_bridge",
-                "SmoothMorphologyEvolutionBridge",
-                {"resolution": 48},
-            ),
-            (
-                "constraint_wfc",
-                "mathart.evolution.constraint_wfc_bridge",
-                "ConstraintWFCEvolutionBridge",
-                {"n_levels": 4, "width": 18, "height": 7, "seed": 59},
-            ),
-            (
-                "phase3_physics",
-                "mathart.evolution.phase3_physics_bridge",
-                "Phase3PhysicsEvolutionBridge",
-                {},
-            ),
-            (
-                "unity_urp_2d",
-                "mathart.evolution.unity_urp_2d_bridge",
-                "UnityURP2DEvolutionBridge",
-                {},
-            ),
-            (
-                "motion_2d_pipeline",
-                "mathart.evolution.motion_2d_pipeline_bridge",
-                "Motion2DPipelineEvolutionBridge",
-                {"n_frames": 30},
-            ),
-        ]
-
-        for bridge_name, module_name, class_name, kwargs in bridge_specs:
-            total += 1
-            try:
-                module = __import__(module_name, fromlist=[class_name])
-                bridge_cls = getattr(module, class_name)
-                try:
-                    bridge = bridge_cls(project_root=self.root, verbose=self.verbose)
-                except TypeError:
-                    bridge = bridge_cls(project_root=self.root)
-                metrics, knowledge_ref, bonus = bridge.run_full_cycle(**kwargs)
-                bridge_metrics = metrics.to_dict() if hasattr(metrics, "to_dict") else dict(metrics)
-                bridge_pass = bool(getattr(metrics, "all_pass", False) or getattr(metrics, "pass_gate", False))
-                if not bridge_pass and bridge_name == "constraint_wfc":
-                    bridge_pass = bool(
-                        float(getattr(metrics, "playability_rate", 0.0)) >= 0.90
-                        and float(getattr(metrics, "avg_generation_attempts", 99.0)) <= 2.0
-                    )
-                if bridge_pass:
-                    passed += 1
-                bonus_total += float(bonus)
-
-                payload = {
-                    "pass": bridge_pass,
-                    "bonus": round(float(bonus), 4),
-                    "metrics": bridge_metrics,
-                }
-                if isinstance(knowledge_ref, (str, Path)):
-                    payload["knowledge_ref"] = str(knowledge_ref)
-                elif isinstance(knowledge_ref, dict):
-                    payload["distilled_rules"] = knowledge_ref
-                    payload["knowledge_ref"] = "inline_rules"
-                else:
-                    payload["knowledge_ref"] = str(knowledge_ref)
-                bridge_records[bridge_name] = payload
-                self._log(
-                    f"  {bridge_name}: {'PASS' if bridge_pass else 'FAIL'} "
-                    f"(bonus={float(bonus):.4f})"
-                )
-            except Exception as e:
-                bridge_records[bridge_name] = {"pass": False, "error": str(e)}
-                self._log(f"  {bridge_name} bridge error: {e}")
-
-        report.unified_bridges_total = total
-        report.unified_bridges_passed = passed
-        report.unified_bridge_bonus = bonus_total
-        report.unified_bridge_status = bridge_records
-
-        report.knowledge_entries_applied += sum(
-            1
-            for payload in bridge_records.values()
-            if payload.get("knowledge_ref")
-        )
-        report.new_rules_distilled += sum(
-            len(payload.get("metrics", {})) > 0
-            for payload in bridge_records.values()
-            if payload.get("knowledge_ref")
-        )
-
-    # -------------------------------------------------------------------
-    # Full Cycle
-    # -------------------------------------------------------------------
-
     def run_full_cycle(self) -> EvolutionCycleReport:
-        """Run a complete three-layer evolution cycle.
-
-        1. Layer 1: Internal evolution (XPBD tuning + graph-fuzz)
-        2. Layer 2: Knowledge distillation
-        3. Layer 3: Self-iterating test (E2E + asset factory)
-        4. Determine if evolution was triggered
-        5. Update persistent state
-
-        Returns
-        -------
-        EvolutionCycleReport
-            Complete cycle report.
-        """
+        """Run a complete federated Golden Path evolution cycle."""
         report = EvolutionCycleReport(
             timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             cycle_id=self.state.total_cycles + 1,
         )
+        self._log(f"Starting federated evolution cycle {report.cycle_id}...")
 
-        self._log(f"Starting evolution cycle {report.cycle_id}...")
+        microkernel = MicrokernelOrchestrator(
+            project_root=self.root,
+            verbose=self.verbose,
+            session_id="SESSION-066",
+        )
+        micro_report = microkernel.run_full_cycle()
+        micro_dict = micro_report.to_dict()
 
-        # Run all three layers
-        self._run_layer1(report)
-        self._run_layer2(report)
-        self._run_layer3(report)
-        self._run_unified_bridge_suite(report)
+        loop = ThreeLayerEvolutionLoop(
+            project_root=self.root,
+            config=EvolutionLoopConfig(max_iterations=1, verbose=self.verbose),
+            session_id="SESSION-066",
+        )
+        rules_added = loop.run_layer2(micro_dict)
+        tests = loop.run_layer3(micro_dict)
 
-        # Determine overall pass/fail
-        report.all_pass = (
-            report.graph_fuzz_nan_count == 0
-            and report.graph_fuzz_penetration_count == 0
-            and report.e2e_level0_pass
-            and report.unified_bridges_passed == report.unified_bridges_total
+        lane_ratio = (
+            micro_report.niches_passed / micro_report.niches_evaluated
+            if micro_report.niches_evaluated > 0 else 0.0
+        )
+        test_ratio = (
+            micro_report.layer3_tests_passed / micro_report.layer3_tests_total
+            if micro_report.layer3_tests_total > 0 else 0.0
+        )
+        legacy_results = dict(micro_report.legacy_bridge_results)
+        legacy_bonus = sum(
+            float(payload.get("bonus", 0.0))
+            for payload in legacy_results.values()
+            if isinstance(payload, dict)
+        )
+        legacy_passed = sum(
+            1 for payload in legacy_results.values()
+            if isinstance(payload, dict) and payload.get("pass", False)
         )
 
-        # Evolution is triggered if any test failed
+        report.xpbd_tuning_actions = list(micro_report.layer1_internal_actions[-12:])
+        report.graph_fuzz_edge_coverage = lane_ratio
+        report.visual_fitness_mean = test_ratio
+        report.knowledge_entries_applied = rules_added
+        report.new_rules_distilled = rules_added
+        report.e2e_level0_pass = tests.get("layer1_completed", False)
+        report.e2e_level1_pass = tests.get("artifacts_valid", False)
+        report.e2e_level2_pass = tests.get("no_cross_niche_avg", False)
+        report.physics_tests_passed = micro_report.layer3_tests_passed
+        report.physics_tests_total = micro_report.layer3_tests_total
+        report.asset_factory_accepted = micro_report.niches_passed
+        report.asset_factory_total = micro_report.niches_evaluated
+        report.unified_bridges_passed = legacy_passed
+        report.unified_bridges_total = len(legacy_results)
+        report.unified_bridge_bonus = legacy_bonus
+        report.unified_bridge_status = {
+            "federated_meta_report": micro_report.meta_report,
+            "lane_reports": micro_report.niche_reports,
+            **legacy_results,
+        }
+        report.all_pass = bool(micro_report.all_pass and all(tests.values()))
         report.evolution_triggered = not report.all_pass
 
-        # Update persistent state
         self.state.total_cycles += 1
         if report.all_pass:
             self.state.total_passes += 1
         else:
             self.state.total_failures += 1
-        self.state.best_visual_fitness = max(
-            self.state.best_visual_fitness, report.visual_fitness_mean,
-        )
-        self.state.best_edge_coverage = max(
-            self.state.best_edge_coverage, report.graph_fuzz_edge_coverage,
-        )
+        self.state.best_visual_fitness = max(self.state.best_visual_fitness, report.visual_fitness_mean)
+        self.state.best_edge_coverage = max(self.state.best_edge_coverage, report.graph_fuzz_edge_coverage)
+        self.state.knowledge_entries_count += rules_added
         self.state.quality_trend.append(report.visual_fitness_mean)
         self.state.cycle_history.append(report.to_dict())
         self._save_state()
@@ -563,35 +296,28 @@ class EvolutionOrchestrator:
         topic: str = "general",
         parameter_effects: Optional[dict[str, Any]] = None,
     ) -> None:
-        """Ingest user-provided knowledge for the next evolution cycle.
-
-        This is the entry point for the user to feed new information
-        into the system, triggering knowledge distillation on the next cycle.
-        """
-        try:
-            from mathart.animation.xpbd_evolution import (
-                KnowledgeDistiller, KnowledgeEntry,
-            )
-            knowledge_path = self.root / "knowledge" / "xpbd_knowledge.json"
-            knowledge_path.parent.mkdir(parents=True, exist_ok=True)
-            distiller = KnowledgeDistiller(knowledge_path)
-            entry = KnowledgeEntry(
+        """Ingest user-provided knowledge into the persistent evolution KB."""
+        loop = ThreeLayerEvolutionLoop(
+            project_root=self.root,
+            config=EvolutionLoopConfig(max_iterations=1, verbose=self.verbose),
+            session_id="SESSION-066",
+        )
+        payload = insight.strip()
+        if parameter_effects:
+            payload += f" | parameter_effects={json.dumps(parameter_effects, ensure_ascii=False, sort_keys=True)}"
+        loop.kb.add_rule(
+            KnowledgeRule(
+                rule_id=f"user_{int(time.time() * 1000)}",
                 source=source,
-                topic=topic,
-                insight=insight,
-                parameter_effects=parameter_effects or {},
+                category=topic,
+                content=payload,
+                niche="general",
+                session_id="SESSION-066",
             )
-            distiller.add_knowledge(entry)
-            self.state.knowledge_entries_count += 1
-            self._save_state()
-        except Exception as e:
-            if self.verbose:
-                print(f"[evolution] Knowledge ingestion error: {e}")
-
-
-# ---------------------------------------------------------------------------
-# Pytest Integration
-# ---------------------------------------------------------------------------
+        )
+        loop.kb.save()
+        self.state.knowledge_entries_count += 1
+        self._save_state()
 
 
 def test_evolution_orchestrator_full_cycle():

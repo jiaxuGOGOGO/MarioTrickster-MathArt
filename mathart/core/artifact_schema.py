@@ -57,6 +57,11 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Optional
 
+from mathart.core.backend_types import (
+    BackendType,
+    backend_type_value,
+)
+
 
 # ---------------------------------------------------------------------------
 # Artifact Family Enum
@@ -149,7 +154,7 @@ class ArtifactManifest:
         SHA-256 hash of the manifest content for integrity verification.
     """
     artifact_family: str
-    backend_type: str
+    backend_type: str | BackendType
     version: str = "1.0.0"
     session_id: str = "SESSION-064"
     timestamp: float = 0.0
@@ -161,6 +166,7 @@ class ArtifactManifest:
     schema_hash: str = ""
 
     def __post_init__(self) -> None:
+        self.backend_type = backend_type_value(self.backend_type)
         if self.timestamp == 0.0:
             self.timestamp = time.time()
         if not self.schema_hash:
@@ -403,11 +409,11 @@ class CompositeManifestBuilder:
     def __init__(
         self,
         name: str,
-        backend_type: str = "composite",
+        backend_type: str | BackendType = BackendType.COMPOSITE,
         session_id: str = "SESSION-064",
     ) -> None:
         self._name = name
-        self._backend_type = backend_type
+        self._backend_type = backend_type_value(backend_type)
         self._session_id = session_id
         self._sub_manifests: list[ArtifactManifest] = []
         self._extra_metadata: dict[str, Any] = {}

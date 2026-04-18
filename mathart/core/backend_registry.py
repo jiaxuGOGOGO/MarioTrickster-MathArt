@@ -53,6 +53,8 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Callable, Optional, Protocol, Type, runtime_checkable
 
+from mathart.core.backend_types import BackendType, backend_type_value
+
 logger = logging.getLogger(__name__)
 
 
@@ -138,7 +140,7 @@ class BackendMeta:
     session_origin : str
         Session that introduced this backend.
     """
-    name: str
+    name: str | BackendType
     display_name: str = ""
     version: str = "1.0.0"
     artifact_families: tuple[str, ...] = ()
@@ -147,6 +149,14 @@ class BackendMeta:
     dependencies: tuple[str, ...] = ()
     author: str = "MarioTrickster-MathArt"
     session_origin: str = "SESSION-064"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "name", backend_type_value(self.name))
+        object.__setattr__(
+            self,
+            "dependencies",
+            tuple(backend_type_value(dep) for dep in self.dependencies),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -177,6 +187,7 @@ class BackendRegistry:
 
     _instance: Optional["BackendRegistry"] = None
     _backends: dict[str, tuple[BackendMeta, Type]] = {}
+    _builtins_loaded: bool = False
 
     def __new__(cls) -> "BackendRegistry":
         if cls._instance is None:
@@ -203,37 +214,39 @@ class BackendRegistry:
         ValueError
             If a backend with the same name is already registered.
         """
-        if meta.name in self._backends:
-            existing_meta, _ = self._backends[meta.name]
+        canonical_name = backend_type_value(meta.name)
+        if canonical_name in self._backends:
+            existing_meta, _ = self._backends[canonical_name]
             if existing_meta.version < meta.version:
                 logger.info(
                     "Upgrading backend %r from v%s to v%s",
-                    meta.name, existing_meta.version, meta.version,
+                    canonical_name, existing_meta.version, meta.version,
                 )
-                self._backends[meta.name] = (meta, backend_class)
+                self._backends[canonical_name] = (meta, backend_class)
             else:
                 logger.warning(
                     "Backend %r already registered (v%s). Skipping v%s.",
-                    meta.name, existing_meta.version, meta.version,
+                    canonical_name, existing_meta.version, meta.version,
                 )
             return
-        self._backends[meta.name] = (meta, backend_class)
-        logger.debug("Registered backend: %s (v%s)", meta.name, meta.version)
+        self._backends[canonical_name] = (meta, backend_class)
+        logger.debug("Registered backend: %s (v%s)", canonical_name, meta.version)
 
     def get(self, name: str) -> Optional[tuple[BackendMeta, Type]]:
         """Look up a backend by name.
 
         Returns ``None`` if not found (fail-soft for optional backends).
         """
-        return self._backends.get(name)
+        return self._backends.get(backend_type_value(name))
 
     def get_or_raise(self, name: str) -> tuple[BackendMeta, Type]:
         """Look up a backend by name, raising if not found."""
-        result = self._backends.get(name)
+        canonical_name = backend_type_value(name)
+        result = self._backends.get(canonical_name)
         if result is None:
             available = ", ".join(sorted(self._backends.keys()))
             raise KeyError(
-                f"Backend {name!r} not registered. Available: [{available}]"
+                f"Backend {canonical_name!r} not registered. Available: [{available}]"
             )
         return result
 
@@ -269,16 +282,17 @@ class BackendRegistry:
         order: list[str] = []
 
         def _visit(n: str) -> None:
-            if n in visited:
+            canonical_name = backend_type_value(n)
+            if canonical_name in visited:
                 return
-            visited.add(n)
-            entry = self._backends.get(n)
+            visited.add(canonical_name)
+            entry = self._backends.get(canonical_name)
             if entry is None:
                 return
             meta, _ = entry
             for dep in meta.dependencies:
                 _visit(dep)
-            order.append(n)
+            order.append(canonical_name)
 
         _visit(name)
         return order
@@ -332,14 +346,14 @@ class BackendRegistry:
 # ---------------------------------------------------------------------------
 
 def register_backend(
-    name: str,
+    name: str | BackendType,
     *,
     display_name: str = "",
     version: str = "1.0.0",
     artifact_families: tuple[str, ...] = (),
     capabilities: tuple[BackendCapability, ...] = (),
     input_requirements: tuple[str, ...] = (),
-    dependencies: tuple[str, ...] = (),
+    dependencies: tuple[str | BackendType, ...] = (),
     author: str = "MarioTrickster-MathArt",
     session_origin: str = "SESSION-064",
 ) -> Callable[[Type], Type]:
@@ -382,8 +396,19 @@ def register_backend(
 
 
 def get_registry() -> BackendRegistry:
-    """Get the global BackendRegistry singleton."""
-    return BackendRegistry()
+    """Get the global BackendRegistry singleton and ensure built-ins are loaded."""
+    registry = BackendRegistry()
+    if not BackendRegistry._builtins_loaded:
+        BackendRegistry._builtins_loaded = True
+        try:
+            importlib.import_module("mathart.core.builtin_backends")
+        except Exception as e:
+            logger.debug("Failed to auto-load builtin backends: %s", e)
+        try:
+            importlib.import_module("mathart.core.builtin_niches")
+        except Exception as e:
+            logger.debug("Failed to auto-load builtin niches: %s", e)
+    return registry
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,189 @@
+{
+  "session_id": "SESSION-066",
+  "timestamp": "2026-04-18T09:35:35.783237+00:00",
+  "project_root": "/home/ubuntu/mario_mathart_work",
+  "backend_count": 9,
+  "passed": 9,
+  "failed": 0,
+  "backend_aliases": {
+    "motion_2d": "motion_2d",
+    "urp2d_bundle": "urp2d_bundle",
+    "industrial_sprite": "industrial_sprite",
+    "dimension_uplift_mesh": "dimension_uplift_mesh",
+    "anti_flicker_render": "anti_flicker_render",
+    "wfc_tilemap": "wfc_tilemap",
+    "physics_vfx": "physics_vfx",
+    "cel_shading": "cel_shading",
+    "knowledge_distill": "knowledge_distill",
+    "composite": "composite",
+    "legacy": "legacy",
+    "microkernel": "microkernel",
+    "dimension_uplift": "dimension_uplift_mesh",
+    "dimension_uplift_bundle": "dimension_uplift_mesh",
+    "unity_urp_2d": "urp2d_bundle",
+    "unity_urp_2d_bundle": "urp2d_bundle",
+    "unity_urp2d_bundle": "urp2d_bundle",
+    "unity_urp_native": "urp2d_bundle",
+    "industrial_sprite_bundle": "industrial_sprite",
+    "industrial_renderer": "industrial_sprite",
+    "breakwall": "anti_flicker_render",
+    "sparse_ctrl": "anti_flicker_render",
+    "anti_flicker": "anti_flicker_render"
+  },
+  "results": [
+    {
+      "backend": "anti_flicker_render",
+      "status": "PASS",
+      "artifact_family": "composite",
+      "outputs": {
+        "workflow": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/anti_flicker_render/workflow.json",
+        "preview": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/anti_flicker_render/preview.gif",
+        "report": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/anti_flicker_render/report.json"
+      },
+      "metadata": {
+        "strategy": "sparse_ctrl_plus_ebsynth",
+        "guide_channels": [
+          "normal",
+          "depth",
+          "mask",
+          "motion_vector",
+          "identity_ref"
+        ],
+        "keyframe_interval": 4,
+        "lane": "temporal_consistency"
+      },
+      "schema_hash": "sha256:bcaa50d754de35de"
+    },
+    {
+      "backend": "cel_shading",
+      "status": "PASS",
+      "artifact_family": "cel_shading",
+      "outputs": {
+        "shader_source": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/cel_shading/artifact.out"
+      },
+      "metadata": {
+        "shader_type": "cel",
+        "outline_method": "sobel_depth"
+      },
+      "schema_hash": "sha256:20e928361f952edf"
+    },
+    {
+      "backend": "dimension_uplift_mesh",
+      "status": "PASS",
+      "artifact_family": "mesh_obj",
+      "outputs": {
+        "mesh": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/dimension_uplift_mesh/artifact.obj",
+        "material": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/dimension_uplift_mesh/material.json",
+        "cel_shader": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/dimension_uplift_mesh/bundle.hlsl"
+      },
+      "metadata": {
+        "vertex_count": 0,
+        "face_count": 0,
+        "mesh_strategy": "dual_contouring",
+        "lod_strategy": "octree",
+        "lane": "dimension_uplift"
+      },
+      "schema_hash": "sha256:155379b96e7c7fd3"
+    },
+    {
+      "backend": "industrial_sprite",
+      "status": "PASS",
+      "artifact_family": "material_bundle",
+      "outputs": {
+        "albedo": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/industrial_sprite/albedo.png",
+        "normal": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/industrial_sprite/normal.png",
+        "depth": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/industrial_sprite/depth.png",
+        "mask": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/industrial_sprite/mask.png"
+      },
+      "metadata": {
+        "channels": [
+          "albedo",
+          "normal",
+          "depth",
+          "mask"
+        ],
+        "bundle_kind": "industrial_sprite",
+        "lane": "rendering_2d_aux",
+        "renderer": "industrial_renderer"
+      },
+      "schema_hash": "sha256:959b4bb856518c9a"
+    },
+    {
+      "backend": "knowledge_distill",
+      "status": "PASS",
+      "artifact_family": "knowledge_rules",
+      "outputs": {
+        "rules_file": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/knowledge_distill/artifact.out"
+      },
+      "metadata": {
+        "rule_count": 0
+      },
+      "schema_hash": "sha256:207556dc7896c0c9"
+    },
+    {
+      "backend": "motion_2d",
+      "status": "PASS",
+      "artifact_family": "sprite_sheet",
+      "outputs": {
+        "spritesheet": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/motion_2d/artifact.out"
+      },
+      "metadata": {
+        "frame_count": 8,
+        "frame_width": 64,
+        "frame_height": 64,
+        "lane": "animation_2d"
+      },
+      "schema_hash": "sha256:e4bc4dba3b2d056e"
+    },
+    {
+      "backend": "physics_vfx",
+      "status": "PASS",
+      "artifact_family": "vfx_flipbook",
+      "outputs": {
+        "atlas": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/physics_vfx/artifact.out"
+      },
+      "metadata": {
+        "frame_count": 8,
+        "atlas_width": 512,
+        "atlas_height": 512
+      },
+      "schema_hash": "sha256:5cd6408c52835da5"
+    },
+    {
+      "backend": "urp2d_bundle",
+      "status": "PASS",
+      "artifact_family": "engine_plugin",
+      "outputs": {
+        "plugin_source": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/urp2d_bundle/bundle.cs",
+        "shader_source": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/urp2d_bundle/bundle.hlsl",
+        "vat_manifest": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/urp2d_bundle/vat_manifest.json"
+      },
+      "metadata": {
+        "engine": "Unity",
+        "plugin_type": "URP_2D_Bundle",
+        "supports_vat": true,
+        "secondary_textures": [
+          "normal",
+          "mask",
+          "depth"
+        ],
+        "lane": "engine_export"
+      },
+      "schema_hash": "sha256:27dcba5644b6086e"
+    },
+    {
+      "backend": "wfc_tilemap",
+      "status": "PASS",
+      "artifact_family": "level_tilemap",
+      "outputs": {
+        "tilemap_json": "/home/ubuntu/mario_mathart_work/artifacts/registry_e2e_guard/wfc_tilemap/artifact.out"
+      },
+      "metadata": {
+        "width": 18,
+        "height": 7,
+        "tile_count": 0
+      },
+      "schema_hash": "sha256:741a7bcfb2976d54"
+    }
+  ]
+}

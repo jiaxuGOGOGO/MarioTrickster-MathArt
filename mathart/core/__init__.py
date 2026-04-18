@@ -33,6 +33,12 @@ from mathart.core.backend_registry import (
     register_backend,
     get_registry,
 )
+from mathart.core.backend_types import (
+    BackendType,
+    backend_alias_map,
+    backend_type_value,
+    known_backend_types,
+)
 from mathart.core.artifact_schema import (
     ArtifactFamily,
     ArtifactManifest,
@@ -54,6 +60,10 @@ __all__ = [
     "BackendMeta",
     "register_backend",
     "get_registry",
+    "BackendType",
+    "backend_alias_map",
+    "backend_type_value",
+    "known_backend_types",
     # Artifact Schema
     "ArtifactFamily",
     "ArtifactManifest",

@@ -109,6 +109,8 @@ from .evolution.evolution_layer3 import PhysicsKnowledgeDistiller
 # SESSION-040: Pipeline Contract & Auditor (攻坚战役三)
 from .pipeline_contract import UMR_Context, PipelineContractError, PipelineContractGuard
 from .pipeline_auditor import UMR_Auditor, ContactFlickerDetector
+from .core.backend_types import BackendType, backend_type_value
+from .core.pipeline_bridge import MicrokernelPipelineBridge, manifest_to_legacy
 from .animation.phase_driven_idle import phase_driven_idle_frame
 from .animation.gait_blend import GaitMode
 from .animation.locomotion_cns import sample_gait_umr_frame
@@ -305,6 +307,10 @@ class AssetPipeline:
         self.verbose = verbose
         self.seed = seed
         self.project_root = Path(project_root) if project_root else None
+        self._microkernel_bridge = MicrokernelPipelineBridge(
+            project_root=self.project_root or self.output_dir.parent,
+            session_id="SESSION-066",
+        )
 
         # Generate a default palette for evaluation
         self.palette_gen = PaletteGenerator(seed=seed)
@@ -331,6 +337,69 @@ class AssetPipeline:
                 self._log(f"Loaded sprite library: {self._sprite_library.count()} references")
         except Exception:
             self._sprite_library = None
+
+    def _default_backend_context(self) -> dict[str, Any]:
+        """Construct a minimal context for registry-driven backends.
+
+        The context is intentionally generic so canonical backends can run in
+        isolation without depending on any specific business entrypoint.
+        """
+        return {
+            "name": "asset_pipeline_registry_run",
+            "output_dir": str(self.output_dir),
+            "output_path": str(self.output_dir / "artifact.out"),
+            "frame_count": 8,
+            "frame_width": 64,
+            "frame_height": 64,
+            "width": 18,
+            "height": 7,
+            "tile_count": 0,
+            "vertex_count": 0,
+            "face_count": 0,
+            "rule_count": 0,
+            "guide_channels": ["normal", "depth", "mask", "motion_vector"],
+        }
+
+    def list_registered_backends(self) -> list[str]:
+        """List all currently registered backend slots."""
+        return sorted(self._microkernel_bridge.backend_registry.all_backends().keys())
+
+    def get_registry_summary(self) -> str:
+        """Return a Markdown summary of registered backends and niches."""
+        return self._microkernel_bridge.get_registry_summary()
+
+    def run_backend(
+        self,
+        backend_name: str | BackendType,
+        context: Optional[dict[str, Any]] = None,
+        *,
+        return_legacy: bool = False,
+    ) -> Any:
+        """Run a single registered backend through the microkernel bridge."""
+        merged_context = self._default_backend_context()
+        if context:
+            merged_context.update(context)
+        canonical_name = backend_type_value(backend_name)
+        merged_context.setdefault(
+            "output_path",
+            str(self.output_dir / f"{canonical_name}_artifact.out"),
+        )
+        manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+        return manifest_to_legacy(manifest) if return_legacy else manifest
+
+    def run_registered_backends(
+        self,
+        context: Optional[dict[str, Any]] = None,
+        *,
+        return_legacy: bool = False,
+    ) -> list[Any]:
+        """Run all registered backends with a shared default context."""
+        manifests = self._microkernel_bridge.run_all_backends(
+            {**self._default_backend_context(), **(context or {})}
+        )
+        if return_legacy:
+            return [manifest_to_legacy(m) for m in manifests]
+        return manifests
 
     def _generate_default_palette(self) -> list[tuple[int, int, int]]:
         """Generate a default pixel art palette for evaluation."""
