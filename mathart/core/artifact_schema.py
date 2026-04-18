@@ -224,6 +224,42 @@ class ArtifactManifest:
             schema_hash=data.get("schema_hash", ""),
         )
 
+    def to_ipc_payload(
+        self,
+        *,
+        manifest_path: str | Path | None = None,
+        requested_backend: str | None = None,
+        status: str = "ok",
+    ) -> dict[str, Any]:
+        """Return a machine-consumable IPC payload for stdout delivery.
+
+        The payload preserves the strongly typed manifest contract while adding
+        absolute paths and a few transport-level fields that external callers
+        such as Unity or subprocess harnesses need for direct deserialization.
+        """
+        resolved_manifest_path = (
+            str(Path(manifest_path).resolve()) if manifest_path else None
+        )
+        artifact_paths = {
+            role: str(Path(path).resolve())
+            for role, path in self.outputs.items()
+        }
+        return {
+            "status": status,
+            "requested_backend": requested_backend or self.backend_type,
+            "resolved_backend": self.backend_type,
+            "artifact_family": self.artifact_family,
+            "version": self.version,
+            "session_id": self.session_id,
+            "schema_hash": self.schema_hash,
+            "manifest_path": resolved_manifest_path,
+            "artifact_paths": artifact_paths,
+            "metadata": self.metadata,
+            "quality_metrics": self.quality_metrics,
+            "references": self.references,
+            "tags": self.tags,
+        }
+
     def save(self, path: str | Path) -> None:
         """Save manifest to a JSON file."""
         p = Path(path)

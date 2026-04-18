@@ -7,9 +7,17 @@ pipelines plug into these slots without trunk edits.
 """
 from __future__ import annotations
 
+import json
 import logging
+from pathlib import Path
 from typing import Any
 
+from mathart.animation.motion_2d_pipeline import Motion2DPipeline
+from mathart.animation.unity_urp_native import (
+    UnityURP2DNativePipelineGenerator,
+    XPBDVATBakeConfig,
+    bake_cloth_vat,
+)
 from mathart.core.backend_registry import (
     BackendCapability,
     BackendMeta,
@@ -26,7 +34,7 @@ logger = logging.getLogger(__name__)
     display_name="Motion 2D Sprite Pipeline",
     version="2.0.0",
     artifact_families=(
-        ArtifactFamily.SPRITE_SHEET.value,
+        ArtifactFamily.ANIMATION_SPINE.value,
         ArtifactFamily.ANIMATION_SPRITESHEET.value,
     ),
     capabilities=(
@@ -48,17 +56,58 @@ class Motion2DBackend:
         return self._backend_meta
 
     def execute(self, context: dict[str, Any]) -> ArtifactManifest:
+        output_dir = Path(context.get("output_dir", "output")).resolve()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        stem = context.get("name", "motion_2d")
+        gait = str(context.get("gait", "biped_walk"))
+        frame_count = int(context.get("frame_count", context.get("n_frames", 24)))
+        speed = float(context.get("speed", 1.0))
+
+        pipeline = Motion2DPipeline()
+        if gait == "quadruped_trot":
+            result = pipeline.run_quadruped_trot(n_frames=frame_count, speed=speed)
+        else:
+            gait = "biped_walk"
+            result = pipeline.run_biped_walk(n_frames=frame_count, speed=speed)
+
+        spine_json_path = output_dir / f"{stem}_spine.json"
+        report_path = output_dir / f"{stem}_motion_report.json"
+        pipeline.export_spine_json(result, spine_json_path)
+        report_payload = {
+            "gait": gait,
+            "total_frames": int(result.total_frames),
+            "pipeline_pass": bool(result.pipeline_pass),
+            "projection_quality": (
+                result.projection_quality.to_dict()
+                if hasattr(result.projection_quality, "to_dict")
+                else {}
+            ),
+            "ik_quality": (
+                result.ik_quality.to_dict()
+                if getattr(result, "ik_quality", None) is not None and hasattr(result.ik_quality, "to_dict")
+                else None
+            ),
+        }
+        report_path.write_text(
+            json.dumps(report_payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        bone_count = len(getattr(result.clip_2d, "skeleton_bones", []) or [])
         return ArtifactManifest(
-            artifact_family=ArtifactFamily.SPRITE_SHEET.value,
+            artifact_family=ArtifactFamily.ANIMATION_SPINE.value,
             backend_type=BackendType.MOTION_2D,
             outputs={
-                "spritesheet": context.get("output_path", "output/motion_2d_sprites.png"),
+                "spine_json": str(spine_json_path),
+                "report": str(report_path),
             },
             metadata={
-                "frame_count": context.get("frame_count", 8),
-                "frame_width": context.get("frame_width", 64),
-                "frame_height": context.get("frame_height", 64),
+                "bone_count": bone_count,
+                "animation_count": 1,
+                "frame_count": int(result.total_frames),
+                "gait": gait,
+                "fps": int(getattr(getattr(result, "clip_2d", None), "fps", 0) or 0),
                 "lane": "animation_2d",
+                "pipeline_pass": bool(result.pipeline_pass),
             },
         )
 
@@ -141,20 +190,56 @@ class URP2DBundleBackend:
         return self._backend_meta
 
     def execute(self, context: dict[str, Any]) -> ArtifactManifest:
-        base_dir = context.get("output_dir", "output")
+        output_dir = Path(context.get("output_dir", "output")).resolve()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        stem = context.get("name", "urp2d_bundle")
+        bundle_root = output_dir / stem
+        bundle_root.mkdir(parents=True, exist_ok=True)
+
+        generator = UnityURP2DNativePipelineGenerator()
+        generator.generate(bundle_root)
+        audit = generator.audit(bundle_root)
+
+        vat_result = bake_cloth_vat(
+            bundle_root / "VAT",
+            config=XPBDVATBakeConfig(
+                asset_name=stem,
+                frame_count=int(context.get("frame_count", 24)),
+                fps=int(context.get("fps", 24)),
+                particle_budget=int(context.get("particle_budget", 256)),
+                displacement_scale=float(context.get("displacement_scale", 1.0)),
+                include_preview=bool(context.get("include_preview", True)),
+            ),
+        )
+
+        plugin_source = bundle_root / "Editor" / "MathArtImporter.cs"
+        shader_source = bundle_root / "Shaders" / "MathArtVATLit.shader"
+        secondary_postprocessor = bundle_root / "Editor" / "MathArtSecondaryTexturePostprocessor.cs"
+        vat_player = bundle_root / "Runtime" / "MathArtVATPlayer.cs"
+        readme = bundle_root / "Docs" / "MATHART_UNITY_URP2D_README.md"
+
         return ArtifactManifest(
             artifact_family=ArtifactFamily.ENGINE_PLUGIN.value,
             backend_type=BackendType.URP2D_BUNDLE,
             outputs={
-                "plugin_source": context.get("plugin_path", f"{base_dir}/unity_mathart_bundle.cs"),
-                "shader_source": context.get("shader_path", f"{base_dir}/MathArtLitSprite.hlsl"),
-                "vat_manifest": context.get("vat_manifest_path", f"{base_dir}/vat_bake_manifest.json"),
+                "plugin_source": str(plugin_source),
+                "shader_source": str(shader_source),
+                "secondary_texture_postprocessor": str(secondary_postprocessor),
+                "vat_player": str(vat_player),
+                "vat_manifest": str(vat_result.manifest_path),
+                "vat_position_tex": str(vat_result.texture_path),
+                "vat_preview": str(vat_result.preview_path) if vat_result.preview_path else "",
+                "docs": str(readme),
             },
             metadata={
                 "engine": "Unity",
                 "plugin_type": "URP_2D_Bundle",
                 "supports_vat": True,
                 "secondary_textures": ["normal", "mask", "depth"],
+                "frame_count": int(vat_result.manifest.frame_count),
+                "vertex_count": int(vat_result.manifest.vertex_count),
+                "vat_backend": vat_result.manifest.source_backend,
+                "unity_native_audit": audit.to_dict(),
                 "lane": "engine_export",
             },
         )

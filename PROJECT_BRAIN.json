@@ -1,11 +1,11 @@
 {
-  "version": "0.57.0",
-  "last_session_id": "SESSION-066",
-  "last_updated": "2026-04-18T14:30:00Z",
+  "version": "0.58.0",
+  "last_session_id": "SESSION-067",
+  "last_updated": "2026-04-18T16:40:00Z",
   "best_quality_score": 0.885,
-  "validation_pass_rate": "SESSION-066 Golden Path hardening PASS: 8 targeted tests PASS; 9/9 registered backends PASS in registry E2E guard; federated evolution facade PASS",
-  "total_iterations": 582,
-  "total_code_lines": 105400,
+  "validation_pass_rate": "SESSION-067 dynamic CLI / IPC PASS: subprocess E2E for python -m MarioTrickster PASS; 31 targeted tests PASS across CLI, registry guard, unity_urp_native, and motion_2d.",
+  "total_iterations": 583,
+  "total_code_lines": 105900,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
@@ -49,9 +49,11 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-066 executes the Golden Path hardening pass: introduce a canonical BackendType enum with alias normalization, convert AssetPipeline into a registry-addressable socket layer, refactor EvolutionOrchestrator into a federated facade over MicrokernelOrchestrator + ThreeLayerEvolutionLoop, register industrial_sprite / urp2d_bundle / anti_flicker_render / dimension_uplift_mesh canonical backends, and add a daily registry-wide E2E guard workflow. Existing research-heavy SESSION-063/065 capabilities remain intact while future work can plug in without trunk rewrites.",
+  "current_focus": "SESSION-067 executes the first-class dynamic CLI closure pass: package-level Facade commands now reflect the live registry, stdout is reserved for machine-readable JSON manifests, real urp2d_bundle generation is wired through the shared bus, and subprocess E2E tests prove external callers can consume the contract without stdout noise.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "research/session067_cli_principles_findings_01.md",
+    "research/session067_dynamic_cli_design.md",
     "research/session066_golden_path_design.md",
     "artifacts/registry_e2e_guard/registry_e2e_report.md",
     "artifacts/registry_e2e_guard/registry_e2e_report.json",
@@ -437,9 +439,9 @@
       "title": "Industrial renderer integration into AssetPipeline",
       "status": "PARTIAL",
       "estimated_effort": "medium",
-      "description": "SESSION-054 upgrades the industrial delivery path with analytical gradients, full material bundle export (albedo/normal/depth/thickness/roughness/mask), and engine-ready metadata via export_industrial_bundle(). Remaining work: wire this backend as an optional rendering/export path inside AssetPipeline and produce_character_pack().",
+      "description": "Advanced in SESSION-067. The architecture now has a first-class dynamic CLI and machine-consumable manifest contract that industrial_sprite can plug into without new trunk edits. Remaining work is the real backend wiring from industrial renderer outputs into AssetPipeline/CLI execution and richer multi-channel material bundle schema export.",
       "added_in": "SESSION-034",
-      "updated_in": "SESSION-054"
+      "updated_in": "SESSION-067"
     },
     {
       "id": "P1-PHASE-37A",
@@ -1032,11 +1034,12 @@
       "id": "P1-URP2D-PIPE-1",
       "priority": "P1",
       "title": "Expose UnityURP2DNativePipelineGenerator through standard CLI / AssetPipeline entrypoints",
-      "status": "PARTIAL",
+      "status": "DONE",
       "estimated_effort": "medium",
-      "description": "PARTIALLY ADDRESSED in SESSION-066. Canonical urp2d_bundle backend is now addressable through AssetPipeline.run_backend()/run_registered_backends() and registry aliases; direct CLI/native-generator wiring remains to be finished.",
+      "description": "CLOSED in SESSION-067. urp2d_bundle is now exposed through the first-class package CLI, wired to the real UnityURP2DNativePipelineGenerator plus VAT bake path, and covered by subprocess E2E verification that parses stdout JSON and checks manifest-backed Unity artifacts on disk.",
       "added_in": "SESSION-059",
-      "updated_in": "SESSION-066"
+      "updated_in": "SESSION-067",
+      "completed_in": "SESSION-067"
     },
     {
       "id": "P1-VAT-PRECISION-1",
@@ -1221,9 +1224,9 @@
       "title": "Expose Phase 2 anti-flicker visual pipeline through CLI / AssetPipeline",
       "status": "PARTIAL",
       "estimated_effort": "medium",
-      "description": "PARTIALLY ADDRESSED in SESSION-066. Canonical anti_flicker_render backend is now available through the registry and AssetPipeline socket layer; full CLI and real ComfyUI execution presets remain pending.",
+      "description": "Advanced in SESSION-067. anti_flicker_render already rides the dynamic CLI / AssetPipeline bus and can reuse the new dotted-key parameter transport plus stdout-safe manifest delivery, but the backend still needs real ComfyUI/EbSynth execution presets, temporal asset schema enrichment, and production runtime validation.",
       "added_in": "SESSION-060",
-      "updated_in": "SESSION-066"
+      "updated_in": "SESSION-067"
     },
     {
       "id": "P1-AI-2D",
@@ -1239,10 +1242,12 @@
       "id": "P0-GOLDEN-PATH-CLI-1",
       "priority": "P0",
       "title": "Expose canonical Golden Path backends through first-class CLI commands",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "medium",
-      "description": "Build explicit CLI commands for motion_2d, industrial_sprite, urp2d_bundle, anti_flicker_render, and dimension_uplift_mesh on top of the new registry socket.",
-      "added_in": "SESSION-066"
+      "description": "CLOSED in SESSION-067. Added a first-class dynamic package CLI at mathart/cli.py with python -m mathart and python -m MarioTrickster entrypoints. The CLI reflects the live registry instead of hard-coded backend arrays, delegates to AssetPipeline.run_backend(), and emits machine-readable JSON payloads only on stdout.",
+      "added_in": "SESSION-066",
+      "updated_in": "SESSION-067",
+      "completed_in": "SESSION-067"
     }
   ],
   "completed_tasks": [
@@ -2186,6 +2191,18 @@
       "description": "Integrated ConstraintWFCEvolutionBridge into EvolutionOrchestrator.run_full_cycle() as part of the unified bridge suite.",
       "added_in": "SESSION-057",
       "closed_in": "SESSION-059"
+    },
+    {
+      "id": "P0-GOLDEN-PATH-CLI-1",
+      "title": "Expose canonical Golden Path backends through first-class CLI commands",
+      "completed_in": "SESSION-067",
+      "result": "Added mathart/cli.py plus package __main__ entrypoints for python -m mathart and python -m MarioTrickster. Commands now reflect the live registry and emit stdout-safe JSON IPC payloads."
+    },
+    {
+      "id": "P1-URP2D-PIPE-1",
+      "title": "Expose UnityURP2DNativePipelineGenerator through standard CLI / AssetPipeline entrypoints",
+      "completed_in": "SESSION-067",
+      "result": "urp2d_bundle now executes the real UnityURP2DNativePipelineGenerator + VAT path through AssetPipeline.run_backend() and is validated by subprocess E2E tests consuming manifest JSON from stdout."
     }
   ],
   "capability_gaps": [
@@ -2846,7 +2863,9 @@
     "session065_sparse_ctrl_bridge": "mathart/animation/sparse_ctrl_bridge.py: SparseCtrl (Guo 2023) integration bridge with ComfyUI workflow generation, adaptive keyframe selection based on motion energy, motion vector RGB encoding, and temporal consistency scoring.",
     "session065_knowledge_rules": "9 knowledge rules distilled to knowledge/session065_research_rules.json covering DC, QEM, VNE, Dead Cells, XPBD, DeepPhase, Motion Matching, EbSynth, SparseCtrl.",
     "session065_three_layer_evolution": "Three-layer evolution bridge (session065_research_bridge.py): Layer 1 evaluates 5 modules (21/21 tests), Layer 2 distills 9 rules, Layer 3 runs 3 end-to-end integration pipelines. 100% integration score.",
-    "session066_golden_path_status": "Golden Path Phase 0 implemented: strong backend typing, registry-driven AssetPipeline socket, federated orchestrator facade, and daily registry guard are all in place."
+    "session066_golden_path_status": "Golden Path Phase 0 implemented: strong backend typing, registry-driven AssetPipeline socket, federated orchestrator facade, and daily registry guard are all in place.",
+    "session067_dynamic_cli_status": "First-class package CLI now exists at mathart/cli.py with python -m mathart and python -m MarioTrickster entrypoints, registry-reflected backend discovery, stderr-only diagnostics, stdout-only JSON IPC payloads, and subprocess-proven urp2d_bundle manifest delivery.",
+    "session067_future_cli_preparation": "Before anti_flicker_render and industrial_sprite become production-grade CLI backends, keep extending the generic --set dotted-key transport and enrich ArtifactManifest IPC payloads for multi-channel, temporal, and auxiliary asset groups instead of adding bespoke per-backend flags."
   },
   "recent_focus_snapshot": {
     "session": "SESSION-064",
@@ -2872,6 +2891,36 @@
     ]
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-067",
+      "version": "0.58.0",
+      "date": "2026-04-18",
+      "gap_closed": "First-class dynamic CLI / IPC closure for canonical backend bus",
+      "title": "Dynamic CLI Facade, Stdout-Safe IPC Manifest Contract, and Real URP2D Bus Wiring",
+      "new_modules": [
+        "mathart/cli.py",
+        "mathart/__main__.py",
+        "MarioTrickster/__main__.py",
+        "MarioTrickster/__init__.py",
+        "tests/test_dynamic_cli_ipc.py",
+        "research/session067_dynamic_cli_design.md",
+        "research/session067_cli_principles_findings_01.md"
+      ],
+      "summary": "Implemented a first-class registry-reflected package CLI, enforced stderr/stdout separation for machine-safe IPC, upgraded ArtifactManifest with IPC payload export, wired urp2d_bundle to the real Unity native generator + VAT bake chain, upgraded motion_2d to emit real Spine JSON artifacts, and validated the closure with subprocess E2E plus 31 targeted passing tests.",
+      "tasks_closed": [
+        "P0-GOLDEN-PATH-CLI-1",
+        "P1-URP2D-PIPE-1"
+      ],
+      "artifacts": [
+        "mathart/cli.py",
+        "mathart/__main__.py",
+        "MarioTrickster/__main__.py",
+        "mathart/core/artifact_schema.py",
+        "mathart/core/builtin_backends.py",
+        "tests/test_dynamic_cli_ipc.py",
+        "research/session067_dynamic_cli_design.md"
+      ]
+    },
     {
       "session_id": "SESSION-066",
       "version": "0.57.0",
@@ -3289,10 +3338,11 @@
       "id": "P1-AI-2C",
       "priority": "P1",
       "title": "Expose Phase 2 anti-flicker visual pipeline through CLI / AssetPipeline",
-      "status": "TODO",
+      "status": "PARTIAL",
       "estimated_effort": "medium",
-      "description": "Promote the SESSION-060 sparse-keyframe + guide-lock + mask-guided propagation pipeline from bridge/runtime-helper status into the repository's standard export flow.",
-      "added_in": "SESSION-060"
+      "description": "Advanced in SESSION-067. anti_flicker_render already rides the dynamic CLI / AssetPipeline bus and can reuse the new dotted-key parameter transport plus stdout-safe manifest delivery, but the backend still needs real ComfyUI/EbSynth execution presets, temporal asset schema enrichment, and production runtime validation.",
+      "added_in": "SESSION-060",
+      "updated_in": "SESSION-067"
     },
     {
       "id": "P1-AI-2D",
