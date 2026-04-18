@@ -1,0 +1,114 @@
+# SESSION-063: Phase 5 Dimension Uplift — Full Audit Report
+
+> **Audit Date**: 2026-04-18
+> **Session**: SESSION-063
+> **Scope**: Phase 5 — 2.5D & True 3D Smooth Dimension Upgrade
+> **Test Results**: 48/48 PASSED
+
+---
+
+## 1. Research-to-Code Traceability Matrix
+
+| # | Research Topic | Source | Code Module | Status |
+|---|---|---|---|---|
+| 1 | IQ 3D SDF Primitives | iquilezles.org/articles/distfunctions | `SDF3DPrimitives` (8 primitives) | ✅ Implemented |
+| 2 | IQ Smooth Min (smin) DD-family | iquilezles.org/articles/smin | `SmoothMin3D` (5 variants) | ✅ Implemented |
+| 3 | IQ smin gradient formula | iquilezles.org/articles/smin | `SmoothMin3D.gradient_blend()` | ✅ Implemented |
+| 4 | Tao Ju Dual Contouring | SIGGRAPH 2002 paper | `DualContouringExtractor` | ✅ Implemented |
+| 5 | QEF SVD-based solving | Tao Ju + Boris the Brave | `_solve_qef_cells()` with lstsq | ✅ Implemented |
+| 6 | Constrained QEF (cell-center bias) | Boris the Brave tutorial | `bias_strength` parameter | ✅ Implemented |
+| 7 | Hermite data extraction | Tao Ju SIGGRAPH 2002 | `_extract_hermite_edges()` | ✅ Implemented |
+| 8 | Pujol & Chica adaptive SDF cache | C&G 2023 | `AdaptiveSDFCache` (octree) | ✅ Implemented |
+| 9 | Trilinear interpolation in octree | Pujol & Chica 2023 | `_trilinear_interpolate()` | ✅ Implemented |
+| 10 | 2D→3D Extrusion | SDF dimension lifting | `SDFDimensionLifter.extrude_2d_to_3d()` | ✅ Implemented |
+| 11 | 2D→3D Revolution | SDF dimension lifting | `SDFDimensionLifter.revolve_2d_to_3d()` | ✅ Implemented |
+| 12 | Smooth 3D blend pipeline | IQ smin + lifter | `SDFDimensionLifter.smooth_blend_3d()` | ✅ Implemented |
+| 13 | Isometric Camera (Hades-style) | Supergiant Games | `IsometricCameraConfig` | ✅ Implemented |
+| 14 | Displacement Mapping | Catlike Coding + Ned Makes Games | `IsometricDisplacementMapper` | ✅ Implemented |
+| 15 | Depth map from SDF | Project-specific | `generate_depth_map()` | ✅ Implemented |
+| 16 | Tessellated plane mesh | GPU tessellation concept | `tessellate_plane()` | ✅ Implemented |
+| 17 | Arc System Works cel-shading | Junya Motomura GDC 2015 | `CelShadingConfig` | ✅ Implemented |
+| 18 | Inverted hull outlines | GGXrd technique | `generate_inverted_hull_shader()` | ✅ Implemented |
+| 19 | Vertex color shadow bias | GGXrd technique | Cel-shading shader with `v.color.r` | ✅ Implemented |
+| 20 | Stepped (limited) animation | GGXrd technique | `generate_stepped_animation_config()` | ✅ Implemented |
+| 21 | Taichi AOT → SPIR-V | Taichi docs | `TaichiAOTBridge` | ✅ Implemented |
+| 22 | XPBD cloth kernel export | Taichi AOT + XPBD | `generate_aot_export_script()` | ✅ Implemented |
+| 23 | Unity C++ native plugin | Taichi C-API | `generate_unity_native_plugin_code()` | ✅ Implemented |
+| 24 | Unity C# bridge | DllImport pattern | `generate_csharp_bridge_code()` | ✅ Implemented |
+| 25 | OBJ mesh export | Standard format | `DualContouringExtractor.export_obj()` | ✅ Implemented |
+| 26 | Three-layer evolution bridge | Project pattern | `DimensionUpliftEvolutionBridge` | ✅ Implemented |
+| 27 | Knowledge distillation | Project pattern | `distill()` → `dimension_uplift_rules.md` | ✅ Implemented |
+| 28 | Pipeline diagnostics | Project pattern | `DimensionUpliftStatus` | ✅ Implemented |
+
+**Coverage**: 28/28 research items → code (100%)
+
+---
+
+## 2. Test Coverage Summary
+
+| Test Class | Tests | Passed | Coverage Area |
+|---|---|---|---|
+| TestSDF3DPrimitives | 11 | 11 | All 8 IQ primitives + finite check |
+| TestSmoothMin3D | 8 | 8 | All smin variants + gradient blend |
+| TestSDFDimensionLifter | 4 | 4 | Extrude, revolve, smooth blend |
+| TestDualContouring | 5 | 5 | Extract, bounds, triangulate, OBJ, resolution |
+| TestAdaptiveSDFCache | 3 | 3 | Build, query accuracy, depth comparison |
+| TestIsometricDisplacement | 5 | 5 | Camera, depth map, tessellate, displace, config |
+| TestCelShading | 3 | 3 | Hull shader, cel shader, stepped anim |
+| TestTaichiAOTBridge | 3 | 3 | AOT script, native plugin, C# bridge |
+| TestDimensionUpliftEvolutionBridge | 5 | 5 | Full cycle, persistence, knowledge, status, gate |
+| TestIntegration | 1 | 1 | Full pipeline 2D→OBJ |
+| **Total** | **48** | **48** | **100%** |
+
+---
+
+## 3. Files Created/Modified in SESSION-063
+
+| File | Type | Lines | Description |
+|---|---|---|---|
+| `mathart/animation/dimension_uplift_engine.py` | New | ~1520 | Core engine: 8 sections |
+| `mathart/evolution/dimension_uplift_bridge.py` | New | ~350 | Three-layer evolution bridge |
+| `tests/test_dimension_uplift.py` | New | ~420 | 48 tests across 10 classes |
+| `research/session063_phase5_dimension_uplift_research.md` | New | ~180 | Complete research report |
+| `research/session063_audit_report.md` | New | ~150 | This audit report |
+| `research/pujol_chica_2023_notes.md` | New | ~60 | Pujol & Chica paper notes |
+| `research/sdf_to_mesh_comparison_notes.md` | New | ~80 | SDF→Mesh comparison |
+| `knowledge/dimension_uplift_rules.md` | Generated | ~40 | Distilled rules (auto-generated by bridge) |
+| `.dimension_uplift_state.json` | Generated | ~20 | Evolution state (auto-generated) |
+
+---
+
+## 4. Updated TODO List
+
+### Completed in SESSION-063
+- [x] Research IQ SDF Smooth Min for 3D skeletal skinning
+- [x] Research Tao Ju Dual Contouring (SIGGRAPH 2002)
+- [x] Research Pujol & Chica adaptive SDF approximation (2023)
+- [x] Research Arc System Works cel-shading pipeline
+- [x] Research Isometric Camera 2.5D displacement mapping
+- [x] Research Taichi AOT → Vulkan SPIR-V compilation
+- [x] Implement 3D SDF primitives library (IQ formulas)
+- [x] Implement Smooth Min 3D with gradient tracking
+- [x] Implement 2D→3D dimension lifter (extrude/revolve/blend)
+- [x] Implement Dual Contouring mesh extractor with QEF
+- [x] Implement Adaptive SDF Cache (octree + trilinear)
+- [x] Implement Isometric Displacement Mapper
+- [x] Implement Cel-Shading Config (Arc System Works style)
+- [x] Implement Taichi AOT Bridge (code generation)
+- [x] Implement Three-Layer Evolution Bridge
+- [x] Write and pass 48 tests
+- [x] Full audit and traceability check
+
+### Future TODO (Phase 5 Continuation)
+- [ ] Integrate DC mesh output with existing Unity URP pipeline
+- [ ] Implement octree-based adaptive Dual Contouring (LOD chain)
+- [ ] Add QEM mesh simplification for LOD generation
+- [ ] Compile actual Taichi AOT module (requires Taichi Vulkan backend)
+- [ ] Build Unity native plugin from generated C++ code
+- [ ] Test displacement mapping in Unity Shader Graph
+- [ ] Integrate cel-shading with existing sprite pipeline
+- [ ] Performance benchmark: DC at resolution 64/128/256
+- [ ] Implement Marching Cubes as fallback/comparison
+- [ ] Add GPU-accelerated SDF sampling via Taichi kernels
+- [ ] Connect adaptive cache to DC for faster extraction
+- [ ] Implement vertex normal editing tool for cel-shading

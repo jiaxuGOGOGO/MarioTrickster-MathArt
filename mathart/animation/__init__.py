@@ -277,6 +277,16 @@ from .gait_blend import (
     phase_warp, adaptive_bounce,
     blend_walk_run, blend_gaits_at_phase,
 )
+# SESSION-063: Dimension Uplift Engine (Phase 5 — 2.5D & True 3D)
+from .dimension_uplift_engine import (
+    SDF3DPrimitives, SmoothMin3D, SDFDimensionLifter,
+    HermiteEdge, DCMesh, DualContouringExtractor,
+    IsometricCameraConfig, IsometricDisplacementMapper,
+    CelShadingConfig,
+    TaichiAOTConfig, TaichiAOTBridge,
+    AdaptiveSDFNode, AdaptiveSDFCache,
+    DimensionUpliftStatus,
+)
 # SESSION-062: Fluid Sequence Exporter & Unity VFX Graph Bridge
 from .fluid_sequence_exporter import (
     FluidSequenceConfig,
@@ -527,4 +537,12 @@ __all__ = [
     "FluidSequenceConfig", "FluidSequenceManifest", "FluidSequenceExportResult",
     "FlipbookAtlasBuilder", "VelocityFieldRenderer", "FluidSequenceExporter",
     "generate_fluid_vfx_controller", "export_fluid_vfx_bundle",
+    # SESSION-063: Dimension Uplift Engine (Phase 5 — 2.5D & True 3D)
+    "SDF3DPrimitives", "SmoothMin3D", "SDFDimensionLifter",
+    "HermiteEdge", "DCMesh", "DualContouringExtractor",
+    "IsometricCameraConfig", "IsometricDisplacementMapper",
+    "CelShadingConfig",
+    "TaichiAOTConfig", "TaichiAOTBridge",
+    "AdaptiveSDFNode", "AdaptiveSDFCache",
+    "DimensionUpliftStatus",
 ]

@@ -1,0 +1,48 @@
+{
+  "total_cycles": 3,
+  "best_feature_score_ever": 0.5201,
+  "feature_trend": [
+    0.5201,
+    0.5201,
+    0.5201
+  ],
+  "cache_efficiency_trend": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "mesh_quality_trend": [
+    0.6919,
+    0.6919,
+    0.6919
+  ],
+  "distilled_rules": {
+    "dc_resolution_range": [
+      16,
+      64
+    ],
+    "dc_bias_strength": 0.01,
+    "cache_max_depth": 7,
+    "cache_error_threshold": 0.005,
+    "smin_k_ranges": {
+      "tight_joint": [
+        0.02,
+        0.08
+      ],
+      "medium_joint": [
+        0.08,
+        0.2
+      ],
+      "loose_blend": [
+        0.2,
+        0.5
+      ]
+    },
+    "displacement_strength_range": [
+      0.2,
+      0.5
+    ],
+    "min_feature_preservation_score": 0.4161
+  },
+  "last_updated": "2026-04-18T02:48:23.977145+00:00"
+}

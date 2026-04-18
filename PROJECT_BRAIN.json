@@ -1,22 +1,22 @@
 {
-  "version": "0.53.0",
-  "last_session_id": "SESSION-062",
-  "last_updated": "2026-04-18T12:00:00Z",
+  "version": "0.54.0",
+  "last_session_id": "SESSION-063",
+  "last_updated": "2026-04-18T10:48:00Z",
   "best_quality_score": 0.885,
-  "validation_pass_rate": "19/19 Phase 4 tests PASS; EnvClosedLoopOrchestrator full cycle PASS (bonus=0.400); py_compile PASS",
-  "total_iterations": 570,
-  "total_code_lines": 96000,
-  "distill_session_id": "DISTILL-010",
+  "validation_pass_rate": "48/48 Phase 5 tests PASS; DimensionUpliftEvolutionBridge full cycle PASS (bonus=0.180); py_compile PASS",
+  "total_iterations": 580,
+  "total_code_lines": 98000,
+  "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 125,
-  "math_model_count": 35,
+  "knowledge_rule_count": 135,
+  "math_model_count": 37,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",
-    "overall_completion": "70-72%",
-    "last_assessed": "SESSION-061",
+    "overall_completion": "73-75%",
+    "last_assessed": "SESSION-063",
     "dimension_scores": {
       "animation_physics_realism": 65,
       "motion_cognitive_naturalness": 68,
@@ -24,10 +24,10 @@
       "vfx_particles": 48,
       "character_diversity": 35,
       "environment_tileset": 52,
-      "engine_ready_export": 68,
-      "engineering_automation": 94
+      "engine_ready_export": 72,
+      "engineering_automation": 95
     },
-    "fundamental_blocker": "SESSION-062 closes the environment and content volume gap by delivering a complete WFC Tilemap exporter with Dual Grid (Marching Squares) autotiling and a Fluid Sequence exporter with Unity VFX Graph velocity inheritance. The environment generation now outputs directly to Unity-compatible JSON and C# loader scripts, while fluid VFX is baked into flipbook atlases and flow-maps. Main remaining blockers: expose these new pipelines through standard CLI/AssetPipeline, implement Taichi GPU acceleration for Stable Fluids, and add themed WFC tile sets with progression-aware difficulty curves.",
+    "fundamental_blocker": "SESSION-063 executes Phase 5 Dimension Uplift: the repository now has a complete 2D SDF → 3D SDF → Dual Contouring Mesh → OBJ pipeline with Adaptive SDF Cache (Pujol & Chica 2023), Isometric 2.5D Displacement Mapping, Arc System Works-style Cel-Shading, and Taichi AOT → Vulkan SPIR-V code generation for Unity GPU deployment. The mathematical foundation was already 3D; the upgrade is a camera + rendering bridge swap. Main remaining blockers: integrate DC mesh output with Unity URP pipeline, implement octree-based adaptive DC LOD chain, compile actual Taichi AOT module on Vulkan hardware, and performance benchmark DC at resolution 64/128/256.",
     "strategic_paths": {
       "path_a_physics_motion_engine": "SESSION-036 established the UMR data bus; SESSION-037 upgraded jump/fall/hit into native transient phases; SESSION-038 refined those with target/contact/window metadata and critically damped hit recovery; SESSION-039 added inertialized transition synthesis (Bollo quintic + Holden dead blending) and runtime motion matching query (Clavet GDC 2016). State transitions now use a two-stage pipeline: query optimal entry frame then inertialize. Layer 3 runs 12 tests with transition quality feedback. SESSION-043 closes Gap 4 by adding an active runtime closed loop: runtime query selects an entry frame, Optuna tunes blend/query parameters, and the winning transition is distilled back into persistent repository rules. SESSION-049 closes Gap B3 by implementing Marker-based DTW gait transition blending: SyncMarker/GaitSyncProfile define foot-contact events, StrideWheel drives phase from distance (Rosen), GaitBlender performs Leader-Follower synchronized blend (UE Sync Groups), and adaptive_bounce provides speed-dependent vertical oscillation. Phase warping ensures sync marker alignment before pose interpolation, eliminating foot sliding during walk/run/sneak transitions. SESSION-052 closes the Physics Singularity by replacing Jakobsen one-way visual-following with full XPBD (Macklin & Müller 2016). The solver uses compliance α̃ = α/Δt² for timestep-independent stability, Lagrange multiplier accumulation for force estimation, and puts rigid CoM + soft nodes in one solve pool with inverse-mass weighted reaction impulses (Müller 2020). Spatial hash self-collision with connectivity exclusion (Ten Minute Physics). Three-layer evolution loop: InternalEvolver auto-tunes, KnowledgeDistiller absorbs external papers, PhysicsTestHarness validates 7 scenarios. 14/14 tests PASS. SESSION-053 adds the locomotion CNS bridge between gait blending, inertialized switching, and the runtime bus: walk/run pipeline generation can use CNS gait sampling, `locomotion_cns.py` phase-aligns target gait support phases before switching, `InertializationChannel` decays only residual source offsets, and compiled runtime rules score phase jump, sliding error, contact mismatch, foot lock, and transition cost in batch. The new LocomotionCNSBridge persists knowledge and Layer 3 state after accepted batch runs. SESSION-061 executes Phase 3 Motion Cognitive Dimensionality Reduction: orthographic_projector.py projects 3D NSM bone data to 2D preserving X/Y displacement, Z-rotation, and Z-depth→sorting-order mapping; terrain_ik_2d.py implements FABRIK 2D solver with angular constraints and TerrainAdaptiveIKLoop for biped/quadruped terrain contact enforcement; principles_quantifier.py quantifies 5 of Disney's 12 animation principles (Squash & Stretch, Anticipation, Arcs, Timing, Solid Drawing); motion_2d_pipeline.py integrates the full NSM→projection→IK→export pipeline; SpineJSONExporter produces industry-standard Spine JSON with IK constraints. Motion2DPipelineEvolutionBridge provides three-layer evolution with 8 research-backed knowledge rules. 40/40 tests PASS. P3-QUAD-IK-1 is now CLOSED.",
       "path_b_ai_visual_polish": "SESSION-045 BREAKTHROUGH: Ground-truth motion vector baker now extracts exact optical flow from procedural FK with SDF-weighted skinning. Three encoding formats (RGB 128-neutral for ControlNet, HSV for visualization, Raw float32 for ComfyUI). EbSynth project export generates complete frame+flow+keyframe packages. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. SESSION-054 materially advances the visual-delivery side of the same path: canonical body primitives now provide analytical gradients, the industrial renderer exports albedo/normal/depth/thickness/roughness/mask packs, and export metadata is engine-ready for downstream 2.5D lighting workflows. SESSION-056 CLOSES the real-time EbSynth/ComfyUI integration gap: HeadlessNeuralRenderPipeline builds 14-node dual-ControlNet (NormalBae + Depth) ComfyUI workflows via headless HTTP API, EbSynthPropagationEngine performs PatchMatch-style NNF temporal propagation with bidirectional keyframe blending, and EngineImportPluginGenerator produces Godot 4 (gdshader + plugin.gd) and Unity URP 2D (ScriptedImporter.cs + shader) import plugins with SSS thickness, rim light, and auto PolygonCollider2D from SDF contour extraction. BreakwallEvolutionBridge integrates both subsystems into the three-layer self-evolution architecture. Next: 3D-to-2D mesh rendering path, expanded asset factory with engine-specific export templates. SESSION-059 extends the same path into engine-native delivery: unity_urp_native.py now generates a Unity URP 2D Secondary Texture postprocessor, VAT playback runtime, and lit shader so multi-channel outputs can be consumed directly by SpriteRenderer/Light 2D workflows; unity_urp_2d_bridge.py distills those rules and persists state for continued iteration. SESSION-060 converts the same path into an industrial anti-flicker production baseline: headless_comfy_ebsynth.py now produces sparse motion-adaptive keyframe plans, mask outputs, workflow manifests, identity-lock metadata, long-range drift metrics, and temporal stability scores; breakwall_evolution_bridge.py now persists those signals, distills positive production recipes, and auto-tunes identity/mask guide weights across cycles.",
@@ -48,9 +48,14 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-061 executes Phase 3 Motion Cognitive Dimensionality Reduction & 2D IK Closed Loop: the repository now has a complete 3D→2D pipeline (NSM gait → orthographic projection → terrain-adaptive FABRIK IK → animation principles scoring → Spine JSON export) with a three-layer evolution bridge. Immediate next priorities: extend principles quantifier to all 12 principles, add Unity 2D Animation native format export, implement DeepPhase FFT frequency-domain decomposition, and expose the pipeline through standard CLI/AssetPipeline.",
+  "current_focus": "SESSION-063 executes Phase 5 Dimension Uplift (2.5D & True 3D Smooth Upgrade): dimension_uplift_engine.py implements 8 IQ-formula 3D SDF primitives, 5 smin variants, 2D→3D extrusion/revolution, Tao Ju Dual Contouring with QEF SVD, Pujol & Chica adaptive octree SDF cache, Hades-style isometric displacement mapping, Arc System Works cel-shading (inverted hull + stepped animation), and Taichi AOT Vulkan SPIR-V code generation. dimension_uplift_bridge.py provides three-layer evolution with pass gate, knowledge distillation, and state persistence. 48/48 tests PASS. Immediate next priorities: integrate DC mesh with Unity URP pipeline, implement octree-based adaptive DC LOD, compile actual Taichi AOT module, and performance benchmark DC at various resolutions.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "research/session063_audit_report.md",
+    "research/session063_phase5_dimension_uplift_research.md",
+    "knowledge/dimension_uplift_rules.md",
+    "research/pujol_chica_2023_notes.md",
+    "research/sdf_to_mesh_comparison_notes.md",
     "research/session061_audit_report.md",
     "research/session061_phase3_motion_cognitive_research.md",
     "knowledge/motion_2d_pipeline_rules.md",
@@ -153,6 +158,114 @@
     ]
   },
   "pending_tasks": [
+    {
+      "id": "P2-DIM-UPLIFT-1",
+      "priority": "P2",
+      "title": "Integrate DC mesh output with existing Unity URP pipeline",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Wire DualContouringExtractor OBJ output into Unity URP 2D pipeline for direct mesh import with cel-shading materials.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-2",
+      "priority": "P2",
+      "title": "Implement octree-based adaptive Dual Contouring (LOD chain)",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Add multi-resolution DC with octree-based LOD chain for progressive mesh detail.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-3",
+      "priority": "P2",
+      "title": "Add QEM mesh simplification for LOD generation",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Implement Quadric Error Metrics (Garland & Heckbert 1997) mesh simplification for generating LOD levels from DC output.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-4",
+      "priority": "P2",
+      "title": "Compile actual Taichi AOT module (requires Taichi Vulkan backend)",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Run TaichiAOTBridge on hardware with Vulkan support to produce real SPIR-V modules.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-5",
+      "priority": "P2",
+      "title": "Build Unity native plugin from generated C++ code",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Compile the generated C++ native plugin code into a Unity-compatible .dll/.so and test in Unity Editor.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-6",
+      "priority": "P2",
+      "title": "Test displacement mapping in Unity Shader Graph",
+      "status": "TODO",
+      "estimated_effort": "low",
+      "description": "Import IsometricDisplacementMapper config into Unity Shader Graph and validate visual results.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-7",
+      "priority": "P2",
+      "title": "Integrate cel-shading with existing sprite pipeline",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Connect CelShadingConfig generated shaders with existing Unity URP 2D sprite rendering pipeline.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-8",
+      "priority": "P2",
+      "title": "Performance benchmark: DC at resolution 64/128/256",
+      "status": "TODO",
+      "estimated_effort": "low",
+      "description": "Benchmark DualContouringExtractor at multiple resolutions for timing, memory, and mesh quality metrics.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-9",
+      "priority": "P2",
+      "title": "GPU-accelerated SDF sampling via Taichi kernels",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Accelerate SDF volume sampling in DualContouringExtractor using Taichi GPU kernels.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-10",
+      "priority": "P2",
+      "title": "Connect adaptive cache to DC for faster extraction",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Use AdaptiveSDFCache as the SDF query backend for DualContouringExtractor to reduce redundant evaluations.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-11",
+      "priority": "P2",
+      "title": "Implement vertex normal editing tool for cel-shading",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Add Arc System Works-style vertex normal editing to control shadow placement on DC meshes.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-12",
+      "priority": "P2",
+      "title": "Implement Marching Cubes as fallback/comparison",
+      "status": "TODO",
+      "estimated_effort": "low",
+      "description": "Add classic Marching Cubes implementation for A/B comparison with Dual Contouring on feature preservation.",
+      "added_in": "SESSION-063"
+    },
     {
       "id": "P3-GPU-BENCH-1",
       "priority": "P2",
@@ -1015,6 +1128,30 @@
     }
   ],
   "completed_tasks": [
+    {
+      "id": "P5-DIM-UPLIFT-ENGINE",
+      "title": "Phase 5 Dimension Uplift Engine (2.5D & True 3D)",
+      "completed_in": "SESSION-063",
+      "result": "dimension_uplift_engine.py implements 8 IQ-formula 3D SDF primitives, 5 smin variants (quadratic/cubic/exponential/power/chamfer), 2D→3D extrusion/revolution, Tao Ju Dual Contouring with QEF SVD, Pujol & Chica adaptive octree SDF cache, Hades-style isometric displacement mapping, Arc System Works cel-shading (inverted hull + stepped animation), and Taichi AOT Vulkan SPIR-V code generation. 48/48 tests PASS."
+    },
+    {
+      "id": "P5-DIM-UPLIFT-BRIDGE",
+      "title": "Phase 5 Dimension Uplift Evolution Bridge (Three-Layer Loop)",
+      "completed_in": "SESSION-063",
+      "result": "dimension_uplift_bridge.py provides three-layer evolution: Layer 1 evaluates DC mesh quality + cache accuracy + displacement fidelity; Layer 2 distills optimal DC resolution, smin k ranges, and displacement strength to knowledge/dimension_uplift_rules.md; Layer 3 computes fitness bonus (0.18) and persists trend data. pass_gate=True."
+    },
+    {
+      "id": "P5-RESEARCH-063",
+      "title": "Phase 5 deep research: IQ SDF, Dual Contouring, Arc System Works, Pujol & Chica 2023",
+      "completed_in": "SESSION-063",
+      "result": "6 research topics completed: Inigo Quilez SDF/Smooth Min, Tao Ju Dual Contouring (SIGGRAPH 2002), Arc System Works GDC 2015 cel-shading, Isometric 2.5D displacement, SDF-to-Mesh comparison (DC vs MC vs SurfaceNets), Taichi AOT Vulkan SPIR-V. Plus supplementary: Pujol & Chica adaptive SDF approximation (C&G 2023). All findings saved to research/ directory."
+    },
+    {
+      "id": "P5-PACKAGE-INTEGRATION",
+      "title": "Phase 5 package integration (animation + evolution __init__.py)",
+      "completed_in": "SESSION-063",
+      "result": "All Phase 5 classes exported through mathart.animation and mathart.evolution __init__.py. Package-level imports verified. knowledge/dimension_uplift_rules.md and .dimension_uplift_state.json generated."
+    },
     {
       "id": "KNOWLEDGE-060",
       "title": "SESSION-060 visual anti-flicker knowledge distillation",
@@ -2527,6 +2664,30 @@
     ]
   },
   "recent_sessions": [
+    {
+      "id": "SESSION-063",
+      "version": "0.54.0",
+      "date": "2026-04-18",
+      "title": "Phase 5 Dimension Uplift: 2.5D & True 3D Smooth Upgrade",
+      "summary": "Complete 2D SDF → 3D SDF → Dual Contouring Mesh → OBJ pipeline with IQ 3D primitives, smin blending, Pujol & Chica adaptive cache, Hades-style isometric displacement, Arc System Works cel-shading, and Taichi AOT Vulkan SPIR-V code generation. Three-layer evolution bridge with pass_gate=True, bonus=0.18. 48/48 tests PASS.",
+      "tasks_closed": [
+        "P5-DIM-UPLIFT-ENGINE",
+        "P5-DIM-UPLIFT-BRIDGE",
+        "P5-RESEARCH-063",
+        "P5-PACKAGE-INTEGRATION"
+      ],
+      "artifacts": [
+        "mathart/animation/dimension_uplift_engine.py",
+        "mathart/evolution/dimension_uplift_bridge.py",
+        "tests/test_dimension_uplift.py",
+        "research/session063_phase5_dimension_uplift_research.md",
+        "research/session063_audit_report.md",
+        "research/pujol_chica_2023_notes.md",
+        "research/sdf_to_mesh_comparison_notes.md",
+        "knowledge/dimension_uplift_rules.md",
+        ".dimension_uplift_state.json"
+      ]
+    },
     {
       "id": "SESSION-061",
       "version": "0.52.0",

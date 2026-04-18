@@ -162,6 +162,14 @@ from .motion_2d_pipeline_bridge import (
     collect_motion_2d_pipeline_status,
     Motion2DPipelineEvolutionBridge,
 )
+# SESSION-063: Dimension Uplift Evolution Bridge (Phase 5 — 2.5D & True 3D)
+from .dimension_uplift_bridge import (
+    DimensionUpliftMetrics,
+    DimensionUpliftState,
+    DimensionUpliftStatus,
+    collect_dimension_uplift_status,
+    DimensionUpliftEvolutionBridge,
+)
 # SESSION-062: Phase 4 Environment Closed-Loop Bridge (WFC Tilemap + Fluid Sequence)
 from .env_closedloop_bridge import (
     WFCTilemapMetrics,
@@ -290,4 +298,10 @@ __all__ = [
     "WFCTilemapEvolutionBridge",
     "FluidSequenceEvolutionBridge",
     "EnvClosedLoopOrchestrator",
+    # SESSION-063: Dimension Uplift Bridge (Phase 5)
+    "DimensionUpliftMetrics",
+    "DimensionUpliftState",
+    "DimensionUpliftStatus",
+    "collect_dimension_uplift_status",
+    "DimensionUpliftEvolutionBridge",
 ]
