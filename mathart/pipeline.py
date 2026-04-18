@@ -112,8 +112,11 @@ from .pipeline_auditor import UMR_Auditor, ContactFlickerDetector
 from .core.backend_types import BackendType, backend_type_value
 from .core.pipeline_bridge import MicrokernelPipelineBridge, manifest_to_legacy
 from .animation.phase_driven_idle import phase_driven_idle_frame
-from .animation.gait_blend import GaitMode
-from .animation.locomotion_cns import sample_gait_umr_frame
+from .animation.unified_gait_blender import (
+    MotionStateRequest,
+    get_motion_lane_registry,
+    get_registered_motion_preview_map,
+)
 from .level import (
     LevelSpec,
     LevelSpecBridge,
@@ -243,13 +246,7 @@ class CharacterSpec:
     biomechanics_zmp_strength: float = 0.3
 
 
-CHARACTER_ANIMATION_MAP: dict[str, Callable[[float], dict[str, float]]] = {
-    "idle": idle_animation,
-    "run": run_animation,
-    "jump": jump_animation,
-    "fall": fall_animation,
-    "hit": hit_animation,
-}
+CHARACTER_ANIMATION_MAP: dict[str, Callable[[float], dict[str, float]]] = get_registered_motion_preview_map()
 
 
 @dataclass
@@ -1548,30 +1545,15 @@ class AssetPipeline:
         frame_count: int,
         fps: int,
     ) -> MotionRootTransform:
-        """Infer a lightweight root-motion track for the UMR contract."""
-        dt = 1.0 / max(1, fps)
+        """Infer root motion through the registered motion lane contract."""
+        lane = get_motion_lane_registry().get(state)
         progress = frame_index / max(1, frame_count - 1)
-        state_key = state.lower()
-
-        if state_key == "run":
-            distance = 0.28 * progress
-            return MotionRootTransform(x=distance, y=0.0, velocity_x=0.28 / max((frame_count - 1) * dt, dt), velocity_y=0.0)
-        if state_key == "walk":
-            distance = 0.16 * progress
-            return MotionRootTransform(x=distance, y=0.0, velocity_x=0.16 / max((frame_count - 1) * dt, dt), velocity_y=0.0)
-        if state_key == "jump":
-            x = 0.06 * progress
-            y = 0.18 * math.sin((math.pi * progress) / 2.0)
-            vy = 0.18 * (math.pi / 2.0) * math.cos((math.pi * progress) / 2.0) / max((frame_count - 1) * dt, dt)
-            return MotionRootTransform(x=x, y=y, velocity_x=0.06 / max((frame_count - 1) * dt, dt), velocity_y=vy)
-        if state_key == "fall":
-            start_height = 0.22
-            y = start_height * (1.0 - progress)
-            return MotionRootTransform(x=0.0, y=y, velocity_x=0.0, velocity_y=-start_height / max((frame_count - 1) * dt, dt))
-        if state_key == "hit":
-            x = -0.05 * math.sin(math.pi * progress)
-            return MotionRootTransform(x=x, y=0.0, velocity_x=0.0, velocity_y=0.0)
-        return MotionRootTransform(x=0.0, y=0.0, velocity_x=0.0, velocity_y=0.0)
+        return lane.infer_root_transform(
+            progress=progress,
+            frame_index=frame_index,
+            frame_count=frame_count,
+            fps=fps,
+        )
 
     def _build_umr_clip_for_state(
         self,
@@ -1580,152 +1562,55 @@ class AssetPipeline:
         frame_count: int,
         fps: int,
     ) -> UnifiedMotionClip:
-        """Build the base UMR clip before downstream filters are applied."""
+        """Build the base UMR clip through the registered motion lane trunk."""
         state_key = state.lower()
-        frames: list[UnifiedMotionFrame] = []
-        dt = 1.0 / max(1, fps)
-        # SESSION-040: idle is now phase-driven — all states covered
-        use_phase_generator = state_key in {"idle", "run", "walk", "jump", "fall", "hit"}
-
-        if not use_phase_generator:
-            # SESSION-040 CONTRACT: No legacy fallback. Unknown states are rejected.
-            available = "idle, run, walk, jump, fall, hit"
+        registry = get_motion_lane_registry()
+        try:
+            lane = registry.get(state_key)
+        except KeyError as exc:
+            available = ", ".join(registry.names())
             raise PipelineContractError(
                 "unknown_state",
-                f"Unknown character state '{state_key}'. "
-                f"All states must have phase-driven generators. Available: {available}"
-            )
+                f"Unknown character state '{state_key}'. Available motion lanes: {available}"
+            ) from exc
 
+        frames: list[UnifiedMotionFrame] = []
+        dt = 1.0 / max(1, fps)
         for i in range(frame_count):
-            t = i / max(1, frame_count)
+            phase = i / max(1, frame_count)
             time_s = i * dt
-            root = self._infer_root_transform(state_key, t, frame_index=i, frame_count=frame_count, fps=fps)
-            if state_key == "run":
-                if getattr(self, "_character_spec_enable_cns_locomotion", True):
-                    frame = sample_gait_umr_frame(
-                        GaitMode.RUN,
-                        phase=t,
-                        speed=max(root.velocity_x, 1e-4),
-                        time=time_s,
-                        frame_index=i,
-                        root_x=root.x,
-                        metadata={
-                            "generator": "locomotion_cns",
-                            "generator_mode": "gait_cns",
-                            "pipeline_source": "pipeline.run",
-                        },
-                    )
-                else:
-                    frame = phase_driven_run_frame(
-                        t,
-                        time=time_s,
-                        frame_index=i,
-                        source_state=state_key,
-                        root_x=root.x,
-                        root_velocity_x=root.velocity_x,
-                        root_velocity_y=root.velocity_y,
-                    )
-            elif state_key == "walk":
-                if getattr(self, "_character_spec_enable_cns_locomotion", True):
-                    frame = sample_gait_umr_frame(
-                        GaitMode.WALK,
-                        phase=t,
-                        speed=max(root.velocity_x, 1e-4),
-                        time=time_s,
-                        frame_index=i,
-                        root_x=root.x,
-                        metadata={
-                            "generator": "locomotion_cns",
-                            "generator_mode": "gait_cns",
-                            "pipeline_source": "pipeline.walk",
-                        },
-                    )
-                else:
-                    frame = phase_driven_walk_frame(
-                        t,
-                        time=time_s,
-                        frame_index=i,
-                        source_state=state_key,
-                        root_x=root.x,
-                        root_velocity_x=root.velocity_x,
-                        root_velocity_y=root.velocity_y,
-                    )
-            elif state_key == "jump":
-                frame = phase_driven_jump_frame(
-                    t,
-                    time=time_s,
-                    frame_index=i,
-                    source_state=state_key,
-                    root_x=root.x,
-                    root_y=root.y,
-                    root_velocity_x=root.velocity_x,
-                    root_velocity_y=root.velocity_y,
-                    apex_height=0.18,
-                )
-            elif state_key == "fall":
-                # SESSION-048: Use scene_aware_fall_frame (Gap B2 upgrade)
-                # Falls back gracefully to flat ground when no terrain is provided.
-                frame = scene_aware_fall_frame(
-                    t,
-                    time=time_s,
-                    frame_index=i,
-                    source_state=state_key,
-                    root_x=root.x,
-                    root_y=root.y,
-                    root_velocity_x=root.velocity_x,
-                    root_velocity_y=root.velocity_y,
-                    ground_height=0.0,
-                    fall_reference_height=0.22,
-                    terrain=getattr(self, '_terrain_sdf', None),
-                )
-            elif state_key == "hit":
-                frame = phase_driven_hit_frame(
-                    t,
-                    time=time_s,
-                    frame_index=i,
-                    source_state=state_key,
-                    root_x=root.x,
-                    root_y=root.y,
-                    root_velocity_x=root.velocity_x,
-                    root_velocity_y=root.velocity_y,
-                    damping=4.0,
-                    half_life=0.18,
-                    recovery_velocity=0.0,
-                    impact_energy=1.0,
-                )
-            elif state_key == "idle":
-                # SESSION-040: Phase-driven idle — eliminates legacy_pose_adapter bypass
-                frame = phase_driven_idle_frame(
-                    t,
-                    time=time_s,
-                    frame_index=i,
-                    source_state=state_key,
-                    root_x=root.x,
-                    root_y=root.y,
-                    root_velocity_x=root.velocity_x,
-                    root_velocity_y=root.velocity_y,
-                )
-            else:
-                # SESSION-040 CONTRACT: This branch should be unreachable.
-                # If we get here, the state validation above has a bug.
-                raise PipelineContractError(
-                    "legacy_path_invoked",
-                    f"Unreachable legacy path hit for state '{state_key}'. "
-                    f"This is a contract violation — all states must be phase-driven."
-                )
+            root = self._infer_root_transform(state_key, phase, frame_index=i, frame_count=frame_count, fps=fps)
+            request = MotionStateRequest(
+                state=state_key,
+                phase=phase,
+                time=time_s,
+                frame_index=i,
+                frame_count=frame_count,
+                fps=fps,
+                root_x=root.x,
+                metadata={
+                    "generator": "motion_lane_registry",
+                    "generator_mode": "registry_lane",
+                    "pipeline_source": f"pipeline.{state_key}",
+                    "cns_locomotion_requested": bool(getattr(self, "_character_spec_enable_cns_locomotion", True)),
+                },
+            )
+            frame = lane.build_frame(request)
             frames.append(frame)
 
         return UnifiedMotionClip(
-            clip_id=f"{state_key}_clip",
+            clip_id=state_key,
             state=state_key,
-            fps=max(1, fps),
             frames=frames,
+            fps=fps,
             metadata={
-                "base_stage": "phase_or_transient_generation",
-                "generator_mode": "phase_driven",  # SESSION-040: always phase-driven
-                "strict_contract": "UnifiedMotionFrame",
+                "generator": "motion_lane_registry",
+                "frame_count": frame_count,
+                "fps": fps,
+                "motion_lane": state_key,
             },
         )
+
 
     def _build_motion_nodes(
         self,

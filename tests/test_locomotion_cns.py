@@ -70,6 +70,40 @@ def test_phase_aligned_transition_clip_preserves_target_contacts() -> None:
 
 
 @pytest.mark.unit
+def test_phase_aligned_transition_clip_preserves_c0_c1_root_continuity() -> None:
+    request = GaitTransitionRequest(
+        source_gait=GaitMode.WALK,
+        target_gait=GaitMode.RUN,
+        source_phase=0.125,
+        source_speed=0.8,
+        target_speed=1.8,
+        duration_s=0.25,
+        inertial_blend_time=0.2,
+    )
+    clip = build_phase_aligned_transition_clip(request, fps=24)
+    dt = 1.0 / 24.0
+
+    source_start = sample_gait_umr_frame(
+        GaitMode.WALK,
+        phase=request.source_phase,
+        speed=request.source_speed,
+        time=0.0,
+        frame_index=0,
+        root_x=0.0,
+    )
+
+    first = clip.frames[0]
+    assert first.root_transform.x == pytest.approx(source_start.root_transform.x, abs=1e-6)
+    assert first.root_transform.y == pytest.approx(source_start.root_transform.y, abs=1e-6)
+    assert first.root_transform.velocity_x == pytest.approx(source_start.root_transform.velocity_x, rel=1e-4, abs=1e-4)
+    assert first.root_transform.velocity_y == pytest.approx(source_start.root_transform.velocity_y, rel=1e-4, abs=1e-4)
+
+    if len(clip.frames) >= 2:
+        finite_diff_vx = (clip.frames[1].root_transform.x - clip.frames[0].root_transform.x) / dt
+        assert finite_diff_vx == pytest.approx(first.root_transform.velocity_x, rel=0.35, abs=0.35)
+
+
+@pytest.mark.unit
 def test_transition_case_and_sliding_metrics_are_finite() -> None:
     clip, metrics, evaluation = evaluate_transition_case(
         GaitTransitionRequest(GaitMode.WALK, GaitMode.RUN, source_phase=0.0, source_speed=0.8, target_speed=1.8),

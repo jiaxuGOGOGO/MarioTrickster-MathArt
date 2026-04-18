@@ -20,16 +20,16 @@ from typing import Any, Iterable, Optional, Sequence
 import numpy as np
 
 from ..distill.runtime_bus import RuntimeConstraintEvaluation, RuntimeDistillationBus
-from .gait_blend import (
+from .skeleton import Skeleton
+from .unified_gait_blender import (
     GaitMode,
     RUN_SYNC_PROFILE,
     SNEAK_SYNC_PROFILE,
     WALK_SYNC_PROFILE,
-    blend_gaits_at_phase,
+    TransitionStrategy,
+    UnifiedGaitBlender,
     phase_warp,
 )
-from .skeleton import Skeleton
-from .transition_synthesizer import InertializationChannel
 from .unified_motion import (
     MotionRootTransform,
     UnifiedMotionClip,
@@ -152,8 +152,15 @@ def _phase_step(profile: Any, speed: float, dt: float) -> float:
     return float(speed) * float(dt) / stride
 
 
+_UNIFIED_MOTION_HUB = UnifiedGaitBlender()
+
+
 def _sample_pose(gait: GaitMode, phase: float, speed: float) -> tuple[dict[str, float], float]:
-    return blend_gaits_at_phase(phase % 1.0, {gait: 1.0}, speed=max(float(speed), 1e-4))
+    return _UNIFIED_MOTION_HUB.sample_pose_at_phase(
+        phase % 1.0,
+        {gait: 1.0},
+        speed=max(float(speed), 1e-4),
+    )
 
 
 def sample_gait_umr_frame(
@@ -166,24 +173,15 @@ def sample_gait_umr_frame(
     root_x: float,
     metadata: Optional[dict[str, Any]] = None,
 ) -> UnifiedMotionFrame:
-    """Sample a pure gait pose and wrap it as a UMR frame."""
+    """Sample a pure gait pose through the unified motion hub."""
 
-    pose, root_y = _sample_pose(gait, phase, speed)
-    root = MotionRootTransform(
-        x=float(root_x),
-        y=float(root_y),
-        velocity_x=float(speed),
-        velocity_y=0.0,
-    )
-    state_name = gait.value
-    return pose_to_umr(
-        pose,
-        time=float(time),
-        phase=float(phase % 1.0),
-        root_transform=root,
-        contact_tags=infer_contact_tags(float(phase), state_name),
-        frame_index=int(frame_index),
-        source_state=state_name,
+    return _UNIFIED_MOTION_HUB.sample_gait_umr_frame(
+        gait,
+        phase=phase,
+        speed=speed,
+        time=time,
+        frame_index=frame_index,
+        root_x=root_x,
         metadata=dict(metadata or {}),
     )
 
@@ -235,7 +233,10 @@ def build_phase_aligned_transition_clip(
         metadata={"generator": "locomotion_cns", "sampling": "source_start"},
     )
 
-    channel = InertializationChannel(blend_time=float(request.inertial_blend_time))
+    motion_hub = UnifiedGaitBlender(
+        transition_strategy=TransitionStrategy.INERTIALIZATION,
+        blend_time=float(request.inertial_blend_time),
+    )
     target_zero = sample_gait_umr_frame(
         request.target_gait,
         phase=aligned_target_phase,
@@ -243,9 +244,15 @@ def build_phase_aligned_transition_clip(
         time=0.0,
         frame_index=0,
         root_x=0.0,
-        metadata={"generator": "locomotion_cns", "sampling": "target_zero"},
+        metadata={"generator": "locomotion_cns", "sampling": "target_zero", "motion_hub": "UnifiedGaitBlender"},
     )
-    channel.capture(source_start, target_zero, prev_source_frame=source_prev, dt=dt)
+    motion_hub.request_transition(
+        source_start,
+        target_zero,
+        prev_source_frame=source_prev,
+        strategy=TransitionStrategy.INERTIALIZATION,
+        dt=dt,
+    )
 
     frames: list[UnifiedMotionFrame] = []
     root_x = 0.0
@@ -269,9 +276,10 @@ def build_phase_aligned_transition_clip(
                 "aligned_target_phase": aligned_target_phase,
                 "source_phase": source_phase,
                 "case_id": request.resolved_case_id(),
+                "motion_hub": "UnifiedGaitBlender",
             },
         )
-        output = channel.apply(target_frame, dt=0.0 if i == 0 else dt)
+        output = motion_hub.apply_transition(target_frame, dt=0.0 if i == 0 else dt)
         residual = 0.0
         keys = set(target_frame.joint_local_rotations) | set(output.joint_local_rotations)
         if keys:
@@ -279,6 +287,7 @@ def build_phase_aligned_transition_clip(
                 abs(output.joint_local_rotations.get(k, 0.0) - target_frame.joint_local_rotations.get(k, 0.0))
                 for k in keys
             ]))
+        quality = motion_hub.get_transition_quality()
         meta = dict(output.metadata)
         meta.update(
             {
@@ -286,6 +295,7 @@ def build_phase_aligned_transition_clip(
                 "source_phase": source_phase,
                 "phase_alignment_delta": _wrap_phase_delta(aligned_target_phase - source_phase),
                 "transition_residual_l1": residual,
+                "transition_peak_offset": quality.peak_offset,
                 "generator_mode": "gait_cns",
             }
         )

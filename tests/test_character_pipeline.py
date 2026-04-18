@@ -143,6 +143,16 @@ class TestCharacterPipeline:
             pipeline.produce_character_pack(spec)
 
     @pytest.mark.unit
+    def test_build_umr_clip_for_state_uses_motion_lane_registry(self, tmp_path: Path):
+        pipeline = AssetPipeline(output_dir=str(tmp_path), verbose=False)
+        clip = pipeline._build_umr_clip_for_state("run", frame_count=4, fps=12)
+
+        assert clip.metadata["generator"] == "motion_lane_registry"
+        assert clip.metadata["motion_lane"] == "run"
+        assert all(frame.metadata["generator"] == "motion_lane_registry" for frame in clip.frames)
+        assert all(frame.metadata["pipeline_source"] == "pipeline.run" for frame in clip.frames)
+
+    @pytest.mark.unit
     def test_produce_character_pack_rejects_unknown_state(self, tmp_path: Path):
         pipeline = AssetPipeline(output_dir=str(tmp_path), verbose=False)
         spec = CharacterSpec(name="bad_state_pack", preset="mario", states=["idle", "attack"])
