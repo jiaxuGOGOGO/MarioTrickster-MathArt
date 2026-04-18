@@ -1,0 +1,543 @@
+"""Artifact Schema — Pixar USD-Inspired Strongly-Typed Asset Contract.
+
+SESSION-064: Paradigm Shift #2 — From Loose output_paths to Typed Artifact Manifests.
+
+This module implements the **Artifact Schema** system inspired by Pixar's
+Universal Scene Description (USD) and its validation framework:
+
+    1. Every pipeline output is wrapped in an ``ArtifactManifest`` with
+       explicit ``artifact_family`` and ``backend_type`` fields.
+    2. Manifests are validated against a schema before acceptance —
+       analogous to USD's ``usdchecker``.
+    3. Manifests support composition (referencing other manifests) —
+       analogous to USD's Composition Arcs.
+    4. All manifests are serializable to JSON for persistence and auditing.
+
+The key insight from USD is that **type ambiguity is the root of all
+pipeline bugs**. When a function returns ``list[str]`` of file paths,
+downstream consumers have no idea what those files represent. By wrapping
+outputs in typed manifests, we eliminate this ambiguity entirely.
+
+Architecture::
+
+    ┌─────────────────────────────────────────────────────────┐
+    │                    ArtifactManifest                      │
+    │                                                         │
+    │  artifact_family: "mesh_obj"                            │
+    │  backend_type: "dimension_uplift"                       │
+    │  version: "1.0.0"                                       │
+    │  outputs: {                                             │
+    │      "mesh": "/path/to/mesh.obj",                       │
+    │      "material": "/path/to/material.mtl",               │
+    │  }                                                      │
+    │  metadata: {                                            │
+    │      "vertex_count": 1024,                              │
+    │      "face_count": 2048,                                │
+    │  }                                                      │
+    │  quality_metrics: {                                     │
+    │      "feature_preservation": 0.92,                      │
+    │  }                                                      │
+    │  references: ["sprite_sheet_manifest_hash"]             │
+    │  schema_hash: "sha256:..."                              │
+    └─────────────────────────────────────────────────────────┘
+
+References
+----------
+[1] Pixar, "OpenUSD Schema Validation", openusd.org, 2024.
+[2] Pixar, "USD Composition Arcs", openusd.org, 2024.
+[3] NVIDIA, "Omniverse Asset Validator", docs.nvidia.com, 2024.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import time
+from dataclasses import dataclass, field
+from enum import Enum, auto
+from pathlib import Path
+from typing import Any, Optional
+
+
+# ---------------------------------------------------------------------------
+# Artifact Family Enum
+# ---------------------------------------------------------------------------
+
+class ArtifactFamily(Enum):
+    """Typed artifact families — the USD Schema equivalent.
+
+    Each family defines what kind of output a backend produces.
+    This eliminates the ambiguity of generic ``output_paths`` lists.
+    """
+    SPRITE_SHEET = "sprite_sheet"
+    SPRITE_SINGLE = "sprite_single"
+    MESH_OBJ = "mesh_obj"
+    MESH_FBX = "mesh_fbx"
+    VAT_BUNDLE = "vat_bundle"
+    SHADER_HLSL = "shader_hlsl"
+    SHADER_GLSL = "shader_glsl"
+    SHADER_GDSHADER = "shader_gdshader"
+    ANIMATION_SPINE = "animation_spine"
+    ANIMATION_SPRITESHEET = "animation_spritesheet"
+    LEVEL_TILEMAP = "level_tilemap"
+    LEVEL_WFC = "level_wfc"
+    VFX_FLIPBOOK = "vfx_flipbook"
+    VFX_FLOWMAP = "vfx_flowmap"
+    MATERIAL_BUNDLE = "material_bundle"
+    KNOWLEDGE_RULES = "knowledge_rules"
+    EVOLUTION_STATE = "evolution_state"
+    META_REPORT = "meta_report"
+    ENGINE_PLUGIN = "engine_plugin"
+    AOT_MODULE = "aot_module"
+    CEL_SHADING = "cel_shading"
+    DISPLACEMENT_MAP = "displacement_map"
+    COMPOSITE = "composite"
+
+
+# ---------------------------------------------------------------------------
+# Validation Error
+# ---------------------------------------------------------------------------
+
+class ArtifactValidationError(Exception):
+    """Raised when an artifact manifest fails schema validation.
+
+    Analogous to USD's validation error — the artifact is rejected
+    and the pipeline reports the specific validation failure.
+    """
+
+    def __init__(self, field_name: str, message: str) -> None:
+        self.field_name = field_name
+        self.message = message
+        super().__init__(f"[ArtifactValidation:{field_name}] {message}")
+
+
+# ---------------------------------------------------------------------------
+# Artifact Manifest
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ArtifactManifest:
+    """Strongly-typed manifest for a pipeline output artifact.
+
+    Every backend must return an ``ArtifactManifest`` instead of loose
+    file paths. This is the USD Prim equivalent — it carries type
+    information, metadata, quality metrics, and composition references.
+
+    Attributes
+    ----------
+    artifact_family : str
+        The type of artifact (must match an ``ArtifactFamily`` value).
+    backend_type : str
+        The backend that produced this artifact.
+    version : str
+        Semantic version of the artifact format.
+    session_id : str
+        Session that produced this artifact.
+    timestamp : float
+        Unix timestamp of artifact creation.
+    outputs : dict[str, str]
+        Named output files (key=role, value=path).
+    metadata : dict[str, Any]
+        Backend-specific metadata (vertex counts, frame counts, etc.).
+    quality_metrics : dict[str, float]
+        Quality scores from the producing backend's evaluation.
+    references : list[str]
+        Hashes of other manifests this artifact depends on
+        (USD Composition Arc equivalent).
+    tags : list[str]
+        Free-form tags for categorization and search.
+    schema_hash : str
+        SHA-256 hash of the manifest content for integrity verification.
+    """
+    artifact_family: str
+    backend_type: str
+    version: str = "1.0.0"
+    session_id: str = "SESSION-064"
+    timestamp: float = 0.0
+    outputs: dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    quality_metrics: dict[str, float] = field(default_factory=dict)
+    references: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
+    schema_hash: str = ""
+
+    def __post_init__(self) -> None:
+        if self.timestamp == 0.0:
+            self.timestamp = time.time()
+        if not self.schema_hash:
+            self.schema_hash = self.compute_hash()
+
+    def compute_hash(self) -> str:
+        """Compute SHA-256 hash of the manifest content."""
+        canonical = json.dumps(
+            {
+                "artifact_family": self.artifact_family,
+                "backend_type": self.backend_type,
+                "version": self.version,
+                "session_id": self.session_id,
+                "outputs": dict(sorted(self.outputs.items())),
+                "metadata": dict(sorted(
+                    (k, v) for k, v in self.metadata.items()
+                    if not isinstance(v, (dict, list))
+                )),
+            },
+            sort_keys=True,
+            ensure_ascii=True,
+        )
+        return f"sha256:{hashlib.sha256(canonical.encode()).hexdigest()[:16]}"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to a plain dictionary for JSON export."""
+        return {
+            "artifact_family": self.artifact_family,
+            "backend_type": self.backend_type,
+            "version": self.version,
+            "session_id": self.session_id,
+            "timestamp": self.timestamp,
+            "outputs": self.outputs,
+            "metadata": self.metadata,
+            "quality_metrics": self.quality_metrics,
+            "references": self.references,
+            "tags": self.tags,
+            "schema_hash": self.schema_hash,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ArtifactManifest":
+        """Deserialize from a dictionary."""
+        return cls(
+            artifact_family=data["artifact_family"],
+            backend_type=data["backend_type"],
+            version=data.get("version", "1.0.0"),
+            session_id=data.get("session_id", "SESSION-064"),
+            timestamp=data.get("timestamp", 0.0),
+            outputs=data.get("outputs", {}),
+            metadata=data.get("metadata", {}),
+            quality_metrics=data.get("quality_metrics", {}),
+            references=data.get("references", []),
+            tags=data.get("tags", []),
+            schema_hash=data.get("schema_hash", ""),
+        )
+
+    def save(self, path: str | Path) -> None:
+        """Save manifest to a JSON file."""
+        p = Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(
+            json.dumps(self.to_dict(), ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+    @classmethod
+    def load(cls, path: str | Path) -> "ArtifactManifest":
+        """Load manifest from a JSON file."""
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        return cls.from_dict(data)
+
+
+# ---------------------------------------------------------------------------
+# Schema Validation Rules
+# ---------------------------------------------------------------------------
+
+# Required fields per artifact family (analogous to USD Schema definitions)
+FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
+    ArtifactFamily.MESH_OBJ.value: {
+        "required_outputs": ["mesh"],
+        "required_metadata": ["vertex_count", "face_count"],
+        "required_quality": [],
+    },
+    ArtifactFamily.SPRITE_SHEET.value: {
+        "required_outputs": ["spritesheet"],
+        "required_metadata": ["frame_count", "frame_width", "frame_height"],
+        "required_quality": [],
+    },
+    ArtifactFamily.VAT_BUNDLE.value: {
+        "required_outputs": ["position_tex", "manifest"],
+        "required_metadata": ["frame_count", "vertex_count"],
+        "required_quality": [],
+    },
+    ArtifactFamily.SHADER_HLSL.value: {
+        "required_outputs": ["shader_source"],
+        "required_metadata": ["shader_type"],
+        "required_quality": [],
+    },
+    ArtifactFamily.ANIMATION_SPINE.value: {
+        "required_outputs": ["spine_json"],
+        "required_metadata": ["bone_count", "animation_count"],
+        "required_quality": [],
+    },
+    ArtifactFamily.LEVEL_TILEMAP.value: {
+        "required_outputs": ["tilemap_json"],
+        "required_metadata": ["width", "height", "tile_count"],
+        "required_quality": [],
+    },
+    ArtifactFamily.VFX_FLIPBOOK.value: {
+        "required_outputs": ["atlas"],
+        "required_metadata": ["frame_count", "atlas_width", "atlas_height"],
+        "required_quality": [],
+    },
+    ArtifactFamily.VFX_FLOWMAP.value: {
+        "required_outputs": ["flowmap"],
+        "required_metadata": ["encoding"],
+        "required_quality": [],
+    },
+    ArtifactFamily.MATERIAL_BUNDLE.value: {
+        "required_outputs": ["albedo"],
+        "required_metadata": ["channels"],
+        "required_quality": [],
+    },
+    ArtifactFamily.KNOWLEDGE_RULES.value: {
+        "required_outputs": ["rules_file"],
+        "required_metadata": ["rule_count"],
+        "required_quality": [],
+    },
+    ArtifactFamily.EVOLUTION_STATE.value: {
+        "required_outputs": ["state_file"],
+        "required_metadata": ["cycle_count"],
+        "required_quality": [],
+    },
+    ArtifactFamily.META_REPORT.value: {
+        "required_outputs": ["report_file"],
+        "required_metadata": ["niche_count"],
+        "required_quality": [],
+    },
+    ArtifactFamily.ENGINE_PLUGIN.value: {
+        "required_outputs": ["plugin_source"],
+        "required_metadata": ["engine", "plugin_type"],
+        "required_quality": [],
+    },
+    ArtifactFamily.CEL_SHADING.value: {
+        "required_outputs": ["shader_source"],
+        "required_metadata": ["shader_type", "outline_method"],
+        "required_quality": [],
+    },
+    ArtifactFamily.DISPLACEMENT_MAP.value: {
+        "required_outputs": ["displacement"],
+        "required_metadata": ["resolution", "depth_range"],
+        "required_quality": [],
+    },
+    ArtifactFamily.COMPOSITE.value: {
+        "required_outputs": [],
+        "required_metadata": [],
+        "required_quality": [],
+    },
+}
+
+
+def validate_artifact(manifest: ArtifactManifest) -> list[str]:
+    """Validate an artifact manifest against its family schema.
+
+    Returns a list of validation errors (empty if valid).
+    This is the ``usdchecker`` equivalent.
+
+    Parameters
+    ----------
+    manifest : ArtifactManifest
+        The manifest to validate.
+
+    Returns
+    -------
+    list[str]
+        List of validation error messages. Empty means valid.
+    """
+    errors: list[str] = []
+
+    # 1. Check artifact_family is known
+    valid_families = {f.value for f in ArtifactFamily}
+    if manifest.artifact_family not in valid_families:
+        errors.append(
+            f"Unknown artifact_family: {manifest.artifact_family!r}. "
+            f"Valid: {sorted(valid_families)}"
+        )
+        return errors  # Can't validate further
+
+    # 2. Check backend_type is non-empty
+    if not manifest.backend_type:
+        errors.append("backend_type must not be empty")
+
+    # 3. Check schema-specific requirements
+    schema = FAMILY_SCHEMAS.get(manifest.artifact_family, {})
+
+    for req_output in schema.get("required_outputs", []):
+        if req_output not in manifest.outputs:
+            errors.append(
+                f"Missing required output {req_output!r} for family "
+                f"{manifest.artifact_family!r}"
+            )
+
+    for req_meta in schema.get("required_metadata", []):
+        if req_meta not in manifest.metadata:
+            errors.append(
+                f"Missing required metadata {req_meta!r} for family "
+                f"{manifest.artifact_family!r}"
+            )
+
+    for req_quality in schema.get("required_quality", []):
+        if req_quality not in manifest.quality_metrics:
+            errors.append(
+                f"Missing required quality metric {req_quality!r} for family "
+                f"{manifest.artifact_family!r}"
+            )
+
+    # 4. Check hash integrity
+    expected_hash = manifest.compute_hash()
+    if manifest.schema_hash and manifest.schema_hash != expected_hash:
+        errors.append(
+            f"Schema hash mismatch: expected {expected_hash}, "
+            f"got {manifest.schema_hash}"
+        )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Composite Manifest Builder
+# ---------------------------------------------------------------------------
+
+class CompositeManifestBuilder:
+    """Builder for composite manifests that reference multiple sub-artifacts.
+
+    This implements USD's Composition Arcs pattern — a composite manifest
+    can reference and compose multiple sub-manifests.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        backend_type: str = "composite",
+        session_id: str = "SESSION-064",
+    ) -> None:
+        self._name = name
+        self._backend_type = backend_type
+        self._session_id = session_id
+        self._sub_manifests: list[ArtifactManifest] = []
+        self._extra_metadata: dict[str, Any] = {}
+
+    def add(self, manifest: ArtifactManifest) -> "CompositeManifestBuilder":
+        """Add a sub-manifest to the composite."""
+        self._sub_manifests.append(manifest)
+        return self
+
+    def with_metadata(self, key: str, value: Any) -> "CompositeManifestBuilder":
+        """Add extra metadata to the composite."""
+        self._extra_metadata[key] = value
+        return self
+
+    def build(self) -> ArtifactManifest:
+        """Build the composite manifest."""
+        references = [m.schema_hash for m in self._sub_manifests]
+        all_families = list({m.artifact_family for m in self._sub_manifests})
+        all_outputs: dict[str, str] = {}
+        for m in self._sub_manifests:
+            for key, val in m.outputs.items():
+                prefixed_key = f"{m.backend_type}_{key}"
+                all_outputs[prefixed_key] = val
+
+        combined_quality: dict[str, float] = {}
+        for m in self._sub_manifests:
+            for key, val in m.quality_metrics.items():
+                combined_quality[f"{m.backend_type}_{key}"] = val
+
+        metadata = {
+            "composite_name": self._name,
+            "sub_artifact_count": len(self._sub_manifests),
+            "sub_families": all_families,
+            **self._extra_metadata,
+        }
+
+        return ArtifactManifest(
+            artifact_family=ArtifactFamily.COMPOSITE.value,
+            backend_type=self._backend_type,
+            version="1.0.0",
+            session_id=self._session_id,
+            outputs=all_outputs,
+            metadata=metadata,
+            quality_metrics=combined_quality,
+            references=references,
+            tags=["composite"],
+        )
+
+
+# ---------------------------------------------------------------------------
+# Pytest Integration
+# ---------------------------------------------------------------------------
+
+def test_artifact_manifest_creation():
+    """ArtifactManifest can be created with required fields."""
+    m = ArtifactManifest(
+        artifact_family=ArtifactFamily.MESH_OBJ.value,
+        backend_type="dimension_uplift",
+        outputs={"mesh": "/tmp/test.obj"},
+        metadata={"vertex_count": 100, "face_count": 200},
+    )
+    assert m.artifact_family == "mesh_obj"
+    assert m.backend_type == "dimension_uplift"
+    assert m.schema_hash.startswith("sha256:")
+    assert m.timestamp > 0
+
+
+def test_artifact_manifest_validation_pass():
+    """Valid manifest passes validation."""
+    m = ArtifactManifest(
+        artifact_family=ArtifactFamily.MESH_OBJ.value,
+        backend_type="dimension_uplift",
+        outputs={"mesh": "/tmp/test.obj"},
+        metadata={"vertex_count": 100, "face_count": 200},
+    )
+    errors = validate_artifact(m)
+    assert errors == []
+
+
+def test_artifact_manifest_validation_fail():
+    """Invalid manifest fails validation with specific errors."""
+    m = ArtifactManifest(
+        artifact_family=ArtifactFamily.MESH_OBJ.value,
+        backend_type="dimension_uplift",
+        outputs={},  # Missing required 'mesh' output
+        metadata={},  # Missing required metadata
+    )
+    errors = validate_artifact(m)
+    assert len(errors) >= 2
+    assert any("mesh" in e for e in errors)
+    assert any("vertex_count" in e or "face_count" in e for e in errors)
+
+
+def test_artifact_manifest_serialization():
+    """ArtifactManifest round-trips through JSON."""
+    m = ArtifactManifest(
+        artifact_family=ArtifactFamily.SPRITE_SHEET.value,
+        backend_type="motion_2d",
+        outputs={"spritesheet": "/tmp/sheet.png"},
+        metadata={"frame_count": 8, "frame_width": 32, "frame_height": 32},
+        quality_metrics={"diversity": 0.85},
+    )
+    data = m.to_dict()
+    m2 = ArtifactManifest.from_dict(data)
+    assert m2.artifact_family == m.artifact_family
+    assert m2.outputs == m.outputs
+    assert m2.quality_metrics == m.quality_metrics
+
+
+def test_composite_manifest_builder():
+    """CompositeManifestBuilder composes multiple sub-manifests."""
+    mesh = ArtifactManifest(
+        artifact_family=ArtifactFamily.MESH_OBJ.value,
+        backend_type="dim_uplift",
+        outputs={"mesh": "/tmp/mesh.obj"},
+        metadata={"vertex_count": 100, "face_count": 200},
+    )
+    shader = ArtifactManifest(
+        artifact_family=ArtifactFamily.SHADER_HLSL.value,
+        backend_type="cel_shading",
+        outputs={"shader_source": "/tmp/cel.hlsl"},
+        metadata={"shader_type": "cel"},
+    )
+    composite = (
+        CompositeManifestBuilder("character_pack", session_id="SESSION-064")
+        .add(mesh)
+        .add(shader)
+        .with_metadata("character_name", "mario")
+        .build()
+    )
+    assert composite.artifact_family == ArtifactFamily.COMPOSITE.value
+    assert len(composite.references) == 2
+    assert composite.metadata["sub_artifact_count"] == 2

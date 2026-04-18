@@ -170,6 +170,17 @@ from .dimension_uplift_bridge import (
     collect_dimension_uplift_status,
     DimensionUpliftEvolutionBridge,
 )
+# SESSION-064: Microkernel Plugin Architecture (LLVM Registry + USD Schema + MAP-Elites)
+from ..core import (
+    BackendRegistry, BackendMeta, register_backend, get_registry,
+    ArtifactFamily, ArtifactManifest, ArtifactValidationError, validate_artifact,
+    EvolutionNiche, NicheRegistry, NicheReport, ParetoFront,
+    register_niche, get_niche_registry,
+)
+from ..core.microkernel_orchestrator import MicrokernelOrchestrator, MicrokernelCycleReport
+from ..core.evolution_loop import ThreeLayerEvolutionLoop
+from ..core.pipeline_bridge import MicrokernelPipelineBridge
+
 # SESSION-062: Phase 4 Environment Closed-Loop Bridge (WFC Tilemap + Fluid Sequence)
 from .env_closedloop_bridge import (
     WFCTilemapMetrics,
@@ -304,4 +315,23 @@ __all__ = [
     "DimensionUpliftStatus",
     "collect_dimension_uplift_status",
     "DimensionUpliftEvolutionBridge",
+    # SESSION-064: Microkernel Plugin Architecture
+    "BackendRegistry",
+    "BackendMeta",
+    "register_backend",
+    "get_registry",
+    "ArtifactFamily",
+    "ArtifactManifest",
+    "ArtifactValidationError",
+    "validate_artifact",
+    "EvolutionNiche",
+    "NicheRegistry",
+    "NicheReport",
+    "ParetoFront",
+    "register_niche",
+    "get_niche_registry",
+    "MicrokernelOrchestrator",
+    "MicrokernelCycleReport",
+    "ThreeLayerEvolutionLoop",
+    "MicrokernelPipelineBridge",
 ]

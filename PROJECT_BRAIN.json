@@ -1490,6 +1490,46 @@
       "completed_in": "SESSION-035"
     },
     {
+      "id": "P0-ARCH-064A",
+      "title": "Backend Registry — LLVM-inspired dynamic self-registration with @register_backend decorator and IoC dependency resolution",
+      "completed_in": "SESSION-064"
+    },
+    {
+      "id": "P0-ARCH-064B",
+      "title": "Artifact Schema — Pixar USD-inspired strongly-typed manifests with artifact_family, backend_type, and schema validation",
+      "completed_in": "SESSION-064"
+    },
+    {
+      "id": "P0-ARCH-064C",
+      "title": "Niche Registry — MAP-Elites-inspired per-lane evolution niches with Pareto Front and isolated fitness (no cross-lane averaging)",
+      "completed_in": "SESSION-064"
+    },
+    {
+      "id": "P0-ARCH-064D",
+      "title": "Microkernel Orchestrator — Three-pillar integration engine with state persistence and meta-report generation",
+      "completed_in": "SESSION-064"
+    },
+    {
+      "id": "P0-ARCH-064E",
+      "title": "Three-Layer Evolution Loop — Internal evolution + external knowledge distillation + self-iteration testing",
+      "completed_in": "SESSION-064"
+    },
+    {
+      "id": "P0-ARCH-064F",
+      "title": "Pipeline Bridge — Legacy compatibility layer with bidirectional manifest conversion and registry summary",
+      "completed_in": "SESSION-064"
+    },
+    {
+      "id": "AUDIT-064",
+      "title": "Full 15-point research-to-code audit (15/15 PASS) — LLVM + USD + MAP-Elites + Frostbite FrameGraph",
+      "completed_in": "SESSION-064"
+    },
+    {
+      "id": "VALIDATION-064",
+      "title": "SESSION-064 validation (22 core + 6 integration tests PASS, zero regressions)",
+      "completed_in": "SESSION-064"
+    },
+    {
       "id": "P0-PHYSICS-35F",
       "title": "Compliant Physics Knowledge Base (8 rules: PD compliance, AMP evaluation, VPoser mutation, pipeline bridge)",
       "completed_in": "SESSION-035"
@@ -2098,7 +2138,17 @@
     "REMAINING-S052: XPBD solver is 2D only; 3D extension needed for pseudo-3D workflows",
     "REMAINING-S052: No GPU acceleration for XPBD (NumPy only); Taichi/CuPy backend needed for 1000+ particles",
     "REMAINING-S052: No CCD for fast-moving objects; velocity clamping is a workaround",
-    "REMAINING-S052: XPBD chains are 1D only; 2D cloth mesh simulation not yet supported"
+    "REMAINING-S052: XPBD chains are 1D only; 2D cloth mesh simulation not yet supported",
+    "RESOLVED-S064: No plugin architecture for export backends -> LLVM-inspired BackendRegistry with @register_backend decorator and IoC dependency resolution",
+    "RESOLVED-S064: No typed artifact contract -> Pixar USD-inspired ArtifactManifest with artifact_family, backend_type, and schema validation",
+    "RESOLVED-S064: Cross-lane fitness averaging risk -> MAP-Elites NicheRegistry with Pareto Front and isolated per-lane fitness",
+    "RESOLVED-S064: No unified microkernel orchestrator -> MicrokernelOrchestrator integrating all three pillars with state persistence",
+    "RESOLVED-S064: No self-sustaining evolution loop -> ThreeLayerEvolutionLoop with internal evolution + knowledge distillation + self-test",
+    "RESOLVED-S064: No legacy compatibility bridge -> MicrokernelPipelineBridge with bidirectional manifest conversion",
+    "REMAINING-S064: MicrokernelOrchestrator not yet wired into AssetPipeline trunk (additive overlay)",
+    "REMAINING-S064: Legacy EvolutionOrchestrator bridges not yet migrated to NicheRegistry",
+    "REMAINING-S064: No per-backend CI validation with artifact schema checks",
+    "REMAINING-S064: No hot-reload for dynamically discovered backends"
   ],
   "session_029_changes": {
     "new_artifacts": [
@@ -2648,22 +2698,66 @@
     "session058_test_count": "13 targeted SESSION-058 tests PASS."
   },
   "recent_focus_snapshot": {
-    "session": "SESSION-052",
-    "focus": "Physics Singularity: XPBD Two-Way Rigid-Soft Coupling",
+    "session": "SESSION-064",
+    "focus": "Paradigm Shift: Contract-Based Microkernel Plugin Architecture",
     "closed": [
-      "P0-GAP-2",
-      "P1-B1-2"
+      "P0-ARCH-064A",
+      "P0-ARCH-064B",
+      "P0-ARCH-064C",
+      "P0-ARCH-064D",
+      "P0-ARCH-064E",
+      "P0-ARCH-064F"
     ],
-    "physics_score_before": 12,
-    "physics_score_after": 45,
+    "architecture_pillars": [
+      "LLVM Registry Pattern (Backend Registry + IoC)",
+      "Pixar USD Artifact Schema (Typed Manifests)",
+      "MAP-Elites Niche Registry (Pareto Front + Isolated Fitness)"
+    ],
     "next_priorities": [
-      "P1-XPBD-1: Free-fall precision",
-      "P1-XPBD-2: GPU acceleration",
-      "P1-XPBD-3: 3D extension",
-      "P1-B1-1: Render cape/hair from XPBD chain snapshots"
+      "P1-MIGRATE-1: Wire MicrokernelOrchestrator into AssetPipeline trunk",
+      "P1-MIGRATE-2: Migrate legacy EvolutionOrchestrator bridges to niche registry",
+      "P1-MIGRATE-3: Add per-backend CI validation with artifact schema checks",
+      "P1-MIGRATE-4: Implement hot-reload for dynamically discovered backends"
     ]
   },
   "recent_sessions": [
+    {
+      "id": "SESSION-064",
+      "version": "0.55.0",
+      "date": "2026-04-18",
+      "title": "Paradigm Shift: Contract-Based Microkernel Plugin Architecture (LLVM + USD + MAP-Elites)",
+      "summary": "Implemented three foundational architecture pillars: (1) LLVM-inspired Backend Registry with @register_backend decorator and IoC dependency resolution, (2) Pixar USD-inspired Artifact Schema with strongly-typed manifests and schema validation, (3) MAP-Elites-inspired Niche Registry with Pareto Front and isolated per-lane fitness. Built MicrokernelOrchestrator, ThreeLayerEvolutionLoop (internal evolution + external knowledge distillation + self-iteration testing), MicrokernelPipelineBridge for legacy compatibility, 7 builtin backends, 7 builtin niches. All 22 core tests PASS + 6 integration tests PASS.",
+      "tasks_closed": [
+        "P0-ARCH-064A: Backend Registry (LLVM Registry Pattern + IoC)",
+        "P0-ARCH-064B: Artifact Schema (Pixar USD Typed Manifests)",
+        "P0-ARCH-064C: Niche Registry (MAP-Elites + Pareto Front)",
+        "P0-ARCH-064D: Microkernel Orchestrator (Three-Pillar Integration)",
+        "P0-ARCH-064E: Three-Layer Evolution Loop (Internal + Distillation + Self-Test)",
+        "P0-ARCH-064F: Pipeline Bridge (Legacy Compatibility Layer)"
+      ],
+      "artifacts": [
+        "mathart/core/__init__.py",
+        "mathart/core/backend_registry.py",
+        "mathart/core/artifact_schema.py",
+        "mathart/core/niche_registry.py",
+        "mathart/core/microkernel_orchestrator.py",
+        "mathart/core/evolution_loop.py",
+        "mathart/core/pipeline_bridge.py",
+        "mathart/core/builtin_backends.py",
+        "mathart/core/builtin_niches.py",
+        "research/session064_architecture_research.md",
+        "research/session064_audit_report.md",
+        "tests/test_session064_quick.py"
+      ],
+      "research_references": [
+        "Chris Lattner — LLVM: The Architecture of Open Source Applications (2012)",
+        "Pixar — OpenUSD Validation Framework & Composition Arcs (2024)",
+        "Yuriy O'Donnell — FrameGraph: Extensible Rendering Architecture in Frostbite (GDC 2017)",
+        "Jean-Baptiste Mouret & Jeff Clune — Illuminating Search Spaces by Mapping Elites (2015)",
+        "Kalyanmoy Deb et al. — NSGA-II: Fast Elitist Multiobjective Genetic Algorithm (2002)",
+        "Martin Fowler — Inversion of Control Containers and Dependency Injection (2004)"
+      ]
+    },
     {
       "id": "SESSION-063",
       "version": "0.54.0",
@@ -2941,6 +3035,42 @@
     "bundle_format": ".mathart (manifest.json + 6 PBR channels + contour.json)"
   },
   "open_tasks": [
+    {
+      "id": "P1-MIGRATE-1",
+      "priority": "P1",
+      "title": "Wire MicrokernelOrchestrator into AssetPipeline trunk as primary orchestration layer",
+      "status": "TODO",
+      "estimated_effort": "large",
+      "description": "Replace the current procedural pipeline flow in AssetPipeline with MicrokernelOrchestrator.run_cycle(). Each produce_*() method should delegate to registered backends via the registry instead of hard-coded function calls.",
+      "added_in": "SESSION-064"
+    },
+    {
+      "id": "P1-MIGRATE-2",
+      "priority": "P1",
+      "title": "Migrate legacy EvolutionOrchestrator bridges to NicheRegistry",
+      "status": "TODO",
+      "estimated_effort": "large",
+      "description": "Convert each existing *EvolutionBridge (Contract, VisualRegression, Fluid, Jakobsen, Terrain, Gait, etc.) into @register_niche decorated classes that implement the EvolutionNiche interface. This eliminates the manual bridge list in EvolutionOrchestrator.",
+      "added_in": "SESSION-064"
+    },
+    {
+      "id": "P1-MIGRATE-3",
+      "priority": "P1",
+      "title": "Add per-backend CI validation with artifact schema checks",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Extend CI pipeline to run validate_artifact() on every backend output. Failed schema validation should block merge.",
+      "added_in": "SESSION-064"
+    },
+    {
+      "id": "P1-MIGRATE-4",
+      "priority": "P1",
+      "title": "Implement hot-reload for dynamically discovered backends",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Use BackendRegistry.discover() to auto-scan mathart/export/ and mathart/core/builtin_backends.py at startup. New backends added as files should be automatically available without manual import.",
+      "added_in": "SESSION-064"
+    },
     {
       "id": "P1-AI-2C",
       "priority": "P1",
