@@ -26,6 +26,16 @@ from .constraint_wfc import (
     ReachabilityValidator,
     TilePlatformExtractor,
 )
+# SESSION-062: WFC Tilemap Exporter with Dual Grid Mapping
+from .wfc_tilemap_exporter import (
+    WFCTilemapExporter,
+    DualGridMapper,
+    DualGridCell,
+    TilemapExportResult,
+    TilemapMetadata,
+    generate_and_export_tilemap,
+    generate_wfc_tilemap_loader,
+)
 
 __all__ = [
     "WFCGenerator",
@@ -50,4 +60,12 @@ __all__ = [
     "PhysicsConstraint",
     "ReachabilityValidator",
     "TilePlatformExtractor",
+    # SESSION-062: WFC Tilemap Exporter with Dual Grid
+    "WFCTilemapExporter",
+    "DualGridMapper",
+    "DualGridCell",
+    "TilemapExportResult",
+    "TilemapMetadata",
+    "generate_and_export_tilemap",
+    "generate_wfc_tilemap_loader",
 ]

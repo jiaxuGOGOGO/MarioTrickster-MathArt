@@ -1,0 +1,37 @@
+{
+  "total_cycles": 1,
+  "total_passes": 0,
+  "total_failures": 1,
+  "best_tile_diversity": 0.0455,
+  "best_path_length": 3,
+  "best_marching_diversity": 0.4375,
+  "consecutive_passes": 0,
+  "knowledge_rules_total": 1,
+  "diversity_trend": [
+    0.0455
+  ],
+  "playability_trend": [
+    1
+  ],
+  "marching_diversity_trend": [
+    0.4375
+  ],
+  "history": [
+    {
+      "cycle_id": 1,
+      "width": 22,
+      "height": 7,
+      "is_playable": true,
+      "path_length": 3,
+      "tile_diversity": 0.0455,
+      "platform_count": 15,
+      "gap_count": 55,
+      "dual_grid_coverage": 0.8181818181818182,
+      "marching_index_diversity": 0.4375,
+      "generation_attempts": 0,
+      "veto_count": 0,
+      "tilemap_pass": false,
+      "timestamp": "2026-04-18T01:21:45.159617+00:00"
+    }
+  ]
+}

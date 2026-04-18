@@ -277,6 +277,17 @@ from .gait_blend import (
     phase_warp, adaptive_bounce,
     blend_walk_run, blend_gaits_at_phase,
 )
+# SESSION-062: Fluid Sequence Exporter & Unity VFX Graph Bridge
+from .fluid_sequence_exporter import (
+    FluidSequenceConfig,
+    FluidSequenceManifest,
+    FluidSequenceExportResult,
+    FlipbookAtlasBuilder,
+    VelocityFieldRenderer,
+    FluidSequenceExporter,
+    generate_fluid_vfx_controller,
+    export_fluid_vfx_bundle,
+)
 # SESSION-048: Scene-Aware Distance Sensor (Gap B2 — SDF Terrain + TTC)
 from .terrain_sensor import (
     TerrainSDF,
@@ -512,4 +523,8 @@ __all__ = [
     "create_terrain_ik_loop",
     "AnimFrame", "PrincipleReport", "PrincipleScorer",
     "PipelineConfig", "PipelineResult", "Motion2DPipeline",
+    # SESSION-062: Fluid Sequence Exporter & Unity VFX Graph Bridge
+    "FluidSequenceConfig", "FluidSequenceManifest", "FluidSequenceExportResult",
+    "FlipbookAtlasBuilder", "VelocityFieldRenderer", "FluidSequenceExporter",
+    "generate_fluid_vfx_controller", "export_fluid_vfx_bundle",
 ]

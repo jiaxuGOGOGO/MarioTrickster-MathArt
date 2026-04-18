@@ -1,108 +1,99 @@
 # SESSION_HANDOFF
 
-> This document has been refreshed for **SESSION-061**.
+> This document has been refreshed for **SESSION-062**.
 
 ## Project Overview
 
 | Field | Value |
 |---|---|
-| Current version | **0.52.0** |
+| Current version | **0.53.0** |
 | Last updated | **2026-04-18** |
-| Last session | **SESSION-061** |
-| Base commit inspected at session start | `87af39a7e4ab68516725ac2f92b4670bdb5a137a` |
-| Best quality score achieved | **0.874** |
-| Total iterations run | **562+** |
-| Total code lines | **~95k** |
-| Latest validation status | **40/40 Motion 2D Pipeline tests PASS; Bridge full cycle PASS (bonus=0.537); Evolution orchestrator bridge registration verified; `py_compile` PASS** |
+| Last session | **SESSION-062** |
+| Base commit inspected at session start | `f49a8c34be99d0928249baef7b8653d8d108b377` |
+| Best quality score achieved | **0.885** |
+| Total iterations run | **570+** |
+| Total code lines | **~96k** |
+| Latest validation status | **19/19 Phase 4 tests PASS; EnvClosedLoopOrchestrator full cycle PASS (bonus=0.400); `py_compile` PASS** |
 
-## What SESSION-061 Delivered
+## What SESSION-062 Delivered
 
-SESSION-061 executes **第三阶段：运动认知降维与 2D IK 闭环（解决 57% 运动缺口）**. The repository now has a complete pipeline that takes 3D NSM/DeepPhase gait data, projects it to 2D via orthographic projection, applies terrain-adaptive FABRIK IK, quantifies animation quality against the 12 principles, and exports to Spine JSON — all wrapped in a three-layer evolution bridge.
+SESSION-062 executes **第四阶段：环境闭环与内容体量爆兵（解决环境与多样性短板）**. The repository now has a complete WFC→Unity Tilemap pipeline with Dual Grid (Marching Squares) autotiling and a Stable Fluids→VFX Graph pipeline with velocity inheritance. Both subsystems are wrapped in a three-layer evolution bridge (EnvClosedLoopOrchestrator) that evaluates tilemap diversity/playability and fluid flow energy/velocity coverage, distills knowledge to Markdown, and persists state for continued iteration.
 
 ### Core Insight
 
-> SESSION-061 treats the 3D→2D motion gap as a **projection + IK + quality assurance** pipeline rather than a lossy downsampling problem. The real upgrade is not "flatten 3D to 2D", but "a mathematically rigorous projection that preserves bone lengths, joint angles, and sorting orders while enforcing terrain contact through FABRIK IK and measuring animation quality against Disney's 12 principles."
+> SESSION-062 treats the environment and VFX volume gap as a **WFC→Unity Tilemap + Stable Fluids→VFX Graph** closed-loop pipeline. The real upgrade is not "generate more tiles", but "a mathematically principled Dual Grid (Marching Squares) autotiling system that produces organic seamless edges with minimal tile sets, combined with physics-driven fluid VFX that inherits character velocity for realistic particle interaction."
 
 ## New Subsystems and Upgrades
 
 | Subsystem | Landed in | What it now does |
 |---|---|---|
-| **Orthographic Projector** | `mathart/animation/orthographic_projector.py` | Projects 3D NSM bone data to 2D preserving X/Y displacement, Z-rotation, and converting Z-depth to integer sorting orders. Includes biped and quadruped skeleton factories. |
-| **Spine JSON Exporter** | `mathart/animation/orthographic_projector.py` | Exports projected 2D clips to Spine JSON format with skeleton metadata, bone hierarchy, slot definitions, IK constraints, and animation timelines (rotate, translate, scale). |
-| **FABRIK 2D Solver** | `mathart/animation/terrain_ik_2d.py` | Forward-And-Backward Reaching IK solver with angular constraints, O(n) convergence per iteration, configurable tolerance and max iterations. |
-| **Terrain Adaptive IK Loop** | `mathart/animation/terrain_ik_2d.py` | Closed-loop system that queries terrain height via `TerrainProbe2D`, computes IK targets for grounded feet, solves FABRIK chains, and adjusts hip height. Supports biped and quadruped. |
-| **Animation 12 Principles Quantifier** | `mathart/animation/principles_quantifier.py` | Systematic quantification of Squash & Stretch (volume preservation), Anticipation (velocity reversal), Arcs (curvature smoothness), Timing (frame distribution), and Solid Drawing (scale consistency). Produces aggregate scores and actionable recommendations. |
-| **Motion 2D Pipeline** | `mathart/animation/motion_2d_pipeline.py` | End-to-end integration: NSM gait → orthographic projection → terrain IK → principles scoring → Spine export. Supports biped walk and quadruped trot with pass/fail gates. |
-| **Motion 2D Pipeline Evolution Bridge** | `mathart/evolution/motion_2d_pipeline_bridge.py` | Three-layer bridge: Layer 1 evaluates projection quality, IK accuracy, and principles scores; Layer 2 distills 8 research rules + dynamic rules to Markdown; Layer 3 persists state and computes fitness bonus. |
-| **Taichi graceful fallback** | `mathart/animation/xpbd_taichi.py` | Fixed `AttributeError` when Taichi is not installed by wrapping `@ti.kernel`/`@ti.func`/`@ti.data_oriented` decorators and class definition in `if ti is not None:` guards. |
+| **WFC Tilemap Exporter** | `mathart/level/wfc_tilemap_exporter.py` | Exports ConstraintAwareWFC output to Unity-compatible JSON containing logical grid, dual grid, entity spawns, and physics constraints. |
+| **Dual Grid Mapper** | `mathart/level/wfc_tilemap_exporter.py` | Implements Oskar Stålberg's Dual Grid WFC theory, mapping logical tiles to 16-index Marching Squares for organic, seamless autotiling. |
+| **Unity Tilemap Loader** | `mathart/level/wfc_tilemap_exporter.py` | Auto-generates `WFCTilemapLoader.cs` which instantiates Unity Tilemaps with `CompositeCollider2D` for logic and `RuleTile` for visuals. |
+| **Fluid Sequence Exporter** | `mathart/animation/fluid_sequence_exporter.py` | Runs Taichi Stable Fluids simulation and exports density flipbook atlases and velocity flow-map atlases (RG-centered encoding). |
+| **Unity VFX Controller** | `mathart/animation/fluid_sequence_exporter.py` | Auto-generates `FluidVFXController.cs` which implements Velocity Inheritance, passing character `Rigidbody2D.velocity` to Unity VFX Graph. |
+| **Env Closed-Loop Bridge** | `mathart/evolution/env_closedloop_bridge.py` | Three-layer evolution bridge for both WFC Tilemap and Fluid Sequence subsystems, evaluating diversity, playability, flow energy, and velocity coverage. |
 
 ## Research References Now Landed in Code
 
 | Reference | Core idea | Landed in |
 |---|---|---|
-| **Sebastian Starke — MANN (SIGGRAPH 2018)** | Quadruped gating networks with asymmetric phase offsets and independent duty factors per limb | `nsm_gait.py` quadruped profiles + `motion_2d_pipeline_bridge.py` Rule 1 |
-| **Sebastian Starke — NSM (SIGGRAPH Asia 2019)** | Goal-driven scene interactions with terrain geometry as first-class input | `terrain_ik_2d.py` TerrainProbe2D + `motion_2d_pipeline_bridge.py` Rule 2 |
-| **Sebastian Starke — DeepPhase (SIGGRAPH 2022)** | Multi-dimensional phase space decomposition with per-limb independent phase channels | `nsm_gait.py` LimbPhaseModel + `motion_2d_pipeline_bridge.py` Rule 3 |
-| **Daniel Holden — PFNN (SIGGRAPH 2017)** | Terrain heightmap sampling at foot position for IK target adjustment | `terrain_ik_2d.py` TerrainAdaptiveIKLoop + `motion_2d_pipeline_bridge.py` Rule 4 |
-| **Aristidou & Lasenby — FABRIK (2011)** | Forward-And-Backward Reaching IK with O(n) convergence and angular constraint post-processing | `terrain_ik_2d.py` FABRIK2DSolver + `motion_2d_pipeline_bridge.py` Rule 5 |
-| **Thomas & Johnston — The Illusion of Life (1981)** | Disney's 12 animation principles as quantifiable quality metrics | `principles_quantifier.py` + `motion_2d_pipeline_bridge.py` Rule 6 |
-| **Esoteric Software — Spine JSON Format** | Industry-standard 2D skeletal animation interchange format | `orthographic_projector.py` SpineJSONExporter + `motion_2d_pipeline_bridge.py` Rule 8 |
+| **Maxim Gumin — WFC (2016)** | Constraint-solving algorithm for procedural generation | `ConstraintAwareWFC` → `WFCTilemapExporter` |
+| **Oskar Stålberg — Townscaper** | Dual Grid WFC for organic, seamless autotiling | `DualGridMapper` (Marching Squares 16-index) |
+| **Boris the Brave** | Quarter-Tile Autotiling theory | `DualGridCell` data structure |
+| **Jos Stam — Stable Fluids (1999)** | Semi-Lagrangian advection + pressure projection | `FluidSequenceExporter` |
+| **Unity VFX Graph** | Flipbook Player + Velocity Inheritance | `FluidVFXController.cs` |
 
-## Runtime Evidence from SESSION-061
+## Runtime Evidence from SESSION-062
 
 | Metric | Result |
 |---|---|
-| Motion 2D Pipeline tests | **40/40 PASS** |
+| Phase 4 tests | **19/19 PASS** |
 | Bridge full cycle | **PASS** |
-| Bone length preservation | **1.0000** |
-| Joint angle fidelity | **1.0000** |
-| Sorting order stability | **1.0000** |
-| IK contact accuracy | **1.0000** |
-| Principles aggregate score | **0.3696** |
-| Biped pipeline pass | **True** |
-| Quadruped pipeline pass | **True** |
-| Spine export success | **True** |
-| Total frames processed | **40** |
-| Fitness bonus | **0.537** |
-| Quality score | **0.874** |
-| Research audit | `research/session061_audit_report.md` |
-| Research notes | `research/session061_phase3_motion_cognitive_research.md` |
+| WFC Tilemap pass | **True** |
+| WFC Dual Grid coverage | **> 50%** |
+| Fluid Sequence pass | **True** |
+| Fluid Flow Energy | **> 0.0005** |
+| Fitness bonus | **0.400** |
+| Quality score | **0.885** |
+| Research audit | `research/session062_audit_report.md` |
+| Research notes | `research/session062_phase4_env_closedloop_research.md` |
 
 ## Knowledge Base Status
 
 | Metric | Status |
 |---|---|
-| Distilled knowledge rules | **117+** (109 prior + 8 new) |
-| Knowledge files | `knowledge/motion_2d_pipeline_rules.md` (NEW), `knowledge/breakwall_phase1.md`, `knowledge/unity_urp_2d_rules.md`, `knowledge/phase3_physics_rules.md`, `knowledge/smooth_morphology_rules.md`, `knowledge/constraint_wfc_rules.md`, `knowledge/industrial_skin.md` |
+| Distilled knowledge rules | **125+** (117 prior + 8 new) |
+| Knowledge files | `knowledge/wfc_tilemap_rules.md` (NEW), `knowledge/fluid_sequence_rules.md` (NEW), `knowledge/motion_2d_pipeline_rules.md`, `knowledge/breakwall_phase1.md`, `knowledge/unity_urp_2d_rules.md`, `knowledge/phase3_physics_rules.md`, `knowledge/smooth_morphology_rules.md`, `knowledge/constraint_wfc_rules.md`, `knowledge/industrial_skin.md` |
 | Latest Motion 2D state file | `.motion_2d_pipeline_state.json` |
 | Latest Breakwall state file | `.breakwall_evolution_state.json` |
 | Latest Unity native state file | `.unity_urp_2d_state.json` |
 | Latest orchestrator state file | `.evolution_orchestrator_state.json` |
-| Latest SESSION audit | `research/session061_audit_report.md` |
-| Next distill session ID | **DISTILL-010** |
+| Latest SESSION audit | `research/session062_audit_report.md` |
+| Next distill session ID | **DISTILL-011** |
 | Next mine session ID | **MINE-001** |
 
 ## Three-Layer Evolution System Status
 
 ### Layer 1: Internal Evaluation
 
-The Motion 2D Pipeline bridge evaluates **bone length preservation, joint angle fidelity, sorting order stability, IK contact accuracy, foot-terrain error, convergence iterations, and animation 12-principle scores** across both biped and quadruped pipelines. The pass gate requires projection quality >= 0.95, IK accuracy >= 0.80, and successful Spine export.
+**WFC Tilemap**: evaluates tile diversity, platform count, gap count, playability (reachability path), and Marching Squares coverage. Pass gate: diversity >= 0.15, platform_count >= 2, is_playable = True.
+
+**Fluid Sequence**: evaluates flow energy, velocity coverage, frame count, atlas integrity, and manifest completeness. Pass gate: flow_energy >= 0.0005, velocity_coverage >= 0.1, sequence_pass = True.
 
 ### Layer 2: External Knowledge Distillation
 
-`Motion2DPipelineEvolutionBridge.distill_knowledge()` writes 8 static research rules (from Starke, Holden, Aristidou, Thomas & Johnston, and Spine format) plus dynamic rules based on measured metrics. Dynamic rules warn on projection degradation, IK accuracy drops, principles score deficits, and terrain error spikes.
+`WFCTilemapEvolutionBridge.distill_knowledge()` writes 4 static rules (Maxim Gumin WFC, Oskar Stålberg Dual Grid, CompositeCollider2D, RuleTile) plus dynamic rules based on measured metrics.
+
+`FluidSequenceEvolutionBridge.distill_knowledge()` writes 4 static rules (Jos Stam Stable Fluids, Flipbook Atlas, RG-centered velocity encoding, VFX Graph Velocity Inheritance) plus dynamic rules.
 
 ### Layer 3: Self-Iteration
 
-`Motion2DPipelineState` now persists:
+`WFCTilemapState` persists: best diversity, best platform count, best gap count, playability trend, cycle history.
 
-1. best projection quality
-2. best IK accuracy
-3. best principles score
-4. quality trend (composite metric)
-5. cycle history with timestamps, pass/fail, bonus, and quality
+`FluidSequenceState` persists: best flow energy, best velocity coverage, frame count trend, cycle history.
 
-This means future sessions can continue evolving the motion 2D pipeline without re-discovering optimal parameters.
+`EnvClosedLoopOrchestrator` coordinates both bridges and computes combined fitness bonus (0.0–0.40).
 
 ## Pending Tasks (Priority Order)
 
@@ -123,6 +114,11 @@ This means future sessions can continue evolving the motion 2D pipeline without 
 - `P2-DEEPPHASE-FFT-1`: **NEW (SESSION-061)**. Full FFT-based frequency-domain phase decomposition from DeepPhase.
 - `P2-MOTIONDB-IK-1`: **NEW (SESSION-061)**. Integrate motion matching database with 2D IK pipeline for runtime query.
 - `P2-SPINE-PREVIEW-1`: **NEW (SESSION-061)**. Spine JSON animation previewer for visual verification.
+- `P2-TAICHI-GPU-FLUID-1`: **NEW (SESSION-062)**. Taichi GPU acceleration for Stable Fluids (currently NumPy fallback).
+- `P2-WFC-3D-1`: **NEW (SESSION-062)**. WFC 3D extension for voxel-based level generation.
+- `P2-VFX-TEMPLATE-1`: **NEW (SESSION-062)**. Auto-generate Unity VFX Graph .vfx template files.
+- `P2-ATLAS-LOD-1`: **NEW (SESSION-062)**. Multi-resolution Atlas LOD (128→64→32) for mobile targets.
+- `P2-WFC-EDITOR-1`: **NEW (SESSION-062)**. Real-time WFC editor as Unity Editor Window.
 - `P3-GPU-BENCH-1`: Run formal Taichi GPU benchmarks on true CUDA hardware.
 - `P2-MORPHOLOGY-2`: Expand morphology archetypes and add weapon/accessory attachment points.
 - `P2-WFC-2`: Add themed WFC tile sets and progression-aware difficulty curves.
@@ -132,6 +128,10 @@ This means future sessions can continue evolving the motion 2D pipeline without 
 - `P1-B3-5`: Full locomotion CNS unification across export/orchestration layers.
 
 ### DONE / CORE IMPLEMENTED
+- `P4-ENV-WFC-1`: **CLOSED in SESSION-062**. WFC Tilemap exporter with Dual Grid (Marching Squares) autotiling.
+- `P4-ENV-FLUID-1`: **CLOSED in SESSION-062**. Fluid Sequence exporter with flipbook atlas and velocity flow-map.
+- `P4-ENV-VFX-1`: **CLOSED in SESSION-062**. Unity VFX Graph velocity inheritance controller.
+- `P4-ENV-BRIDGE-1`: **CLOSED in SESSION-062**. Three-layer evolution bridge for WFC + Fluid subsystems.
 - `P3-MOTION2D-1`: **CLOSED in SESSION-061**. Full 3D→2D orthographic projection pipeline with quality metrics.
 - `P3-MOTION2D-2`: **CLOSED in SESSION-061**. FABRIK 2D terrain-adaptive IK closed loop for biped and quadruped.
 - `P3-MOTION2D-3`: **CLOSED in SESSION-061**. Animation 12 principles quantification system.
@@ -155,15 +155,31 @@ This means future sessions can continue evolving the motion 2D pipeline without 
 
 | Evidence | Result |
 |---|---|
-| `python tests/run_pipeline_tests.py` | **40/40 PASS** |
-| Motion 2D Pipeline bridge full cycle | **PASS** (bonus=0.537, quality=0.874) |
-| `collect_motion_2d_pipeline_status('.')` | All 6 subsystems available |
-| Spine JSON export validation | Valid JSON with skeleton, bones, ik, animations |
-| FABRIK convergence | 8 iterations to 0.001 tolerance |
-| Research-to-code traceability | `research/session061_audit_report.md` |
-| Research notes | `research/session061_phase3_motion_cognitive_research.md` |
+| `pytest tests/test_wfc_tilemap_exporter.py` | **10/10 PASS** |
+| `pytest tests/test_fluid_sequence_exporter.py` | **9/9 PASS** |
+| EnvClosedLoopOrchestrator full cycle | **PASS** (bonus=0.400) |
+| WFC Tilemap JSON export | Valid JSON with logical_grid, dual_grid, entity_spawns |
+| Dual Grid Marching Squares | 16-index range [0,15] verified |
+| Fluid density atlas | Correct flipbook dimensions |
+| Velocity flow-map atlas | RG-centered encoding verified |
+| Unity WFCTilemapLoader.cs | CompositeCollider2D + TileBase verified |
+| Unity FluidVFXController.cs | VelocityInheritMode + Rigidbody2D verified |
+| Research-to-code traceability | `research/session062_audit_report.md` |
+| Research notes | `research/session062_phase4_env_closedloop_research.md` |
 
 ## Recent Evolution History (Last 5 Sessions)
+
+### SESSION-062 — v0.53.0 (2026-04-18)
+- Added `mathart/level/wfc_tilemap_exporter.py` — WFC→Tilemap JSON + Dual Grid + Unity Loader (~920 lines)
+- Added `mathart/animation/fluid_sequence_exporter.py` — Fluid sequence→Flipbook Atlas + VFX Controller (~530 lines)
+- Added `mathart/evolution/env_closedloop_bridge.py` — Three-layer evolution bridge for WFC + Fluid (~530 lines)
+- Added `tests/test_wfc_tilemap_exporter.py` — 10 tests all PASS
+- Added `tests/test_fluid_sequence_exporter.py` — 9 tests all PASS
+- Added `research/session062_phase4_env_closedloop_research.md`, `research/session062_architecture_design.md`, `research/session062_audit_report.md`
+- Updated `mathart/level/__init__.py` — WFCTilemapExporter exports
+- Updated `mathart/animation/__init__.py` — FluidSequenceExporter exports
+- Updated `mathart/evolution/__init__.py` — EnvClosedLoopOrchestrator exports
+- EnvClosedLoopOrchestrator full cycle PASS; 19/19 tests PASS
 
 ### SESSION-061 — v0.52.0 (2026-04-18)
 - Added `mathart/animation/orthographic_projector.py` — 3D→2D orthographic projection + Spine JSON export

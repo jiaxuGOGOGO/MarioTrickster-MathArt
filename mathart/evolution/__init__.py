@@ -162,6 +162,18 @@ from .motion_2d_pipeline_bridge import (
     collect_motion_2d_pipeline_status,
     Motion2DPipelineEvolutionBridge,
 )
+# SESSION-062: Phase 4 Environment Closed-Loop Bridge (WFC Tilemap + Fluid Sequence)
+from .env_closedloop_bridge import (
+    WFCTilemapMetrics,
+    WFCTilemapState,
+    FluidSequenceMetrics,
+    FluidSequenceState,
+    EnvClosedLoopStatus,
+    collect_env_closedloop_status,
+    WFCTilemapEvolutionBridge,
+    FluidSequenceEvolutionBridge,
+    EnvClosedLoopOrchestrator,
+)
 
 __all__ = [
     "SelfEvolutionEngine",
@@ -268,4 +280,14 @@ __all__ = [
     "Motion2DPipelineStatus",
     "collect_motion_2d_pipeline_status",
     "Motion2DPipelineEvolutionBridge",
+    # SESSION-062: Phase 4 Environment Closed-Loop Bridge
+    "WFCTilemapMetrics",
+    "WFCTilemapState",
+    "FluidSequenceMetrics",
+    "FluidSequenceState",
+    "EnvClosedLoopStatus",
+    "collect_env_closedloop_status",
+    "WFCTilemapEvolutionBridge",
+    "FluidSequenceEvolutionBridge",
+    "EnvClosedLoopOrchestrator",
 ]

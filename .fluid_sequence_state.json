@@ -1,0 +1,72 @@
+{
+  "total_cycles": 3,
+  "total_passes": 3,
+  "total_failures": 0,
+  "best_flow_energy": 0.001813,
+  "best_velocity_coverage": 0.5625,
+  "consecutive_passes": 3,
+  "knowledge_rules_total": 3,
+  "flow_energy_trend": [
+    0.001813,
+    0.000939,
+    0.00157
+  ],
+  "velocity_coverage_trend": [
+    0.5625,
+    0.5625,
+    0.5625
+  ],
+  "history": [
+    {
+      "cycle_id": 1,
+      "driver_mode": "smoke",
+      "frame_count": 16,
+      "atlas_width": 192,
+      "atlas_height": 192,
+      "mean_flow_energy": 0.001813,
+      "max_flow_speed": 0.2125,
+      "total_density_mass": 933.8391,
+      "velocity_field_coverage": 0.5625,
+      "density_atlas_exists": true,
+      "velocity_atlas_exists": true,
+      "manifest_valid": true,
+      "unity_controller_exists": true,
+      "sequence_pass": true,
+      "timestamp": "2026-04-18T01:21:45.822140+00:00"
+    },
+    {
+      "cycle_id": 2,
+      "driver_mode": "slash",
+      "frame_count": 16,
+      "atlas_width": 192,
+      "atlas_height": 192,
+      "mean_flow_energy": 0.000939,
+      "max_flow_speed": 0.1581,
+      "total_density_mass": 1009.4168,
+      "velocity_field_coverage": 0.5625,
+      "density_atlas_exists": true,
+      "velocity_atlas_exists": true,
+      "manifest_valid": true,
+      "unity_controller_exists": true,
+      "sequence_pass": true,
+      "timestamp": "2026-04-18T01:21:46.559694+00:00"
+    },
+    {
+      "cycle_id": 3,
+      "driver_mode": "dash",
+      "frame_count": 16,
+      "atlas_width": 192,
+      "atlas_height": 192,
+      "mean_flow_energy": 0.00157,
+      "max_flow_speed": 0.1937,
+      "total_density_mass": 1118.4291,
+      "velocity_field_coverage": 0.5625,
+      "density_atlas_exists": true,
+      "velocity_atlas_exists": true,
+      "manifest_valid": true,
+      "unity_controller_exists": true,
+      "sequence_pass": true,
+      "timestamp": "2026-04-18T01:21:47.190634+00:00"
+    }
+  ]
+}
