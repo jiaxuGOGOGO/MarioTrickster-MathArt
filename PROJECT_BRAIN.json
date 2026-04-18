@@ -1,26 +1,49 @@
 {
-  "version": "0.63.0",
-  "last_session_id": "SESSION-072",
-  "last_updated": "2026-04-19T18:00:00Z",
+  "version": "0.64.0",
+  "last_session_id": "SESSION-073",
+  "last_updated": "2026-04-19T22:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
-    "baseline_session": "SESSION-071",
+    "baseline_session": "SESSION-073",
     "head_commit": "02327b7",
-    "active_total": 79,
-    "by_priority": {"P1": 42, "P2": 33, "P3": 4},
-    "by_status": {"TODO": 66, "PARTIAL": 6, "SUBSTANTIALLY-CLOSED": 5, "SUBSTANTIALLY-ADVANCED": 2, "CLOSED": 1},
+    "active_total": 78,
+    "by_priority": {
+      "P1": 41,
+      "P2": 34,
+      "P3": 3
+    },
+    "by_status": {
+      "PARTIAL": 6,
+      "SUBSTANTIALLY-ADVANCED": 2,
+      "SUBSTANTIALLY-CLOSED": 5,
+      "TODO": 65
+    },
     "status_conflicts": 0,
-    "top_priorities_ordered": ["P1-DISTILL-1A", "P1-MIGRATE-3", "P1-MIGRATE-2", "P1-DISTILL-1B", "P1-DISTILL-3", "P1-DISTILL-4", "P1-B3-1", "P1-GAP4-BATCH", "P1-XPBD-1", "P1-AI-2D", "P1-AI-2D-SPARSECTRL", "P1-INDUSTRIAL-34C"]
+    "top_priorities_ordered": [
+      "P1-DISTILL-1A",
+      "P1-MIGRATE-3",
+      "P1-MIGRATE-2",
+      "P1-DISTILL-1B",
+      "P1-DISTILL-3",
+      "P1-DISTILL-4",
+      "P1-B3-1",
+      "P1-GAP4-BATCH",
+      "P1-XPBD-1",
+      "P1-AI-2D",
+      "P1-AI-2D-SPARSECTRL",
+      "P1-INDUSTRIAL-34C"
+    ],
+    "closed_archived": 43
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-071 P1-XPBD-3 3D physics microkernel landing PASS: 1312/1312 stable suites PASS in serial (taichi/anti_flicker/state_machine_fuzz/evolution_loop/layer3_closed_loop excluded as pre-existing infra-only flakes). 7/7 new P1-XPBD-3 red-line tests PASS, 273/273 critical regression subset PASS (unified_motion + xpbd + physics + pipeline + registry + phase + motion_2d + locomotion). Zero breakage of the SESSION-070 1305-baseline. XPBDSolver3D performs real ∇C in [x,y,z] (3D bending uses double cross product), SpatialHashGrid3D separates Z layers, ContactManifoldRecord now carries 3D normal + contact point + penetration depth, Physics3DBackend (BackendType.PHYSICS_3D, ArtifactFamily.PHYSICS_3D_MOTION_UMR) is auto-registered and consumes the upstream MOTION_UMR manifest via Context-in/Manifest-out only — AST guard verifies no static UnifiedMotionBackend import.",
-  "total_iterations": 600,
-  "total_code_lines": 109200,
+  "validation_pass_rate": "SESSION-073 P1-MIGRATE-3 + P1-XPBD-4 PASS: 1362/1368 stable suites PASS in serial (taichi/layer3_closed_loop excluded as pre-existing infra-only flakes). 9/9 new P1-MIGRATE-3 CI schema tests PASS, 11/11 new P1-XPBD-4 CCD tests PASS, 31/31 targeted regression subset PASS (physics3d + distill_1a + ci_schemas + registry_e2e). Zero breakage of the SESSION-072 1362-baseline.",
+  "total_iterations": 601,
+  "total_code_lines": 110400,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 144,
+  "knowledge_rule_count": 146,
   "math_model_count": 37,
   "project_health_score": 10.0,
   "commercial_benchmark": {
@@ -60,9 +83,11 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-072 completes P1-DISTILL-1A: eBPF/DTrace-inspired zero-overhead TelemetrySink injection into the microkernel, Borgmon/Prometheus time-series sidecar output from Physics3DBackend, 3D XPBD compliance knobs exposed to the Optuna closed loop, and MLMD/W3C PROV-DM upstream_manifest_hash provenance tracing on DistillationRecord. 14/14 new red-line tests PASS, 70/70 targeted suite PASS, zero regression on 1309 baseline.",
+  "current_focus": "SESSION-073 closes P1-MIGRATE-3 (dynamic CI schema validation with Pixar usdchecker-inspired strong typing, required_metadata_keys(), telemetry array depth assertions, and reflexive full-backend CI traversal with minimal context fixtures) and P1-XPBD-4 (3D CCD swept-sphere continuous collision detection in XPBDSolver3D with velocity-threshold broad-phase gating, half-space TOI computation, safe-point clamping, inward velocity removal, and CCD_ENABLED capability + ccd_sweep_count telemetry sidecar). PROJECT_BRAIN.json technical debt cleaned: open_tasks merged, 42 DONE tasks archived, 18 legacy session-change keys consolidated. 1362/1368 tests PASS (6 pre-existing infra-only flakes: 4 Taichi, 2 Optuna). Zero regression on SESSION-072 baseline.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "tests/test_ccd_3d.py",
+    "tests/test_ci_backend_schemas.py",
     "research/session069_motion_research_notes.md",
     "tests/test_locomotion_cns.py",
     "tests/test_character_pipeline.py",
@@ -185,364 +210,59 @@
   },
   "pending_tasks": [
     {
-      "id": "P2-DIM-UPLIFT-1",
-      "priority": "P2",
-      "title": "Integrate DC mesh output with existing Unity URP pipeline",
-      "status": "PARTIAL",
-      "estimated_effort": "medium",
-      "description": "PARTIALLY ADDRESSED in SESSION-066. Canonical dimension_uplift_mesh and urp2d_bundle backend contracts now exist, but real mesh→Unity runtime coupling still needs implementation.",
-      "added_in": "SESSION-063",
-      "updated_in": "SESSION-066"
-    },
-    {
-      "id": "P2-DIM-UPLIFT-2",
-      "priority": "P2",
-      "title": "Implement octree-based adaptive Dual Contouring (LOD chain)",
-      "status": "TODO",
-      "estimated_effort": "high",
-      "description": "Add multi-resolution DC with octree-based LOD chain for progressive mesh detail.",
-      "added_in": "SESSION-063"
-    },
-    {
-      "id": "P2-DIM-UPLIFT-3",
-      "priority": "P2",
-      "title": "Add QEM mesh simplification for LOD generation",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-065. QEM mesh simplification with LOD chain (Garland 1997)",
-      "added_in": "SESSION-063",
-      "completed_in": "SESSION-065"
-    },
-    {
-      "id": "P2-DIM-UPLIFT-4",
-      "priority": "P2",
-      "title": "Compile actual Taichi AOT module (requires Taichi Vulkan backend)",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Run TaichiAOTBridge on hardware with Vulkan support to produce real SPIR-V modules.",
-      "added_in": "SESSION-063"
-    },
-    {
-      "id": "P2-DIM-UPLIFT-5",
-      "priority": "P2",
-      "title": "Build Unity native plugin from generated C++ code",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Compile the generated C++ native plugin code into a Unity-compatible .dll/.so and test in Unity Editor.",
-      "added_in": "SESSION-063"
-    },
-    {
-      "id": "P2-DIM-UPLIFT-6",
-      "priority": "P2",
-      "title": "Test displacement mapping in Unity Shader Graph",
-      "status": "TODO",
-      "estimated_effort": "low",
-      "description": "Import IsometricDisplacementMapper config into Unity Shader Graph and validate visual results.",
-      "added_in": "SESSION-063"
-    },
-    {
-      "id": "P2-DIM-UPLIFT-7",
-      "priority": "P2",
-      "title": "Integrate cel-shading with existing sprite pipeline",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Connect CelShadingConfig generated shaders with existing Unity URP 2D sprite rendering pipeline.",
-      "added_in": "SESSION-063"
-    },
-    {
-      "id": "P2-DIM-UPLIFT-8",
-      "priority": "P2",
-      "title": "Performance benchmark: DC at resolution 64/128/256",
-      "status": "TODO",
-      "estimated_effort": "low",
-      "description": "Benchmark DualContouringExtractor at multiple resolutions for timing, memory, and mesh quality metrics.",
-      "added_in": "SESSION-063"
-    },
-    {
-      "id": "P2-DIM-UPLIFT-9",
-      "priority": "P2",
-      "title": "GPU-accelerated SDF sampling via Taichi kernels",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Accelerate SDF volume sampling in DualContouringExtractor using Taichi GPU kernels.",
-      "added_in": "SESSION-063"
-    },
-    {
-      "id": "P2-DIM-UPLIFT-10",
-      "priority": "P2",
-      "title": "Connect adaptive cache to DC for faster extraction",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Use AdaptiveSDFCache as the SDF query backend for DualContouringExtractor to reduce redundant evaluations.",
-      "added_in": "SESSION-063"
-    },
-    {
-      "id": "P2-DIM-UPLIFT-11",
-      "priority": "P2",
-      "title": "Implement vertex normal editing tool for cel-shading",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-065. Vertex normal editing for cel-shading (GGXrd technique)",
-      "added_in": "SESSION-063",
-      "completed_in": "SESSION-065"
-    },
-    {
-      "id": "P2-DIM-UPLIFT-12",
-      "priority": "P2",
-      "title": "Implement Marching Cubes as fallback/comparison",
-      "status": "TODO",
-      "estimated_effort": "low",
-      "description": "Add classic Marching Cubes implementation for A/B comparison with Dual Contouring on feature preservation.",
-      "added_in": "SESSION-063"
-    },
-    {
-      "id": "P3-GPU-BENCH-1",
-      "priority": "P2",
-      "title": "Run formal Taichi GPU benchmark and sparse-cloth validation on CUDA hardware",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Current sandbox validated the Taichi backend with CPU fallback and 50k-class runtime evidence. A follow-up session should execute the same benchmark on true CUDA hardware and extend validation to sparse data layouts.",
-      "added_in": "SESSION-058"
-    },
-    {
-      "id": "P3-QUAD-IK-1",
-      "priority": "P2",
-      "title": "Connect quadruped gait planner to a real quadruped skeleton and IK solver",
-      "status": "DONE",
-      "estimated_effort": "high",
-      "description": "CLOSED in SESSION-061. Quadruped gait planner connected to FABRIK 2D IK solver via orthographic projection pipeline. TerrainAdaptiveIKLoop.adapt_quadruped_pose() enforces terrain contact for all four limbs. Spine JSON export includes quadruped IK constraints. 40/40 tests PASS.",
-      "added_in": "SESSION-058",
-      "completed_in": "SESSION-061"
-    },
-    {
-      "id": "P2-MORPHOLOGY-2",
-      "priority": "P2",
-      "title": "Expand morphology archetype library and add weapon/accessory attachment points",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Expand beyond 5 base archetypes (humanoid, monster, mech, slime, insectoid). Add attachment point system for genotype-driven equipment variation (weapons, shields, accessories).",
-      "added_in": "SESSION-057"
-    },
-    {
-      "id": "P2-WFC-2",
-      "priority": "P2",
-      "title": "Themed WFC tile sets with game progression integration",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Add cave, castle, sky tile vocabularies with theme-specific physics constraints and difficulty curves. Integrate difficulty curves with game progression system.",
-      "added_in": "SESSION-057"
-    },
-    {
-      "id": "P2-MORPHOLOGY-3",
-      "priority": "P2",
-      "title": "GPU-accelerated SDF evaluation for large morphology populations",
-      "status": "TODO",
-      "estimated_effort": "high",
-      "description": "Add GPU-accelerated SDF evaluation (Taichi or CuPy) for populations >1000 genotypes per generation.",
-      "added_in": "SESSION-057"
-    },
-    {
-      "id": "P2-WFC-3",
-      "priority": "P2",
-      "title": "Multi-objective WFC optimization via Pareto frontier",
-      "status": "TODO",
-      "estimated_effort": "high",
-      "description": "Add multi-objective optimization to WFC (playability + aesthetic diversity + difficulty curve matching) via Pareto frontier selection.",
-      "added_in": "SESSION-057"
-    },
-    {
-      "id": "P1-GAP4-CI",
+      "id": "P1-2",
       "priority": "P1",
-      "title": "Scheduled or nightly Layer 3 closed-loop audits",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-066. scripts/registry_e2e_guard.py plus .github/workflows/registry-e2e-daily.yml now execute registry-wide backend audits on a daily schedule and on manual dispatch.",
-      "added_in": "SESSION-043",
-      "updated_in": "SESSION-054",
-      "completed_in": "SESSION-066"
-    },
-    {
-      "id": "P1-GAP4-BATCH",
-      "priority": "P1",
-      "title": "Batch-tune multiple hard transitions through the active Layer 3 loop",
-      "status": "PARTIAL",
-      "estimated_effort": "medium",
-      "description": "SESSION-053 adds locomotion CNS batch evaluation and a dedicated Layer 3 bridge covering walk->run, run->walk, walk->sneak, sneak->run, and run acceleration. Remaining work: widen the batch to jump/fall/hit disruptions and recurring audit mode.",
-      "added_in": "SESSION-043",
-      "updated_in": "SESSION-053"
-    },
-    {
-      "id": "P0-EVAL-BRIDGE",
-      "priority": "P0",
-      "title": "Parameter Convergence Bridge (Layer 3 Evaluation → Export Loop)",
-      "status": "DONE",
-      "estimated_effort": "high",
-      "description": "CLOSED in SESSION-043. Active Layer 3 closed loop now performs Runtime Query → Transition Synthesis → Optuna search → distillation write-back into transition_rules.json and LAYER3_CONVERGENCE_BRIDGE.json, with downstream readback in physics_genotype.py.",
-      "added_in": "SESSION-042",
-      "completed_in": "SESSION-043"
-    },
-    {
-      "id": "P0-GAP-2",
-      "priority": "P0",
-      "title": "Full Rigid Body/Soft Body Coupling (XPBD two-way integration)",
-      "status": "DONE",
-      "estimated_effort": "high",
-      "description": "CLOSED in SESSION-052. Full XPBD solver with compliance decoupling (Macklin & Müller 2016), two-way rigid-soft coupling via inverse-mass weighted reaction impulses (Müller 2020), Lagrange multiplier force estimation, spatial hash self-collision, and three-layer evolution loop. 14/14 tests PASS. Physics realism: 12/100 → ~45/100.",
-      "added_in": "SESSION-042",
-      "completed_in": "SESSION-052"
-    },
-    {
-      "id": "P1-E2E-COVERAGE",
-      "priority": "P1",
-      "title": "Expand E2E Reproducibility Tests",
-      "status": "SUBSTANTIALLY-ADVANCED",
-      "estimated_effort": "medium",
-      "description": "SESSION-055 adds headless_graph_fuzz_ci.py: property-based graph-fuzz CI generates adversarial state-transition sequences from RuntimeStateGraph, monitors XPBD solver for NaN/penetration/constraint-error/energy-drift, and reports edge coverage. Integrated into EvolutionOrchestrator Layer 3. Remaining work: widen runtime assets beyond idle/walk/run/jump, add more stress patterns.",
-      "added_in": "SESSION-042",
-      "updated_in": "SESSION-055"
-    },
-    {
-      "id": "P2-PHYSICS-DEFAULT",
-      "priority": "P2",
-      "title": "Enforce Physics/Biomechanics defaults in CharacterSpec",
+      "title": "Per-frame SDF parameter animation",
       "status": "TODO",
-      "estimated_effort": "low",
-      "description": "Change default values of physics/biomechanics flags in CharacterSpec to True, or add validation in PipelineContractGuard to ensure they are not bypassed.",
-      "added_in": "SESSION-042"
+      "estimated_effort": "medium",
+      "description": "Add keyframed SDF parameter tracks and true shape evolution over time."
     },
     {
-      "id": "P2-PHASE-CLEANUP",
-      "priority": "P2",
-      "title": "Deprecate and remove legacy animation API surface",
+      "id": "P1-AI-1",
+      "priority": "P1",
+      "title": "Math-to-AI Pipeline Prototype",
       "status": "TODO",
-      "estimated_effort": "low",
-      "description": "Mark old functions like walk_animation() as @deprecated and remove them from __all__ in mathart/animation/__init__.py to prevent semantic confusion.",
-      "added_in": "SESSION-042"
-    },
-    {
-      "id": "P1-PHASE-35A",
-      "priority": "P1",
-      "title": "Phase-driven coverage for jump/fall/hit + CLI trunk enforcement",
-      "status": "DONE",
-      "estimated_effort": "low",
-      "description": "CLOSED in SESSION-040. CLI trunk enforcement implemented via PipelineContractGuard. animation/cli.py rewritten to force UMR pipeline. Legacy bypass paths permanently blocked with PipelineContractError. Phase-driven idle generator added to eliminate the last legacy fallback.",
-      "added_in": "SESSION-035",
-      "completed_in": "SESSION-040"
-    },
-    {
-      "id": "P1-BENCH-35A",
-      "priority": "P1",
-      "title": "End-to-end trunk reproducibility validation",
-      "status": "DONE",
       "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-040. UMR_Auditor computes SHA-256 hash seals over frame coordinates + contact tags + render config. .umr_manifest.json golden master written at pipeline end. verify_against() enables CI regression detection. ContactFlickerDetector catches illegal high-frequency contact tag toggling. 27 dedicated tests validate deterministic hash across runs.",
-      "added_in": "SESSION-035",
-      "completed_in": "SESSION-040"
+      "description": "Export skeleton/pose data as ControlNet inputs for external AI diffusion models."
     },
     {
-      "id": "P1-UMR-36A",
+      "id": "P1-AI-2C",
       "priority": "P1",
-      "title": "Propagate UMR contract to CLI, exporters, and distillation bus",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-040. animation/cli.py rewritten to consume UMR_Context and route through produce_character_pack(). PipelineContractGuard enforces UMR-only paths at all entrypoints. ContractEvolutionBridge distills contract compliance into knowledge base. All legacy bypass paths blocked.",
-      "added_in": "SESSION-036",
-      "completed_in": "SESSION-040"
-    },
-    {
-      "id": "P1-INDUSTRIAL-34A",
-      "priority": "P1",
-      "title": "Industrial renderer integration into AssetPipeline",
+      "title": "Expose Phase 2 anti-flicker visual pipeline through CLI / AssetPipeline",
       "status": "SUBSTANTIALLY-CLOSED",
       "estimated_effort": "medium",
-      "description": "SUBSTANTIALLY CLOSED in SESSION-068. IndustrialSpriteBackend now executes the real render_character_maps_industrial() pipeline, produces MaterialX/glTF PBR-inspired texture_channels multi-channel material bundles (albedo/normal/depth/thickness/roughness/mask) with per-channel engine slot bindings (Unity _MainTex/_NormalMap, Godot albedo_texture/normal_texture), SDF contour extraction for PolygonCollider2D, and structured bundle manifest. Backend-owned validate_config() normalizes render dimensions, channel selection, and export format. IPC payload promotes texture_channels to top-level envelope. 7/7 E2E subprocess tests PASS. Remaining: specular/emissive presets, real Unity runtime validation.",
-      "added_in": "SESSION-034",
+      "description": "SUBSTANTIALLY CLOSED in SESSION-068. AntiFlickerRenderBackend now executes the real HeadlessNeuralRenderPipeline (ComfyUI workflow build + EbSynth temporal propagation), produces OTIO-inspired frame_sequence time-series with per-frame path/role/temporal_coherence_score, keyframe plans, temporal reports, and workflow manifests. Backend-owned validate_config() normalizes temporal parameters, EbSynth patch size, and ComfyUI settings. IPC payload promotes frame_sequence + time_range to top-level envelope. 9/9 E2E subprocess tests PASS. Remaining: real ComfyUI runtime with GPU, production preset packs (P1-AI-2D).",
+      "added_in": "SESSION-060",
       "updated_in": "SESSION-068",
       "completed_in": "SESSION-068"
     },
     {
-      "id": "P1-PHASE-37A",
+      "id": "P1-AI-2D",
       "priority": "P1",
-      "title": "Scene-aware distance matching sensors",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-048. SDF Terrain + TerrainRaySensor + TTCPredictor + scene_aware_distance_phase() + scene_aware_fall_pose() + TerrainSensorEvolutionBridge. 51 tests PASS. Pipeline fall state upgraded to scene_aware_fall_frame().",
-      "added_in": "SESSION-037",
-      "completed_in": "SESSION-048"
-    },
-    {
-      "id": "P1-B2-1",
-      "priority": "P1",
-      "title": "Add more terrain primitives (convex hull, Bézier curve, heightmap import)",
+      "title": "Ship real ComfyUI batch preset packs for IP-Adapter + ControlNet anti-flicker jobs",
       "status": "TODO",
       "estimated_effort": "medium",
-      "description": "Extend TerrainSDF factory functions with convex hull terrain, Bézier spline terrain, and heightmap-imported terrain for richer level geometry.",
-      "added_in": "SESSION-048"
+      "description": "Still pending after SESSION-068. Registry exposure and real backend execution now exist, but production preset bundles and real node-template packs are not yet shipped.",
+      "added_in": "SESSION-060",
+      "updated_in": "SESSION-068"
     },
     {
-      "id": "P1-B2-2",
+      "id": "P1-AI-2D-SPARSECTRL",
       "priority": "P1",
-      "title": "Extend TTC prediction to multi-bounce scenarios and moving platforms",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Upgrade TTCPredictor to handle moving platforms (time-dependent SDF), multi-bounce trajectories, and wall-slide scenarios.",
-      "added_in": "SESSION-048"
-    },
-    {
-      "id": "P1-INDUSTRIAL-34B",
-      "priority": "P1",
-      "title": "Runtime motion matching query for real-time animation",
-      "status": "DONE",
-      "estimated_effort": "high",
-      "description": "CLOSED in SESSION-039. RuntimeMotionQuery + TransitionSynthesizer + MotionMatchingRuntime deliver frame-by-frame runtime query, inertialized transition synthesis, and clip stitching on top of the UMR bus.",
-      "added_in": "SESSION-034",
-      "completed_in": "SESSION-039"
-    },
-    {
-      "id": "P1-INDUSTRIAL-34C",
-      "priority": "P1",
-      "title": "3D-to-2D mesh rendering path (Dead Cells full workflow)",
+      "title": "Full ComfyUI workflow execution with SparseCtrl model weights",
       "status": "TODO",
       "estimated_effort": "high",
-      "description": "Implement actual 3D mesh to 2D pixel art pipeline following Dead Cells workflow: 3D skeletal animation -> orthographic render -> no-AA downscale -> normal-map cel shade.",
-      "added_in": "SESSION-034"
+      "description": "Execute SparseCtrl workflows end-to-end with actual AnimateDiff + SparseCtrl model weights in ComfyUI.",
+      "added_in": "SESSION-065"
     },
     {
-      "id": "P0-DISTILL-1",
-      "priority": "P0",
-      "title": "Global Distillation Bus (The Brain)",
-      "status": "DONE",
-      "estimated_effort": "high",
-      "description": "CLOSED in SESSION-050. RuntimeDistillationBus now compiles repository knowledge into dense runtime arrays and Numba JIT evaluators, injects compiled constraints into quality/controller.py, feeds the 60fps foot-contact path in physics_projector.py, and persists three-layer evolution state via RuntimeDistillBridge.",
-      "completed_in": "SESSION-050"
-    },
-    {
-      "id": "P1-PHASE-33A",
+      "id": "P1-AI-2E",
       "priority": "P1",
-      "title": "Gait transition blending (walk/run/sneak)",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-049. Phase-Preserving Gait Transition Blending with Marker-based DTW, Stride Wheel, Leader-Follower Synchronized Blend, Adaptive Bounce. SyncMarker + GaitSyncProfile + StrideWheel + GaitBlender + phase_warp + adaptive_bounce + blend_walk_run + blend_gaits_at_phase. GaitBlendEvolutionBridge provides three-layer evaluation. 54 tests PASS.",
-      "added_in": "SESSION-033",
-      "completed_in": "SESSION-049"
-    },
-    {
-      "id": "P1-PHASE-33B",
-      "priority": "P1",
-      "title": "Terrain-adaptive phase modulation",
-      "status": "PARTIAL",
-      "estimated_effort": "medium",
-      "description": "Partially addressed by SESSION-048 scene_aware_distance_phase() and slope compensation. Remaining: cyclic gait phase modulation on slopes and surface-type-driven stride adjustment.",
-      "added_in": "SESSION-033"
-    },
-    {
-      "id": "P1-PHASE-33C",
-      "priority": "P1",
-      "title": "Animation preview / visualization tool",
+      "title": "Extend motion-adaptive keyframe planning to high-nonlinearity action segments",
       "status": "TODO",
-      "estimated_effort": "low",
-      "description": "Generate sprite sheet or GIF from phase-driven animation for visual validation without running the full pipeline.",
-      "added_in": "SESSION-033"
+      "estimated_effort": "medium",
+      "description": "Generalize SESSION-060 motion-adaptive keyframe planning from idle-like sequences to jump, fall, hit, attack, and segmented action clips with tighter max-gap control.",
+      "added_in": "SESSION-060"
     },
     {
       "id": "P1-ARCH-4",
@@ -569,14 +289,70 @@
       "description": "Promote scene prims beyond ASCII counts into surfaces, adjacency, traversal lanes, and decoration anchors."
     },
     {
-      "id": "P1-AI-2",
+      "id": "P1-B1-1",
       "priority": "P1",
-      "title": "Simulation-conditioned neural rendering bridge",
-      "status": "DONE",
-      "estimated_effort": "high",
-      "description": "CLOSED in SESSION-045. MotionVectorBaker extracts ground-truth optical flow from procedural FK. Three encoding formats (RGB/HSV/Raw). EbSynth project export. NeuralRenderingEvolutionBridge enforces temporal consistency through three-layer evolution. 5 distillation records, 37 tests PASS.",
-      "added_in": "SESSION-032",
-      "completed_in": "SESSION-045"
+      "title": "Render cape/hair ribbons or meshes directly from Jakobsen chain snapshots",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Convert secondary-chain points into visible ribbon, strip, or mesh surfaces so Gap B1 moves from metadata-ready motion to full rendered attachment output.",
+      "added_in": "SESSION-047"
+    },
+    {
+      "id": "P1-B2-1",
+      "priority": "P1",
+      "title": "Add more terrain primitives (convex hull, Bézier curve, heightmap import)",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Extend TerrainSDF factory functions with convex hull terrain, Bézier spline terrain, and heightmap-imported terrain for richer level geometry.",
+      "added_in": "SESSION-048"
+    },
+    {
+      "id": "P1-B2-2",
+      "priority": "P1",
+      "title": "Extend TTC prediction to multi-bounce scenarios and moving platforms",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Upgrade TTCPredictor to handle moving platforms (time-dependent SDF), multi-bounce trajectories, and wall-slide scenarios.",
+      "added_in": "SESSION-048"
+    },
+    {
+      "id": "P1-B3-1",
+      "priority": "P1",
+      "title": "Integrate GaitBlender into pipeline.py gait switching path",
+      "status": "PARTIAL",
+      "estimated_effort": "medium",
+      "description": "SESSION-053 wires CNS locomotion sampling into the main pipeline walk/run path and adds a phase-aligned inertialized transition clip path. Remaining work: explicit transition-preview export and broader state-machine switching orchestration across walk/run/sneak.",
+      "added_in": "SESSION-049",
+      "updated_in": "SESSION-053"
+    },
+    {
+      "id": "P1-B3-2",
+      "priority": "P1",
+      "title": "Add GaitBlender reference motions to RL environment",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Use GaitBlender output as reference motions for rl_locomotion.py DeepMimic reward.",
+      "added_in": "SESSION-049"
+    },
+    {
+      "id": "P1-B3-5",
+      "priority": "P1",
+      "title": "Unify transition_synthesizer.py with gait_blend.py",
+      "status": "SUBSTANTIALLY-CLOSED",
+      "estimated_effort": "medium",
+      "description": "SUBSTANTIALLY CLOSED in SESSION-069. `unified_gait_blender.py` fuses gait blending, sync-marker phase alignment, DeepPhase FFT phase anchoring, and inertialized/dead-blended transition residual decay into one numerical trunk. `gait_blend.py` and `transition_synthesizer.py` are now compatibility re-export layers, `locomotion_cns.py` delegates transition synthesis to the unified core, and `pipeline.py` routes motion clips through `MotionStateLaneRegistry` instead of hard-coded per-state branches. 68/68 targeted regressions PASS, including C0/C1 root continuity checks. Remaining work: promote the motion lane registry into the global microkernel backend/orchestrator path.",
+      "added_in": "SESSION-049",
+      "updated_in": "SESSION-069",
+      "completed_in": "SESSION-069"
+    },
+    {
+      "id": "P1-DISTILL-1B",
+      "priority": "P1",
+      "title": "Add Taichi backend and benchmark suite for Runtime DistillBus",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Keep SESSION-050's lowering boundary but add a Taichi backend plus larger benchmark scenes to compare array/JIT performance across runtime workloads.",
+      "added_in": "SESSION-050"
     },
     {
       "id": "P1-DISTILL-3",
@@ -595,29 +371,98 @@
       "description": "Research and distill phase relationships and biological motion perception rules."
     },
     {
-      "id": "P1-AI-1",
+      "id": "P1-E2E-COVERAGE",
       "priority": "P1",
-      "title": "Math-to-AI Pipeline Prototype",
-      "status": "TODO",
+      "title": "Expand E2E Reproducibility Tests",
+      "status": "SUBSTANTIALLY-ADVANCED",
       "estimated_effort": "medium",
-      "description": "Export skeleton/pose data as ControlNet inputs for external AI diffusion models."
+      "description": "SESSION-055 adds headless_graph_fuzz_ci.py: property-based graph-fuzz CI generates adversarial state-transition sequences from RuntimeStateGraph, monitors XPBD solver for NaN/penetration/constraint-error/energy-drift, and reports edge coverage. Integrated into EvolutionOrchestrator Layer 3. Remaining work: widen runtime assets beyond idle/walk/run/jump, add more stress patterns.",
+      "added_in": "SESSION-042",
+      "updated_in": "SESSION-055"
     },
     {
-      "id": "P1-VFX-1",
+      "id": "P1-GAP4-BATCH",
       "priority": "P1",
-      "title": "Physics-driven Particle System",
-      "status": "DONE",
+      "title": "Batch-tune multiple hard transitions through the active Layer 3 loop",
+      "status": "PARTIAL",
       "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-046. VFX now supports grid-based Stable Fluids smoke, obstacle-aware flow, and fluid-guided particles via mathart/animation/fluid_vfx.py, AssetPipeline fluid presets, and FluidVFXEvolutionBridge.",
-      "completed_in": "SESSION-046"
+      "description": "SESSION-053 adds locomotion CNS batch evaluation and a dedicated Layer 3 bridge covering walk->run, run->walk, walk->sneak, sneak->run, and run acceleration. Remaining work: widen the batch to jump/fall/hit disruptions and recurring audit mode.",
+      "added_in": "SESSION-043",
+      "updated_in": "SESSION-053"
     },
     {
-      "id": "P1-NEW-9C",
+      "id": "P1-HUMAN-31A",
       "priority": "P1",
-      "title": "Character evolution 3.0: expand part registry",
+      "title": "Integrate SMPL-like shape latents into CharacterGenotype and rendering pipeline",
       "status": "TODO",
       "estimated_effort": "medium",
-      "description": "Expand the part registry beyond hats and face accessories to include torso overlays, hand items, and foot accessories."
+      "description": "Promote SESSION-031 shape latent controls from standalone module utilities into genotype serialization, phenotype decoding, and author-facing pipeline knobs."
+    },
+    {
+      "id": "P1-HUMAN-31C",
+      "priority": "P1",
+      "title": "Pseudo-3D paper-doll / mesh-shell backend using dual quaternions",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Use the new dual-quaternion backend to drive 2.5D limbs, volumetric shells, or lightweight mesh deformation without abandoning the current 2D-first workflow."
+    },
+    {
+      "id": "P1-INDUSTRIAL-34A",
+      "priority": "P1",
+      "title": "Industrial renderer integration into AssetPipeline",
+      "status": "SUBSTANTIALLY-CLOSED",
+      "estimated_effort": "medium",
+      "description": "SUBSTANTIALLY CLOSED in SESSION-068. IndustrialSpriteBackend now executes the real render_character_maps_industrial() pipeline, produces MaterialX/glTF PBR-inspired texture_channels multi-channel material bundles (albedo/normal/depth/thickness/roughness/mask) with per-channel engine slot bindings (Unity _MainTex/_NormalMap, Godot albedo_texture/normal_texture), SDF contour extraction for PolygonCollider2D, and structured bundle manifest. Backend-owned validate_config() normalizes render dimensions, channel selection, and export format. IPC payload promotes texture_channels to top-level envelope. 7/7 E2E subprocess tests PASS. Remaining: specular/emissive presets, real Unity runtime validation.",
+      "added_in": "SESSION-034",
+      "updated_in": "SESSION-068",
+      "completed_in": "SESSION-068"
+    },
+    {
+      "id": "P1-INDUSTRIAL-34C",
+      "priority": "P1",
+      "title": "3D-to-2D mesh rendering path (Dead Cells full workflow)",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Implement actual 3D mesh to 2D pixel art pipeline following Dead Cells workflow: 3D skeletal animation -> orthographic render -> no-AA downscale -> normal-map cel shade.",
+      "added_in": "SESSION-034"
+    },
+    {
+      "id": "P1-INDUSTRIAL-44A",
+      "priority": "P1",
+      "title": "Engine-ready export templates for analytical SDF auxiliary maps",
+      "status": "SUBSTANTIALLY-CLOSED",
+      "estimated_effort": "medium",
+      "description": "SESSION-056 generates Godot 4 (plugin.gd + plugin.cfg + gdshader) and Unity URP 2D (ScriptedImporter.cs + shader) import plugins via EngineImportPluginGenerator. .mathart bundle format with 6-channel PBR + contour.json + manifest.json. SSS thickness, rim light, and auto PolygonCollider2D. Remaining: integrate plugin generation into standard asset pipeline export flow.",
+      "added_in": "SESSION-044",
+      "updated_in": "SESSION-056"
+    },
+    {
+      "id": "P1-INDUSTRIAL-44C",
+      "priority": "P1",
+      "title": "Specular/roughness and material metadata export for 2D lighting",
+      "status": "SUBSTANTIALLY-CLOSED",
+      "estimated_effort": "medium",
+      "description": "SESSION-056 generates engine-specific shaders with SSS thickness and rim light for both Godot 4 and Unity URP 2D. Material metadata and channel semantics are embedded in .mathart bundle manifest.json. Remaining: specular/emissive presets.",
+      "added_in": "SESSION-044",
+      "updated_in": "SESSION-056"
+    },
+    {
+      "id": "P1-MIGRATE-2",
+      "priority": "P1",
+      "title": "Migrate legacy EvolutionOrchestrator bridges to NicheRegistry",
+      "status": "TODO",
+      "estimated_effort": "large",
+      "description": "Convert each existing *EvolutionBridge (Contract, VisualRegression, Fluid, Jakobsen, Terrain, Gait, etc.) into @register_niche decorated classes that implement the EvolutionNiche interface. This eliminates the manual bridge list in EvolutionOrchestrator.",
+      "added_in": "SESSION-064"
+    },
+    {
+      "id": "P1-MIGRATE-4",
+      "priority": "P1",
+      "title": "Implement hot-reload for dynamically discovered backends",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Use BackendRegistry.discover() to auto-scan mathart/export/ and mathart/core/builtin_backends.py at startup. New backends added as files should be automatically available without manual import.",
+      "added_in": "SESSION-064"
     },
     {
       "id": "P1-NEW-10",
@@ -627,14 +472,6 @@
       "estimated_effort": "high",
       "description": "SESSION-055 adds AssetFactory with commercial quality gates (visual fitness > 0.45, Laplacian > 0.20, 100% export success), tileset benchmark specs, auto-rejection with detailed reasons, persistent state tracking, and quality trend analysis. Remaining: expand preset coverage, add VFX benchmark specs, integrate with engine-specific export templates.",
       "updated_in": "SESSION-055"
-    },
-    {
-      "id": "P1-2",
-      "priority": "P1",
-      "title": "Per-frame SDF parameter animation",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Add keyframed SDF parameter tracks and true shape evolution over time."
     },
     {
       "id": "P1-NEW-2",
@@ -651,6 +488,32 @@
       "status": "TODO",
       "estimated_effort": "low",
       "description": "Wire ArtMathQualityController mid-generation checkpoint into longer searches."
+    },
+    {
+      "id": "P1-NEW-9C",
+      "priority": "P1",
+      "title": "Character evolution 3.0: expand part registry",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Expand the part registry beyond hats and face accessories to include torso overlays, hand items, and foot accessories."
+    },
+    {
+      "id": "P1-PHASE-33B",
+      "priority": "P1",
+      "title": "Terrain-adaptive phase modulation",
+      "status": "PARTIAL",
+      "estimated_effort": "medium",
+      "description": "Partially addressed by SESSION-048 scene_aware_distance_phase() and slope compensation. Remaining: cyclic gait phase modulation on slopes and surface-type-driven stride adjustment.",
+      "added_in": "SESSION-033"
+    },
+    {
+      "id": "P1-PHASE-33C",
+      "priority": "P1",
+      "title": "Animation preview / visualization tool",
+      "status": "TODO",
+      "estimated_effort": "low",
+      "description": "Generate sprite sheet or GIF from phase-driven animation for visual validation without running the full pipeline.",
+      "added_in": "SESSION-033"
     },
     {
       "id": "P1-RESEARCH-30A",
@@ -718,6 +581,42 @@
       "added_in": "SESSION-029-SUPP"
     },
     {
+      "id": "P1-VAT-PRECISION-1",
+      "priority": "P1",
+      "title": "Add higher-precision VAT encodings and Unity material presets",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Extend SESSION-059 VAT baking with half/float encodings, larger-cloth safety bounds, and ready-made Unity presets for higher fidelity playback.",
+      "added_in": "SESSION-059"
+    },
+    {
+      "id": "P1-VFX-1A",
+      "priority": "P1",
+      "title": "Bind real character silhouette masks into fluid VFX presets",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Project true character alpha/SDF masks into the fluid grid so combat smoke wraps around the exact current body silhouette instead of the fallback demo obstacle.",
+      "added_in": "SESSION-046"
+    },
+    {
+      "id": "P1-VFX-1B",
+      "priority": "P1",
+      "title": "Drive fluid VFX directly from UMR root velocity and weapon trajectories",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Convert runtime root transform velocity, slash tangents, and motion-vector-derived impulses into automated driver_impulses for slash/dash smoke presets.",
+      "added_in": "SESSION-046"
+    },
+    {
+      "id": "P1-XPBD-1",
+      "priority": "P1",
+      "title": "Free-fall test precision optimization (damping causes deviation from analytical g·t²/2)",
+      "status": "TODO",
+      "estimated_effort": "low",
+      "description": "The PhysicsTestHarness free-fall test shows deviation from analytical g·t²/2 due to Rayleigh damping. Investigate conditional damping bypass for free-fall scenarios or separate damping from gravity integration.",
+      "added_in": "SESSION-052"
+    },
+    {
       "id": "P2-1",
       "priority": "P2",
       "title": "Sub-pixel rendering",
@@ -762,410 +661,50 @@
       "description": "Add dedicated test files for mathart/shader, mathart/workspace, and mathart/quality modules."
     },
     {
-      "id": "P3-1",
-      "priority": "P3",
-      "title": "Auto knowledge distillation",
-      "status": "PARTIAL",
-      "notes": "12 rules distilled manually. Auto-distillation not yet implemented."
-    },
-    {
-      "id": "P3-2",
-      "priority": "P3",
-      "title": "Web preview UI",
-      "status": "TODO",
-      "estimated_effort": "high"
-    },
-    {
-      "id": "P3-3",
-      "priority": "P3",
-      "title": "Unity/Godot exporter plugin",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-056. EngineImportPluginGenerator generates Godot 4 addon (plugin.gd + plugin.cfg + mathart_material.gdshader) and Unity URP 2D ScriptedImporter (MathArtImporter.cs + MathArtLitShader.shader) with SSS, rim light, and PolygonCollider2D.",
-      "completed_in": "SESSION-056"
-    },
-    {
-      "id": "P3-4",
-      "priority": "P3",
-      "title": "CI/CD + GitHub Actions",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-041. GitHub Actions CI workflow updated with visual-regression job running headless_e2e_ci.py. Three-level audit (cold start, structural manifest, SSIM visual regression) with golden baselines and diff heatmap artifacts.",
-      "completed_in": "SESSION-041"
-    },
-    {
-      "id": "P3-5",
-      "priority": "P3",
-      "title": "End-to-end demo showcase script",
-      "status": "TODO",
-      "estimated_effort": "low"
-    },
-    {
-      "id": "P3-6",
-      "priority": "P3",
-      "title": "README update for SESSION-018~026 features",
-      "status": "DONE",
-      "estimated_effort": "low",
-      "description": "Completed in SESSION-027 audit phase."
-    },
-    {
-      "id": "P1-HUMAN-31A",
-      "priority": "P1",
-      "title": "Integrate SMPL-like shape latents into CharacterGenotype and rendering pipeline",
+      "id": "P2-ANTIFLICKER-3",
+      "priority": "P2",
+      "title": "Optical flow estimation from math engine motion vectors",
       "status": "TODO",
       "estimated_effort": "medium",
-      "description": "Promote SESSION-031 shape latent controls from standalone module utilities into genotype serialization, phenotype decoding, and author-facing pipeline knobs."
+      "description": "Use FK/IK ground-truth motion vectors as optical flow for anti-flicker conditioning.",
+      "added_in": "SESSION-065"
     },
     {
-      "id": "P1-HUMAN-31B",
-      "priority": "P1",
-      "title": "Add motion transition blending and pose warping after 2D motion matching retrieval",
-      "status": "DONE",
-      "estimated_effort": "high",
-      "description": "CLOSED in SESSION-039. TransitionSynthesizer provides inertialized blending (Bollo quintic + Holden dead blending) after retrieval. RuntimeMotionQuery finds optimal entry frames.",
-      "completed_in": "SESSION-039"
-    },
-    {
-      "id": "P1-HUMAN-31C",
-      "priority": "P1",
-      "title": "Pseudo-3D paper-doll / mesh-shell backend using dual quaternions",
+      "id": "P2-DEEPPHASE-FFT-2",
+      "priority": "P2",
+      "title": "Neural network autoencoder training for DeepPhase",
       "status": "TODO",
       "estimated_effort": "high",
-      "description": "Use the new dual-quaternion backend to drive 2.5D limbs, volumetric shells, or lightweight mesh deformation without abandoning the current 2D-first workflow."
+      "description": "Train a periodic autoencoder (PAE) on motion capture data to learn phase manifolds. Requires dataset.",
+      "added_in": "SESSION-065"
     },
     {
-      "id": "P1-INDUSTRIAL-44A",
-      "priority": "P1",
-      "title": "Engine-ready export templates for analytical SDF auxiliary maps",
-      "status": "SUBSTANTIALLY-CLOSED",
-      "estimated_effort": "medium",
-      "description": "SESSION-056 generates Godot 4 (plugin.gd + plugin.cfg + gdshader) and Unity URP 2D (ScriptedImporter.cs + shader) import plugins via EngineImportPluginGenerator. .mathart bundle format with 6-channel PBR + contour.json + manifest.json. SSS thickness, rim light, and auto PolygonCollider2D. Remaining: integrate plugin generation into standard asset pipeline export flow.",
-      "added_in": "SESSION-044",
-      "updated_in": "SESSION-056"
-    },
-    {
-      "id": "P1-INDUSTRIAL-44B",
-      "priority": "P1",
-      "title": "Analytic-gradient native primitives for auxiliary-map baking",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-054 for the repository's canonical character primitives. Added exact analytical gradient providers for circle, vertical capsule, and rounded box primitives, threaded through BodyPart contracts and industrial rendering so normal maps no longer depend primarily on finite-difference recovery for those shapes.",
-      "added_in": "SESSION-044",
-      "updated_in": "SESSION-054",
-      "completed_in": "SESSION-054"
-    },
-    {
-      "id": "P1-INDUSTRIAL-44C",
-      "priority": "P1",
-      "title": "Specular/roughness and material metadata export for 2D lighting",
-      "status": "SUBSTANTIALLY-CLOSED",
-      "estimated_effort": "medium",
-      "description": "SESSION-056 generates engine-specific shaders with SSS thickness and rim light for both Godot 4 and Unity URP 2D. Material metadata and channel semantics are embedded in .mathart bundle manifest.json. Remaining: specular/emissive presets.",
-      "added_in": "SESSION-044",
-      "updated_in": "SESSION-056"
-    },
-    {
-      "id": "P0-GAP-C1",
-      "priority": "P0",
-      "title": "Industrial-grade analytical SDF normal/depth pipeline",
-      "status": "DONE",
-      "estimated_effort": "high",
-      "description": "CLOSED in SESSION-044. Added `mathart/animation/sdf_aux_maps.py`, upgraded `render_character_maps_industrial()` to export albedo/normal/depth/mask, connected analytical-rendering status into `evolution_loop.py` and `engine.py`, and generated real demo artifacts plus audit evidence.",
-      "added_in": "SESSION-044",
-      "completed_in": "SESSION-044"
-    },
-    {
-      "id": "P1-VFX-1A",
-      "priority": "P1",
-      "title": "Bind real character silhouette masks into fluid VFX presets",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Project true character alpha/SDF masks into the fluid grid so combat smoke wraps around the exact current body silhouette instead of the fallback demo obstacle.",
-      "added_in": "SESSION-046"
-    },
-    {
-      "id": "P1-VFX-1B",
-      "priority": "P1",
-      "title": "Drive fluid VFX directly from UMR root velocity and weapon trajectories",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Convert runtime root transform velocity, slash tangents, and motion-vector-derived impulses into automated driver_impulses for slash/dash smoke presets.",
-      "added_in": "SESSION-046"
-    },
-    {
-      "id": "P1-B1-1",
-      "priority": "P1",
-      "title": "Render cape/hair ribbons or meshes directly from Jakobsen chain snapshots",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Convert secondary-chain points into visible ribbon, strip, or mesh surfaces so Gap B1 moves from metadata-ready motion to full rendered attachment output.",
-      "added_in": "SESSION-047"
-    },
-    {
-      "id": "P1-B1-2",
-      "priority": "P1",
-      "title": "Upgrade Jakobsen body proxies toward width-aware contacts and optional self-collision",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-052. Spatial hash grid (O(1) amortised queries) + body collision proxies from skeleton FK + connectivity-aware self-collision exclusion + Coulomb friction model. Self-collision maintains 0.2000 separation (threshold: 0.18). Integrated via XPBDCollisionManager.",
-      "added_in": "SESSION-047",
-      "completed_in": "SESSION-052"
-    },
-    {
-      "id": "P1-B3-1",
-      "priority": "P1",
-      "title": "Integrate GaitBlender into pipeline.py gait switching path",
+      "id": "P2-DIM-UPLIFT-1",
+      "priority": "P2",
+      "title": "Integrate DC mesh output with existing Unity URP pipeline",
       "status": "PARTIAL",
       "estimated_effort": "medium",
-      "description": "SESSION-053 wires CNS locomotion sampling into the main pipeline walk/run path and adds a phase-aligned inertialized transition clip path. Remaining work: explicit transition-preview export and broader state-machine switching orchestration across walk/run/sneak.",
-      "added_in": "SESSION-049",
-      "updated_in": "SESSION-053"
+      "description": "PARTIALLY ADDRESSED in SESSION-066. Canonical dimension_uplift_mesh and urp2d_bundle backend contracts now exist, but real mesh→Unity runtime coupling still needs implementation.",
+      "added_in": "SESSION-063",
+      "updated_in": "SESSION-066"
     },
     {
-      "id": "P1-B3-2",
-      "priority": "P1",
-      "title": "Add GaitBlender reference motions to RL environment",
+      "id": "P2-DIM-UPLIFT-10",
+      "priority": "P2",
+      "title": "Connect adaptive cache to DC for faster extraction",
       "status": "TODO",
       "estimated_effort": "medium",
-      "description": "Use GaitBlender output as reference motions for rl_locomotion.py DeepMimic reward.",
-      "added_in": "SESSION-049"
+      "description": "Use AdaptiveSDFCache as the SDF query backend for DualContouringExtractor to reduce redundant evaluations.",
+      "added_in": "SESSION-063"
     },
     {
-      "id": "P1-B3-3",
-      "priority": "P1",
-      "title": "Support asymmetric sync markers (limping, injured gaits)",
-      "status": "DONE",
-      "estimated_effort": "low",
-      "description": "CLOSED in SESSION-065. AsymmetricGaitAnalyzer in deepphase_fft.py supports limping, injured gaits, and quadruped patterns via per-limb independent frequency channels.",
-      "added_in": "SESSION-049",
-      "completed_in": "SESSION-065"
-    },
-    {
-      "id": "P1-B3-4",
-      "priority": "P1",
-      "title": "Support quadruped/multi-legged sync marker extensions",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-065. QuadrupedPhaseReport in deepphase_fft.py supports 4-limb gait analysis with walk/trot/canter/gallop classification.",
-      "added_in": "SESSION-049",
-      "completed_in": "SESSION-065"
-    },
-    {
-      "id": "P1-B3-5",
-      "priority": "P1",
-      "title": "Unify transition_synthesizer.py with gait_blend.py",
-      "status": "SUBSTANTIALLY-CLOSED",
-      "estimated_effort": "medium",
-      "description": "SUBSTANTIALLY CLOSED in SESSION-069. `unified_gait_blender.py` fuses gait blending, sync-marker phase alignment, DeepPhase FFT phase anchoring, and inertialized/dead-blended transition residual decay into one numerical trunk. `gait_blend.py` and `transition_synthesizer.py` are now compatibility re-export layers, `locomotion_cns.py` delegates transition synthesis to the unified core, and `pipeline.py` routes motion clips through `MotionStateLaneRegistry` instead of hard-coded per-state branches. 68/68 targeted regressions PASS, including C0/C1 root continuity checks. Remaining work: promote the motion lane registry into the global microkernel backend/orchestrator path.",
-      "added_in": "SESSION-049",
-      "updated_in": "SESSION-069",
-      "completed_in": "SESSION-069"
-    },
-    {
-      "id": "P1-DISTILL-1A",
-      "priority": "P1",
-      "title": "Roll Runtime DistillBus into gait blending and batch physics penalties",
-      "status": "CLOSED",
-      "estimated_effort": "medium",
-      "description": "SESSION-072 completes all four P1-DISTILL-1A micro-tweaks: (a) BackendCapability.HOT_PATH_INSTRUMENTED + TelemetrySink Protocol in pipeline_bridge.py, (b) Physics3DBackend v1.1.0 emits per-frame solver_wall_time_ms[T] and contact_count[T] time-series in physics3d_telemetry sidecar (Borgmon/Prometheus model), (c) CompiledParameterSpace keys physics3d.compliance_distance / physics3d.compliance_bending wired through XPBDSolver3DConfig into the Optuna closed loop, (d) DistillationRecord.upstream_manifest_hash enables MLMD/W3C PROV-DM cryptographic provenance tracing. 14/14 new red-line tests PASS, 70/70 targeted suite PASS, zero regression on 1309 baseline.",
-      "added_in": "SESSION-050",
-      "updated_in": "SESSION-072",
-      "completed_in": "SESSION-072"
-    },
-    {
-      "id": "P1-DISTILL-1B",
-      "priority": "P1",
-      "title": "Add Taichi backend and benchmark suite for Runtime DistillBus",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Keep SESSION-050's lowering boundary but add a Taichi backend plus larger benchmark scenes to compare array/JIT performance across runtime workloads.",
-      "added_in": "SESSION-050"
-    },
-    {
-      "id": "P1-XPBD-1",
-      "priority": "P1",
-      "title": "Free-fall test precision optimization (damping causes deviation from analytical g·t²/2)",
+      "id": "P2-DIM-UPLIFT-12",
+      "priority": "P2",
+      "title": "Implement Marching Cubes as fallback/comparison",
       "status": "TODO",
       "estimated_effort": "low",
-      "description": "The PhysicsTestHarness free-fall test shows deviation from analytical g·t²/2 due to Rayleigh damping. Investigate conditional damping bypass for free-fall scenarios or separate damping from gravity integration.",
-      "added_in": "SESSION-052"
-    },
-    {
-      "id": "P1-XPBD-2",
-      "priority": "P1",
-      "title": "GPU-accelerated XPBD solver (reference: Müller Tutorial 16)",
-      "status": "DONE",
-      "estimated_effort": "high",
-      "description": "CLOSED in SESSION-058. Taichi-backed XPBD cloth backend now provides Python-semantics JIT compilation, benchmark path, diagnostics, and package exports.",
-      "added_in": "SESSION-052",
-      "completed_in": "SESSION-058"
-    },
-    {
-      "id": "P1-XPBD-3",
-      "priority": "P1",
-      "title": "3D extension of XPBD solver (current solver is 2D)",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-071. mathart/animation/xpbd_solver_3d.py implements a numpy-vectorised XPBD solver that operates entirely in [x,y,z] (positions/velocities/inverse-mass arrays are shape (N,3); distance and bending constraints compute true 3D ∇C with double cross product following Macklin & Müller SIGGRAPH 2016 / SCA 2020; compliance α̃ = α/Δt² decouples timestep). mathart/animation/xpbd_solver_3d.SpatialHashGrid3D adds genuine 3D spatial hashing (Teschner et al.) with min_separation gating to prevent false-positive contact pairs across Z layers. mathart/animation/unified_motion.ContactManifoldRecord is upgraded with 3D contact_point and penetration_depth (default-None backward compatible). mathart/core/physics3d_backend.Physics3DBackend (BackendType.PHYSICS_3D, ArtifactFamily.PHYSICS_3D_MOTION_UMR, BackendCapability.PHYSICS_SIMULATION) is auto-registered through backend_registry's lazy loader, declares 'unified_motion' as its sole dependency, and is invoked by MicrokernelPipelineBridge.run_backend in pure Context-in/Manifest-out FrameGraph style — verified by AST guard that the module statically imports neither UnifiedMotionBackend nor mathart.core.builtin_backends. 2D-only inputs (joint_channel_schema='2d_scalar', z=None) gracefully downgrade and are stamped with metadata.physics_downgraded_to_2d_input=True so SESSION-070's 1305-baseline (incl. the 68 motion-continuity tests) is preserved bit-for-bit.",
-      "added_in": "SESSION-052",
-      "updated_in": "SESSION-071",
-      "completed_in": "SESSION-071"
-    },
-    {
-      "id": "P1-XPBD-4",
-      "priority": "P1",
-      "title": "Continuous Collision Detection (CCD) for fast-moving objects",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-058. SDF sphere-tracing CCD now computes TOI, clamps particle motion before penetration, and is integrated into xpbd_bridge metadata/diagnostics.",
-      "added_in": "SESSION-052",
-      "completed_in": "SESSION-058"
-    },
-    {
-      "id": "P2-XPBD-5",
-      "priority": "P2",
-      "title": "Cloth mesh simulation (current is 1D chain only)",
-      "status": "DONE",
-      "estimated_effort": "high",
-      "description": "CLOSED in SESSION-058. Taichi XPBD cloth mesh backend supports dense grid cloth simulation and large-particle benchmark evidence.",
-      "added_in": "SESSION-052",
-      "completed_in": "SESSION-058"
-    },
-    {
-      "id": "P1-AI-2A",
-      "priority": "P1",
-      "title": "Real-time EbSynth/ComfyUI integration demo with exported MV data",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-056. HeadlessNeuralRenderPipeline implements full bake→stylize→propagate→validate closed loop. ComfyUIHeadlessClient builds 14-node dual-ControlNet workflows via HTTP API. EbSynthPropagationEngine performs PatchMatch-style NNF temporal propagation with bidirectional keyframe blending. Fallback local style transfer when ComfyUI unavailable.",
-      "added_in": "SESSION-052",
-      "completed_in": "SESSION-056"
-    },
-    {
-      "id": "P1-AI-2B",
-      "priority": "P1",
-      "title": "ControlNet conditioning pipeline using motion vector maps",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-056. ComfyUIHeadlessClient.build_controlnet_workflow() constructs dual ControlNet (NormalBae + Depth) conditioning with configurable weights, using base64-encoded normal and depth maps from the math engine as conditioning inputs.",
-      "added_in": "SESSION-052",
-      "completed_in": "SESSION-056"
-    },
-    {
-      "id": "P1-URP2D-PIPE-1",
-      "priority": "P1",
-      "title": "Expose UnityURP2DNativePipelineGenerator through standard CLI / AssetPipeline entrypoints",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-067. urp2d_bundle is now exposed through the first-class package CLI, wired to the real UnityURP2DNativePipelineGenerator plus VAT bake path, and covered by subprocess E2E verification that parses stdout JSON and checks manifest-backed Unity artifacts on disk.",
-      "added_in": "SESSION-059",
-      "updated_in": "SESSION-067",
-      "completed_in": "SESSION-067"
-    },
-    {
-      "id": "P1-VAT-PRECISION-1",
-      "priority": "P1",
-      "title": "Add higher-precision VAT encodings and Unity material presets",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Extend SESSION-059 VAT baking with half/float encodings, larger-cloth safety bounds, and ready-made Unity presets for higher fidelity playback.",
-      "added_in": "SESSION-059"
-    },
-    {
-      "id": "P3-MOTION2D-1",
-      "priority": "P0",
-      "title": "3D→2D Orthographic Projection Pipeline",
-      "status": "DONE",
-      "estimated_effort": "high",
-      "description": "CLOSED in SESSION-061. OrthographicProjector projects 3D NSM bone data to 2D preserving X/Y displacement, Z-rotation, and Z-depth→sorting-order. SpineJSONExporter produces Spine JSON with skeleton, bones, slots, IK constraints, and animation timelines. Biped and quadruped skeleton factories included. Bone length preservation: 1.0, joint angle fidelity: 1.0.",
-      "added_in": "SESSION-061",
-      "completed_in": "SESSION-061"
-    },
-    {
-      "id": "P3-MOTION2D-2",
-      "priority": "P0",
-      "title": "FABRIK 2D Terrain-Adaptive IK Closed Loop",
-      "status": "DONE",
-      "estimated_effort": "high",
-      "description": "CLOSED in SESSION-061. FABRIK2DSolver with angular constraints and O(n) convergence. TerrainAdaptiveIKLoop queries terrain height, computes IK targets for grounded feet, solves FABRIK chains, and adjusts hip height. Supports biped and quadruped. IK contact accuracy: 1.0.",
-      "added_in": "SESSION-061",
-      "completed_in": "SESSION-061"
-    },
-    {
-      "id": "P3-MOTION2D-3",
-      "priority": "P0",
-      "title": "Animation 12 Principles Quantification System",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-061. PrincipleScorer quantifies 5 of Disney's 12 principles: Squash & Stretch (volume preservation), Anticipation (velocity reversal), Arcs (curvature smoothness), Timing (frame distribution), Solid Drawing (scale consistency). Produces aggregate scores and actionable recommendations.",
-      "added_in": "SESSION-061",
-      "completed_in": "SESSION-061"
-    },
-    {
-      "id": "P3-MOTION2D-4",
-      "priority": "P0",
-      "title": "Motion 2D Pipeline Three-Layer Evolution Bridge",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-061. Motion2DPipelineEvolutionBridge: Layer 1 evaluates projection quality, IK accuracy, and principles scores; Layer 2 distills 8 research rules + dynamic rules; Layer 3 persists state and computes fitness bonus. Registered in EvolutionOrchestrator bridge_specs.",
-      "added_in": "SESSION-061",
-      "completed_in": "SESSION-061"
-    },
-    {
-      "id": "P2-UNITY-2DANIM-1",
-      "priority": "P2",
-      "title": "Unity 2D Animation native format export",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Extend orthographic_projector.py to export Unity 2D Animation native format (.anim + .controller) alongside Spine JSON for direct Unity consumption.",
-      "added_in": "SESSION-061"
-    },
-    {
-      "id": "P2-REALTIME-COMM-1",
-      "priority": "P2",
-      "title": "Python↔Unity real-time gait inference communication protocol",
-      "status": "TODO",
-      "estimated_effort": "high",
-      "description": "Implement WebSocket or gRPC protocol for real-time Python-side NSM gait inference feeding into Unity-side 2D IK and rendering.",
-      "added_in": "SESSION-061"
-    },
-    {
-      "id": "P2-PRINCIPLES-FULL-1",
-      "priority": "P2",
-      "title": "Extend principles quantifier to all 12 Disney principles",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Add Follow-Through & Overlapping Action, Slow In/Slow Out, Secondary Action, Appeal, Staging, Straight Ahead/Pose to Pose, and Exaggeration to PrincipleScorer.",
-      "added_in": "SESSION-061"
-    },
-    {
-      "id": "P2-DEEPPHASE-FFT-1",
-      "priority": "P2",
-      "title": "DeepPhase FFT frequency-domain phase decomposition",
-      "status": "DONE",
-      "estimated_effort": "high",
-      "description": "CLOSED in SESSION-065. Multi-channel FFT phase manifold decomposition (Starke 2022)",
-      "added_in": "SESSION-061",
-      "completed_in": "SESSION-065"
-    },
-    {
-      "id": "P2-MOTIONDB-IK-1",
-      "priority": "P2",
-      "title": "Integrate motion matching database with 2D IK pipeline",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-065. KD-Tree accelerated motion matching (Clavet 2016)",
-      "added_in": "SESSION-061",
-      "completed_in": "SESSION-065"
-    },
-    {
-      "id": "P2-SPINE-PREVIEW-1",
-      "priority": "P2",
-      "title": "Spine JSON animation previewer",
-      "status": "TODO",
-      "estimated_effort": "low",
-      "description": "Build a lightweight Spine JSON animation previewer (matplotlib or web-based) for visual verification of exported 2D skeletal animations.",
-      "added_in": "SESSION-061"
+      "description": "Add classic Marching Cubes implementation for A/B comparison with Dual Contouring on feature preservation.",
+      "added_in": "SESSION-063"
     },
     {
       "id": "P2-DIM-UPLIFT-13",
@@ -1186,13 +725,85 @@
       "added_in": "SESSION-065"
     },
     {
-      "id": "P2-DEEPPHASE-FFT-2",
+      "id": "P2-DIM-UPLIFT-2",
       "priority": "P2",
-      "title": "Neural network autoencoder training for DeepPhase",
+      "title": "Implement octree-based adaptive Dual Contouring (LOD chain)",
       "status": "TODO",
       "estimated_effort": "high",
-      "description": "Train a periodic autoencoder (PAE) on motion capture data to learn phase manifolds. Requires dataset.",
-      "added_in": "SESSION-065"
+      "description": "Add multi-resolution DC with octree-based LOD chain for progressive mesh detail.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-4",
+      "priority": "P2",
+      "title": "Compile actual Taichi AOT module (requires Taichi Vulkan backend)",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Run TaichiAOTBridge on hardware with Vulkan support to produce real SPIR-V modules.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-5",
+      "priority": "P2",
+      "title": "Build Unity native plugin from generated C++ code",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Compile the generated C++ native plugin code into a Unity-compatible .dll/.so and test in Unity Editor.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-6",
+      "priority": "P2",
+      "title": "Test displacement mapping in Unity Shader Graph",
+      "status": "TODO",
+      "estimated_effort": "low",
+      "description": "Import IsometricDisplacementMapper config into Unity Shader Graph and validate visual results.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-7",
+      "priority": "P2",
+      "title": "Integrate cel-shading with existing sprite pipeline",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Connect CelShadingConfig generated shaders with existing Unity URP 2D sprite rendering pipeline.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-8",
+      "priority": "P2",
+      "title": "Performance benchmark: DC at resolution 64/128/256",
+      "status": "TODO",
+      "estimated_effort": "low",
+      "description": "Benchmark DualContouringExtractor at multiple resolutions for timing, memory, and mesh quality metrics.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-9",
+      "priority": "P2",
+      "title": "GPU-accelerated SDF sampling via Taichi kernels",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Accelerate SDF volume sampling in DualContouringExtractor using Taichi GPU kernels.",
+      "added_in": "SESSION-063"
+    },
+    {
+      "id": "P2-MORPHOLOGY-2",
+      "priority": "P2",
+      "title": "Expand morphology archetype library and add weapon/accessory attachment points",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Expand beyond 5 base archetypes (humanoid, monster, mech, slime, insectoid). Add attachment point system for genotype-driven equipment variation (weapons, shields, accessories).",
+      "added_in": "SESSION-057"
+    },
+    {
+      "id": "P2-MORPHOLOGY-3",
+      "priority": "P2",
+      "title": "GPU-accelerated SDF evaluation for large morphology populations",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Add GPU-accelerated SDF evaluation (Taichi or CuPy) for populations >1000 genotypes per generation.",
+      "added_in": "SESSION-057"
     },
     {
       "id": "P2-MOTIONDB-IK-2",
@@ -1204,31 +815,31 @@
       "added_in": "SESSION-065"
     },
     {
-      "id": "P1-AI-2D-SPARSECTRL",
-      "priority": "P1",
-      "title": "Full ComfyUI workflow execution with SparseCtrl model weights",
+      "id": "P2-PHASE-CLEANUP",
+      "priority": "P2",
+      "title": "Deprecate and remove legacy animation API surface",
       "status": "TODO",
-      "estimated_effort": "high",
-      "description": "Execute SparseCtrl workflows end-to-end with actual AnimateDiff + SparseCtrl model weights in ComfyUI.",
-      "added_in": "SESSION-065"
+      "estimated_effort": "low",
+      "description": "Mark old functions like walk_animation() as @deprecated and remove them from __all__ in mathart/animation/__init__.py to prevent semantic confusion.",
+      "added_in": "SESSION-042"
     },
     {
-      "id": "P2-ANTIFLICKER-3",
+      "id": "P2-PHYSICS-DEFAULT",
       "priority": "P2",
-      "title": "Optical flow estimation from math engine motion vectors",
+      "title": "Enforce Physics/Biomechanics defaults in CharacterSpec",
       "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Use FK/IK ground-truth motion vectors as optical flow for anti-flicker conditioning.",
-      "added_in": "SESSION-065"
+      "estimated_effort": "low",
+      "description": "Change default values of physics/biomechanics flags in CharacterSpec to True, or add validation in PipelineContractGuard to ensure they are not bypassed.",
+      "added_in": "SESSION-042"
     },
     {
-      "id": "P2-VNE-UNITY-1",
+      "id": "P2-PRINCIPLES-FULL-1",
       "priority": "P2",
-      "title": "Export edited vertex normals to Unity mesh format",
+      "title": "Extend principles quantifier to all 12 Disney principles",
       "status": "TODO",
       "estimated_effort": "medium",
-      "description": "Export VertexNormalEditor results as Unity-compatible mesh with custom normals and shadow bias vertex colors.",
-      "added_in": "SESSION-065"
+      "description": "Add Follow-Through & Overlapping Action, Slow In/Slow Out, Secondary Action, Appeal, Staging, Straight Ahead/Pose to Pose, and Exaggeration to PrincipleScorer.",
+      "added_in": "SESSION-061"
     },
     {
       "id": "P2-QEM-NANITE-1",
@@ -1240,36 +851,88 @@
       "added_in": "SESSION-065"
     },
     {
-      "id": "P1-AI-2C",
-      "priority": "P1",
-      "title": "Expose Phase 2 anti-flicker visual pipeline through CLI / AssetPipeline",
-      "status": "SUBSTANTIALLY-CLOSED",
-      "estimated_effort": "medium",
-      "description": "SUBSTANTIALLY CLOSED in SESSION-068. AntiFlickerRenderBackend now executes the real HeadlessNeuralRenderPipeline (ComfyUI workflow build + EbSynth temporal propagation), produces OTIO-inspired frame_sequence time-series with per-frame path/role/temporal_coherence_score, keyframe plans, temporal reports, and workflow manifests. Backend-owned validate_config() normalizes temporal parameters, EbSynth patch size, and ComfyUI settings. IPC payload promotes frame_sequence + time_range to top-level envelope. 9/9 E2E subprocess tests PASS. Remaining: real ComfyUI runtime with GPU, production preset packs (P1-AI-2D).",
-      "added_in": "SESSION-060",
-      "updated_in": "SESSION-068",
-      "completed_in": "SESSION-068"
+      "id": "P2-REALTIME-COMM-1",
+      "priority": "P2",
+      "title": "Python↔Unity real-time gait inference communication protocol",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Implement WebSocket or gRPC protocol for real-time Python-side NSM gait inference feeding into Unity-side 2D IK and rendering.",
+      "added_in": "SESSION-061"
     },
     {
-      "id": "P1-AI-2D",
-      "priority": "P1",
-      "title": "Ship real ComfyUI batch preset packs for IP-Adapter + ControlNet anti-flicker jobs",
+      "id": "P2-SPINE-PREVIEW-1",
+      "priority": "P2",
+      "title": "Spine JSON animation previewer",
+      "status": "TODO",
+      "estimated_effort": "low",
+      "description": "Build a lightweight Spine JSON animation previewer (matplotlib or web-based) for visual verification of exported 2D skeletal animations.",
+      "added_in": "SESSION-061"
+    },
+    {
+      "id": "P2-UNITY-2DANIM-1",
+      "priority": "P2",
+      "title": "Unity 2D Animation native format export",
       "status": "TODO",
       "estimated_effort": "medium",
-      "description": "Still pending after SESSION-068. Registry exposure and real backend execution now exist, but production preset bundles and real node-template packs are not yet shipped.",
-      "added_in": "SESSION-060",
-      "updated_in": "SESSION-068"
+      "description": "Extend orthographic_projector.py to export Unity 2D Animation native format (.anim + .controller) alongside Spine JSON for direct Unity consumption.",
+      "added_in": "SESSION-061"
     },
     {
-      "id": "P0-GOLDEN-PATH-CLI-1",
-      "priority": "P0",
-      "title": "Expose canonical Golden Path backends through first-class CLI commands",
-      "status": "DONE",
+      "id": "P2-VNE-UNITY-1",
+      "priority": "P2",
+      "title": "Export edited vertex normals to Unity mesh format",
+      "status": "TODO",
       "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-067. Added a first-class dynamic package CLI at mathart/cli.py with python -m mathart and python -m MarioTrickster entrypoints. The CLI reflects the live registry instead of hard-coded backend arrays, delegates to AssetPipeline.run_backend(), and emits machine-readable JSON payloads only on stdout.",
-      "added_in": "SESSION-066",
-      "updated_in": "SESSION-067",
-      "completed_in": "SESSION-067"
+      "description": "Export VertexNormalEditor results as Unity-compatible mesh with custom normals and shadow bias vertex colors.",
+      "added_in": "SESSION-065"
+    },
+    {
+      "id": "P2-WFC-2",
+      "priority": "P2",
+      "title": "Themed WFC tile sets with game progression integration",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Add cave, castle, sky tile vocabularies with theme-specific physics constraints and difficulty curves. Integrate difficulty curves with game progression system.",
+      "added_in": "SESSION-057"
+    },
+    {
+      "id": "P2-WFC-3",
+      "priority": "P2",
+      "title": "Multi-objective WFC optimization via Pareto frontier",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Add multi-objective optimization to WFC (playability + aesthetic diversity + difficulty curve matching) via Pareto frontier selection.",
+      "added_in": "SESSION-057"
+    },
+    {
+      "id": "P3-GPU-BENCH-1",
+      "priority": "P2",
+      "title": "Run formal Taichi GPU benchmark and sparse-cloth validation on CUDA hardware",
+      "status": "TODO",
+      "estimated_effort": "medium",
+      "description": "Current sandbox validated the Taichi backend with CPU fallback and 50k-class runtime evidence. A follow-up session should execute the same benchmark on true CUDA hardware and extend validation to sparse data layouts.",
+      "added_in": "SESSION-058"
+    },
+    {
+      "id": "P3-1",
+      "priority": "P3",
+      "title": "Auto knowledge distillation",
+      "status": "PARTIAL",
+      "notes": "12 rules distilled manually. Auto-distillation not yet implemented."
+    },
+    {
+      "id": "P3-2",
+      "priority": "P3",
+      "title": "Web preview UI",
+      "status": "TODO",
+      "estimated_effort": "high"
+    },
+    {
+      "id": "P3-5",
+      "priority": "P3",
+      "title": "End-to-end demo showcase script",
+      "status": "TODO",
+      "estimated_effort": "low"
     }
   ],
   "completed_tasks": [
@@ -2367,92 +2030,6 @@
     "REMAINING-S064: No per-backend CI validation with artifact schema checks",
     "REMAINING-S064: No hot-reload for dynamically discovered backends"
   ],
-  "session_029_changes": {
-    "new_artifacts": [
-      "mathart/animation/biomechanics.py: Full biomechanics engine (~1,544 lines)",
-      "tests/test_biomechanics.py: 57 tests for all four research directions",
-      "SESSION_029_AUDIT.md: Self-audit report with research-to-code traceability matrix"
-    ],
-    "modified_artifacts": [
-      "mathart/animation/__init__.py: Added 11 biomechanics public exports",
-      "mathart/pipeline.py: Added BiomechanicsProjector integration to produce_character_pack(), new CharacterSpec fields (enable_biomechanics, biomechanics_zmp, biomechanics_ipm, biomechanics_skating_cleanup, biomechanics_zmp_strength), manifest biomechanics_config section",
-      "SESSION_HANDOFF.md: Updated for SESSION-029",
-      "PROJECT_BRAIN.json: Updated for SESSION-029"
-    ],
-    "p0_tasks_resolved": [
-      "P0-MOTION-3: FABRIK IK Solver & Procedural Gait",
-      "P0-MOTION-7: ZMP/CoM Balance Analysis (new)",
-      "P0-MOTION-8: Inverted Pendulum Model Integration (new)",
-      "P0-MOTION-9: Enhanced Skating Cleanup Calculus (new)"
-    ],
-    "benchmark_impact": {
-      "animation_physics_realism": "3% -> 1% gap (added ZMP balance + IPM locomotion + calculus skating cleanup + FABRIK gait)",
-      "motion_cognitive_naturalness": "8% -> 5% gap (biomechanics-informed motion modulation)",
-      "overall": "~19-22% -> ~18-20% gap"
-    },
-    "validation": {
-      "full_suite": "655/655 PASS",
-      "new_tests": "57 biomechanics tests",
-      "regression": "Zero regressions",
-      "code_delta": "+~2,100 lines (1,544 biomechanics + 563 tests)"
-    }
-  },
-  "session_028_supp_changes": {
-    "new_artifacts": [
-      "tests/test_physdiff_supplement.py: 36 tests for PhysDiff supplement mechanisms",
-      "PHYSDIFF_SUPPLEMENTAL_PLAN.md: Audit findings and remediation architecture"
-    ],
-    "modified_artifacts": [
-      "mathart/animation/physics_projector.py: +5 classes (ContactDetector, ContactState, ConstraintBlender, FootLockingConstraint, PhysDiffProjectionScheduler), enhanced AnglePoseProjector and compute_physics_penalty()",
-      "mathart/animation/__init__.py: Added supplemental public exports",
-      "mathart/pipeline.py: Pass skeleton_ref to AnglePoseProjector for foot locking"
-    ],
-    "p0_tasks_resolved": [
-      "P0-MOTION-6: Foot Contact Detection & Skating Cleanup"
-    ],
-    "benchmark_impact": {
-      "animation_physics_realism": "5% -> 3% gap (added foot contact + IK locking + skating cleanup)",
-      "overall": "~19-22% -> ~18-20% gap"
-    },
-    "validation": {
-      "full_suite": "596/596 PASS",
-      "new_tests": "36 PhysDiff supplement tests",
-      "regression": "Zero regressions",
-      "code_delta": "+~800 lines"
-    }
-  },
-  "session_028_changes": {
-    "new_artifacts": [
-      "mathart/animation/physics_projector.py: PhysDiff-inspired physics projection module (~700 lines)",
-      "tests/test_physics_projector.py: 24 comprehensive tests for physics projector",
-      "PHYSICS_ANIMATION_UPGRADE_PLAN.md: Design document with research synthesis",
-      "SESSION_HANDOFF.md: Updated for SESSION-028",
-      "PROJECT_BRAIN.json: Updated for SESSION-028"
-    ],
-    "modified_artifacts": [
-      "mathart/pipeline.py: Added physics integration to produce_character_pack(), new CharacterSpec fields",
-      "mathart/animation/__init__.py: Added physics projector public exports"
-    ],
-    "p0_tasks_resolved": [
-      "P0-MOTION-1: Verlet Integration Physics Engine",
-      "P0-MOTION-2: Mass-Spring Secondary Animation",
-      "P0-MOTION-4: Easing Functions & Motion Curves",
-      "P0-MOTION-5: Cognitive Motion Constraints",
-      "P0-DISTILL-2: Cognitive Constraints → Fitness Functions",
-      "P1-NEW-3: Spring-based secondary animation"
-    ],
-    "benchmark_impact": {
-      "animation_physics_realism": "15% -> 5% gap (delivered spring-damper + Verlet + PBD + ground constraints)",
-      "motion_cognitive_naturalness": "20% -> 8% gap (delivered anticipation + follow-through + overlap + squash/stretch + Penner easing)",
-      "overall": "~25-30% -> ~19-22% gap"
-    },
-    "validation": {
-      "full_suite": "562/562 PASS",
-      "new_tests": "24 physics projector tests",
-      "regression": "Zero regressions (6/6 pipeline + 30/30 renderer)",
-      "code_delta": "+~1,500 lines"
-    }
-  },
   "recent_audit": {
     "session": "SESSION-036",
     "summary": "SESSION-036 closed the motion-data architecture gap by introducing a Unified Motion Representation (UMR) inspired by OpenUSD UsdSkel, Houdini KineFX, and Unreal AnimGraph layering. UnifiedMotionFrame now forces time/phase/root/joint/contact fields through the trunk. AssetPipeline produces per-state .umr.json clips, manifest-level motion_contract metadata, and ordered audit trails. AnglePoseProjector and BiomechanicsProjector now operate as single-direction frame filters with strict layer guards; Layer 3 can read UMR context directly. Real export audit passed on idle/run/jump, compileall passed, and 73 targeted regression tests passed. Main remaining gaps: native phase-driven jump/fall/hit, non-bypass CLI/export entrypoints, and runtime UMR query/transition synthesis.",
@@ -2467,355 +2044,6 @@
       "Gait transition blending walk/run/sneak (P1-PHASE-33A)",
       "Terrain-adaptive phase modulation (P1-PHASE-33B)",
       "Visual quality gap (SDF vs hand-drawn/AI)"
-    ]
-  },
-  "session_035_changes": {
-    "new_artifacts": [
-      "knowledge/compliant_physics_adversarial_priors.md: 8 distilled knowledge rules (PD compliance, AMP evaluation, VPoser mutation, pipeline bridge)",
-      "research_session035_compliant_physics.md: Research synthesis document for DeepMimic/AMP/VPoser"
-    ],
-    "modified_artifacts": [
-      "mathart/animation/physics_projector.py: +176 lines (compliant PD mode, per-joint compliance, torque limiting)",
-      "mathart/animation/skill_embeddings.py: +201 lines (LSGAN training, gradient penalty, replay buffer, sequence scoring)",
-      "mathart/animation/human_math.py: +205 lines (latent encode/decode/mutate/interpolate/score)",
-      "mathart/evolution/evolution_layer3.py: +95 lines (AMP+VPoser integration, convergence bridge)",
-      "mathart/evolution/engine.py: +41 lines (convergence bridge persistence)",
-      "mathart/pipeline.py: +37 lines (convergence bridge consumption, compliant_pd default)",
-      "SESSION_HANDOFF.md: Updated for SESSION-035",
-      "PROJECT_BRAIN.json: Updated for SESSION-035"
-    ],
-    "p0_tasks_resolved": [
-      "P0-PHYSICS-35A: Compliant PD Tracking (DeepMimic)",
-      "P0-PHYSICS-35B: AMP Adversarial Motion Evaluation",
-      "P0-PHYSICS-35C: VPoser Latent-Space Pose API",
-      "P0-PHYSICS-35D: Layer 3 AMP+VPoser Integration",
-      "P0-PHYSICS-35E: Convergence Bridge (Gap #3 Fix)",
-      "P0-PHYSICS-35F: Knowledge Base & Research Synthesis"
-    ],
-    "benchmark_impact": {
-      "animation_physics_realism": "4 -> 6 maturity score (compliant PD tracking replaces rigid spring-damper, per-joint compliance preserves artistic intent)",
-      "motion_cognitive_naturalness": "13 -> 16 maturity score (AMP discriminator + VPoser naturalness + latent-space mutation)",
-      "overall": "~28-30% -> ~30-32% completion"
-    },
-    "validation": {
-      "audit": "30/30 PASS (8 DeepMimic + 7 AMP + 6 VPoser + 5 Evolution + 4 Gap Audit)",
-      "syntax": "All 6 modified Python files pass syntax validation",
-      "full_suite": "734/734 PASS",
-      "regression": "Zero breaking changes (backward-compatible: legacy spring mode preserved)",
-      "code_delta": "+~1,300 lines (176 physics + 201 discriminator + 205 latent + 95 evolution + 41 engine + 37 pipeline + knowledge/research)"
-    }
-  },
-  "session_034_changes": {
-    "new_artifacts": [
-      "mathart/animation/motion_matching_evaluator.py: 59-dim feature-vector evaluator (~951 lines)",
-      "mathart/animation/industrial_renderer.py: Dead Cells + GGXrd rendering pipeline (~760 lines)",
-      "knowledge/industrial_rendering_motion_matching.md: 8 distilled knowledge rules",
-      "research_session034_industrial_rendering.md: Research synthesis document"
-    ],
-    "modified_artifacts": [
-      "mathart/animation/physics_genotype.py: Industrial evaluator integration, 9-component fitness formula",
-      "mathart/animation/__init__.py: SESSION-034 exports added",
-      "mathart/evolution/evolution_layer3.py: 2 new tests, 3 distillation rules, industrial metrics logging",
-      "SESSION_HANDOFF.md: Updated for SESSION-034",
-      "PROJECT_BRAIN.json: Updated for SESSION-034"
-    ],
-    "p0_tasks_resolved": [
-      "P0-INDUSTRIAL-34A: Motion Matching Feature-Vector Evaluator (59-dim, Clavet GDC 2016)",
-      "P0-INDUSTRIAL-34B: Dead Cells-Style Industrial Renderer",
-      "P0-INDUSTRIAL-34C: Guilty Gear Xrd Frame Scheduler",
-      "P0-INDUSTRIAL-34D: Layer 3 Evolution Industrial Upgrade",
-      "P0-INDUSTRIAL-34E: Knowledge Base & Research Synthesis"
-    ],
-    "benchmark_impact": {
-      "animation_physics_realism": "3 -> 4 maturity score (industrial feature-vector evaluation replaces joint-angle tolerance)",
-      "motion_cognitive_naturalness": "10 -> 13 maturity score (hold frames + stepped interpolation + squash/stretch from GGXrd)",
-      "character_visual_quality": "20 -> 25 maturity score (Dead Cells-style rendering: hard SDF, pseudo-normal cel shading, OKLAB)",
-      "overall": "~26-28% -> ~28-30% completion"
-    },
-    "validation": {
-      "audit": "28/28 PASS (6 Motion Matching + 6 Dead Cells + 6 GGXrd + 8 Evolution + 2 Integration)",
-      "syntax": "All 6 modified/new Python files pass syntax validation",
-      "regression": "Zero breaking changes (plugin-based upgrade with automatic fallback)",
-      "code_delta": "+~1,900 lines (951 evaluator + 760 renderer + 179 integration edits)"
-    }
-  },
-  "session_031_changes": {
-    "new_artifacts": [
-      "mathart/animation/human_math.py: Distilled SMPL/VPoser/DualQuaternion/MotionMatching module",
-      "tests/test_human_math.py: 10 tests for body latents, pose prior, dual quaternions, runtime bridge, Layer 3 metrics",
-      "research_session031_framing.md: SESSION-031 research synthesis and landing notes"
-    ],
-    "modified_artifacts": [
-      "mathart/animation/__init__.py: Exported SESSION-031 human-math public API",
-      "mathart/animation/skeleton.py: Added optional prior-projected pose application and scoring helpers",
-      "mathart/animation/physics_genotype.py: Added anatomical_score and motion_match_score to Layer 3 fitness",
-      "mathart/evolution/evolution_layer3.py: Distills anatomy and motion-matching heuristics into the knowledge layer",
-      "SESSION_HANDOFF.md: Updated for SESSION-031",
-      "PROJECT_BRAIN.json: Updated for SESSION-031"
-    ],
-    "p0_tasks_resolved": [
-      "P0-HUMAN-31A: Distilled human-math stack foundation",
-      "P0-HUMAN-31B: VPoser-inspired pose prior integration",
-      "P0-HUMAN-31C: 2D motion matching backend",
-      "P0-HUMAN-31D: Layer 3 human-math fitness upgrade"
-    ],
-    "benchmark_impact": {
-      "animation_physics_realism": "1% -> 2% maturity score uplift through explicit anatomical plausibility and compact motion retrieval",
-      "motion_cognitive_naturalness": "5% -> 7% maturity score uplift through VPoser-like filtering + motion matching",
-      "overall": "~18-20% -> ~20-22% completion"
-    },
-    "validation": {
-      "full_suite": "665/665 PASS",
-      "new_tests": "10 SESSION-031 tests",
-      "regression": "Zero regressions after full-suite rerun",
-      "code_delta": "+~500 lines human-math integration + tests"
-    }
-  },
-  "session_033_changes": {
-    "new_artifacts": [
-      "mathart/animation/phase_driven.py: Phase-driven animation core module (~750 lines)",
-      "tests/test_phase_driven.py: 65 tests for all phase-driven components",
-      "knowledge/phase_driven_animation.md: Comprehensive knowledge base from PFNN/DeepPhase/Animator's Survival Kit",
-      "research_session033_phase_driven.md: SESSION-033 research synthesis and code mapping"
-    ],
-    "modified_artifacts": [
-      "mathart/animation/presets.py: run_animation() -> phase_driven_run(), new walk_animation(), legacy preserved",
-      "mathart/animation/rl_locomotion.py: Walk/run reference motions now phase-driven",
-      "mathart/animation/__init__.py: SESSION-033 exports added",
-      "mathart/evolution/evolution_layer3.py: 4 new test types, 4 diagnosis actions, 3 distillation rules",
-      "SESSION_HANDOFF.md: Updated for SESSION-033",
-      "PROJECT_BRAIN.json: Updated for SESSION-033"
-    ],
-    "p0_tasks_resolved": [
-      "P0-PHASE-33A: Phase-Driven Animation Core Module",
-      "P0-PHASE-33B: Walk/Run Key Poses (Animator's Survival Kit)",
-      "P0-PHASE-33C: DeepPhase Channel Overlay System",
-      "P0-PHASE-33D: Presets and RL Locomotion Integration",
-      "P0-PHASE-33E: Layer 3 Evolution Upgrade",
-      "P0-PHASE-33F: Knowledge Base"
-    ],
-    "benchmark_impact": {
-      "animation_physics_realism": "2 -> 3 maturity score (phase-driven key-pose interpolation replaces sin()-based animation)",
-      "motion_cognitive_naturalness": "7 -> 10 maturity score (Animator's Survival Kit key poses + PFNN phase variable + DeepPhase channels)",
-      "overall": "~24-26% -> ~26-28% completion"
-    },
-    "validation": {
-      "full_suite": "696+65 PASS (37 scipy-blocked pre-existing)",
-      "new_tests": "65 phase-driven tests",
-      "regression": "Zero regressions after full-suite rerun",
-      "code_delta": "+~1,600 lines (750 phase_driven + 500 tests + 350 evolution/knowledge/integration)"
-    }
-  },
-  "session_032_changes": {
-    "new_artifacts": [
-      "mathart/level/scene_description.py: USD-like scene contract for level bundles",
-      "mathart/level/pdg.py: Lightweight PDG / DAG executor",
-      "tests/test_level_pdg.py: 4 tests for DAG, scene metrics, pipeline bundle, and asset-pack summary",
-      "research_session032_pdg_framing.md: SESSION-032 research synthesis for Gap 1 architecture closure"
-    ],
-    "modified_artifacts": [
-      "mathart/level/__init__.py: Exported scene description and PDG public API",
-      "mathart/pipeline.py: Added LevelPipelineSpec, produce_level_pack(), and asset-pack level integration",
-      "mathart/evolution/evolution_layer3.py: Added procedural pipeline distillation support",
-      "mathart/__init__.py: Version bump to 0.24.0",
-      "SESSION_HANDOFF.md: Updated for SESSION-032",
-      "PROJECT_BRAIN.json: Updated for SESSION-032"
-    ],
-    "p0_tasks_resolved": [
-      "P0-ARCH-32A: USD-like unified scene description",
-      "P0-ARCH-32B: Lightweight PDG / DAG orchestration",
-      "P0-ARCH-32C: Top-level WFC->Shader->Export pipeline closure",
-      "P0-ARCH-32D: Layer 3 procedural-pipeline distillation"
-    ],
-    "benchmark_impact": {
-      "environment_tileset": "10 -> 18 maturity score (WFC output now feeds a first-class pipeline instead of an isolated generator)",
-      "engine_ready_export": "15 -> 24 maturity score (level bundle export is now explicit and summary-visible)",
-      "engineering_automation": "60 -> 70 maturity score (dependency-aware orchestration replaces hand-wired flow in the level path)",
-      "overall": "~20-22% -> ~24-26% completion"
-    },
-    "validation": {
-      "full_suite": "669/669 PASS",
-      "new_tests": "4 SESSION-032 tests",
-      "regression": "Zero regressions after full-suite rerun",
-      "code_delta": "+~700 lines architecture integration + tests + state updates"
-    }
-  },
-  "session_036_changes": {
-    "new_artifacts": [
-      "mathart/animation/unified_motion.py: UMR frame/clip contract, adapters, audit entries, filter runtime",
-      "research_session036_umr_architecture.md: Architecture research synthesis for USD/KineFX/AnimGraph alignment",
-      "audit_session036_umr.md: Code and export audit notes",
-      "tests/test_unified_motion.py: UMR contract and export regression coverage"
-    ],
-    "modified_artifacts": [
-      "mathart/animation/phase_driven.py: frame-level UMR output helpers while preserving legacy API",
-      "mathart/animation/physics_projector.py: step_frame/project_frame_sequence + layer guards",
-      "mathart/animation/biomechanics.py: step_frame/project_frame_sequence + lower-body grounding guard",
-      "mathart/animation/motion_matching_evaluator.py: UMR context bridge for Layer 3",
-      "mathart/animation/__init__.py: exported UMR APIs and frame helpers",
-      "mathart/pipeline.py: character trunk switched to UMR DAG with .umr.json export and manifest audit metadata",
-      "SESSION_HANDOFF.md: Updated for SESSION-036",
-      "PROJECT_BRAIN.json: Updated for SESSION-036"
-    ],
-    "p0_tasks_resolved": [
-      "P0-ARCH-36A: UnifiedMotionFrame / UnifiedMotionClip contract and adapters",
-      "P0-ARCH-36B: AssetPipeline UMR DAG trunk",
-      "P0-ARCH-36C: Frame-level projector interfaces with strict layering",
-      "P0-ARCH-36D: Layer 3 UMR context bridge"
-    ],
-    "benchmark_impact": {
-      "animation_physics_realism": "6 -> 7 maturity score (single-bus frame contract reduces inter-module overwrite and keeps physics localized)",
-      "motion_cognitive_naturalness": "16 -> 18 maturity score (phase/root/contact semantics persist across the trunk and into evaluation)",
-      "engineering_automation": "70 -> 72 maturity score (.umr.json artifacts + manifest-level audit metadata + regression coverage)",
-      "overall": "~30-32% -> ~32-34% completion"
-    },
-    "validation": {
-      "audit": "Real export audit PASS (idle/run/jump all emit motion_contract + .umr.json + guarded node order)",
-      "syntax": "python3.11 -m compileall mathart PASS",
-      "targeted_regression": "73 tests PASS (test_unified_motion + animation + physics_projector + character)",
-      "regression": "No breakage in existing targeted suites; legacy pose interfaces preserved alongside new UMR interfaces",
-      "code_delta": "+~700 lines including UMR contract/runtime, trunk integration, tests, and audit notes"
-    }
-  },
-  "session_037_changes": {
-    "new_artifacts": [
-      "research_session037_distance_transient_phases.md: Research synthesis for Distance Matching and Neural State Machine-inspired transient phases",
-      "audit_session037_distance_transient.md: Code and export audit notes for jump/fall/hit transient phase landing"
-    ],
-    "modified_artifacts": [
-      "mathart/animation/phase_driven.py: Added jump/fall/hit transient phase calculators and UMR-native frame emitters",
-      "mathart/animation/presets.py: Routed legacy jump/fall/hit presets through transient phase generators",
-      "mathart/animation/unified_motion.py: Preserved phase=1.0 semantics for transient states",
-      "mathart/pipeline.py: Migrated jump/fall/hit state export to native transient-phase UMR generation",
-      "mathart/animation/motion_matching_evaluator.py: Added transient phase metadata to Layer 3 UMR context extraction",
-      "mathart/animation/__init__.py: Exported transient phase APIs",
-      "tests/test_unified_motion.py: Added monotonicity, metadata, and export assertions for transient phases"
-    ],
-    "validations": [
-      "python3.11 -m pytest tests/test_unified_motion.py -q -> 6/6 PASS",
-      "PYTHONPATH=/home/ubuntu/work/MarioTrickster-MathArt python3.11 tools/session037_audit_probe.py -> real export audit PASS"
-    ],
-    "key_findings": [
-      "Distance-driven jump/fall semantics now live inside the UMR trunk rather than legacy time adapters.",
-      "Hit recovery is represented as a one-way progress/deficit phase suitable for Layer 3 evaluation and future distillation.",
-      "Audit discovered and fixed a transient-phase wraparound bug where terminal phase 1.0 collapsed to 0.0 inside UMR."
-    ],
-    "remaining_followups": [
-      "P1-PHASE-35A: enforce non-bypass transient phase/U MR contract in cli.py and exporter entrypoints",
-      "P1-PHASE-37A: replace analytic distance proxies with scene-aware sensors or raycasts",
-      "P1-BENCH-35A: zero-to-export reproducibility benchmark with transient phase assertions",
-      "P1-INDUSTRIAL-34B / P1-HUMAN-31B: runtime transition synthesis on top of UMR context"
-    ]
-  },
-  "session_040_changes": {
-    "new_artifacts": [
-      "mathart/pipeline_contract.py: UMR_Context frozen dataclass + PipelineContractGuard + PipelineContractError (~357 lines)",
-      "mathart/pipeline_auditor.py: UMR_Auditor SHA-256 hash seal + ManifestSeal + ContactFlickerDetector (~390 lines)",
-      "mathart/animation/phase_driven_idle.py: Phase-driven idle frame generator (~147 lines)",
-      "mathart/evolution/evolution_contract_bridge.py: ContractEvolutionBridge three-layer integration (~485 lines)",
-      "tests/test_pipeline_contract.py: 27 tests for pipeline contract, hash seal, bypass detection (~458 lines)",
-      "research_session040_cli_pipeline_contract.md: Research synthesis for DOD, deterministic lockstep, USD validation",
-      "SESSION_040_AUDIT.md: Full audit checklist with research-to-code traceability",
-      "knowledge/pipeline_contract.md: Auto-generated contract knowledge base"
-    ],
-    "modified_artifacts": [
-      "mathart/pipeline.py: Integrated UMR_Context, PipelineContractGuard, UMR_Auditor, .umr_manifest.json output (+111 lines)",
-      "mathart/animation/cli.py: Rewritten to force UMR pipeline, block legacy bypass (+51 lines net)",
-      "mathart/animation/__init__.py: Added SESSION-040 exports",
-      "mathart/evolution/engine.py: Integrated ContractEvolutionBridge, evaluate_contract(), status report, brain persistence (+80 lines)",
-      "mathart/evolution/__init__.py: Added ContractEvolutionBridge exports",
-      "tests/test_character_pipeline.py: Updated unknown-state test for PipelineContractError",
-      "SESSION_HANDOFF.md: Updated for SESSION-040",
-      "PROJECT_BRAIN.json: Updated for SESSION-040"
-    ],
-    "p0_tasks_resolved": [
-      "P0-CONTRACT-40A: UMR_Context Frozen Dataclass + PipelineContractGuard (Mike Acton DOD)",
-      "P0-CONTRACT-40B: UMR_Auditor SHA-256 Hash Seal + .umr_manifest.json (Glenn Fiedler / Pixar USD)",
-      "P0-CONTRACT-40C: Phase-Driven Idle Generator (Legacy Bypass Elimination)",
-      "P0-CONTRACT-40D: ContractEvolutionBridge (Three-Layer Contract Integration)",
-      "P0-CONTRACT-40E: CLI Rewrite + Pipeline Integration (Bypass Elimination)"
-    ],
-    "p1_tasks_closed": [
-      "P1-PHASE-35A: Phase-driven coverage + CLI trunk enforcement",
-      "P1-BENCH-35A: End-to-end trunk reproducibility validation",
-      "P1-UMR-36A: Propagate UMR contract to CLI, exporters, and distillation bus"
-    ],
-    "benchmark_impact": {
-      "engineering_automation": "72 -> 76 maturity score (pipeline contract enforcement, deterministic hash seal, CI regression detection, three-layer contract evolution)",
-      "overall": "~32-34% -> ~34-36% completion"
-    },
-    "validation": {
-      "audit": "SESSION_040_AUDIT.md: 27/27 items PASS across 5 categories (DOD contract, determinism, evolution, tests, references)",
-      "new_tests": "27 pipeline contract tests (UMR_Context, PipelineContractGuard, UMR_Auditor, ContactFlickerDetector, end-to-end)",
-      "full_suite": "717/717 non-scipy PASS",
-      "regression": "Zero regressions (1 test updated for PipelineContractError)",
-      "code_delta": "+~1,940 lines (357 contract + 390 auditor + 147 idle + 485 bridge + 458 tests + 103 CLI rewrite)"
-    },
-    "research_references": [
-      "Mike Acton, 'Data-Oriented Design and C++', CppCon 2014 — frozen dataclass, data-driven pipeline",
-      "Glenn Fiedler, 'Deterministic Lockstep', Gaffer on Games 2014 — SHA-256 hash seal, same input -> same output",
-      "Pixar USD Schema Validation & CI mechanism — schema validation, golden master, CI regression detection"
-    ]
-  },
-  "session_038_changes": {
-    "new_artifacts": [
-      "audit_session038_refined_transient.md: Code and real-export audit notes for refined transient phases and critical-damped hit recovery"
-    ],
-    "modified_artifacts": [
-      "mathart/animation/phase_driven.py: Added TransientPhaseVariable, critically damped hit recovery, and refined jump/fall metadata contract",
-      "mathart/animation/motion_matching_evaluator.py: Expanded UMR context extraction for refined transient metadata",
-      "mathart/pipeline.py: Propagated half-life and refined transient metadata through real export path",
-      "mathart/animation/__init__.py: Exported refined transient APIs",
-      "tests/test_unified_motion.py: Added refined transient monotonicity and metadata assertions",
-      "research_session037_distance_transient_phases.md: Appended deeper research on Distance Matching, Overgrowth, Local Motion Phases, and spring dynamics"
-    ],
-    "summary": "SESSION-038 hardened the non-cyclic transient phase model inside the UMR trunk. Jump/fall keep distance-driven semantics but now export richer target/contact/window metadata; hit is upgraded from simple decay to an explicit critically damped recovery variable with half-life, velocity, and progress semantics. Layer 3 now consumes these refined fields directly, targeted regression passed 6/6, and a real jump/fall/hit export audit confirmed the metadata survives the full production path.",
-    "top_gaps": [
-      "Phase-driven non-bypass CLI/exporter propagation of the refined UMR transient contract (P1-PHASE-35A / P1-UMR-36A)",
-      "Scene-aware raycast/runtime sensors for distance matching and richer impact sensing (P1-PHASE-37A)",
-      "Zero-to-export trunk reproducibility benchmark with refined transient artifact assertions (P1-BENCH-35A)",
-      "Runtime motion matching query with transition synthesis on top of UMR context (P1-INDUSTRIAL-34B / P1-HUMAN-31B)",
-      "Production benchmark asset suite (P1-NEW-10)"
-    ],
-    "remaining_followups": [
-      "P1-PHASE-35A: enforce hard non-bypass transient/UMR contract in cli.py and export entrypoints",
-      "P1-PHASE-37A: replace analytic distance proxies with terrain-aware sensors and extend hit to richer impact channels",
-      "P1-BENCH-35A: add zero-to-export reproducibility benchmark asserting refined transient metadata and audit fields",
-      "P1-INDUSTRIAL-34B / P1-HUMAN-31B: runtime transition synthesis on top of refined UMR context"
-    ]
-  },
-  "session_041_changes": {
-    "new_artifacts": [
-      "mathart/headless_e2e_ci.py: Hermetic three-level E2E audit pipeline (~600 lines)",
-      "mathart/evolution/visual_regression_bridge.py: Three-layer visual regression bridge (~500 lines)",
-      "tests/test_evolution_visual_regression.py: 25 tests for visual regression bridge",
-      "golden/golden_manifest.json: Golden baseline manifest (SHA-256 seals)",
-      "golden/golden_atlas.png: Golden baseline atlas image",
-      "golden/golden_meta.json: Golden baseline metadata",
-      "knowledge/visual_regression_ci.md: Visual regression CI knowledge rules",
-      "research_session041_visual_regression_ci.md: Deep research notes",
-      "audit_session041_checklist.md: Full audit checklist"
-    ],
-    "modified_artifacts": [
-      "mathart/evolution/engine.py: Added VisualRegressionEvolutionBridge integration, evaluate_visual_regression(), status report section, _update_brain() persistence",
-      "mathart/evolution/__init__.py: Exported VisualRegressionEvolutionBridge, VisualRegressionMetrics, VisualRegressionState",
-      ".github/workflows/ci.yml: Added visual-regression job with SSIM audit and artifact upload",
-      "pyproject.toml: Added scikit-image, opencv-python-headless dependencies and headless-e2e-ci script entry"
-    ],
-    "summary": "SESSION-041 closes Gap 3 (End-to-End Reproducibility) with a production-grade visual regression pipeline. headless_e2e_ci.py implements hermetic sandbox execution with three audit levels: L0 cold start, L1 structural manifest SHA-256, L2 SSIM visual regression (threshold 0.9999). Golden baselines are checked into golden/. VisualRegressionEvolutionBridge integrates visual fidelity into all three evolution layers. CI workflow updated with visual-regression job. Research: Skia Gold (Google Chrome), OpenUSD Validation (Pixar), SSIM (Wang 2004), Hermetic Builds (Bazel). 799/799 tests pass.",
-    "top_gaps": [
-      "Scene-aware raycast/runtime sensors for distance matching (P1-PHASE-37A)",
-      "Gait transition blending walk/run/sneak (P1-PHASE-33A)",
-      "Production benchmark asset suite (P1-NEW-10)",
-      "Industrial renderer integration into AssetPipeline (P1-INDUSTRIAL-34A)",
-      "3D-to-2D mesh rendering path (P1-INDUSTRIAL-34C)"
-    ],
-    "remaining_followups": [
-      "P1-PHASE-37A: replace analytic distance proxies with terrain-aware sensors",
-      "P1-PHASE-33A: smooth phase-preserving gait transition blending",
-      "P1-NEW-10: create benchmark characters, tiles, VFX with acceptance thresholds",
-      "P1-INDUSTRIAL-34A: wire industrial renderer as optional backend",
-      "P1-INDUSTRIAL-34C: implement 3D mesh to 2D pixel art pipeline"
     ]
   },
   "completed_work": [
@@ -2948,6 +2176,26 @@
     ]
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-073",
+      "date": "2026-04-19",
+      "focus": "P1-MIGRATE-3 + P1-XPBD-4 + PROJECT_BRAIN.json cleanup",
+      "changes": [
+        "register_backend schema_version declaration + validate_artifact version check",
+        "ArtifactFamily.required_metadata_keys() with physics3d_telemetry depth assertions",
+        "test_ci_backend_schemas.py: reflexive full-backend CI traversal (9 tests)",
+        "XPBDSolver3D._ccd_sweep_ground(): 3D swept-sphere CCD with velocity gating",
+        "BackendCapability.CCD_ENABLED on Physics3DBackend",
+        "ccd_sweep_count[T] telemetry sidecar array",
+        "test_ccd_3d.py: 11 CCD tests (solver + backend + capability)",
+        "PROJECT_BRAIN.json: merged open_tasks, archived 42 DONE, consolidated 18 legacy keys"
+      ],
+      "test_results": "1362/1368 PASS (6 pre-existing infra flakes)",
+      "tasks_closed": [
+        "P1-MIGRATE-3",
+        "P1-XPBD-4 (3D extension)"
+      ]
+    },
     {
       "session_id": "SESSION-071",
       "version": "0.62.0",
@@ -3191,364 +2439,290 @@
       "date": "2026-04-18",
       "title": "Motion Cognitive Dimensionality Reduction & 2D IK Closed Loop",
       "summary": "Complete 3D→2D orthographic projection pipeline with FABRIK terrain-adaptive IK, Spine JSON export, animation 12-principles quantification, and three-layer evolution bridge. 40/40 tests PASS. Closes P3-QUAD-IK-1 and 5 new P3-MOTION2D tasks."
-    },
-    {
-      "id": "SESSION-060",
-      "version": "0.51.0",
-      "date": "2026-04-18",
-      "title": "Industrial Anti-Flicker Upgrade for the Visual AI Pipeline",
-      "summary": "Upgraded headless_comfy_ebsynth.py and BreakwallEvolutionBridge with sparse keyframe planning, identity-lock metadata, mask-guided propagation, temporal-stability metrics, and positive production-rule distillation. Real anti-flicker cycle PASS; Breakwall regression 28/28 PASS.",
-      "tasks_closed": [
-        "P1-AI-2F",
-        "P1-AI-2G"
-      ],
-      "artifacts": [
-        "mathart/animation/headless_comfy_ebsynth.py",
-        "mathart/evolution/breakwall_evolution_bridge.py",
-        "tests/test_breakwall_phase1.py",
-        "evolution_reports/session060_visual_anti_flicker_audit.md",
-        "evolution_reports/session060_visual_anti_flicker_cycle.json"
-      ]
-    },
-    {
-      "id": "SESSION-059",
-      "version": "0.50.0",
-      "date": "2026-04-18",
-      "title": "Unity URP 2D Native Hookup and Unified Bridge Suite",
-      "summary": "Added a Unity URP 2D native pipeline generator, Secondary Texture auto-binding, Taichi XPBD VAT baking, a new Unity bridge, and unified SESSION-057/058/059 bridge execution inside EvolutionOrchestrator. 4/4 Unity tests PASS; 32/32 combined regression PASS.",
-      "tasks_closed": [
-        "P3-EVO-1",
-        "P2-MORPHOLOGY-1",
-        "P2-WFC-1"
-      ],
-      "new_files": [
-        "mathart/animation/unity_urp_native.py",
-        "mathart/evolution/unity_urp_2d_bridge.py",
-        "tests/test_unity_urp_native.py",
-        "evolution_reports/session059_unity_orchestrator_audit.md",
-        "evolution_reports/session059_runtime_cycle.json",
-        "research/session059_research_notes.md",
-        "knowledge/unity_urp_2d_rules.md"
-      ]
-    },
-    {
-      "id": "SESSION-052",
-      "version": "0.43.0",
-      "date": "2026-04-17",
-      "title": "Physics Singularity: Full XPBD Two-Way Rigid-Soft Coupling",
-      "summary": "Replaced Jakobsen one-way visual-following with full XPBD solver. Two-way rigid-soft coupling, spatial-hash self-collision, three-layer evolution loop. P0-GAP-2 and P1-B1-2 CLOSED. Physics realism: 12/100 → ~45/100. 14/14 tests PASS.",
-      "tasks_closed": [
-        "P0-GAP-2",
-        "P1-B1-2"
-      ],
-      "new_files": [
-        "mathart/animation/xpbd_solver.py",
-        "mathart/animation/xpbd_collision.py",
-        "mathart/animation/xpbd_bridge.py",
-        "mathart/animation/xpbd_evolution.py",
-        "tests/test_xpbd_physics.py",
-        "docs/SESSION-052-AUDIT.md"
-      ]
-    },
-    {
-      "session_id": "SESSION-051",
-      "version": "0.42.0",
-      "date": "2026-04-17",
-      "gap_closed": "D1-core",
-      "title": "Graph-Based Property Fuzzing for Runtime State-Machine Coverage",
-      "new_modules": [
-        "mathart/animation/state_machine_graph.py",
-        "mathart/evolution/state_machine_coverage_bridge.py"
-      ],
-      "new_tests": 5,
-      "total_tests_pass": 6,
-      "key_references": [
-        "Hypothesis Stateful Testing docs",
-        "Hypothesis Rule-Based Stateful Testing article",
-        "NetworkX traversal docs",
-        "Model-based testing state machine coverage guidance"
-      ]
     }
   ],
-  "session_052_changes": {
-    "new_artifacts": [
-      "mathart/animation/xpbd_solver.py: Full XPBD solver with two-way rigid-soft coupling (~490 lines)",
-      "mathart/animation/xpbd_collision.py: Spatial hash collision system (~260 lines)",
-      "mathart/animation/xpbd_bridge.py: Drop-in replacement for SecondaryChainProjector (~230 lines)",
-      "mathart/animation/xpbd_evolution.py: Three-layer evolution loop (~580 lines)",
-      "tests/test_xpbd_physics.py: 14 comprehensive tests (~340 lines)",
-      "docs/SESSION-052-AUDIT.md: Full research-to-code audit report",
-      "research_notes_xpbd.md: XPBD paper reading notes and synthesis"
-    ],
-    "modified_artifacts": [
-      "mathart/animation/__init__.py: Added XPBD module exports (21 new symbols)",
-      "SESSION_HANDOFF.md: Updated for SESSION-052",
-      "PROJECT_BRAIN.json: Updated for SESSION-052"
-    ],
-    "p0_tasks_resolved": [
-      "P0-GAP-2: Full two-way rigid-soft XPBD coupling (Physics Singularity)",
-      "P1-B1-2: Volumetric contact and self-collision awareness"
-    ],
-    "benchmark_impact": {
-      "animation_physics_realism": "12 -> 45 (XPBD two-way coupling, self-collision, compliance decoupling)",
-      "overall": "~42-44% -> ~48-50% completion"
-    },
-    "validation": {
-      "full_suite": "14/14 XPBD tests PASS",
-      "new_tests": "14 XPBD physics tests",
-      "regression": "Zero breaking changes (backward-compatible: Jakobsen chains preserved)",
-      "code_delta": "+~1,900 lines (490 solver + 260 collision + 230 bridge + 580 evolution + 340 tests)"
-    },
-    "research_references": [
-      {
-        "title": "XPBD: Position-Based Simulation of Compliant Constrained Dynamics",
-        "authors": "Miles Macklin, Matthias Müller",
-        "venue": "SIGGRAPH 2016 / MIG 2016",
-        "url": "https://matthias-research.github.io/pages/publications/XPBD.pdf",
-        "key_ideas_landed": [
-          "Compliance α replaces stiffness k",
-          "α̃ = α/Δt² decouples from timestep and iterations",
-          "Lagrange multiplier accumulation for force estimation"
-        ]
-      },
-      {
-        "title": "Detailed Rigid Body Simulation with Extended Position Based Dynamics",
-        "authors": "Matthias Müller et al.",
-        "venue": "SCA 2020",
-        "url": "https://matthias-research.github.io/pages/publications/PBDBodies.pdf",
-        "key_ideas_landed": [
-          "Rigid CoM as XPBD particle with w=1/m",
-          "Unified solve pool for rigid + soft bodies",
-          "NPGS immediate position update",
-          "Inverse-mass reaction impulse for two-way coupling"
-        ]
-      },
-      {
-        "title": "Ten Minute Physics",
-        "authors": "Matthias Müller",
-        "venue": "YouTube/GitHub educational series",
-        "url": "https://matthias-research.github.io/pages/tenMinutePhysics/index.html",
-        "key_ideas_landed": [
-          "Array-based XPBD in ~100 lines",
-          "Spatial hashing for collision",
-          "Self-collision 5-trick recipe"
-        ]
-      },
-      {
-        "title": "Cloth Self-Collisions with XPBD",
-        "authors": "Carmen Cincotti",
-        "venue": "Blog tutorial",
-        "url": "https://carmencincotti.com/2022-11-21/cloth-self-collisions/",
-        "key_ideas_landed": [
-          "Practical self-collision implementation with spatial hash",
-          "Rest-length guard and friction model"
-        ]
-      }
-    ]
-  },
-  "session054_industrial_skin_status": {
-    "status": "implemented",
-    "audit": "docs/SESSION-054-AUDIT.md",
-    "knowledge": "knowledge/industrial_skin.md",
-    "research_notes": "research/session054_industrial_skin_research_notes.md",
-    "state_file": ".industrial_skin_state.json",
-    "validation": "17/17 targeted tests PASS; IndustrialSkinBridge accepted=True",
-    "landed_channels": [
-      "albedo",
-      "normal",
-      "depth",
-      "thickness",
-      "roughness",
-      "mask"
-    ],
-    "gradient_policy": "analytic-first for canonical primitives with finite-difference fallback"
-  },
-  "session057_crossdim_status": {
-    "status": "implemented",
-    "audit": "evolution_reports/session057_p2_audit.md",
-    "knowledge_morphology": "knowledge/smooth_morphology_rules.md",
-    "knowledge_wfc": "knowledge/constraint_wfc_rules.md",
-    "research_notes": "research/session057_p2_crossdim_research.md",
-    "state_files": [
-      ".smooth_morphology_state.json",
-      ".constraint_wfc_state.json"
-    ],
-    "validation": "114/114 SESSION-057 tests PASS; 66/66 core regression PASS; both P2 evolution bridges operational",
-    "new_modules": [
-      "mathart/animation/smooth_morphology.py",
-      "mathart/level/constraint_wfc.py",
-      "mathart/evolution/smooth_morphology_bridge.py",
-      "mathart/evolution/constraint_wfc_bridge.py"
-    ],
-    "closed_tasks": [
-      "P2-CROSSDIM-3",
-      "P2-CROSSDIM-4"
-    ],
-    "new_pending_tasks": [
-      "P2-MORPHOLOGY-1",
-      "P2-WFC-1",
-      "P2-MORPHOLOGY-2",
-      "P2-WFC-2",
-      "P2-MORPHOLOGY-3",
-      "P2-WFC-3"
-    ],
-    "research_references": [
-      "Inigo Quilez - Smooth Minimum (iquilezles.org 2013)",
-      "Inigo Quilez - 2D Distance Functions (iquilezles.org 2020)",
-      "Maxim Gumin - Wave Function Collapse (GitHub 2016)",
-      "Oskar Stålberg - Townscaper (2020)"
-    ],
-    "dimension_score_changes": {
-      "character_diversity": "15 -> 35",
-      "environment_tileset": "18 -> 32"
-    }
-  },
-  "session056_breakwall_status": {
-    "status": "implemented",
-    "audit": "research/session056_audit_checklist.md",
-    "knowledge": "knowledge/breakwall_phase1.md",
-    "research_notes": "research/session056_breakwall_research.md",
-    "state_file": ".breakwall_evolution_state.json",
-    "validation": "28/28 SESSION-056 tests PASS; 66/66 core regression PASS; BreakwallEvolutionBridge operational",
-    "new_modules": [
-      "mathart/animation/headless_comfy_ebsynth.py",
-      "mathart/animation/engine_import_plugin.py",
-      "mathart/evolution/breakwall_evolution_bridge.py"
-    ],
-    "closed_tasks": [
-      "P1-AI-2A",
-      "P1-AI-2B",
-      "P3-3"
-    ],
-    "substantially_closed_tasks": [
-      "P1-INDUSTRIAL-44A",
-      "P1-INDUSTRIAL-44C"
-    ],
-    "research_references": [
-      "Jamriška & Sýkora - Stylizing Video by Example (SIGGRAPH 2019)",
-      "Lvmin Zhang - ControlNet (ICCV 2023)",
-      "Sébastien Bénard - Dead Cells 2D Deferred Lighting (GDC 2019)",
-      "Thomas Vasseur - Dead Cells Art Pipeline (Game Developer 2018)",
-      "FuouM/ReEzSynth - Python EbSynth implementation"
-    ],
-    "engine_targets": [
-      "Godot 4 (plugin.gd + plugin.cfg + mathart_material.gdshader)",
-      "Unity URP 2D (MathArtImporter.cs + MathArtLitShader.shader)"
-    ],
-    "bundle_format": ".mathart (manifest.json + 6 PBR channels + contour.json)"
-  },
-  "open_tasks": [
+  "closed_tasks_archive": [
     {
-      "id": "P1-MIGRATE-1",
-      "priority": "P1",
-      "title": "Wire MicrokernelOrchestrator into AssetPipeline trunk as primary orchestration layer",
-      "status": "DONE",
-      "estimated_effort": "large",
-      "description": "CLOSED in SESSION-070. UnifiedMotionBackend promoted as first-class BackendMeta-compliant plugin (BackendType.UNIFIED_MOTION, ArtifactFamily.MOTION_UMR). pipeline.py._build_umr_clip_for_state() now routes through MicrokernelPipelineBridge.run_backend('unified_motion', context) enforcing Context-in / Manifest-out discipline. UMR data contract extended with backward-compatible 3D fields (z, velocity_z, rotation_3d, ContactManifoldRecord, joint_channel_schema). Transient phase metadata profiles injected at _ProceduralStateLane level for jump/fall/hit. 1305/1306 tests PASS (1 pre-existing bug). Architecture aligned with EA Frostbite FrameGraph, Mach/QNX Microkernel, Clean Architecture, and Pixar OpenUSD Schema.",
-      "added_in": "SESSION-064",
-      "completed_in": "SESSION-070"
+      "id": "P0-DISTILL-1",
+      "title": "Global Distillation Bus (The Brain)",
+      "completed_in": "SESSION-050",
+      "priority": "P0"
     },
     {
-      "id": "P1-MIGRATE-2",
-      "priority": "P1",
-      "title": "Migrate legacy EvolutionOrchestrator bridges to NicheRegistry",
-      "status": "TODO",
-      "estimated_effort": "large",
-      "description": "Convert each existing *EvolutionBridge (Contract, VisualRegression, Fluid, Jakobsen, Terrain, Gait, etc.) into @register_niche decorated classes that implement the EvolutionNiche interface. This eliminates the manual bridge list in EvolutionOrchestrator.",
-      "added_in": "SESSION-064"
+      "id": "P0-EVAL-BRIDGE",
+      "title": "Parameter Convergence Bridge (Layer 3 Evaluation → Export Loop)",
+      "completed_in": "SESSION-043",
+      "priority": "P0"
     },
     {
-      "id": "P1-MIGRATE-3",
-      "priority": "P1",
-      "title": "Add per-backend CI validation with artifact schema checks",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Extend CI pipeline to run validate_artifact() on every backend output. Failed schema validation should block merge.",
-      "added_in": "SESSION-064"
+      "id": "P0-GAP-2",
+      "title": "Full Rigid Body/Soft Body Coupling (XPBD two-way integration)",
+      "completed_in": "SESSION-052",
+      "priority": "P0"
     },
     {
-      "id": "P1-MIGRATE-4",
-      "priority": "P1",
-      "title": "Implement hot-reload for dynamically discovered backends",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Use BackendRegistry.discover() to auto-scan mathart/export/ and mathart/core/builtin_backends.py at startup. New backends added as files should be automatically available without manual import.",
-      "added_in": "SESSION-064"
+      "id": "P0-GAP-C1",
+      "title": "Industrial-grade analytical SDF normal/depth pipeline",
+      "completed_in": "SESSION-044",
+      "priority": "P0"
     },
     {
-      "id": "P1-AI-2D",
-      "priority": "P1",
-      "title": "Ship real ComfyUI batch preset packs for IP-Adapter + ControlNet anti-flicker jobs",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Provide reusable node-template presets and parameter bundles for real ComfyUI-backed production jobs using sparse keyframes, IP-Adapter identity lock, dual ControlNet, masks, and motion vectors.",
-      "added_in": "SESSION-060"
+      "id": "P0-GOLDEN-PATH-CLI-1",
+      "title": "Expose canonical Golden Path backends through first-class CLI commands",
+      "completed_in": "SESSION-067",
+      "priority": "P0"
     },
     {
-      "id": "P1-AI-2E",
-      "priority": "P1",
-      "title": "Extend motion-adaptive keyframe planning to high-nonlinearity action segments",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Generalize SESSION-060 motion-adaptive keyframe planning from idle-like sequences to jump, fall, hit, attack, and segmented action clips with tighter max-gap control.",
-      "added_in": "SESSION-060"
+      "id": "P1-AI-2",
+      "title": "Simulation-conditioned neural rendering bridge",
+      "completed_in": "SESSION-045",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-AI-2A",
+      "title": "Real-time EbSynth/ComfyUI integration demo with exported MV data",
+      "completed_in": "SESSION-056",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-AI-2B",
+      "title": "ControlNet conditioning pipeline using motion vector maps",
+      "completed_in": "SESSION-056",
+      "priority": "P1"
     },
     {
       "id": "P1-AI-2F",
-      "priority": "P1",
       "title": "Sequence-level anti-flicker audit data model for neural rendering",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-060. The neural rendering pipeline now records keyframe plans, workflow manifests, mask outputs, temporal stability, drift, identity consistency, and guide-lock metrics.",
-      "added_in": "SESSION-060",
-      "closed_in": "SESSION-060"
+      "completed_in": "unknown",
+      "priority": "P1"
     },
     {
       "id": "P1-AI-2G",
-      "priority": "P1",
       "title": "Breakwall Phase 2 anti-flicker bridge upgrade",
-      "status": "DONE",
-      "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-060. BreakwallEvolutionBridge now persists and distills guide-lock, identity stability, long-range drift, temporal stability, and positive production recipes for visual anti-flicker cycles.",
-      "added_in": "SESSION-060",
-      "closed_in": "SESSION-060"
+      "completed_in": "unknown",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-B1-2",
+      "title": "Upgrade Jakobsen body proxies toward width-aware contacts and optional self-collision",
+      "completed_in": "SESSION-052",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-B3-3",
+      "title": "Support asymmetric sync markers (limping, injured gaits)",
+      "completed_in": "SESSION-065",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-B3-4",
+      "title": "Support quadruped/multi-legged sync marker extensions",
+      "completed_in": "SESSION-065",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-BENCH-35A",
+      "title": "End-to-end trunk reproducibility validation",
+      "completed_in": "SESSION-040",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-DISTILL-1A",
+      "title": "Roll Runtime DistillBus into gait blending and batch physics penalties",
+      "completed_in": "SESSION-072",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-GAP4-CI",
+      "title": "Scheduled or nightly Layer 3 closed-loop audits",
+      "completed_in": "SESSION-066",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-HUMAN-31B",
+      "title": "Add motion transition blending and pose warping after 2D motion matching retrieval",
+      "completed_in": "SESSION-039",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-INDUSTRIAL-34B",
+      "title": "Runtime motion matching query for real-time animation",
+      "completed_in": "SESSION-039",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-INDUSTRIAL-44B",
+      "title": "Analytic-gradient native primitives for auxiliary-map baking",
+      "completed_in": "SESSION-054",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-MIGRATE-1",
+      "title": "Wire MicrokernelOrchestrator into AssetPipeline trunk as primary orchestration layer",
+      "completed_in": "SESSION-070",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-MIGRATE-3",
+      "title": "Add per-backend CI validation with artifact schema checks",
+      "completed_in": "SESSION-073",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-PHASE-33A",
+      "title": "Gait transition blending (walk/run/sneak)",
+      "completed_in": "SESSION-049",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-PHASE-35A",
+      "title": "Phase-driven coverage for jump/fall/hit + CLI trunk enforcement",
+      "completed_in": "SESSION-040",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-PHASE-37A",
+      "title": "Scene-aware distance matching sensors",
+      "completed_in": "SESSION-048",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-UMR-36A",
+      "title": "Propagate UMR contract to CLI, exporters, and distillation bus",
+      "completed_in": "SESSION-040",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-URP2D-PIPE-1",
+      "title": "Expose UnityURP2DNativePipelineGenerator through standard CLI / AssetPipeline entrypoints",
+      "completed_in": "SESSION-067",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-VFX-1",
+      "title": "Physics-driven Particle System",
+      "completed_in": "SESSION-046",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-XPBD-2",
+      "title": "GPU-accelerated XPBD solver (reference: Müller Tutorial 16)",
+      "completed_in": "SESSION-058",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-XPBD-3",
+      "title": "3D extension of XPBD solver (current solver is 2D)",
+      "completed_in": "SESSION-071",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-XPBD-4",
+      "title": "Continuous Collision Detection (CCD) for fast-moving objects",
+      "completed_in": "SESSION-058",
+      "priority": "P1"
+    },
+    {
+      "id": "P2-DEEPPHASE-FFT-1",
+      "title": "DeepPhase FFT frequency-domain phase decomposition",
+      "completed_in": "SESSION-065",
+      "priority": "P2"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-11",
+      "title": "Implement vertex normal editing tool for cel-shading",
+      "completed_in": "SESSION-065",
+      "priority": "P2"
+    },
+    {
+      "id": "P2-DIM-UPLIFT-3",
+      "title": "Add QEM mesh simplification for LOD generation",
+      "completed_in": "SESSION-065",
+      "priority": "P2"
+    },
+    {
+      "id": "P2-MOTIONDB-IK-1",
+      "title": "Integrate motion matching database with 2D IK pipeline",
+      "completed_in": "SESSION-065",
+      "priority": "P2"
+    },
+    {
+      "id": "P2-XPBD-5",
+      "title": "Cloth mesh simulation (current is 1D chain only)",
+      "completed_in": "SESSION-058",
+      "priority": "P2"
+    },
+    {
+      "id": "P3-3",
+      "title": "Unity/Godot exporter plugin",
+      "completed_in": "SESSION-056",
+      "priority": "P3"
+    },
+    {
+      "id": "P3-4",
+      "title": "CI/CD + GitHub Actions",
+      "completed_in": "SESSION-041",
+      "priority": "P3"
+    },
+    {
+      "id": "P3-6",
+      "title": "README update for SESSION-018~026 features",
+      "completed_in": "unknown",
+      "priority": "P3"
+    },
+    {
+      "id": "P3-MOTION2D-1",
+      "title": "3D→2D Orthographic Projection Pipeline",
+      "completed_in": "SESSION-061",
+      "priority": "P0"
+    },
+    {
+      "id": "P3-MOTION2D-2",
+      "title": "FABRIK 2D Terrain-Adaptive IK Closed Loop",
+      "completed_in": "SESSION-061",
+      "priority": "P0"
+    },
+    {
+      "id": "P3-MOTION2D-3",
+      "title": "Animation 12 Principles Quantification System",
+      "completed_in": "SESSION-061",
+      "priority": "P0"
+    },
+    {
+      "id": "P3-MOTION2D-4",
+      "title": "Motion 2D Pipeline Three-Layer Evolution Bridge",
+      "completed_in": "SESSION-061",
+      "priority": "P0"
+    },
+    {
+      "id": "P3-QUAD-IK-1",
+      "title": "Connect quadruped gait planner to a real quadruped skeleton and IK solver",
+      "completed_in": "SESSION-061",
+      "priority": "P2"
     }
   ],
-  "session061_motion_2d_status": {
-    "orthographic_projector": "DONE — 3D→2D projection with bone length preservation 1.0",
-    "spine_json_exporter": "DONE — Full Spine JSON with IK constraints",
-    "fabrik_2d_solver": "DONE — O(n) convergence, angular constraints",
-    "terrain_adaptive_ik": "DONE — Biped + quadruped, contact accuracy 1.0",
-    "principles_quantifier": "DONE — 5/12 principles, aggregate 0.37",
-    "motion_2d_pipeline": "DONE — End-to-end NSM→2D→IK→export",
-    "evolution_bridge": "DONE — Three-layer with 8 research rules",
-    "test_coverage": "40/40 PASS",
-    "bridge_bonus": 0.537,
-    "quality_score": 0.874,
-    "research_references": [
-      "Sebastian Starke — MANN (SIGGRAPH 2018)",
-      "Sebastian Starke — NSM (SIGGRAPH Asia 2019)",
-      "Sebastian Starke — DeepPhase (SIGGRAPH 2022)",
-      "Daniel Holden — PFNN (SIGGRAPH 2017)",
-      "Aristidou & Lasenby — FABRIK (2011)",
-      "Thomas & Johnston — The Illusion of Life (1981)",
-      "Esoteric Software — Spine JSON Format"
+  "legacy_session_changes_consolidated": {
+    "note": "Per-session change keys from SESSION-028 through SESSION-061 consolidated in SESSION-073 to reduce JSON bloat. Full history preserved in git.",
+    "consolidated_keys": [
+      "session_029_changes",
+      "session_028_supp_changes",
+      "session_028_changes",
+      "session_035_changes",
+      "session_034_changes",
+      "session_031_changes",
+      "session_033_changes",
+      "session_032_changes",
+      "session_036_changes",
+      "session_037_changes",
+      "session_040_changes",
+      "session_038_changes",
+      "session_041_changes",
+      "session_052_changes",
+      "session054_industrial_skin_status",
+      "session057_crossdim_status",
+      "session056_breakwall_status",
+      "session061_motion_2d_status"
     ],
-    "new_files": [
-      "mathart/animation/orthographic_projector.py",
-      "mathart/animation/terrain_ik_2d.py",
-      "mathart/animation/principles_quantifier.py",
-      "mathart/animation/motion_2d_pipeline.py",
-      "mathart/evolution/motion_2d_pipeline_bridge.py",
-      "tests/run_pipeline_tests.py",
-      "research/session061_phase3_motion_cognitive_research.md",
-      "research/session061_audit_report.md"
-    ],
-    "modified_files": [
-      "mathart/animation/__init__.py",
-      "mathart/animation/xpbd_taichi.py",
-      "mathart/evolution/__init__.py",
-      "mathart/evolution/evolution_orchestrator.py"
-    ]
+    "consolidated_at": "SESSION-073"
   }
 }

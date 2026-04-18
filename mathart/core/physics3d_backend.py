@@ -198,10 +198,13 @@ def _classify_input_dimensionality(clip: UnifiedMotionClip) -> tuple[bool, str]:
         BackendCapability.ANIMATION_EXPORT,
         # SESSION-072 (P1-DISTILL-1A): opt-in hot-path instrumentation.
         BackendCapability.HOT_PATH_INSTRUMENTED,
+        # SESSION-073 (P1-XPBD-4): Continuous Collision Detection.
+        BackendCapability.CCD_ENABLED,
     ),
     input_requirements=("state",),
     dependencies=(BackendType.UNIFIED_MOTION,),
-    session_origin="SESSION-072",
+    session_origin="SESSION-073",
+    schema_version="1.1.0",
 )
 class Physics3DBackend:
     """Microkernel plugin that lifts a UMR clip into a 3D XPBD-simulated clip.
@@ -305,6 +308,8 @@ class Physics3DBackend:
         # sidecar (Prometheus / Borgmon time-series model).
         _ts_solver_wall_ms: list[float] = []
         _ts_contact_count: list[int] = []
+        # SESSION-073 (P1-XPBD-4): per-frame CCD sweep count.
+        _ts_ccd_sweep_count: list[int] = []
 
         # SESSION-072 (P1-DISTILL-1A): read compliance knobs from context.
         _cd_raw = context.get("physics3d_compliance_distance")
@@ -365,9 +370,11 @@ class Physics3DBackend:
             # Per-frame telemetry recording (zero-overhead when sink absent)
             _ts_solver_wall_ms.append(_wall_ms)
             _ts_contact_count.append(int(diag.contact_collision_count))
+            _ts_ccd_sweep_count.append(int(diag.ccd_sweep_count))
             if _sink is not None:
                 _sink.record("solver_wall_time_ms", _wall_ms)
                 _sink.record("contact_count", int(diag.contact_collision_count))
+                _sink.record("ccd_sweep_count", int(diag.ccd_sweep_count))
 
             # ---- aggregate diagnostics ----------------------------------
             agg_diag.total_particles = max(agg_diag.total_particles, diag.total_particles)
@@ -498,6 +505,7 @@ class Physics3DBackend:
         _telemetry_sidecar: dict[str, Any] = {
             "solver_wall_time_ms": _ts_solver_wall_ms,
             "contact_count": _ts_contact_count,
+            "ccd_sweep_count": _ts_ccd_sweep_count,
             "frame_count": len(new_frames),
             "fps": clip.fps,
         }

@@ -68,6 +68,16 @@ class XPBDSolver3DConfig:
     # When ``None``, the solver falls back to ``default_compliance``.
     compliance_distance: float | None = None
     compliance_bending: float | None = None
+    # SESSION-073 (P1-XPBD-4): Continuous Collision Detection (CCD).
+    # When enabled, after each sub-step the solver performs a swept-sphere
+    # test along each dynamic particle's prev→predicted trajectory against
+    # the ground half-space. Particles whose velocity exceeds
+    # ``ccd_velocity_threshold`` are tested; hits are resolved by clamping
+    # the position to the safe point and removing the inward normal velocity
+    # component (Erin Catto GDC 2013 / Brian Mirtich 1996 / Bullet CCD).
+    enable_ccd: bool = True
+    ccd_velocity_threshold: float = 2.0
+    ccd_safety_backoff: float = 5e-4
 
 
 @dataclass
@@ -87,6 +97,11 @@ class XPBDSolver3DDiagnostics:
     max_velocity_observed: float = 0.0
     energy_estimate: float = 0.0
     z_axis_active: bool = False  # True when any particle has |z| > _EPS
+    # SESSION-073 (P1-XPBD-4): CCD diagnostics.
+    ccd_sweep_count: int = 0
+    ccd_hit_count: int = 0
+    ccd_min_toi: float = 1.0
+    ccd_max_correction: float = 0.0
 
     def to_dict(self) -> dict[str, float | int | bool]:
         return {
@@ -103,6 +118,10 @@ class XPBDSolver3DDiagnostics:
             "max_velocity_observed": float(self.max_velocity_observed),
             "energy_estimate": float(self.energy_estimate),
             "z_axis_active": bool(self.z_axis_active),
+            "ccd_sweep_count": int(self.ccd_sweep_count),
+            "ccd_hit_count": int(self.ccd_hit_count),
+            "ccd_min_toi": float(self.ccd_min_toi),
+            "ccd_max_correction": float(self.ccd_max_correction),
         }
 
 
@@ -439,6 +458,11 @@ class XPBDSolver3D:
         self_collision_count = 0
         contact_collision_count = 0
         max_vel = 0.0
+        # SESSION-073 (P1-XPBD-4): CCD accumulators.
+        ccd_sweep_count = 0
+        ccd_hit_count = 0
+        ccd_min_toi = 1.0
+        ccd_max_correction = 0.0
 
         for _sub in range(self.config.sub_steps):
             # ---- 1. Predict ------------------------------------------------
@@ -488,6 +512,20 @@ class XPBDSolver3D:
                 self._prev_positions[i] = self._positions[i].copy()
                 self._positions[i] = solve_x[i].copy()
 
+            # ---- 5. SESSION-073 (P1-XPBD-4): CCD sweep --------------------
+            # After the constraint-corrected positions are committed, perform
+            # a swept-sphere CCD test for every dynamic particle whose speed
+            # exceeds the velocity threshold. This catches tunnelling that
+            # the discrete contact constraint missed (Erin Catto GDC 2013).
+            if self.config.enable_ccd:
+                _ccd = self._ccd_sweep_ground(sub_dt)
+                ccd_sweep_count += _ccd[0]
+                ccd_hit_count += _ccd[1]
+                if _ccd[2] < ccd_min_toi:
+                    ccd_min_toi = _ccd[2]
+                if _ccd[3] > ccd_max_correction:
+                    ccd_max_correction = _ccd[3]
+
         # ---- Diagnostics --------------------------------------------------
         rigid_disp = 0.0
         reaction = 0.0
@@ -520,6 +558,10 @@ class XPBDSolver3D:
             max_velocity_observed=max_vel,
             energy_estimate=energy,
             z_axis_active=z_active,
+            ccd_sweep_count=ccd_sweep_count,
+            ccd_hit_count=ccd_hit_count,
+            ccd_min_toi=ccd_min_toi,
+            ccd_max_correction=ccd_max_correction,
         )
         return self._last_diagnostics
 
@@ -715,6 +757,128 @@ class XPBDSolver3D:
         w_sum = w_i + w_j
         x[i] -= w_i / w_sum * correction_mag * t_dir
         x[j] += w_j / w_sum * correction_mag * t_dir
+
+    # ---------------------------------------------------------- CCD sweep
+
+    def _ccd_sweep_ground(
+        self, sub_dt: float,
+    ) -> tuple[int, int, float, float]:
+        """Swept-sphere CCD against all CONTACT constraints' half-spaces.
+
+        SESSION-073 (P1-XPBD-4) — Continuous Collision Detection.
+
+        For each dynamic particle whose speed exceeds
+        ``config.ccd_velocity_threshold``, we compute the swept-sphere
+        time-of-impact (TOI) along the ``prev_position → position``
+        trajectory against every active CONTACT constraint's half-space
+        (defined by the constraint's explicit ``contact_normal`` and the
+        kinematic anchor particle's position).
+
+        On a hit the particle is clamped to the safe point (TOI minus
+        ``config.ccd_safety_backoff``) and the inward normal velocity
+        component is removed — matching the Bullet / PhysX CCD
+        post-resolution convention.
+
+        Returns
+        -------
+        tuple[int, int, float, float]
+            ``(sweep_count, hit_count, min_toi, max_correction)``
+        """
+        n = self._particle_count
+        if n == 0:
+            return (0, 0, 1.0, 0.0)
+
+        # Collect half-space planes from CONTACT constraints.
+        # Each plane is (point_on_plane: ndarray(3,), normal: ndarray(3,)).
+        planes: list[tuple[np.ndarray, np.ndarray]] = []
+        for c in self._constraints:
+            if c.kind != ConstraintKind.CONTACT:
+                continue
+            if c.contact_normal is None:
+                continue  # particle-particle contacts: no half-space
+            # The kinematic anchor is the second particle (j).
+            j = c.particle_indices[1]
+            plane_pt = self._positions[j].copy()
+            n_vec = np.array(c.contact_normal, dtype=np.float64)
+            n_len = float(np.linalg.norm(n_vec))
+            if n_len < _EPS:
+                continue
+            planes.append((plane_pt, n_vec / n_len))
+
+        if not planes:
+            return (0, 0, 1.0, 0.0)
+
+        sweep_count = 0
+        hit_count = 0
+        min_toi = 1.0
+        max_correction = 0.0
+        threshold = self.config.ccd_velocity_threshold
+        backoff = self.config.ccd_safety_backoff
+
+        for i in range(n):
+            if self._inv_masses[i] <= 0.0:
+                continue  # kinematic — skip
+            speed = float(np.linalg.norm(self._velocities[i]))
+            if speed < threshold:
+                continue  # slow enough — discrete is fine
+
+            p0 = self._prev_positions[i]
+            p1 = self._positions[i]
+            motion = p1 - p0
+            motion_len = float(np.linalg.norm(motion))
+            if motion_len < _EPS:
+                continue
+
+            sweep_count += 1
+            motion_dir = motion / motion_len
+            radius = float(self._radii[i])
+
+            best_toi = 1.0
+            best_normal: np.ndarray | None = None
+
+            for plane_pt, plane_n in planes:
+                # Signed distance from start to plane (positive = above).
+                d0 = float(np.dot(p0 - plane_pt, plane_n)) - radius
+                d1 = float(np.dot(p1 - plane_pt, plane_n)) - radius
+
+                if d1 >= 0.0:
+                    continue  # no penetration at end
+                if d0 <= 0.0:
+                    # Already penetrating at start — TOI = 0.
+                    if 0.0 < best_toi:
+                        best_toi = 0.0
+                        best_normal = plane_n
+                    continue
+
+                # Linear interpolation TOI: d0 + t*(d1-d0) = 0.
+                denom = d0 - d1
+                if denom < _EPS:
+                    continue
+                toi = d0 / denom
+                toi = max(0.0, min(toi, 1.0))
+                if toi < best_toi:
+                    best_toi = toi
+                    best_normal = plane_n
+
+            if best_toi < 1.0 and best_normal is not None:
+                hit_count += 1
+                if best_toi < min_toi:
+                    min_toi = best_toi
+
+                # Clamp to safe point.
+                safe_t = max(best_toi - backoff / max(motion_len, _EPS), 0.0)
+                safe_pos = p0 + motion * safe_t
+                correction = float(np.linalg.norm(self._positions[i] - safe_pos))
+                if correction > max_correction:
+                    max_correction = correction
+                self._positions[i] = safe_pos
+
+                # Remove inward normal velocity component.
+                vn = float(np.dot(self._velocities[i], best_normal))
+                if vn < 0.0:
+                    self._velocities[i] -= vn * best_normal
+
+        return (sweep_count, hit_count, min_toi, max_correction)
 
 
 __all__ = [

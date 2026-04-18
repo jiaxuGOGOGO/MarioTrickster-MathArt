@@ -72,6 +72,11 @@ class ArtifactFamily(Enum):
 
     Each family defines what kind of output a backend produces.
     This eliminates the ambiguity of generic ``output_paths`` lists.
+
+    SESSION-073 (P1-MIGRATE-3): Each family now exposes a
+    ``required_metadata_keys()`` class method that returns the set of
+    metadata keys the family mandates. ``validate_artifact()`` checks
+    these keys, enforcing the Pixar USD Schema Compliance pattern.
     """
     SPRITE_SHEET = "sprite_sheet"
     SPRITE_SINGLE = "sprite_single"
@@ -98,6 +103,32 @@ class ArtifactFamily(Enum):
     MOTION_UMR = "motion_umr"
     PHYSICS_3D_MOTION_UMR = "physics_3d_motion_umr"
     COMPOSITE = "composite"
+
+    @classmethod
+    def required_metadata_keys(cls, family_value: str) -> frozenset[str]:
+        """Return the set of metadata keys mandated by a given family.
+
+        SESSION-073 (P1-MIGRATE-3): Explicit schema contract per family.
+        The ``PHYSICS_3D_MOTION_UMR`` family enforces ``physics_solver``,
+        ``contact_manifold_count``, ``frame_count``, ``fps``, and
+        ``joint_channel_schema``. Other families derive their requirements
+        from the ``FAMILY_SCHEMAS`` registry.
+        """
+        _FAMILY_REQUIRED_METADATA: dict[str, frozenset[str]] = {
+            cls.PHYSICS_3D_MOTION_UMR.value: frozenset({
+                "physics_solver",
+                "contact_manifold_count",
+                "frame_count",
+                "fps",
+                "joint_channel_schema",
+            }),
+            cls.MOTION_UMR.value: frozenset({
+                "frame_count",
+                "fps",
+                "joint_channel_schema",
+            }),
+        }
+        return _FAMILY_REQUIRED_METADATA.get(family_value, frozenset())
 
 
 # ---------------------------------------------------------------------------
@@ -472,6 +503,77 @@ def validate_artifact(manifest: ArtifactManifest) -> list[str]:
             f"got {manifest.schema_hash}"
         )
 
+    # 5. SESSION-073 (P1-MIGRATE-3): required_metadata_keys() enforcement.
+    required_keys = ArtifactFamily.required_metadata_keys(manifest.artifact_family)
+    for rk in sorted(required_keys):
+        if rk not in manifest.metadata:
+            errors.append(
+                f"Missing required metadata key {rk!r} mandated by "
+                f"ArtifactFamily.required_metadata_keys() for family "
+                f"{manifest.artifact_family!r}"
+            )
+
+    # 6. SESSION-073 (P1-MIGRATE-3): physics3d_telemetry sidecar deep
+    #    validation — Borgmon / Prometheus time-series model compliance.
+    if manifest.artifact_family == ArtifactFamily.PHYSICS_3D_MOTION_UMR.value:
+        telemetry = manifest.metadata.get("physics3d_telemetry")
+        if telemetry is not None:
+            _tel_required = {"solver_wall_time_ms", "contact_count", "frame_count", "fps"}
+            for tk in sorted(_tel_required):
+                if tk not in telemetry:
+                    errors.append(
+                        f"physics3d_telemetry missing required key {tk!r}"
+                    )
+            fc = telemetry.get("frame_count", 0)
+            for arr_key in ("solver_wall_time_ms", "contact_count"):
+                arr = telemetry.get(arr_key)
+                if isinstance(arr, (list, tuple)) and len(arr) != fc:
+                    errors.append(
+                        f"physics3d_telemetry[{arr_key!r}] length {len(arr)} "
+                        f"!= frame_count {fc}"
+                    )
+            # SESSION-073 (P1-XPBD-4): validate ccd_sweep_count if present.
+            ccd_arr = telemetry.get("ccd_sweep_count")
+            if ccd_arr is not None:
+                if isinstance(ccd_arr, (list, tuple)) and len(ccd_arr) != fc:
+                    errors.append(
+                        f"physics3d_telemetry['ccd_sweep_count'] length "
+                        f"{len(ccd_arr)} != frame_count {fc}"
+                    )
+
+    return errors
+
+
+def validate_artifact_strict(
+    manifest: "ArtifactManifest",
+    *,
+    min_schema_version: str = "",
+) -> list[str]:
+    """Strict validation with schema version floor enforcement.
+
+    SESSION-073 (P1-MIGRATE-3): Used by CI guard tests to reject manifests
+    whose ``version`` is below ``min_schema_version``. This prevents silent
+    schema downgrade — the Pixar USD ``usdchecker`` compliance pattern.
+
+    Parameters
+    ----------
+    manifest : ArtifactManifest
+        The manifest to validate.
+    min_schema_version : str
+        Minimum acceptable manifest version (semver string).
+        When empty, no version floor is enforced.
+
+    Returns
+    -------
+    list[str]
+        List of validation error messages. Empty means valid.
+    """
+    errors = validate_artifact(manifest)
+    if min_schema_version and manifest.version < min_schema_version:
+        errors.append(
+            f"Schema version downgrade blocked: manifest version "
+            f"{manifest.version!r} < required minimum {min_schema_version!r}"
+        )
     return errors
 
 

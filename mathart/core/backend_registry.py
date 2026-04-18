@@ -90,6 +90,11 @@ class BackendCapability(Enum):
     # this invariant.  Design reference: eBPF / DTrace zero-overhead dynamic
     # tracing — the probe is opt-in and zero-cost when absent.
     HOT_PATH_INSTRUMENTED = auto()
+    # SESSION-073 (P1-XPBD-4): Continuous Collision Detection capability.
+    # Backends declaring this flag implement CCD sweep tests gated by a
+    # velocity threshold, preventing fast-moving bodies from tunneling
+    # through thin geometry (Erin Catto GDC 2013 / Brian Mirtich 1996).
+    CCD_ENABLED = auto()
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +166,11 @@ class BackendMeta:
     dependencies: tuple[str, ...] = ()
     author: str = "MarioTrickster-MathArt"
     session_origin: str = "SESSION-064"
+    # SESSION-073 (P1-MIGRATE-3): Schema version pinning per backend.
+    # When set, validate_artifact() will block manifests whose version
+    # is lower than the declared minimum, preventing silent schema
+    # downgrade (Pixar USD Schema Compliance pattern).
+    schema_version: str = ""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "name", backend_type_value(self.name))
@@ -368,6 +378,7 @@ def register_backend(
     dependencies: tuple[str | BackendType, ...] = (),
     author: str = "MarioTrickster-MathArt",
     session_origin: str = "SESSION-064",
+    schema_version: str = "",
 ) -> Callable[[Type], Type]:
     """Decorator to register a class as an export backend.
 
@@ -397,6 +408,7 @@ def register_backend(
             dependencies=dependencies,
             author=author,
             session_origin=session_origin,
+            schema_version=schema_version,
         )
         registry = get_registry()
         registry.register(meta, cls)

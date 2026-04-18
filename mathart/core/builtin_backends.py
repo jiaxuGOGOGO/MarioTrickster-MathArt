@@ -1092,6 +1092,7 @@ class KnowledgeDistillBackend:
     ),
     input_requirements=("state", "frame_count"),
     session_origin="SESSION-070",
+    schema_version="1.0.0",
 )
 class UnifiedMotionBackend:
     """First-class motion backend wrapping the MotionStateLaneRegistry.
