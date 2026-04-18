@@ -2,6 +2,17 @@
   "version": "0.62.0",
   "last_session_id": "SESSION-071",
   "last_updated": "2026-04-19T12:00:00Z",
+  "gap_inventory": {
+    "document": "docs/gap_analysis_session071.md",
+    "recomputed_at": "2026-04-19",
+    "baseline_session": "SESSION-071",
+    "head_commit": "02327b7",
+    "active_total": 80,
+    "by_priority": {"P1": 43, "P2": 33, "P3": 4},
+    "by_status": {"TODO": 66, "PARTIAL": 7, "SUBSTANTIALLY-CLOSED": 5, "SUBSTANTIALLY-ADVANCED": 2},
+    "status_conflicts": 0,
+    "top_priorities_ordered": ["P1-DISTILL-1A", "P1-MIGRATE-3", "P1-MIGRATE-2", "P1-DISTILL-1B", "P1-DISTILL-3", "P1-DISTILL-4", "P1-B3-1", "P1-GAP4-BATCH", "P1-XPBD-1", "P1-AI-2D", "P1-AI-2D-SPARSECTRL", "P1-INDUSTRIAL-34C"]
+  },
   "best_quality_score": 0.892,
   "validation_pass_rate": "SESSION-071 P1-XPBD-3 3D physics microkernel landing PASS: 1312/1312 stable suites PASS in serial (taichi/anti_flicker/state_machine_fuzz/evolution_loop/layer3_closed_loop excluded as pre-existing infra-only flakes). 7/7 new P1-XPBD-3 red-line tests PASS, 273/273 critical regression subset PASS (unified_motion + xpbd + physics + pipeline + registry + phase + motion_2d + locomotion). Zero breakage of the SESSION-070 1305-baseline. XPBDSolver3D performs real ∇C in [x,y,z] (3D bending uses double cross product), SpatialHashGrid3D separates Z layers, ContactManifoldRecord now carries 3D normal + contact point + penetration depth, Physics3DBackend (BackendType.PHYSICS_3D, ArtifactFamily.PHYSICS_3D_MOTION_UMR) is auto-registered and consumes the upstream MOTION_UMR manifest via Context-in/Manifest-out only — AST guard verifies no static UnifiedMotionBackend import.",
   "total_iterations": 600,

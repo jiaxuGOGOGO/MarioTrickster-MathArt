@@ -179,6 +179,20 @@ with tempfile.TemporaryDirectory() as td:
 
 > Do **not** remove `joint_channel_schema == "2d_scalar"` graceful downgrade from `Physics3DBackend.execute()`. Pure 2D upstream input must always succeed and must always be stamped with `metadata.physics_downgraded_to_2d_input = True`.
 
+## Gap Inventory Pointer (SESSION-071 recompute)
+
+A full active-gap inventory has been recomputed against the SESSION-071 codebase and committed to **`docs/gap_analysis_session071.md`**. Headline numbers (verified by `pending_tasks` ∪ `open_tasks` deduplication, `DONE` filtered out):
+
+| Metric | Value |
+|---|---|
+| Active total | **80** |
+| By priority | P1: **43** / P2: **33** / P3: **4** |
+| By status | TODO: **66** / PARTIAL: **7** / SUBSTANTIALLY-CLOSED: **5** / SUBSTANTIALLY-ADVANCED: **2** |
+| Status conflicts | **0** (the SESSION-070 `P1-AI-2C` dual-track conflict is now closed by commit `ff0827c`) |
+| Top 12 ordered | `P1-DISTILL-1A` → `P1-MIGRATE-3` → `P1-MIGRATE-2` → `P1-DISTILL-1B` → `P1-DISTILL-3` → `P1-DISTILL-4` → `P1-B3-1` → `P1-GAP4-BATCH` → `P1-XPBD-1` → `P1-AI-2D` → `P1-AI-2D-SPARSECTRL` → `P1-INDUSTRIAL-34C` |
+
+The same numbers are mirrored in the new top-level `gap_inventory` block of `PROJECT_BRAIN.json` so any downstream tooling can read them without re-deduplicating the task tables. The next session should treat `docs/gap_analysis_session071.md` as the single source of truth for gap prioritisation.
+
 ## Bottom Line
 
 SESSION-071 closes **P1-XPBD-3**: the 3D XPBD physics solver lands as a real microkernel plugin with three-dimensional `∇C`, three-dimensional spatial hashing, three-dimensional contact manifolds, and pure FrameGraph-style pipeline chaining. The three architectural red lines (no pseudo-3D shell, no 2D-baseline collapse, no microkernel over-coupling) are each enforced by a dedicated test that lives in `tests/test_physics3d_backend.py`. **7 / 7 new tests PASS, 273 / 273 critical regression subset PASS, 1312 / 1312 stable serial suites PASS — SESSION-070 baseline preserved bit-for-bit.** The architecture is now ready for seamless P1-DISTILL-1A integration via the four micro-adjustments listed above.
