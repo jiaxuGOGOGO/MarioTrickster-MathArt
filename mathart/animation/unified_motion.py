@@ -46,11 +46,17 @@ from typing import Any, Callable, Mapping, Optional, Sequence
 JOINT_CHANNEL_2D_SCALAR = "2d_scalar"
 JOINT_CHANNEL_2D_PLUS_DEPTH = "2d_plus_depth"
 JOINT_CHANNEL_3D_EULER = "3d_euler"
+# SESSION-071 (P1-XPBD-3): Added quaternion encoding for 3D rotational state
+# emitted by the new Physics3DBackend. Maintains additive backward compatibility:
+# 2D consumers never observe this value because pure-2D inputs default to
+# JOINT_CHANNEL_2D_SCALAR.
+JOINT_CHANNEL_3D_QUATERNION = "3d_quaternion"
 
 VALID_JOINT_CHANNEL_SCHEMAS = frozenset({
     JOINT_CHANNEL_2D_SCALAR,
     JOINT_CHANNEL_2D_PLUS_DEPTH,
     JOINT_CHANNEL_3D_EULER,
+    JOINT_CHANNEL_3D_QUATERNION,
 })
 
 
@@ -80,9 +86,18 @@ class ContactManifoldRecord:
     normal_x: float = 0.0
     normal_y: float = 1.0
     normal_z: float = 0.0
+    # SESSION-071 (P1-XPBD-3): NVIDIA PhysX / UE5 Chaos Physics-style fields.
+    # Added world-space contact point and a non-negative penetration depth so
+    # the 3D XPBD solver can build correct unilateral contact constraints and
+    # friction. Defaults are zero so 2D consumers stay bit-compatible.
+    contact_point_x: float = 0.0
+    contact_point_y: float = 0.0
+    contact_point_z: float = 0.0
+    penetration_depth: float = 0.0
+    source_solver: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d: dict[str, Any] = {
             "limb": self.limb,
             "active": bool(self.active),
             "lock_weight": float(self.lock_weight),
@@ -97,11 +112,26 @@ class ContactManifoldRecord:
                 float(self.normal_z),
             ],
         }
+        # SESSION-071: only serialize the 3D-physics fields when an authoring
+        # solver actually populated them, keeping legacy serialized records
+        # byte-identical to before.
+        if (self.contact_point_x or self.contact_point_y or self.contact_point_z
+                or self.penetration_depth or self.source_solver):
+            d["contact_point"] = [
+                float(self.contact_point_x),
+                float(self.contact_point_y),
+                float(self.contact_point_z),
+            ]
+            d["penetration_depth"] = float(self.penetration_depth)
+            if self.source_solver:
+                d["source_solver"] = self.source_solver
+        return d
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "ContactManifoldRecord":
         offset = d.get("local_offset", [0.0, 0.0, 0.0])
         normal = d.get("normal", [0.0, 1.0, 0.0])
+        cp = d.get("contact_point", [0.0, 0.0, 0.0])
         return cls(
             limb=str(d.get("limb", "")),
             active=bool(d.get("active", False)),
@@ -112,6 +142,11 @@ class ContactManifoldRecord:
             normal_x=float(normal[0]) if len(normal) > 0 else 0.0,
             normal_y=float(normal[1]) if len(normal) > 1 else 1.0,
             normal_z=float(normal[2]) if len(normal) > 2 else 0.0,
+            contact_point_x=float(cp[0]) if len(cp) > 0 else 0.0,
+            contact_point_y=float(cp[1]) if len(cp) > 1 else 0.0,
+            contact_point_z=float(cp[2]) if len(cp) > 2 else 0.0,
+            penetration_depth=float(d.get("penetration_depth", 0.0)),
+            source_solver=str(d.get("source_solver", "")),
         )
 
 
@@ -675,6 +710,7 @@ __all__ = [
     "JOINT_CHANNEL_2D_SCALAR",
     "JOINT_CHANNEL_2D_PLUS_DEPTH",
     "JOINT_CHANNEL_3D_EULER",
+    "JOINT_CHANNEL_3D_QUATERNION",
     "VALID_JOINT_CHANNEL_SCHEMAS",
     "PhaseState",
     "MotionRootTransform",

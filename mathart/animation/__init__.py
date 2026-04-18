@@ -91,6 +91,9 @@ from .unified_motion import (
     UnifiedMotionFrame, UnifiedMotionClip,
     MotionPipelineAuditEntry, MotionPipelineResult, MotionPipelineNode,
     pose_to_umr, umr_to_pose, infer_contact_tags, run_motion_pipeline,
+    ContactManifoldRecord,
+    JOINT_CHANNEL_2D_SCALAR, JOINT_CHANNEL_2D_PLUS_DEPTH, JOINT_CHANNEL_3D_EULER,
+    VALID_JOINT_CHANNEL_SCHEMAS,
 )
 # SESSION-031: Distilled human math stack (SMPL/VPoser/DQ/Motion Matching)
 from .human_math import (
@@ -391,6 +394,9 @@ __all__ = [
     "UnifiedMotionFrame", "UnifiedMotionClip",
     "MotionPipelineAuditEntry", "MotionPipelineResult", "MotionPipelineNode",
     "pose_to_umr", "umr_to_pose", "infer_contact_tags", "run_motion_pipeline",
+    "ContactManifoldRecord",
+    "JOINT_CHANNEL_2D_SCALAR", "JOINT_CHANNEL_2D_PLUS_DEPTH", "JOINT_CHANNEL_3D_EULER",
+    "VALID_JOINT_CHANNEL_SCHEMAS",
     # SESSION-031: Distilled human math stack
     "SMPLShapeLatent", "DistilledSMPLBodyModel",
     "PosePriorScore", "VPoserDistilledPrior",

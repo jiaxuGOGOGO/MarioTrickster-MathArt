@@ -78,6 +78,10 @@ class BackendCapability(Enum):
     ATLAS_EXPORT = auto()
     EVOLUTION_BRIDGE = auto()
     KNOWLEDGE_DISTILL = auto()
+    # SESSION-071 (P1-XPBD-3): 3D physics simulation capability — declares
+    # that a backend can consume an upstream MOTION_UMR manifest and produce
+    # a 3D-enriched motion clip plus contact manifold.
+    PHYSICS_SIMULATION = auto()
 
 
 # ---------------------------------------------------------------------------
@@ -408,6 +412,14 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.builtin_niches")
         except Exception as e:
             logger.debug("Failed to auto-load builtin niches: %s", e)
+        # SESSION-071 (P1-XPBD-3): auto-register the 3D physics microkernel
+        # plugin alongside the other built-in backends so the orchestrator
+        # can resolve BackendType.PHYSICS_3D without any explicit import
+        # from trunk code.
+        try:
+            importlib.import_module("mathart.core.physics3d_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load physics3d backend: %s", e)
     return registry
 
 

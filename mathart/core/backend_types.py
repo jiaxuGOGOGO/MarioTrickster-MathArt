@@ -28,6 +28,7 @@ class BackendType(str, Enum):
     LEGACY = "legacy"
     UNIFIED_MOTION = "unified_motion"
     MICROKERNEL = "microkernel"
+    PHYSICS_3D = "physics_3d"
 
 
 _BACKEND_ALIASES: dict[str, str] = {
@@ -45,6 +46,7 @@ _BACKEND_ALIASES: dict[str, str] = {
     BackendType.LEGACY.value: BackendType.LEGACY.value,
     BackendType.UNIFIED_MOTION.value: BackendType.UNIFIED_MOTION.value,
     BackendType.MICROKERNEL.value: BackendType.MICROKERNEL.value,
+    BackendType.PHYSICS_3D.value: BackendType.PHYSICS_3D.value,
     # Historical / user-requested variants
     "dimension_uplift": BackendType.DIMENSION_UPLIFT_MESH.value,
     "dimension_uplift_bundle": BackendType.DIMENSION_UPLIFT_MESH.value,
@@ -60,6 +62,10 @@ _BACKEND_ALIASES: dict[str, str] = {
     "motion_trunk": BackendType.UNIFIED_MOTION.value,
     "unified_motion_trunk": BackendType.UNIFIED_MOTION.value,
     "motion_lane_registry": BackendType.UNIFIED_MOTION.value,
+    # SESSION-071: P1-XPBD-3 — 3D XPBD physics backend aliases
+    "xpbd_3d": BackendType.PHYSICS_3D.value,
+    "physics3d": BackendType.PHYSICS_3D.value,
+    "physics_xpbd_3d": BackendType.PHYSICS_3D.value,
 }
 
 

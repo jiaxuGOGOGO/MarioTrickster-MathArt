@@ -96,6 +96,7 @@ class ArtifactFamily(Enum):
     CEL_SHADING = "cel_shading"
     DISPLACEMENT_MAP = "displacement_map"
     MOTION_UMR = "motion_umr"
+    PHYSICS_3D_MOTION_UMR = "physics_3d_motion_umr"
     COMPOSITE = "composite"
 
 
@@ -384,6 +385,20 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     ArtifactFamily.MOTION_UMR.value: {
         "required_outputs": ["motion_clip_json"],
         "required_metadata": ["frame_count", "fps", "joint_channel_schema"],
+        "required_quality": [],
+    },
+    # SESSION-071 (P1-XPBD-3): 3D-enriched UMR clip family. Inherits motion_umr
+    # required fields and adds 3D solver provenance metadata so downstream
+    # distillation (P1-DISTILL-1A) can discriminate physics-driven clips.
+    ArtifactFamily.PHYSICS_3D_MOTION_UMR.value: {
+        "required_outputs": ["motion_clip_json"],
+        "required_metadata": [
+            "frame_count",
+            "fps",
+            "joint_channel_schema",
+            "physics_solver",
+            "contact_manifold_count",
+        ],
         "required_quality": [],
     },
     ArtifactFamily.COMPOSITE.value: {

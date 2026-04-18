@@ -1,9 +1,9 @@
 {
-  "version": "0.61.0",
-  "last_session_id": "SESSION-070",
-  "last_updated": "2026-04-18T23:59:00Z",
+  "version": "0.62.0",
+  "last_session_id": "SESSION-071",
+  "last_updated": "2026-04-19T12:00:00Z",
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-070 P1-MIGRATE-1 microkernel takeover PASS: 1305/1306 tests PASS (1 pre-existing TransitionSynthesizer bug, 4 Taichi env-only). All 68/68 motion continuity regressions PASS. UnifiedMotionBackend Context-in/Manifest-out boundary verified. 3D contract extension (z, velocity_z, rotation_3d, ContactManifoldRecord, joint_channel_schema) backward-compatible — zero 2D breakage. Transient phase metadata (jump/fall/hit) now injected at lane level.",
+  "validation_pass_rate": "SESSION-071 P1-XPBD-3 3D physics microkernel landing PASS: 1312/1312 stable suites PASS in serial (taichi/anti_flicker/state_machine_fuzz/evolution_loop/layer3_closed_loop excluded as pre-existing infra-only flakes). 7/7 new P1-XPBD-3 red-line tests PASS, 273/273 critical regression subset PASS (unified_motion + xpbd + physics + pipeline + registry + phase + motion_2d + locomotion). Zero breakage of the SESSION-070 1305-baseline. XPBDSolver3D performs real ∇C in [x,y,z] (3D bending uses double cross product), SpatialHashGrid3D separates Z layers, ContactManifoldRecord now carries 3D normal + contact point + penetration depth, Physics3DBackend (BackendType.PHYSICS_3D, ArtifactFamily.PHYSICS_3D_MOTION_UMR) is auto-registered and consumes the upstream MOTION_UMR manifest via Context-in/Manifest-out only — AST guard verifies no static UnifiedMotionBackend import.",
   "total_iterations": 600,
   "total_code_lines": 109200,
   "distill_session_id": "DISTILL-012",
@@ -992,11 +992,12 @@
       "id": "P1-XPBD-3",
       "priority": "P1",
       "title": "3D extension of XPBD solver (current solver is 2D)",
-      "status": "PARTIAL",
+      "status": "DONE",
       "estimated_effort": "medium",
-      "description": "SESSION-070 pre-requisite COMPLETED: UMR contract now has backward-compatible z/velocity_z/rotation_3d fields on MotionRootTransform, ContactManifoldRecord with 3D normal/position/penetration_depth, and joint_channel_schema discriminator ('2d_scalar' | '3d_euler' | '3d_quaternion'). All 2D defaults preserved (z=None, rotation_3d=None). Remaining: implement actual 3D XPBD solver coupling, 3D constraint projection, and 3D collision detection using the new schema slots.",
+      "description": "CLOSED in SESSION-071. mathart/animation/xpbd_solver_3d.py implements a numpy-vectorised XPBD solver that operates entirely in [x,y,z] (positions/velocities/inverse-mass arrays are shape (N,3); distance and bending constraints compute true 3D ∇C with double cross product following Macklin & Müller SIGGRAPH 2016 / SCA 2020; compliance α̃ = α/Δt² decouples timestep). mathart/animation/xpbd_solver_3d.SpatialHashGrid3D adds genuine 3D spatial hashing (Teschner et al.) with min_separation gating to prevent false-positive contact pairs across Z layers. mathart/animation/unified_motion.ContactManifoldRecord is upgraded with 3D contact_point and penetration_depth (default-None backward compatible). mathart/core/physics3d_backend.Physics3DBackend (BackendType.PHYSICS_3D, ArtifactFamily.PHYSICS_3D_MOTION_UMR, BackendCapability.PHYSICS_SIMULATION) is auto-registered through backend_registry's lazy loader, declares 'unified_motion' as its sole dependency, and is invoked by MicrokernelPipelineBridge.run_backend in pure Context-in/Manifest-out FrameGraph style — verified by AST guard that the module statically imports neither UnifiedMotionBackend nor mathart.core.builtin_backends. 2D-only inputs (joint_channel_schema='2d_scalar', z=None) gracefully downgrade and are stamped with metadata.physics_downgraded_to_2d_input=True so SESSION-070's 1305-baseline (incl. the 68 motion-continuity tests) is preserved bit-for-bit.",
       "added_in": "SESSION-052",
-      "updated_in": "SESSION-070"
+      "updated_in": "SESSION-071",
+      "completed_in": "SESSION-071"
     },
     {
       "id": "P1-XPBD-4",
@@ -2929,13 +2930,43 @@
       "MAP-Elites Niche Registry (Pareto Front + Isolated Fitness)"
     ],
     "next_priorities": [
-      "P1-XPBD-3: 3D XPBD solver coupling (schema slots now ready from SESSION-070)",
-      "P1-DISTILL-1A: Roll RuntimeDistillBus into gait blending hot paths (global hot-path evaluation)",
+      "P1-DISTILL-1A: Roll RuntimeDistillBus into gait blending hot paths and physics3d hot path; the 3D backend's metadata (physics_solver, contact_manifold_count, physics_downgraded_to_2d_input, frame_count, fps) now provides the discriminator features distillation needs — next micro-tweaks: (a) emit per-frame solver wall-time + contact_count time-series so RuntimeDistillBus can accumulate hot-path histograms instead of per-clip aggregates, (b) extend BackendCapability with HOT_PATH_INSTRUMENTED and have backend_registry expose run_backend_with_telemetry that attaches a TelemetrySink to context (Context-in/Manifest-out preserved), (c) add a CompiledParameterSpace key for 'physics3d.compliance_distance' / 'physics3d.compliance_bending' so Optuna can tune them through the existing closed loop, (d) plumb DistillationRecord schema with an upstream_manifest_hash field so a 3D distillation rule can be tied back to the exact MOTION_UMR clip it learned from.",
       "P1-MIGRATE-2: Migrate legacy EvolutionOrchestrator bridges to niche registry",
       "P1-MIGRATE-3: Add per-backend CI validation with artifact schema checks"
     ]
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-071",
+      "version": "0.62.0",
+      "date": "2026-04-19",
+      "gap_closed": "P1-XPBD-3: real 3D XPBD coupling, 3D ContactManifoldRecord population, and Physics3DBackend microkernel landing",
+      "title": "Physics3DBackend Microkernel Landing — Real ∇C in [x,y,z], 3D Spatial Hash, FrameGraph Pipeline Chaining",
+      "new_modules": [
+        "mathart/animation/xpbd_solver_3d.py",
+        "mathart/core/physics3d_backend.py",
+        "tests/test_physics3d_backend.py"
+      ],
+      "summary": "Landed P1-XPBD-3 as a true microkernel plugin. XPBDSolver3D operates on (N,3) position/velocity arrays with real 3D distance/bending/contact constraint gradients (Macklin & Müller 2016/2020); SpatialHashGrid3D performs Teschner-style 3D bucketing with min_separation gating; ContactManifoldRecord is enriched with 3D contact_point + penetration_depth + source_solver. Physics3DBackend (BackendType.PHYSICS_3D, ArtifactFamily.PHYSICS_3D_MOTION_UMR, BackendCapability.PHYSICS_SIMULATION) is auto-registered via the lazy loader, declares 'unified_motion' as its only dependency, and runs Context-in/Manifest-out under MicrokernelPipelineBridge — AST guard verifies zero static coupling to UnifiedMotionBackend. Pure 2D inputs (joint_channel_schema='2d_scalar', z=None) gracefully downgrade with metadata.physics_downgraded_to_2d_input=True. 7 new red-line tests PASS, 273-test critical regression subset PASS, 1312/1312 stable serial suites PASS — SESSION-070 baseline (incl. 68 motion-continuity tests) preserved bit-for-bit.",
+      "tasks_closed": [
+        "P1-XPBD-3"
+      ],
+      "tasks_advanced": [
+        "P1-DISTILL-1A (preparation: 3D backend exposes physics_solver/contact_manifold_count/downgrade discriminators that the global hot-path evaluator can ingest)"
+      ],
+      "artifacts": [
+        "mathart/animation/xpbd_solver_3d.py",
+        "mathart/core/physics3d_backend.py",
+        "mathart/animation/unified_motion.py",
+        "mathart/animation/__init__.py",
+        "mathart/core/backend_types.py",
+        "mathart/core/artifact_schema.py",
+        "mathart/core/backend_registry.py",
+        "tests/test_physics3d_backend.py",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ]
+    },
     {
       "session_id": "SESSION-070",
       "version": "0.61.0",
