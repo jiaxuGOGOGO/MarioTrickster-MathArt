@@ -170,6 +170,17 @@ class MicrokernelPipelineBridge:
 
         # Execute target backend
         instance = cls()
+
+        # SESSION-068: If the backend implements validate_config(), call it
+        # before execution. This follows Duck Typing / Ports-and-Adapters:
+        # the bridge does NOT know what the backend validates — it just
+        # checks for the method and delegates.
+        if hasattr(instance, "validate_config") and callable(instance.validate_config):
+            validated_ctx, config_warnings = instance.validate_config(context)
+            for cw in config_warnings:
+                logger.info("Backend %s config: %s", backend_name, cw)
+            context = validated_ctx
+
         manifest = instance.execute(context)
 
         # Validate

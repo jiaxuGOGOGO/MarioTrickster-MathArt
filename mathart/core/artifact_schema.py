@@ -236,6 +236,19 @@ class ArtifactManifest:
         The payload preserves the strongly typed manifest contract while adding
         absolute paths and a few transport-level fields that external callers
         such as Unity or subprocess harnesses need for direct deserialization.
+
+        SESSION-068 Extension — Polymorphic ``payload`` key
+        ---------------------------------------------------
+        When ``metadata["payload"]`` is present, it is promoted to a top-level
+        ``payload`` key in the IPC envelope. This enables downstream consumers
+        to discriminate between:
+
+        * **frame_sequence** (anti-flicker temporal backend) — OTIO-inspired
+          time-series with per-frame path, role, and coherence score.
+        * **texture_channels** (industrial sprite backend) — MaterialX/glTF
+          PBR-inspired multi-channel material bundle with engine slot bindings.
+
+        The ``backend_type`` field serves as the discriminator tag.
         """
         resolved_manifest_path = (
             str(Path(manifest_path).resolve()) if manifest_path else None
@@ -244,11 +257,14 @@ class ArtifactManifest:
             role: str(Path(path).resolve())
             for role, path in self.outputs.items()
         }
-        return {
+
+        # --- Build base envelope ---
+        envelope: dict[str, Any] = {
             "status": status,
             "requested_backend": requested_backend or self.backend_type,
             "resolved_backend": self.backend_type,
             "artifact_family": self.artifact_family,
+            "backend_type": self.backend_type,
             "version": self.version,
             "session_id": self.session_id,
             "schema_hash": self.schema_hash,
@@ -259,6 +275,13 @@ class ArtifactManifest:
             "references": self.references,
             "tags": self.tags,
         }
+
+        # --- Promote polymorphic payload to top level (SESSION-068) ---
+        raw_payload = self.metadata.get("payload")
+        if isinstance(raw_payload, dict):
+            envelope["payload"] = raw_payload
+
+        return envelope
 
     def save(self, path: str | Path) -> None:
         """Save manifest to a JSON file."""

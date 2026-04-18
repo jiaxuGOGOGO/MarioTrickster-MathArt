@@ -1,131 +1,162 @@
 # SESSION HANDOFF
 
-> This document has been refreshed for **SESSION-067**.
+> This document has been refreshed for **SESSION-068**.
 
 ## Project Overview
 
 | Field | Value |
 |---|---|
-| Current version | **0.58.0** |
+| Current version | **0.59.0** |
 | Last updated | **2026-04-18** |
-| Last session | **SESSION-067** |
-| Base commit inspected at session start | `381305d72d43fda0d4648fb279ff6c356e93ef40` |
-| Best quality score achieved | **0.885** |
-| Total iterations run | **583+** |
-| Total code lines | **~105.9k** |
-| Latest validation status | **SESSION-067 dynamic CLI / IPC PASS; subprocess E2E for `python -m MarioTrickster` PASS; 31 targeted tests PASS** |
+| Last session | **SESSION-068** |
+| Base commit inspected at session start | `090684487c8885823910beea4590feb097b6bf45` (SESSION-067) |
+| Best quality score achieved | **0.892** |
+| Total iterations run | **590+** |
+| Total code lines | **~107.4k** |
+| Latest validation status | **SESSION-068: 20/20 E2E subprocess PASS; 2/2 regression PASS; 3/3 Red Line audit PASS** |
 
-## What SESSION-067 Delivered
+## What SESSION-068 Delivered
 
-SESSION-067 closed the missing **first-class CLI / IPC loop** that remained after the Golden Path Phase 0 hardening. SESSION-066 had already created the canonical backend socket layer, but the project still lacked a package-level, machine-safe command surface that external processes could trust. This session turned that socket layer into an actual **operational bus**.
+SESSION-068 executes the **high-dimensional backend code-landing pass**, transforming the `anti_flicker_render` and `industrial_sprite` backends from placeholder stubs into fully wired, production-grade execution paths with real pipeline integration, backend-owned parameter validation, and polymorphic multi-modal Manifest output.
 
-First, the repository now has a **package-native dynamic CLI facade**. `mathart/cli.py` provides the new command surface, `mathart/__main__.py` exposes it through `python -m mathart`, and `MarioTrickster/__main__.py` adds the compatibility entrypoint required by the user’s subprocess contract. The CLI is intentionally thin: it reflects the live registry, resolves aliases through the existing backend typing layer, and delegates execution to the shared `AssetPipeline.run_backend()` path rather than embedding business routing inside command handlers.
+The session is anchored on three industrial/academic reference pillars:
 
-Second, the session implemented the **stdout/stderr IPC firewall** the user explicitly demanded. Logging is configured onto `stderr`, while successful command execution writes only one machine-readable JSON object to `stdout`. The emitted payload is derived from `ArtifactManifest` through the new `to_ipc_payload()` adapter, so external callers can consume `artifact_family`, `resolved_backend`, `manifest_path`, and absolute artifact paths without scraping logs or guessing filenames.
+**Hexagonal Architecture (Ports and Adapters).** The CLI bus (`cli.py`) remains the sole Port, absolutely ignorant of backend-specific business logic. Both backends are independent Adapters that self-validate their configuration through `validate_config()`. Parameter parsing is fully delegated to the backend interior, achieving physical-level decoupling. The `pipeline_bridge.py` invokes `validate_config()` via Duck Typing: it checks for the method's existence without knowing what it validates.
 
-Third, the session upgraded the bus from “command surface exists” to “command surface drives real work.” The canonical `urp2d_bundle` backend now invokes the real `UnityURP2DNativePipelineGenerator` and the VAT bake path instead of returning placeholder paths. The canonical `motion_2d` backend now emits a real Spine JSON artifact and a motion report rather than a synthetic sheet placeholder. This means the bus is now connected to production-meaningful outputs at two key Golden Path anchors: animation export and Unity-native export.
+**OpenTimelineIO (OTIO) / VFX Reference Platform.** The `anti_flicker_render` backend now outputs a time-series `frame_sequence` in its `payload`, with each frame carrying `frame_index`, `path`, `role` (keyframe/propagated), and `temporal_coherence_score`. A `time_range` object provides `start_frame`, `end_frame`, `fps`, and `total_frames`, directly mappable to OTIO `TimeRange` semantics.
 
-Fourth, the session added **true subprocess end-to-end verification**. `tests/test_dynamic_cli_ipc.py` launches `python -m MarioTrickster ...` as a real external process, captures `stdout`/`stderr`, verifies that `stdout` is valid JSON, and confirms that the URP2D manifest and generated Unity files exist on disk. This is the production-grade proof that the IPC boundary is no longer theoretical.
+**MaterialX (ILM/Lucasfilm) / glTF PBR.** The `industrial_sprite` backend now outputs a structured `texture_channels` material bundle in its `payload`, with each channel carrying `path`, `dimensions`, `color_space`, `bit_depth`, and `engine_slot` bindings for Unity (`_MainTex`, `_NormalMap`, etc.) and Godot (`albedo_texture`, `normal_texture`, etc.), directly mappable to MaterialX `<nodedef>` semantics.
 
-## Core Files Changed in SESSION-067
+## Core Files Changed in SESSION-068
 
-| File | Role |
-|---|---|
-| `mathart/cli.py` | First-class dynamic CLI facade over the live backend registry |
-| `mathart/__main__.py` | `python -m mathart` entrypoint |
-| `MarioTrickster/__main__.py` | `python -m MarioTrickster` compatibility entrypoint |
-| `MarioTrickster/__init__.py` | Compatibility package export |
-| `mathart/core/artifact_schema.py` | Added `ArtifactManifest.to_ipc_payload()` for machine-safe JSON delivery |
-| `mathart/core/builtin_backends.py` | Wired `motion_2d` and `urp2d_bundle` to real execution paths |
-| `tests/test_dynamic_cli_ipc.py` | Subprocess E2E verification for stdout-safe CLI + manifest consumption |
-| `tests/test_unity_urp_native.py` | Removed stale static bridge-count assertion so registry growth no longer breaks tests |
-| `research/session067_dynamic_cli_design.md` | Design blueprint for CLI / IPC / manifest closure |
-| `research/session067_cli_principles_findings_01.md` | External research findings on Twelve-Factor, CLI, KRM/USD, Facade/Command |
+| File | Change Type | Description |
+|---|---|---|
+| `mathart/core/builtin_backends.py` | **REWRITE** | ~650 lines. `AntiFlickerRenderBackend` now executes real `HeadlessNeuralRenderPipeline` + `EbSynthPropagationEngine`; `IndustrialSpriteBackend` now executes real `render_character_maps_industrial()` + `generate_mathart_bundle()`. Both implement `validate_config()`. |
+| `mathart/core/artifact_schema.py` | **EDIT** | `to_ipc_payload()` extended with polymorphic `payload` promotion and `backend_type` discriminator tag. |
+| `mathart/core/pipeline_bridge.py` | **EDIT** | `run_backend()` now calls `validate_config()` via Duck Typing before execution. |
+| `tests/test_session068_e2e.py` | **NEW** | 20 E2E subprocess tests across 3 test classes (IndustrialSpriteE2E, AntiFlickerRenderE2E, CrossBackendContract). |
+| `research/session068_architecture_research.md` | **NEW** | Architecture research memo covering Hexagonal Architecture, OTIO, MaterialX/glTF PBR. |
+| `PROJECT_BRAIN.json` | **UPDATE** | Version 0.59.0, P1-AI-2C and P1-INDUSTRIAL-34A to SUBSTANTIALLY-CLOSED, completed_tasks entries, strategic path update. |
+| `SESSION_HANDOFF.md` | **REWRITE** | This file. |
 
 ## Validation Evidence
 
 | Validation item | Result |
 |---|---|
-| `pytest tests/test_dynamic_cli_ipc.py tests/test_registry_e2e_guard.py tests/test_unity_urp_native.py tests/test_motion_2d_pipeline.py -q` | **31/31 PASS** |
-| `python -m MarioTrickster --quiet registry list` through subprocess test | **PASS** |
-| `python -m MarioTrickster --quiet run --backend urp2d_bundle ...` through subprocess test | **PASS** |
-| `stdout` JSON deserialization (`json.loads`) in subprocess E2E | **PASS** |
-| `urp2d_bundle` manifest persistence + Unity artifact existence | **PASS** |
-| `motion_2d` real Spine JSON emission | **PASS via backend execution path and regression suite** |
+| `test_session068_e2e.py` IndustrialSpriteE2E (7 tests) | **7/7 PASS** |
+| `test_session068_e2e.py` AntiFlickerRenderE2E (9 tests) | **9/9 PASS** |
+| `test_session068_e2e.py` CrossBackendContract (4 tests) | **4/4 PASS** |
+| `test_dynamic_cli_ipc.py` regression (2 tests) | **2/2 PASS** |
+| Red Line 1: CLI Zero Hardcode (grep audit) | **PASS** |
+| Red Line 2: Contract Integrity (artifact_family + backend_type + payload) | **PASS** |
+| Red Line 3: E2E Subprocess (stdout JSON deserialization + assertion) | **PASS** |
 
-## Architectural Meaning of SESSION-067
+## Architectural Meaning of SESSION-068
 
-The project now has a complete **socket → facade → command payload → backend execution → manifest IPC** chain.
+SESSION-068 closes the last major gap in the **Visual Delivery Golden Path**: both AI-driven (anti-flicker temporal) and industrial (PBR material bundle) backends are now fully executable through the shared CLI/AssetPipeline bus with zero trunk modifications required.
 
-That matters because the repository is no longer depending on Python-internal function calls as its only trustworthy integration mode. Unity editor scripts, shell automation, CI runners, or future orchestration layers can now invoke the project as an external process and receive a contract-stable JSON response. This is the missing operational layer that makes the Golden Path architecture behave like a real bus instead of a purely internal refactor.
+The polymorphic `payload` key in the IPC envelope, discriminated by `backend_type`, establishes a stable contract that downstream consumers (Unity, Godot, subprocess harnesses) can rely on without version-specific parsing logic. The `validate_config()` pattern, invoked via Duck Typing in `pipeline_bridge.py`, is now the canonical mechanism for backend-owned parameter normalization. This pattern is immediately available to all future backends without any changes to the bridge or CLI.
+
+The project now has a complete **socket -> facade -> parameter passthrough -> validate_config -> backend execution -> polymorphic manifest IPC** chain that covers all four Golden Path anchors: motion export (`motion_2d`), Unity-native export (`urp2d_bundle`), AI temporal rendering (`anti_flicker_render`), and industrial material bundling (`industrial_sprite`).
 
 ## Task-by-Task Status Update
 
-| Task ID | SESSION-067 disposition | Notes |
-|---|---|---|
-| `P0-GOLDEN-PATH-CLI-1` | **CLOSED** | First-class dynamic CLI facade landed with live registry reflection and package entrypoints |
-| `P1-URP2D-PIPE-1` | **CLOSED** | `urp2d_bundle` now runs through real UnityURP2DNativePipelineGenerator + VAT path via CLI and AssetPipeline |
-| `P1-AI-2C` | **PARTIAL-ADVANCED** | Dynamic CLI/socket/IPC foundation is ready; real anti-flicker execution presets and richer temporal manifest groups still pending |
-| `P1-INDUSTRIAL-34A` | **PARTIAL-ADVANCED** | CLI/socket layer and IPC schema are ready for industrial bundling; real industrial backend wiring into the bus remains pending |
-| `P0-GOLDEN-PATH-1/2/3/4` | Already closed | SESSION-066 foundational hardening remains intact |
-| `P1-GAP4-CI` | Already closed | Registry-wide scheduled guard still valid |
-| `P2-DIM-UPLIFT-1` | **PARTIAL** | Stable canonical slot exists; real mesh/runtime coupling still pending |
-| `P1-XPBD-3` | TODO | No change this session |
+| Task ID | Previous Status | New Status | Notes |
+|---|---|---|---|
+| `P1-AI-2C` | PARTIAL | **SUBSTANTIALLY-CLOSED** | Real HeadlessNeuralRenderPipeline execution, OTIO frame_sequence, validate_config. Remaining: real ComfyUI GPU runtime, production presets (P1-AI-2D). |
+| `P1-INDUSTRIAL-34A` | PARTIAL | **SUBSTANTIALLY-CLOSED** | Real render_character_maps_industrial execution, MaterialX/glTF texture_channels, validate_config. Remaining: specular/emissive presets, real Unity runtime. |
+| `P1-AI-2D` | TODO | TODO | Unblocked by SESSION-068; backend execution path now exists. |
+| `P0-GOLDEN-PATH-CLI-1` | CLOSED | CLOSED | SESSION-067 closure intact. |
+| `P1-URP2D-PIPE-1` | CLOSED | CLOSED | SESSION-067 closure intact. |
+| `P1-B3-5` | PARTIAL | PARTIAL | Unchanged. See forward-looking section below. |
+| `P1-XPBD-3` | TODO | TODO | Unchanged. See forward-looking section below. |
 
-## What the CLI Still Needs Before Seamless `P1-AI-2C` Integration
+## Forward-Looking: Architecture Prep for P1-B3-5 and P1-XPBD-3
 
-The new CLI already has the right *shape* for `anti_flicker_render`, but two micro-adjustments will make future integration frictionless.
+### P1-B3-5: Unify transition_synthesizer.py with gait_blend.py (Motion Trunk Fusion)
 
-First, the **parameter transport model** should continue evolving toward a nested, backend-agnostic key space rather than adding special-case flags. The current `--set a.b.c=value` mechanism is the correct direction. For anti-flicker integration, the next step is to formalize common namespaces such as `temporal.*`, `guides.*`, `identity_lock.*`, `comfyui.*`, and `ebsynth.*`. That would allow commands like `--set temporal.window=24`, `--set guides.depth=true`, and `--set identity_lock.weight=0.85` to flow directly into the backend without another CLI rewrite.
+**Current State.** SESSION-065 added DeepPhase FFT frequency-domain gait blending. SESSION-053 wired CNS locomotion into the pipeline walk/run path with phase-aligned inertialized transitions. The two subsystems operate in parallel but are not yet unified into a single transition dispatch.
 
-Second, the **manifest schema** should be extended for temporal-production assets. The current IPC payload already returns absolute artifact paths and metadata, which is enough for the URP2D proof path. For anti-flicker production, however, the backend will likely emit not just one primary file but a family of temporally related outputs: keyframes, masks, guide images, workflow JSON, lock manifests, drift reports, and propagated frame sequences. Instead of overloading flat `outputs`, the next refinement should introduce a structured grouping model such as `artifacts`, `temporal_assets`, or `channels`, with each item carrying `role`, `path`, `media_type`, and possibly `frame_range`.
+**Architecture Micro-Adjustments Required:**
 
-## What the CLI Still Needs Before Seamless `P1-INDUSTRIAL-34A` Integration
+First, register a new `motion_transition` backend in `builtin_backends.py` that internally composes `TransitionSynthesizer` (inertialization) and `GaitBlender` (phase-preserving blend). The backend should implement `validate_config()` to normalize transition parameters (blend duration, phase alignment tolerance, DeepPhase channel weights). This follows the exact same pattern established by SESSION-068 for `anti_flicker_render` and `industrial_sprite`.
 
-The current CLI is already bus-safe for `industrial_sprite`, but the industrial renderer will benefit from two targeted contract refinements.
+Second, extend the polymorphic `payload` with `transition_clips` (list of blended clip segments) and `phase_alignment_report` (per-frame phase error, foot contact accuracy). This follows the same OTIO-inspired time-series pattern established by `anti_flicker_render.frame_sequence`.
 
-First, the **parameter namespaces** should distinguish material authoring from render orchestration. A stable dotted-key scheme such as `render.*`, `material.*`, `lighting.*`, and `export.*` would make industrial bundle generation self-describing. That would allow future commands to pass options like `--set material.normal_strength=0.8`, `--set lighting.rim=true`, or `--set export.bundle_format=mathart` without polluting the top-level CLI surface.
+Third, build a `PhaseManifoldBlender` adapter that converts DeepPhase FFT output (frequency-domain phase channels) into joint-space poses for `InertializationChannel`. This is the missing bridge between the two subsystems.
 
-Second, the **manifest contract** should make multi-channel material packs first-class. Industrial export is inherently bundle-based: albedo, normal, depth, thickness, roughness, mask, and possibly contour/collider metadata belong together semantically. The current IPC payload can transport these as flat paths, but a more future-proof representation would attach them as a declared material bundle with per-channel descriptors, dimensions, and intended engine slots. In other words, `industrial_sprite` should eventually emit not only “here are files,” but also “here is the structured channel map external engines should bind.”
+Fourth, no CLI changes are needed. `--set deepphase.channels=4 --set blend.duration=0.3` will pass through to the backend via the existing `_merge_context` mechanism.
+
+### P1-XPBD-3: 3D Extension of XPBD Solver (3D Physics Chassis)
+
+**Current State.** SESSION-052 established the 2D XPBD solver with compliance-based constraints. SESSION-058 added Taichi GPU acceleration and CCD. The solver currently operates in 2D (x, y) with z used only for sorting order.
+
+**Architecture Micro-Adjustments Required:**
+
+First, extend `XPBDParticle` from `(x, y)` to `(x, y, z)` with full 3D inverse-mass and compliance tensors. The Taichi backend already uses `ti.types.vector(2, float)` which needs to become `ti.types.vector(3, float)`.
+
+Second, add volume preservation constraints (tetrahedra), bending constraints (dihedral angle), and 3D distance constraints. The existing 2D distance constraint generalizes trivially; bending and volume require new constraint types.
+
+Third, extend spatial hash from 2D grid to 3D grid. CCD sphere-tracing already works in arbitrary dimensions via SDF evaluation; the main change is the hash cell computation.
+
+Fourth, register `xpbd_3d` as a new backend with `validate_config()` for solver parameters (substeps, compliance, damping, gravity vector). The IPC payload should emit `simulation_frames` (per-frame particle positions) and `constraint_diagnostics` (energy, penetration, convergence).
+
+Fifth, integrate with `orthographic_projector.py` for 2D rendering. The 3D solver output feeds into the existing projection path; extending it to XPBD particles requires adding a `project_particles()` method alongside the existing `project_bones()`.
 
 ## Recommended Next Execution Order
 
-The next coding passes should stay inside the new dynamic bus rather than creating special-case scripts around it.
-
 | Priority | Next step | Why it is next |
 |---|---|---|
-| 1 | Finish `anti_flicker_render` real execution wiring behind the existing CLI bus | The CLI/IPC scaffolding is now ready, so this path can land without trunk edits |
-| 2 | Finish `industrial_sprite` real bus wiring and structured material-bundle manifesting | The same schema improvements will benefit both industrial export and future engine importers |
-| 3 | Add backend-declared config schema metadata to the registry | This would let CLI help and validation be generated directly from the backend contract |
-| 4 | Extend `ArtifactManifest` transport schema for grouped temporal and channel assets | Needed for anti-flicker and industrial bundles to remain machine-clean |
-| 5 | Keep `dimension_uplift_mesh` in its isolated lane | No need to disturb the freshly stabilized CLI/runtime bus |
+| 1 | **P1-AI-2D** Ship real ComfyUI batch preset packs | Unblocked by SESSION-068 backend execution path |
+| 2 | **P1-B3-5** Motion trunk fusion (TransitionSynthesizer + GaitBlender) | Follows SESSION-068 backend registration pattern |
+| 3 | **P1-XPBD-3** 3D XPBD solver extension | Follows SESSION-068 validate_config + polymorphic payload pattern |
+| 4 | **P1-INDUSTRIAL-44C** Specular/emissive presets for industrial bundles | Extends SESSION-068 texture_channels contract |
+| 5 | **P1-AI-2D-SPARSECTRL** Full ComfyUI workflow with SparseCtrl weights | Extends SESSION-068 anti-flicker execution path |
 
 ## Operational Commands for the Next Session
 
 ```bash
-# Re-run dynamic CLI / IPC regression
-python3.11 -m pytest tests/test_dynamic_cli_ipc.py tests/test_registry_e2e_guard.py tests/test_unity_urp_native.py tests/test_motion_2d_pipeline.py -q
+# Run SESSION-068 E2E tests
+python3.11 -m pytest tests/test_session068_e2e.py -v
 
-# Inspect live backend registry via the new package facade
-python3.11 -m mathart --quiet registry list
+# Run all tests (SESSION-067 + SESSION-068)
+python3.11 -m pytest tests/test_dynamic_cli_ipc.py tests/test_session068_e2e.py -v
 
-# Inspect one backend contract
-python3.11 -m MarioTrickster --quiet registry show --backend urp2d_bundle
+# Run anti-flicker backend
+python3.11 -m MarioTrickster --quiet run --backend anti_flicker_render \
+  --output-dir ./output/af --name test_af \
+  --set temporal.frame_count=8 --set temporal.fps=12 \
+  --set width=128 --set height=128
 
-# Execute a real Unity-native export through the external-process contract
-python3.11 -m MarioTrickster --quiet run --backend urp2d_bundle --output-dir artifacts/session067_cli_smoke --name smoke_bundle --set frame_count=8
+# Run industrial sprite backend
+python3.11 -m MarioTrickster --quiet run --backend industrial_sprite \
+  --output-dir ./output/industrial --name test_ind \
+  --set render.width=128 --set render.height=128 \
+  --set 'channels=["albedo","normal","depth","mask"]'
+
+# Run industrial with JSON config file
+echo '{"render":{"width":256,"height":256},"channels":["albedo","normal","depth","roughness","mask"]}' > config.json
+python3.11 -m MarioTrickster --quiet run --backend industrial_sprite \
+  --output-dir ./output/industrial_cfg --name cfg_test --config config.json
+
+# Registry inspection
+python3.11 -m MarioTrickster --quiet registry list | python3.11 -m json.tool
+python3.11 -m MarioTrickster --quiet registry show --backend anti_flicker_render
+python3.11 -m MarioTrickster --quiet registry show --backend industrial_sprite
 ```
 
 ## Critical Rules for Future Sessions
 
-> Do **not** add new per-backend CLI flags if the same behavior can travel through dotted `--set` parameter namespaces.
+> Do **not** add backend-specific parameter parsing logic to `cli.py` or any bus/router layer. All config flows as opaque `dict` to backends via `--set` or `--config`.
 
-> Do **not** let human-readable logs leak back onto `stdout`; successful command output must remain directly `json.loads()`-able.
+> Do **not** let human-readable logs leak onto `stdout`; successful command output must remain directly `json.loads()`-able.
 
 > Do **not** reintroduce static backend-name arrays into the CLI, tests, or orchestration surface; backend discovery must stay registry-driven.
 
-> Do **not** treat flat path dictionaries as the final manifest contract for temporal or industrial bundles; grouped asset descriptors are the next required refinement.
+> Do **not** ship a new backend without implementing `validate_config()` and at least one E2E subprocess test that deserializes stdout JSON and asserts contract compliance.
+
+> Do **not** add new payload shapes without using `backend_type` as the discriminator tag in the IPC envelope.
 
 ## Bottom Line
 
-SESSION-067 turned the Golden Path backend socket into a **real external process interface**. The repository now has a first-class dynamic CLI facade, a clean IPC boundary, real URP2D bus wiring, real motion artifact emission, and subprocess E2E proof that outside callers can trust the contract. The next highest-value work is no longer “build a CLI,” but rather **feed anti-flicker and industrial production paths into the now-stable CLI/manifest bus without breaking its purity**.
+SESSION-068 transformed two placeholder backend stubs into fully wired, production-grade execution paths with real pipeline integration, OTIO-inspired temporal contracts, MaterialX/glTF PBR material contracts, backend-owned parameter validation, and polymorphic IPC payload delivery. **20/20 E2E tests PASS. 3/3 Red Line audits PASS. P1-AI-2C and P1-INDUSTRIAL-34A are now SUBSTANTIALLY-CLOSED.** The architecture is ready for seamless extension to motion trunk fusion (P1-B3-5) and 3D physics chassis (P1-XPBD-3) without any bus or CLI modifications.
