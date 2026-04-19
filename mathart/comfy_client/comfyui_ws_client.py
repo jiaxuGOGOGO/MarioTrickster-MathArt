@@ -296,6 +296,19 @@ class ComfyUIClient:
                     )
                 return prompt_id if prompt_id else None
 
+        except urllib.error.HTTPError as e:
+            # Capture the response body for detailed error diagnosis
+            error_body = ""
+            try:
+                error_body = e.read().decode("utf-8", errors="replace")
+            except Exception:
+                pass
+            logger.error(
+                "[ComfyUIClient] POST /prompt failed: HTTP %s %s\n"
+                "Response body: %s",
+                e.code, e.reason, error_body[:2000],
+            )
+            return None
         except (
             ConnectionRefusedError,
             urllib.error.URLError,

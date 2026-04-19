@@ -130,11 +130,6 @@ _SPARSECTRL_SELECTORS: tuple[NodeSelector, ...] = (
     NodeSelector("video_filename", "VHS_VideoCombine", "video combine output", "filename_prefix"),
     # --- Frame save output ---
     NodeSelector("save_frame_output", "SaveImage", "save frame output", "filename_prefix"),
-    # --- Identity / IP-Adapter (optional for temporal workflows) ---
-    NodeSelector("identity_image", "LoadImage", "identity reference", "image"),
-    NodeSelector("clip_vision", "CLIPVisionLoader", "clip vision", "clip_name"),
-    NodeSelector("ip_adapter_loader", "IPAdapterModelLoader", "ip-adapter", "ipadapter_file"),
-    NodeSelector("ip_adapter_apply", "IPAdapterApply", "ip-adapter", "weight"),
 )
 
 
@@ -386,11 +381,6 @@ class ComfyUIPresetManager:
         rgb_sequence_dir: str | Path,
         prompt: str,
         negative_prompt: str = "",
-        identity_reference_path: str | Path | None = None,
-        use_ip_adapter: bool = True,
-        ip_adapter_weight: float = 0.85,
-        ip_adapter_model_name: str = "ip-adapter-plus_sdxl_vit-h.safetensors",
-        ip_adapter_clip_vision_name: str = "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors",
         normal_controlnet_name: str = "control_v11p_sd15_normalbae.pth",
         depth_controlnet_name: str = "control_v11f1p_sd15_depth.pth",
         sparsectrl_model_name: str = "v3_sd15_sparsectrl_rgb.ckpt",
@@ -398,7 +388,7 @@ class ComfyUIPresetManager:
         sparsectrl_end_percent: float = 0.5,
         animatediff_model_name: str = "v3_sd15_mm.ckpt",
         animatediff_beta_schedule: str = "autoselect",
-        model_checkpoint: str = "sd_xl_base_1.0.safetensors",
+        model_checkpoint: str = "v1-5-pruned-emaonly.safetensors",
         frame_count: int = 16,
         context_length: int = 16,
         context_overlap: int = 4,
@@ -452,12 +442,6 @@ class ComfyUIPresetManager:
         normal_dir = str(Path(normal_sequence_dir).resolve())
         depth_dir = str(Path(depth_sequence_dir).resolve())
         rgb_dir = str(Path(rgb_sequence_dir).resolve())
-        identity_path = (
-            str(Path(identity_reference_path).resolve())
-            if identity_reference_path
-            else ""
-        )
-
         selector_map = {s.role: s for s in _SPARSECTRL_SELECTORS}
 
         # --- Core injections (all scalar values or path strings) ---
@@ -502,15 +486,7 @@ class ComfyUIPresetManager:
             "video_filename": filename_prefix,
             # Frame save
             "save_frame_output": f"{filename_prefix}_frames",
-            # IP-Adapter
-            "clip_vision": ip_adapter_clip_vision_name,
-            "ip_adapter_loader": ip_adapter_model_name,
-            "ip_adapter_apply": float(ip_adapter_weight if use_ip_adapter else 0.0),
         }
-
-        # Inject identity image only if provided
-        if identity_path:
-            injections["identity_image"] = identity_path
 
         for role, value in injections.items():
             if role in selector_map:
@@ -523,8 +499,6 @@ class ComfyUIPresetManager:
 
         guides_locked = ["normal", "depth", "sparsectrl_rgb"]
         guides_requested = list(guides_locked)
-        if use_ip_adapter:
-            guides_requested.append("ip_adapter_identity")
 
         preset_path = self.resolve_preset_path(preset_name)
         lock_manifest = {
@@ -532,11 +506,9 @@ class ComfyUIPresetManager:
             "preset_path": str(preset_path),
             "controlnet_guides": guides_locked,
             "guides_requested": guides_requested,
-            "identity_reference_present": identity_reference_path is not None,
-            "identity_lock_requested": bool(
-                use_ip_adapter and identity_reference_path is not None
-            ),
-            "identity_lock_active": bool(use_ip_adapter),
+            "identity_reference_present": False,
+            "identity_lock_requested": False,
+            "identity_lock_active": False,
             "seed": int(seed),
             "node_count": len(workflow),
             "semantic_bindings": self._build_bindings_table(bindings),

@@ -2,7 +2,7 @@
   "1": {
     "class_type": "CheckpointLoaderSimple",
     "inputs": {
-      "ckpt_name": "sd_xl_base_1.0.safetensors"
+      "ckpt_name": "v1-5-pruned-emaonly.safetensors"
     },
     "_meta": {
       "title": "Load Checkpoint"
@@ -115,7 +115,7 @@
       "sparsectrl_name": "v3_sd15_sparsectrl_rgb.ckpt",
       "use_motion": true,
       "motion_strength": 1.0,
-      "sparse_method": "set"
+      "motion_scale": 1.0
     },
     "_meta": {
       "title": "Load SparseCtrl Model"
@@ -300,58 +300,6 @@
     },
     "_meta": {
       "title": "Save Frame Output"
-    }
-  },
-  "20": {
-    "class_type": "LoadImage",
-    "inputs": {
-      "image": "__IDENTITY_IMAGE__"
-    },
-    "_meta": {
-      "title": "Identity Reference"
-    }
-  },
-  "21": {
-    "class_type": "CLIPVisionLoader",
-    "inputs": {
-      "clip_name": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
-    },
-    "_meta": {
-      "title": "Load CLIP Vision"
-    }
-  },
-  "22": {
-    "class_type": "IPAdapterModelLoader",
-    "inputs": {
-      "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors"
-    },
-    "_meta": {
-      "title": "Load IP-Adapter"
-    }
-  },
-  "23": {
-    "class_type": "IPAdapterApply",
-    "inputs": {
-      "model": [
-        "4",
-        0
-      ],
-      "image": [
-        "20",
-        0
-      ],
-      "ipadapter": [
-        "22",
-        0
-      ],
-      "clip_vision": [
-        "21",
-        0
-      ],
-      "weight": 0.85
-    },
-    "_meta": {
-      "title": "Apply IP-Adapter"
     }
   }
 }

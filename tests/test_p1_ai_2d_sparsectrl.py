@@ -180,7 +180,6 @@ class TestSequencePayloadAssembly:
             rgb_sequence_dir=seq_dirs["rgb"],
             prompt="pixel art hero, temporal consistency",
             negative_prompt="flicker, blur",
-            identity_reference_path=seq_dirs["identity"],
             frame_count=16,
             seed=42,
         )
@@ -347,33 +346,6 @@ class TestSequencePayloadAssembly:
         assert normal_node["inputs"]["strength"] == pytest.approx(0.9)
         assert depth_node["inputs"]["strength"] == pytest.approx(0.85)
 
-    def test_ip_adapter_weight_injected(self, seq_dirs: dict[str, Path]) -> None:
-        manager = ComfyUIPresetManager()
-        payload = manager.assemble_sequence_payload(
-            normal_sequence_dir=seq_dirs["normal"],
-            depth_sequence_dir=seq_dirs["depth"],
-            rgb_sequence_dir=seq_dirs["rgb"],
-            prompt="test",
-            identity_reference_path=seq_dirs["identity"],
-            ip_adapter_weight=0.92,
-            seed=1,
-        )
-        node = _find_by_title(payload, "Apply IP-Adapter")
-        assert node["inputs"]["weight"] == pytest.approx(0.92)
-
-    def test_ip_adapter_disabled_sets_zero_weight(self, seq_dirs: dict[str, Path]) -> None:
-        manager = ComfyUIPresetManager()
-        payload = manager.assemble_sequence_payload(
-            normal_sequence_dir=seq_dirs["normal"],
-            depth_sequence_dir=seq_dirs["depth"],
-            rgb_sequence_dir=seq_dirs["rgb"],
-            prompt="test",
-            use_ip_adapter=False,
-            seed=1,
-        )
-        node = _find_by_title(payload, "Apply IP-Adapter")
-        assert node["inputs"]["weight"] == pytest.approx(0.0)
-
     def test_latent_dimensions_injected(self, seq_dirs: dict[str, Path]) -> None:
         manager = ComfyUIPresetManager()
         payload = manager.assemble_sequence_payload(
@@ -435,8 +407,6 @@ class TestSequenceLockManifest:
             d.mkdir()
             for i in range(4):
                 (d / f"frame_{i:04d}.png").write_bytes(b"FAKE")
-        identity = tmp_path / "identity.png"
-        identity.write_bytes(b"FAKE")
         manager = ComfyUIPresetManager()
         return manager.assemble_sequence_payload(
             normal_sequence_dir=normal_dir,
@@ -444,7 +414,6 @@ class TestSequenceLockManifest:
             rgb_sequence_dir=rgb_dir,
             prompt="test prompt",
             negative_prompt="bad",
-            identity_reference_path=identity,
             frame_count=16,
             context_length=16,
             frame_rate=12,
@@ -480,9 +449,9 @@ class TestSequenceLockManifest:
         guides = payload["mathart_lock_manifest"]["controlnet_guides"]
         assert "sparsectrl_rgb" in guides
 
-    def test_lock_manifest_identity_lock_active(self, payload: dict[str, Any]) -> None:
-        assert payload["mathart_lock_manifest"]["identity_lock_active"] is True
-        assert payload["mathart_lock_manifest"]["identity_reference_present"] is True
+    def test_lock_manifest_identity_lock_inactive(self, payload: dict[str, Any]) -> None:
+        assert payload["mathart_lock_manifest"]["identity_lock_active"] is False
+        assert payload["mathart_lock_manifest"]["identity_reference_present"] is False
 
     def test_lock_manifest_seed_is_deterministic(self, payload: dict[str, Any]) -> None:
         assert payload["mathart_lock_manifest"]["seed"] == 42
