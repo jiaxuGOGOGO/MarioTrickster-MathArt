@@ -38,6 +38,10 @@ SESSION-077 closes **P1-B3-1** not by adding another thin wrapper, but by wiring
 | `PROJECT_BRAIN.json` | **UPDATED** | Version bump to 0.68.0, P1-B3-1 closure, session record refresh, priority queue refresh |
 | `SESSION_HANDOFF.md` | **REWRITE** | This document |
 
+## External Reference Re-Audit After Landing
+
+After the code landing, this session additionally re-read the user-specified external references on **Mike Acton / Data-Oriented Design**, **Simon Clavet GDC 2016 Motion Matching**, and **Robert C. Martin Clean Architecture** through live web sources. The resulting audit is saved in `docs/session077_external_alignment_audit.md`. The re-audit conclusion is that the current `P1-B3-1` implementation remains aligned with all three principles and therefore **no further code repair was required**: parameter resolution is still outside the frame hot path, runtime priors still materially affect gait phase behavior, and the unified gait core still receives simple injected scalar data instead of directly depending on outer-layer I/O or bus mechanisms.
+
 ## Validation Evidence
 
 | Validation item | Result |
