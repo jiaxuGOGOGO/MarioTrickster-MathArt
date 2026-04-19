@@ -1,13 +1,13 @@
 {
   "version": "0.70.0",
-  "last_session_id": "SESSION-079",
-  "last_updated": "2026-04-19T20:35:00Z",
+  "last_session_id": "SESSION-080",
+  "last_updated": "2026-04-19T23:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
     "baseline_session": "SESSION-075",
     "head_commit": "SESSION-075",
-    "active_total": 73,
+    "active_total": 72,
     "by_priority": {
       "P1": 37,
       "P2": 34,
@@ -33,13 +33,13 @@
     "closed_archived": 48
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-079 P1-GAP4-BATCH PASS: transient-motion batch tuning is now closed-loop through a typed transient_motion namespace, once-only UnifiedTransitionRuntimeConfig injection in UnifiedMotionBackend/unified_gait_blender, backend-rendered jump/fall/hit evaluation, knowledge/transient_motion_rules.json write->preload->resolve proof, and targeted regressions at 10 PASS / 1 SKIP (tests/test_p1_gap4_batch.py + tests/test_locomotion_cns.py + tests/test_layer3_closed_loop.py). Zero regressions introduced in the adjacent locomotion CNS path.",
-  "total_iterations": 640,
-  "total_code_lines": 117600,
+  "validation_pass_rate": "SESSION-080 P1-B3-2 PASS: UMR→RL reference motion closed loop — 30/30 tests pass (adapter + reward + pipeline + sensitivity)",
+  "total_iterations": 641,
+  "total_code_lines": 118800,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 160,
+  "knowledge_rule_count": 164,
   "math_model_count": 38,
   "project_health_score": 10.0,
   "commercial_benchmark": {
@@ -79,7 +79,7 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-079 closes P1-GAP4-BATCH by widening the active Layer 3 loop from gait-only audits into a typed transient-motion batch path: UnifiedMotionBackend now resolves and injects UnifiedTransitionRuntimeConfig once per clip, jump/fall/hit lanes materially respond to transient_motion scalars, RuntimeDistillationBus compiles transient batch acceptance rules, locomotion_cns evaluates run->jump / fall->land / hit_stagger recovery over real UMR clips, and knowledge_preloader registers transient_motion alongside physics_gait and cognitive_motion. Next priority: P1-B3-2, then P1-XPBD-1.",
+  "current_focus": "SESSION-080 closes P1-B3-2 by building the UMR→RL reference motion asset closed loop. New module mathart/animation/umr_rl_adapter.py implements Isaac Gym-style pre-baked SoA buffers, DeepMimic 4-channel imitation reward, and triple-runtime consumption via MicrokernelPipelineBridge. 30 end-to-end tests validate the full pipeline from backend generation through tensorized adapter to reward closure with mathematical proofs.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "tests/test_ccd_3d.py",
@@ -321,15 +321,6 @@
       "added_in": "SESSION-049",
       "updated_in": "SESSION-077",
       "completed_in": "SESSION-077"
-    },
-    {
-      "id": "P1-B3-2",
-      "priority": "P1",
-      "title": "Add GaitBlender reference motions to RL environment",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Use GaitBlender output as reference motions for rl_locomotion.py DeepMimic reward.",
-      "added_in": "SESSION-049"
     },
     {
       "id": "P1-B3-5",
@@ -1950,6 +1941,12 @@
       "title": "Expose UnityURP2DNativePipelineGenerator through standard CLI / AssetPipeline entrypoints",
       "completed_in": "SESSION-067",
       "result": "urp2d_bundle now executes the real UnityURP2DNativePipelineGenerator + VAT path through AssetPipeline.run_backend() and is validated by subprocess E2E tests consuming manifest JSON from stdout."
+    },
+    {
+      "id": "P1-B3-2",
+      "title": "UMR→RL Reference Motion Asset Closed Loop (DeepMimic Imitation)",
+      "completed_in": "SESSION-080",
+      "result": "Full pipeline: MicrokernelPipelineBridge → UnifiedMotionBackend → UMR clip → flatten_umr_to_rl_state() pre-baked SoA buffers → O(1) interpolate_reference() → compute_imitation_reward() with DeepMimic 4-channel orthogonal reward (pose/velocity/ee/com). 30 E2E tests pass. Triple-runtime consumption (physics_gait, cognitive_motion, transient_motion) validated. Cognitive sidecar propagated."
     }
   ],
   "capability_gaps": [
@@ -2090,6 +2087,12 @@
       "title": "Active Layer 3 closed loop (Runtime Query → Synthesis → Distillation Write-back)",
       "completed_in": "SESSION-043",
       "result": "layer3_closed_loop.py implements Optuna-based runtime transition tuning, writes best rules into transition_rules.json, mirrors downstream payload into LAYER3_CONVERGENCE_BRIDGE.json, and persists state in .layer3_closed_loop_state.json. Real run->jump optimization completed with best_loss 1.319902391027808 over 24 trials. tests/test_layer3_closed_loop.py added."
+    },
+    {
+      "id": "P1-B3-2",
+      "completed_in": "SESSION-080",
+      "title": "UMR→RL Reference Motion Asset Closed Loop",
+      "summary": "Built the full UMR→RL imitation learning pipeline: (1) Triple-runtime consumption via MicrokernelPipelineBridge with physics_gait/cognitive_motion/transient_motion namespaces; (2) Isaac Gym-style SoA pre-baked buffers with O(1) phase lookup; (3) DeepMimic 4-channel orthogonal imitation reward; (4) 30 E2E tests with mathematical proofs of reward sensitivity."
     }
   ],
   "session_summaries": [
@@ -2180,15 +2183,14 @@
     "session067_future_cli_preparation": "Before anti_flicker_render and industrial_sprite become production-grade CLI backends, keep extending the generic --set dotted-key transport and enrich ArtifactManifest IPC payloads for multi-channel, temporal, and auxiliary asset groups instead of adding bespoke per-backend flags."
   },
   "recent_focus_snapshot": {
-    "session": "SESSION-079",
-    "focus": "P1-GAP4-BATCH: transient-motion namespace, high-nonlinearity batch evaluation, and write->preload->resolve closure for jump/fall/hit families",
+    "session": "SESSION-080",
+    "focus": "P1-B3-2: UMR→RL Reference Motion Asset Closed Loop",
     "closed": [
-      "P1-GAP4-BATCH"
+      "P1-B3-2"
     ],
     "next": [
-      "P1-B3-2",
-      "P1-XPBD-1",
-      "P1-MIGRATE-4"
+      "P1-XPBD-1: Fix XPBD free-fall precision (requires XPBDSolver gravity integration audit)",
+      "P3-GPU-BENCH-1: Run real Taichi GPU CUDA performance benchmark"
     ]
   },
   "recent_sessions": [
@@ -2579,6 +2581,28 @@
       "date": "2026-04-18",
       "title": "Motion Cognitive Dimensionality Reduction & 2D IK Closed Loop",
       "summary": "Complete 3D→2D orthographic projection pipeline with FABRIK terrain-adaptive IK, Spine JSON export, animation 12-principles quantification, and three-layer evolution bridge. 40/40 tests PASS. Closes P3-QUAD-IK-1 and 5 new P3-MOTION2D tasks."
+    },
+    {
+      "session_id": "SESSION-080",
+      "date": "2026-04-19",
+      "focus": "P1-B3-2: UMR→RL Reference Motion Asset Closed Loop (DeepMimic Imitation)",
+      "changes": [
+        "NEW mathart/animation/umr_rl_adapter.py — UMR→RL tensorized adapter with DeepMimic reward",
+        "NEW tests/test_p1_b3_2_rl_reference.py — 30 E2E tests (6 test classes)",
+        "NEW research/session080_deepmimic_notes.md — DeepMimic/Isaac Gym/Frostbite research notes",
+        "UPD mathart/animation/__init__.py — export umr_rl_adapter symbols",
+        "UPD PROJECT_BRAIN.json — P1-B3-2 → completed",
+        "UPD SESSION_HANDOFF.md — P1-B3-2 closure + next-step guidance"
+      ],
+      "test_results": "30/30 new tests pass, 22/22 regression tests pass",
+      "tasks_closed": [
+        "P1-B3-2"
+      ],
+      "next_priorities": [
+        "P1-XPBD-1: Fix XPBD free-fall precision optimization",
+        "P3-GPU-BENCH-1: Run real Taichi GPU CUDA performance benchmark",
+        "P1-B4-1: RL policy training loop with pre-baked reference buffers"
+      ]
     }
   ],
   "closed_tasks_archive": [
@@ -2845,6 +2869,12 @@
       "title": "Connect quadruped gait planner to a real quadruped skeleton and IK solver",
       "completed_in": "SESSION-061",
       "priority": "P2"
+    },
+    {
+      "id": "P1-B3-2",
+      "title": "UMR→RL Reference Motion Asset Closed Loop (DeepMimic Imitation)",
+      "completed_in": "SESSION-080",
+      "priority": "P1"
     }
   ],
   "legacy_session_changes_consolidated": {

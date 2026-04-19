@@ -301,6 +301,13 @@ from .fluid_sequence_exporter import (
     generate_fluid_vfx_controller,
     export_fluid_vfx_bundle,
 )
+# SESSION-080: UMR→RL Reference Adapter (P1-B3-2 — DeepMimic Imitation Closed Loop)
+from .umr_rl_adapter import (
+    RL_JOINT_ORDER, RL_END_EFFECTOR_JOINTS,
+    PrebakedReferenceBuffers, DeepMimicRewardConfig,
+    flatten_umr_to_rl_state, interpolate_reference,
+    compute_imitation_reward, generate_umr_reference_clips,
+)
 # SESSION-048: Scene-Aware Distance Sensor (Gap B2 — SDF Terrain + TTC)
 from .terrain_sensor import (
     TerrainSDF,
@@ -551,4 +558,9 @@ __all__ = [
     "TaichiAOTConfig", "TaichiAOTBridge",
     "AdaptiveSDFNode", "AdaptiveSDFCache",
     "DimensionUpliftStatus",
+    # SESSION-080: UMR→RL Reference Adapter (P1-B3-2 — DeepMimic Imitation Closed Loop)
+    "RL_JOINT_ORDER", "RL_END_EFFECTOR_JOINTS",
+    "PrebakedReferenceBuffers", "DeepMimicRewardConfig",
+    "flatten_umr_to_rl_state", "interpolate_reference",
+    "compute_imitation_reward", "generate_umr_reference_clips",
 ]
