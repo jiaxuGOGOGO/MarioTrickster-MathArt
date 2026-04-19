@@ -75,6 +75,7 @@ class TaichiXPBDClothConfig:
     bending_compliance: float = 2e-4
     velocity_damping: float = 0.995
     max_velocity: float = 25.0
+    enable_constraints: bool = True
     pin_top_row: bool = False
     pin_corners: bool = True
     enable_ground_collision: bool = True
@@ -102,6 +103,8 @@ class TaichiXPBDClothConfig:
 
     @property
     def total_constraint_count(self) -> int:
+        if not self.enable_constraints:
+            return 0
         return (
             self.structural_constraint_count
             + self.shear_constraint_count
@@ -146,8 +149,15 @@ class TaichiXPBDBenchmarkResult:
         return asdict(self)
 
 
+def _canonical_taichi_arch_name(arch_value: Any) -> str:
+    text = str(arch_value).lower()
+    if any(token in text for token in ("cuda", "vulkan", "metal", "opengl", "gpu")):
+        return "gpu"
+    return "cpu"
+
+
 def _ensure_taichi_initialized(prefer_gpu: bool = True) -> str:
-    """Initialize Taichi once and return the active backend name."""
+    """Initialize Taichi once and return the real active backend name."""
     global _TAICHI_READY, _TAICHI_ARCH
 
     if ti is None:
@@ -167,12 +177,13 @@ def _ensure_taichi_initialized(prefer_gpu: bool = True) -> str:
     candidates.append(("cpu", ti.cpu))
 
     last_error: Optional[Exception] = None
-    for name, arch in candidates:
+    for _name, arch in candidates:
         try:
             ti.init(arch=arch, default_fp=ti.f32, offline_cache=True)
+            runtime_arch = _canonical_taichi_arch_name(ti.lang.impl.current_cfg().arch)
             _TAICHI_READY = True
-            _TAICHI_ARCH = name
-            return name
+            _TAICHI_ARCH = runtime_arch
+            return runtime_arch
         except Exception as exc:  # pragma: no cover - backend availability varies
             last_error = exc
             try:
@@ -261,6 +272,7 @@ if ti is not None:
             self.positions = ti.Vector.field(2, dtype=ti.f32, shape=self.shape)
             self.prev_positions = ti.Vector.field(2, dtype=ti.f32, shape=self.shape)
             self.predicted = ti.Vector.field(2, dtype=ti.f32, shape=self.shape)
+            self.predicted_base = ti.Vector.field(2, dtype=ti.f32, shape=self.shape)
             self.velocities = ti.Vector.field(2, dtype=ti.f32, shape=self.shape)
             self.inv_masses = ti.field(dtype=ti.f32, shape=self.shape)
 
@@ -298,6 +310,7 @@ if ti is not None:
                 self.positions[i, j] = p
                 self.prev_positions[i, j] = p
                 self.predicted[i, j] = p
+                self.predicted_base[i, j] = p
                 self.velocities[i, j] = ti.Vector([0.0, 0.0])
 
                 pinned = 0
@@ -339,9 +352,11 @@ if ti is not None:
             for i, j in self.positions:
                 self.prev_positions[i, j] = self.positions[i, j]
                 if self.inv_masses[i, j] > 0.0:
-                    self.velocities[i, j] += gravity * dt
-                    self.predicted[i, j] = self.positions[i, j] + self.velocities[i, j] * dt
+                    base = self.positions[i, j] + self.velocities[i, j] * dt + 0.5 * gravity * dt * dt
+                    self.predicted_base[i, j] = base
+                    self.predicted[i, j] = base
                 else:
+                    self.predicted_base[i, j] = self.positions[i, j]
                     self.predicted[i, j] = self.positions[i, j]
                     self.velocities[i, j] = ti.Vector([0.0, 0.0])
 
@@ -447,11 +462,13 @@ if ti is not None:
                     self.predicted[i, j].y = ground_y
 
         @_kernel
-        def _finalize(self, dt: ti.f32, velocity_damping: ti.f32, max_velocity: ti.f32):
+        def _finalize(self, dt: ti.f32, gx: ti.f32, gy: ti.f32, velocity_damping: ti.f32, max_velocity: ti.f32):
+            gravity = ti.Vector([gx, gy])
             for i, j in self.positions:
                 if self.inv_masses[i, j] > 0.0:
-                    new_vel = (self.predicted[i, j] - self.positions[i, j]) / dt
-                    new_vel *= velocity_damping
+                    base_velocity = self.velocities[i, j] + gravity * dt
+                    constraint_velocity = (self.predicted[i, j] - self.predicted_base[i, j]) / dt
+                    new_vel = base_velocity + constraint_velocity * velocity_damping
                     speed = new_vel.norm()
                     if speed > max_velocity and speed > 1e-8:
                         new_vel = new_vel / speed * max_velocity
@@ -474,20 +491,30 @@ if ti is not None:
             self._reset_step_diagnostics()
             for _ in range(int(self.config.sub_steps)):
                 self._predict(sub_dt, float(gx), float(gy))
-                self._reset_lambdas()
-                for _ in range(int(self.config.solver_iterations)):
-                    self._solve_horizontal(0, sub_dt, rest, float(self.config.structural_compliance))
-                    self._solve_horizontal(1, sub_dt, rest, float(self.config.structural_compliance))
-                    self._solve_vertical(0, sub_dt, rest, float(self.config.structural_compliance))
-                    self._solve_vertical(1, sub_dt, rest, float(self.config.structural_compliance))
-                    self._solve_diag_main(0, sub_dt, diag_rest, float(self.config.shear_compliance))
-                    self._solve_diag_main(1, sub_dt, diag_rest, float(self.config.shear_compliance))
-                    self._solve_diag_anti(0, sub_dt, diag_rest, float(self.config.shear_compliance))
-                    self._solve_diag_anti(1, sub_dt, diag_rest, float(self.config.shear_compliance))
-                    self._solve_bending_h(0, sub_dt, bend_rest, float(self.config.bending_compliance))
-                    self._solve_bending_h(1, sub_dt, bend_rest, float(self.config.bending_compliance))
-                    self._solve_bending_v(0, sub_dt, bend_rest, float(self.config.bending_compliance))
-                    self._solve_bending_v(1, sub_dt, bend_rest, float(self.config.bending_compliance))
+                if self.config.enable_constraints:
+                    self._reset_lambdas()
+                    for _ in range(int(self.config.solver_iterations)):
+                        self._solve_horizontal(0, sub_dt, rest, float(self.config.structural_compliance))
+                        self._solve_horizontal(1, sub_dt, rest, float(self.config.structural_compliance))
+                        self._solve_vertical(0, sub_dt, rest, float(self.config.structural_compliance))
+                        self._solve_vertical(1, sub_dt, rest, float(self.config.structural_compliance))
+                        self._solve_diag_main(0, sub_dt, diag_rest, float(self.config.shear_compliance))
+                        self._solve_diag_main(1, sub_dt, diag_rest, float(self.config.shear_compliance))
+                        self._solve_diag_anti(0, sub_dt, diag_rest, float(self.config.shear_compliance))
+                        self._solve_diag_anti(1, sub_dt, diag_rest, float(self.config.shear_compliance))
+                        self._solve_bending_h(0, sub_dt, bend_rest, float(self.config.bending_compliance))
+                        self._solve_bending_h(1, sub_dt, bend_rest, float(self.config.bending_compliance))
+                        self._solve_bending_v(0, sub_dt, bend_rest, float(self.config.bending_compliance))
+                        self._solve_bending_v(1, sub_dt, bend_rest, float(self.config.bending_compliance))
+                        self._apply_collisions(
+                            float(self.config.circle_center[0]),
+                            float(self.config.circle_center[1]),
+                            float(self.config.circle_radius),
+                            float(self.config.ground_y),
+                            int(self.config.enable_circle_collision),
+                            int(self.config.enable_ground_collision),
+                        )
+                else:
                     self._apply_collisions(
                         float(self.config.circle_center[0]),
                         float(self.config.circle_center[1]),
@@ -498,6 +525,8 @@ if ti is not None:
                     )
                 self._finalize(
                     sub_dt,
+                    float(gx),
+                    float(gy),
                     float(self.config.velocity_damping),
                     float(self.config.max_velocity),
                 )

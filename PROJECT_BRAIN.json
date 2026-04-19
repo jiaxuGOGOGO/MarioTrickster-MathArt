@@ -1,7 +1,7 @@
 {
-  "version": "0.72.0",
-  "last_session_id": "SESSION-081",
-  "last_updated": "2026-04-19T08:30:57Z",
+  "version": "0.73.0",
+  "last_session_id": "SESSION-082",
+  "last_updated": "2026-04-19T09:36:14Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -33,9 +33,9 @@
     "closed_archived": 49
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-081 P1-XPBD-1 PASS: XPBD gravity/damping decoupling validated — 104 PASS, 1 SKIP, 0 FAIL across analytical free-fall, 2D/3D physics, CCD, Taichi, distillation, and CI schema suites",
-  "total_iterations": 641,
-  "total_code_lines": 118950,
+  "validation_pass_rate": "SESSION-082 P3-GPU-BENCH-1 groundwork PASS: 40 PASS, 2 SKIP, 0 FAIL across Taichi XPBD, benchmark realism, CI schema, and distillation suites; local CPU/GPU-request benchmark reports now carry median timing, explicit-sync evidence, and NumPy parity metrics with truthful CPU fallback when CUDA is absent",
+  "total_iterations": 642,
+  "total_code_lines": 121332,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
@@ -79,9 +79,14 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-081 closes P1-XPBD-1 by decoupling gravity integration from solver damping in mathart/animation/xpbd_solver.py and xpbd_solver_3d.py. The solver now uses constant-acceleration drift for prediction, reconstructs velocity as external-force + constraint correction, and damps only component-relative internal motion. New analytical tests prove exact free fall in 2D/3D while damping remains enabled.",
+  "current_focus": "SESSION-082 upgrades the Taichi benchmark stack from a loose smoke test into a correctness-aware benchmark pipeline: warm-up is excluded, steady-state samples use median timing, GPU timing is closed by explicit sync, benchmark manifests now carry CPU-reference drift metrics, and runtime arch detection truthfully reports CPU fallback when CUDA is unavailable.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "research/session082_gpu_benchmark_reference_notes.md",
+    "tests/test_gpu_benchmark_realism.py",
+    "tools/run_session082_gpu_benchmark.py",
+    "reports/session082_gpu_benchmark/session082_benchmark_summary.json",
+    "SESSION_HANDOFF.md",
     "research/session081_xpbd_reference_notes.md",
     "tests/test_xpbd_free_fall_regression.py",
     "tests/test_ccd_3d.py",
@@ -89,7 +94,6 @@
     "research/session069_motion_research_notes.md",
     "tests/test_locomotion_cns.py",
     "tests/test_character_pipeline.py",
-    "SESSION_HANDOFF.md",
     "research/session068_architecture_research.md",
     "tests/test_session068_e2e.py",
     "research/session067_cli_principles_findings_01.md",
@@ -898,11 +902,11 @@
     },
     {
       "id": "P3-GPU-BENCH-1",
-      "priority": "P2",
+      "priority": "P1",
       "title": "Run formal Taichi GPU benchmark and sparse-cloth validation on CUDA hardware",
       "status": "TODO",
       "estimated_effort": "medium",
-      "description": "Current sandbox validated the Taichi backend with CPU fallback and 50k-class runtime evidence. A follow-up session should execute the same benchmark on true CUDA hardware and extend validation to sparse data layouts.",
+      "description": "SESSION-082 landed the formal benchmark harness: warm-up exclusion, repeated median samples, explicit sync, NumPy parity metrics, truthful fallback, and local report generation are now in place. Remaining work is to run the same harness on real CUDA hardware and extend the benchmark to sparse cloth / sparse topology scenarios.",
       "added_in": "SESSION-058"
     },
     {
@@ -2103,6 +2107,15 @@
         "P1-GAP4-BATCH: batch-tune additional hard transitions",
         "P1-GAP4-CI: scheduled closed-loop audits"
       ]
+    },
+    {
+      "session_id": "SESSION-082",
+      "summary": "Upgraded the Taichi benchmark stack into a correctness-aware harness with warm-up exclusion, repeated median timing, explicit sync, truthful CPU fallback, and NumPy drift metrics. Added realism tests, local benchmark artifact generation, and guidance for finishing the CUDA run plus RL loop preparation.",
+      "top_gaps": [
+        "P3-GPU-BENCH-1: run the formal CUDA benchmark and sparse-topology validation on real hardware",
+        "P1-B4-1: start the RL policy training loop with deterministic rollout-health telemetry",
+        "P1-MIGRATE-4: continue registry/migration closure work"
+      ]
     }
   ],
   "custom_notes": {
@@ -2182,398 +2195,15 @@
     "session067_future_cli_preparation": "Before anti_flicker_render and industrial_sprite become production-grade CLI backends, keep extending the generic --set dotted-key transport and enrich ArtifactManifest IPC payloads for multi-channel, temporal, and auxiliary asset groups instead of adding bespoke per-backend flags."
   },
   "recent_focus_snapshot": {
-    "session": "SESSION-081",
-    "focus": "P1-XPBD-1: XPBD gravity/damping decoupling and analytical free-fall closure",
-    "closed": [
-      "P1-XPBD-1"
-    ],
+    "session": "SESSION-082",
+    "focus": "P3-GPU-BENCH-1: correctness-aware Taichi benchmark harness with truthful fallback and NumPy parity metrics",
+    "closed": [],
     "next": [
-      "P3-GPU-BENCH-1: Run formal Taichi GPU benchmark and sparse-cloth validation on CUDA hardware",
-      "P1-B4-1: RL policy training loop with pre-baked reference buffers"
+      "P3-GPU-BENCH-1: run the new benchmark harness on real CUDA hardware and add sparse-topology validation",
+      "P1-B4-1: build the RL policy training loop with rollout-health telemetry and reproducible manifests"
     ]
   },
   "recent_sessions": [
-    {
-      "session_id": "SESSION-079",
-      "date": "2026-04-19",
-      "focus": "P1-GAP4-BATCH: typed transient-motion runtime config and high-nonlinearity Layer 3 batch closure",
-      "changes": [
-        "mathart/animation/unified_gait_blender.py: added UnifiedTransitionRuntimeConfig, once-only transient resolve, and real transient lane parameter binding",
-        "mathart/core/builtin_backends.py: UnifiedMotionBackend now resolves transient runtime scalars once per clip and persists active transient parameters in clip/manifest metadata",
-        "mathart/distill/runtime_bus.py + knowledge_preloader.py + distill/__init__.py: added transient_transition_runtime rule program, transient_motion preload/registration, and package exports",
-        "mathart/animation/locomotion_cns.py: added backend-driven transient batch evaluation, transient metrics, and transient knowledge asset writer",
-        "tests/test_p1_gap4_batch.py: new E2E proof of knowledge preload materialization, transient batch write->preload->resolve roundtrip, and jump/hit runtime response",
-        "research/session079_browser_notes.md + SESSION_HANDOFF.md + PROJECT_BRAIN.json: external research traceability and session-079 state refresh"
-      ],
-      "test_results": "10 PASS / 1 SKIP targeted regressions across tests/test_p1_gap4_batch.py, tests/test_locomotion_cns.py, and tests/test_layer3_closed_loop.py",
-      "tasks_closed": [
-        "P1-GAP4-BATCH"
-      ],
-      "next_priorities": [
-        "P1-B3-2: add reference-motion / RL consumers for the widened runtime-knowledge ecosystem",
-        "P1-XPBD-1: extend physics realism work that can benefit from transient recovery telemetry",
-        "P1-MIGRATE-4: continue registry and migration closure work"
-      ]
-    },
-    {
-      "session_id": "SESSION-078",
-      "date": "2026-04-19",
-      "focus": "P1-DISTILL-4: telemetry-driven cognitive science and biological-motion distillation loop",
-      "changes": [
-        "mathart/core/builtin_backends.py: UnifiedMotionBackend now writes cognitive telemetry sidecars and persists summary traces in manifest metadata/output JSON",
-        "mathart/animation/principles_quantifier.py: added trace-native anticipation, follow-through, phase-manifold consistency, and perceptual naturalness scoring helpers",
-        "mathart/core/cognitive_distillation_backend.py: new @register_backend cognitive distillation plugin with grid-search/Pareto evaluation over real telemetry bundles",
-        "mathart/distill/knowledge_preloader.py: dual-domain preload for physics_gait and cognitive_motion plus synonym injection",
-        "mathart/core/backend_types.py + backend_registry.py + artifact_schema.py: added backend type, auto-load hook, and cognitive telemetry sidecar validation",
-        "tests/test_p1_distill_4.py: 6-test E2E suite proving registration, telemetry, knowledge writing, preload closure, and coexistence with physics_gait",
-        "SESSION_HANDOFF.md + PROJECT_BRAIN.json: refreshed for SESSION-078 closure and next-priority planning"
-      ],
-      "test_results": "29/29 targeted regression tests PASS across tests/test_p1_distill_3.py and tests/test_p1_distill_4.py",
-      "tasks_closed": [
-        "P1-DISTILL-4"
-      ],
-      "next_priorities": [
-        "P1-GAP4-BATCH: extend batch transition tuning to jump/fall/hit high-nonlinearity states using the new telemetry sidecar channel",
-        "P1-B3-2: add GaitBlender reference motions to RL environment",
-        "P1-MIGRATE-4: continue federated backend migration / registry closure work"
-      ]
-    },
-    {
-      "session_id": "SESSION-077",
-      "date": "2026-04-19",
-      "focus": "P1-B3-1: runtime injection of distilled gait parameters into UnifiedGaitBlender hot path with Layer 3 transition-quality closure",
-      "changes": [
-        "mathart/animation/unified_gait_blender.py: added UnifiedGaitRuntimeConfig, once-only RuntimeDistillationBus scalar resolution, phase-weight-aware gait sampling, transition metric accumulation, and real TransitionSynthesizer.get_transition_quality() compatibility",
-        "mathart/core/builtin_backends.py: UnifiedMotionBackend now resolves gait parameters once per clip, binds configured motion-state lanes, and emits gait parameter audit metadata",
-        "tests/test_p1_b3_1_hotpath.py: new E2E proof that injected blend_time / phase_weight materially change transition or root trajectories and do not silently fall back to defaults",
-        "SESSION_HANDOFF.md: rewritten for SESSION-077 with architecture readiness notes for P1-DISTILL-4 and P1-GAP4-BATCH",
-        "PROJECT_BRAIN.json: version bump, task closure, and validation summary refresh"
-      ],
-      "test_results": "64/64 targeted regression tests PASS, py_compile on touched motion/backend modules PASS, zero regressions",
-      "tasks_closed": [
-        "P1-B3-1"
-      ],
-      "next_priorities": [
-        "P1-DISTILL-4: Distill cognitive science rules (phase relationships, biological motion perception)",
-        "P1-GAP4-BATCH: Extend batch transition tuning to jump/fall/hit high-nonlinearity states",
-        "P1-B3-2: Add GaitBlender reference motions to RL environment"
-      ]
-    },
-    {
-      "session_id": "SESSION-076",
-      "date": "2026-04-19",
-      "focus": "P1-DISTILL-3: Physics-gait parameter distillation pipeline — grid search, Pareto ranking, knowledge persistence, closed-loop preloader",
-      "changes": [
-        "mathart/core/physics_gait_distill_backend.py: new @register_backend physics-gait distillation plugin with grid-sweep evaluation, multi-objective Pareto ranking, and knowledge asset emission",
-        "mathart/distill/knowledge_preloader.py: closed-loop knowledge preloader — reads distilled JSON, builds ParameterSpace, registers CompiledParameterSpace on RuntimeDistillationBus",
-        "mathart/core/backend_types.py: BackendType.EVOLUTION_PHYSICS_GAIT_DISTILL + aliases",
-        "mathart/core/backend_registry.py: auto-load hook for physics_gait_distill_backend",
-        "mathart/distill/__init__.py: exported knowledge_preloader public API",
-        "tests/test_p1_distill_3.py: 23-test E2E validation suite covering registration, grid search diversity, telemetry sensitivity, Pareto ranking, knowledge closed loop, manifest compliance, AST red-line guards, and full pipeline execution"
-      ],
-      "test_results": "23/23 new P1-DISTILL-3 tests PASS, 94/94 targeted regression tests PASS, zero regressions",
-      "tasks_closed": [
-        "P1-DISTILL-3"
-      ],
-      "next_priorities": [
-        "P1-DISTILL-4: Distill cognitive science rules (phase relationships, biological motion perception)",
-        "P1-B3-1: Wire distilled gait parameters into unified gait blender hot path",
-        "P1-GAP4-BATCH: Extend batch transition tuning to jump/fall/hit high-nonlinearity states"
-      ]
-    },
-    {
-      "session_id": "SESSION-075",
-      "date": "2026-04-19",
-      "focus": "P1-DISTILL-1B: Taichi XPBD benchmark backend, BENCHMARK_REPORT schema, and runtime_distill benchmark lineage",
-      "changes": [
-        "mathart/core/taichi_xpbd_backend.py: new @register_backend Taichi benchmark plugin with warm-up + median sampling and degraded manifest path",
-        "mathart/core/backend_registry.py: BackendCapability.GPU_ACCELERATED + auto-load taichi_xpbd_backend",
-        "mathart/core/backend_types.py: BackendType.TAICHI_XPBD + aliases",
-        "mathart/core/artifact_schema.py: ArtifactFamily.BENCHMARK_REPORT + required benchmark metadata",
-        "mathart/animation/xpbd_taichi.py: reset/sync helpers + no-readback benchmark path",
-        "mathart/distill/runtime_bus.py and mathart/evolution/evolution_loop.py: benchmark/device recording hooks",
-        "tests/test_taichi_benchmark_backend.py: schema, fallback, fake CPU/GPU A/B, runtime_distill, real smoke"
-      ],
-      "test_results": "7/7 new backend tests PASS, 1 real-GPU-only smoke skip in non-GPU environment",
-      "tasks_closed": [
-        "P1-DISTILL-1B"
-      ]
-    },
-    {
-      "session_id": "SESSION-074",
-      "date": "2026-04-19",
-      "focus": "P1-MIGRATE-2: Strangler Fig completion — all legacy EvolutionBridges migrated to microkernel registry",
-      "changes": [
-        "mathart/core/evolution_backends.py: 20 @register_backend evolution-domain plugins via adapter factory",
-        "mathart/core/backend_types.py: 20 EVOLUTION_* BackendType entries + EVOLUTION_ALIASES",
-        "mathart/core/artifact_schema.py: ArtifactFamily.EVOLUTION_REPORT + required_metadata_keys + FAMILY_SCHEMAS",
-        "mathart/core/backend_registry.py: BackendCapability.EVOLUTION_DOMAIN + auto-load evolution_backends",
-        "mathart/core/microkernel_orchestrator.py: _run_legacy_bridges() hardcoded bridge_specs eliminated, replaced with reflective find_by_capability(EVOLUTION_DOMAIN)",
-        "tests/test_ci_backend_schemas.py: 5 new evolution-domain CI tests",
-        "Architecture dual-track (hardcoded + registry) fully eliminated"
-      ],
-      "test_results": "13/13 CI schema tests PASS, 95/95 targeted regression PASS",
-      "tasks_closed": [
-        "P1-MIGRATE-2"
-      ]
-    },
-    {
-      "session_id": "SESSION-073",
-      "date": "2026-04-19",
-      "focus": "P1-MIGRATE-3 + P1-XPBD-4 + PROJECT_BRAIN.json cleanup",
-      "changes": [
-        "register_backend schema_version declaration + validate_artifact version check",
-        "ArtifactFamily.required_metadata_keys() with physics3d_telemetry depth assertions",
-        "test_ci_backend_schemas.py: reflexive full-backend CI traversal (9 tests)",
-        "XPBDSolver3D._ccd_sweep_ground(): 3D swept-sphere CCD with velocity gating",
-        "BackendCapability.CCD_ENABLED on Physics3DBackend",
-        "ccd_sweep_count[T] telemetry sidecar array",
-        "test_ccd_3d.py: 11 CCD tests (solver + backend + capability)",
-        "PROJECT_BRAIN.json: merged open_tasks, archived 42 DONE, consolidated 18 legacy keys"
-      ],
-      "test_results": "1362/1368 PASS (6 pre-existing infra flakes)",
-      "tasks_closed": [
-        "P1-MIGRATE-3",
-        "P1-XPBD-4 (3D extension)"
-      ]
-    },
-    {
-      "session_id": "SESSION-071",
-      "version": "0.62.0",
-      "date": "2026-04-19",
-      "gap_closed": "P1-XPBD-3: real 3D XPBD coupling, 3D ContactManifoldRecord population, and Physics3DBackend microkernel landing",
-      "title": "Physics3DBackend Microkernel Landing — Real ∇C in [x,y,z], 3D Spatial Hash, FrameGraph Pipeline Chaining",
-      "new_modules": [
-        "mathart/animation/xpbd_solver_3d.py",
-        "mathart/core/physics3d_backend.py",
-        "tests/test_physics3d_backend.py"
-      ],
-      "summary": "Landed P1-XPBD-3 as a true microkernel plugin. XPBDSolver3D operates on (N,3) position/velocity arrays with real 3D distance/bending/contact constraint gradients (Macklin & Müller 2016/2020); SpatialHashGrid3D performs Teschner-style 3D bucketing with min_separation gating; ContactManifoldRecord is enriched with 3D contact_point + penetration_depth + source_solver. Physics3DBackend (BackendType.PHYSICS_3D, ArtifactFamily.PHYSICS_3D_MOTION_UMR, BackendCapability.PHYSICS_SIMULATION) is auto-registered via the lazy loader, declares 'unified_motion' as its only dependency, and runs Context-in/Manifest-out under MicrokernelPipelineBridge — AST guard verifies zero static coupling to UnifiedMotionBackend. Pure 2D inputs (joint_channel_schema='2d_scalar', z=None) gracefully downgrade with metadata.physics_downgraded_to_2d_input=True. 7 new red-line tests PASS, 273-test critical regression subset PASS, 1312/1312 stable serial suites PASS — SESSION-070 baseline (incl. 68 motion-continuity tests) preserved bit-for-bit.",
-      "tasks_closed": [
-        "P1-XPBD-3"
-      ],
-      "tasks_advanced": [
-        "P1-DISTILL-1A (preparation: 3D backend exposes physics_solver/contact_manifold_count/downgrade discriminators that the global hot-path evaluator can ingest)"
-      ],
-      "artifacts": [
-        "mathart/animation/xpbd_solver_3d.py",
-        "mathart/core/physics3d_backend.py",
-        "mathart/animation/unified_motion.py",
-        "mathart/animation/__init__.py",
-        "mathart/core/backend_types.py",
-        "mathart/core/artifact_schema.py",
-        "mathart/core/backend_registry.py",
-        "tests/test_physics3d_backend.py",
-        "SESSION_HANDOFF.md",
-        "PROJECT_BRAIN.json"
-      ]
-    },
-    {
-      "session_id": "SESSION-070",
-      "version": "0.61.0",
-      "date": "2026-04-18",
-      "gap_closed": "P1-MIGRATE-1: Microkernel global takeover of unified motion trunk with Context-in/Manifest-out boundary and 3D contract pre-seeding",
-      "title": "UnifiedMotionBackend First-Class Promotion, 3D Schema Extension, and Transient Phase Metadata Alignment",
-      "new_modules": [
-        "research/session070_implementation_plan.md"
-      ],
-      "summary": "Promoted MotionStateLaneRegistry from domain-internal side registry to first-class BackendMeta-compliant UnifiedMotionBackend plugin. pipeline.py._build_umr_clip_for_state() now routes through MicrokernelPipelineBridge enforcing Context-in/Manifest-out. UMR data contract extended with backward-compatible 3D fields (z, velocity_z, rotation_3d, ContactManifoldRecord, joint_channel_schema). Transient phase metadata profiles (distance_to_apex, distance_to_ground, hit_recovery) injected at _ProceduralStateLane level. Architecture aligned with EA Frostbite FrameGraph, Mach/QNX Microkernel, Clean Architecture, and Pixar OpenUSD Schema. 1305/1306 tests PASS.",
-      "tasks_closed": [
-        "P1-MIGRATE-1"
-      ],
-      "tasks_advanced": [
-        "P1-XPBD-3 (PARTIAL: 3D schema slots pre-seeded)"
-      ],
-      "artifacts": [
-        "mathart/core/builtin_backends.py",
-        "mathart/core/backend_types.py",
-        "mathart/core/artifact_schema.py",
-        "mathart/animation/unified_motion.py",
-        "mathart/animation/unified_gait_blender.py",
-        "mathart/pipeline.py",
-        "research/session070_implementation_plan.md",
-        "SESSION_HANDOFF.md",
-        "PROJECT_BRAIN.json"
-      ]
-    },
-    {
-      "session_id": "SESSION-069",
-      "version": "0.60.0",
-      "date": "2026-04-18",
-      "gap_closed": "Motion trunk fusion and registry-driven state clip routing",
-      "title": "UnifiedGaitBlender, MotionStateLaneRegistry, and Continuity-Audited Locomotion Closure",
-      "new_modules": [
-        "mathart/animation/unified_gait_blender.py",
-        "research/session069_motion_research_notes.md"
-      ],
-      "summary": "Unified gait blending and transition synthesis into one numerical trunk, rewired pipeline character clip generation through a motion lane registry, preserved compatibility through re-export shims, and added explicit C0/C1 continuity regression tests. 68/68 targeted tests PASS.",
-      "tasks_closed": [
-        "P1-B3-5"
-      ],
-      "artifacts": [
-        "mathart/animation/unified_gait_blender.py",
-        "mathart/animation/locomotion_cns.py",
-        "mathart/pipeline.py",
-        "tests/test_locomotion_cns.py",
-        "tests/test_character_pipeline.py",
-        "research/session069_motion_research_notes.md",
-        "SESSION_HANDOFF.md"
-      ]
-    },
-    {
-      "session_id": "SESSION-067",
-      "version": "0.58.0",
-      "date": "2026-04-18",
-      "gap_closed": "First-class dynamic CLI / IPC closure for canonical backend bus",
-      "title": "Dynamic CLI Facade, Stdout-Safe IPC Manifest Contract, and Real URP2D Bus Wiring",
-      "new_modules": [
-        "mathart/cli.py",
-        "mathart/__main__.py",
-        "MarioTrickster/__main__.py",
-        "MarioTrickster/__init__.py",
-        "tests/test_dynamic_cli_ipc.py",
-        "research/session067_dynamic_cli_design.md",
-        "research/session067_cli_principles_findings_01.md"
-      ],
-      "summary": "Implemented a first-class registry-reflected package CLI, enforced stderr/stdout separation for machine-safe IPC, upgraded ArtifactManifest with IPC payload export, wired urp2d_bundle to the real Unity native generator + VAT bake chain, upgraded motion_2d to emit real Spine JSON artifacts, and validated the closure with subprocess E2E plus 31 targeted passing tests.",
-      "tasks_closed": [
-        "P0-GOLDEN-PATH-CLI-1",
-        "P1-URP2D-PIPE-1"
-      ],
-      "artifacts": [
-        "mathart/cli.py",
-        "mathart/__main__.py",
-        "MarioTrickster/__main__.py",
-        "mathart/core/artifact_schema.py",
-        "mathart/core/builtin_backends.py",
-        "tests/test_dynamic_cli_ipc.py",
-        "research/session067_dynamic_cli_design.md"
-      ]
-    },
-    {
-      "session_id": "SESSION-066",
-      "version": "0.57.0",
-      "date": "2026-04-18",
-      "gap_closed": "Golden Path Phase 0 architecture drift blocker",
-      "title": "Golden Path Hardening — Canonical Backend Types, Federated Orchestrator, and Registry E2E Guard",
-      "new_modules": [
-        "mathart/core/backend_types.py",
-        "scripts/registry_e2e_guard.py",
-        "tests/test_registry_e2e_guard.py",
-        ".github/workflows/registry-e2e-daily.yml"
-      ],
-      "summary": "Hardened the microkernel around canonical backend types, normalized historical aliases, exposed registry-driven backend execution through AssetPipeline, refactored EvolutionOrchestrator into a federated facade, and added daily registry-wide E2E automation. 8 targeted tests PASS and registry guard passes 9/9 backends.",
-      "tasks_closed": [
-        "P0-GOLDEN-PATH-1",
-        "P0-GOLDEN-PATH-2",
-        "P0-GOLDEN-PATH-3",
-        "P0-GOLDEN-PATH-4",
-        "P1-GAP4-CI"
-      ],
-      "artifacts": [
-        "mathart/core/backend_types.py",
-        "mathart/core/backend_registry.py",
-        "mathart/core/builtin_backends.py",
-        "mathart/pipeline.py",
-        "mathart/evolution/evolution_orchestrator.py",
-        "scripts/registry_e2e_guard.py",
-        "tests/test_registry_e2e_guard.py",
-        ".github/workflows/registry-e2e-daily.yml",
-        "research/session066_golden_path_design.md",
-        "artifacts/registry_e2e_guard/registry_e2e_report.md"
-      ]
-    },
-    {
-      "session_id": "SESSION-065",
-      "version": "0.56.0",
-      "date": "2026-04-18",
-      "gap_closed": "Multiple P1/P2 gaps (DIM-UPLIFT-3/11, DEEPPHASE-FFT-1, MOTIONDB-IK-1, B3-3/4/5)",
-      "title": "Research Protocol — Deep Water Zone (8 Papers/Talks → 5 Production Modules)",
-      "new_modules": [
-        "mathart/animation/qem_simplifier.py",
-        "mathart/animation/vertex_normal_editor.py",
-        "mathart/animation/deepphase_fft.py",
-        "mathart/animation/sparse_ctrl_bridge.py",
-        "mathart/animation/motion_matching_kdtree.py",
-        "mathart/evolution/session065_research_bridge.py"
-      ],
-      "new_tests": 40,
-      "integration_tests": 3,
-      "integration_score": "100%",
-      "total_tests_pass": "40/40 unit + 3/3 integration",
-      "key_references": [
-        "Tao Ju, Dual Contouring of Hermite Data (SIGGRAPH 2002)",
-        "Garland & Heckbert, Surface Simplification Using QEM (SIGGRAPH 1997)",
-        "Motomura (Arc System Works), Guilty Gear Xrd Art Style (GDC 2015)",
-        "Vasseur (Motion Twin), Dead Cells 3D→2D Pipeline (GDC 2018)",
-        "Macklin et al., XPBD: Position-Based Simulation (2016)",
-        "Starke et al., DeepPhase: Periodic Autoencoders (SIGGRAPH 2022)",
-        "Clavet (Ubisoft), Motion Matching (GDC 2016)",
-        "Jamriška et al., Stylizing Video by Example (SIGGRAPH 2019)",
-        "Guo et al., SparseCtrl (arXiv:2311.16933, 2023)"
-      ]
-    },
-    {
-      "id": "SESSION-064",
-      "version": "0.55.0",
-      "date": "2026-04-18",
-      "title": "Paradigm Shift: Contract-Based Microkernel Plugin Architecture (LLVM + USD + MAP-Elites)",
-      "summary": "Implemented three foundational architecture pillars: (1) LLVM-inspired Backend Registry with @register_backend decorator and IoC dependency resolution, (2) Pixar USD-inspired Artifact Schema with strongly-typed manifests and schema validation, (3) MAP-Elites-inspired Niche Registry with Pareto Front and isolated per-lane fitness. Built MicrokernelOrchestrator, ThreeLayerEvolutionLoop (internal evolution + external knowledge distillation + self-iteration testing), MicrokernelPipelineBridge for legacy compatibility, 7 builtin backends, 7 builtin niches. All 22 core tests PASS + 6 integration tests PASS.",
-      "tasks_closed": [
-        "P0-ARCH-064A: Backend Registry (LLVM Registry Pattern + IoC)",
-        "P0-ARCH-064B: Artifact Schema (Pixar USD Typed Manifests)",
-        "P0-ARCH-064C: Niche Registry (MAP-Elites + Pareto Front)",
-        "P0-ARCH-064D: Microkernel Orchestrator (Three-Pillar Integration)",
-        "P0-ARCH-064E: Three-Layer Evolution Loop (Internal + Distillation + Self-Test)",
-        "P0-ARCH-064F: Pipeline Bridge (Legacy Compatibility Layer)"
-      ],
-      "artifacts": [
-        "mathart/core/__init__.py",
-        "mathart/core/backend_registry.py",
-        "mathart/core/artifact_schema.py",
-        "mathart/core/niche_registry.py",
-        "mathart/core/microkernel_orchestrator.py",
-        "mathart/core/evolution_loop.py",
-        "mathart/core/pipeline_bridge.py",
-        "mathart/core/builtin_backends.py",
-        "mathart/core/builtin_niches.py",
-        "research/session064_architecture_research.md",
-        "research/session064_audit_report.md",
-        "tests/test_session064_quick.py"
-      ],
-      "research_references": [
-        "Chris Lattner — LLVM: The Architecture of Open Source Applications (2012)",
-        "Pixar — OpenUSD Validation Framework & Composition Arcs (2024)",
-        "Yuriy O'Donnell — FrameGraph: Extensible Rendering Architecture in Frostbite (GDC 2017)",
-        "Jean-Baptiste Mouret & Jeff Clune — Illuminating Search Spaces by Mapping Elites (2015)",
-        "Kalyanmoy Deb et al. — NSGA-II: Fast Elitist Multiobjective Genetic Algorithm (2002)",
-        "Martin Fowler — Inversion of Control Containers and Dependency Injection (2004)"
-      ]
-    },
-    {
-      "id": "SESSION-063",
-      "version": "0.54.0",
-      "date": "2026-04-18",
-      "title": "Phase 5 Dimension Uplift: 2.5D & True 3D Smooth Upgrade",
-      "summary": "Complete 2D SDF → 3D SDF → Dual Contouring Mesh → OBJ pipeline with IQ 3D primitives, smin blending, Pujol & Chica adaptive cache, Hades-style isometric displacement, Arc System Works cel-shading, and Taichi AOT Vulkan SPIR-V code generation. Three-layer evolution bridge with pass_gate=True, bonus=0.18. 48/48 tests PASS.",
-      "tasks_closed": [
-        "P5-DIM-UPLIFT-ENGINE",
-        "P5-DIM-UPLIFT-BRIDGE",
-        "P5-RESEARCH-063",
-        "P5-PACKAGE-INTEGRATION"
-      ],
-      "artifacts": [
-        "mathart/animation/dimension_uplift_engine.py",
-        "mathart/evolution/dimension_uplift_bridge.py",
-        "tests/test_dimension_uplift.py",
-        "research/session063_phase5_dimension_uplift_research.md",
-        "research/session063_audit_report.md",
-        "research/pujol_chica_2023_notes.md",
-        "research/sdf_to_mesh_comparison_notes.md",
-        "knowledge/dimension_uplift_rules.md",
-        ".dimension_uplift_state.json"
-      ]
-    },
     {
       "id": "SESSION-061",
       "version": "0.52.0",
@@ -2624,6 +2254,27 @@
         "P3-GPU-BENCH-1: Run formal Taichi GPU benchmark and sparse-cloth validation on CUDA hardware",
         "P1-B4-1: RL policy training loop with pre-baked reference buffers",
         "P1-MIGRATE-4: continue registry and migration closure work"
+      ]
+    },
+    {
+      "session_id": "SESSION-082",
+      "date": "2026-04-19",
+      "focus": "P3-GPU-BENCH-1: correctness-aware Taichi benchmark harness with truthful fallback and NumPy parity metrics",
+      "changes": [
+        "UPD mathart/animation/xpbd_taichi.py — exact free-fall predictor, constraint-relative finalize damping, disable-constraints benchmark mode, and truthful active-arch detection",
+        "REWRITE mathart/core/taichi_xpbd_backend.py — warm-up exclusion, repeated median timing, NumPy A/B parity metrics, graceful fallback, and richer BENCHMARK_REPORT metadata",
+        "UPD mathart/core/artifact_schema.py + mathart/distill/runtime_bus.py — benchmark schema/normalization now preserve gpu_device_name, speedup_ratio, and cpu_gpu_max_drift",
+        "REWRITE tests/test_taichi_benchmark_backend.py + NEW tests/test_gpu_benchmark_realism.py — lock benchmark contract, parity fields, fallback path, and analytical Taichi free-fall realism",
+        "NEW tools/run_session082_gpu_benchmark.py + reports/session082_gpu_benchmark/session082_benchmark_summary.json — reproducible local benchmark artifact generation and environment evidence",
+        "NEW research/session082_gpu_benchmark_reference_notes.md — Google Benchmark / CUDA / Taichi / NASA implementation rules",
+        "UPD PROJECT_BRAIN.json + SESSION_HANDOFF.md — refreshed session metadata, task notes, and next-step guidance for CUDA benchmark completion and RL loop prep"
+      ],
+      "test_results": "40 PASS, 2 SKIP, 0 FAIL across Taichi XPBD, benchmark realism, CI schema, and distillation suites; local benchmark summary confirms CPU fallback with parity pass in this non-CUDA sandbox",
+      "tasks_closed": [],
+      "next_priorities": [
+        "P3-GPU-BENCH-1: run the new benchmark harness on real CUDA hardware and extend it to sparse topology validation",
+        "P1-B4-1: start the RL policy training loop with rollout-health telemetry and deterministic reset/provenance contracts",
+        "P1-MIGRATE-4: continue registry/migration closure work"
       ]
     }
   ],

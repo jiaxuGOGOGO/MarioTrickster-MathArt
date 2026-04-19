@@ -143,6 +143,9 @@ class ArtifactFamily(Enum):
                 "frame_count",
                 "wall_time_ms",
                 "particles_per_second",
+                "gpu_device_name",
+                "speedup_ratio",
+                "cpu_gpu_max_drift",
             }),
             # SESSION-074 (P1-MIGRATE-2): Mandatory metadata for evolution
             # reports.  Every evolution backend must declare how many cycles
@@ -472,6 +475,9 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
             "frame_count",
             "wall_time_ms",
             "particles_per_second",
+            "gpu_device_name",
+            "speedup_ratio",
+            "cpu_gpu_max_drift",
         ],
         "required_quality": [],
     },

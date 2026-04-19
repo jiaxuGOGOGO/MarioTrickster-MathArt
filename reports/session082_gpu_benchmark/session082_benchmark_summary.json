@@ -1,0 +1,108 @@
+{
+  "cpu_request": {
+    "name": "session082_cpu",
+    "device_request": "cpu",
+    "warnings": [],
+    "manifest": {
+      "artifact_family": "benchmark_report",
+      "report_file": "/home/ubuntu/MarioTrickster-MathArt/reports/session082_gpu_benchmark/session082_cpu_taichi_xpbd_benchmark.json"
+    },
+    "report": {
+      "solver_type": "taichi_xpbd",
+      "requested_device": "cpu",
+      "device": "cpu",
+      "active_arch": "cpu",
+      "gpu_device_name": "unavailable",
+      "benchmark_scenario": "free_fall_cloud",
+      "frame_count": 12,
+      "wall_time_ms": 13.205739000113681,
+      "particles_per_second": 930504.5329075654,
+      "particle_count": 1024,
+      "constraint_count": 0,
+      "sample_count": 5,
+      "warmup_frames": 4,
+      "benchmark_dt": 0.016666666666666666,
+      "sample_statistic": "median",
+      "explicit_sync_used": true,
+      "samples_ms": [
+        13.254756981041282,
+        10.244726989185438,
+        13.86018397170119,
+        13.205739000113681,
+        11.567791982088238
+      ],
+      "cpu_reference_solver": "numpy_free_fall_cloud",
+      "cpu_reference_wall_time_ms": 0.29572000494226813,
+      "cpu_reference_particles_per_second": 41552819.54089958,
+      "cpu_reference_samples_ms": [
+        0.2714659785851836,
+        0.2696129959076643,
+        0.29572000494226813,
+        0.3825539897661656,
+        0.43913000263273716
+      ],
+      "speedup_ratio": 0.022393294683449555,
+      "cpu_gpu_max_drift": 1.0525703429964395e-06,
+      "cpu_gpu_rmse": 3.9749314000294085e-07,
+      "parity_abs_tolerance": 5e-05,
+      "parity_rmse_tolerance": 5e-05,
+      "parity_passed": true,
+      "taichi_available": true,
+      "taichi_initialized": true,
+      "degraded": false
+    }
+  },
+  "gpu_request": {
+    "name": "session082_gpu",
+    "device_request": "gpu",
+    "warnings": [],
+    "manifest": {
+      "artifact_family": "benchmark_report",
+      "report_file": "/home/ubuntu/MarioTrickster-MathArt/reports/session082_gpu_benchmark/session082_gpu_taichi_xpbd_benchmark.json"
+    },
+    "report": {
+      "solver_type": "taichi_xpbd",
+      "requested_device": "gpu",
+      "device": "cpu",
+      "active_arch": "cpu",
+      "gpu_device_name": "unavailable",
+      "benchmark_scenario": "free_fall_cloud",
+      "frame_count": 12,
+      "wall_time_ms": 11.797846993431449,
+      "particles_per_second": 1041545.9707895388,
+      "particle_count": 1024,
+      "constraint_count": 0,
+      "sample_count": 5,
+      "warmup_frames": 4,
+      "benchmark_dt": 0.016666666666666666,
+      "sample_statistic": "median",
+      "explicit_sync_used": true,
+      "samples_ms": [
+        13.987858983455226,
+        67.90590798482299,
+        10.236350994091481,
+        10.369922005338594,
+        11.797846993431449
+      ],
+      "cpu_reference_solver": "numpy_free_fall_cloud",
+      "cpu_reference_wall_time_ms": 0.26532800984568894,
+      "cpu_reference_particles_per_second": 46312486.974694185,
+      "cpu_reference_samples_ms": [
+        0.2812859893310815,
+        0.2649880188982934,
+        0.2616920100990683,
+        0.26532800984568894,
+        0.2737720205914229
+      ],
+      "speedup_ratio": 0.022489527961619824,
+      "cpu_gpu_max_drift": 1.0525703429964395e-06,
+      "cpu_gpu_rmse": 3.9749314000294085e-07,
+      "parity_abs_tolerance": 5e-05,
+      "parity_rmse_tolerance": 5e-05,
+      "parity_passed": true,
+      "taichi_available": true,
+      "taichi_initialized": true,
+      "degraded": false
+    }
+  }
+}

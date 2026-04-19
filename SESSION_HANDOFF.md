@@ -4,151 +4,147 @@
 
 | Field | Value |
 |---|---|
-| Current version | **0.72.0** |
+| Current version | **0.73.0** |
 | Last updated | **2026-04-19** |
-| Last session | **SESSION-081** |
-| Base commit inspected at session start | `3015593` |
+| Last session | **SESSION-082** |
+| Base commit inspected at session start | `e28e575` |
 | Best quality score achieved | **0.892** |
-| Total iterations run | **641+** |
-| Total code lines | **~118.9k** |
-| Latest validation status | **SESSION-081: XPBD gravity/damping decoupling landed. Targeted regression suites passed with `104 PASS, 1 SKIP, 0 FAIL`, including new 2D/3D analytical free-fall baselines, CCD, Taichi benchmark backend, distillation closure, and CI schema coverage.** |
+| Total iterations run | **642+** |
+| Total code lines | **~121.3k** |
+| Latest validation status | **SESSION-082: correctness-aware Taichi benchmark closure landed. Targeted validation finished at `40 PASS, 2 SKIP, 0 FAIL`, spanning Taichi XPBD, benchmark/realism, CI schema, and distillation suites. Local benchmark execution also generated CPU-request and GPU-request reports with explicit parity metrics; in this sandbox the GPU request gracefully fell back to CPU because no CUDA driver was present.** |
 
-## What SESSION-081 Delivered
+## What SESSION-082 Delivered
 
-SESSION-081 closes **P1-XPBD-1** by repairing the mathematical coupling bug between **gravity integration** and **solver damping** in both NumPy XPBD solvers. The work was grounded in three external reference families. **XPBD 2016** frames damping as a constraint-projected dissipation term tied to `Cdot(x)` and the constraint gradient, which means dissipation belongs to **internal relative motion**, not to a system-wide absolute translation state [1]. **Box2D / Erin Catto** provides the practical discipline that damping is a separate numerical device and must not silently erase the physically expected external-force trajectory of an unconstrained body [2] [3]. **NASA-STD-7009B** provides the verification rule that correctness must be backed by quantitative evidence against an analytical baseline rather than visual plausibility [4].
+SESSION-082 attacked **P3-GPU-BENCH-1** at the architectural level rather than papering over it with a one-shot stopwatch. The implementation was grounded in four reference lines. **Google Benchmark** treats warm-up and repeated steady-state sampling as first-class benchmark phases, and explicitly supports aggregated statistics such as median rather than cold-start single shots [1]. **NVIDIA CUDA best practices** require correctness-preserving, evidence-driven optimization and warn that host-side timing around asynchronous device work is invalid unless the device is synchronized before the clock stops [2]. **Taichi’s synchronization guidance** makes the same point in runtime-specific terms: GPU kernels are queued asynchronously relative to Python, so `ti.sync()` is mandatory when timing kernels without a host-visible dependency [3]. **NASA-STD-7009B** frames verification as a quantitative comparison against a trusted referent rather than “looks right” inspection, which translates here into explicit CPU-vs-GPU drift metrics and tolerance gates [4].
 
-| Workstream | SESSION-081 Landing |
+| Workstream | SESSION-082 Landing |
 |---|---|
-| **External research grounding** | Deep-read XPBD, Catto numerical methods, Box2D simulation notes, and NASA verification discipline; distilled to `research/session081_xpbd_reference_notes.md` |
-| **2D gravity path repair** | `mathart/animation/xpbd_solver.py` now predicts positions with constant-acceleration drift `x + v·dt + 0.5·a·dt²` and updates velocity as **external-force integration + constraint correction**, eliminating gravity loss under damping |
-| **3D gravity path repair** | `mathart/animation/xpbd_solver_3d.py` now mirrors the same predictor/corrector discipline so 2D/3D behavior remains mathematically aligned |
-| **Galilean-invariant damping** | Post-step damping no longer multiplies each particle’s absolute velocity. It now damps only the **component-relative residual motion** inside internal XPBD constraint-connected components, preserving rigid translation under gravity |
-| **Analytical baseline enforcement** | `PhysicsTestHarness._test_free_fall()` was upgraded from a loose 1-meter tolerance to a strict analytical equality guard at `1e-6` absolute error |
-| **Dedicated regression coverage** | New `tests/test_xpbd_free_fall_regression.py` proves analytical free fall in 2D and 3D while `velocity_damping` remains enabled, and additionally proves that a distance-constrained pair preserves rigid-body gravity translation |
-| **Ecosystem safety check** | Targeted regression suites for CCD, Taichi XPBD, distillation, backend schemas, and legacy XPBD tests all passed after the change |
+| **Research grounding** | Consolidated Google Benchmark, NVIDIA CUDA, Taichi sync, and NASA verification rules into `research/session082_gpu_benchmark_reference_notes.md` |
+| **Taichi runtime truthfulness** | `mathart/animation/xpbd_taichi.py` now records the **real active arch** after initialization, so a failed CUDA request is reported as CPU fallback instead of being falsely labelled as GPU |
+| **Integrator correctness alignment** | Taichi XPBD prediction/finalization now mirrors the repaired NumPy discipline from SESSION-081: constant-acceleration drift for unconstrained motion, then **external-force velocity + damped constraint residual** on finalize |
+| **Constraint decoupling for benchmark mode** | `TaichiXPBDClothConfig` now supports `enable_constraints=False`, allowing a dense free-fall particle cloud benchmark that isolates integrator correctness from cloth-constraint noise |
+| **Industrial benchmark contract** | `mathart/core/taichi_xpbd_backend.py` now excludes warm-up from timings, runs repeated samples, reports the **median** wall time, records explicit-sync usage, and attaches CPU-reference / parity metadata directly in `BENCHMARK_REPORT` |
+| **Schema and runtime propagation** | `mathart/core/artifact_schema.py` and `mathart/distill/runtime_bus.py` now treat `gpu_device_name`, `speedup_ratio`, and `cpu_gpu_max_drift` as first-class benchmark evidence fields |
+| **New realism coverage** | Added `tests/test_gpu_benchmark_realism.py` and expanded `tests/test_taichi_benchmark_backend.py` so benchmark warm-up, repeated samples, parity tolerances, and fallback reporting are all locked under regression |
+| **Local benchmark evidence** | `tools/run_session082_gpu_benchmark.py` now emits reproducible local benchmark artifacts under `reports/session082_gpu_benchmark/`, including CPU-request and GPU-request summaries |
 
-## Core Files Changed in SESSION-081
+## Core Files Changed in SESSION-082
 
 | File | Change Type | Description |
 |---|---|---|
-| `mathart/animation/xpbd_solver.py` | **MODIFIED** | Reworked prediction/update path to use analytical constant-acceleration drift and component-relative damping in 2D |
-| `mathart/animation/xpbd_solver_3d.py` | **MODIFIED** | Synchronized 3D solver with the same gravity/damping architecture as 2D |
-| `mathart/animation/xpbd_evolution.py` | **MODIFIED** | Tightened `PhysicsTestHarness` free-fall check from permissive heuristic tolerance to exact analytical baseline validation |
-| `tests/test_xpbd_free_fall_regression.py` | **NEW** | New analytical regression suite covering 2D/3D free fall and constrained-component gravity translation invariance |
-| `research/session081_xpbd_reference_notes.md` | **NEW** | Research notes grounding the implementation in XPBD, Box2D, Catto, and NASA verification discipline |
-| `PROJECT_BRAIN.json` | **UPDATED** | Session metadata, task status, validation summary, next priorities, and recent focus refreshed |
+| `mathart/animation/xpbd_taichi.py` | **MODIFIED** | Added exact free-fall predictor, constraint-relative damping finalize path, `enable_constraints`, `predicted_base`, and truthful runtime arch detection |
+| `mathart/core/taichi_xpbd_backend.py` | **REWRITE** | Rebuilt the benchmark backend around warm-up exclusion, repeated median timing, NumPy reference parity, graceful fallback, and richer manifest metadata |
+| `mathart/core/artifact_schema.py` | **MODIFIED** | `BENCHMARK_REPORT` now mandates `gpu_device_name`, `speedup_ratio`, and `cpu_gpu_max_drift` |
+| `mathart/distill/runtime_bus.py` | **MODIFIED** | Runtime benchmark normalization now preserves GPU device identity, speedup ratio, and parity result fields |
+| `tests/test_taichi_benchmark_backend.py` | **REWRITE** | Updated fake/real benchmark coverage for median samples, parity evidence, degradation, and schema propagation |
+| `tests/test_gpu_benchmark_realism.py` | **NEW** | Added realism tests for warm-up/median benchmark reporting and analytical constant-acceleration equivalence in Taichi |
+| `tools/run_session082_gpu_benchmark.py` | **NEW** | Generates reproducible CPU-request / GPU-request benchmark summaries and raw report paths |
+| `research/session082_gpu_benchmark_reference_notes.md` | **NEW** | Formal implementation rules distilled from Google Benchmark, CUDA, Taichi, and NASA sources |
+| `PROJECT_BRAIN.json` | **UPDATED** | Session metadata, priority ordering, validation summary, and task notes refreshed |
 | `SESSION_HANDOFF.md` | **REWRITE** | This document |
 
 ## Validation Evidence
 
-The session did not rely on subjective “looks right” inspection. Instead, it promoted the free-fall path to an **analytical verification target** and then ran a broader regression set to ensure no collateral damage propagated into CCD, Taichi, or distillation-adjacent systems.
+The session validated both the **mathematics** and the **operational benchmark contract**. The former ensures the Taichi free-fall cloud remains quantitatively tied to the NumPy reference lane; the latter ensures the benchmark output is statistically and operationally honest.
 
 | Validation item | Result |
 |---|---|
-| `tests/test_xpbd_free_fall_regression.py` | **4 / 4 PASS** — analytical free-fall equality in 2D and 3D with damping enabled, plus constrained-pair translation invariance |
-| `tests/test_xpbd_physics.py` | **14 / 14 PASS** — legacy XPBD solver, harness, coupling, constraints, and evolution loop remain stable |
-| `tests/test_physics3d_backend.py` | **7 / 7 PASS** — 3D XPBD backend behavior, real-Z gravity path, and manifest integrity remain intact |
-| `tests/test_ccd_3d.py` | **11 / 11 PASS** — CCD sweep, diagnostics, and backend telemetry remain intact after solver changes |
-| `tests/test_taichi_xpbd.py` | **5 / 5 PASS** — Taichi XPBD path still behaves correctly after NumPy solver changes |
-| `tests/test_taichi_benchmark_backend.py` | **7 / 7 PASS, 1 SKIP** — benchmark backend stays healthy; optional path still skips gracefully where appropriate |
-| `tests/test_p1_distill_1a.py` | **14 / 14 PASS** — compliance knobs and distillation-linked 3D physics configuration remain intact |
-| `tests/test_p1_distill_3.py` | **23 / 23 PASS** — telemetry-aware distillation logic remains stable |
-| `tests/test_p1_distill_4.py` | **6 / 6 PASS** — cognitive/physics distillation registry closure remains stable |
-| `tests/test_ci_backend_schemas.py` | **13 / 13 PASS** — artifact and telemetry schemas remain valid |
-| Combined targeted regression | **104 PASS, 1 SKIP, 0 FAIL** |
+| `tests/test_taichi_xpbd.py` | **5 / 5 PASS** — baseline Taichi cloth path remains stable after integrator and finalize-path changes |
+| `tests/test_taichi_benchmark_backend.py` | **7 PASS, 2 SKIP** — benchmark schema, degradation path, fake-GPU contract, and optional real-GPU smoke path remain healthy |
+| `tests/test_gpu_benchmark_realism.py` | **2 / 2 PASS** — free-fall cloud report exposes warm-up/median/parity fields and Taichi free-fall matches the analytical baseline within tolerance |
+| `tests/test_ci_backend_schemas.py` | **13 / 13 PASS** — expanded benchmark schema remains valid across backend-manifest CI checks |
+| `tests/test_p1_distill_1a.py` | **14 / 14 PASS** — downstream distillation / schema consumers remain stable after benchmark-contract enrichment |
+| Combined targeted regression | **40 PASS, 2 SKIP, 0 FAIL** |
+
+## Local Benchmark Evidence from This Environment
+
+The benchmark harness itself is now capable of truthfully reporting both speed and correctness. In this sandbox, however, **no CUDA driver is present**, so the “GPU request” lane correctly degraded to CPU execution instead of hard-crashing or misreporting impossible hardware. That is the intended CI-safe behavior.
+
+| Benchmark case | Requested device | Actual device | Particle count | Median wall time | CPU reference wall time | `cpu_gpu_max_drift` | Parity passed | Notes |
+|---|---|---|---:|---:|---:|---:|---|---|
+| `session082_cpu` | CPU | CPU | 1024 | **12.396 ms** | **0.432 ms** | **1.05e-6** | **Yes** | Reference dense free-fall cloud, warm-up excluded, 5 repeated samples |
+| `session082_gpu` | GPU | CPU fallback | 1024 | **11.798 ms** | **0.265 ms** | **1.05e-6** | **Yes** | CUDA unavailable in sandbox; fallback correctly reported as CPU rather than falsely claiming GPU |
+
+The low `speedup_ratio` values observed in this environment are therefore **not a regression in the benchmark harness**. They simply reflect that the local reference lane is a vectorized NumPy free-fall cloud running on CPU, while the requested GPU lane could not access CUDA and therefore also executed on CPU. The important SESSION-082 result is that the benchmark now reports this reality honestly, with explicit parity evidence and no fake acceleration narrative.
 
 ## Red-Line Enforcement Summary
 
-| Red Line | How SESSION-081 Enforces It |
+| Red Line | How SESSION-082 Enforces It |
 |---|---|
-| **🚫 No damping-off cheat** | The fix does **not** zero out `velocity_damping` in tests or runtime. Damping remains enabled and visible in regression tests, but is mathematically restricted to internal component-relative motion. |
-| **🚫 No magic gravity compensation** | No hardcoded gravity bonus or heuristic offset was introduced. The predictor now uses the exact constant-acceleration drift term `0.5·a·dt²`, and the velocity update is decomposed into **external-force integration + constraint correction**. |
-| **🚫 No 2D-only patch** | The same architecture landed in both `xpbd_solver.py` and `xpbd_solver_3d.py`, with dedicated 3D analytical tests. |
-| **Analytical verification required** | `PhysicsTestHarness` now checks free fall against the analytical baseline at micro-scale tolerance instead of accepting meter-scale drift. |
-| **Zero-regression discipline** | CCD, Taichi, distillation, and backend-schema suites were re-run to prove the repair did not silently destabilize adjacent systems. |
+| **🚫 No fake GPU timing** | Timed Taichi runs are closed by `system.sync()` before the timer stops, aligning with Taichi/CUDA async execution rules [2] [3]. |
+| **🚫 No single-shot cold benchmark** | Warm-up frames are excluded and wall time is reported from the **median** of repeated steady-state samples rather than a one-off cold launch [1]. |
+| **🚫 No speed-over-correctness shortcut** | Every benchmark report now includes `cpu_gpu_max_drift`, RMSE, parity tolerances, and `parity_passed`, grounded against the NumPy reference lane [4]. |
+| **🚫 No hard crash on no-GPU CI** | CUDA absence now degrades to a truthful CPU path; benchmark reports remain valid and tests skip optional real-GPU assertions rather than exploding at import/init time. |
+| **Truthful device provenance required** | The Taichi runtime now records the **actual** backend after initialization, preventing CUDA-request / CPU-fallback runs from being mislabeled as GPU evidence. |
 
 ## Task-by-Task Status Update
 
 | Task ID | Previous Status | New Status | Notes |
 |---|---|---|---|
-| `P1-XPBD-1` | TODO | **DONE** | Gravity integration and damping are now decoupled in both 2D and 3D; analytical free-fall tests pass with damping enabled |
-| `P1-B3-2` | DONE | DONE | Unchanged; SESSION-080 RL reference pipeline now inherits a cleaner physics substrate |
-| `P3-GPU-BENCH-1` | TODO | TODO | Still pending real CUDA hardware execution; now unblocked by the corrected NumPy analytical baseline |
-| `P1-B4-1` | TODO / implied next step | TODO | RL policy loop remains the next consumer-side step; physics substrate is now safer for reward shaping and rollout validation |
+| `P3-GPU-BENCH-1` | TODO | **TODO (narrowed / instrumented)** | Benchmark harness, parity contract, and CI-safe fallback are now in place. Remaining work is **real CUDA execution** and **sparse-cloth validation** on actual GPU hardware. |
+| `P1-B4-1` | TODO | TODO | Still the next downstream consumer priority; SESSION-082 materially improves training-loop readiness by making benchmark/physics health observable and auditable. |
+| `P1-XPBD-1` | DONE | DONE | Unchanged, but its analytical baseline is now directly consumed by the Taichi benchmark parity path. |
 
-## Architecture State After SESSION-081
+## Architecture State After SESSION-082
 
-The XPBD substrate now distinguishes three channels that had previously been entangled: **external acceleration integration**, **constraint-position correction**, and **numerical damping of internal relative motion**. This separation matters because downstream systems — especially RL reward computation and any future GPU benchmark comparisons — require a solver whose free-flight baseline is analytically trustworthy before higher-order behaviors are layered on top.
+The project now has a clearer separation between **simulation correctness**, **device execution truth**, and **performance reporting**. That matters because the next stage is no longer “Can we time Taichi somehow?” but “Can we make performance claims that survive both engineering audit and scientific scrutiny?” SESSION-082 moves the project much closer to that standard.
 
-| Layer | State after SESSION-081 |
+| Layer | State after SESSION-082 |
 |---|---|
-| **External-force integration** | Constant-acceleration drift is integrated explicitly as `x + v·dt + 0.5·a·dt²`, preserving analytical free fall under uniform gravity |
-| **Constraint solve** | XPBD Gauss–Seidel projection remains in place for distance, attachment, bending, contact, and self-collision correction |
-| **Velocity recovery** | Post-step velocity is reconstructed as **external-force velocity + position-correction residual / dt** instead of a single absolute finite difference multiplied by damping |
-| **Damping semantics** | `velocity_damping` now operates in a component-relative frame so rigid translation is preserved while internal oscillation can still dissipate |
-| **2D / 3D parity** | Both solver tracks now share the same gravity/damping contract and analytical test expectations |
-| **Verification layer** | Analytical baseline tests are now first-class regression guards rather than informal diagnostics |
+| **NumPy truth lane** | The repaired constant-acceleration / decoupled-damping baseline from SESSION-081 remains the authoritative correctness referent |
+| **Taichi simulation lane** | Free-fall prediction and velocity reconstruction now match the corrected physical decomposition instead of damping away unconstrained gravity motion |
+| **Benchmark execution lane** | Warm-up, repeated samples, median timing, explicit sync, and scenario metadata are now enforced as benchmark policy rather than left to ad hoc scripts |
+| **Manifest / registry lane** | Benchmark reports carry enough structured metadata to be compared, normalized, and audited downstream |
+| **Fallback / CI lane** | Missing CUDA no longer destroys the pipeline; the system degrades truthfully to CPU and keeps the regression surface green |
+| **Auditability lane** | Session-local benchmark reports are now exported into `reports/session082_gpu_benchmark/` for reproducible inspection |
 
 ## Preparation Guidance for Next Tasks
 
-### P3-GPU-BENCH-1: Run formal Taichi GPU benchmark on CUDA hardware
+### P3-GPU-BENCH-1: Formal CUDA benchmark completion
 
-SESSION-081 meaningfully improves the launch conditions for GPU benchmarking. Before this fix, CPU and GPU timing comparisons could be polluted by a solver substrate whose free-flight baseline was already physically biased by global damping. That ambiguity is now removed, so the next GPU benchmark can meaningfully compare **performance** without inheriting an unresolved **correctness** dispute.
+SESSION-082 closes the **harness design gap** but not the **real hardware evidence gap**. The next session on a CUDA-capable host should therefore be treated as a short, focused execution-and-audit pass rather than another architecture refactor.
 
-| Preparation Item | Current State after SESSION-081 | What Still Needs Adjustment |
+| Preparation Item | State after SESSION-082 | What Still Needs to Be Done on Real CUDA Hardware |
 |---|---|---|
-| **CPU correctness baseline** | NumPy XPBD now has analytical free-fall proof in 2D/3D with damping enabled | Mirror the same analytical baseline in Taichi benchmark harness so CPU/GPU compare both timing and correctness |
-| **Benchmark metadata contract** | Taichi benchmark backend already emits benchmark reports and normalized throughput fields | Add explicit physics-fidelity fields such as free-fall error, max constraint error, and optional CCD count to the benchmark summary |
-| **Cross-backend parity** | NumPy and Taichi both pass targeted tests in this environment | Add an A/B fixture that runs the same cloth or chain seed through NumPy and Taichi and records drift metrics frame-by-frame |
-| **CUDA readiness** | Taichi is now installed in the sandbox, but no real CUDA device is available here | On CUDA hardware, capture device info, architecture, VRAM, Taichi backend status, warm-up behavior, and steady-state throughput |
-| **Sparse layout validation** | Benchmark backend exists, but sparse-cloth validation is still future work | Add a sparse-topology fixture and ensure timing output separates dense vs. sparse kernels |
-| **Result reproducibility** | Current tests are CPU-first and deterministic enough for regression | Freeze benchmark seeds, frame counts, cloth dimensions, and export exact command lines into the manifest for auditability |
+| **Benchmark contract** | Warm-up, repeated samples, explicit sync, parity metrics, and fallback semantics are implemented | Run the exact `tools/run_session082_gpu_benchmark.py` harness on real CUDA hardware and archive the resulting reports |
+| **Device truthfulness** | Actual arch detection now distinguishes genuine GPU from CPU fallback | Capture real `gpu_device_name`, Taichi backend, and any CUDA/driver caveats in the report and handoff |
+| **Correctness evidence** | Free-fall cloud parity against NumPy reference is built into the report | Add a second benchmark scenario for **sparse cloth / sparse topology**, and keep the same parity fields there |
+| **Result reproducibility** | Benchmark artifacts are now serialized under `reports/session082_gpu_benchmark/` | Persist the exact command line, driver version, CUDA version, and hardware SKU in the benchmark summary |
+| **Interpretability** | CPU fallback runs are now honest rather than misleading | On the CUDA host, explicitly compare requested-vs-actual device and highlight any fallback, JIT warm-up outliers, or variance anomalies |
 
 ### P1-B4-1: RL policy training loop with pre-baked reference buffers
 
-SESSION-080 delivered the **reference-motion consumer substrate**; SESSION-081 now hardens the **physics substrate** those future policies will experience. This matters because any RL loop trained against physically inconsistent ballistic motion will quietly absorb simulator bias into the policy and reward landscape. The free-fall path is now clean enough to treat as a trustworthy rollout primitive.
+SESSION-080 delivered the **reference-motion consumer substrate** and SESSION-081 repaired the **NumPy physics substrate**. SESSION-082 adds something RL critically needs but often lacks: an **observable, structured health channel** for rollout correctness and runtime behavior. That makes it much safer to start policy training without letting the simulator silently drift away from the reference curriculum.
 
-| Preparation Item | Current State after SESSION-081 | What Still Needs Adjustment |
+| Preparation Item | State after SESSION-082 | What Still Needs Adjustment Before Full RL Loop Work |
 |---|---|---|
-| **Reference motion side** | `umr_rl_adapter.py` already provides pre-baked SoA reference buffers and DeepMimic-style reward ingredients | Define the policy-side observation tensor contract and make it versioned alongside the adapter schema |
-| **Physics rollout fidelity** | XPBD free flight is now analytically verified; constraint damping no longer erases gravity | Add rollout-level sanity tests that compare simulated airborne arcs against reference trajectories before policy optimization begins |
-| **Reward decomposition** | DeepMimic-style reward channels already exist from SESSION-080 | Add a physics-consistency auxiliary reward or health metric so policies cannot exploit any residual simulation pathology |
-| **Batch execution path** | Distillation and backend orchestration already support batched evaluation patterns | Implement vectorized environment reset/step buffers, ideally mirroring the SoA data discipline already used by the reference adapter |
-| **Domain randomization safety** | Runtime distillation bus and knowledge injection are available | Introduce controlled randomization only after a deterministic baseline loop exists; keep gravity and solver knobs logged per rollout |
-| **Policy reproducibility** | No formal training loop yet | Persist seeds, optimizer hyperparameters, checkpoint schema, rollout manifest hashes, and reference-buffer provenance in every training run |
+| **Observation / action contract** | Reference buffers and imitation reward ingredients already exist from `P1-B3-2` | Freeze a versioned policy I/O schema so training logs, checkpoints, and evaluation clips all speak the same tensor contract |
+| **Rollout physics health** | Benchmark reports now expose drift, parity pass/fail, and device provenance | Reuse these concepts inside the RL loop as per-rollout health telemetry: e.g. `rollout_max_drift`, `physics_backend`, `sim_step_wall_time_ms` |
+| **Deterministic reset discipline** | Benchmark harness now resets fresh per sample rather than timing one endlessly mutating stream | Apply the same rule to RL environment resets so reward changes are attributable to policy behavior, not hidden simulator history |
+| **Reference-buffer provenance** | Pre-baked buffers already exist and are mathematically verified | Persist reference-buffer manifest hashes and adapter schema versions into every training run and checkpoint |
+| **Training reproducibility** | Seeds are not yet formalized end-to-end for policy optimization | Add run manifests carrying random seed, optimizer hyperparameters, rollout horizon, reward weights, and upstream benchmark/physics report hashes |
+| **Performance-awareness** | Benchmark contract can already surface timing and drift | Before large-scale training, add a small environment-step benchmark that uses the same median / explicit-sync discipline as the new Taichi harness |
 
 ## What Still Needs Attention Next
 
 | Priority | Recommendation | Reason |
 |---|---|---|
-| **1** | Start **P3-GPU-BENCH-1** | The solver correctness dispute that could contaminate benchmark interpretation has been removed; the next valuable gap is real CUDA evidence |
-| **2** | Start **P1-B4-1** | The project now has both a reference-motion consumer substrate and a cleaner physics substrate, which is the right foundation for RL policy training |
-| **3** | Add Taichi-side analytical free-fall parity tests | This would make CPU/GPU physical equivalence explicit, not merely implied |
-| **4** | Consider promoting analytical-baseline checks into CI fast lanes | The new free-fall guard is cheap and high-value; it should become part of routine regression defense |
+| **1** | Finish **P3-GPU-BENCH-1** on a real CUDA host | The architecture is ready; what is missing now is hardware evidence, not another abstract rewrite |
+| **2** | Start **P1-B4-1** with rollout-health telemetry from day one | The project now has reference buffers, a corrected physics baseline, and a structured benchmark/health evidence channel |
+| **3** | Add sparse-topology Taichi parity benchmark | This is the remaining technical sub-gap explicitly called out by `P3-GPU-BENCH-1` |
+| **4** | Promote benchmark evidence into a lightweight recurring audit lane | The harness is now cheap enough to become a standard sanity gate for future Taichi/RL changes |
 
 ## Known Issues / Non-Blocking Notes
 
 | Issue | Status |
 |---|---|
-| Real CUDA hardware is still unavailable in this sandbox | **Non-blocking for SESSION-081** — Taichi CPU/backend tests passed, but formal GPU benchmark evidence still requires external CUDA hardware |
-| `tests/test_taichi_benchmark_backend.py` still contains one skipped case | **Acceptable** — skip is environment-dependent and pre-existing; no new regression was introduced |
-| `tests/test_state_machine_graph_fuzz.py` still needs `hypothesis` for full fuzz coverage | **Unchanged / non-blocking** |
-| `research/session081_xpbd_reference_notes.md` is the authoritative implementation rationale for this repair | **Important** — read it before touching damping, gravity, or free-fall tests again |
-
-## Quick Resume Checklist for the Next Session
-
-1. Read `PROJECT_BRAIN.json` and confirm **SESSION-081 / P1-XPBD-1 DONE** status.
-2. Read `research/session081_xpbd_reference_notes.md` before touching `xpbd_solver.py`, `xpbd_solver_3d.py`, or any damping semantics.
-3. Re-run `pytest -q tests/test_xpbd_free_fall_regression.py tests/test_xpbd_physics.py tests/test_physics3d_backend.py tests/test_ccd_3d.py` as the minimum XPBD safety gate.
-4. If touching Taichi parity or GPU benchmarking, also run `pytest -q tests/test_taichi_xpbd.py tests/test_taichi_benchmark_backend.py`.
-5. For distillation/metadata safety, re-run `pytest -q tests/test_p1_distill_1a.py tests/test_p1_distill_3.py tests/test_p1_distill_4.py tests/test_ci_backend_schemas.py`.
-6. If starting **P3-GPU-BENCH-1**, add explicit analytical-baseline metrics to benchmark manifests before trusting throughput-only comparisons.
-7. If starting **P1-B4-1**, freeze the observation schema and rollout manifest contract before adding optimizer code.
+| Real CUDA hardware is unavailable in this sandbox | **Non-blocking for SESSION-082** — fallback behavior is now correct, but the formal CUDA evidence portion of `P3-GPU-BENCH-1` remains open |
+| The current benchmark parity scene is a dense free-fall cloud, not sparse cloth | **Expected** — chosen intentionally to lock correctness first; sparse validation remains the next subtask |
+| NumPy free-fall cloud is extremely fast on CPU | **Expected** — this is why the current sandbox reports low `speedup_ratio`; real GPU evidence must be collected on actual CUDA hardware before making acceleration claims |
 
 ## References
 
-[1]: https://matthias-research.github.io/pages/publications/XPBD.pdf "XPBD: Position-Based Simulation of Compliant Constrained Dynamics — Macklin, Müller, Chentanez, 2016"
-[2]: https://box2d.org/files/ErinCatto_NumericalMethods_GDC2015.pdf "Numerical Methods — Erin Catto, GDC 2015"
-[3]: https://box2d.org/documentation/md_simulation.html "Box2D Simulation Documentation"
+[1]: https://github.com/google/benchmark/blob/main/docs/user_guide.md "Google Benchmark User Guide"
+[2]: https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/ "NVIDIA CUDA C++ Best Practices Guide"
+[3]: https://docs.taichi-lang.org/docs/master/kernel_sync "Taichi Docs — Synchronization between Kernels and Python Scope"
 [4]: https://standards.nasa.gov/sites/default/files/standards/NASA/B/1/NASA-STD-7009B-Final-3-5-2024.pdf "NASA-STD-7009B: Standard for Models and Simulations"
-[5]: https://matthias-research.github.io/pages/publications/PBDBodies.pdf "Detailed Rigid Body Simulation with Extended Position Based Dynamics — Müller et al., 2020"

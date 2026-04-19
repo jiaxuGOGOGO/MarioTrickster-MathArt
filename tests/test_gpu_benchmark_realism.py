@@ -1,0 +1,108 @@
+"""SESSION-082 realism tests for the Taichi GPU benchmark pipeline.
+
+These tests focus on the physics / benchmarking closure itself rather than the
+registry plumbing:
+
+1. The free-fall cloud benchmark report must expose warm-up, repeated steady
+   samples, median aggregation, and parity metrics.
+2. The Taichi free-fall cloud integrator must remain analytically equivalent to
+   constant-acceleration motion when constraints and collisions are disabled.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+import json
+import math
+import sys
+
+import numpy as np
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from mathart.animation.xpbd_taichi import (
+    TaichiXPBDClothConfig,
+    TaichiXPBDClothSystem,
+    get_taichi_xpbd_backend_status,
+    reset_taichi_runtime,
+)
+from mathart.core.taichi_xpbd_backend import TaichiXPBDBackend
+
+
+def _read_report(manifest) -> dict:
+    return json.loads(Path(manifest.outputs["report_file"]).read_text(encoding="utf-8"))
+
+
+def _analytic_positions(config: TaichiXPBDClothConfig, steps: int, dt: float) -> np.ndarray:
+    xs = config.origin_x + np.arange(config.width, dtype=np.float64) * config.spacing
+    ys = config.origin_y - np.arange(config.height, dtype=np.float64) * config.spacing
+    grid_x, grid_y = np.meshgrid(xs, ys, indexing="ij")
+    positions = np.stack([grid_x, grid_y], axis=-1)
+    gravity = np.asarray(config.gravity, dtype=np.float64)
+    total_t = float(steps) * float(dt)
+    return positions + 0.5 * gravity * (total_t * total_t)
+
+
+def test_free_fall_cloud_report_exposes_warmup_median_and_parity(tmp_path: Path):
+    backend = TaichiXPBDBackend()
+    ctx, _ = backend.validate_config(
+        {
+            "output_dir": str(tmp_path),
+            "name": "realism_cpu",
+            "benchmark_device": "cpu",
+            "benchmark_scenario": "free_fall_cloud",
+            "benchmark_frame_count": 4,
+            "benchmark_warmup_frames": 2,
+            "benchmark_sample_count": 3,
+            "particle_budget": 64,
+        },
+    )
+    manifest = backend.execute(ctx)
+    report = _read_report(manifest)
+
+    assert report["benchmark_scenario"] == "free_fall_cloud"
+    assert report["sample_statistic"] == "median"
+    assert report["explicit_sync_used"] is True
+    assert report["warmup_frames"] == 2
+    assert report["sample_count"] == 3
+    assert len(report["samples_ms"]) == 3
+    assert len(report["cpu_reference_samples_ms"]) == 3
+    assert math.isfinite(float(report["cpu_gpu_max_drift"]))
+    assert math.isfinite(float(report["cpu_gpu_rmse"]))
+    assert isinstance(report["parity_passed"], bool)
+
+
+def test_taichi_free_fall_cloud_matches_constant_acceleration_reference():
+    reset_taichi_runtime()
+    status = get_taichi_xpbd_backend_status(prefer_gpu=False)
+    if not status.available or not status.initialized:
+        pytest.skip("Taichi runtime unavailable in this environment")
+
+    config = TaichiXPBDClothConfig(
+        width=4,
+        height=4,
+        prefer_gpu=False,
+        enable_constraints=False,
+        pin_top_row=False,
+        pin_corners=False,
+        enable_ground_collision=False,
+        enable_circle_collision=False,
+        sub_steps=1,
+        solver_iterations=1,
+        max_velocity=1.0e9,
+    )
+    system = TaichiXPBDClothSystem(config)
+    dt = 1.0 / 60.0
+    steps = 12
+    for _ in range(steps):
+        system.advance(dt)
+    system.sync()
+
+    observed = np.asarray(system.positions_numpy(), dtype=np.float64)
+    expected = _analytic_positions(config, steps, dt)
+    diff = observed - expected
+    max_drift = float(np.max(np.abs(diff))) if diff.size else 0.0
+    rmse = float(np.sqrt(np.mean(np.square(diff)))) if diff.size else 0.0
+
+    assert max_drift < 5e-5
+    assert rmse < 5e-5

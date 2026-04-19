@@ -604,6 +604,10 @@ class RuntimeDistillationBus:
             "frame_count": frame_count,
             "wall_time_ms": wall_time_ms,
             "throughput_per_s": throughput,
+            "gpu_device_name": str(metadata.get("gpu_device_name", "unavailable")),
+            "speedup_ratio": float(metadata.get("speedup_ratio", 0.0) or 0.0),
+            "cpu_gpu_max_drift": float(metadata.get("cpu_gpu_max_drift", 0.0) or 0.0),
+            "parity_passed": bool(metadata.get("parity_passed", False)),
         }
 
     def record_benchmark_report(self, report: Mapping[str, Any]) -> dict[str, Any]:
