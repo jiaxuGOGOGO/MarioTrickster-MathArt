@@ -113,6 +113,8 @@ _SPARSECTRL_SELECTORS: tuple[NodeSelector, ...] = (
     NodeSelector("depth_apply", "ControlNetApplyAdvanced", "apply depth controlnet", "strength"),
     NodeSelector("sparsectrl_apply", "ControlNetApplyAdvanced", "apply sparsectrl rgb", "strength"),
     NodeSelector("sparsectrl_end_percent", "ControlNetApplyAdvanced", "apply sparsectrl rgb", "end_percent"),
+    # --- SparseCtrl RGB preprocessor (required by SparseCtrl, no injectable value) ---
+    NodeSelector("sparsectrl_rgb_preprocess", "ACN_SparseCtrlRGBPreprocessor", "sparsectrl rgb preprocessor", "image", required=False),
     # --- SparseCtrl model ---
     NodeSelector("sparsectrl_model", "ACN_SparseCtrlLoaderAdvanced", "load sparsectrl model", "sparsectrl_name"),
     NodeSelector("sparsectrl_strength", "ACN_SparseCtrlLoaderAdvanced", "load sparsectrl model", "motion_strength"),

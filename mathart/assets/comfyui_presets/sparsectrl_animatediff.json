@@ -187,6 +187,18 @@
       "title": "Load RGB Sequence"
     }
   },
+  "20": {
+    "class_type": "ACN_SparseCtrlRGBPreprocessor",
+    "inputs": {
+      "image": [
+        "13",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SparseCtrl RGB Preprocessor"
+    }
+  },
   "14": {
     "class_type": "ControlNetApplyAdvanced",
     "inputs": {
@@ -203,7 +215,7 @@
         0
       ],
       "image": [
-        "13",
+        "20",
         0
       ],
       "strength": 1.0,
