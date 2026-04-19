@@ -56,6 +56,8 @@ class BackendType(str, Enum):
     EVOLUTION_CONTRACT = "evolution_contract"
     EVOLUTION_ENV_CLOSEDLOOP = "evolution_env_closedloop"
     EVOLUTION_RESEARCH = "evolution_research"
+    # SESSION-076 (P1-DISTILL-3): Physics-gait distillation backend.
+    EVOLUTION_PHYSICS_GAIT_DISTILL = "evolution_physics_gait_distill"
 
 
 _BACKEND_ALIASES: dict[str, str] = {
@@ -75,6 +77,7 @@ _BACKEND_ALIASES: dict[str, str] = {
     BackendType.MICROKERNEL.value: BackendType.MICROKERNEL.value,
     BackendType.PHYSICS_3D.value: BackendType.PHYSICS_3D.value,
     BackendType.TAICHI_XPBD.value: BackendType.TAICHI_XPBD.value,
+    BackendType.EVOLUTION_PHYSICS_GAIT_DISTILL.value: BackendType.EVOLUTION_PHYSICS_GAIT_DISTILL.value,
     # Historical / user-requested variants
     "dimension_uplift": BackendType.DIMENSION_UPLIFT_MESH.value,
     "dimension_uplift_bundle": BackendType.DIMENSION_UPLIFT_MESH.value,
@@ -119,6 +122,10 @@ _BACKEND_ALIASES: dict[str, str] = {
     "contract_evolution": BackendType.EVOLUTION_CONTRACT.value,
     "env_closedloop_evolution": BackendType.EVOLUTION_ENV_CLOSEDLOOP.value,
     "research_evolution": BackendType.EVOLUTION_RESEARCH.value,
+    # SESSION-076 (P1-DISTILL-3): Physics-gait distillation backend aliases
+    "physics_gait_distill": BackendType.EVOLUTION_PHYSICS_GAIT_DISTILL.value,
+    "physics_gait_evolution": BackendType.EVOLUTION_PHYSICS_GAIT_DISTILL.value,
+    "gait_distill": BackendType.EVOLUTION_PHYSICS_GAIT_DISTILL.value,
 }
 
 

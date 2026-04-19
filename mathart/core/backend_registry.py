@@ -466,6 +466,13 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.evolution_backends")
         except Exception as e:
             logger.debug("Failed to auto-load evolution backends: %s", e)
+        # SESSION-076 (P1-DISTILL-3): auto-register the physics-gait
+        # distillation backend so the orchestrator can discover it via
+        # BackendCapability.EVOLUTION_DOMAIN without any hardcoded import.
+        try:
+            importlib.import_module("mathart.core.physics_gait_distill_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load physics gait distill backend: %s", e)
     return registry
 
 

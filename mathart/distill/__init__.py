@@ -27,6 +27,12 @@ from .runtime_bus import (
     RuntimeRuleProgram,
     load_runtime_distillation_bus,
 )
+from .knowledge_preloader import (
+    PHYSICS_GAIT_MODULE,
+    load_physics_gait_knowledge,
+    register_physics_gait_knowledge,
+    preload_all_distilled_knowledge,
+)
 
 __all__ = [
     "KnowledgeParser",
@@ -45,4 +51,8 @@ __all__ = [
     "RuntimeRuleClause",
     "RuntimeRuleProgram",
     "load_runtime_distillation_bus",
+    "PHYSICS_GAIT_MODULE",
+    "load_physics_gait_knowledge",
+    "register_physics_gait_knowledge",
+    "preload_all_distilled_knowledge",
 ]
