@@ -46,20 +46,38 @@ from mathart.core.taichi_xpbd_backend import TaichiXPBDBackend
 
 
 def _detect_cuda_available() -> bool:
-    """Probe whether a real CUDA device is accessible via Taichi."""
+    """Probe whether a real CUDA device is accessible via Taichi.
+
+    Uses a direct ``ti.init(arch=ti.cuda)`` probe which is the most reliable
+    method.  The previous approach (reset → status query) could silently fail
+    on Windows when Taichi's internal state was not fully cleared between
+    reset/init cycles.
+    """
     try:
-        from mathart.animation.xpbd_taichi import (
-            get_taichi_xpbd_backend_status,
-            reset_taichi_runtime,
-        )
-        reset_taichi_runtime()
-        status = get_taichi_xpbd_backend_status(prefer_gpu=True)
-        if status.available and status.initialized and status.active_arch != "cpu":
-            return True
-        reset_taichi_runtime()
+        import taichi as ti
+        # Reset any prior state so we get a clean probe
+        try:
+            ti.reset()
+        except Exception:
+            pass
+        # Direct CUDA init — the gold-standard check
+        ti.init(arch=ti.cuda, default_fp=ti.f32)
+        arch_str = str(ti.lang.impl.current_cfg().arch).lower()
+        is_cuda = "cuda" in arch_str
+        # Reset after probe so benchmark cases can re-init cleanly
+        try:
+            ti.reset()
+        except Exception:
+            pass
+        return is_cuda
     except Exception:
-        pass
-    return False
+        # If ti.init(arch=ti.cuda) throws, CUDA is not available
+        try:
+            import taichi as ti
+            ti.reset()
+        except Exception:
+            pass
+        return False
 
 
 def run_case(
