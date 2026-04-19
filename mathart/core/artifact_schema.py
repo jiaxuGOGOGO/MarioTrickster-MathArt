@@ -111,6 +111,9 @@ class ArtifactFamily(Enum):
     # manifest with mandatory metadata keys enforcing the Pixar USD
     # Schema Compliance pattern for evolution domain outputs.
     EVOLUTION_REPORT = "evolution_report"
+    # SESSION-083 (P1-B4-1): RL training report family for Gymnasium /
+    # rollout execution evidence and reproducible micro-batch telemetry.
+    TRAINING_REPORT = "training_report"
 
     @classmethod
     def required_metadata_keys(cls, family_value: str) -> frozenset[str]:
@@ -156,6 +159,15 @@ class ArtifactFamily(Enum):
                 "cycle_count",
                 "best_fitness",
                 "knowledge_rules_distilled",
+            }),
+            # SESSION-083 (P1-B4-1): Mandatory metadata for RL rollout /
+            # training reports so downstream audit code can compare lanes
+            # without inferring ad-hoc field names.
+            cls.TRAINING_REPORT.value: frozenset({
+                "mean_reward",
+                "episode_length",
+                "episodes_run",
+                "trainer_mode",
             }),
         }
         return _FAMILY_REQUIRED_METADATA.get(family_value, frozenset())
@@ -485,6 +497,20 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     ArtifactFamily.EVOLUTION_REPORT.value: {
         "required_outputs": ["report_file"],
         "required_metadata": ["cycle_count", "best_fitness", "knowledge_rules_distilled"],
+        "required_quality": [],
+    },
+    # SESSION-083 (P1-B4-1): RL training / rollout report schema.
+    ArtifactFamily.TRAINING_REPORT.value: {
+        "required_outputs": ["report_file"],
+        "required_metadata": [
+            "mean_reward",
+            "episode_length",
+            "episodes_run",
+            "trainer_mode",
+            "reference_state",
+            "obs_dim",
+            "act_dim",
+        ],
         "required_quality": [],
     },
 }

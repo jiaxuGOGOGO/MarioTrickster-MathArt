@@ -59,6 +59,9 @@ from .rl_locomotion import (
     PPOTrainer, ReferenceMotionLibrary,
     LocomotionPolicy, PPOConfig,
 )
+from .rl_gym_env import (
+    LocomotionRLEnv, LocomotionRLEnvConfig, RLEnvConfig,
+)
 from .skill_embeddings import (
     ASEFramework, SkillEncoder, MotionDiscriminator,
     LowLevelController, HighLevelController,
@@ -375,6 +378,7 @@ __all__ = [
     "LocomotionEnv", "LocomotionConfig", "GaitType",
     "PPOTrainer", "ReferenceMotionLibrary",
     "LocomotionPolicy", "PPOConfig",
+    "LocomotionRLEnv", "LocomotionRLEnvConfig", "RLEnvConfig",
     "ASEFramework", "SkillEncoder", "MotionDiscriminator",
     "LowLevelController", "HighLevelController",
     "SkillLibrary", "SkillType", "SkillEntry",

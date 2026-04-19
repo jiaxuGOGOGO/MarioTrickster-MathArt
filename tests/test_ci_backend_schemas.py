@@ -252,6 +252,14 @@ class TestCIBackendSchemas:
         assert "fps" in motion_keys
         assert "joint_channel_schema" in motion_keys
 
+        training_keys = ArtifactFamily.required_metadata_keys(
+            ArtifactFamily.TRAINING_REPORT.value,
+        )
+        assert "mean_reward" in training_keys
+        assert "episode_length" in training_keys
+        assert "episodes_run" in training_keys
+        assert "trainer_mode" in training_keys
+
         # Composite family has no required metadata
         composite_keys = ArtifactFamily.required_metadata_keys(
             ArtifactFamily.COMPOSITE.value,
@@ -350,3 +358,8 @@ class TestCIBackendSchemas:
         must be available."""
         assert hasattr(BackendCapability, "EVOLUTION_DOMAIN")
         assert BackendCapability.EVOLUTION_DOMAIN is not None
+
+    def test_rl_training_capability_exists(self):
+        """SESSION-083 (P1-B4-1): BackendCapability.RL_TRAINING must exist."""
+        assert hasattr(BackendCapability, "RL_TRAINING")
+        assert BackendCapability.RL_TRAINING is not None

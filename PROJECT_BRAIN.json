@@ -1,13 +1,13 @@
 {
-  "version": "0.73.0",
-  "last_session_id": "SESSION-082",
-  "last_updated": "2026-04-19T09:36:14Z",
+  "version": "0.74.0",
+  "last_session_id": "SESSION-083",
+  "last_updated": "2026-04-19T11:20:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
     "baseline_session": "SESSION-075",
     "head_commit": "SESSION-075",
-    "active_total": 72,
+    "active_total": 71,
     "by_priority": {
       "P1": 37,
       "P2": 34,
@@ -17,12 +17,11 @@
       "PARTIAL": 4,
       "SUBSTANTIALLY-ADVANCED": 2,
       "SUBSTANTIALLY-CLOSED": 5,
-      "TODO": 61
+      "TODO": 60
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
       "P3-GPU-BENCH-1",
-      "P1-B4-1",
       "P1-MIGRATE-4",
       "P1-AI-2D",
       "P1-AI-2D-SPARSECTRL",
@@ -30,10 +29,10 @@
       "P1-ARCH-4",
       "P1-AI-2E"
     ],
-    "closed_archived": 49
+    "closed_archived": 50
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-082 P3-GPU-BENCH-1 groundwork PASS: 40 PASS, 2 SKIP, 0 FAIL across Taichi XPBD, benchmark realism, CI schema, and distillation suites; local CPU/GPU-request benchmark reports now carry median timing, explicit-sync evidence, and NumPy parity metrics with truthful CPU fallback when CUDA is absent",
+  "validation_pass_rate": "SESSION-083 P1-B4-1 closure PASS: 18 PASS, 0 FAIL across new Gymnasium RL environment checks and full dynamic CI backend schema audit; rl_training now emits typed TRAINING_REPORT manifests with random-actor fallback in this no-SB3 sandbox",
   "total_iterations": 642,
   "total_code_lines": 121332,
   "distill_session_id": "DISTILL-012",
@@ -79,7 +78,7 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-082 upgrades the Taichi benchmark stack from a loose smoke test into a correctness-aware benchmark pipeline: warm-up is excluded, steady-state samples use median timing, GPU timing is closed by explicit sync, benchmark manifests now carry CPU-reference drift metrics, and runtime arch detection truthfully reports CPU fallback when CUDA is unavailable.",
+  "current_focus": "SESSION-083 closes P1-B4-1 by landing a Gymnasium-compliant LocomotionRLEnv with RSI resets, correct terminated/truncated semantics, a registry-native RLTrainingBackend, typed TRAINING_REPORT manifests, and CI-safe random-actor fallback when Stable-Baselines3 is unavailable.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research/session082_gpu_benchmark_reference_notes.md",
@@ -932,6 +931,12 @@
     }
   ],
   "completed_tasks": [
+    {
+      "id": "SESSION-083-P1-B4-1",
+      "title": "Gymnasium RL environment and registry-native training backend with typed rollout reports",
+      "completed_in": "SESSION-083",
+      "result": "Added LocomotionRLEnv with RSI resets, correct terminated/truncated semantics, registry-discovered rl_training backend, ArtifactFamily.TRAINING_REPORT schema enforcement, CI-safe random-actor fallback, and 18 PASS / 0 FAIL targeted regression coverage."
+    },
     {
       "id": "SESSION-079-P1-GAP4-BATCH",
       "title": "Transient-motion batch tuning closure for jump/fall/hit Layer 3 loop",
@@ -2116,6 +2121,15 @@
         "P1-B4-1: start the RL policy training loop with deterministic rollout-health telemetry",
         "P1-MIGRATE-4: continue registry/migration closure work"
       ]
+    },
+    {
+      "session_id": "SESSION-083",
+      "summary": "Closed P1-B4-1 by landing a Gymnasium-compliant RL environment with RSI resets, correct terminated/truncated semantics, a registry-native rl_training backend, typed TRAINING_REPORT artifacts, and CI-safe random-actor fallback when Stable-Baselines3 is unavailable.",
+      "top_gaps": [
+        "P3-GPU-BENCH-1: execute the formal CUDA benchmark and sparse-topology validation on real hardware",
+        "P1-MIGRATE-4: continue hot-reload and registry/migration closure work",
+        "P1-AI-2D: ship real ComfyUI preset packs for production anti-flicker jobs"
+      ]
     }
   ],
   "custom_notes": {
@@ -2192,15 +2206,19 @@
     "session065_three_layer_evolution": "Three-layer evolution bridge (session065_research_bridge.py): Layer 1 evaluates 5 modules (21/21 tests), Layer 2 distills 9 rules, Layer 3 runs 3 end-to-end integration pipelines. 100% integration score.",
     "session066_golden_path_status": "Golden Path Phase 0 implemented: strong backend typing, registry-driven AssetPipeline socket, federated orchestrator facade, and daily registry guard are all in place.",
     "session067_dynamic_cli_status": "First-class package CLI now exists at mathart/cli.py with python -m mathart and python -m MarioTrickster entrypoints, registry-reflected backend discovery, stderr-only diagnostics, stdout-only JSON IPC payloads, and subprocess-proven urp2d_bundle manifest delivery.",
-    "session067_future_cli_preparation": "Before anti_flicker_render and industrial_sprite become production-grade CLI backends, keep extending the generic --set dotted-key transport and enrich ArtifactManifest IPC payloads for multi-channel, temporal, and auxiliary asset groups instead of adding bespoke per-backend flags."
+    "session067_future_cli_preparation": "Before anti_flicker_render and industrial_sprite become production-grade CLI backends, keep extending the generic --set dotted-key transport and enrich ArtifactManifest IPC payloads for multi-channel, temporal, and auxiliary asset groups instead of adding bespoke per-backend flags.",
+    "session083_rl_training_status": "P1-B4-1 CLOSED. LocomotionRLEnv now exposes Gymnasium reset/step semantics with RSI and early termination, while RLTrainingBackend emits typed TRAINING_REPORT manifests and degrades to a reproducible random-actor lane when Stable-Baselines3 is absent."
   },
   "recent_focus_snapshot": {
-    "session": "SESSION-082",
-    "focus": "P3-GPU-BENCH-1: correctness-aware Taichi benchmark harness with truthful fallback and NumPy parity metrics",
-    "closed": [],
+    "session": "SESSION-083",
+    "focus": "P1-B4-1: Gymnasium RL environment and registry-native training backend with typed training reports",
+    "closed": [
+      "P1-B4-1"
+    ],
     "next": [
-      "P3-GPU-BENCH-1: run the new benchmark harness on real CUDA hardware and add sparse-topology validation",
-      "P1-B4-1: build the RL policy training loop with rollout-health telemetry and reproducible manifests"
+      "P3-GPU-BENCH-1: run the CUDA benchmark harness on real hardware and add sparse-topology validation",
+      "P1-MIGRATE-4: continue hot-reload and registry closure work",
+      "P1-AI-2D: ship real ComfyUI preset packs for anti-flicker production jobs"
     ]
   },
   "recent_sessions": [
@@ -2275,6 +2293,29 @@
         "P3-GPU-BENCH-1: run the new benchmark harness on real CUDA hardware and extend it to sparse topology validation",
         "P1-B4-1: start the RL policy training loop with rollout-health telemetry and deterministic reset/provenance contracts",
         "P1-MIGRATE-4: continue registry/migration closure work"
+      ]
+    },
+    {
+      "session_id": "SESSION-083",
+      "date": "2026-04-19",
+      "focus": "P1-B4-1: Gymnasium RL environment, registry-native training backend, and typed training reports",
+      "changes": [
+        "NEW mathart/animation/rl_gym_env.py — Gymnasium-compatible LocomotionRLEnv with RSI reset, early termination, truncation horizon, and rollout telemetry",
+        "NEW mathart/core/rl_training_backend.py — registry-native rl_training backend emitting TRAINING_REPORT manifests with Stable-Baselines3 auto-detect and random-actor fallback",
+        "UPD mathart/core/backend_types.py + mathart/core/backend_registry.py + mathart/core/artifact_schema.py — RL backend type/capability plus TRAINING_REPORT family schema closure",
+        "UPD mathart/animation/__init__.py + pyproject.toml — export RL env symbols and declare gymnasium dependency",
+        "NEW tests/test_p1_b4_1_rl_training.py + UPD tests/test_ci_backend_schemas.py — enforce Gymnasium API, terminated/truncated semantics, registry discovery, and training report schema",
+        "NEW research/session083_rl_reference_notes.md — Gymnasium / DeepMimic / Farama termination semantics distilled for implementation",
+        "UPD PROJECT_BRAIN.json + SESSION_HANDOFF.md — close P1-B4-1 and refresh next-step guidance"
+      ],
+      "test_results": "18 PASS, 0 FAIL across tests/test_p1_b4_1_rl_training.py and tests/test_ci_backend_schemas.py; rl_training manifest validation passes with random-actor fallback in this sandbox",
+      "tasks_closed": [
+        "P1-B4-1"
+      ],
+      "next_priorities": [
+        "P3-GPU-BENCH-1: run the CUDA benchmark harness on real hardware and add sparse-topology validation",
+        "P1-MIGRATE-4: continue hot-reload and registry closure work",
+        "P1-AI-2D: ship real ComfyUI preset packs for anti-flicker production jobs"
       ]
     }
   ],

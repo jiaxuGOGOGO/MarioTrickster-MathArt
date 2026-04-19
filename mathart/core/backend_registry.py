@@ -106,6 +106,10 @@ class BackendCapability(Enum):
     # The orchestrator uses this capability to dynamically discover all
     # evolution backends without hardcoded import lists.
     EVOLUTION_DOMAIN = auto()
+    # SESSION-083 (P1-B4-1): RL rollout / training capability marker.
+    # Backends declaring this capability produce training-loop artifacts such
+    # as micro-batch rollout reports without requiring trunk routing changes.
+    RL_TRAINING = auto()
 
 
 # ---------------------------------------------------------------------------
@@ -478,8 +482,16 @@ def get_registry() -> BackendRegistry:
         try:
             importlib.import_module("mathart.core.cognitive_distillation_backend")
         except Exception as e:
-            logger.debug("Failed to auto-load cognitive distill backend: %s", e)
+            logger.debug("Failed to auto-load cognitive distillation backend: %s", e)
+        # SESSION-083 (P1-B4-1): auto-register the RL training backend so the
+        # microkernel can discover rollout/training execution without any trunk
+        # if/else path modification.
+        try:
+            importlib.import_module("mathart.core.rl_training_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load rl training backend: %s", e)
     return registry
+
 
 
 # ---------------------------------------------------------------------------
