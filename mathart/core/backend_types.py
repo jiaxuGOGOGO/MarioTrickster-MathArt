@@ -29,6 +29,8 @@ class BackendType(str, Enum):
     UNIFIED_MOTION = "unified_motion"
     MICROKERNEL = "microkernel"
     PHYSICS_3D = "physics_3d"
+    # SESSION-075 (P1-DISTILL-1B): Taichi XPBD benchmark backend.
+    TAICHI_XPBD = "taichi_xpbd"
     # SESSION-074 (P1-MIGRATE-2): Evolution bridge backend types.
     # Each legacy EvolutionBridge is promoted to a first-class backend
     # identity so the registry can discover, route, and CI-guard them
@@ -72,6 +74,7 @@ _BACKEND_ALIASES: dict[str, str] = {
     BackendType.UNIFIED_MOTION.value: BackendType.UNIFIED_MOTION.value,
     BackendType.MICROKERNEL.value: BackendType.MICROKERNEL.value,
     BackendType.PHYSICS_3D.value: BackendType.PHYSICS_3D.value,
+    BackendType.TAICHI_XPBD.value: BackendType.TAICHI_XPBD.value,
     # Historical / user-requested variants
     "dimension_uplift": BackendType.DIMENSION_UPLIFT_MESH.value,
     "dimension_uplift_bundle": BackendType.DIMENSION_UPLIFT_MESH.value,
@@ -91,6 +94,9 @@ _BACKEND_ALIASES: dict[str, str] = {
     "xpbd_3d": BackendType.PHYSICS_3D.value,
     "physics3d": BackendType.PHYSICS_3D.value,
     "physics_xpbd_3d": BackendType.PHYSICS_3D.value,
+    # SESSION-075 (P1-DISTILL-1B): Taichi XPBD benchmark backend aliases
+    "taichi_benchmark": BackendType.TAICHI_XPBD.value,
+    "taichi_cloth": BackendType.TAICHI_XPBD.value,
     # SESSION-074 (P1-MIGRATE-2): Evolution bridge backend aliases
     "xpbd_evolution": BackendType.EVOLUTION_XPBD.value,
     "fluid_vfx_evolution": BackendType.EVOLUTION_FLUID_VFX.value,

@@ -208,6 +208,28 @@ def get_taichi_xpbd_backend_status(prefer_gpu: bool = True) -> TaichiXPBDBackend
         )
 
 
+def reset_taichi_runtime() -> None:
+    """Reset Taichi runtime state so a later benchmark can reselect the arch."""
+    global _TAICHI_READY, _TAICHI_ARCH
+    if ti is not None:
+        try:
+            ti.reset()
+        except Exception:
+            pass
+    _TAICHI_READY = False
+    _TAICHI_ARCH = "uninitialized"
+
+
+def sync_taichi_runtime() -> None:
+    """Block until queued Taichi work completes when the runtime is available."""
+    if ti is None:
+        return
+    try:
+        ti.sync()
+    except Exception:
+        pass
+
+
 if ti is not None:
     _data_oriented = ti.data_oriented
     _kernel = ti.kernel
@@ -441,8 +463,8 @@ if ti is not None:
                     self.positions[i, j] = self.predicted[i, j]
                     self.velocities[i, j] = ti.Vector([0.0, 0.0])
 
-        def step(self, dt: float = 1.0 / 60.0) -> TaichiXPBDClothDiagnostics:
-            """Advance the cloth by one frame and return diagnostics."""
+        def _advance(self, dt: float = 1.0 / 60.0) -> None:
+            """Advance the cloth by one frame without forcing host-side readback."""
             sub_dt = float(dt) / max(int(self.config.sub_steps), 1)
             gx, gy = self.config.gravity
             rest = float(self.config.spacing)
@@ -479,7 +501,19 @@ if ti is not None:
                     float(self.config.velocity_damping),
                     float(self.config.max_velocity),
                 )
+
+        def step(self, dt: float = 1.0 / 60.0) -> TaichiXPBDClothDiagnostics:
+            """Advance the cloth by one frame and return diagnostics."""
+            self._advance(dt)
             return self._collect_diagnostics()
+
+        def advance(self, dt: float = 1.0 / 60.0) -> None:
+            """Advance one frame without diagnostics readback.
+
+            This path is intended for warm-up and benchmark loops so the caller
+            can separate GPU work from host-side readback noise.
+            """
+            self._advance(dt)
 
         def _collect_diagnostics(self) -> TaichiXPBDClothDiagnostics:
             positions = self.positions.to_numpy()
@@ -507,11 +541,30 @@ if ti is not None:
             """Export current positions for analysis or rendering."""
             return self.positions.to_numpy()
 
-        def run(self, frames: int = 60, dt: float = 1.0 / 60.0) -> TaichiXPBDBenchmarkResult:
+        def sync(self) -> None:
+            """Explicitly synchronize queued Taichi work.
+
+            On CPU this is effectively a no-op; on GPU it guards benchmark
+            timing against the async-dispatch trap.
+            """
+            if self.active_arch != "cpu":
+                sync_taichi_runtime()
+
+        def run(
+            self,
+            frames: int = 60,
+            dt: float = 1.0 / 60.0,
+            *,
+            collect_diagnostics: bool = False,
+        ) -> TaichiXPBDBenchmarkResult:
             """Run a short benchmark / warm simulation sequence."""
             start = perf_counter()
             for _ in range(int(frames)):
-                self.step(dt)
+                if collect_diagnostics:
+                    self.step(dt)
+                else:
+                    self.advance(dt)
+            self.sync()
             seconds = perf_counter() - start
             fps = float(frames) / max(seconds, 1e-8)
             return TaichiXPBDBenchmarkResult(
@@ -544,5 +597,7 @@ __all__ = [
     "TaichiXPBDBenchmarkResult",
     "TaichiXPBDClothSystem",
     "get_taichi_xpbd_backend_status",
+    "reset_taichi_runtime",
+    "sync_taichi_runtime",
     "create_default_taichi_cloth_config",
 ]

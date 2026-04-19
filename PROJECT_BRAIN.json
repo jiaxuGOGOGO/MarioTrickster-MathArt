@@ -1,15 +1,15 @@
 {
-  "version": "0.65.0",
-  "last_session_id": "SESSION-074",
-  "last_updated": "2026-04-19T23:30:00Z",
+  "version": "0.66.0",
+  "last_session_id": "SESSION-075",
+  "last_updated": "2026-04-19T23:59:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
-    "baseline_session": "SESSION-074",
-    "head_commit": "SESSION-074",
-    "active_total": 77,
+    "baseline_session": "SESSION-075",
+    "head_commit": "SESSION-075",
+    "active_total": 76,
     "by_priority": {
-      "P1": 40,
+      "P1": 39,
       "P2": 34,
       "P3": 3
     },
@@ -17,12 +17,11 @@
       "PARTIAL": 6,
       "SUBSTANTIALLY-ADVANCED": 2,
       "SUBSTANTIALLY-CLOSED": 5,
-      "TODO": 64
+      "TODO": 63
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
       "P1-DISTILL-1A",
-      "P1-DISTILL-1B",
       "P1-DISTILL-3",
       "P1-DISTILL-4",
       "P1-B3-1",
@@ -34,12 +33,12 @@
       "P1-MIGRATE-4",
       "P1-ARCH-4"
     ],
-    "closed_archived": 44
+    "closed_archived": 45
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-074 P1-MIGRATE-2 PASS: 13/13 CI schema tests PASS (including 5 new evolution-domain tests), 95/95 targeted regression subset PASS (ci_schemas + evolution + evolution_bridges_057 + ccd_3d + breakwall_phase1). Zero breakage of SESSION-073 1362-baseline. Pre-existing infra flakes unchanged (taichi/scipy/layer3_closed_loop).",
-  "total_iterations": 615,
-  "total_code_lines": 111800,
+  "validation_pass_rate": "SESSION-075 P1-DISTILL-1B PASS: 7/7 new Taichi benchmark backend tests PASS with 1 expected GPU-lane skip in a non-GPU environment. Smoke validation confirms BackendType.TAICHI_XPBD auto-registers, ArtifactFamily.BENCHMARK_REPORT validates, degraded manifests remain schema-clean without taichi, and runtime_distill benchmark/device recording is wired end-to-end.",
+  "total_iterations": 616,
+  "total_code_lines": 112300,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
@@ -83,7 +82,7 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-074 closes P1-MIGRATE-2 (Strangler Fig completion — all 20+ legacy EvolutionBridge classes migrated to @register_backend microkernel plugins). New evolution_backends.py adapter factory with BackendCapability.EVOLUTION_DOMAIN + ArtifactFamily.EVOLUTION_REPORT strong contract. MicrokernelOrchestrator._run_legacy_bridges() hardcoded bridge_specs list eliminated — replaced with fully reflective BackendRegistry.find_by_capability(EVOLUTION_DOMAIN) dynamic discovery (Eclipse OSGi pattern). Orchestrator is now completely blind to individual bridge identities. BackendType extended with 20 EVOLUTION_* entries. ArtifactFamily.EVOLUTION_REPORT requires cycle_count, best_fitness, knowledge_rules_distilled metadata keys. 5 new CI tests added. 13/13 CI schema tests PASS, 95/95 targeted regression PASS. Architecture dual-track (hardcoded + registry) fully eliminated. Next priority: P1-DISTILL-1B (Taichi GPU acceleration for RuntimeDistillBus + XPBD performance benchmarking).",
+  "current_focus": "SESSION-075 closes P1-DISTILL-1B by landing a registry-native Taichi XPBD benchmark backend, new GPU_ACCELERATED capability, BENCHMARK_REPORT artifact family, explicit warm-up + median benchmark path, and runtime_distill benchmark/device recording hooks. The backend degrades cleanly when taichi is absent, emits schema-valid benchmark manifests, and is exercised by dedicated tests covering registry discovery, CPU/GPU A/B comparison through fake Taichi modules, and real-environment smoke execution. Next priority: P1-DISTILL-1A (roll RuntimeDistillBus further into hot paths).",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "tests/test_ccd_3d.py",
@@ -349,10 +348,12 @@
       "id": "P1-DISTILL-1B",
       "priority": "P1",
       "title": "Add Taichi backend and benchmark suite for Runtime DistillBus",
-      "status": "TODO",
+      "status": "DONE",
       "estimated_effort": "medium",
-      "description": "Keep SESSION-050's lowering boundary but add a Taichi backend plus larger benchmark scenes to compare array/JIT performance across runtime workloads.",
-      "added_in": "SESSION-050"
+      "description": "SESSION-075 CLOSED. Added BackendType.TAICHI_XPBD, BackendCapability.GPU_ACCELERATED, ArtifactFamily.BENCHMARK_REPORT, a registry-native TaichiXPBDBackend with warm-up + median sampling, graceful degraded manifests when taichi is missing, runtime_distill benchmark normalization/recording hooks, and dedicated tests for schema, fallback, CPU/GPU A/B comparison, and real smoke execution.",
+      "added_in": "SESSION-050",
+      "updated_in": "SESSION-075",
+      "completed_in": "SESSION-075"
     },
     {
       "id": "P1-DISTILL-3",
@@ -2172,12 +2173,30 @@
       "MAP-Elites Niche Registry (Pareto Front + Isolated Fitness)"
     ],
     "next_priorities": [
-      "P1-DISTILL-1B: Add Taichi GPU backend for RuntimeDistillBus + XPBD performance benchmarking. Now that P1-MIGRATE-2 has unified all evolution bridges under the registry, the Taichi backend can be registered as a standard @register_backend plugin with BackendCapability.GPU_ACCELERATED. Architecture prep needed: (a) define BackendCapability.GPU_ACCELERATED enum value, (b) create TaichiXPBDBackend that wraps taichi_xpbd.py cloth solver as a registry plugin, (c) add ArtifactFamily.BENCHMARK_REPORT with required_metadata_keys (solver_type, frame_count, wall_time_ms, particles_per_second), (d) extend RuntimeDistillBus to accept GPU telemetry streams alongside CPU baselines for A/B comparison.",
       "P1-DISTILL-1A: Roll RuntimeDistillBus into gait blending hot paths and physics3d hot path",
-      "P1-MIGRATE-4: Implement hot-reload for dynamically discovered backends"
+      "P1-MIGRATE-4: Implement hot-reload for dynamically discovered backends",
+      "P1-DISTILL-3: Distill Verlet and gait parameters into knowledge/ with stronger runtime consumption paths"
     ]
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-075",
+      "date": "2026-04-19",
+      "focus": "P1-DISTILL-1B: Taichi XPBD benchmark backend, BENCHMARK_REPORT schema, and runtime_distill benchmark lineage",
+      "changes": [
+        "mathart/core/taichi_xpbd_backend.py: new @register_backend Taichi benchmark plugin with warm-up + median sampling and degraded manifest path",
+        "mathart/core/backend_registry.py: BackendCapability.GPU_ACCELERATED + auto-load taichi_xpbd_backend",
+        "mathart/core/backend_types.py: BackendType.TAICHI_XPBD + aliases",
+        "mathart/core/artifact_schema.py: ArtifactFamily.BENCHMARK_REPORT + required benchmark metadata",
+        "mathart/animation/xpbd_taichi.py: reset/sync helpers + no-readback benchmark path",
+        "mathart/distill/runtime_bus.py and mathart/evolution/evolution_loop.py: benchmark/device recording hooks",
+        "tests/test_taichi_benchmark_backend.py: schema, fallback, fake CPU/GPU A/B, runtime_distill, real smoke"
+      ],
+      "test_results": "7/7 new backend tests PASS, 1 real-GPU-only smoke skip in non-GPU environment",
+      "tasks_closed": [
+        "P1-DISTILL-1B"
+      ]
+    },
     {
       "session_id": "SESSION-074",
       "date": "2026-04-19",

@@ -530,7 +530,7 @@ class RuntimeRuleProgram:
             "rows": rows,
         }
 
-    def benchmark(self, sample_count: int = 2000) -> dict[str, float]:
+    def benchmark(self, sample_count: int = 2000, *, device: str = "cpu") -> dict[str, Any]:
         rng = np.random.default_rng(7)
         samples = rng.normal(0.0, 0.25, size=(sample_count, len(self.feature_names))).astype(np.float64)
         self.evaluate_array(samples[0])  # warm up JIT if enabled
@@ -543,7 +543,10 @@ class RuntimeRuleProgram:
             "sample_count": float(sample_count),
             "accepted": float(accepted),
             "elapsed_s": float(elapsed),
+            "wall_time_ms": float(elapsed * 1000.0),
             "throughput_per_s": float(sample_count / max(elapsed, 1e-9)),
+            "backend": self.backend,
+            "device": str(device or "cpu"),
         }
 
 
@@ -566,6 +569,7 @@ class RuntimeDistillationBus:
         self.spaces: dict[str, ParameterSpace] = {}
         self.compiled_spaces: dict[str, CompiledParameterSpace] = {}
         self.runtime_programs: dict[str, RuntimeRuleProgram] = {}
+        self.benchmark_reports: list[dict[str, Any]] = []
         self.last_refresh_summary: dict[str, Any] = {}
 
     def _pick_backend(self) -> str:
@@ -575,6 +579,40 @@ class RuntimeDistillationBus:
             if backend == "python":
                 return "python"
         return "python"
+
+    @staticmethod
+    def normalize_benchmark_report(report: Mapping[str, Any]) -> dict[str, Any]:
+        """Normalize benchmark metadata from a manifest or bare payload.
+
+        This creates a stable runtime-distill-facing shape so later tuning loops
+        can compare CPU/GPU evidence without knowing the original producer.
+        """
+        metadata = report.get("metadata", report)
+        solver_type = str(metadata.get("solver_type", "unknown"))
+        device = str(metadata.get("device", metadata.get("active_arch", "unknown")))
+        frame_count = int(metadata.get("frame_count", 0) or 0)
+        wall_time_ms = float(metadata.get("wall_time_ms", metadata.get("elapsed_ms", 0.0)) or 0.0)
+        throughput = float(
+            metadata.get(
+                "particles_per_second",
+                metadata.get("throughput_per_s", 0.0),
+            ) or 0.0,
+        )
+        return {
+            "solver_type": solver_type,
+            "device": device,
+            "frame_count": frame_count,
+            "wall_time_ms": wall_time_ms,
+            "throughput_per_s": throughput,
+        }
+
+    def record_benchmark_report(self, report: Mapping[str, Any]) -> dict[str, Any]:
+        """Record a normalized benchmark report for later runtime comparison."""
+        normalized = self.normalize_benchmark_report(report)
+        self.benchmark_reports.append(normalized)
+        self.last_refresh_summary = dict(self.last_refresh_summary)
+        self.last_refresh_summary["benchmark_reports"] = list(self.benchmark_reports[-8:])
+        return normalized
 
     def refresh_from_knowledge(self) -> dict[str, Any]:
         if not self.knowledge_dir.exists():

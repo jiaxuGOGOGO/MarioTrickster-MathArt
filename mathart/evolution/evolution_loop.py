@@ -78,6 +78,12 @@ class DistillationRecord:
     # this field records the ``schema_hash`` of that upstream manifest,
     # enabling cryptographic-grade closed-loop traceability.
     upstream_manifest_hash: Optional[str] = None
+    # SESSION-075 (P1-DISTILL-1B): optional benchmark telemetry linkage so
+    # runtime_distill / Layer 3 can at least read and compare device lanes.
+    benchmark_solver_type: Optional[str] = None
+    benchmark_device: Optional[str] = None
+    benchmark_wall_time_ms: Optional[float] = None
+    benchmark_throughput_per_s: Optional[float] = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

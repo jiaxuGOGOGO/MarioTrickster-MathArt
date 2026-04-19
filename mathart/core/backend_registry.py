@@ -90,6 +90,11 @@ class BackendCapability(Enum):
     # this invariant.  Design reference: eBPF / DTrace zero-overhead dynamic
     # tracing — the probe is opt-in and zero-cost when absent.
     HOT_PATH_INSTRUMENTED = auto()
+    # SESSION-075 (P1-DISTILL-1B): GPU-accelerated execution capability.
+    # Backends declaring this flag provide an explicit accelerated device
+    # path and are expected to surface enough telemetry for CPU/GPU A/B
+    # benchmarking without leaking device-specific details into the trunk.
+    GPU_ACCELERATED = auto()
     # SESSION-073 (P1-XPBD-4): Continuous Collision Detection capability.
     # Backends declaring this flag implement CCD sweep tests gated by a
     # velocity threshold, preventing fast-moving bodies from tunneling
@@ -446,6 +451,13 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.physics3d_backend")
         except Exception as e:
             logger.debug("Failed to auto-load physics3d backend: %s", e)
+        # SESSION-075 (P1-DISTILL-1B): auto-register the Taichi XPBD
+        # benchmark backend so CPU/GPU performance lanes remain fully
+        # pluginized and discoverable through the registry.
+        try:
+            importlib.import_module("mathart.core.taichi_xpbd_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load taichi xpbd backend: %s", e)
         # SESSION-074 (P1-MIGRATE-2): auto-register all evolution bridge
         # backends.  Each legacy EvolutionBridge is now a first-class
         # @register_backend plugin discovered here — the orchestrator

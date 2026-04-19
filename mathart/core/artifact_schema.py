@@ -103,6 +103,9 @@ class ArtifactFamily(Enum):
     MOTION_UMR = "motion_umr"
     PHYSICS_3D_MOTION_UMR = "physics_3d_motion_umr"
     COMPOSITE = "composite"
+    # SESSION-075 (P1-DISTILL-1B): Benchmark report family for CPU/GPU
+    # performance evidence and telemetry closure.
+    BENCHMARK_REPORT = "benchmark_report"
     # SESSION-074 (P1-MIGRATE-2): Evolution report family.
     # Every migrated evolution bridge must produce an EVOLUTION_REPORT
     # manifest with mandatory metadata keys enforcing the Pixar USD
@@ -131,6 +134,15 @@ class ArtifactFamily(Enum):
                 "frame_count",
                 "fps",
                 "joint_channel_schema",
+            }),
+            # SESSION-075 (P1-DISTILL-1B): Mandatory benchmark metadata so
+            # downstream distillation and CI audits can compare device lanes
+            # without guessing field names.
+            cls.BENCHMARK_REPORT.value: frozenset({
+                "solver_type",
+                "frame_count",
+                "wall_time_ms",
+                "particles_per_second",
             }),
             # SESSION-074 (P1-MIGRATE-2): Mandatory metadata for evolution
             # reports.  Every evolution backend must declare how many cycles
@@ -450,6 +462,17 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     ArtifactFamily.COMPOSITE.value: {
         "required_outputs": [],
         "required_metadata": [],
+        "required_quality": [],
+    },
+    # SESSION-075 (P1-DISTILL-1B): Benchmark evidence manifest.
+    ArtifactFamily.BENCHMARK_REPORT.value: {
+        "required_outputs": ["report_file"],
+        "required_metadata": [
+            "solver_type",
+            "frame_count",
+            "wall_time_ms",
+            "particles_per_second",
+        ],
         "required_quality": [],
     },
     # SESSION-074 (P1-MIGRATE-2): Evolution report schema.
