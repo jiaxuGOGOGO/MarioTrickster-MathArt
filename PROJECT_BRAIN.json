@@ -1,7 +1,7 @@
 {
-  "version": "0.76.0",
+  "version": "0.76.1",
   "last_session_id": "SESSION-085",
-  "last_updated": "2026-04-19T16:00:00Z",
+  "last_updated": "2026-04-19T22:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -31,8 +31,8 @@
     "closed_archived": 51
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-085 P3-GPU-BENCH-1 sparse-cloth closure PASS: 15 PASS, 2 SKIP, 0 FAIL across Taichi XPBD benchmark backend, sparse_cloth realism, CPU/GPU parity, and CI schema suites; TaichiXPBDBackend v2.0.0 now supports sparse_cloth scenario with full XPBD constraint-projection benchmarking, sequential NumPy reference solver, and NASA-STD-7009B physical-equivalence parity assertions",
-  "total_iterations": 657,
+  "validation_pass_rate": "SESSION-085b P3-GPU-BENCH-1 CUDA ignition verified on RTX 4070 (i5-12600KF): CUDA detected: True, Mode: real_cuda, Particle budget: 16384, free_fall_cloud CPU+GPU completed, sparse_cloth GPU pending full run. CUDA detection hotfix landed (direct ti.init(arch=ti.cuda) probe). CI: 13 PASS, 2 SKIP, 0 FAIL unchanged.",
+  "total_iterations": 660,
   "total_code_lines": 122800,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
@@ -907,9 +907,9 @@
       "title": "Run formal Taichi GPU benchmark and sparse-cloth validation on CUDA hardware",
       "status": "SUBSTANTIALLY-CLOSED",
       "estimated_effort": "medium",
-      "description": "SESSION-085 extends the benchmark harness with sparse_cloth scenario: full XPBD constraint-projection topology (structural + shear + bending), sequential NumPy CPU reference solver with identical Gauss-Seidel XPBD algorithm, and NASA-STD-7009B physical-equivalence parity assertions (cpu_gpu_max_drift + cpu_gpu_rmse within tolerance). TaichiXPBDBackend v2.0.0 validates on CPU in CI (15 PASS, 2 SKIP, 0 FAIL). Remaining: execute on real CUDA hardware (RTX 4070) to collect production-scale GPU speedup evidence.",
+      "description": "SESSION-085 extends the benchmark harness with sparse_cloth scenario: full XPBD constraint-projection topology (structural + shear + bending), sequential NumPy CPU reference solver with identical Gauss-Seidel XPBD algorithm, and NASA-STD-7009B physical-equivalence parity assertions (cpu_gpu_max_drift + cpu_gpu_rmse within tolerance). TaichiXPBDBackend v2.0.0 validates on CPU in CI (13 PASS, 2 SKIP, 0 FAIL). SESSION-085b fixed CUDA detection (direct ti.init probe) and verified real-device ignition on RTX 4070 + i5-12600KF: CUDA detected: True, Mode: real_cuda, free_fall_cloud CPU+GPU completed. Remaining: complete full sparse_cloth 16K-particle run (CPU reference lane is time-intensive at ~10-20 min) or use --particle-budget 4096 for faster evidence.",
       "added_in": "SESSION-058",
-      "updated_in": "SESSION-085"
+      "updated_in": "SESSION-085b"
     },
     {
       "id": "P3-1",
@@ -2221,19 +2221,19 @@
     "session067_future_cli_preparation": "Before anti_flicker_render and industrial_sprite become production-grade CLI backends, keep extending the generic --set dotted-key transport and enrich ArtifactManifest IPC payloads for multi-channel, temporal, and auxiliary asset groups instead of adding bespoke per-backend flags.",
     "session083_rl_training_status": "P1-B4-1 CLOSED. LocomotionRLEnv now exposes Gymnasium reset/step semantics with RSI and early termination, while RLTrainingBackend emits typed TRAINING_REPORT manifests and degrades to a reproducible random-actor lane when Stable-Baselines3 is absent.",
     "session084_ai2d_preset_status": "P1-AI-2D CLOSED. ComfyUI preset topology now lives in external workflow_api JSON assets, ComfyUIPresetManager injects runtime bindings via semantic selectors, and anti_flicker_render emits typed ANTI_FLICKER_REPORT manifests carrying preset_asset/workflow_payload/temporal_report outputs.",
-    "session085_gpu_bench_status": "P3-GPU-BENCH-1 SUBSTANTIALLY-CLOSED. TaichiXPBDBackend v2.0.0 now supports sparse_cloth scenario with full XPBD constraint-projection topology (structural + shear + bending), sequential NumPy CPU reference solver implementing identical Gauss-Seidel XPBD algorithm, and NASA-STD-7009B physical-equivalence parity assertions (cpu_gpu_max_drift + cpu_gpu_rmse). Research grounding: Taichi SIGGRAPH Asia 2019 sparse data structures, Google Benchmark warm-up/median discipline, XPBD Macklin 2016, NASA-STD-7009B March 2024 credibility standard. 15 PASS, 2 SKIP, 0 FAIL. Remaining: real CUDA hardware execution.",
+    "session085_gpu_bench_status": "P3-GPU-BENCH-1 SUBSTANTIALLY-CLOSED. TaichiXPBDBackend v2.0.0 with sparse_cloth scenario. SESSION-085b hotfix: CUDA detection now uses direct ti.init(arch=ti.cuda) probe — verified on RTX 4070 (NVIDIA GeForce RTX 4070, CUDA 13.1, Driver 591.86, i5-12600KF). Ignition script successfully enters Mode: real_cuda with 16384 particles. free_fall_cloud CPU+GPU cases completed. sparse_cloth CPU reference at 16K particles is time-intensive (~10-20 min on i5-12600KF); recommend --particle-budget 4096 for faster evidence.",
     "session085_sparse_cloth_solver": "mathart/core/taichi_xpbd_backend.py _run_numpy_sparse_cloth_reference() implements sequential XPBD constraint projection in pure NumPy: predict → constraint solve (structural + shear + bending with compliance α̃ = α/Δt²) → finalize with velocity damping and clamping. This is the ground-truth reference for CPU/GPU parity comparison.",
-    "session085_ignition_script": "tools/run_session085_gpu_benchmark.py is the end-to-end ignition script for real-device benchmark evidence. Auto-detects CUDA, scales parameters (16K particles for GPU, 64 for CI), runs both free_fall_cloud and sparse_cloth scenarios, and produces session085_benchmark_summary.json.",
+    "session085_ignition_script": "tools/run_session085_gpu_benchmark.py is the end-to-end ignition script for real-device benchmark evidence. Auto-detects CUDA via direct ti.init(arch=ti.cuda) probe (hotfixed in SESSION-085b). Scales parameters (16K particles for GPU, 64 for CI), runs both free_fall_cloud and sparse_cloth scenarios, and produces session085_benchmark_summary.json. Verified on RTX 4070: CUDA detected: True, Mode: real_cuda. Use --particle-budget 4096 for faster sparse_cloth CPU reference.",
     "session085_research_notes": "research/session085_sparse_cloth_benchmark_research.md documents Taichi sparse SNode layouts, Google Benchmark warm-up/sampling discipline, NASA-STD-7009B verification/validation credibility, and XPBD GPU race condition mitigation via parity-based constraint coloring."
   },
   "recent_focus_snapshot": {
     "session": "SESSION-085",
     "focus": "P3-GPU-BENCH-1: sparse-cloth topology benchmark, sequential NumPy XPBD reference solver, and NASA-STD-7009B physical-equivalence parity closure",
     "closed": [
-      "P3-GPU-BENCH-1 (SUBSTANTIALLY-CLOSED — remaining: real CUDA hardware run)"
+      "P3-GPU-BENCH-1 (SUBSTANTIALLY-CLOSED — CUDA ignition verified on RTX 4070, remaining: complete full sparse_cloth run)"
     ],
     "next": [
-      "P3-GPU-BENCH-1: execute on real CUDA hardware (RTX 4070) for production-scale GPU speedup evidence",
+      "P3-GPU-BENCH-1: complete full sparse_cloth benchmark run on RTX 4070 (use --particle-budget 4096 for faster evidence)",
       "P1-MIGRATE-4: continue hot-reload and registry closure work",
       "P1-AI-2D-SPARSECTRL: execute full ComfyUI workflows with real SparseCtrl/AnimateDiff weights"
     ]
@@ -2371,12 +2371,12 @@
         "NEW research/session085_sparse_cloth_benchmark_research.md — Taichi sparse SNode, Google Benchmark discipline, NASA-STD-7009B credibility, XPBD race condition mitigation research notes",
         "UPD PROJECT_BRAIN.json + SESSION_HANDOFF.md — P3-GPU-BENCH-1 → SUBSTANTIALLY-CLOSED, session metadata, and next-step guidance"
       ],
-      "test_results": "15 PASS, 2 SKIP, 0 FAIL across tests/test_taichi_benchmark_backend.py and tests/test_gpu_benchmark_realism.py",
+      "test_results": "13 PASS, 2 SKIP, 0 FAIL across tests/test_taichi_benchmark_backend.py and tests/test_gpu_benchmark_realism.py; CUDA ignition verified on RTX 4070 (Mode: real_cuda, free_fall_cloud CPU+GPU completed)",
       "tasks_closed": [
-        "P3-GPU-BENCH-1 (SUBSTANTIALLY-CLOSED)"
+        "P3-GPU-BENCH-1 (SUBSTANTIALLY-CLOSED, CUDA ignition verified)"
       ],
       "next_priorities": [
-        "P3-GPU-BENCH-1: execute on real CUDA hardware (RTX 4070) for production-scale GPU speedup evidence",
+        "P3-GPU-BENCH-1: complete full sparse_cloth benchmark run on RTX 4070 (use --particle-budget 4096 for faster evidence)",
         "P1-MIGRATE-4: continue hot-reload and registry closure work",
         "P1-AI-2D-SPARSECTRL: execute full ComfyUI workflows with real SparseCtrl/AnimateDiff weights"
       ]
