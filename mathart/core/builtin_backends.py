@@ -1190,6 +1190,7 @@ class UnifiedMotionBackend:
         from mathart.animation.unified_gait_blender import (
             MotionStateRequest,
             get_motion_lane_registry,
+            resolve_unified_gait_runtime_config,
         )
         from mathart.animation.unified_motion import (
             JOINT_CHANNEL_2D_SCALAR,
@@ -1208,6 +1209,12 @@ class UnifiedMotionBackend:
 
         registry = get_motion_lane_registry()
         lane = registry.get(state)
+        gait_runtime_config = resolve_unified_gait_runtime_config(
+            context.get("runtime_distillation_bus"),
+            blend_time=float(context.get("blend_time", 0.2)),
+            phase_weight=float(context.get("phase_weight", 1.0)),
+        )
+        lane = lane.begin_clip(gait_runtime_config=gait_runtime_config)
 
         frames = []
         for i in range(frame_count):
@@ -1234,6 +1241,9 @@ class UnifiedMotionBackend:
                     "motion_lane": state,
                     "pipeline_source": "unified_motion_backend",
                     "joint_channel_schema": jcs,
+                    "gait_blend_time": gait_runtime_config.blend_time,
+                    "gait_phase_weight": gait_runtime_config.phase_weight,
+                    "gait_param_source": gait_runtime_config.parameter_source,
                 },
                 root_x=root.x,
             )
@@ -1251,6 +1261,9 @@ class UnifiedMotionBackend:
                 "joint_channel_schema": jcs,
                 "backend_type": BackendType.UNIFIED_MOTION.value,
                 "session_origin": "SESSION-070",
+                "gait_blend_time": gait_runtime_config.blend_time,
+                "gait_phase_weight": gait_runtime_config.phase_weight,
+                "gait_param_source": gait_runtime_config.parameter_source,
             },
         )
 
@@ -1273,6 +1286,9 @@ class UnifiedMotionBackend:
                 "clip_id": clip.clip_id,
                 "motion_lane": state,
                 "generator": "unified_motion_backend",
+                "gait_blend_time": gait_runtime_config.blend_time,
+                "gait_phase_weight": gait_runtime_config.phase_weight,
+                "gait_param_source": gait_runtime_config.parameter_source,
                 "payload": {
                     "type": "motion_umr_clip",
                     "state": state,
@@ -1280,6 +1296,9 @@ class UnifiedMotionBackend:
                     "fps": fps,
                     "clip_path": str(clip_path),
                     "joint_channel_schema": jcs,
+                    "gait_blend_time": gait_runtime_config.blend_time,
+                    "gait_phase_weight": gait_runtime_config.phase_weight,
+                    "gait_param_source": gait_runtime_config.parameter_source,
                 },
             },
             quality_metrics={},

@@ -1,20 +1,20 @@
 {
-  "version": "0.67.0",
-  "last_session_id": "SESSION-076",
-  "last_updated": "2026-04-19T23:59:00Z",
+  "version": "0.68.0",
+  "last_session_id": "SESSION-077",
+  "last_updated": "2026-04-19T16:30:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
     "baseline_session": "SESSION-075",
     "head_commit": "SESSION-075",
-    "active_total": 75,
+    "active_total": 74,
     "by_priority": {
       "P1": 38,
       "P2": 34,
       "P3": 3
     },
     "by_status": {
-      "PARTIAL": 6,
+      "PARTIAL": 5,
       "SUBSTANTIALLY-ADVANCED": 2,
       "SUBSTANTIALLY-CLOSED": 5,
       "TODO": 62
@@ -22,21 +22,21 @@
     "status_conflicts": 0,
     "top_priorities_ordered": [
       "P1-DISTILL-4",
-      "P1-B3-1",
       "P1-GAP4-BATCH",
       "P1-XPBD-1",
       "P1-MIGRATE-4",
       "P1-AI-2D",
       "P1-AI-2D-SPARSECTRL",
       "P1-INDUSTRIAL-34C",
-      "P1-ARCH-4"
+      "P1-ARCH-4",
+      "P1-B3-2"
     ],
-    "closed_archived": 46
+    "closed_archived": 47
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-076 P1-DISTILL-3 PASS: 23/23 dedicated physics-gait distillation tests PASS. Grid search diversity, telemetry-sensitive fitness, Pareto ranking, knowledge write/read/consume closed loop, manifest compliance, AST red-line guards, and full pipeline execution all verified. 94/94 targeted regression tests PASS (test_ci_backend_schemas + test_distill + test_taichi_benchmark_backend + test_phase3_physics_bridge). Zero regressions introduced.",
-  "total_iterations": 620,
-  "total_code_lines": 116200,
+  "validation_pass_rate": "SESSION-077 P1-B3-1 PASS: distilled gait parameters are now injected into the real UnifiedGaitBlender / UnifiedMotionBackend hot path with once-only RuntimeDistillationBus resolution and Layer 3 transition-quality closure. 64/64 targeted regression tests PASS (test_gait_blend + test_unified_motion + test_p1_b3_1_hotpath + test_layer3_closed_loop). py_compile on touched animation/backend modules PASS. Zero regressions introduced.",
+  "total_iterations": 624,
+  "total_code_lines": 116600,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
@@ -80,7 +80,7 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-076 closes P1-DISTILL-3 by implementing a complete physics-gait parameter distillation pipeline: PhysicsGaitDistillationBackend performs grid-sweep evaluation of XPBD compliance/damping/substeps and gait blend_time/phase_weight, ranks configurations via multi-objective Pareto frontier (explicitly penalizing wall_time_ms and ccd_sweep_count), persists Pareto-optimal knowledge as typed JSON assets, and closes the loop via knowledge_preloader.py which registers CompiledParameterSpace on RuntimeDistillationBus. 23/23 E2E tests enforce no-magic-number, no-telemetry-blindness, and no-blind-write red lines. Next priority: P1-DISTILL-4 (cognitive science rule distillation) or P1-B3-1 (wire distilled gait parameters into unified gait blender hot path).",
+  "current_focus": "SESSION-077 closes P1-B3-1 by wiring distilled physics-gait parameters into the real UnifiedGaitBlender hot path under O(1) frame-update discipline: UnifiedMotionBackend now resolves blend_time and phase_weight from RuntimeDistillationBus exactly once per clip, binds a configured motion-state lane, and emits audit metadata proving whether defaults or distilled values drove the generated UMR clip. UnifiedGaitBlender now consumes cached scalars only, TransitionQualityMetrics exposes the fields required by Layer 3, and TransitionSynthesizer.get_transition_quality() is a real compatibility method backed by actual sliding/smoothness/continuity accumulation. Next priority: P1-DISTILL-4 (cognitive science rule distillation) and P1-GAP4-BATCH (high-nonlinearity transition batch tuning).",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "tests/test_ccd_3d.py",
@@ -316,11 +316,12 @@
       "id": "P1-B3-1",
       "priority": "P1",
       "title": "Integrate GaitBlender into pipeline.py gait switching path",
-      "status": "PARTIAL",
+      "status": "DONE",
       "estimated_effort": "medium",
-      "description": "SESSION-053 wires CNS locomotion sampling into the main pipeline walk/run path and adds a phase-aligned inertialized transition clip path. Remaining work: explicit transition-preview export and broader state-machine switching orchestration across walk/run/sneak.",
+      "description": "SESSION-077 CLOSED. Distilled gait parameters now flow through the real UnifiedMotionBackend -> MotionStateLaneRegistry -> UnifiedGaitBlender path via once-only RuntimeDistillationBus resolution and cached scalar injection. phase_weight now modulates FFT phase anchoring / marker warping during gait sampling, blend_time is carried through configured runtime sessions, Layer 3 receives real transition quality metrics (smoothness, foot_sliding, frames_processed), and dedicated E2E tests prove that extreme injected values change rendered root trajectories instead of silently falling back to defaults.",
       "added_in": "SESSION-049",
-      "updated_in": "SESSION-053"
+      "updated_in": "SESSION-077",
+      "completed_in": "SESSION-077"
     },
     {
       "id": "P1-B3-2",
@@ -940,6 +941,12 @@
     }
   ],
   "completed_tasks": [
+    {
+      "id": "SESSION-077-P1-B3-1",
+      "title": "Runtime-distilled gait parameter injection in UnifiedGaitBlender hot path",
+      "completed_in": "SESSION-077",
+      "result": "UnifiedMotionBackend now resolves RuntimeDistillationBus gait scalars exactly once per clip and binds them to UnifiedGaitBlender through motion-state lanes. phase_weight alters runtime phase anchoring / warping, blend_time is preserved in the configured session, Layer 3 reads real transition quality metrics, and 64/64 targeted regressions pass including new anti-phantom E2E guards."
+    },
     {
       "id": "SESSION-069-B3-5",
       "title": "Motion trunk fusion with UnifiedGaitBlender",
@@ -2180,6 +2187,27 @@
     ]
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-077",
+      "date": "2026-04-19",
+      "focus": "P1-B3-1: runtime injection of distilled gait parameters into UnifiedGaitBlender hot path with Layer 3 transition-quality closure",
+      "changes": [
+        "mathart/animation/unified_gait_blender.py: added UnifiedGaitRuntimeConfig, once-only RuntimeDistillationBus scalar resolution, phase-weight-aware gait sampling, transition metric accumulation, and real TransitionSynthesizer.get_transition_quality() compatibility",
+        "mathart/core/builtin_backends.py: UnifiedMotionBackend now resolves gait parameters once per clip, binds configured motion-state lanes, and emits gait parameter audit metadata",
+        "tests/test_p1_b3_1_hotpath.py: new E2E proof that injected blend_time / phase_weight materially change transition or root trajectories and do not silently fall back to defaults",
+        "SESSION_HANDOFF.md: rewritten for SESSION-077 with architecture readiness notes for P1-DISTILL-4 and P1-GAP4-BATCH",
+        "PROJECT_BRAIN.json: version bump, task closure, and validation summary refresh"
+      ],
+      "test_results": "64/64 targeted regression tests PASS, py_compile on touched motion/backend modules PASS, zero regressions",
+      "tasks_closed": [
+        "P1-B3-1"
+      ],
+      "next_priorities": [
+        "P1-DISTILL-4: Distill cognitive science rules (phase relationships, biological motion perception)",
+        "P1-GAP4-BATCH: Extend batch transition tuning to jump/fall/hit high-nonlinearity states",
+        "P1-B3-2: Add GaitBlender reference motions to RL environment"
+      ]
+    },
     {
       "session_id": "SESSION-076",
       "date": "2026-04-19",

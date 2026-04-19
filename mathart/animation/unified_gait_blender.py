@@ -242,8 +242,80 @@ class TransitionQualityMetrics:
     peak_offset: float = 0.0
     contact_preservation: float = 1.0
     velocity_continuity: float = 1.0
+    smoothness: float = 1.0
+    foot_sliding: float = 0.0
+    frames_processed: int = 0
     joint_count: int = 0
     elapsed: float = 0.0
+
+    def to_dict(self) -> dict[str, float | int | str]:
+        return {
+            "strategy": self.strategy,
+            "total_displacement": float(self.total_displacement),
+            "peak_offset": float(self.peak_offset),
+            "contact_preservation": float(self.contact_preservation),
+            "velocity_continuity": float(self.velocity_continuity),
+            "smoothness": float(self.smoothness),
+            "foot_sliding": float(self.foot_sliding),
+            "frames_processed": int(self.frames_processed),
+            "joint_count": int(self.joint_count),
+            "elapsed": float(self.elapsed),
+        }
+
+
+@dataclass(frozen=True)
+class UnifiedGaitRuntimeConfig:
+    """Once-resolved scalar inputs for the unified gait hot path."""
+
+    blend_time: float = 0.2
+    phase_weight: float = 1.0
+    parameter_source: str = "defaults"
+
+
+def resolve_unified_gait_runtime_config(
+    runtime_distillation_bus: Any | None = None,
+    *,
+    blend_time: float = 0.2,
+    phase_weight: float = 1.0,
+) -> UnifiedGaitRuntimeConfig:
+    """Resolve gait parameters exactly once, outside the frame hot path."""
+
+    resolved_blend_time = max(float(blend_time), 1e-3)
+    resolved_phase_weight = float(np.clip(phase_weight, 0.0, 1.0))
+    resolver = getattr(runtime_distillation_bus, "resolve_scalar", None)
+    if callable(resolver):
+        resolved_blend_time = max(float(resolver([
+            "physics_gait.blend_time",
+            "blend_time",
+            "gait_blend_time",
+            "transition_blend_time",
+        ], resolved_blend_time)), 1e-3)
+        resolved_phase_weight = float(np.clip(resolver([
+            "physics_gait.phase_weight",
+            "phase_weight",
+            "gait_phase_weight",
+            "phase_alignment_weight",
+        ], resolved_phase_weight), 0.0, 1.0))
+        return UnifiedGaitRuntimeConfig(
+            blend_time=resolved_blend_time,
+            phase_weight=resolved_phase_weight,
+            parameter_source="runtime_distillation_bus",
+        )
+    return UnifiedGaitRuntimeConfig(
+        blend_time=resolved_blend_time,
+        phase_weight=resolved_phase_weight,
+        parameter_source="defaults",
+    )
+
+
+@dataclass
+class _TransitionMetricAccumulators:
+    velocity_continuity_sum: float = 0.0
+    contact_preservation_sum: float = 0.0
+    smoothness_sum: float = 0.0
+    foot_sliding_sum: float = 0.0
+    prev_root_velocity: np.ndarray = field(default_factory=lambda: np.zeros(3, dtype=np.float64), repr=False)
+    prev_displacement: float = 0.0
 
 
 @dataclass
@@ -326,6 +398,7 @@ class UnifiedGaitBlender:
         blend_time: float = 0.2,
         decay_halflife: float = 0.05,
         fft_lock_strength: float = 0.35,
+        phase_weight: float = 1.0,
     ):
         self._layers: dict[GaitMode, GaitBlendLayer] = {
             GaitMode.WALK: GaitBlendLayer(profile=walk_profile or WALK_SYNC_PROFILE, weight=1.0),
@@ -340,6 +413,7 @@ class UnifiedGaitBlender:
         self.blend_time = max(float(blend_time), 1e-3)
         self.decay_halflife = max(float(decay_halflife), 1e-4)
         self.fft_lock_strength = float(np.clip(fft_lock_strength, 0.0, 1.0))
+        self.phase_weight = float(np.clip(phase_weight, 0.0, 1.0))
         self._layout = _VectorLayout.from_pose_dicts([
             WALK_KEY_POSES[0].joints,
             RUN_KEY_POSES[0].joints,
@@ -351,6 +425,7 @@ class UnifiedGaitBlender:
         self._transition_elapsed = 0.0
         self._transition_active = False
         self._transition_metrics = TransitionQualityMetrics(strategy=self.transition_strategy.value)
+        self._transition_accumulators = _TransitionMetricAccumulators()
         self._fft_signatures = self._build_fft_signatures()
 
     # ---- gait state helpers -------------------------------------------------
@@ -425,7 +500,7 @@ class UnifiedGaitBlender:
         leader_layer = self._layers[leader_gait]
         leader_layer.phase = raw_phase
         fft_phase = self._blend_fft_phase(raw_phase)
-        leader_phase = self._phase_shortest_arc_mix(raw_phase, fft_phase, self.fft_lock_strength)
+        leader_phase = self._phase_shortest_arc_mix(raw_phase, fft_phase, self._effective_phase_alignment_weight())
         leader_layer.phase = leader_phase
         for gait, layer in self._layers.items():
             if gait == leader_gait:
@@ -433,7 +508,8 @@ class UnifiedGaitBlender:
             if layer.weight <= 1e-6:
                 layer.phase = leader_phase
                 continue
-            layer.phase = phase_warp(leader_phase, leader_layer.profile.markers, layer.profile.markers)
+            warped_phase = phase_warp(leader_phase, leader_layer.profile.markers, layer.profile.markers)
+            layer.phase = self._phase_shortest_arc_mix(leader_phase, warped_phase, self.phase_weight)
         pose_vec = np.zeros(len(self._layout.joint_names), dtype=np.float64)
         pelvis_h = 0.0
         for gait, layer in self._layers.items():
@@ -468,6 +544,8 @@ class UnifiedGaitBlender:
         blended_pose = np.zeros(len(self._layout.joint_names), dtype=np.float64)
         pelvis_h = 0.0
         phase = float(phase) % 1.0
+        fft_phase = self._blend_fft_phase(phase)
+        phase = self._phase_shortest_arc_mix(phase, fft_phase, self._effective_phase_alignment_weight())
         leader_gait = max(weights, key=lambda gait: weights[gait])
         leader_markers = self._layers[leader_gait].profile.markers
         for gait, value in weights.items():
@@ -476,7 +554,7 @@ class UnifiedGaitBlender:
                 continue
             layer = self._layers[gait]
             warped = phase if gait == leader_gait else phase_warp(phase, leader_markers, layer.profile.markers)
-            layer.phase = warped
+            layer.phase = self._phase_shortest_arc_mix(phase, warped, self.phase_weight)
             pose, pelvis = self._evaluate_layer(layer)
             blended_pose += self._layout.to_array(pose) * weight
             pelvis_h += pelvis * weight
@@ -575,14 +653,25 @@ class UnifiedGaitBlender:
         self._root_residual = _ResidualState(offset=root_offset, velocity=root_velocity)
         self._transition_elapsed = 0.0
         self._transition_active = True
+        initial_velocity_gap = float(np.linalg.norm(root_velocity))
+        initial_peak = float(max(np.max(np.abs(root_offset), initial=0.0), np.max(np.abs(joint_offset), initial=0.0)))
+        initial_displacement = float(np.linalg.norm(root_offset[:2]) + np.linalg.norm(joint_offset))
+        initial_velocity_continuity = math.exp(-initial_velocity_gap)
         self._transition_metrics = TransitionQualityMetrics(
             strategy=active_strategy.value,
-            total_displacement=float(np.linalg.norm(root_offset) + np.linalg.norm(joint_offset)),
-            peak_offset=float(max(np.max(np.abs(root_offset), initial=0.0), np.max(np.abs(joint_offset), initial=0.0))),
+            total_displacement=0.0,
+            peak_offset=initial_peak,
             contact_preservation=1.0,
-            velocity_continuity=1.0,
+            velocity_continuity=initial_velocity_continuity,
+            smoothness=initial_velocity_continuity,
+            foot_sliding=0.0,
+            frames_processed=0,
             joint_count=len(layout.joint_names),
             elapsed=0.0,
+        )
+        self._transition_accumulators = _TransitionMetricAccumulators(
+            prev_root_velocity=source_root_velocity.copy(),
+            prev_displacement=initial_displacement,
         )
 
     def apply_transition(
@@ -627,6 +716,15 @@ class UnifiedGaitBlender:
         remaining_peak = float(max(np.max(np.abs(root_vec - target_root), initial=0.0), np.max(np.abs(pose_vec - target_joints), initial=0.0)))
         self._transition_metrics.peak_offset = max(self._transition_metrics.peak_offset, remaining_peak)
         self._transition_metrics.elapsed = self._transition_elapsed
+        self._update_transition_metrics(
+            target_frame=target_frame,
+            target_joints=target_joints,
+            target_root=target_root,
+            target_root_velocity=target_root_velocity,
+            pose_vec=pose_vec,
+            root_vec=root_vec,
+            root_vel=root_vel,
+        )
         if progress >= 1.0:
             self._transition_active = False
             return target_frame
@@ -668,6 +766,9 @@ class UnifiedGaitBlender:
             peak_offset=self._transition_metrics.peak_offset,
             contact_preservation=self._transition_metrics.contact_preservation,
             velocity_continuity=self._transition_metrics.velocity_continuity,
+            smoothness=self._transition_metrics.smoothness,
+            foot_sliding=self._transition_metrics.foot_sliding,
+            frames_processed=self._transition_metrics.frames_processed,
             joint_count=self._transition_metrics.joint_count,
             elapsed=self._transition_metrics.elapsed,
         )
@@ -716,6 +817,48 @@ class UnifiedGaitBlender:
         )
 
     # ---- internal numerical methods ----------------------------------------
+
+    def _effective_phase_alignment_weight(self) -> float:
+        return float(np.clip(self.fft_lock_strength * self.phase_weight, 0.0, 1.0))
+
+    def _update_transition_metrics(
+        self,
+        *,
+        target_frame: UnifiedMotionFrame,
+        target_joints: np.ndarray,
+        target_root: np.ndarray,
+        target_root_velocity: np.ndarray,
+        pose_vec: np.ndarray,
+        root_vec: np.ndarray,
+        root_vel: np.ndarray,
+    ) -> None:
+        pose_gap = float(np.linalg.norm(pose_vec - target_joints))
+        root_planar_gap = float(np.linalg.norm(root_vec[:2] - target_root[:2]))
+        angular_gap = abs(self._wrap_angle(float(root_vec[2] - target_root[2])))
+        displacement = pose_gap + root_planar_gap + 0.25 * angular_gap
+        planted_contacts = int(bool(target_frame.contact_tags.left_foot)) + int(bool(target_frame.contact_tags.right_foot))
+        foot_sliding = root_planar_gap * float(planted_contacts) if planted_contacts > 0 else 0.0
+        contact_preservation = 1.0 if planted_contacts <= 0 else math.exp(-foot_sliding)
+        velocity_error = float(np.linalg.norm(root_vel - target_root_velocity))
+        velocity_continuity = math.exp(-velocity_error)
+        jerk = float(np.linalg.norm(root_vel - self._transition_accumulators.prev_root_velocity))
+        displacement_delta = abs(displacement - self._transition_accumulators.prev_displacement)
+        smoothness = math.exp(-(0.5 * jerk + 0.25 * displacement_delta))
+
+        self._transition_accumulators.velocity_continuity_sum += velocity_continuity
+        self._transition_accumulators.contact_preservation_sum += contact_preservation
+        self._transition_accumulators.smoothness_sum += smoothness
+        self._transition_accumulators.foot_sliding_sum += foot_sliding
+        self._transition_accumulators.prev_root_velocity = root_vel.copy()
+        self._transition_accumulators.prev_displacement = displacement
+
+        self._transition_metrics.frames_processed += 1
+        frames = max(self._transition_metrics.frames_processed, 1)
+        self._transition_metrics.total_displacement += displacement
+        self._transition_metrics.contact_preservation = self._transition_accumulators.contact_preservation_sum / frames
+        self._transition_metrics.velocity_continuity = self._transition_accumulators.velocity_continuity_sum / frames
+        self._transition_metrics.smoothness = self._transition_accumulators.smoothness_sum / frames
+        self._transition_metrics.foot_sliding = self._transition_accumulators.foot_sliding_sum / frames
 
     def _update_weights(self, dt: float) -> None:
         target = self._target_gait
@@ -918,15 +1061,18 @@ class TransitionSynthesizer:
         strategy: TransitionStrategy = TransitionStrategy.DEAD_BLENDING,
         blend_time: float = 0.2,
         decay_halflife: float = 0.05,
+        phase_weight: float = 1.0,
     ):
         self._core = UnifiedGaitBlender(
             transition_strategy=strategy,
             blend_time=blend_time,
             decay_halflife=decay_halflife,
+            phase_weight=phase_weight,
         )
         self.strategy = strategy
         self.blend_time = blend_time
         self.decay_halflife = decay_halflife
+        self.phase_weight = phase_weight
         self._source_frame: Optional[UnifiedMotionFrame] = None
         self._prev_source_frame: Optional[UnifiedMotionFrame] = None
 
@@ -946,8 +1092,11 @@ class TransitionSynthesizer:
     def is_active(self) -> bool:
         return self._core.is_active
 
-    def get_quality_metrics(self) -> TransitionQualityMetrics:
+    def get_transition_quality(self) -> TransitionQualityMetrics:
         return self._core.get_transition_quality()
+
+    def get_quality_metrics(self) -> TransitionQualityMetrics:
+        return self.get_transition_quality()
 
 
 class TransitionPipelineNode:
@@ -1081,6 +1230,12 @@ class MotionStateRequest:
 class MotionStateLane:
     state_name: str = ""
 
+    def begin_clip(
+        self,
+        gait_runtime_config: UnifiedGaitRuntimeConfig | None = None,
+    ) -> "MotionStateLane":
+        return self
+
     def preview_pose(self, phase: float) -> dict[str, float]:
         raise NotImplementedError
 
@@ -1130,11 +1285,34 @@ def get_motion_lane_registry() -> MotionStateLaneRegistry:
 
 
 class _LocomotionLane(MotionStateLane):
-    def __init__(self, state_name: str, gait: GaitMode, speed: float) -> None:
+    def __init__(
+        self,
+        state_name: str,
+        gait: GaitMode,
+        speed: float,
+        gait_runtime_config: UnifiedGaitRuntimeConfig | None = None,
+    ) -> None:
         self.state_name = state_name
         self.gait = gait
         self.speed = speed
-        self._core = UnifiedGaitBlender()
+        self._gait_runtime_config = gait_runtime_config or UnifiedGaitRuntimeConfig()
+        self._core = UnifiedGaitBlender(
+            blend_time=self._gait_runtime_config.blend_time,
+            phase_weight=self._gait_runtime_config.phase_weight,
+        )
+
+    def begin_clip(
+        self,
+        gait_runtime_config: UnifiedGaitRuntimeConfig | None = None,
+    ) -> MotionStateLane:
+        if gait_runtime_config is None:
+            return self
+        return _LocomotionLane(
+            self.state_name,
+            self.gait,
+            self.speed,
+            gait_runtime_config=gait_runtime_config,
+        )
 
     def preview_pose(self, phase: float) -> dict[str, float]:
         pose, _ = self._core.sample_pose_at_phase(float(phase) % 1.0, {self.gait: 1.0}, speed=self.speed)
@@ -1160,7 +1338,14 @@ class _LocomotionLane(MotionStateLane):
             time=request.time,
             frame_index=request.frame_index,
             root_x=request.root_x,
-            metadata={**request.metadata, "lane": self.state_name, "registry": "motion_state_lane"},
+            metadata={
+                **request.metadata,
+                "lane": self.state_name,
+                "registry": "motion_state_lane",
+                "gait_blend_time": self._gait_runtime_config.blend_time,
+                "gait_phase_weight": self._gait_runtime_config.phase_weight,
+                "gait_param_source": self._gait_runtime_config.parameter_source,
+            },
         )
 
 
@@ -1291,6 +1476,8 @@ __all__ = [
     "sample_gait_umr_frame",
     "TransitionStrategy",
     "TransitionQualityMetrics",
+    "UnifiedGaitRuntimeConfig",
+    "resolve_unified_gait_runtime_config",
     "TransitionSynthesizer",
     "TransitionPipelineNode",
     "InertializationChannel",
