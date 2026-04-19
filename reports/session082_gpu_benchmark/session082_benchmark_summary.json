@@ -5,7 +5,7 @@
     "warnings": [],
     "manifest": {
       "artifact_family": "benchmark_report",
-      "report_file": "/home/ubuntu/MarioTrickster-MathArt/reports/session082_gpu_benchmark/session082_cpu_taichi_xpbd_benchmark.json"
+      "report_file": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\reports\\session082_gpu_benchmark\\session082_cpu_taichi_xpbd_benchmark.json"
     },
     "report": {
       "solver_type": "taichi_xpbd",
@@ -15,8 +15,8 @@
       "gpu_device_name": "unavailable",
       "benchmark_scenario": "free_fall_cloud",
       "frame_count": 12,
-      "wall_time_ms": 13.205739000113681,
-      "particles_per_second": 930504.5329075654,
+      "wall_time_ms": 18.672400037758052,
+      "particles_per_second": 658083.5872813375,
       "particle_count": 1024,
       "constraint_count": 0,
       "sample_count": 5,
@@ -25,23 +25,23 @@
       "sample_statistic": "median",
       "explicit_sync_used": true,
       "samples_ms": [
-        13.254756981041282,
-        10.244726989185438,
-        13.86018397170119,
-        13.205739000113681,
-        11.567791982088238
+        15.742400020826608,
+        18.514900002628565,
+        20.040900039020926,
+        21.780200011562556,
+        18.672400037758052
       ],
       "cpu_reference_solver": "numpy_free_fall_cloud",
-      "cpu_reference_wall_time_ms": 0.29572000494226813,
-      "cpu_reference_particles_per_second": 41552819.54089958,
+      "cpu_reference_wall_time_ms": 0.11490000179037452,
+      "cpu_reference_particles_per_second": 106945168.0463716,
       "cpu_reference_samples_ms": [
-        0.2714659785851836,
-        0.2696129959076643,
-        0.29572000494226813,
-        0.3825539897661656,
-        0.43913000263273716
+        0.12410001363605261,
+        0.11590000940486789,
+        0.11490000179037452,
+        0.11419999646022916,
+        0.11449999874457717
       ],
-      "speedup_ratio": 0.022393294683449555,
+      "speedup_ratio": 0.006153467232815899,
       "cpu_gpu_max_drift": 1.0525703429964395e-06,
       "cpu_gpu_rmse": 3.9749314000294085e-07,
       "parity_abs_tolerance": 5e-05,
@@ -58,18 +58,18 @@
     "warnings": [],
     "manifest": {
       "artifact_family": "benchmark_report",
-      "report_file": "/home/ubuntu/MarioTrickster-MathArt/reports/session082_gpu_benchmark/session082_gpu_taichi_xpbd_benchmark.json"
+      "report_file": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\reports\\session082_gpu_benchmark\\session082_gpu_taichi_xpbd_benchmark.json"
     },
     "report": {
       "solver_type": "taichi_xpbd",
       "requested_device": "gpu",
-      "device": "cpu",
-      "active_arch": "cpu",
-      "gpu_device_name": "unavailable",
+      "device": "gpu",
+      "active_arch": "gpu",
+      "gpu_device_name": "NVIDIA GeForce RTX 4070",
       "benchmark_scenario": "free_fall_cloud",
       "frame_count": 12,
-      "wall_time_ms": 11.797846993431449,
-      "particles_per_second": 1041545.9707895388,
+      "wall_time_ms": 21.497699955943972,
+      "particles_per_second": 571596.0323747308,
       "particle_count": 1024,
       "constraint_count": 0,
       "sample_count": 5,
@@ -78,25 +78,25 @@
       "sample_statistic": "median",
       "explicit_sync_used": true,
       "samples_ms": [
-        13.987858983455226,
-        67.90590798482299,
-        10.236350994091481,
-        10.369922005338594,
-        11.797846993431449
+        23.528199992142618,
+        20.251700014341623,
+        21.497699955943972,
+        20.418600004632026,
+        21.639999991748482
       ],
       "cpu_reference_solver": "numpy_free_fall_cloud",
-      "cpu_reference_wall_time_ms": 0.26532800984568894,
-      "cpu_reference_particles_per_second": 46312486.974694185,
+      "cpu_reference_wall_time_ms": 0.11690001701936126,
+      "cpu_reference_particles_per_second": 105115468.01541382,
       "cpu_reference_samples_ms": [
-        0.2812859893310815,
-        0.2649880188982934,
-        0.2616920100990683,
-        0.26532800984568894,
-        0.2737720205914229
+        0.11690001701936126,
+        0.11530000483617187,
+        0.11689995881170034,
+        0.12260000221431255,
+        0.11709996033459902
       ],
-      "speedup_ratio": 0.022489527961619824,
+      "speedup_ratio": 0.005437791822331168,
       "cpu_gpu_max_drift": 1.0525703429964395e-06,
-      "cpu_gpu_rmse": 3.9749314000294085e-07,
+      "cpu_gpu_rmse": 3.8764570603305344e-07,
       "parity_abs_tolerance": 5e-05,
       "parity_rmse_tolerance": 5e-05,
       "parity_passed": true,
