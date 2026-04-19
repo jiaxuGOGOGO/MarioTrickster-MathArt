@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import time
 from pathlib import Path
 from typing import Any
@@ -1080,6 +1081,185 @@ class KnowledgeDistillBackend:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+def _wrap_scalar_delta(curr: float, prev: float, *, cyclic: bool = False) -> float:
+    delta = float(curr) - float(prev)
+    if not cyclic:
+        return delta
+    while delta > 0.5:
+        delta -= 1.0
+    while delta < -0.5:
+        delta += 1.0
+    return delta
+
+
+def _build_cognitive_telemetry_sidecar(
+    frames: list[Any],
+    *,
+    state: str,
+    fps: int,
+) -> dict[str, Any]:
+    """Build a cognition-oriented trace sidecar at the backend boundary.
+
+    This function intentionally runs *after* the UMR frames have already been
+    produced. It never touches ``UnifiedGaitBlender`` inner loops, preserving
+    the repository's O(1) hot-path discipline.
+    """
+    traces: list[dict[str, Any]] = []
+    dt = 1.0 / max(int(fps), 1)
+    prev_vx = 0.0
+    prev_vy = 0.0
+    prev_ax = 0.0
+    prev_ay = 0.0
+    total_contact_transitions = 0
+    phase_kinds: set[str] = set()
+
+    prev_frame = None
+    for idx, frame in enumerate(frames):
+        root = frame.root_transform
+        phase_kind = str(frame.metadata.get("phase_kind", "cyclic"))
+        phase_kinds.add(phase_kind)
+        cyclic = phase_kind not in {"distance_to_apex", "distance_to_ground", "hit_recovery", "transient"}
+
+        if prev_frame is None:
+            vx = float(getattr(root, "velocity_x", 0.0))
+            vy = float(getattr(root, "velocity_y", 0.0))
+        else:
+            prev_root = prev_frame.root_transform
+            vx = (float(root.x) - float(prev_root.x)) / dt
+            vy = (float(root.y) - float(prev_root.y)) / dt
+
+        ax = (vx - prev_vx) / dt if idx > 0 else 0.0
+        ay = (vy - prev_vy) / dt if idx > 0 else 0.0
+        jx = (ax - prev_ax) / dt if idx > 1 else 0.0
+        jy = (ay - prev_ay) / dt if idx > 1 else 0.0
+        speed = math.sqrt(vx * vx + vy * vy)
+        acceleration = math.sqrt(ax * ax + ay * ay)
+        jerk = math.sqrt(jx * jx + jy * jy)
+
+        joint_angular_velocity: dict[str, float] = {}
+        extremity_motion_energy = 0.0
+        extremity_count = 0
+        if prev_frame is not None:
+            prev_pose = getattr(prev_frame, "joint_local_rotations", {})
+            for joint_name, angle in frame.joint_local_rotations.items():
+                if joint_name not in prev_pose:
+                    continue
+                vel = _wrap_scalar_delta(
+                    float(angle),
+                    float(prev_pose[joint_name]),
+                    cyclic=True,
+                ) / dt
+                joint_angular_velocity[str(joint_name)] = float(vel)
+                lname = str(joint_name).lower()
+                if any(token in lname for token in ("hand", "foot", "arm", "leg", "head", "tail")):
+                    extremity_motion_energy += abs(float(vel))
+                    extremity_count += 1
+
+        if extremity_count > 0:
+            extremity_motion_energy /= float(extremity_count)
+
+        contacts = frame.contact_tags
+        desired_contact_state = str(frame.metadata.get("desired_contact_state", ""))
+        contact_expectation = {
+            "left_foot": bool(getattr(contacts, "left_foot", False)),
+            "right_foot": bool(getattr(contacts, "right_foot", False)),
+            "desired_contact_state": desired_contact_state,
+            "contact_active_count": int(bool(getattr(contacts, "left_foot", False)))
+            + int(bool(getattr(contacts, "right_foot", False))),
+        }
+        if "contact_expectation" in frame.metadata:
+            contact_expectation["semantic_expectation"] = str(frame.metadata.get("contact_expectation", ""))
+
+        if prev_frame is not None:
+            prev_contacts = prev_frame.contact_tags
+            total_contact_transitions += int(
+                bool(prev_contacts.left_foot) != bool(contacts.left_foot)
+            )
+            total_contact_transitions += int(
+                bool(prev_contacts.right_foot) != bool(contacts.right_foot)
+            )
+
+        phase_velocity = 0.0
+        if prev_frame is not None:
+            prev_phase_kind = str(prev_frame.metadata.get("phase_kind", phase_kind))
+            prev_cyclic = prev_phase_kind not in {"distance_to_apex", "distance_to_ground", "hit_recovery", "transient"}
+            phase_velocity = _wrap_scalar_delta(
+                float(frame.phase),
+                float(prev_frame.phase),
+                cyclic=(cyclic and prev_cyclic),
+            ) / dt
+
+        traces.append({
+            "frame_index": int(frame.frame_index),
+            "time": float(frame.time),
+            "phase": float(frame.phase),
+            "phase_kind": phase_kind,
+            "phase_velocity": float(phase_velocity),
+            "phase_vector": {
+                "sin": float(math.sin(2.0 * math.pi * float(frame.phase))),
+                "cos": float(math.cos(2.0 * math.pi * float(frame.phase))),
+            },
+            "root_position": {
+                "x": float(root.x),
+                "y": float(root.y),
+                "z": float(root.z) if getattr(root, "z", None) is not None else None,
+            },
+            "root_velocity": {
+                "x": float(vx),
+                "y": float(vy),
+                "z": float(getattr(root, "velocity_z", 0.0) or 0.0),
+            },
+            "root_speed": float(speed),
+            "root_acceleration": float(acceleration),
+            "root_jerk": float(jerk),
+            "extremity_motion_energy": float(extremity_motion_energy),
+            "joint_angular_velocity": joint_angular_velocity,
+            "contact_expectation": contact_expectation,
+        })
+
+        prev_frame = frame
+        prev_vx = vx
+        prev_vy = vy
+        prev_ax = ax
+        prev_ay = ay
+
+    mean_speed = sum(float(t["root_speed"]) for t in traces) / max(len(traces), 1)
+    mean_jerk = sum(float(t["root_jerk"]) for t in traces) / max(len(traces), 1)
+    peak_jerk = max((float(t["root_jerk"]) for t in traces), default=0.0)
+    mean_extremity = sum(float(t["extremity_motion_energy"]) for t in traces) / max(len(traces), 1)
+
+    return {
+        "schema_version": "1.0.0",
+        "state": str(state),
+        "frame_count": int(len(frames)),
+        "fps": int(fps),
+        "trace_fields": [
+            "frame_index",
+            "time",
+            "phase",
+            "phase_kind",
+            "phase_velocity",
+            "root_position",
+            "root_velocity",
+            "root_speed",
+            "root_acceleration",
+            "root_jerk",
+            "extremity_motion_energy",
+            "joint_angular_velocity",
+            "contact_expectation",
+        ],
+        "summary": {
+            "phase_kinds": sorted(phase_kinds),
+            "mean_root_speed": float(mean_speed),
+            "mean_root_jerk": float(mean_jerk),
+            "peak_root_jerk": float(peak_jerk),
+            "mean_extremity_motion_energy": float(mean_extremity),
+            "contact_transition_count": int(total_contact_transitions),
+        },
+        "traces": traces,
+    }
+
+
 @register_backend(
     BackendType.UNIFIED_MOTION,
     display_name="Unified Motion Trunk Backend",
@@ -1250,6 +1430,12 @@ class UnifiedMotionBackend:
             frame = lane.build_frame(request)
             frames.append(frame)
 
+        cognitive_telemetry = _build_cognitive_telemetry_sidecar(
+            frames,
+            state=state,
+            fps=fps,
+        )
+
         clip = UnifiedMotionClip(
             clip_id=f"{stem}_{state}_umr",
             state=state,
@@ -1264,11 +1450,17 @@ class UnifiedMotionBackend:
                 "gait_blend_time": gait_runtime_config.blend_time,
                 "gait_phase_weight": gait_runtime_config.phase_weight,
                 "gait_param_source": gait_runtime_config.parameter_source,
+                "cognitive_telemetry": cognitive_telemetry,
             },
         )
 
         clip_path = output_dir / f"{stem}_{state}.umr.json"
         clip.save(clip_path)
+        cognitive_telemetry_path = output_dir / f"{stem}_{state}.cognitive_telemetry.json"
+        cognitive_telemetry_path.write_text(
+            json.dumps(cognitive_telemetry, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
 
         manifest = ArtifactManifest(
             artifact_family=ArtifactFamily.MOTION_UMR.value,
@@ -1277,6 +1469,7 @@ class UnifiedMotionBackend:
             session_id="SESSION-070",
             outputs={
                 "motion_clip_json": str(clip_path),
+                "cognitive_telemetry_json": str(cognitive_telemetry_path),
             },
             metadata={
                 "state": state,
@@ -1289,6 +1482,7 @@ class UnifiedMotionBackend:
                 "gait_blend_time": gait_runtime_config.blend_time,
                 "gait_phase_weight": gait_runtime_config.phase_weight,
                 "gait_param_source": gait_runtime_config.parameter_source,
+                "cognitive_telemetry": cognitive_telemetry,
                 "payload": {
                     "type": "motion_umr_clip",
                     "state": state,
@@ -1299,6 +1493,8 @@ class UnifiedMotionBackend:
                     "gait_blend_time": gait_runtime_config.blend_time,
                     "gait_phase_weight": gait_runtime_config.phase_weight,
                     "gait_param_source": gait_runtime_config.parameter_source,
+                    "cognitive_telemetry_path": str(cognitive_telemetry_path),
+                    "cognitive_telemetry_summary": cognitive_telemetry.get("summary", {}),
                 },
             },
             quality_metrics={},

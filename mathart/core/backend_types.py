@@ -58,6 +58,8 @@ class BackendType(str, Enum):
     EVOLUTION_RESEARCH = "evolution_research"
     # SESSION-076 (P1-DISTILL-3): Physics-gait distillation backend.
     EVOLUTION_PHYSICS_GAIT_DISTILL = "evolution_physics_gait_distill"
+    # SESSION-078 (P1-DISTILL-4): Cognitive science / biological motion distillation backend.
+    EVOLUTION_COGNITIVE_DISTILL = "evolution_cognitive_distill"
 
 
 _BACKEND_ALIASES: dict[str, str] = {
@@ -78,6 +80,7 @@ _BACKEND_ALIASES: dict[str, str] = {
     BackendType.PHYSICS_3D.value: BackendType.PHYSICS_3D.value,
     BackendType.TAICHI_XPBD.value: BackendType.TAICHI_XPBD.value,
     BackendType.EVOLUTION_PHYSICS_GAIT_DISTILL.value: BackendType.EVOLUTION_PHYSICS_GAIT_DISTILL.value,
+    BackendType.EVOLUTION_COGNITIVE_DISTILL.value: BackendType.EVOLUTION_COGNITIVE_DISTILL.value,
     # Historical / user-requested variants
     "dimension_uplift": BackendType.DIMENSION_UPLIFT_MESH.value,
     "dimension_uplift_bundle": BackendType.DIMENSION_UPLIFT_MESH.value,
@@ -126,6 +129,10 @@ _BACKEND_ALIASES: dict[str, str] = {
     "physics_gait_distill": BackendType.EVOLUTION_PHYSICS_GAIT_DISTILL.value,
     "physics_gait_evolution": BackendType.EVOLUTION_PHYSICS_GAIT_DISTILL.value,
     "gait_distill": BackendType.EVOLUTION_PHYSICS_GAIT_DISTILL.value,
+    # SESSION-078 (P1-DISTILL-4): Cognitive distillation backend aliases
+    "cognitive_distill": BackendType.EVOLUTION_COGNITIVE_DISTILL.value,
+    "cognitive_science_distill": BackendType.EVOLUTION_COGNITIVE_DISTILL.value,
+    "biomotion_distill": BackendType.EVOLUTION_COGNITIVE_DISTILL.value,
 }
 
 

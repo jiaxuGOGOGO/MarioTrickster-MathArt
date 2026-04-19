@@ -473,6 +473,12 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.physics_gait_distill_backend")
         except Exception as e:
             logger.debug("Failed to auto-load physics gait distill backend: %s", e)
+        # SESSION-078 (P1-DISTILL-4): auto-register the cognitive science
+        # distillation backend using the same plugin-discovery path.
+        try:
+            importlib.import_module("mathart.core.cognitive_distillation_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load cognitive distill backend: %s", e)
     return registry
 
 

@@ -54,7 +54,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field, asdict
-from typing import Any, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 import numpy as np
 
@@ -122,6 +122,58 @@ class AnimFrame:
     root_position: tuple[float, float] = (0.0, 0.0)
     time: float = 0.0
     phase: float = 0.0
+
+
+@dataclass
+class CognitiveTraceFrame:
+    """Continuous telemetry frame for cognition-aware motion scoring.
+
+    This representation is intentionally trace-centric rather than pose-centric.
+    It is consumed by the P1-DISTILL-4 distillation loop where objective
+    scoring must use real temporal trajectories exported by the backend
+    sidecar instead of single-frame snapshots.
+    """
+
+    frame_index: int = 0
+    time: float = 0.0
+    phase: float = 0.0
+    phase_kind: str = "cyclic"
+    root_position: tuple[float, float] = (0.0, 0.0)
+    root_velocity: tuple[float, float] = (0.0, 0.0)
+    root_speed: float = 0.0
+    root_acceleration: float = 0.0
+    root_jerk: float = 0.0
+    extremity_motion_energy: float = 0.0
+    joint_angular_velocity: dict[str, float] = field(default_factory=dict)
+    contact_expectation: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_mapping(cls, payload: Mapping[str, Any]) -> "CognitiveTraceFrame":
+        root_pos = payload.get("root_position", {})
+        root_vel = payload.get("root_velocity", {})
+        return cls(
+            frame_index=int(payload.get("frame_index", 0)),
+            time=float(payload.get("time", 0.0)),
+            phase=float(payload.get("phase", 0.0)),
+            phase_kind=str(payload.get("phase_kind", "cyclic")),
+            root_position=(
+                float(root_pos.get("x", 0.0)),
+                float(root_pos.get("y", 0.0)),
+            ),
+            root_velocity=(
+                float(root_vel.get("x", 0.0)),
+                float(root_vel.get("y", 0.0)),
+            ),
+            root_speed=float(payload.get("root_speed", 0.0)),
+            root_acceleration=float(payload.get("root_acceleration", 0.0)),
+            root_jerk=float(payload.get("root_jerk", 0.0)),
+            extremity_motion_energy=float(payload.get("extremity_motion_energy", 0.0)),
+            joint_angular_velocity={
+                str(k): float(v)
+                for k, v in dict(payload.get("joint_angular_velocity", {})).items()
+            },
+            contact_expectation=dict(payload.get("contact_expectation", {})),
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -556,6 +608,218 @@ class PrincipleScorer:
 
         return float(np.mean(harmony_scores))
 
+    # ── Trace-Based Cognitive Telemetry Scoring ─────────────────────────
+
+    def _coerce_trace_frames(
+        self,
+        traces: Sequence[CognitiveTraceFrame | Mapping[str, Any]],
+    ) -> list[CognitiveTraceFrame]:
+        frames: list[CognitiveTraceFrame] = []
+        for trace in traces:
+            if isinstance(trace, CognitiveTraceFrame):
+                frames.append(trace)
+            else:
+                frames.append(CognitiveTraceFrame.from_mapping(trace))
+        return frames
+
+    @staticmethod
+    def _wrapped_phase_delta(curr: float, prev: float, *, cyclic: bool) -> float:
+        delta = float(curr) - float(prev)
+        if not cyclic:
+            return delta
+        while delta > 0.5:
+            delta -= 1.0
+        while delta < -0.5:
+            delta += 1.0
+        return delta
+
+    def score_trace_anticipation(
+        self,
+        traces: Sequence[CognitiveTraceFrame | Mapping[str, Any]],
+        *,
+        anticipation_bias: float = 0.12,
+    ) -> float:
+        """Score anticipation from continuous telemetry traces.
+
+        The metric looks for a brief reverse or suppressed motion interval
+        before the strongest forward impulse. The optimal anticipation amount
+        is controlled by ``anticipation_bias`` rather than being hardcoded.
+        """
+        frames = self._coerce_trace_frames(traces)
+        if len(frames) < 4:
+            return 0.0
+
+        velocities = np.array([f.root_velocity for f in frames], dtype=np.float64)
+        speeds = np.array([f.root_speed for f in frames], dtype=np.float64)
+        if speeds.size == 0 or float(np.max(speeds)) < 1e-8:
+            return 0.5
+
+        peak_idx = int(np.argmax(speeds))
+        if peak_idx < 2:
+            return 0.3
+
+        lo = max(0, peak_idx - 1)
+        hi = min(len(frames), peak_idx + 2)
+        action_vec = np.mean(velocities[lo:hi], axis=0)
+        norm = float(np.linalg.norm(action_vec))
+        if norm < 1e-8:
+            return 0.5
+        action_dir = action_vec / norm
+
+        signed_pre = velocities[:peak_idx] @ action_dir
+        reverse_mag = max(0.0, float(-np.min(signed_pre))) if signed_pre.size else 0.0
+        forward_peak = max(float(np.max(signed_pre)), float(np.max(speeds)), 1e-6)
+        observed = reverse_mag / forward_peak
+        target = max(0.01, float(anticipation_bias))
+        ratio_error = abs(observed - target) / max(target, 1e-6)
+
+        pre_window = speeds[:peak_idx]
+        ramp_score = 0.5
+        if pre_window.size >= 2:
+            ramp = np.diff(pre_window)
+            if ramp.size > 0:
+                negative_then_positive = float(np.mean(ramp < 0.0) + np.mean(ramp > 0.0)) * 0.5
+                ramp_score = min(1.0, negative_then_positive)
+
+        bias_score = max(0.0, 1.0 - min(ratio_error, 1.0))
+        return float(np.clip(0.75 * bias_score + 0.25 * ramp_score, 0.0, 1.0))
+
+    def score_trace_follow_through(
+        self,
+        traces: Sequence[CognitiveTraceFrame | Mapping[str, Any]],
+    ) -> float:
+        """Score follow-through from trace-level extremity residual motion.
+
+        Natural motion keeps extremities moving briefly after the root body
+        begins to settle. The metric compares post-peak extremity motion to
+        the root body's decaying speed profile.
+        """
+        frames = self._coerce_trace_frames(traces)
+        if len(frames) < 4:
+            return 0.0
+
+        speeds = np.array([f.root_speed for f in frames], dtype=np.float64)
+        ext = np.array([f.extremity_motion_energy for f in frames], dtype=np.float64)
+        if speeds.size == 0 or float(np.max(speeds)) < 1e-8:
+            return 0.5
+
+        peak_idx = int(np.argmax(speeds))
+        if peak_idx >= len(frames) - 2:
+            return 0.3
+
+        root_post = speeds[peak_idx + 1:]
+        ext_post = ext[peak_idx + 1:]
+        if root_post.size == 0 or ext_post.size == 0:
+            return 0.3
+
+        settle_threshold = max(float(np.max(speeds)) * 0.4, 1e-6)
+        settling = root_post < settle_threshold
+        if not settling.any():
+            settling = np.ones_like(root_post, dtype=bool)
+
+        residual = float(np.mean(ext_post[settling]))
+        peak_ext = max(float(np.max(ext)), 1e-6)
+        residual_ratio = residual / peak_ext
+        return float(np.clip(residual_ratio / 0.35, 0.0, 1.0))
+
+    def score_phase_manifold_consistency(
+        self,
+        traces: Sequence[CognitiveTraceFrame | Mapping[str, Any]],
+        *,
+        phase_salience: float = 1.0,
+    ) -> float:
+        """Approximate DeepPhase-style manifold smoothness from continuous traces.
+
+        The trace is embedded into a compact multi-channel space using phase,
+        speed, acceleration, contact activation, and extremity energy. Smooth
+        first- and second-order evolution in this space yields a higher score.
+        """
+        frames = self._coerce_trace_frames(traces)
+        if len(frames) < 4:
+            return 0.5
+
+        phase_salience = max(float(phase_salience), 1e-6)
+        cyclic = all(f.phase_kind not in {"distance_to_apex", "distance_to_ground", "hit_recovery", "transient"} for f in frames)
+
+        channel_rows: list[list[float]] = []
+        for f in frames:
+            left = 1.0 if bool(f.contact_expectation.get("left_foot")) else 0.0
+            right = 1.0 if bool(f.contact_expectation.get("right_foot")) else 0.0
+            angle = 2.0 * math.pi * float(f.phase)
+            channel_rows.append([
+                math.sin(angle) * phase_salience,
+                math.cos(angle) * phase_salience,
+                float(f.root_speed),
+                float(f.root_acceleration),
+                float(f.extremity_motion_energy),
+                left,
+                right,
+            ])
+        channels = np.array(channel_rows, dtype=np.float64)
+        if channels.shape[0] < 4:
+            return 0.5
+
+        deltas = np.diff(channels, axis=0)
+        second = np.diff(deltas, axis=0)
+        if deltas.size == 0:
+            return 0.5
+
+        phase_deltas = [
+            self._wrapped_phase_delta(frames[i].phase, frames[i - 1].phase, cyclic=cyclic)
+            for i in range(1, len(frames))
+        ]
+        phase_jump_penalty = float(np.mean(np.abs(phase_deltas)))
+        delta_energy = float(np.mean(np.linalg.norm(deltas, axis=1)))
+        curvature = float(np.mean(np.linalg.norm(second, axis=1))) if second.size else 0.0
+        direction_penalty = 0.0
+        if phase_deltas:
+            mean_phase_delta = float(np.mean(phase_deltas))
+            sign_flips = float(np.mean(np.sign(phase_deltas[1:]) != np.sign(phase_deltas[:-1]))) if len(phase_deltas) > 1 else 0.0
+            if mean_phase_delta <= 0.0:
+                direction_penalty += abs(mean_phase_delta) + 0.25
+            direction_penalty += 0.20 * sign_flips
+
+        penalty = curvature + 0.25 * phase_jump_penalty + 0.1 * delta_energy + direction_penalty
+        return float(np.clip(math.exp(-penalty), 0.0, 1.0))
+
+    def score_perceptual_naturalness(
+        self,
+        traces: Sequence[CognitiveTraceFrame | Mapping[str, Any]],
+        *,
+        jerk_tolerance: float = 0.08,
+        contact_expectation_weight: float = 1.0,
+    ) -> float:
+        """Score biological-motion naturalness from real continuous traces.
+
+        The score combines jerk smoothness, centre-of-mass micro-motion
+        continuity, and contact expectation stability. All components are based
+        on traversing the full trace sequence rather than single-frame deltas.
+        """
+        frames = self._coerce_trace_frames(traces)
+        if len(frames) < 4:
+            return 0.5
+
+        jerk_tolerance = max(float(jerk_tolerance), 1e-6)
+        jerks = np.array([abs(f.root_jerk) for f in frames], dtype=np.float64)
+        jerk_score = float(np.exp(-float(np.mean(jerks)) / jerk_tolerance))
+
+        ys = np.array([f.root_position[1] for f in frames], dtype=np.float64)
+        micro_motion = np.diff(ys, n=2) if ys.size >= 3 else np.zeros(0, dtype=np.float64)
+        micro_score = float(np.exp(-float(np.mean(np.abs(micro_motion))) / max(jerk_tolerance, 1e-6))) if micro_motion.size else 0.5
+
+        contact_vectors = np.array([
+            [
+                1.0 if bool(f.contact_expectation.get("left_foot")) else 0.0,
+                1.0 if bool(f.contact_expectation.get("right_foot")) else 0.0,
+            ]
+            for f in frames
+        ], dtype=np.float64)
+        transitions = np.abs(np.diff(contact_vectors, axis=0)) if len(contact_vectors) >= 2 else np.zeros((0, 2), dtype=np.float64)
+        contact_penalty = float(np.mean(transitions)) if transitions.size else 0.0
+        contact_score = float(np.exp(-contact_penalty * max(contact_expectation_weight, 0.1)))
+
+        return float(np.clip(0.45 * jerk_score + 0.25 * micro_score + 0.30 * contact_score, 0.0, 1.0))
+
     # ── Aggregate Scoring ───────────────────────────────────────────────
 
     def score_clip(self, frames: Sequence[AnimFrame]) -> PrincipleReport:
@@ -626,5 +890,6 @@ __all__ = [
     "PrincipleWeights",
     "PrincipleReport",
     "AnimFrame",
+    "CognitiveTraceFrame",
     "PrincipleScorer",
 ]

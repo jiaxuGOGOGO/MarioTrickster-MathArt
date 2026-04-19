@@ -576,14 +576,49 @@ def validate_artifact(manifest: ArtifactManifest) -> list[str]:
                         f"physics3d_telemetry[{arr_key!r}] length {len(arr)} "
                         f"!= frame_count {fc}"
                     )
-            # SESSION-073 (P1-XPBD-4): validate ccd_sweep_count if present.
             ccd_arr = telemetry.get("ccd_sweep_count")
-            if ccd_arr is not None:
-                if isinstance(ccd_arr, (list, tuple)) and len(ccd_arr) != fc:
+            if ccd_arr is not None and isinstance(ccd_arr, (list, tuple)) and len(ccd_arr) != fc:
+                errors.append(
+                    f"physics3d_telemetry['ccd_sweep_count'] length {len(ccd_arr)} "
+                    f"!= frame_count {fc}"
+                )
+
+    # 7. SESSION-078 (P1-DISTILL-4): optional cognition-sidecar validation for
+    #    motion UMR artifacts. When attached, the sidecar must remain a strongly
+    #    typed continuous-trace payload rather than an opaque blob.
+    if manifest.artifact_family == ArtifactFamily.MOTION_UMR.value:
+        telemetry = manifest.metadata.get("cognitive_telemetry")
+        if telemetry is not None:
+            _required = {"schema_version", "frame_count", "fps", "summary", "traces"}
+            for tk in sorted(_required):
+                if tk not in telemetry:
                     errors.append(
-                        f"physics3d_telemetry['ccd_sweep_count'] length "
-                        f"{len(ccd_arr)} != frame_count {fc}"
+                        f"cognitive_telemetry missing required key {tk!r}"
                     )
+            traces = telemetry.get("traces") if isinstance(telemetry, dict) else None
+            if not isinstance(traces, list):
+                errors.append("cognitive_telemetry.traces must be a list")
+            elif traces:
+                trace_required = {
+                    "frame_index",
+                    "time",
+                    "phase",
+                    "phase_kind",
+                    "root_position",
+                    "root_velocity",
+                    "root_speed",
+                    "root_jerk",
+                    "contact_expectation",
+                }
+                head = traces[0]
+                if isinstance(head, dict):
+                    for tk in sorted(trace_required):
+                        if tk not in head:
+                            errors.append(
+                                f"cognitive_telemetry.traces[0] missing required key {tk!r}"
+                            )
+                else:
+                    errors.append("cognitive_telemetry.traces[0] must be a dict")
 
     return errors
 
