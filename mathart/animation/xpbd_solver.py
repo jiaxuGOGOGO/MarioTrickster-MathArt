@@ -69,7 +69,7 @@ class XPBDSolverConfig:
     gravity: tuple[float, float] = (0.0, -9.81)
     default_compliance: float = 0.0        # 0 = perfectly rigid
     default_damping: float = 0.0           # Rayleigh damping compliance
-    velocity_damping: float = 0.98         # Global velocity retention
+    velocity_damping: float = 0.98         # Retention for component-relative velocity only
     max_velocity: float = 50.0             # Tunnelling guard
     enable_self_collision: bool = True
     self_collision_radius: float = 0.015
@@ -332,13 +332,13 @@ class XPBDSolver:
         """Run one full XPBD time step with sub-stepping.
 
         Algorithm (per sub-step):
-          1. Predict positions: x̃ = x + Δt·v + Δt²·M⁻¹·f_ext
+          1. Predict positions: x̃ = x + Δt·v + 0.5·Δt²·a_ext
           2. Initialise solve: x_i ← x̃, λ ← 0
           3. For each solver iteration:
              a. For each constraint: compute Δλ (Eq 18), Δx (Eq 17)
              b. Update λ and x
           4. Update velocities: v = (x - x_prev) / Δt
-          5. Apply velocity damping and clamping
+          5. Apply Galilean-invariant component-relative damping and clamping
         """
         n = self._particle_count
         if n == 0:
@@ -358,14 +358,18 @@ class XPBDSolver:
 
         for _sub in range(self.config.sub_steps):
             # --- 1. Predict ---
+            external_velocities = self._velocities.copy()
+            gravity_step = gravity * sub_dt
+            gravity_drift = 0.5 * gravity * (sub_dt * sub_dt)
             for i in range(n):
                 if self._inv_masses[i] <= 0:
                     self._predicted[i] = self._positions[i].copy()
                     continue
-                self._velocities[i] += gravity * sub_dt
+                external_velocities[i] = self._velocities[i] + gravity_step
                 self._predicted[i] = (
                     self._positions[i]
                     + self._velocities[i] * sub_dt
+                    + gravity_drift
                 )
 
             # --- 2. Initialise solve ---
@@ -394,12 +398,12 @@ class XPBDSolver:
                         total_constraint_errors.append(abs(err))
 
             # --- 4. Update velocities and positions ---
+            candidate_velocities = external_velocities + (solve_x - self._predicted) / sub_dt
+            damped_velocities = self._apply_component_relative_damping(candidate_velocities)
             for i in range(n):
                 if self._inv_masses[i] <= 0:
                     continue
-                new_vel = (solve_x[i] - self._positions[i]) / sub_dt
-                # Velocity damping
-                new_vel *= self.config.velocity_damping
+                new_vel = damped_velocities[i]
                 # Velocity clamping (tunnelling guard)
                 speed = float(np.linalg.norm(new_vel))
                 if speed > self.config.max_velocity:
@@ -439,6 +443,81 @@ class XPBDSolver:
             energy_estimate=energy,
         )
         return self._last_diagnostics
+
+    # -----------------------------------------------------------------------
+    # Velocity post-processing
+    # -----------------------------------------------------------------------
+
+    def _apply_component_relative_damping(self, candidate_velocities: np.ndarray) -> np.ndarray:
+        """Apply damping only to internal relative motion, never to rigid translation.
+
+        The previous implementation multiplied every particle velocity by
+        ``config.velocity_damping``. That makes free-fall deviate from the
+        analytical solution because gravity-induced rigid translation is damped
+        together with genuine internal constraint motion.
+
+        To preserve Galilean invariance we now compute a mass-weighted velocity
+        centroid for each internal constraint-connected component (distance /
+        attachment / bending constraints only) and damp only the velocity
+        residual relative to that component velocity. Single-particle components
+        are left untouched, so a free particle under gravity reproduces the
+        semi-implicit Euler baseline exactly.
+        """
+        retention = float(self.config.velocity_damping)
+        if retention >= 1.0 or candidate_velocities.size == 0:
+            return candidate_velocities.copy()
+
+        damped = candidate_velocities.copy()
+        parent = list(range(self._particle_count))
+
+        def find(idx: int) -> int:
+            while parent[idx] != idx:
+                parent[idx] = parent[parent[idx]]
+                idx = parent[idx]
+            return idx
+
+        def union(a: int, b: int) -> None:
+            ra = find(a)
+            rb = find(b)
+            if ra != rb:
+                parent[rb] = ra
+
+        for c in self._constraints:
+            if c.kind not in {
+                ConstraintKind.DISTANCE,
+                ConstraintKind.ATTACHMENT,
+                ConstraintKind.BENDING,
+            }:
+                continue
+            indices = c.particle_indices
+            if len(indices) < 2:
+                continue
+            root = indices[0]
+            for idx in indices[1:]:
+                union(root, idx)
+
+        components: dict[int, list[int]] = {}
+        for idx in range(self._particle_count):
+            if self._inv_masses[idx] <= 0.0:
+                continue
+            components.setdefault(find(idx), []).append(idx)
+
+        for members in components.values():
+            if len(members) <= 1:
+                continue
+            member_idx = np.array(members, dtype=np.int32)
+            masses = 1.0 / np.maximum(self._inv_masses[member_idx], _EPS)
+            total_mass = float(np.sum(masses))
+            if total_mass <= _EPS:
+                continue
+            component_velocity = np.sum(
+                damped[member_idx] * masses[:, None],
+                axis=0,
+            ) / total_mass
+            relative_velocity = damped[member_idx] - component_velocity
+            damped[member_idx] = component_velocity + retention * relative_velocity
+
+        return damped
 
     # -----------------------------------------------------------------------
     # Constraint solvers (XPBD Eq 17-18 with damping Eq 26)

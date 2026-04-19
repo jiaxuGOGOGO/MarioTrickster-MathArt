@@ -57,7 +57,7 @@ class XPBDSolver3DConfig:
     gravity: tuple[float, float, float] = (0.0, -9.81, 0.0)
     default_compliance: float = 0.0
     default_damping: float = 0.0
-    velocity_damping: float = 0.98
+    velocity_damping: float = 0.98  # Retention for component-relative velocity only
     max_velocity: float = 50.0
     enable_self_collision: bool = True
     self_collision_radius: float = 0.015
@@ -466,12 +466,19 @@ class XPBDSolver3D:
 
         for _sub in range(self.config.sub_steps):
             # ---- 1. Predict ------------------------------------------------
+            external_velocities = self._velocities.copy()
+            gravity_step = gravity * sub_dt
+            gravity_drift = 0.5 * gravity * (sub_dt * sub_dt)
             for i in range(n):
                 if self._inv_masses[i] <= 0.0:
                     self._predicted[i] = self._positions[i].copy()
                     continue
-                self._velocities[i] += gravity * sub_dt
-                self._predicted[i] = self._positions[i] + self._velocities[i] * sub_dt
+                external_velocities[i] = self._velocities[i] + gravity_step
+                self._predicted[i] = (
+                    self._positions[i]
+                    + self._velocities[i] * sub_dt
+                    + gravity_drift
+                )
 
             # ---- 2. Initialise ---------------------------------------------
             solve_x = self._predicted.copy()
@@ -499,11 +506,12 @@ class XPBDSolver3D:
                         errors.append(abs(err))
 
             # ---- 4. Update velocities & positions --------------------------
+            candidate_velocities = external_velocities + (solve_x - self._predicted) / sub_dt
+            damped_velocities = self._apply_component_relative_damping(candidate_velocities)
             for i in range(n):
                 if self._inv_masses[i] <= 0.0:
                     continue
-                new_v = (solve_x[i] - self._positions[i]) / sub_dt
-                new_v *= self.config.velocity_damping
+                new_v = damped_velocities[i]
                 speed = float(np.linalg.norm(new_v))
                 if speed > self.config.max_velocity:
                     new_v = new_v / speed * self.config.max_velocity
@@ -564,6 +572,73 @@ class XPBDSolver3D:
             ccd_max_correction=ccd_max_correction,
         )
         return self._last_diagnostics
+
+    # ----------------------------------------------------- velocity post
+
+    def _apply_component_relative_damping(self, candidate_velocities: np.ndarray) -> np.ndarray:
+        """Damp only internal relative motion, preserving rigid translation.
+
+        The 2D and 3D solvers must share the same physical discipline: gravity
+        and other external fields should integrate into the predicted motion
+        without being attenuated by a global post-step velocity scale. We
+        therefore damp only the residual velocity relative to each internal
+        constraint-connected component's mass-weighted velocity centroid.
+        """
+        retention = float(self.config.velocity_damping)
+        if retention >= 1.0 or candidate_velocities.size == 0:
+            return candidate_velocities.copy()
+
+        damped = candidate_velocities.copy()
+        parent = list(range(self._particle_count))
+
+        def find(idx: int) -> int:
+            while parent[idx] != idx:
+                parent[idx] = parent[parent[idx]]
+                idx = parent[idx]
+            return idx
+
+        def union(a: int, b: int) -> None:
+            ra = find(a)
+            rb = find(b)
+            if ra != rb:
+                parent[rb] = ra
+
+        for c in self._constraints:
+            if c.kind not in {
+                ConstraintKind.DISTANCE,
+                ConstraintKind.ATTACHMENT,
+                ConstraintKind.BENDING,
+            }:
+                continue
+            indices = c.particle_indices
+            if len(indices) < 2:
+                continue
+            root = indices[0]
+            for idx in indices[1:]:
+                union(root, idx)
+
+        components: dict[int, list[int]] = {}
+        for idx in range(self._particle_count):
+            if self._inv_masses[idx] <= 0.0:
+                continue
+            components.setdefault(find(idx), []).append(idx)
+
+        for members in components.values():
+            if len(members) <= 1:
+                continue
+            member_idx = np.array(members, dtype=np.int32)
+            masses = 1.0 / np.maximum(self._inv_masses[member_idx], _EPS)
+            total_mass = float(np.sum(masses))
+            if total_mass <= _EPS:
+                continue
+            component_velocity = np.sum(
+                damped[member_idx] * masses[:, None],
+                axis=0,
+            ) / total_mass
+            relative_velocity = damped[member_idx] - component_velocity
+            damped[member_idx] = component_velocity + retention * relative_velocity
+
+        return damped
 
     # ------------------------------------------------------------- solvers
 

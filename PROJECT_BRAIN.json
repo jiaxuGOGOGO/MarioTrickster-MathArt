@@ -1,7 +1,7 @@
 {
-  "version": "0.70.0",
-  "last_session_id": "SESSION-080",
-  "last_updated": "2026-04-19T23:00:00Z",
+  "version": "0.72.0",
+  "last_session_id": "SESSION-081",
+  "last_updated": "2026-04-19T08:30:57Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -17,12 +17,12 @@
       "PARTIAL": 4,
       "SUBSTANTIALLY-ADVANCED": 2,
       "SUBSTANTIALLY-CLOSED": 5,
-      "TODO": 62
+      "TODO": 61
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
-      "P1-B3-2",
-      "P1-XPBD-1",
+      "P3-GPU-BENCH-1",
+      "P1-B4-1",
       "P1-MIGRATE-4",
       "P1-AI-2D",
       "P1-AI-2D-SPARSECTRL",
@@ -30,12 +30,12 @@
       "P1-ARCH-4",
       "P1-AI-2E"
     ],
-    "closed_archived": 48
+    "closed_archived": 49
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-080 P1-B3-2 PASS: UMR→RL reference motion closed loop — 30/30 tests pass (adapter + reward + pipeline + sensitivity)",
+  "validation_pass_rate": "SESSION-081 P1-XPBD-1 PASS: XPBD gravity/damping decoupling validated — 104 PASS, 1 SKIP, 0 FAIL across analytical free-fall, 2D/3D physics, CCD, Taichi, distillation, and CI schema suites",
   "total_iterations": 641,
-  "total_code_lines": 118800,
+  "total_code_lines": 118950,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
@@ -79,9 +79,11 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-080 closes P1-B3-2 by building the UMR→RL reference motion asset closed loop. New module mathart/animation/umr_rl_adapter.py implements Isaac Gym-style pre-baked SoA buffers, DeepMimic 4-channel imitation reward, and triple-runtime consumption via MicrokernelPipelineBridge. 30 end-to-end tests validate the full pipeline from backend generation through tensorized adapter to reward closure with mathematical proofs.",
+  "current_focus": "SESSION-081 closes P1-XPBD-1 by decoupling gravity integration from solver damping in mathart/animation/xpbd_solver.py and xpbd_solver_3d.py. The solver now uses constant-acceleration drift for prediction, reconstructs velocity as external-force + constraint correction, and damps only component-relative internal motion. New analytical tests prove exact free fall in 2D/3D while damping remains enabled.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "research/session081_xpbd_reference_notes.md",
+    "tests/test_xpbd_free_fall_regression.py",
     "tests/test_ccd_3d.py",
     "tests/test_ci_backend_schemas.py",
     "research/session069_motion_research_notes.md",
@@ -605,15 +607,6 @@
       "estimated_effort": "medium",
       "description": "Convert runtime root transform velocity, slash tangents, and motion-vector-derived impulses into automated driver_impulses for slash/dash smoke presets.",
       "added_in": "SESSION-046"
-    },
-    {
-      "id": "P1-XPBD-1",
-      "priority": "P1",
-      "title": "Free-fall test precision optimization (damping causes deviation from analytical g·t²/2)",
-      "status": "TODO",
-      "estimated_effort": "low",
-      "description": "The PhysicsTestHarness free-fall test shows deviation from analytical g·t²/2 due to Rayleigh damping. Investigate conditional damping bypass for free-fall scenarios or separate damping from gravity integration.",
-      "added_in": "SESSION-052"
     },
     {
       "id": "P2-1",
@@ -1947,6 +1940,12 @@
       "title": "UMR→RL Reference Motion Asset Closed Loop (DeepMimic Imitation)",
       "completed_in": "SESSION-080",
       "result": "Full pipeline: MicrokernelPipelineBridge → UnifiedMotionBackend → UMR clip → flatten_umr_to_rl_state() pre-baked SoA buffers → O(1) interpolate_reference() → compute_imitation_reward() with DeepMimic 4-channel orthogonal reward (pose/velocity/ee/com). 30 E2E tests pass. Triple-runtime consumption (physics_gait, cognitive_motion, transient_motion) validated. Cognitive sidecar propagated."
+    },
+    {
+      "id": "P1-XPBD-1",
+      "title": "Free-fall test precision optimization (gravity/damping decoupling)",
+      "completed_in": "SESSION-081",
+      "result": "Reworked 2D/3D XPBD solvers so gravity integrates through constant-acceleration prediction while velocity damping applies only to component-relative internal motion. Analytical free-fall tests now pass with damping enabled, and targeted regressions across CCD, Taichi, distillation, and backend schemas remain green."
     }
   ],
   "capability_gaps": [
@@ -2183,14 +2182,14 @@
     "session067_future_cli_preparation": "Before anti_flicker_render and industrial_sprite become production-grade CLI backends, keep extending the generic --set dotted-key transport and enrich ArtifactManifest IPC payloads for multi-channel, temporal, and auxiliary asset groups instead of adding bespoke per-backend flags."
   },
   "recent_focus_snapshot": {
-    "session": "SESSION-080",
-    "focus": "P1-B3-2: UMR→RL Reference Motion Asset Closed Loop",
+    "session": "SESSION-081",
+    "focus": "P1-XPBD-1: XPBD gravity/damping decoupling and analytical free-fall closure",
     "closed": [
-      "P1-B3-2"
+      "P1-XPBD-1"
     ],
     "next": [
-      "P1-XPBD-1: Fix XPBD free-fall precision (requires XPBDSolver gravity integration audit)",
-      "P3-GPU-BENCH-1: Run real Taichi GPU CUDA performance benchmark"
+      "P3-GPU-BENCH-1: Run formal Taichi GPU benchmark and sparse-cloth validation on CUDA hardware",
+      "P1-B4-1: RL policy training loop with pre-baked reference buffers"
     ]
   },
   "recent_sessions": [
@@ -2603,6 +2602,29 @@
         "P3-GPU-BENCH-1: Run real Taichi GPU CUDA performance benchmark",
         "P1-B4-1: RL policy training loop with pre-baked reference buffers"
       ]
+    },
+    {
+      "session_id": "SESSION-081",
+      "date": "2026-04-19",
+      "focus": "P1-XPBD-1: XPBD gravity/damping decoupling and analytical free-fall closure",
+      "changes": [
+        "UPD mathart/animation/xpbd_solver.py — constant-acceleration gravity predictor + component-relative damping in 2D",
+        "UPD mathart/animation/xpbd_solver_3d.py — synchronized 3D gravity/damping contract with 2D solver",
+        "UPD mathart/animation/xpbd_evolution.py — PhysicsTestHarness free-fall upgraded to analytical 1e-6 guard",
+        "NEW tests/test_xpbd_free_fall_regression.py — strict 2D/3D analytical free-fall and constrained-component invariance tests",
+        "NEW research/session081_xpbd_reference_notes.md — XPBD / Box2D / NASA verification rationale",
+        "UPD PROJECT_BRAIN.json — P1-XPBD-1 closed and next priorities reordered",
+        "UPD SESSION_HANDOFF.md — SESSION-081 closure + next-step preparation for GPU benchmark and RL loop"
+      ],
+      "test_results": "104 PASS, 1 SKIP, 0 FAIL across analytical XPBD, CCD, Taichi, distillation, and CI schema suites",
+      "tasks_closed": [
+        "P1-XPBD-1"
+      ],
+      "next_priorities": [
+        "P3-GPU-BENCH-1: Run formal Taichi GPU benchmark and sparse-cloth validation on CUDA hardware",
+        "P1-B4-1: RL policy training loop with pre-baked reference buffers",
+        "P1-MIGRATE-4: continue registry and migration closure work"
+      ]
     }
   ],
   "closed_tasks_archive": [
@@ -2875,6 +2897,12 @@
       "title": "UMR→RL Reference Motion Asset Closed Loop (DeepMimic Imitation)",
       "completed_in": "SESSION-080",
       "priority": "P1"
+    },
+    {
+      "id": "P1-XPBD-1",
+      "title": "Free-fall test precision optimization (gravity/damping decoupling)",
+      "completed_in": "SESSION-081",
+      "priority": "P1"
     }
   ],
   "legacy_session_changes_consolidated": {
@@ -2900,5 +2928,13 @@
       "session061_motion_2d_status"
     ],
     "consolidated_at": "SESSION-073"
-  }
+  },
+  "key_landings": [
+    {
+      "id": "P1-XPBD-1",
+      "completed_in": "SESSION-081",
+      "title": "XPBD gravity/damping decoupling and analytical free-fall verification",
+      "summary": "Upgraded the NumPy 2D/3D XPBD solvers so gravity prediction uses exact constant-acceleration drift and damping acts only on component-relative motion. Added strict analytical free-fall regression coverage and verified zero regressions across CCD, Taichi, distillation, and CI schema suites."
+    }
+  ]
 }

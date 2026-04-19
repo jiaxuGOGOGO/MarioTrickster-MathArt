@@ -509,25 +509,43 @@ class PhysicsTestHarness:
         return self._results
 
     def _test_free_fall(self) -> TestResult:
-        """Test: a free particle under gravity should fall at g*t²/2."""
-        solver = XPBDSolver(self._config)
+        """Test: free fall must match the analytical baseline s = 0.5*g*t²."""
+        cfg = XPBDSolverConfig(
+            sub_steps=self._config.sub_steps,
+            solver_iterations=self._config.solver_iterations,
+            gravity=self._config.gravity,
+            default_compliance=self._config.default_compliance,
+            default_damping=self._config.default_damping,
+            velocity_damping=self._config.velocity_damping,
+            max_velocity=self._config.max_velocity,
+            enable_self_collision=False,
+            self_collision_radius=self._config.self_collision_radius,
+            friction_coefficient=self._config.friction_coefficient,
+            enable_two_way_coupling=False,
+        )
+        solver = XPBDSolver(cfg)
         idx = solver.add_particle((0.0, 10.0), mass=1.0, kind=ParticleKind.SOFT_NODE)
         dt = 1.0 / 60.0
         frames = 60  # 1 second
+        total_time = dt * frames
+        gravity_y = float(cfg.gravity[1])
         for _ in range(frames):
             solver.step(dt)
         pos = solver.get_position(idx)
-        # Expected: y = 10 - 0.5*9.81*1² ≈ 5.095
-        expected_y = 10.0 - 0.5 * 9.81 * 1.0
+        expected_y = 10.0 + 0.5 * gravity_y * (total_time ** 2)
         actual_y = pos[1]
         error = abs(actual_y - expected_y)
+        tolerance = 1e-6
         return TestResult(
             name="free_fall_gravity",
-            passed=error < 1.0,  # Within 1 metre tolerance (damping affects)
+            passed=error <= tolerance,
             metric_name="y_position_error",
-            expected_range=(0.0, 1.0),
+            expected_range=(0.0, tolerance),
             actual_value=error,
-            details=f"Expected y≈{expected_y:.3f}, got y={actual_y:.3f}",
+            details=(
+                f"Expected analytical y={expected_y:.9f}, got y={actual_y:.9f}, "
+                f"|error|={error:.3e}"
+            ),
         )
 
     def _test_pendulum_conservation(self) -> TestResult:

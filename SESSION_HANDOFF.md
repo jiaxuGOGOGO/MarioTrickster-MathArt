@@ -1,152 +1,154 @@
-# SESSION HANDOFF
+# SESSION_HANDOFF
 
 ## Project Overview
 
 | Field | Value |
 |---|---|
-| Current version | **0.71.0** |
+| Current version | **0.72.0** |
 | Last updated | **2026-04-19** |
-| Last session | **SESSION-080** |
-| Base commit inspected at session start | `8e92c1f` |
+| Last session | **SESSION-081** |
+| Base commit inspected at session start | `3015593` |
 | Best quality score achieved | **0.892** |
 | Total iterations run | **641+** |
-| Total code lines | **~118.8k** |
-| Latest validation status | **SESSION-080: `pytest -q tests/test_p1_b3_2_rl_reference.py tests/test_p1_b3_1_hotpath.py tests/test_p1_distill_4.py tests/test_locomotion_cns.py tests/test_p1_gap4_batch.py` => 52 PASS, 0 FAIL. The new UMR→RL adapter, DeepMimic reward, and full pipeline closure all pass alongside existing regression suites.** |
+| Total code lines | **~118.9k** |
+| Latest validation status | **SESSION-081: XPBD gravity/damping decoupling landed. Targeted regression suites passed with `104 PASS, 1 SKIP, 0 FAIL`, including new 2D/3D analytical free-fall baselines, CCD, Taichi benchmark backend, distillation closure, and CI schema coverage.** |
 
-## What SESSION-080 Delivered
+## What SESSION-081 Delivered
 
-SESSION-080 closes **P1-B3-2** by building the complete **UMR → RL Reference Motion Asset Closed Loop**, the highest-priority consumer-side gap identified at the end of SESSION-079. The implementation is grounded in three top-tier external references:
+SESSION-081 closes **P1-XPBD-1** by repairing the mathematical coupling bug between **gravity integration** and **solver damping** in both NumPy XPBD solvers. The work was grounded in three external reference families. **XPBD 2016** frames damping as a constraint-projected dissipation term tied to `Cdot(x)` and the constraint gradient, which means dissipation belongs to **internal relative motion**, not to a system-wide absolute translation state [1]. **Box2D / Erin Catto** provides the practical discipline that damping is a separate numerical device and must not silently erase the physically expected external-force trajectory of an unconstrained body [2] [3]. **NASA-STD-7009B** provides the verification rule that correctness must be backed by quantitative evidence against an analytical baseline rather than visual plausibility [4].
 
-**DeepMimic** (Peng et al., SIGGRAPH 2018) provides the imitation reward architecture: a 4-channel orthogonal reward function using exponential kernels over pose error, velocity error, end-effector error, and center-of-mass error [1]. **NVIDIA Isaac Gym** (Makoviychuk et al., NeurIPS 2021) provides the tensorized buffer discipline: all reference motion data is pre-baked into contiguous float32 Struct-of-Arrays (SoA) buffers at init time, enabling O(1) phase-indexed lookup with zero dictionary traversal in the RL hot path [2]. **EA Frostbite Data-Oriented Design** provides the producer/consumer decoupling discipline: the UMR format and RL state space are strictly separated by a schema-validated adapter contract, ensuring memory layout and high-frequency computation are cleanly isolated [3].
-
-| Workstream | SESSION-080 Landing |
+| Workstream | SESSION-081 Landing |
 |---|---|
-| **External research grounding** | Deep-read DeepMimic paper (reward formulation Eq. 1–4), Isaac Gym vectorized environment discipline, and Frostbite DOD principles; distilled into `research/session080_deepmimic_notes.md` |
-| **UMR→RL Tensorized Adapter** | New `mathart/animation/umr_rl_adapter.py` with `flatten_umr_to_rl_state()` that converts nested UMR frames into 8 contiguous SoA float32 buffers (pose, velocity, root, phase, contact, end-effector, CoM, time) |
-| **O(1) Phase-Indexed Interpolation** | `interpolate_reference(buffers, phase)` provides instant linear interpolation between pre-baked frames — no dict traversal, no I/O, pure array indexing |
-| **DeepMimic 4-Channel Imitation Reward** | `compute_imitation_reward()` implements the exact DeepMimic formulation: `r = w_p·exp(-k_p·‖Δpose‖²) + w_v·exp(-k_v·‖Δvel‖²) + w_e·exp(-k_e·‖Δee‖²) + w_c·exp(-k_c·‖Δcom‖²)` with configurable weights and kernel scales |
-| **Triple-Runtime Consumption** | `generate_umr_reference_clips()` dynamically invokes `MicrokernelPipelineBridge.run_backend("unified_motion", ...)` with optional `RuntimeDistillationBus` injection, consuming all three preloaded namespaces (physics_gait, cognitive_motion, transient_motion) |
-| **Cognitive Sidecar Propagation** | Cognitive telemetry from the unified_motion backend is preserved through the adapter and attached to pre-baked buffers for downstream analysis |
-| **Schema Validation** | Joint channel schema (`2d_scalar`, `2d_plus_depth`, `3d_euler`) is validated at bind time with explicit error on mismatch — never in the hot loop |
-| **30 E2E Mathematical Proofs** | 6 test classes with 30 tests proving buffer shapes, contiguity, value fidelity, velocity finite-difference, phase monotonicity, contact binary values, interpolation correctness, reward zero-deviation = 1.0, reward monotonic decay, individual channel sensitivity, full pipeline closure, runtime bus injection effect, and cognitive sidecar propagation |
+| **External research grounding** | Deep-read XPBD, Catto numerical methods, Box2D simulation notes, and NASA verification discipline; distilled to `research/session081_xpbd_reference_notes.md` |
+| **2D gravity path repair** | `mathart/animation/xpbd_solver.py` now predicts positions with constant-acceleration drift `x + v·dt + 0.5·a·dt²` and updates velocity as **external-force integration + constraint correction**, eliminating gravity loss under damping |
+| **3D gravity path repair** | `mathart/animation/xpbd_solver_3d.py` now mirrors the same predictor/corrector discipline so 2D/3D behavior remains mathematically aligned |
+| **Galilean-invariant damping** | Post-step damping no longer multiplies each particle’s absolute velocity. It now damps only the **component-relative residual motion** inside internal XPBD constraint-connected components, preserving rigid translation under gravity |
+| **Analytical baseline enforcement** | `PhysicsTestHarness._test_free_fall()` was upgraded from a loose 1-meter tolerance to a strict analytical equality guard at `1e-6` absolute error |
+| **Dedicated regression coverage** | New `tests/test_xpbd_free_fall_regression.py` proves analytical free fall in 2D and 3D while `velocity_damping` remains enabled, and additionally proves that a distance-constrained pair preserves rigid-body gravity translation |
+| **Ecosystem safety check** | Targeted regression suites for CCD, Taichi XPBD, distillation, backend schemas, and legacy XPBD tests all passed after the change |
 
-## Core Files Changed in SESSION-080
+## Core Files Changed in SESSION-081
 
 | File | Change Type | Description |
 |---|---|---|
-| `mathart/animation/umr_rl_adapter.py` | **NEW** | UMR→RL tensorized reference adapter: `PrebakedReferenceBuffers`, `flatten_umr_to_rl_state()`, `interpolate_reference()`, `compute_imitation_reward()`, `generate_umr_reference_clips()`, `DeepMimicRewardConfig` |
-| `tests/test_p1_b3_2_rl_reference.py` | **NEW** | 30-test E2E suite across 6 classes: `TestFlattenUMRToRLState`, `TestInterpolateReference`, `TestDeepMimicImitationReward`, `TestFullPipelineClosure`, `TestGenerateUMRReferenceClips`, `TestRewardSensitivitySweep` |
-| `research/session080_deepmimic_notes.md` | **NEW** | Research notes: DeepMimic reward formulation, Isaac Gym buffer discipline, Frostbite DOD principles |
-| `mathart/animation/__init__.py` | **EXTENDED** | Exports 8 new symbols from `umr_rl_adapter` |
-| `PROJECT_BRAIN.json` | **UPDATED** | P1-B3-2 moved to completed, session metadata refreshed, next priorities reordered |
+| `mathart/animation/xpbd_solver.py` | **MODIFIED** | Reworked prediction/update path to use analytical constant-acceleration drift and component-relative damping in 2D |
+| `mathart/animation/xpbd_solver_3d.py` | **MODIFIED** | Synchronized 3D solver with the same gravity/damping architecture as 2D |
+| `mathart/animation/xpbd_evolution.py` | **MODIFIED** | Tightened `PhysicsTestHarness` free-fall check from permissive heuristic tolerance to exact analytical baseline validation |
+| `tests/test_xpbd_free_fall_regression.py` | **NEW** | New analytical regression suite covering 2D/3D free fall and constrained-component gravity translation invariance |
+| `research/session081_xpbd_reference_notes.md` | **NEW** | Research notes grounding the implementation in XPBD, Box2D, Catto, and NASA verification discipline |
+| `PROJECT_BRAIN.json` | **UPDATED** | Session metadata, task status, validation summary, next priorities, and recent focus refreshed |
 | `SESSION_HANDOFF.md` | **REWRITE** | This document |
 
 ## Validation Evidence
 
+The session did not rely on subjective “looks right” inspection. Instead, it promoted the free-fall path to an **analytical verification target** and then ran a broader regression set to ensure no collateral damage propagated into CCD, Taichi, or distillation-adjacent systems.
+
 | Validation item | Result |
 |---|---|
-| `tests/test_p1_b3_2_rl_reference.py` | **30 / 30 PASS** — full adapter, reward, pipeline, and sensitivity coverage |
-| `tests/test_p1_b3_1_hotpath.py` | **2 / 2 PASS** — runtime bus hot-path injection remains intact |
-| `tests/test_p1_distill_4.py` | **6 / 6 PASS** — backend registration, telemetry sidecar, and cognitive knowledge closed loop stable |
-| `tests/test_locomotion_cns.py` | **7 / 7 PASS** — gait transition evaluation and bridge behaviors unchanged |
-| `tests/test_p1_gap4_batch.py` | **2 / 2 PASS** — transient batch evaluation and knowledge roundtrip stable |
-| `tests/test_runtime_distill_bus.py` | **5 / 5 PASS** — runtime bus core behaviors unchanged |
-| Combined targeted regression | **52 PASS, 0 FAIL** |
+| `tests/test_xpbd_free_fall_regression.py` | **4 / 4 PASS** — analytical free-fall equality in 2D and 3D with damping enabled, plus constrained-pair translation invariance |
+| `tests/test_xpbd_physics.py` | **14 / 14 PASS** — legacy XPBD solver, harness, coupling, constraints, and evolution loop remain stable |
+| `tests/test_physics3d_backend.py` | **7 / 7 PASS** — 3D XPBD backend behavior, real-Z gravity path, and manifest integrity remain intact |
+| `tests/test_ccd_3d.py` | **11 / 11 PASS** — CCD sweep, diagnostics, and backend telemetry remain intact after solver changes |
+| `tests/test_taichi_xpbd.py` | **5 / 5 PASS** — Taichi XPBD path still behaves correctly after NumPy solver changes |
+| `tests/test_taichi_benchmark_backend.py` | **7 / 7 PASS, 1 SKIP** — benchmark backend stays healthy; optional path still skips gracefully where appropriate |
+| `tests/test_p1_distill_1a.py` | **14 / 14 PASS** — compliance knobs and distillation-linked 3D physics configuration remain intact |
+| `tests/test_p1_distill_3.py` | **23 / 23 PASS** — telemetry-aware distillation logic remains stable |
+| `tests/test_p1_distill_4.py` | **6 / 6 PASS** — cognitive/physics distillation registry closure remains stable |
+| `tests/test_ci_backend_schemas.py` | **13 / 13 PASS** — artifact and telemetry schemas remain valid |
+| Combined targeted regression | **104 PASS, 1 SKIP, 0 FAIL** |
 
 ## Red-Line Enforcement Summary
 
-| Red Line | How SESSION-080 Enforces It |
+| Red Line | How SESSION-081 Enforces It |
 |---|---|
-| **🚫 No per-step I/O (The Per-Step I/O Trap)** | All UMR data is pre-baked into contiguous SoA buffers at `__init__` / `reset()` time. `interpolate_reference()` uses pure array indexing — zero dict traversal, zero file I/O, zero backend calls in the hot path. Tests prove buffer contiguity with `arr.flags["C_CONTIGUOUS"]` assertions. |
-| **🚫 No dimension mismatch (The Dimension Mismatch Trap)** | `flatten_umr_to_rl_state()` validates `joint_channel_schema` consistency across all frames at bind time and raises `ValueError` on mismatch. Joint order is fixed in `RL_JOINT_ORDER` and shared between adapter and reward. Tests prove pose values match UMR frames joint-by-joint. |
-| **🚫 No fake reward (The Fake Reward Trap)** | 30 mathematical assertions prove reward sensitivity: zero deviation → reward = 1.0 (exact), large deviation → reward ≈ 0.0, strict monotonic decrease of pose sub-reward with increasing deviation, individual channel sensitivity for all 4 channels, and full pipeline closure from backend-generated reference through reward computation. |
-| **No registry bypass** | `generate_umr_reference_clips()` uses `MicrokernelPipelineBridge.run_backend()` — the standard registry path — not direct backend instantiation. New module registered via `__init__.py` exports, not hardcoded imports. |
-| **No hot-path repeated resolve** | Runtime bus parameters are resolved once per clip generation, not per step. The adapter receives finished UMR clips and pre-bakes them; it never touches the bus at step time. |
+| **🚫 No damping-off cheat** | The fix does **not** zero out `velocity_damping` in tests or runtime. Damping remains enabled and visible in regression tests, but is mathematically restricted to internal component-relative motion. |
+| **🚫 No magic gravity compensation** | No hardcoded gravity bonus or heuristic offset was introduced. The predictor now uses the exact constant-acceleration drift term `0.5·a·dt²`, and the velocity update is decomposed into **external-force integration + constraint correction**. |
+| **🚫 No 2D-only patch** | The same architecture landed in both `xpbd_solver.py` and `xpbd_solver_3d.py`, with dedicated 3D analytical tests. |
+| **Analytical verification required** | `PhysicsTestHarness` now checks free fall against the analytical baseline at micro-scale tolerance instead of accepting meter-scale drift. |
+| **Zero-regression discipline** | CCD, Taichi, distillation, and backend-schema suites were re-run to prove the repair did not silently destabilize adjacent systems. |
 
 ## Task-by-Task Status Update
 
 | Task ID | Previous Status | New Status | Notes |
 |---|---|---|---|
-| `P1-B3-2` | TODO | **DONE** | SESSION-080 delivers the full UMR→RL reference motion closed loop with 30 E2E tests |
-| `P1-GAP4-BATCH` | DONE | DONE | Stable; transient batch evaluation used as foundation for P1-B3-2 |
-| `P1-DISTILL-4` | DONE | DONE | Stable; cognitive telemetry sidecar now propagated through RL adapter |
-| `P1-B3-1` | DONE | DONE | Stable; hot-path injection discipline extended into RL adapter |
-| `P1-XPBD-1` | TODO | TODO | Next priority: XPBD free-fall precision optimization |
-| `P3-GPU-BENCH-1` | TODO | TODO | Next priority: real Taichi GPU CUDA performance benchmark |
+| `P1-XPBD-1` | TODO | **DONE** | Gravity integration and damping are now decoupled in both 2D and 3D; analytical free-fall tests pass with damping enabled |
+| `P1-B3-2` | DONE | DONE | Unchanged; SESSION-080 RL reference pipeline now inherits a cleaner physics substrate |
+| `P3-GPU-BENCH-1` | TODO | TODO | Still pending real CUDA hardware execution; now unblocked by the corrected NumPy analytical baseline |
+| `P1-B4-1` | TODO / implied next step | TODO | RL policy loop remains the next consumer-side step; physics substrate is now safer for reward shaping and rollout validation |
 
-## Architecture State After SESSION-080
+## Architecture State After SESSION-081
 
-The motion stack now has a **complete producer→consumer closed loop** from knowledge distillation through motion generation to RL imitation learning. The three runtime knowledge domains (`physics_gait`, `cognitive_motion`, `transient_motion`) are no longer just production-side assets — they now flow through to the RL consumer via the tensorized adapter.
+The XPBD substrate now distinguishes three channels that had previously been entangled: **external acceleration integration**, **constraint-position correction**, and **numerical damping of internal relative motion**. This separation matters because downstream systems — especially RL reward computation and any future GPU benchmark comparisons — require a solver whose free-flight baseline is analytically trustworthy before higher-order behaviors are layered on top.
 
-| Layer | State after SESSION-080 |
+| Layer | State after SESSION-081 |
 |---|---|
-| **Knowledge production** | `locomotion_cns.py` evaluates gait and transient families, writes typed knowledge assets |
-| **Knowledge preload** | `knowledge_preloader.py` preloads all three namespaces into `RuntimeDistillationBus` |
-| **Runtime transport** | `RuntimeDistillationBus` resolves typed scalars through canonical dotted keys plus aliases |
-| **Motion execution** | `UnifiedMotionBackend` injects gait and transient configs once per clip, procedural lanes consume resolved objects |
-| **RL consumption (NEW)** | `umr_rl_adapter.py` pre-bakes backend output into SoA buffers, `compute_imitation_reward()` scores agent vs. reference |
-| **Output auditability** | Clip metadata, manifest metadata, and cognitive sidecar all propagate through the adapter |
-| **Research traceability** | `research/session080_deepmimic_notes.md` records DeepMimic/Isaac Gym/Frostbite constraints |
+| **External-force integration** | Constant-acceleration drift is integrated explicitly as `x + v·dt + 0.5·a·dt²`, preserving analytical free fall under uniform gravity |
+| **Constraint solve** | XPBD Gauss–Seidel projection remains in place for distance, attachment, bending, contact, and self-collision correction |
+| **Velocity recovery** | Post-step velocity is reconstructed as **external-force velocity + position-correction residual / dt** instead of a single absolute finite difference multiplied by damping |
+| **Damping semantics** | `velocity_damping` now operates in a component-relative frame so rigid translation is preserved while internal oscillation can still dissipate |
+| **2D / 3D parity** | Both solver tracks now share the same gravity/damping contract and analytical test expectations |
+| **Verification layer** | Analytical baseline tests are now first-class regression guards rather than informal diagnostics |
 
 ## Preparation Guidance for Next Tasks
 
-### P1-XPBD-1: Fix XPBD Free-Fall Precision Optimization
+### P3-GPU-BENCH-1: Run formal Taichi GPU benchmark on CUDA hardware
 
-The XPBD solver (`mathart/animation/xpbd_solver.py`) currently has known precision issues in free-fall scenarios. To seamlessly connect this work with the P1-B3-2 landing:
+SESSION-081 meaningfully improves the launch conditions for GPU benchmarking. Before this fix, CPU and GPU timing comparisons could be polluted by a solver substrate whose free-flight baseline was already physically biased by global damping. That ambiguity is now removed, so the next GPU benchmark can meaningfully compare **performance** without inheriting an unresolved **correctness** dispute.
 
-| Preparation Item | Current State | What Needs Adjustment |
+| Preparation Item | Current State after SESSION-081 | What Still Needs Adjustment |
 |---|---|---|
-| **Gravity integration** | XPBD uses semi-implicit Euler with fixed substep count | May need adaptive substep or Verlet integration for free-fall accuracy |
-| **Collision detection** | `xpbd_collision.py` uses spatial hash grid | Free-fall trajectories may exceed hash cell bounds — verify CCD coverage |
-| **SDF CCD bridge** | `sdf_ccd.py` provides sphere-tracing CCD | Ensure CCD is active during free-fall phases, not just contact phases |
-| **Test harness** | `PhysicsTestHarness` in `xpbd_evolution.py` | Add free-fall specific test cases with known analytical solutions |
-| **RL integration** | P1-B3-2 adapter can consume any UMR clip | Once XPBD produces physically accurate free-fall, the RL adapter can consume those clips as reference motions |
+| **CPU correctness baseline** | NumPy XPBD now has analytical free-fall proof in 2D/3D with damping enabled | Mirror the same analytical baseline in Taichi benchmark harness so CPU/GPU compare both timing and correctness |
+| **Benchmark metadata contract** | Taichi benchmark backend already emits benchmark reports and normalized throughput fields | Add explicit physics-fidelity fields such as free-fall error, max constraint error, and optional CCD count to the benchmark summary |
+| **Cross-backend parity** | NumPy and Taichi both pass targeted tests in this environment | Add an A/B fixture that runs the same cloth or chain seed through NumPy and Taichi and records drift metrics frame-by-frame |
+| **CUDA readiness** | Taichi is now installed in the sandbox, but no real CUDA device is available here | On CUDA hardware, capture device info, architecture, VRAM, Taichi backend status, warm-up behavior, and steady-state throughput |
+| **Sparse layout validation** | Benchmark backend exists, but sparse-cloth validation is still future work | Add a sparse-topology fixture and ensure timing output separates dense vs. sparse kernels |
+| **Result reproducibility** | Current tests are CPU-first and deterministic enough for regression | Freeze benchmark seeds, frame counts, cloth dimensions, and export exact command lines into the manifest for auditability |
 
-### P3-GPU-BENCH-1: Run Real Taichi GPU CUDA Performance Benchmark
+### P1-B4-1: RL policy training loop with pre-baked reference buffers
 
-The Taichi XPBD backend (`mathart/animation/xpbd_taichi.py`) exists but has not been benchmarked on real GPU hardware:
+SESSION-080 delivered the **reference-motion consumer substrate**; SESSION-081 now hardens the **physics substrate** those future policies will experience. This matters because any RL loop trained against physically inconsistent ballistic motion will quietly absorb simulator bias into the policy and reward landscape. The free-fall path is now clean enough to treat as a trustworthy rollout primitive.
 
-| Preparation Item | Current State | What Needs Adjustment |
+| Preparation Item | Current State after SESSION-081 | What Still Needs Adjustment |
 |---|---|---|
-| **Taichi backend** | `TaichiXPBDClothSystem` with `get_taichi_xpbd_backend_status()` | Need CUDA-capable environment to run real benchmarks |
-| **Benchmark framework** | `TaichiXPBDBenchmarkResult` dataclass exists | Need to populate with real timing data from GPU execution |
-| **Comparison baseline** | CPU NumPy XPBD solver provides baseline | Benchmark should report speedup ratio, memory usage, and kernel launch overhead |
-| **VAT baking** | `bake_cloth_vat()` in `unity_urp_native.py` | Benchmark should include VAT texture encoding as part of the pipeline |
-| **CI integration** | No GPU CI currently | Consider conditional benchmark that skips gracefully without CUDA |
+| **Reference motion side** | `umr_rl_adapter.py` already provides pre-baked SoA reference buffers and DeepMimic-style reward ingredients | Define the policy-side observation tensor contract and make it versioned alongside the adapter schema |
+| **Physics rollout fidelity** | XPBD free flight is now analytically verified; constraint damping no longer erases gravity | Add rollout-level sanity tests that compare simulated airborne arcs against reference trajectories before policy optimization begins |
+| **Reward decomposition** | DeepMimic-style reward channels already exist from SESSION-080 | Add a physics-consistency auxiliary reward or health metric so policies cannot exploit any residual simulation pathology |
+| **Batch execution path** | Distillation and backend orchestration already support batched evaluation patterns | Implement vectorized environment reset/step buffers, ideally mirroring the SoA data discipline already used by the reference adapter |
+| **Domain randomization safety** | Runtime distillation bus and knowledge injection are available | Introduce controlled randomization only after a deterministic baseline loop exists; keep gravity and solver knobs logged per rollout |
+| **Policy reproducibility** | No formal training loop yet | Persist seeds, optimizer hyperparameters, checkpoint schema, rollout manifest hashes, and reference-buffer provenance in every training run |
 
 ## What Still Needs Attention Next
 
 | Priority | Recommendation | Reason |
 |---|---|---|
-| **1** | Start **P1-XPBD-1** to fix XPBD free-fall precision | The RL adapter can now consume any UMR clip; physically accurate free-fall clips would significantly enrich the reference motion library |
-| **2** | Start **P3-GPU-BENCH-1** for real Taichi GPU benchmarking | The XPBD Taichi backend exists but lacks real performance data; benchmarking would validate the GPU acceleration story |
-| **3** | Consider **P1-B4-1** for RL policy training loop | P1-B3-2 provides the reference adapter and reward; the next step is a training loop that actually optimizes a policy against pre-baked references |
-| **4** | Add recurring CI for the 30 P1-B3-2 tests | The E2E suite is comprehensive; making it part of CI ensures the closed loop is never silently broken |
+| **1** | Start **P3-GPU-BENCH-1** | The solver correctness dispute that could contaminate benchmark interpretation has been removed; the next valuable gap is real CUDA evidence |
+| **2** | Start **P1-B4-1** | The project now has both a reference-motion consumer substrate and a cleaner physics substrate, which is the right foundation for RL policy training |
+| **3** | Add Taichi-side analytical free-fall parity tests | This would make CPU/GPU physical equivalence explicit, not merely implied |
+| **4** | Consider promoting analytical-baseline checks into CI fast lanes | The new free-fall guard is cheap and high-value; it should become part of routine regression defense |
 
 ## Known Issues / Non-Blocking Notes
 
 | Issue | Status |
 |---|---|
-| `tests/test_layer3_closed_loop.py` still includes one skipped case | **Unchanged / acceptable** — the skip predates SESSION-080 and no new regression was introduced |
-| `tests/test_state_machine_graph_fuzz.py` requires `hypothesis` package | **Non-blocking** — install `hypothesis` to run fuzz tests; all other suites pass without it |
-| The RL adapter currently uses `2d_scalar` joint channel schema only | **Intentional for this landing** — `2d_plus_depth` and `3d_euler` schemas are validated at bind time but not yet consumed; extension is straightforward when 3D reference motions are available |
-| `compute_imitation_reward()` uses NumPy; no GPU acceleration | **Acceptable for this landing** — the function is designed for easy porting to PyTorch/JAX when GPU training is needed |
+| Real CUDA hardware is still unavailable in this sandbox | **Non-blocking for SESSION-081** — Taichi CPU/backend tests passed, but formal GPU benchmark evidence still requires external CUDA hardware |
+| `tests/test_taichi_benchmark_backend.py` still contains one skipped case | **Acceptable** — skip is environment-dependent and pre-existing; no new regression was introduced |
+| `tests/test_state_machine_graph_fuzz.py` still needs `hypothesis` for full fuzz coverage | **Unchanged / non-blocking** |
+| `research/session081_xpbd_reference_notes.md` is the authoritative implementation rationale for this repair | **Important** — read it before touching damping, gravity, or free-fall tests again |
 
 ## Quick Resume Checklist for the Next Session
 
-1. Read `PROJECT_BRAIN.json` and confirm **SESSION-080 / P1-B3-2 DONE** status.
-2. Read `research/session080_deepmimic_notes.md` for the external-reference constraints behind the imitation reward formulation and buffer discipline.
-3. Read `mathart/animation/umr_rl_adapter.py` to understand the SoA buffer layout, interpolation logic, and reward computation.
-4. Read `tests/test_p1_b3_2_rl_reference.py` for the 30 E2E test patterns — these are the acceptance criteria for any future adapter changes.
-5. Run `pytest -q tests/test_p1_b3_2_rl_reference.py tests/test_p1_b3_1_hotpath.py tests/test_p1_distill_4.py tests/test_locomotion_cns.py tests/test_p1_gap4_batch.py` before extending RL training, XPBD physics, or GPU benchmarking.
-6. If starting **P1-XPBD-1**, read `mathart/animation/xpbd_solver.py` and `xpbd_collision.py` first; the free-fall precision issue is in the gravity integration path.
-7. If starting **P3-GPU-BENCH-1**, verify CUDA availability with `get_taichi_xpbd_backend_status()` before writing benchmark code.
+1. Read `PROJECT_BRAIN.json` and confirm **SESSION-081 / P1-XPBD-1 DONE** status.
+2. Read `research/session081_xpbd_reference_notes.md` before touching `xpbd_solver.py`, `xpbd_solver_3d.py`, or any damping semantics.
+3. Re-run `pytest -q tests/test_xpbd_free_fall_regression.py tests/test_xpbd_physics.py tests/test_physics3d_backend.py tests/test_ccd_3d.py` as the minimum XPBD safety gate.
+4. If touching Taichi parity or GPU benchmarking, also run `pytest -q tests/test_taichi_xpbd.py tests/test_taichi_benchmark_backend.py`.
+5. For distillation/metadata safety, re-run `pytest -q tests/test_p1_distill_1a.py tests/test_p1_distill_3.py tests/test_p1_distill_4.py tests/test_ci_backend_schemas.py`.
+6. If starting **P3-GPU-BENCH-1**, add explicit analytical-baseline metrics to benchmark manifests before trusting throughput-only comparisons.
+7. If starting **P1-B4-1**, freeze the observation schema and rollout manifest contract before adding optimizer code.
 
 ## References
 
-[1]: https://xbpeng.github.io/projects/DeepMimic/DeepMimic_2018.pdf "DeepMimic: Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills — Peng et al., SIGGRAPH 2018"
-[2]: https://arxiv.org/abs/2108.10470 "Isaac Gym: High Performance GPU-Based Physics Simulation For Robot Learning — Makoviychuk et al., NeurIPS 2021"
-[3]: https://www.ea.com/frostbite/news/introduction-to-data-oriented-design "Introduction to Data-Oriented Design — Frostbite / EA"
-[4]: https://www.gdcvault.com/play/1023280/Motion-Matching-and-The-Road "Motion Matching and The Road to Next-Gen Animation — GDC Vault"
-[5]: https://research.google.com/pubs/archive/46180.pdf "Google Vizier: A Service for Black-Box Optimization — Google Research"
-[6]: https://mlcommons.org/benchmarks/endpoints/ "MLPerf Endpoints — MLCommons"
+[1]: https://matthias-research.github.io/pages/publications/XPBD.pdf "XPBD: Position-Based Simulation of Compliant Constrained Dynamics — Macklin, Müller, Chentanez, 2016"
+[2]: https://box2d.org/files/ErinCatto_NumericalMethods_GDC2015.pdf "Numerical Methods — Erin Catto, GDC 2015"
+[3]: https://box2d.org/documentation/md_simulation.html "Box2D Simulation Documentation"
+[4]: https://standards.nasa.gov/sites/default/files/standards/NASA/B/1/NASA-STD-7009B-Final-3-5-2024.pdf "NASA-STD-7009B: Standard for Models and Simulations"
+[5]: https://matthias-research.github.io/pages/publications/PBDBodies.pdf "Detailed Rigid Body Simulation with Extended Position Based Dynamics — Müller et al., 2020"
