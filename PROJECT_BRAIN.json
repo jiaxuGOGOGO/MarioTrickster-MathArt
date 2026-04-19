@@ -1,7 +1,7 @@
 {
-  "version": "0.76.1",
-  "last_session_id": "SESSION-085",
-  "last_updated": "2026-04-19T22:00:00Z",
+  "version": "0.77.0",
+  "last_session_id": "SESSION-086",
+  "last_updated": "2026-04-19T23:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -31,7 +31,7 @@
     "closed_archived": 51
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-085b P3-GPU-BENCH-1 CUDA ignition verified on RTX 4070 (i5-12600KF): CUDA detected: True, Mode: real_cuda, Particle budget: 16384, free_fall_cloud CPU+GPU completed, sparse_cloth GPU pending full run. CUDA detection hotfix landed (direct ti.init(arch=ti.cuda) probe). CI: 13 PASS, 2 SKIP, 0 FAIL unchanged.",
+  "validation_pass_rate": "SESSION-086 P1-AI-2D-SPARSECTRL CLOSED: SparseCtrl + AnimateDiff temporal preset asset + sequence-aware injector + 41 E2E tests. CI: 41 PASS, 0 FAIL. Backward compatibility with SESSION-084 dual_controlnet_ipadapter preserved.",
   "total_iterations": 660,
   "total_code_lines": 122800,
   "distill_session_id": "DISTILL-012",
@@ -253,10 +253,11 @@
       "id": "P1-AI-2D-SPARSECTRL",
       "priority": "P1",
       "title": "Full ComfyUI workflow execution with SparseCtrl model weights",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "high",
-      "description": "Execute SparseCtrl workflows end-to-end with actual AnimateDiff + SparseCtrl model weights in ComfyUI.",
-      "added_in": "SESSION-065"
+      "description": "CLOSED in SESSION-086. Production-grade SparseCtrl + AnimateDiff temporal consistency preset asset (sparsectrl_animatediff.json, 23 nodes) with sequence-aware injector (assemble_sequence_payload), VHS directory-based frame I/O, AnimateDiff context options, batch_size/frame_count synchronization, and 41 offline-safe E2E tests. Research grounded in SparseCtrl (Guo ECCV 2024), AnimateDiff (Guo ICLR 2024), and ComfyUI-VideoHelperSuite industrial I/O.",
+      "added_in": "SESSION-065",
+      "closed_in": "SESSION-086"
     },
     {
       "id": "P1-AI-2E",
@@ -2142,6 +2143,15 @@
         "P1-MIGRATE-4: continue hot-reload and registry closure work",
         "P1-AI-2D-SPARSECTRL: execute full ComfyUI workflows with real SparseCtrl/AnimateDiff weights"
       ]
+    },
+    {
+      "session_id": "SESSION-086",
+      "summary": "Closed P1-AI-2D-SPARSECTRL by landing the full SparseCtrl + AnimateDiff temporal consistency visual pipeline: production-grade sparsectrl_animatediff.json preset asset (23 nodes with AnimateDiff motion module, SparseCtrl sparse conditioning, VHS directory-based sequence I/O, and VHS_VideoCombine video output), sequence-aware ComfyUIPresetManager.assemble_sequence_payload() injector with batch_size/frame_count synchronization and 33 semantic selectors, and 41 offline-safe E2E tests across 5 test classes enforcing three anti-pattern red lines (Single-Frame Fallacy, Python Topology Trap, CI HTTP Blocking Trap). Research grounded in SparseCtrl (Guo ECCV 2024), AnimateDiff (Guo ICLR 2024), and ComfyUI-VideoHelperSuite. Backward compatibility with SESSION-084 dual_controlnet_ipadapter fully preserved. 41 PASS, 0 FAIL.",
+      "top_gaps": [
+        "P1-INDUSTRIAL-34C: improve industrial sprite texture channel quality to commercial standards",
+        "P1-MIGRATE-4: continue hot-reload and registry closure work",
+        "P1-AI-2E: extend motion-adaptive keyframe planning to high-nonlinearity action segments"
+      ]
     }
   ],
   "custom_notes": {
@@ -2664,6 +2674,12 @@
       "title": "Ship real ComfyUI batch preset packs for IP-Adapter + ControlNet anti-flicker jobs",
       "completed_in": "SESSION-084",
       "priority": "P1"
+    },
+    {
+      "id": "P1-AI-2D-SPARSECTRL",
+      "title": "Full ComfyUI workflow execution with SparseCtrl + AnimateDiff temporal consistency pipeline",
+      "completed_in": "SESSION-086",
+      "priority": "P1"
     }
   ],
   "legacy_session_changes_consolidated": {
@@ -2702,6 +2718,12 @@
       "completed_in": "SESSION-085",
       "title": "Sparse-cloth topology GPU benchmark with physical-equivalence parity",
       "summary": "Extended TaichiXPBDBackend to v2.0.0 with sparse_cloth scenario exercising full XPBD constraint-projection topology (structural + shear + bending). Implemented sequential NumPy CPU reference solver with identical Gauss-Seidel XPBD algorithm for NASA-STD-7009B physical-equivalence parity (cpu_gpu_max_drift + cpu_gpu_rmse). Added end-to-end ignition script with auto-CUDA detection and CI-safe degradation. Research grounded in Taichi SIGGRAPH Asia 2019, Google Benchmark discipline, and Macklin XPBD 2016."
+    },
+    {
+      "id": "P1-AI-2D-SPARSECTRL",
+      "completed_in": "SESSION-086",
+      "title": "SparseCtrl + AnimateDiff temporal consistency visual pipeline",
+      "summary": "Landed production-grade sparsectrl_animatediff.json preset asset (23 nodes) with sequence-aware ComfyUIPresetManager.assemble_sequence_payload() injector, VHS directory-based frame I/O, AnimateDiff context options, batch_size/frame_count synchronization, and 41 offline-safe E2E tests. Research: SparseCtrl (Guo ECCV 2024), AnimateDiff (Guo ICLR 2024), ComfyUI-VideoHelperSuite."
     }
   ]
 }

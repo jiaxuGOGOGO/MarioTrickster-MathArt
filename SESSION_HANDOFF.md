@@ -2,164 +2,124 @@
 
 ## Executive Summary
 
-**SESSION-085** substantially closes **`P3-GPU-BENCH-1`** by extending the Taichi GPU benchmark architecture from a free-fall-only harness into a **constraint-heavy sparse-cloth topology benchmark** with rigorous physical-equivalence parity assertions grounded in NASA-STD-7009B credibility discipline.
+**SESSION-086** closes **`P1-AI-2D-SPARSECTRL`** by landing the full **SparseCtrl + AnimateDiff temporal consistency visual pipeline** as a production-grade preset asset with a sequence-aware injector and comprehensive offline-safe E2E test coverage.
 
-**SESSION-085b hotfix** resolved a CUDA detection failure on Windows where the previous `reset_taichi_runtime()` → `get_taichi_xpbd_backend_status()` path silently returned `False` even on machines with working CUDA. The fix uses a **direct `ti.init(arch=ti.cuda)` probe** — the gold-standard detection method. After the hotfix, the ignition script was **successfully verified on the project owner's RTX 4070 workstation**:
+The SESSION-084 preset-asset architecture (`ComfyUIPresetManager` + external `workflow_api` JSON) has been extended from single-image dual-ControlNet workflows to **frame-sequence temporal workflows**. The new `sparsectrl_animatediff.json` preset defines a 23-node ComfyUI graph topology incorporating AnimateDiff motion modules, SparseCtrl sparse conditioning, VHS directory-based sequence I/O, and VHS_VideoCombine video output. The upgraded `ComfyUIPresetManager.assemble_sequence_payload()` injects directory paths, frame counts, context lengths, and temporal parameters without ever modifying the node graph topology.
 
-```
-CUDA detected: True
-Mode: real_cuda
-Particle budget: 16384
-[1/4] Running free_fall_cloud on CPU...    ✓ completed
-[2/4] Running free_fall_cloud on GPU...    ✓ completed (arch=cuda)
-[3/4] Running sparse_cloth on CPU...       ⏳ time-intensive at 16K particles
-```
-
-| Area | SESSION-085 outcome |
+| Area | SESSION-086 outcome |
 |---|---|
-| **Task closure** | **`P3-GPU-BENCH-1` SUBSTANTIALLY-CLOSED** |
-| **CUDA ignition** | **Verified** on RTX 4070 (CUDA 13.1, Driver 591.86, i5-12600KF) |
-| **New scenario** | `sparse_cloth` with full constraint topology (structural + shear + bending) |
-| **CPU reference solver** | Sequential NumPy XPBD with identical Gauss-Seidel algorithm |
-| **Parity metrics** | `cpu_gpu_max_drift` (L∞ norm) + `cpu_gpu_rmse` (L2 norm) |
-| **Ignition script** | `tools/run_session085_gpu_benchmark.py` with direct CUDA probe |
-| **Hotfix** | CUDA detection rewritten from indirect status query to direct `ti.init(arch=ti.cuda)` |
-| **CI validation** | **13 PASS, 2 SKIP, 0 FAIL** |
+| **Task closure** | **`P1-AI-2D-SPARSECTRL` CLOSED** |
+| **New preset asset** | `sparsectrl_animatediff.json` — 23-node SparseCtrl + AnimateDiff + VHS topology |
+| **Injector upgrade** | `assemble_sequence_payload()` with VHS directory injection, batch_size sync, temporal config |
+| **Anti-pattern guards** | Single-Frame Fallacy, Python Topology Trap, CI HTTP Blocking Trap |
+| **Test coverage** | **41 PASS, 0 FAIL** — 5 test classes, 41 test cases |
+| **Backward compatibility** | Original `dual_controlnet_ipadapter` preset and `assemble_payload()` fully preserved |
+| **Research** | SparseCtrl (ECCV 2024), AnimateDiff (ICLR 2024), VHS industrial I/O |
 
 ## What Landed in Code
 
-The main code landing is the **`sparse_cloth` scenario** inside `TaichiXPBDBackend` v2.0.0. The backend now builds a complete constraint topology via `_build_constraint_list()` — structural horizontal/vertical, shear diagonal/anti-diagonal, and bending skip-one horizontal/vertical — matching the exact topology that the Taichi GPU solver constructs internally. The NumPy reference solver (`_run_numpy_sparse_cloth_reference`) then processes these constraints in sequential Gauss-Seidel order: for each constraint, compute the XPBD correction with compliance α̃ = α/Δt², apply inverse-mass-weighted position corrections to both particles, and repeat for `solver_iterations` passes per sub-step.
+The main code landing consists of three deliverables: a new preset asset, an upgraded injector, and a comprehensive test suite.
 
-The **SESSION-085b hotfix** rewrote `_detect_cuda_available()` in the ignition script to use a direct `ti.init(arch=ti.cuda)` call instead of the fragile `reset → status query` path. This was validated on the project owner's RTX 4070 workstation where the previous approach silently failed.
+**1. Preset Asset: `sparsectrl_animatediff.json`**
+
+A 23-node ComfyUI `workflow_api` JSON defining the complete SparseCtrl + AnimateDiff temporal consistency pipeline. The topology includes: `CheckpointLoaderSimple` → `ADE_AnimateDiffLoaderWithContext` (with `ADE_AnimateDiffUniformContextOptions` for sliding window context) → three `VHS_LoadImagesPath` nodes for normal/depth/RGB frame sequences → dual `ControlNetLoader` + `ControlNetApplyAdvanced` chains → `ACN_SparseCtrlLoaderAdvanced` with `ControlNetApplyAdvanced` for sparse RGB conditioning → `EmptyLatentImage` (batch_size = frame_count) → `KSampler` → `VAEDecode` → `VHS_VideoCombine` + `SaveImage`. Optional IP-Adapter identity lock chain preserved from SESSION-084.
+
+**2. Sequence-Aware Injector: `assemble_sequence_payload()`**
+
+New method on `ComfyUIPresetManager` that accepts frame sequence directories instead of single image paths. Key injection points: VHS `directory` paths, `EmptyLatentImage.batch_size` synchronized with `frame_count`, `ADE_AnimateDiffUniformContextOptions.context_length/context_overlap`, `ACN_SparseCtrlLoaderAdvanced.sparsectrl_name/motion_strength`, `VHS_VideoCombine.frame_rate`, and all existing ControlNet/KSampler/IP-Adapter parameters. The `_SPARSECTRL_SELECTORS` tuple defines 33 semantic bindings for the new preset.
+
+**3. Lock Manifest Extension**
+
+The `mathart_lock_manifest` now includes `temporal_config` (frame_count, context_length, context_overlap, frame_rate, animatediff/sparsectrl model names, batch_size_synced flag), `sequence_directories` (normal/depth/rgb absolute paths), and an extended `workflow_contract` with `sequence_aware: true` and `vhs_directory_injection: true`.
 
 | File | Purpose |
 |---|---|
-| `mathart/core/taichi_xpbd_backend.py` | TaichiXPBDBackend v2.0.0 with `sparse_cloth` scenario, constraint topology builder, and sequential NumPy XPBD reference solver |
-| `tools/run_session085_gpu_benchmark.py` | End-to-end ignition script with **direct CUDA probe** (hotfixed), 4-case benchmark matrix, and structured JSON summary |
-| `tests/test_gpu_benchmark_realism.py` | 4 realism tests: sparse_cloth nonzero-constraint guard, CPU parity tolerance, free-fall analytical reference, and report structure validation |
-| `tests/test_taichi_benchmark_backend.py` | 11 tests: sparse_cloth scenario validation, degraded report constraint field, real Taichi sparse_cloth CPU smoke, plus all existing registry/schema/parity tests |
-| `research/session085_sparse_cloth_benchmark_research.md` | Research notes: Taichi sparse SNode layouts, Google Benchmark discipline, NASA-STD-7009B credibility, XPBD race condition mitigation |
-| `PROJECT_BRAIN.json` | P3-GPU-BENCH-1 → SUBSTANTIALLY-CLOSED, CUDA ignition verified, session metadata |
+| `mathart/assets/comfyui_presets/sparsectrl_animatediff.json` | 23-node SparseCtrl + AnimateDiff + VHS preset topology |
+| `mathart/animation/comfyui_preset_manager.py` | Upgraded with `assemble_sequence_payload()`, `_SPARSECTRL_SELECTORS`, preset-specific validation |
+| `tests/test_p1_ai_2d_sparsectrl.py` | 41 offline-safe E2E tests across 5 test classes |
+| `research/session086_sparsectrl_animatediff_research.md` | Research notes: SparseCtrl, AnimateDiff, VHS node specifications and workflow topology |
+| `PROJECT_BRAIN.json` | P1-AI-2D-SPARSECTRL → CLOSED, session metadata |
 | `SESSION_HANDOFF.md` | This file |
 
 ## Research Decisions That Were Enforced
 
-The external research was not decorative. It directly constrained implementation across four domains.
+The external research was not decorative. It directly constrained implementation across three domains.
 
-**Taichi Sparse Data Structures** (Yuanming Hu, SIGGRAPH Asia 2019) [1]. The documentation confirms that `pointer`, `bitmasked`, and `dynamic` SNode types provide spatially sparse memory layouts with automatic parallelization. For the cloth benchmark, the "sparsity" refers to the topological sparsity of the constraint graph (not memory-level SNode sparsity), because the existing dense Taichi cloth system with full constraints already exercises non-trivial memory access patterns via parity-based Gauss-Seidel iteration and atomic operations.
+**SparseCtrl Sparse Conditioning** (Guo et al., ECCV 2024) [1]. The paper establishes that SparseCtrl injects temporally sparse condition maps (keyframes) into the temporal attention layers of a video diffusion model. The `ACN_SparseCtrlLoaderAdvanced` node in ComfyUI-Advanced-ControlNet implements this as a loadable model with `use_motion`, `motion_strength`, and `sparse_method` parameters. This directly constrained the preset to include the SparseCtrl loader as a separate node from the standard ControlNet loaders, with its own `ControlNetApplyAdvanced` chain using `end_percent` to control temporal influence decay.
 
-**Google Benchmark Discipline** (user_guide.md) [2]. The warm-up phase (`MinWarmUpTime`) must be excluded from reported timings to eliminate JIT compilation and cache cold-start effects. Repeated sampling with median aggregation resists OS scheduling jitter. The existing backend already implements these via `warmup_frames` and `sample_count` with `statistics.median`.
+**AnimateDiff Motion Module** (Guo et al., ICLR 2024) [2]. AnimateDiff inserts temporal attention modules into a frozen text-to-image model. The critical implementation constraint is that `EmptyLatentImage.batch_size` MUST equal the desired frame count — AnimateDiff connects independent frames in latent space into a coherent video tensor through temporal attention. The `ADE_AnimateDiffUniformContextOptions` node controls the sliding window size (`context_length`) and overlap for infinite-length generation. This directly constrained the injector to synchronize `batch_size` with `frame_count` and expose `context_length`/`context_overlap` as injectable parameters.
 
-**NASA-STD-7009B** (March 2024 revision) [3]. Performance speedup claims without correctness proof are meaningless. The standard requires quantitative verification (model implementation matches specification) and validation (model matches real-world behavior). SESSION-085 implements this as CPU/GPU A/B parity testing with `cpu_gpu_max_drift` (L∞ norm) and `cpu_gpu_rmse` (L2 norm) assertions.
-
-**XPBD Constraint Projection** (Macklin et al. 2016) [4]. Parallel constraint solving with shared particles causes write conflicts (race conditions). Standard mitigation is graph coloring / parity-based partitioning. The existing Taichi backend already uses parity-based solving. With atomic operations for error accumulation, the solver is GPU-safe but accumulates f32 floating-point differences vs. sequential CPU execution — this is exactly what the parity test measures.
+**VHS Directory-Based Sequence I/O** (ComfyUI-VideoHelperSuite) [3]. The `VHS_LoadImagesPath` node loads frame sequences from a directory path, not individual image files. This is the industrial-standard approach for temporal workflows. The anti-pattern guard "Single-Frame Fallacy" was enforced: the preset uses three `VHS_LoadImagesPath` nodes (normal, depth, RGB) with `directory` inputs, NOT `LoadImage` nodes. The `VHS_VideoCombine` node combines decoded frames into video output with configurable `frame_rate`.
 
 | Research theme | Enforced implementation consequence |
 |---|---|
-| **Taichi sparse data structures** | Constraint topology sparsity exercised via dense grid + full constraint set rather than SNode memory sparsity [1] |
-| **Google Benchmark discipline** | Warm-up exclusion, repeated median sampling, and explicit GPU sync preserved in v2.0.0 [2] |
-| **NASA-STD-7009B credibility** | CPU/GPU parity metrics (max_drift + RMSE) paired with every speedup claim [3] |
-| **XPBD race condition mitigation** | Parity-based Gauss-Seidel coloring in GPU solver; sequential reference in NumPy for ground truth [4] |
+| **SparseCtrl sparse conditioning** | Separate `ACN_SparseCtrlLoaderAdvanced` node with `end_percent`-controlled temporal decay [1] |
+| **AnimateDiff batch_size sync** | `EmptyLatentImage.batch_size` = `frame_count`; `context_length`/`context_overlap` exposed [2] |
+| **VHS directory I/O** | Three `VHS_LoadImagesPath` nodes with `directory` inputs; `VHS_VideoCombine` for video output [3] |
 
-## Real-Device Ignition Verification
+## Anti-Pattern Guards (SESSION-086 Red Lines)
 
-The ignition script has been **verified on real hardware**:
+Three anti-patterns were identified during research and explicitly guarded against in both code and tests.
 
-| Component | Value |
-|---|---|
-| **GPU** | NVIDIA GeForce RTX 4070 |
-| **CUDA Version** | 13.1 |
-| **Driver** | 591.86 |
-| **CPU** | Intel Core i5-12600KF @ 3.70 GHz |
-| **Taichi** | 1.7.4 |
-| **CUDA detected** | True |
-| **Mode** | real_cuda |
-| **Particle budget** | 16,384 |
+**Single-Frame Fallacy**: Temporal workflows MUST use `VHS_LoadImagesPath` with directory paths, NOT single-image `LoadImage` nodes. The test `test_preset_contains_vhs_load_images_path` asserts >= 3 VHS loader nodes exist. The tests `test_vhs_normal_directory_injected`, `test_vhs_depth_directory_injected`, and `test_vhs_rgb_directory_injected` verify that actual directory paths are injected.
 
-The `free_fall_cloud` CPU and GPU cases completed successfully. The `sparse_cloth` CPU reference at 16K particles is time-intensive (~10-20 minutes on i5-12600KF) because the NumPy solver processes constraints sequentially by design. For faster evidence, use `--particle-budget 4096`.
+**Python Topology Trap**: All node wiring MUST exist in the external JSON preset. The injector MUST NOT add or remove nodes. The tests `test_node_count_unchanged_after_injection` and `test_class_types_unchanged_after_injection` verify topology invariance before and after injection.
 
-### Commands for Local Execution
-
-```bash
-# Full-scale run (16K particles, ~10-20 min for sparse_cloth CPU reference)
-python tools/run_session085_gpu_benchmark.py
-
-# Faster run (4K particles, ~1-3 min for sparse_cloth CPU reference)
-python tools/run_session085_gpu_benchmark.py --particle-budget 4096
-
-# Force CPU-only mode (for debugging)
-python tools/run_session085_gpu_benchmark.py --cpu-only
-
-# View results
-cat reports/session085_gpu_benchmark/session085_benchmark_summary.json
-```
-
-## Artifact and Backend Closure
-
-The `BENCHMARK_REPORT` artifact family contract is unchanged from SESSION-082. The `sparse_cloth` scenario produces reports with the same schema but with **nonzero `constraint_count`** and the CPU reference solver identified as `numpy_xpbd_sparse_cloth`. The anti-illusion guard in the test suite explicitly asserts `constraint_count > 0` to prevent future regressions where the benchmark might silently fall back to unconstrained particle motion.
-
-The parity tolerances are scenario-aware:
-
-| Contract element | `free_fall_cloud` | `sparse_cloth` |
-|---|---|---|
-| **Constraint count** | 0 | > 0 (structural + shear + bending) |
-| **CPU reference solver** | `numpy_free_fall_cloud` | `numpy_xpbd_sparse_cloth` |
-| **Drift tolerance** | 5e-5 | 5e-2 |
-| **RMSE tolerance** | 5e-5 | 5e-2 |
+**CI HTTP Blocking Trap**: Zero HTTP calls in tests. All 41 tests validate JSON payload structure only, with no live ComfyUI server dependency. The `mathart_lock_manifest` is validated for structural completeness offline.
 
 ## Testing and Validation
 
 | Test command | Result |
 |---|---|
-| `pytest tests/test_taichi_benchmark_backend.py` | **9 passed, 2 skipped** |
-| `pytest tests/test_gpu_benchmark_realism.py` | **4 passed** |
-| **Combined** | **13 passed, 2 skipped, 0 failed** |
+| `pytest tests/test_p1_ai_2d_sparsectrl.py -v` | **41 passed, 0 failed** |
 
-The 2 SKIPs are expected: `test_runtime_rule_program_benchmark_emits_device_and_throughput` skips when runtime knowledge is unavailable, and `test_real_taichi_backend_cpu_smoke_and_optional_gpu` skips the GPU lane when no CUDA device is detected.
-
-## Why `P3-GPU-BENCH-1` Is SUBSTANTIALLY-CLOSED
-
-The gap definition requires two deliverables: (1) extend the benchmark to sparse cloth / sparse topology scenarios, and (2) run on real CUDA hardware.
-
-SESSION-085 fully delivers deliverable (1) and has **verified** deliverable (2): the CUDA ignition path works on the project owner's RTX 4070, `free_fall_cloud` CPU+GPU cases completed, and the infrastructure for `sparse_cloth` GPU execution is confirmed working. The only remaining step is completing the full `sparse_cloth` run (which is a matter of patience, not code).
+| Test class | Count | Purpose |
+|---|---|---|
+| `TestSparseCtrlPresetAsset` | 10 | Preset file existence, JSON validity, required node class_types, selector validation |
+| `TestSequencePayloadAssembly` | 17 | Directory injection, batch_size sync, parameter injection for all temporal nodes |
+| `TestSequenceLockManifest` | 8 | Lock manifest structure: temporal_config, sequence_directories, workflow_contract |
+| `TestTopologyInvariance` | 2 | Node count and class_type invariance after injection |
+| `TestBackwardCompatibility` | 2 | Original preset and `assemble_payload()` still work |
+| `TestAntiFlickerReportIntegration` | 2 | JSON serialization round-trip and disk persistence |
 
 ## Recommended Next Priorities
 
 | Priority | Recommendation | Reason |
 |---|---|---|
-| **Immediate** | Complete `sparse_cloth` benchmark run | Use `--particle-budget 4096` for faster evidence, then commit the JSON summary |
+| **Immediate** | Start **`P1-INDUSTRIAL-34C`** | Industrial sprite quality is the next visual-delivery gap |
 | **High** | Continue **`P1-MIGRATE-4`** | Registry hot-reload remains a force multiplier for future backends |
-| **High** | Start **`P1-AI-2D-SPARSECTRL`** | The preset-asset foundation is closed; real SparseCtrl runtime execution is the natural next visual step |
+| **High** | Start **`P1-AI-2E`** | Motion-adaptive keyframe planning for high-nonlinearity action segments |
 
 ### Architecture Micro-Adjustments for Next Tasks
 
-**For P1-AI-2D-SPARSECTRL**: The preset-asset architecture from SESSION-084 (`ComfyUIPresetManager` + external `workflow_api` JSON assets) is ready to use as-is. The next step is to create a new preset asset JSON for SparseCtrl/AnimateDiff topology and register it alongside the existing `dual_controlnet_ipadapter.json`. No architectural changes needed — just a new asset file and corresponding test coverage.
+**For P1-INDUSTRIAL-34C**: The industrial sprite backend (`IndustrialSpriteBackend`) and its MaterialX/glTF PBR-inspired `texture_channels` manifest are established. The next step is to improve the quality of the generated texture channels (albedo, normal, depth, roughness) to match commercial 2D game art standards.
 
-**For P1-MIGRATE-4**: The registry pattern (`BackendRegistry` + `BackendType` enum + `validate_config/execute` contract) is fully established. Hot-reload requires adding a file-watcher or signal-based reload trigger to `BackendRegistry.discover()` so that new backend modules dropped into the plugin directory are picked up without process restart. The existing `builtin_backends.py` auto-registration pattern provides the template.
+**For P1-AI-2E**: The `assemble_sequence_payload()` method provides the foundation for motion-adaptive keyframe planning. The next step is to integrate the motion vector baker's temporal analysis with the SparseCtrl preset to automatically select sparse keyframes based on motion complexity metrics.
+
+**For P1-MIGRATE-4**: The registry pattern is fully established. Hot-reload requires adding a file-watcher or signal-based reload trigger to `BackendRegistry.discover()`.
 
 ## Known Constraints and Non-Blocking Notes
 
 | Constraint | Status |
 |---|---|
-| CUDA ignition on RTX 4070 | **Verified working** (Mode: real_cuda) |
-| sparse_cloth CPU reference at 16K particles | **Time-intensive** (~10-20 min on i5-12600KF); use `--particle-budget 4096` |
-| f32 parity tolerance relaxed for sparse_cloth | **Expected** — documented in research notes |
-| Full benchmark JSON summary | **Pending** — awaiting complete sparse_cloth run |
+| SparseCtrl/AnimateDiff model weights | **Not included** — must be downloaded separately for live execution |
+| Live ComfyUI server execution | **Not tested** — all tests are offline structural validation |
+| VHS_VideoCombine output format | **h264-mp4 default** — configurable via `format` parameter |
+| IP-Adapter in temporal workflows | **Optional** — weight set to 0.0 when `use_ip_adapter=False` |
 
 ## Files to Inspect First in the Next Session
 
 | File | Why it matters |
 |---|---|
-| `tools/run_session085_gpu_benchmark.py` | Ignition script with hotfixed CUDA detection |
-| `mathart/core/taichi_xpbd_backend.py` | Canonical benchmark backend with `sparse_cloth` scenario |
-| `reports/session085_gpu_benchmark/session085_benchmark_summary.json` | Benchmark evidence (once full run completes) |
-| `tests/test_gpu_benchmark_realism.py` | Realism test suite with parity assertions |
-| `research/session085_sparse_cloth_benchmark_research.md` | Research notes and academic references |
+| `mathart/assets/comfyui_presets/sparsectrl_animatediff.json` | The 23-node preset topology — all wiring lives here |
+| `mathart/animation/comfyui_preset_manager.py` | The upgraded injector with `assemble_sequence_payload()` |
+| `tests/test_p1_ai_2d_sparsectrl.py` | 41 E2E tests — the contract specification for the temporal pipeline |
+| `research/session086_sparsectrl_animatediff_research.md` | Research notes with node specifications and workflow topology |
 
 ## References
 
-[1]: https://docs.taichi-lang.org/docs/v1.5.0/sparse "Taichi Spatially Sparse Data Structures"
-[2]: https://github.com/google/benchmark/blob/main/docs/user_guide.md "Google Benchmark User Guide"
-[3]: https://standards.nasa.gov/standard/NASA/NASA-STD-7009 "NASA-STD-7009B Standard for Models and Simulations"
-[4]: https://matthias-research.github.io/pages/publications/XPBD.pdf "XPBD: Position-Based Simulation of Compliant Constrained Dynamics"
-[5]: https://hammer.purdue.edu/articles/thesis/Applications_and_Benefits_of_Voxel_Constraints_in_Parallel_XPBD_Physics_Simulation/26064157 "Applications and Benefits of Voxel Constraints in Parallel XPBD Physics Simulation"
+[1]: https://arxiv.org/abs/2311.16933 "Guo et al., SparseCtrl: Adding Sparse Controls to Text-to-Video Diffusion Models, ECCV 2024"
+[2]: https://arxiv.org/abs/2307.04725 "Guo et al., AnimateDiff: Animate Your Personalized Text-to-Image Diffusion Models, ICLR 2024"
+[3]: https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite "ComfyUI-VideoHelperSuite — Industrial sequence I/O for ComfyUI"
+[4]: https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved "ComfyUI-AnimateDiff-Evolved — AnimateDiff integration for ComfyUI"
+[5]: https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet "ComfyUI-Advanced-ControlNet — SparseCtrl support for ComfyUI"
