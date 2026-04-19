@@ -36,3 +36,8 @@ stagnation_reports/
 evolution_reports/CYCLE-20260417_074816.json
 evolution_reports/CYCLE-20260417_074940.json
 evolution_reports/CYCLE-*.json
+.pip-cache/
+.tmp/
+.pytest_cache/
+.venv/
+reports/
