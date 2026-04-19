@@ -103,6 +103,9 @@ class ArtifactFamily(Enum):
     MOTION_UMR = "motion_umr"
     PHYSICS_3D_MOTION_UMR = "physics_3d_motion_umr"
     COMPOSITE = "composite"
+    # SESSION-084 (P1-AI-2D): Typed anti-flicker render report for externally
+    # serialized ComfyUI workflow_api payloads and temporal evidence.
+    ANTI_FLICKER_REPORT = "anti_flicker_report"
     # SESSION-075 (P1-DISTILL-1B): Benchmark report family for CPU/GPU
     # performance evidence and telemetry closure.
     BENCHMARK_REPORT = "benchmark_report"
@@ -168,6 +171,14 @@ class ArtifactFamily(Enum):
                 "episode_length",
                 "episodes_run",
                 "trainer_mode",
+            }),
+            cls.ANTI_FLICKER_REPORT.value: frozenset({
+                "preset_name",
+                "frame_count",
+                "fps",
+                "keyframe_count",
+                "guides_locked",
+                "identity_lock_enabled",
             }),
         }
         return _FAMILY_REQUIRED_METADATA.get(family_value, frozenset())
@@ -478,6 +489,18 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
         "required_outputs": [],
         "required_metadata": [],
         "required_quality": [],
+    },
+    ArtifactFamily.ANTI_FLICKER_REPORT.value: {
+        "required_outputs": ["workflow_payload", "preset_asset", "temporal_report"],
+        "required_metadata": [
+            "preset_name",
+            "frame_count",
+            "fps",
+            "keyframe_count",
+            "guides_locked",
+            "identity_lock_enabled",
+        ],
+        "required_quality": ["temporal_stability_score", "frame_count", "keyframe_count"],
     },
     # SESSION-075 (P1-DISTILL-1B): Benchmark evidence manifest.
     ArtifactFamily.BENCHMARK_REPORT.value: {

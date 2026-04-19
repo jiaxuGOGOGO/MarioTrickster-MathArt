@@ -597,9 +597,9 @@ class DimensionUpliftMeshBackend:
 @register_backend(
     BackendType.ANTI_FLICKER_RENDER,
     display_name="Anti-Flicker Render",
-    version="3.0.0",
+    version="4.0.0",
     artifact_families=(
-        ArtifactFamily.COMPOSITE.value,
+        ArtifactFamily.ANTI_FLICKER_REPORT.value,
         ArtifactFamily.VFX_FLIPBOOK.value,
     ),
     capabilities=(
@@ -608,7 +608,7 @@ class DimensionUpliftMeshBackend:
     ),
     input_requirements=("source_frames", "guide_channels"),
     dependencies=(BackendType.INDUSTRIAL_SPRITE,),
-    session_origin="SESSION-068",
+    session_origin="SESSION-084",
 )
 class AntiFlickerRenderBackend:
     """Real anti-flicker temporal rendering backend.
@@ -717,7 +717,19 @@ class AntiFlickerRenderBackend:
             warnings.append("comfyui.keyframe_interval must be >= 1; setting to 1")
             keyframe_interval = 1
         comfyui["keyframe_interval"] = keyframe_interval
+        comfyui.setdefault("normal_controlnet_model", "control_v11p_sd15_normalbae.pth")
+        comfyui.setdefault("depth_controlnet_model", "control_v11f1p_sd15_depth.pth")
         validated["comfyui"] = comfyui
+
+        # --- Preset namespace ---
+        preset = validated.get("preset", {})
+        if not isinstance(preset, dict):
+            preset = {}
+            warnings.append("preset config must be a dict; using defaults")
+        preset.setdefault("name", comfyui.get("workflow_preset_name", "dual_controlnet_ipadapter"))
+        preset.setdefault("root", None)
+        comfyui["workflow_preset_name"] = preset["name"]
+        validated["preset"] = preset
 
         # --- EbSynth namespace ---
         ebsynth = validated.get("ebsynth", {})
@@ -749,12 +761,12 @@ class AntiFlickerRenderBackend:
         from mathart.animation.skeleton import Skeleton
         from mathart.animation.parts import CharacterStyle
         from mathart.animation.presets import idle_animation
+        from mathart.animation.comfyui_preset_manager import ComfyUIPresetManager
         from mathart.animation.headless_comfy_ebsynth import (
             HeadlessNeuralRenderPipeline,
             NeuralRenderConfig,
         )
 
-        # --- Validate config (backend-owned, not CLI) ---
         validated, warnings = self.validate_config(context)
         for w in warnings:
             logger.warning("[anti_flicker_render] config warning: %s", w)
@@ -769,10 +781,14 @@ class AntiFlickerRenderBackend:
         comfyui_cfg = validated.get("comfyui", {})
         ebsynth_cfg = validated.get("ebsynth", {})
         identity_cfg = validated.get("identity_lock", {})
+        preset_cfg = validated.get("preset", {})
         render_width = int(validated.get("width", 64))
         render_height = int(validated.get("height", 64))
 
-        # Build NeuralRenderConfig from validated namespaces
+        preset_manager = ComfyUIPresetManager(preset_cfg.get("root"))
+        preset_name = str(preset_cfg.get("name", "dual_controlnet_ipadapter"))
+        preset_path = preset_manager.resolve_preset_path(preset_name)
+
         neural_config = NeuralRenderConfig(
             comfyui_url=comfyui_cfg.get("url", "http://localhost:8188"),
             style_prompt=comfyui_cfg.get("style_prompt", "high quality pixel art, detailed shading, game sprite"),
@@ -787,14 +803,12 @@ class AntiFlickerRenderBackend:
             sd_denoising_strength=float(comfyui_cfg.get("denoising_strength", 0.65)),
             sd_steps=int(comfyui_cfg.get("steps", 20)),
             sd_cfg_scale=float(comfyui_cfg.get("cfg_scale", 7.5)),
+            workflow_preset_name=preset_name,
             output_dir=str(output_dir / stem),
         )
 
-        # Build skeleton + style (lightweight defaults)
         skeleton = Skeleton.create_humanoid()
         style = CharacterStyle()
-
-        # --- Real pipeline execution ---
         pipeline = HeadlessNeuralRenderPipeline(neural_config)
         result = pipeline.run(
             skeleton=skeleton,
@@ -805,34 +819,79 @@ class AntiFlickerRenderBackend:
             height=render_height,
         )
 
-        # --- Build frame_sequence payload (OTIO-inspired time-series) ---
         frame_output_dir = output_dir / f"{stem}_frames"
         frame_output_dir.mkdir(parents=True, exist_ok=True)
-
         frame_sequence: list[dict[str, Any]] = []
         keyframe_set = set(result.keyframe_indices)
-
         for idx, frame_img in enumerate(result.stylized_frames):
             frame_path = frame_output_dir / f"frame_{idx:04d}.png"
             frame_img.save(str(frame_path))
-
-            role = "keyframe" if idx in keyframe_set else "propagated"
-            frame_entry = {
+            frame_sequence.append({
                 "frame_index": idx,
                 "path": str(frame_path.resolve()),
-                "role": role,
+                "role": "keyframe" if idx in keyframe_set else "propagated",
                 "temporal_coherence_score": float(
                     result.temporal_metrics.get("temporal_stability_score", 0.0)
                 ),
-            }
-            frame_sequence.append(frame_entry)
+            })
 
-        # Write ancillary artifacts
+        guide_output_dir = output_dir / f"{stem}_guides"
+        guide_output_dir.mkdir(parents=True, exist_ok=True)
+        identity_index = 0
+        if result.keyframe_plan is not None:
+            identity_index = int(result.keyframe_plan.identity_reference_index)
+        identity_index = max(0, min(identity_index, max(0, len(result.source_frames) - 1)))
+
+        source_img = result.source_frames[0] if result.source_frames else result.stylized_frames[0]
+        normal_img = result.normal_maps[0] if result.normal_maps else source_img
+        depth_img = result.depth_maps[0] if result.depth_maps else source_img
+        identity_img = result.source_frames[identity_index] if result.source_frames else source_img
+
+        source_path = guide_output_dir / "source_frame_0000.png"
+        normal_path = guide_output_dir / "normal_frame_0000.png"
+        depth_path = guide_output_dir / "depth_frame_0000.png"
+        identity_path = guide_output_dir / f"identity_frame_{identity_index:04d}.png"
+        source_img.save(source_path)
+        normal_img.save(normal_path)
+        depth_img.save(depth_path)
+        identity_img.save(identity_path)
+
+        assembled_payload = preset_manager.assemble_payload(
+            preset_name=preset_name,
+            source_image_path=source_path,
+            normal_map_path=normal_path,
+            depth_map_path=depth_path,
+            identity_reference_path=identity_path,
+            use_ip_adapter=bool(identity_cfg.get("enabled", True)),
+            ip_adapter_weight=float(identity_cfg.get("weight", 0.85)),
+            ip_adapter_model_name=neural_config.ip_adapter_model_name,
+            ip_adapter_clip_vision_name=neural_config.ip_adapter_clip_vision_name,
+            normal_controlnet_name=str(comfyui_cfg.get("normal_controlnet_model", "control_v11p_sd15_normalbae.pth")),
+            depth_controlnet_name=str(comfyui_cfg.get("depth_controlnet_model", "control_v11f1p_sd15_depth.pth")),
+            prompt=neural_config.style_prompt,
+            negative_prompt=neural_config.negative_prompt,
+            normal_weight=neural_config.controlnet_normal_weight,
+            depth_weight=neural_config.controlnet_depth_weight,
+            model_checkpoint=neural_config.sd_model_checkpoint,
+            steps=neural_config.sd_steps,
+            cfg_scale=neural_config.sd_cfg_scale,
+            denoising_strength=neural_config.sd_denoising_strength,
+            seed=int(result.workflow_manifest.get("seed", -1)),
+            filename_prefix=f"{stem}_stylized",
+        )
+
         workflow_path = output_dir / f"{stem}_workflow_manifest.json"
         workflow_path.write_text(
             json.dumps(result.workflow_manifest, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
+        workflow_payload_path = output_dir / f"{stem}_workflow_payload.json"
+        workflow_payload_path.write_text(
+            json.dumps(assembled_payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        preset_asset_path = output_dir / f"{stem}_preset.workflow_api.json"
+        preset_asset_path.write_text(preset_path.read_text(encoding="utf-8"), encoding="utf-8")
 
         keyframe_plan_path = output_dir / f"{stem}_keyframe_plan.json"
         kp_data = result.keyframe_plan.to_dict() if result.keyframe_plan else {}
@@ -841,10 +900,25 @@ class AntiFlickerRenderBackend:
             encoding="utf-8",
         )
 
+        time_range = {
+            "start_frame": 0,
+            "end_frame": len(frame_sequence) - 1,
+            "fps": fps,
+            "total_frames": len(frame_sequence),
+        }
+        guides_locked = list(assembled_payload["mathart_lock_manifest"].get("controlnet_guides", []))
+        if assembled_payload["mathart_lock_manifest"].get("identity_lock_active"):
+            guides_locked.append("ip_adapter_identity")
+
         temporal_report_path = output_dir / f"{stem}_temporal_report.json"
         temporal_report = {
+            "preset_name": preset_name,
+            "preset_asset_path": str(preset_asset_path.resolve()),
+            "workflow_payload_path": str(workflow_payload_path.resolve()),
+            "lock_manifest": assembled_payload.get("mathart_lock_manifest", {}),
             "temporal_metrics": result.temporal_metrics,
             "frame_count": result.frame_count,
+            "fps": fps,
             "keyframe_indices": result.keyframe_indices,
             "elapsed_seconds": result.elapsed_seconds,
             "pipeline_metadata": result.to_metadata(),
@@ -854,38 +928,39 @@ class AntiFlickerRenderBackend:
             encoding="utf-8",
         )
 
-        # --- Build outputs dict ---
         outputs: dict[str, str] = {
             "workflow": str(workflow_path.resolve()),
+            "workflow_payload": str(workflow_payload_path.resolve()),
+            "preset_asset": str(preset_asset_path.resolve()),
             "keyframe_plan": str(keyframe_plan_path.resolve()),
             "temporal_report": str(temporal_report_path.resolve()),
             "frame_directory": str(frame_output_dir.resolve()),
+            "guide_directory": str(guide_output_dir.resolve()),
         }
-        # Add individual frame paths
         for entry in frame_sequence:
             outputs[f"frame_{entry['frame_index']:04d}"] = entry["path"]
 
-        time_range = {
-            "start_frame": 0,
-            "end_frame": len(frame_sequence) - 1,
-            "fps": fps,
-            "total_frames": len(frame_sequence),
-        }
-
         return ArtifactManifest(
-            artifact_family=ArtifactFamily.COMPOSITE.value,
+            artifact_family=ArtifactFamily.ANTI_FLICKER_REPORT.value,
             backend_type=BackendType.ANTI_FLICKER_RENDER,
-            version="3.0.0",
-            session_id=validated.get("session_id", "SESSION-068"),
+            version="4.0.0",
+            session_id=validated.get("session_id", "SESSION-084"),
             outputs=outputs,
             metadata={
-                "strategy": "sparse_ctrl_plus_ebsynth",
+                "strategy": "data_driven_comfyui_preset_injection",
+                "preset_name": preset_name,
+                "frame_count": len(frame_sequence),
+                "fps": fps,
+                "keyframe_count": len(result.keyframe_indices),
+                "guides_locked": guides_locked,
+                "identity_lock_enabled": bool(identity_cfg.get("enabled", True)),
                 "guide_channels": [
-                    ch for ch, enabled in validated.get("guides", {}).items()
-                    if enabled
+                    ch for ch, enabled in validated.get("guides", {}).items() if enabled
                 ],
                 "keyframe_interval": int(comfyui_cfg.get("keyframe_interval", 4)),
                 "lane": "temporal_consistency",
+                "preset_asset_path": str(preset_asset_path.resolve()),
+                "assembled_workflow_node_count": len(assembled_payload.get("prompt", {})),
                 "temporal_metrics": result.temporal_metrics,
                 "keyframe_indices": result.keyframe_indices,
                 "identity_lock": {
@@ -893,12 +968,14 @@ class AntiFlickerRenderBackend:
                     "weight": float(identity_cfg.get("weight", 0.85)),
                 },
                 "time_range": time_range,
-                # --- Polymorphic payload: frame_sequence (OTIO-inspired) ---
                 "payload": {
                     "frame_sequence": frame_sequence,
                     "time_range": time_range,
                     "keyframe_plan": kp_data,
                     "workflow_manifest_path": str(workflow_path.resolve()),
+                    "workflow_payload_path": str(workflow_payload_path.resolve()),
+                    "preset_asset_path": str(preset_asset_path.resolve()),
+                    "lock_manifest": assembled_payload.get("mathart_lock_manifest", {}),
                 },
             },
             quality_metrics={
@@ -911,7 +988,7 @@ class AntiFlickerRenderBackend:
                 "frame_count": float(len(frame_sequence)),
                 "keyframe_count": float(len(result.keyframe_indices)),
             },
-            tags=["anti_flicker", "temporal", "comfyui", "ebsynth", "session-068"],
+            tags=["anti_flicker", "temporal", "comfyui", "preset_factory", "session-084"],
         )
 
 

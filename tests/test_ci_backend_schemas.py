@@ -260,6 +260,16 @@ class TestCIBackendSchemas:
         assert "episodes_run" in training_keys
         assert "trainer_mode" in training_keys
 
+        anti_flicker_keys = ArtifactFamily.required_metadata_keys(
+            ArtifactFamily.ANTI_FLICKER_REPORT.value,
+        )
+        assert "preset_name" in anti_flicker_keys
+        assert "frame_count" in anti_flicker_keys
+        assert "fps" in anti_flicker_keys
+        assert "keyframe_count" in anti_flicker_keys
+        assert "guides_locked" in anti_flicker_keys
+        assert "identity_lock_enabled" in anti_flicker_keys
+
         # Composite family has no required metadata
         composite_keys = ArtifactFamily.required_metadata_keys(
             ArtifactFamily.COMPOSITE.value,

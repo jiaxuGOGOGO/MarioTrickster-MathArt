@@ -1,13 +1,13 @@
 {
-  "version": "0.74.0",
-  "last_session_id": "SESSION-083",
-  "last_updated": "2026-04-19T11:20:00Z",
+  "version": "0.75.0",
+  "last_session_id": "SESSION-084",
+  "last_updated": "2026-04-19T14:20:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
     "baseline_session": "SESSION-075",
     "head_commit": "SESSION-075",
-    "active_total": 71,
+    "active_total": 70,
     "by_priority": {
       "P1": 37,
       "P2": 34,
@@ -17,22 +17,21 @@
       "PARTIAL": 4,
       "SUBSTANTIALLY-ADVANCED": 2,
       "SUBSTANTIALLY-CLOSED": 5,
-      "TODO": 60
+      "TODO": 59
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
       "P3-GPU-BENCH-1",
       "P1-MIGRATE-4",
-      "P1-AI-2D",
       "P1-AI-2D-SPARSECTRL",
       "P1-INDUSTRIAL-34C",
       "P1-ARCH-4",
       "P1-AI-2E"
     ],
-    "closed_archived": 50
+    "closed_archived": 51
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-083 P1-B4-1 closure PASS: 18 PASS, 0 FAIL across new Gymnasium RL environment checks and full dynamic CI backend schema audit; rl_training now emits typed TRAINING_REPORT manifests with random-actor fallback in this no-SB3 sandbox",
+  "validation_pass_rate": "SESSION-084 P1-AI-2D preset-asset closure PASS: 37 PASS, 0 FAIL across data-driven ComfyUI preset injection, anti_flicker_render E2E subprocess, and dynamic CI backend schema audits; anti_flicker_render now emits typed ANTI_FLICKER_REPORT manifests with external workflow_api assets and offline-safe payload assembly",
   "total_iterations": 642,
   "total_code_lines": 121332,
   "distill_session_id": "DISTILL-012",
@@ -78,9 +77,11 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-083 closes P1-B4-1 by landing a Gymnasium-compliant LocomotionRLEnv with RSI resets, correct terminated/truncated semantics, a registry-native RLTrainingBackend, typed TRAINING_REPORT manifests, and CI-safe random-actor fallback when Stable-Baselines3 is unavailable.",
+  "current_focus": "SESSION-084 closes P1-AI-2D by externalizing ComfyUI anti-flicker graph topology into workflow_api preset assets, injecting runtime values via semantic selectors instead of node IDs, and upgrading anti_flicker_render to emit typed ANTI_FLICKER_REPORT manifests with exported preset assets and assembled workflow payloads.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "research/session084_ai2d_preset_research.md",
+    "tests/test_p1_ai_2d_preset_injection.py",
     "research/session082_gpu_benchmark_reference_notes.md",
     "tests/test_gpu_benchmark_realism.py",
     "tools/run_session082_gpu_benchmark.py",
@@ -241,11 +242,12 @@
       "id": "P1-AI-2D",
       "priority": "P1",
       "title": "Ship real ComfyUI batch preset packs for IP-Adapter + ControlNet anti-flicker jobs",
-      "status": "TODO",
-      "estimated_effort": "medium",
-      "description": "Still pending after SESSION-068. Registry exposure and real backend execution now exist, but production preset bundles and real node-template packs are not yet shipped.",
+      "status": "CLOSED",
+      "estimated_effort": "completed",
+      "description": "CLOSED in SESSION-084. ComfyUI anti-flicker graph topology is now shipped as external workflow_api preset assets under mathart/assets/comfyui_presets, while ComfyUIPresetManager assembles runtime payloads through semantic node selectors (class_type + _meta.title) rather than hard-coded node IDs. AntiFlickerRenderBackend now exports the source preset asset, the assembled workflow_payload, and a typed ANTI_FLICKER_REPORT manifest so preset-based jobs are reproducible, offline-testable, and registry-auditable. Remaining live-weight/runtime work moves to P1-AI-2D-SPARSECTRL.",
       "added_in": "SESSION-060",
-      "updated_in": "SESSION-068"
+      "updated_in": "SESSION-084",
+      "completed_in": "SESSION-084"
     },
     {
       "id": "P1-AI-2D-SPARSECTRL",
@@ -2207,18 +2209,19 @@
     "session066_golden_path_status": "Golden Path Phase 0 implemented: strong backend typing, registry-driven AssetPipeline socket, federated orchestrator facade, and daily registry guard are all in place.",
     "session067_dynamic_cli_status": "First-class package CLI now exists at mathart/cli.py with python -m mathart and python -m MarioTrickster entrypoints, registry-reflected backend discovery, stderr-only diagnostics, stdout-only JSON IPC payloads, and subprocess-proven urp2d_bundle manifest delivery.",
     "session067_future_cli_preparation": "Before anti_flicker_render and industrial_sprite become production-grade CLI backends, keep extending the generic --set dotted-key transport and enrich ArtifactManifest IPC payloads for multi-channel, temporal, and auxiliary asset groups instead of adding bespoke per-backend flags.",
-    "session083_rl_training_status": "P1-B4-1 CLOSED. LocomotionRLEnv now exposes Gymnasium reset/step semantics with RSI and early termination, while RLTrainingBackend emits typed TRAINING_REPORT manifests and degrades to a reproducible random-actor lane when Stable-Baselines3 is absent."
+    "session083_rl_training_status": "P1-B4-1 CLOSED. LocomotionRLEnv now exposes Gymnasium reset/step semantics with RSI and early termination, while RLTrainingBackend emits typed TRAINING_REPORT manifests and degrades to a reproducible random-actor lane when Stable-Baselines3 is absent.",
+    "session084_ai2d_preset_status": "P1-AI-2D CLOSED. ComfyUI preset topology now lives in external workflow_api JSON assets, ComfyUIPresetManager injects runtime bindings via semantic selectors, and anti_flicker_render emits typed ANTI_FLICKER_REPORT manifests carrying preset_asset/workflow_payload/temporal_report outputs."
   },
   "recent_focus_snapshot": {
-    "session": "SESSION-083",
-    "focus": "P1-B4-1: Gymnasium RL environment and registry-native training backend with typed training reports",
+    "session": "SESSION-084",
+    "focus": "P1-AI-2D: data-driven ComfyUI preset assets, semantic workflow injection, and typed anti-flicker report closure",
     "closed": [
-      "P1-B4-1"
+      "P1-AI-2D"
     ],
     "next": [
       "P3-GPU-BENCH-1: run the CUDA benchmark harness on real hardware and add sparse-topology validation",
       "P1-MIGRATE-4: continue hot-reload and registry closure work",
-      "P1-AI-2D: ship real ComfyUI preset packs for anti-flicker production jobs"
+      "P1-AI-2D-SPARSECTRL: execute full ComfyUI workflows with real SparseCtrl/AnimateDiff weights"
     ]
   },
   "recent_sessions": [
@@ -2316,6 +2319,30 @@
         "P3-GPU-BENCH-1: run the CUDA benchmark harness on real hardware and add sparse-topology validation",
         "P1-MIGRATE-4: continue hot-reload and registry closure work",
         "P1-AI-2D: ship real ComfyUI preset packs for anti-flicker production jobs"
+      ]
+    },
+    {
+      "session_id": "SESSION-084",
+      "date": "2026-04-19",
+      "focus": "P1-AI-2D: production-grade ComfyUI preset assets, semantic injection, and typed anti-flicker report closure",
+      "changes": [
+        "NEW mathart/animation/comfyui_preset_manager.py — external preset loader and semantic selector injector for workflow_api assets",
+        "NEW mathart/assets/comfyui_presets/dual_controlnet_ipadapter.json — production anti-flicker workflow_api preset asset for dual ControlNet + IP-Adapter identity lock",
+        "UPD mathart/animation/headless_comfy_ebsynth.py — runtime now references workflow_preset_name and preserves preset provenance in pipeline metadata",
+        "UPD mathart/core/builtin_backends.py + mathart/core/artifact_schema.py — anti_flicker_render now exports typed ANTI_FLICKER_REPORT manifests with preset_asset and workflow_payload outputs",
+        "UPD pyproject.toml — include JSON preset assets as package data",
+        "NEW tests/test_p1_ai_2d_preset_injection.py + UPD tests/test_session068_e2e.py + tests/test_ci_backend_schemas.py — lock semantic injection, offline execution, and schema closure",
+        "NEW research/session084_ai2d_preset_research.md — ComfyUI workflow file semantics, ControlNet/IP-Adapter split, and data-driven asset principles distilled for implementation",
+        "UPD PROJECT_BRAIN.json + SESSION_HANDOFF.md — close P1-AI-2D and refresh next-step guidance"
+      ],
+      "test_results": "37 PASS, 0 FAIL across tests/test_p1_ai_2d_preset_injection.py, tests/test_session068_e2e.py, and tests/test_ci_backend_schemas.py",
+      "tasks_closed": [
+        "P1-AI-2D"
+      ],
+      "next_priorities": [
+        "P3-GPU-BENCH-1: run the CUDA benchmark harness on real hardware and add sparse-topology validation",
+        "P1-MIGRATE-4: continue hot-reload and registry closure work",
+        "P1-AI-2D-SPARSECTRL: execute full ComfyUI workflows with real SparseCtrl/AnimateDiff weights"
       ]
     }
   ],
@@ -2594,6 +2621,12 @@
       "id": "P1-XPBD-1",
       "title": "Free-fall test precision optimization (gravity/damping decoupling)",
       "completed_in": "SESSION-081",
+      "priority": "P1"
+    },
+    {
+      "id": "P1-AI-2D",
+      "title": "Ship real ComfyUI batch preset packs for IP-Adapter + ControlNet anti-flicker jobs",
+      "completed_in": "SESSION-084",
       "priority": "P1"
     }
   ],

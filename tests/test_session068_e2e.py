@@ -267,7 +267,7 @@ class TestAntiFlickerRenderE2E:
         payload = json.loads(proc.stdout)
 
         assert payload["status"] == "ok"
-        assert payload["artifact_family"] == "composite"
+        assert payload["artifact_family"] == "anti_flicker_report"
         assert payload["backend_type"] == "anti_flicker_render"
         assert payload["resolved_backend"] == "anti_flicker_render"
         assert "manifest_path" in payload
@@ -372,14 +372,18 @@ class TestAntiFlickerRenderE2E:
         payload = json.loads(proc.stdout)
 
         report_path = payload["artifact_paths"].get("temporal_report")
+        workflow_payload_path = payload["artifact_paths"].get("workflow_payload")
         assert report_path is not None
+        assert workflow_payload_path is not None
         assert Path(report_path).exists()
+        assert Path(workflow_payload_path).exists()
 
         report = json.loads(Path(report_path).read_text(encoding="utf-8"))
         assert "temporal_metrics" in report
         assert "frame_count" in report
         assert "keyframe_indices" in report
         assert "pipeline_metadata" in report
+        assert report["workflow_payload_path"] == workflow_payload_path
 
     def test_quality_metrics_in_envelope(self, tmp_path: Path) -> None:
         """Quality metrics must be present in the IPC envelope."""

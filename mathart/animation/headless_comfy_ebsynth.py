@@ -73,11 +73,11 @@ References:
 """
 from __future__ import annotations
 
-import base64
 import io
 import json
 import logging
 import math
+import tempfile
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -97,6 +97,7 @@ from .motion_vector_baker import (
     encode_motion_vector_rgb,
     export_ebsynth_project,
 )
+from .comfyui_preset_manager import ComfyUIPresetManager
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +126,7 @@ class NeuralRenderConfig:
     ip_adapter_model_name: str = "ip-adapter-plus_sdxl_vit-h.safetensors"
     ip_adapter_clip_vision_name: str = "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
     workflow_lock_required: bool = False
+    workflow_preset_name: str = "dual_controlnet_ipadapter"
     ebsynth_uniformity: float = 4000.0
     ebsynth_patch_size: int = 7
     ebsynth_pyramid_levels: int = 5
@@ -259,6 +261,7 @@ class NeuralRenderResult:
                 "controlnet_normal_weight": self.config.controlnet_normal_weight if self.config else 0,
                 "controlnet_depth_weight": self.config.controlnet_depth_weight if self.config else 0,
                 "controlnet_mask_weight": self.config.controlnet_mask_weight if self.config else 0,
+                "workflow_preset_name": self.config.workflow_preset_name if self.config else "",
                 "use_ip_adapter_identity": self.config.use_ip_adapter_identity if self.config else False,
                 "ip_adapter_weight": self.config.ip_adapter_weight if self.config else 0,
                 "ebsynth_uniformity": self.config.ebsynth_uniformity if self.config else 0,
@@ -307,18 +310,35 @@ class ComfyUIHeadlessClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.client_id = str(uuid.uuid4())
+        self.preset_manager = ComfyUIPresetManager()
+        self.last_workflow_manifest: dict[str, Any] = {}
+        self.last_workflow_payload: dict[str, Any] = {}
+
+    def _materialize_image_input(
+        self,
+        image_or_path: Image.Image | str | Path,
+        *,
+        slot_name: str,
+    ) -> Path:
+        if isinstance(image_or_path, Image.Image):
+            temp_root = Path(tempfile.gettempdir()) / "mathart_comfy_inputs" / self.client_id
+            temp_root.mkdir(parents=True, exist_ok=True)
+            out_path = temp_root / f"{slot_name}.png"
+            image_or_path.save(out_path)
+            return out_path.resolve()
+        return Path(image_or_path).resolve()
 
     def build_controlnet_workflow(
         self,
-        source_image: Image.Image,
-        normal_map: Image.Image,
-        depth_map: Image.Image,
+        source_image: Image.Image | str | Path,
+        normal_map: Image.Image | str | Path,
+        depth_map: Image.Image | str | Path,
         prompt: str,
         negative_prompt: str = "",
         normal_weight: float = 1.0,
         depth_weight: float = 1.0,
-        mask_map: Optional[Image.Image] = None,
-        identity_reference: Optional[Image.Image] = None,
+        mask_map: Optional[Image.Image | str | Path] = None,
+        identity_reference: Optional[Image.Image | str | Path] = None,
         use_ip_adapter: bool = False,
         ip_adapter_weight: float = 0.85,
         ip_adapter_model_name: str = "ip-adapter-plus_sdxl_vit-h.safetensors",
@@ -328,181 +348,48 @@ class ComfyUIHeadlessClient:
         cfg_scale: float = 7.5,
         denoising_strength: float = 0.65,
         seed: int = -1,
+        preset_name: str = "dual_controlnet_ipadapter",
     ) -> dict[str, Any]:
-        """Build a ComfyUI workflow JSON for industrial sparse-keyframe generation.
-
-        The base workflow remains dual-ControlNet (normal + depth). When an
-        identity reference is available, an optional IP-Adapter branch is added
-        so the model can lock character identity while ControlNet locks geometry.
-        """
-        if seed < 0:
-            seed = np.random.randint(0, 2**31)
-
-        def img_to_base64(img: Image.Image) -> str:
-            buf = io.BytesIO()
-            img.save(buf, format="PNG")
-            return base64.b64encode(buf.getvalue()).decode("utf-8")
-
-        positive_node = "11"
-        model_node = "1"
-        prompt_nodes: dict[str, Any] = {
-            "1": {
-                "class_type": "CheckpointLoaderSimple",
-                "inputs": {"ckpt_name": model_checkpoint},
-            },
-            "2": {
-                "class_type": "CLIPTextEncode",
-                "inputs": {
-                    "text": prompt,
-                    "clip": ["1", 1],
-                },
-            },
-            "3": {
-                "class_type": "CLIPTextEncode",
-                "inputs": {
-                    "text": negative_prompt,
-                    "clip": ["1", 1],
-                },
-            },
-            "4": {
-                "class_type": "LoadImageBase64",
-                "inputs": {
-                    "image": img_to_base64(source_image),
-                },
-            },
-            "5": {
-                "class_type": "VAEEncode",
-                "inputs": {
-                    "pixels": ["4", 0],
-                    "vae": ["1", 2],
-                },
-            },
-            "6": {
-                "class_type": "LoadImageBase64",
-                "inputs": {
-                    "image": img_to_base64(normal_map),
-                },
-            },
-            "7": {
-                "class_type": "LoadImageBase64",
-                "inputs": {
-                    "image": img_to_base64(depth_map),
-                },
-            },
-            "8": {
-                "class_type": "ControlNetLoader",
-                "inputs": {
-                    "control_net_name": "control_v11p_sd15_normalbae.pth",
-                },
-            },
-            "9": {
-                "class_type": "ControlNetLoader",
-                "inputs": {
-                    "control_net_name": "control_v11f1p_sd15_depth.pth",
-                },
-            },
-            "10": {
-                "class_type": "ControlNetApply",
-                "inputs": {
-                    "conditioning": ["2", 0],
-                    "control_net": ["8", 0],
-                    "image": ["6", 0],
-                    "strength": normal_weight,
-                },
-            },
-            "11": {
-                "class_type": "ControlNetApply",
-                "inputs": {
-                    "conditioning": ["10", 0],
-                    "control_net": ["9", 0],
-                    "image": ["7", 0],
-                    "strength": depth_weight,
-                },
-            },
-        }
-
-        lock_manifest = {
-            "controlnet_guides": ["normal", "depth"],
-            "mask_present": mask_map is not None,
-            "identity_reference_present": identity_reference is not None,
-            "identity_lock_requested": bool(use_ip_adapter and identity_reference is not None),
-            "guides_requested": ["normal", "depth"] + (["mask"] if mask_map is not None else []),
-            "seed": int(seed),
-        }
-
-        if use_ip_adapter and identity_reference is not None:
-            prompt_nodes.update(
-                {
-                    "15": {
-                        "class_type": "LoadImageBase64",
-                        "inputs": {"image": img_to_base64(identity_reference)},
-                    },
-                    "16": {
-                        "class_type": "CLIPVisionLoader",
-                        "inputs": {"clip_name": ip_adapter_clip_vision_name},
-                    },
-                    "17": {
-                        "class_type": "IPAdapterModelLoader",
-                        "inputs": {"ipadapter_file": ip_adapter_model_name},
-                    },
-                    "18": {
-                        "class_type": "IPAdapterApply",
-                        "inputs": {
-                            "model": ["1", 0],
-                            "image": ["15", 0],
-                            "ipadapter": ["17", 0],
-                            "clip_vision": ["16", 0],
-                            "weight": ip_adapter_weight,
-                        },
-                    },
-                }
-            )
-            model_node = "18"
-            lock_manifest["identity_lock_active"] = True
-            lock_manifest["guides_requested"].append("ip_adapter_identity")
-        else:
-            lock_manifest["identity_lock_active"] = False
-
-        prompt_nodes.update(
-            {
-                "12": {
-                    "class_type": "KSampler",
-                    "inputs": {
-                        "model": [model_node, 0],
-                        "positive": [positive_node, 0],
-                        "negative": ["3", 0],
-                        "latent_image": ["5", 0],
-                        "seed": seed,
-                        "steps": steps,
-                        "cfg": cfg_scale,
-                        "sampler_name": "euler_ancestral",
-                        "scheduler": "normal",
-                        "denoise": denoising_strength,
-                    },
-                },
-                "13": {
-                    "class_type": "VAEDecode",
-                    "inputs": {
-                        "samples": ["12", 0],
-                        "vae": ["1", 2],
-                    },
-                },
-                "14": {
-                    "class_type": "SaveImage",
-                    "inputs": {
-                        "images": ["13", 0],
-                        "filename_prefix": "mathart_neural",
-                    },
-                },
-            }
+        """Build a ComfyUI workflow payload from an external workflow_api preset."""
+        source_path = self._materialize_image_input(source_image, slot_name="source")
+        normal_path = self._materialize_image_input(normal_map, slot_name="normal")
+        depth_path = self._materialize_image_input(depth_map, slot_name="depth")
+        _ = (
+            self._materialize_image_input(mask_map, slot_name="mask")
+            if mask_map is not None else None
+        )
+        identity_path = (
+            self._materialize_image_input(identity_reference, slot_name="identity")
+            if identity_reference is not None else source_path
         )
 
-        workflow = {
-            "client_id": self.client_id,
-            "prompt": prompt_nodes,
-            "mathart_lock_manifest": lock_manifest,
-        }
-        self.last_workflow_manifest = lock_manifest
+        workflow = self.preset_manager.assemble_payload(
+            preset_name=preset_name,
+            source_image_path=source_path,
+            normal_map_path=normal_path,
+            depth_map_path=depth_path,
+            identity_reference_path=identity_path,
+            use_ip_adapter=bool(use_ip_adapter),
+            ip_adapter_weight=float(ip_adapter_weight),
+            ip_adapter_model_name=ip_adapter_model_name,
+            ip_adapter_clip_vision_name=ip_adapter_clip_vision_name,
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            normal_weight=float(normal_weight),
+            depth_weight=float(depth_weight),
+            model_checkpoint=model_checkpoint,
+            steps=int(steps),
+            cfg_scale=float(cfg_scale),
+            denoising_strength=float(denoising_strength),
+            seed=int(seed),
+            client_id=self.client_id,
+            filename_prefix="mathart_neural",
+        )
+        workflow["mathart_lock_manifest"]["mask_present"] = mask_map is not None
+        if mask_map is not None and "mask" not in workflow["mathart_lock_manifest"]["guides_requested"]:
+            workflow["mathart_lock_manifest"]["guides_requested"].append("mask")
+        self.last_workflow_manifest = workflow["mathart_lock_manifest"]
+        self.last_workflow_payload = workflow
         return workflow
 
     def submit_workflow(self, workflow: dict) -> Optional[str]:
@@ -628,6 +515,7 @@ class ComfyUIHeadlessClient:
             cfg_scale=config.sd_cfg_scale,
             denoising_strength=config.sd_denoising_strength,
             seed=seed,
+            preset_name=config.workflow_preset_name,
         )
 
         prompt_id = self.submit_workflow(workflow)
@@ -648,6 +536,7 @@ class ComfyUIHeadlessClient:
                 cfg_scale=config.sd_cfg_scale,
                 denoising_strength=config.sd_denoising_strength,
                 seed=seed,
+                preset_name=config.workflow_preset_name,
             )
             prompt_id = self.submit_workflow(fallback_workflow)
             self.last_workflow_manifest = {

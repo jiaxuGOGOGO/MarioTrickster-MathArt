@@ -1,118 +1,120 @@
-# SESSION-083 Handoff
+# SESSION_HANDOFF
 
 ## Executive Summary
 
-**SESSION-083** closes **`P1-B4-1`**. The repository now contains a **Gymnasium-compatible reinforcement-learning environment** built on top of the pre-baked UMR reference buffers delivered earlier, plus a **registry-native training backend** that produces a strongly typed **`TRAINING_REPORT`** artifact. In this sandbox, where **Stable-Baselines3 is not installed**, the backend degrades truthfully to a **deterministic random-actor micro-batch lane** rather than pretending a policy optimizer exists. That keeps the training loop auditable, reproducible, and CI-safe instead of blocking on optional external packages.
+**SESSION-084** closes **`P1-AI-2D`** by converting the anti-flicker ComfyUI lane from **Python-hardcoded graph assembly** into a **data-driven preset asset pipeline**. The repository now ships a real **`workflow_api` preset asset**, a **semantic selector-based preset manager**, and a backend export path that emits a strongly typed **`ANTI_FLICKER_REPORT`** manifest together with the exact preset asset and the assembled execution payload. This means anti-flicker jobs are now reproducible, inspectable, and packageable as repository assets instead of being trapped inside ad-hoc Python wiring. The implementation follows the external research constraint that **execution topology should live in external API workflow JSON**, while runtime should apply only parameter overrides, not reconstruct graph topology in code [1] [2].
 
-This session also formalized the missing schema and registry surface needed for the RL loop to be a first-class citizen of the microkernel architecture. The system now exposes a canonical **RL backend type**, a dedicated **RL capability**, and a schema-enforced **training report artifact family**. Most importantly, the environment obeys the **modern Gymnasium `reset()` / `step()` contract**, including the distinction between **`terminated`** and **`truncated`**, so downstream trainers can reason about horizon cutoffs versus true failure conditions without semantic drift.
+The session also enforced a second architectural constraint from the literature and platform references: **geometry lock** and **identity lock** must remain distinct conditioning tracks. ControlNet is used to preserve spatial structure, while IP-Adapter remains the light-weight image-reference path for identity/style anchoring rather than becoming a geometry surrogate [3] [4]. That separation is now visible in the shipped preset asset, in the semantic injection table, and in the exported lock manifest embedded in the workflow payload.
 
-| Area | SESSION-083 outcome |
+| Area | SESSION-084 outcome |
 |---|---|
-| **Task closure** | **`P1-B4-1` closed** |
-| **New environment** | `mathart/animation/rl_gym_env.py` |
-| **New backend** | `mathart/core/rl_training_backend.py` |
-| **New artifact family** | `ArtifactFamily.TRAINING_REPORT` |
-| **New capability** | `BackendCapability.RL_TRAINING` |
-| **Fallback mode in this sandbox** | `random_actor` |
-| **Validation result** | **18 PASS, 0 FAIL** |
+| **Task closure** | **`P1-AI-2D` closed** |
+| **New preset manager** | `mathart/animation/comfyui_preset_manager.py` |
+| **New preset asset** | `mathart/assets/comfyui_presets/dual_controlnet_ipadapter.json` |
+| **Backend report family** | `ArtifactFamily.ANTI_FLICKER_REPORT` |
+| **Injection strategy** | `class_type + _meta.title` semantic selector binding |
+| **Validation result** | **37 PASS, 0 FAIL** |
 
 ## What Landed in Code
 
-The core implementation is a new **`LocomotionRLEnv`** that wraps the existing **UMR→RL adapter** and exposes a clean RL surface for rollout execution. Reset now supports **Reference State Initialization (RSI)** by sampling a valid phase inside the pre-baked reference clip and initializing the simulated agent state from that slice. Step applies bounded actions, computes imitation-aligned reward terms against the reference buffers, and returns the full **five-tuple** required by Gymnasium.
+The main code landing is **`ComfyUIPresetManager`**, which loads external preset JSON assets, validates their structural requirements, and assembles a runtime payload by binding file paths and hyperparameters through **semantic node signatures** rather than numeric node IDs. This matters because ComfyUI node IDs are not stable under graph editing or export/import churn. The new tests explicitly renumber the preset graph and confirm that payload assembly still succeeds, which turns node-ID instability from a hidden operational risk into a guarded contract.
 
-The environment also distinguishes **episode failure** from **time-horizon cutoff**. True failure conditions are surfaced as **`terminated=True`**, while horizon exhaustion is surfaced as **`truncated=True`**. This matters because value-bootstrap logic in modern RL libraries depends on that distinction; treating all endings as one undifferentiated `done` flag would contaminate downstream learning targets.
+The shipped preset asset is **`mathart/assets/comfyui_presets/dual_controlnet_ipadapter.json`**. It represents a production anti-flicker baseline using **dual ControlNet** guide lanes for normal and depth, plus an **IP-Adapter** identity-reference lane. The runtime now treats that JSON file as the source of truth for graph topology. The execution path no longer re-specifies the graph structure line by line in Python; instead, Python only injects runtime values such as image paths, prompt text, checkpoint names, guide strengths, seed, sampler settings, and output prefix.
 
 | File | Purpose |
 |---|---|
-| `mathart/animation/rl_gym_env.py` | Gymnasium-compatible locomotion/imitation environment with RSI, reward shaping, and termination semantics |
-| `mathart/core/rl_training_backend.py` | Registry-native `rl_training` backend that runs short training/rollout jobs and emits typed manifests |
-| `mathart/core/backend_types.py` | Canonical RL backend type registration |
-| `mathart/core/backend_registry.py` | RL capability registration and backend discovery integration |
-| `mathart/core/artifact_schema.py` | `TRAINING_REPORT` family and mandatory metadata contract |
-| `mathart/animation/__init__.py` | Public export surface for the new RL environment |
-| `pyproject.toml` | Adds `gymnasium` dependency |
+| `mathart/animation/comfyui_preset_manager.py` | External preset loader, semantic selector binder, and workflow payload assembler |
+| `mathart/assets/comfyui_presets/dual_controlnet_ipadapter.json` | Shipped anti-flicker `workflow_api` topology asset |
+| `mathart/animation/headless_comfy_ebsynth.py` | Carries `workflow_preset_name` through runtime metadata and uses preset-driven payload assembly |
+| `mathart/core/builtin_backends.py` | Upgrades `anti_flicker_render` to export `preset_asset`, `workflow_payload`, and typed report metadata |
+| `mathart/core/artifact_schema.py` | Adds `ANTI_FLICKER_REPORT` family and required metadata contract |
+| `pyproject.toml` | Includes preset JSON assets as package data |
+| `tests/test_p1_ai_2d_preset_injection.py` | Guards semantic injection, node-ID independence, offline-safe backend export, and strict schema validity |
 
 ## Research Decisions That Were Enforced
 
-Before implementation, the session validated the environment contract and termination semantics against **Farama / Gymnasium** guidance and aligned reset strategy with the **DeepMimic** principle of **Reference State Initialization**. That research directly changed implementation choices rather than being decorative. The resulting design is not a vague “RL-like wrapper”; it is a deliberately constrained environment whose control flow matches current ecosystem expectations.
+The external research was not decorative. It directly constrained implementation. ComfyUI deployment guidance distinguishes UI-oriented workflow files from **API execution workflow JSON**, which is exactly why the preset topology is now stored as a repository asset and not regenerated in backend code [1] [2]. The ControlNet and IP-Adapter references also forced a clean split between **structural conditioning** and **identity conditioning**, which is why the preset manager preserves separate guide selectors and reports their activation state in the lock manifest [3] [4].
 
-The research notes are preserved in **`research/session083_rl_reference_notes.md`**. The key takeaways are simple but non-negotiable: **RSI** should diversify initial states along the reference trajectory, **early termination** should signal genuine rollout failure rather than arbitrary horizon boundaries, and **terminated/truncated** semantics must remain separated so learning code does not silently bootstrap from invalid targets.
+The data-architecture side of the research also mattered. Frostbite-style data-oriented thinking and data-driven rendering practice both argue that execution graphs and configuration data should be externalized so tools and runtime remain loosely coupled [5] [6]. SESSION-084 therefore chose the stronger architecture: the graph is data, the runtime is a binder, and the backend report captures both the immutable source asset and the final assembled payload for auditability.
 
-| Reference theme | Implementation consequence |
+| Research theme | Enforced implementation consequence |
 |---|---|
-| **Gymnasium API** | `reset()` returns `(obs, info)` and `step()` returns `(obs, reward, terminated, truncated, info)` |
-| **Farama terminated vs truncated** | Horizon cutoff and failure conditions are surfaced separately |
-| **DeepMimic RSI** | Reset samples a reference phase instead of always spawning from frame zero |
-| **Auditability requirement** | Training run outputs are persisted as typed `TRAINING_REPORT` manifests |
+| **ComfyUI API workflow JSON** | Graph topology moved into `mathart/assets/comfyui_presets/*.json` instead of being rebuilt in Python [1] [2] |
+| **ControlNet conditioning** | Normal/depth guide lanes remain explicit geometry-lock channels [3] |
+| **IP-Adapter conditioning** | Identity reference remains a distinct image-prompt path with independent weight and activation state [4] |
+| **Data-driven engine design** | Preset topology and runtime overrides are decoupled; backend exports both source asset and assembled payload [5] [6] |
 
-## Artifact and Registry Closure
+## Artifact and Backend Closure
 
-This session did not stop at a raw environment class. It also landed the microkernel pieces required to make RL training **discoverable**, **typed**, and **auditable** inside the repository’s existing architecture. The backend registry can now find an **RL training backend** by capability, and the artifact schema can validate RL run outputs as a dedicated family instead of forcing them into a generic report bucket.
+The anti-flicker backend is no longer just a temporal frame exporter. It now emits a schema-enforced **`ANTI_FLICKER_REPORT`** artifact family with required metadata including **`preset_name`**, **`frame_count`**, **`fps`**, **`keyframe_count`**, **`guides_locked`**, and **`identity_lock_enabled`**. In addition to the previous temporal artifacts, the backend now persists the **source preset asset** and the **assembled `workflow_payload`**. This closes the auditability gap that existed when the workflow structure lived only in Python logic.
 
-That means downstream orchestration no longer needs hard-coded knowledge of a bespoke script. The RL loop is now addressable through the same **context-in / manifest-out** discipline used elsewhere in the project. In practical terms, this is what makes the feature “landed” rather than “demo code living beside the architecture.”
+The report contract also makes offline CI truthful. In this sandbox, the tests do **not** depend on a live ComfyUI server. Instead, they verify that payload assembly is correct, that exported files exist, and that the manifest remains schema-valid when HTTP calls fail. That design is deliberate: the repository now proves the **preset asset pipeline** and **artifact contract** independently of external runtime availability, while live model-weight execution remains a separate follow-up task.
 
 | Contract element | New value |
 |---|---|
-| **Backend type** | `rl_training` |
-| **Backend capability** | `RL_TRAINING` |
-| **Artifact family** | `training_report` |
-| **Required metadata** | `mean_reward`, `episode_length`, `episodes_run`, `trainer_mode`, `reference_state`, `obs_dim`, `act_dim` |
-| **Fallback truthfulness** | Report explicitly records `trainer_mode=random_actor` when SB3 is absent |
+| **Artifact family** | `anti_flicker_report` |
+| **Required outputs** | `workflow_payload`, `preset_asset`, `temporal_report` |
+| **Required metadata** | `preset_name`, `frame_count`, `fps`, `keyframe_count`, `guides_locked`, `identity_lock_enabled` |
+| **Audit payload** | `frame_sequence`, `time_range`, `keyframe_plan`, `workflow_manifest_path`, `workflow_payload_path`, `preset_asset_path`, `lock_manifest` |
 
 ## Testing and Validation
 
-The new RL stack is protected by dedicated regression coverage. The tests verify that reset actually performs **RSI-style diversification**, that the environment returns the exact **Gymnasium five-tuple**, that **truncation at horizon** does not masquerade as failure, that **early termination** sets `terminated=True` without polluting the truncation channel, and that the registry-native backend produces a schema-valid **`TRAINING_REPORT`** manifest.
+The new regression coverage proves three things. First, the shipped preset asset actually contains the node classes required for the anti-flicker lane. Second, semantic injection survives **node-ID renumbering**, which is the most important robustness check for a data-driven ComfyUI asset workflow. Third, the backend emits a strict `ANTI_FLICKER_REPORT` manifest with on-disk `preset_asset`, `workflow_payload`, and `temporal_report` outputs even when live HTTP submission is unavailable.
 
-In addition, the existing **dynamic CI backend schema guard** was extended so the new artifact family and capability are part of the standard architectural audit rather than relying only on local smoke checks.
+The older subprocess-based anti-flicker regression suite was also upgraded so the CLI-facing contract now expects **`anti_flicker_report`** instead of the previous generic family. The CI schema guard was extended accordingly, which means the new family is now part of the architectural audit instead of being protected only by a local unit test.
 
 | Test command | Result |
 |---|---|
-| `pytest -q tests/test_p1_b4_1_rl_training.py` | **4 passed** |
+| `pytest -q tests/test_p1_ai_2d_preset_injection.py` | **3 passed** |
+| `pytest -q tests/test_session068_e2e.py` | **20 passed** |
 | `pytest -q tests/test_ci_backend_schemas.py` | **14 passed** |
-| **Combined** | **18 passed, 0 failed** |
+| **Combined** | **37 passed, 0 failed** |
 
-## Why `P1-B4-1` Is Considered Closed
+## Why `P1-AI-2D` Is Considered Closed
 
-The original gap was not merely “make an RL-ish file.” It was to turn the **pre-baked reference buffers** into a **real policy-training consumer surface** that can run inside the repository’s actual architecture. That has now happened. The project has a reference-buffer-backed environment, typed rollout/training reporting, registry discovery, deterministic fallback behavior, and regression tests locking the API and semantics.
+The original gap was to **ship real ComfyUI preset packs for anti-flicker jobs**, not merely to keep a working graph hidden inside one Python function. SESSION-084 closes that gap because the repository now contains a reusable external preset asset, a semantic binding runtime, a typed manifest family, package-data inclusion for installation, and regression tests that lock the behavior under node-ID churn and offline execution. The preset path is now a first-class repository asset rather than a fragile implementation detail.
 
-What remains for future work is **scale-up**, not **baseline closure**. In other words, the missing pieces are no longer architectural prerequisites for RL training to exist at all; they are follow-on improvements such as plugging in a heavier optimizer stack, extending evaluation telemetry, and running longer jobs under richer hardware/runtime conditions.
+What remains is not baseline preset shipping, but **live-weight runtime expansion**. In other words, the project no longer lacks the preset-asset architecture itself. The remaining AI-visual follow-up is to run richer workflows with actual **SparseCtrl / AnimateDiff** weights and broader production runtime evidence under real ComfyUI environments.
 
 ## Recommended Next Priorities
 
-With `P1-B4-1` closed, the next highest-value task returns to **`P3-GPU-BENCH-1`**. The benchmark architecture is already in place, but it still needs **real CUDA execution evidence** and **sparse-topology validation** on actual hardware. That remains the largest unresolved truth gap in the project.
-
-After that, **`P1-MIGRATE-4`** remains the next architecture-oriented priority. The repository is increasingly registry-driven, so finishing **hot-reload / dynamic discovery closure** would reduce future integration friction for newly added backends, including any richer RL evaluation or checkpointing backends that may land later.
+With `P1-AI-2D` closed, the immediate next priority returns to **`P3-GPU-BENCH-1`**, because that task still lacks real CUDA evidence and sparse-topology validation. After that, **`P1-MIGRATE-4`** remains the strongest architecture multiplier because dynamic discovery and hot-reload closure reduce future integration friction for every new backend. On the visual side, the next direct continuation is **`P1-AI-2D-SPARSECTRL`**, which should use the new preset-asset architecture as its base rather than reopening hardcoded graph generation.
 
 | Priority | Recommendation | Reason |
 |---|---|---|
-| **1** | Finish **`P3-GPU-BENCH-1`** on real CUDA hardware | The benchmark harness is ready; the missing piece is hardware evidence |
-| **2** | Continue **`P1-MIGRATE-4`** | Registry hot-reload remains an architectural force multiplier for future backends |
-| **3** | Revisit visual-production path tasks such as **`P1-AI-2D`** | The RL baseline is now closed, so visual-delivery gaps regain priority |
+| **1** | Finish **`P3-GPU-BENCH-1`** on real CUDA hardware | Still the largest unresolved truth gap in benchmark evidence |
+| **2** | Continue **`P1-MIGRATE-4`** | Registry hot-reload remains a force multiplier for future backends |
+| **3** | Start **`P1-AI-2D-SPARSECTRL`** | The preset-asset foundation is now closed, so real SparseCtrl runtime execution is the natural next visual step |
 
 ## Known Constraints and Non-Blocking Notes
 
-The sandbox used in SESSION-083 does **not** have **Stable-Baselines3** installed, so the new backend deliberately reports **`trainer_mode=random_actor`** rather than pretending PPO training ran. This is the correct behavior for the current environment and was intentionally tested. The backend is structured so that a richer trainer lane can be enabled later without changing the manifest contract.
+This sandbox still does **not** provide a live ComfyUI runtime with guaranteed production model weights, and the tests in SESSION-084 were intentionally written to stay truthful under that constraint. The repository now validates **asset structure**, **payload assembly**, and **manifest export** without pretending that server-side model execution happened. That is the correct boundary for this milestone.
 
-The sandbox also still lacks **real CUDA hardware**, so the GPU benchmark task remains open for reasons unrelated to the RL closure. Those two facts should not be conflated: **RL baseline closure is complete**, while **CUDA benchmark completion** remains pending.
+Similarly, the closure of `P1-AI-2D` should not be confused with the still-open **SparseCtrl runtime** task. The architecture for preset assets is complete, but live execution with real SparseCtrl/AnimateDiff weights remains explicitly tracked under **`P1-AI-2D-SPARSECTRL`**.
 
 | Constraint | Status |
 |---|---|
-| Stable-Baselines3 absent in sandbox | **Non-blocking** — backend degrades truthfully to `random_actor` |
-| Real CUDA hardware unavailable | **Still blocking `P3-GPU-BENCH-1` completion** |
-| RL baseline environment / backend architecture | **Complete for `P1-B4-1`** |
+| Live ComfyUI server not required in CI | **Non-blocking** — offline payload assembly is now a deliberate contract |
+| Real SparseCtrl / AnimateDiff runtime execution | **Still open under `P1-AI-2D-SPARSECTRL`** |
+| Preset asset packaging and typed anti-flicker report architecture | **Complete for `P1-AI-2D`** |
 
 ## Files to Inspect First in the Next Session
 
-If a future session needs to extend this work, the fastest re-entry path is to inspect the new environment, the backend, the dedicated tests, and the distilled research note before touching anything else. Those files contain the semantic contract that now defines the RL baseline.
+The fastest re-entry path is to inspect the research note, the preset manager, the shipped preset asset, and the new regression suite before attempting any further ComfyUI work. Together, those files define the contract that SESSION-084 established.
 
 | File | Why it matters |
 |---|---|
-| `mathart/animation/rl_gym_env.py` | Canonical RL environment contract |
-| `mathart/core/rl_training_backend.py` | Registry-native rollout/training execution path |
-| `tests/test_p1_b4_1_rl_training.py` | Behavioral guardrail for API and semantics |
-| `tests/test_ci_backend_schemas.py` | Architectural guardrail for registry/schema closure |
-| `research/session083_rl_reference_notes.md` | External rationale behind RSI and termination choices |
+| `research/session084_ai2d_preset_research.md` | External rationale for externalized workflow assets and semantic injection |
+| `mathart/animation/comfyui_preset_manager.py` | Canonical runtime binder for preset assets |
+| `mathart/assets/comfyui_presets/dual_controlnet_ipadapter.json` | Source-of-truth anti-flicker workflow topology |
+| `tests/test_p1_ai_2d_preset_injection.py` | Behavioral guardrail for selector-based injection and typed report export |
+| `mathart/core/builtin_backends.py` | Registry-native anti-flicker backend export contract |
 
-## Final Status Snapshot
+## References
 
-**SESSION-083 closed `P1-B4-1` successfully.** The repository now has a real RL environment and backend built on the pre-baked reference-motion substrate, with strong schema closure, truthful fallback behavior, and passing regression coverage. The next work should move back to **real CUDA benchmark evidence** and then continue broader **registry hot-reload closure**.
+[1]: https://www.timlrx.com/blog/executing-comfyui-workflows-as-standalone-scripts/ "Executing ComfyUI Workflows as Standalone Scripts"
+[2]: https://docs.runcomfy.com/serverless/workflow-files "RunComfy Docs — Workflow Files"
+[3]: https://openaccess.thecvf.com/content/ICCV2023/html/Zhang_Adding_Conditional_Control_to_Text-to-Image_Diffusion_Models_ICCV_2023_paper.html "Adding Conditional Control to Text-to-Image Diffusion Models"
+[4]: https://arxiv.org/abs/2308.06721 "IP-Adapter: Text Compatible Image Prompt Adapter for Text-to-Image Diffusion Models"
+[5]: https://www.ea.com/frostbite/news/introduction-to-data-oriented-design "Introduction to Data-Oriented Design"
+[6]: https://jorenjoestar.github.io/post/data_driven_rendering_pipeline/ "Data Driven Rendering Pipeline"

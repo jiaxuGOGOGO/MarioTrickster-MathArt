@@ -64,3 +64,6 @@ target-version = "py310"
 
 [tool.setuptools.packages.find]
 include = ["mathart*"]
+
+[tool.setuptools.package-data]
+mathart = ["assets/**/*.json"]
