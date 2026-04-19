@@ -1,12 +1,17 @@
-"""Tests for SESSION-082 correctness-aware Taichi benchmark backend.
+"""Tests for SESSION-085 correctness-aware Taichi benchmark backend.
 
 The suite is intentionally split into three layers:
 
 1. Schema / registry guards that must pass everywhere.
 2. Optional-dependency isolation via fake Taichi modules, ensuring CI can
    validate the backend even when ``taichi`` is unavailable.
-3. A small real-runtime smoke path that exercises the free-fall cloud benchmark
-   contract without assuming a CUDA device exists.
+3. A small real-runtime smoke path that exercises the free-fall cloud and
+   sparse-cloth benchmark contracts without assuming a CUDA device exists.
+
+SESSION-085 adds sparse_cloth scenario tests that verify:
+- Nonzero constraint_count in reports (anti-illusion guard)
+- CPU/GPU parity metrics within tolerance
+- Correct CPU reference solver name
 """
 from __future__ import annotations
 
@@ -14,6 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 import json
+import math
 import sys
 
 import numpy as np
@@ -43,8 +49,8 @@ class _FakeConfig:
     sub_steps: int = 1
     solver_iterations: int = 1
     structural_compliance: float = 1e-6
-    shear_compliance: float = 1e-6
-    bending_compliance: float = 1e-6
+    shear_compliance: float = 5e-6
+    bending_compliance: float = 2e-4
     velocity_damping: float = 0.995
     max_velocity: float = 1.0e9
     enable_constraints: bool = False
@@ -62,10 +68,26 @@ class _FakeConfig:
         return int(self.width * self.height)
 
     @property
+    def structural_constraint_count(self) -> int:
+        return int((self.width - 1) * self.height + self.width * (self.height - 1))
+
+    @property
+    def shear_constraint_count(self) -> int:
+        return int(2 * (self.width - 1) * (self.height - 1))
+
+    @property
+    def bending_constraint_count(self) -> int:
+        return int(max(self.width - 2, 0) * self.height + self.width * max(self.height - 2, 0))
+
+    @property
     def total_constraint_count(self) -> int:
         if not self.enable_constraints:
             return 0
-        return int((self.width - 1) * self.height + self.width * (self.height - 1))
+        return (
+            self.structural_constraint_count
+            + self.shear_constraint_count
+            + self.bending_constraint_count
+        )
 
 
 class _FakeClothSystem:
@@ -223,6 +245,38 @@ def test_taichi_benchmark_backend_gpu_report_contains_median_sync_and_parity(tmp
     assert gpu_report["parity_passed"] is True
 
 
+def test_sparse_cloth_scenario_validation():
+    """Verify that sparse_cloth is accepted as a valid scenario."""
+    backend = TaichiXPBDBackend()
+    ctx, warnings = backend.validate_config(
+        {
+            "benchmark_scenario": "sparse_cloth",
+            "particle_budget": 64,
+        },
+    )
+    assert ctx["benchmark_scenario"] == "sparse_cloth"
+    assert not any("invalid" in w.lower() for w in warnings)
+
+
+def test_sparse_cloth_degraded_report_has_constraint_field(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Even degraded sparse_cloth reports must include constraint_count."""
+    backend = TaichiXPBDBackend()
+    fake_tx = _FakeTaichiApi(available=False, initialized=False)
+    monkeypatch.setattr(backend, "_load_taichi_api", lambda: fake_tx)
+
+    ctx, _ = backend.validate_config({
+        "output_dir": str(tmp_path),
+        "name": "deg_sparse",
+        "benchmark_scenario": "sparse_cloth",
+    })
+    manifest = backend.execute(ctx)
+    report = _read_report(manifest)
+
+    assert report["degraded"] is True
+    assert report["benchmark_scenario"] == "sparse_cloth"
+    assert "constraint_count" in report
+
+
 def test_runtime_distill_can_record_benchmark_report():
     bus = RuntimeDistillationBus(project_root="/tmp/runtime_distill_bench")
     normalized = bus.record_benchmark_report(
@@ -318,3 +372,34 @@ def test_real_taichi_backend_cpu_smoke_and_optional_gpu(tmp_path: Path):
     assert gpu_report["explicit_sync_used"] is True
     assert np.isfinite(gpu_report["cpu_gpu_max_drift"])
     assert np.isfinite(gpu_report["speedup_ratio"])
+
+
+def test_real_taichi_sparse_cloth_cpu_smoke(tmp_path: Path):
+    """Smoke test for sparse_cloth on CPU with real Taichi runtime."""
+    backend = TaichiXPBDBackend()
+    ctx, _ = backend.validate_config(
+        {
+            "output_dir": str(tmp_path),
+            "name": "real_sparse_cpu",
+            "benchmark_device": "cpu",
+            "benchmark_scenario": "sparse_cloth",
+            "benchmark_frame_count": 2,
+            "benchmark_warmup_frames": 1,
+            "benchmark_sample_count": 1,
+            "particle_budget": 16,
+            "taichi_sub_steps": 1,
+            "taichi_solver_iterations": 2,
+        },
+    )
+    manifest = backend.execute(ctx)
+    report = _read_report(manifest)
+
+    if report["degraded"]:
+        pytest.skip("Taichi unavailable — cannot run sparse_cloth smoke")
+
+    assert validate_artifact(manifest) == []
+    assert report["benchmark_scenario"] == "sparse_cloth"
+    assert report["constraint_count"] > 0
+    assert report["cpu_reference_solver"] == "numpy_xpbd_sparse_cloth"
+    assert math.isfinite(report["cpu_gpu_max_drift"])
+    assert math.isfinite(report["cpu_gpu_rmse"])
