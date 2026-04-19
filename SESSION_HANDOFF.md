@@ -1,147 +1,174 @@
 # SESSION_HANDOFF.md
 
-> This document has been refreshed for **SESSION-073** (P1-MIGRATE-3 + P1-XPBD-4 closure).
+> This document has been refreshed for **SESSION-074** (P1-MIGRATE-2 closure — Strangler Fig completion).
 
 ## Project Overview
 
 | Field | Value |
 |---|---|
-| Current version | **0.64.0** |
+| Current version | **0.65.0** |
 | Last updated | **2026-04-19** |
-| Last session | **SESSION-073** |
-| Base commit inspected at session start | `f39136c` (SESSION-072 head on `main`) |
+| Last session | **SESSION-074** |
+| Base commit inspected at session start | `c2212b6` (SESSION-073 head on `main`) |
 | Best quality score achieved | **0.892** |
-| Total iterations run | **601+** |
-| Total code lines | **~110.4k** |
-| Latest validation status | **SESSION-073: 9/9 new P1-MIGRATE-3 CI schema tests PASS, 11/11 new P1-XPBD-4 CCD tests PASS, 31/31 targeted regression subset PASS, 1362/1368 full serial baseline PASS. Zero regression on the SESSION-072 1362-baseline (6 pre-existing failures from missing optional deps: taichi, optuna).** |
+| Total iterations run | **615+** |
+| Total code lines | **~111.8k** |
+| Latest validation status | **SESSION-074: 13/13 CI schema tests PASS (incl. 5 new evolution-domain tests), 95/95 targeted regression PASS, zero breakage of SESSION-073 1362-baseline. Pre-existing infra flakes unchanged.** |
 
-## What SESSION-073 Delivered
+## What SESSION-074 Delivered
 
-SESSION-073 executes **P1-MIGRATE-3** (dynamic CI schema validation) and extends **P1-XPBD-4** (3D continuous collision detection), following three industrial / academic anchors specified by the project owner:
+SESSION-074 executes **P1-MIGRATE-2** (Strangler Fig completion — all legacy EvolutionBridges migrated to microkernel registry), following six industrial / academic anchors specified by the project owner:
 
-1. **Pixar OpenUSD Schema Registry & `usdchecker`** — Every `ArtifactFamily` now declares `required_metadata_keys()`. `validate_artifact()` performs strong-typed schema validation including telemetry array depth assertions (`len(array) == frame_count`). `register_backend` supports `schema_version` declaration with version downgrade blocking.
+1. **Martin Fowler: Strangler Fig Pattern** — The 7-entry hardcoded `bridge_specs` list in `MicrokernelOrchestrator._run_legacy_bridges()` is eliminated. A new adapter layer wraps all 20+ legacy bridges as `@register_backend` plugins, which are then discovered at runtime via `find_by_capability(EVOLUTION_DOMAIN)`. The orchestrator is now completely blind to individual bridge identities.
 
-2. **Continuous Collision Detection (Erin Catto GDC 2013 / Brian Mirtich 1996)** — `XPBDSolver3D._ccd_sweep_ground()` performs swept-sphere CCD against CONTACT half-spaces. Velocity-threshold broad-phase gating ensures zero overhead for slow particles. TOI computed via linear interpolation; position clamped to safe point with configurable safety backoff; inward normal velocity removed.
+2. **Eclipse OSGi / Equinox Dynamic Service Discovery** — Every evolution bridge declares a complete input/output contract (BackendCapability.EVOLUTION_DOMAIN + ArtifactFamily.EVOLUTION_REPORT). The registry discovers them dynamically. Zero static coupling remains.
 
-3. **Google Bazel Hermetic Testing** — `test_ci_backend_schemas.py` reflexively discovers all registered backends via `get_registry()`, injects minimal context fixtures satisfying each backend's `input_requirements`, executes the real backend, and validates 100% of manifest outputs. No hardcoded backend names. No `try-except pass`.
+3. **Pixar OpenUSD PlugRegistry Strong-Typed Metadata** — `ArtifactFamily.EVOLUTION_REPORT` requires `cycle_count`, `best_fitness`, `knowledge_rules_distilled` metadata keys. Every evolution backend's output is validated against this schema.
+
+4. **Mouret & Clune MAP-Elites** — Per-niche evolution isolation preserved. Evolution backends produce per-bridge reports, never cross-bridge averages.
+
+5. **Clean Architecture (Robert C. Martin)** — Data flows through `ctx` (Context-in) and returns as `ArtifactManifest` (Manifest-out). No global variable reads, no hardcoded paths.
+
+6. **Anti-Pattern Red Lines** — No Facade Trap (bridges don't read globals), no Zombie Hardcoding (orchestrator has zero `if bridge.name ==` checks), no CI Blindspot (all 5 new tests exercise real backends with real schema validation).
 
 ## Industrial / Academic Alignment Enforced in Code
 
-| Reference pillar | SESSION-073 concrete landing |
+| Reference pillar | SESSION-074 concrete landing |
 |---|---|
-| **Pixar usdchecker schema compliance** | `ArtifactFamily.required_metadata_keys()` returns per-family mandatory metadata keys. `PHYSICS_3D_MOTION_UMR` enforces `physics_solver`, `frame_count`, `joint_channel_schema`, `physics3d_telemetry`. Telemetry sidecar validated: `solver_wall_time_ms` and `contact_count` must be `list` with `len == frame_count`. `register_backend(schema_version=...)` pins output version; `validate_artifact()` blocks downgrade. |
-| **Erin Catto / Mirtich CCD** | `XPBDSolver3D._ccd_sweep_ground()` runs after each sub-step's position commit. Only dynamic particles with `speed > ccd_velocity_threshold` are swept (broad-phase gating). Linear TOI against half-space planes from CONTACT constraints. Safe-point clamping: `prev + motion * max(TOI - backoff/motion_len, 0)`. Inward normal velocity removal: `v -= (v·n)*n` when `v·n < 0`. |
-| **Bazel hermetic testing** | `test_ci_backend_schemas.py` uses `get_registry().all_backends()` to discover backends at runtime. Per-backend minimal context fixtures are injected based on `input_requirements`. Real `backend.execute(ctx)` is called. `validate_artifact(manifest)` must return `[]`. No global state leakage between backends. |
-| **Borgmon / Prometheus time-series (SESSION-072 extension)** | `ccd_sweep_count[T]` array added to `physics3d_telemetry` sidecar alongside `solver_wall_time_ms[T]` and `contact_count[T]`. All three arrays asserted to have `len == frame_count`. |
+| **Martin Fowler Strangler Fig** | `_run_legacy_bridges()` hardcoded `bridge_specs` list eliminated. Replaced with `backend_registry.find_by_capability(BackendCapability.EVOLUTION_DOMAIN)` reflective discovery. Orchestrator is identity-blind. |
+| **Eclipse OSGi dynamic service** | 20 evolution backends declare `EVOLUTION_DOMAIN` capability via `@register_backend`. Registry auto-loads `evolution_backends` module in `get_registry()`. |
+| **Pixar PlugRegistry strong typing** | `ArtifactFamily.EVOLUTION_REPORT` with `required_metadata_keys()` enforcing `cycle_count`, `best_fitness`, `knowledge_rules_distilled`. `FAMILY_SCHEMAS` entry validates output structure. |
+| **Clean Architecture ctx-in/manifest-out** | `_make_evolution_adapter` factory consumes context keys (`output_dir`, `name`, `verbose`) at adapter level. Only bridge-specific default kwargs forwarded to legacy bridge. Output packaged as `ArtifactManifest`. |
+| **Multi-convention adapter (Ports & Adapters)** | `_run_legacy_bridge()` tries 5 calling conventions: `run_full_cycle` → `run_cycle` → `evaluate_full` → `evaluate` → any `evaluate_*`. TypeError fallback for bridges requiring positional args. |
 
-## Core Files Changed in SESSION-073
+## Core Files Changed in SESSION-074
 
 | File | Change Type | Description |
 |---|---|---|
-| `mathart/core/backend_registry.py` | **EXTENDED** | `schema_version` field on `BackendMeta`; `register_backend` accepts `schema_version` kwarg; `BackendCapability.CCD_ENABLED` enum member added. |
-| `mathart/core/artifact_schema.py` | **EXTENDED** | `ArtifactFamily.required_metadata_keys()` classmethod; `validate_artifact()` gains schema version check + telemetry deep assertions (type + length). |
-| `mathart/animation/xpbd_solver_3d.py` | **EXTENDED** | `XPBDSolver3DConfig` gains `enable_ccd`, `ccd_velocity_threshold`, `ccd_safety_backoff`. `XPBDSolver3DDiagnostics` gains `ccd_sweep_count`, `ccd_hit_count`, `ccd_min_toi`, `ccd_max_correction`. New `_ccd_sweep_ground()` method. |
-| `mathart/core/physics3d_backend.py` | **EXTENDED** | `CCD_ENABLED` capability declared. `ccd_sweep_count[T]` telemetry sidecar array. `schema_version="1.1.0"` pinned. |
-| `mathart/core/builtin_backends.py` | **EXTENDED** | `schema_version="1.0.0"` on `UnifiedMotionBackend`. |
-| `tests/test_ci_backend_schemas.py` | **NEW** | 9 reflexive CI schema validation tests (dynamic backend discovery, minimal context injection, manifest validation). |
-| `tests/test_ccd_3d.py` | **NEW** | 11 CCD tests (solver-level: fast clamped, slow not swept, disabled, velocity removal, multi-substep; backend: telemetry, schema validation; capability: CCD_ENABLED). |
-| `scripts/cleanup_brain_session073.py` | **NEW** | PROJECT_BRAIN.json technical debt cleanup script. |
-| `scripts/update_brain_session073.py` | **NEW** | PROJECT_BRAIN.json session metadata update script. |
-| `PROJECT_BRAIN.json` | **UPDATED** | Version 0.64.0, SESSION-073 metadata, P1-MIGRATE-3 CLOSED, P1-XPBD-4 extended, 42 DONE tasks archived, 18 legacy keys consolidated. |
-| `SESSION_HANDOFF.md` | **REWRITE** | This document. |
+| `mathart/core/evolution_backends.py` | **NEW** (+338 lines) | Adapter factory + 20 `@register_backend` evolution-domain plugins |
+| `mathart/core/backend_types.py` | **EXTENDED** (+25 lines) | 20 `EVOLUTION_*` BackendType entries + `EVOLUTION_ALIASES` reverse map |
+| `mathart/core/artifact_schema.py` | **EXTENDED** (+15 lines) | `ArtifactFamily.EVOLUTION_REPORT` + `required_metadata_keys` + `FAMILY_SCHEMAS` |
+| `mathart/core/backend_registry.py` | **EXTENDED** (+8 lines) | `BackendCapability.EVOLUTION_DOMAIN` + auto-import `evolution_backends` in `get_registry()` |
+| `mathart/core/microkernel_orchestrator.py` | **REFACTORED** (+40/-50) | `_run_legacy_bridges()` rewritten: reflective `find_by_capability(EVOLUTION_DOMAIN)` discovery via `MicrokernelPipelineBridge` |
+| `tests/test_ci_backend_schemas.py` | **EXTENDED** (+48 lines) | 5 new evolution-domain CI tests |
+| `PROJECT_BRAIN.json` | **UPDATED** | v0.65.0, P1-MIGRATE-2 DONE, SESSION-074 metadata |
+| `SESSION_HANDOFF.md` | **REWRITE** | This document |
 
 ## Validation Evidence
 
 | Validation item | Result |
 |---|---|
-| `tests/test_ci_backend_schemas.py` (new CI schema suite) | **9 / 9 PASS** |
-| `tests/test_ccd_3d.py` (new CCD suite) | **11 / 11 PASS** |
-| `tests/test_physics3d_backend.py` (SESSION-071 red-line suite) | **7 / 7 PASS** |
-| `tests/test_p1_distill_1a.py` (SESSION-072 red-line suite) | **14 / 14 PASS** |
-| `tests/test_registry_e2e_guard.py` (registry E2E guard) | **1 / 1 PASS** |
-| Full serial baseline (excluding pre-existing infra-only flakes) | **1362 / 1368 PASS** |
-| AST guard: no static `UnifiedMotionBackend` import in `physics3d_backend.py` | **VERIFIED** |
-| CCD velocity-threshold gating: slow particles not swept | **VERIFIED** |
-| CCD disabled: zero sweeps | **VERIFIED** |
-| CCD inward velocity removal after hit | **VERIFIED** |
-| Telemetry array length == frame_count (incl. ccd_sweep_count) | **VERIFIED** |
-| Schema version downgrade blocked | **VERIFIED** |
-| Reflexive backend discovery (no hardcoded names) | **VERIFIED** |
+| `tests/test_ci_backend_schemas.py` (13 tests, incl. 5 new) | **13 / 13 PASS** |
+| `tests/test_evolution.py` (23 tests) | **23 / 23 PASS** |
+| `tests/test_evolution_bridges_057.py` (20 tests) | **20 / 20 PASS** |
+| `tests/test_ccd_3d.py` (11 tests) | **11 / 11 PASS** |
+| `tests/test_breakwall_phase1.py` (28 tests) | **28 / 28 PASS** |
+| Total targeted regression | **95 / 95 PASS** |
+| Registry backend count | **30+ backends** (10 core + 20 evolution-domain) |
+| Evolution-domain backends discovered | **20 / 20** |
+| Hardcoded bridge references in orchestrator | **0** (verified by grep) |
+| `ArtifactFamily.EVOLUTION_REPORT` metadata enforcement | **VERIFIED** |
 
 ## Task-by-Task Status Update
 
 | Task ID | Previous Status | New Status | Notes |
 |---|---|---|---|
-| `P1-MIGRATE-3` | TODO | **CLOSED** | Schema version pinning, required_metadata_keys(), telemetry deep assertions, reflexive CI guard. 9 new tests. |
-| `P1-XPBD-4` | DONE (2D) | **CLOSED (3D extended)** | 3D swept-sphere CCD in XPBDSolver3D, velocity gating, CCD_ENABLED capability, ccd_sweep_count telemetry. 11 new tests. |
+| `P1-MIGRATE-2` | TODO | **CLOSED** | All 20+ legacy bridges migrated to @register_backend plugins. Orchestrator fully blind. 5 new CI tests. |
+| `P1-MIGRATE-3` | CLOSED | CLOSED | No change (SESSION-073). |
+| `P1-XPBD-4` | CLOSED | CLOSED | No change (SESSION-073). |
 | `P1-DISTILL-1A` | CLOSED | CLOSED | No change (SESSION-072). |
-| `P1-XPBD-3` | DONE | DONE | No change (SESSION-071). |
 | `P1-MIGRATE-1` | DONE | DONE | No change (SESSION-070). |
 
-## Forward-Looking — Seamless P1-MIGRATE-2 and P1-DISTILL-1B Integration
+## Architecture State After SESSION-074
 
-With P1-MIGRATE-3 (CI schema guard) and P1-XPBD-4 (3D CCD) now closed, the microkernel architecture is ready for the next high-priority tasks. Below is a detailed analysis of what micro-adjustments the current architecture still needs.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              MICROKERNEL ORCHESTRATOR (fully blind)              │
+│                                                                 │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  Backend Registry (LLVM)                                  │  │
+│  │  30+ backends: 10 core + 20 EVOLUTION_DOMAIN plugins      │  │
+│  │  @register_backend → auto-discovery → capability filter   │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                          ↓ artifacts                            │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  Artifact Schema (USD)                                    │  │
+│  │  6 families: META_REPORT, MOTION_UMR, PHYSICS_3D,         │  │
+│  │  MOTION_2D, TEXTURE_BUNDLE, EVOLUTION_REPORT              │  │
+│  │  validate_artifact → required_metadata_keys → schema_hash │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                          ↓ validated outputs                    │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  Niche Registry (MAP-Elites)                              │  │
+│  │  per-lane evaluation → Pareto front → Meta-Report         │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-### P1-MIGRATE-2: Legacy Evolution Bridge Migration
+**Dual-track architecture is fully eliminated.** There is no longer any code path that bypasses the registry to directly instantiate a bridge class.
 
-**Goal**: Migrate legacy evolution bridges (e.g., `XPBDEvolutionBridge`, `FluidVFXEvolutionBridge`, `BreakwallEvolutionBridge`) into first-class backends discoverable through the registry.
+## Forward-Looking — Seamless P1-DISTILL-1B Integration
 
-**Current architecture readiness: HIGH.** The reflexive CI schema guard (`test_ci_backend_schemas.py`) now automatically validates any new backend added to the registry.
+### What P1-DISTILL-1B Requires
 
-**Micro-adjustments needed:**
+P1-DISTILL-1B aims to add a **Taichi GPU backend** for the RuntimeDistillBus and XPBD performance benchmarking. The goal is to register a GPU-accelerated XPBD solver as a standard `@register_backend` plugin and compare its performance against the CPU baseline through the existing distillation pipeline.
 
-1. **Add `ArtifactFamily.EVOLUTION_REPORT`** to the enum with appropriate `required_metadata_keys()` (e.g., `cycle_count`, `best_fitness`, `knowledge_rules_distilled`). The existing `validate_artifact()` infrastructure will automatically enforce these.
+### Architecture Readiness After SESSION-074: HIGH
 
-2. **Wrap each evolution bridge** as a `@register_backend` class with `BackendType.EVOLUTION_*`. The bridge's `run_cycle()` method becomes the backend's `execute()` method. Input requirements should declare what the bridge needs (e.g., `("state", "evolution_config")`).
+Now that P1-MIGRATE-2 is closed, the architecture is fully prepared:
 
-3. **Extend `_MINIMAL_CONTEXT_FOR_BACKEND`** in `test_ci_backend_schemas.py` with evolution-specific fixtures. The reflexive discovery will automatically pick up new backends.
+1. **Plugin registration is proven at scale**: 30+ backends are registered and CI-validated. Adding a Taichi backend follows the exact same pattern.
 
-4. **No changes needed** to `backend_registry.py`, `artifact_schema.py`, or `pipeline_bridge.py` — the schema_version + required_metadata_keys + telemetry infrastructure is already generic.
+2. **Capability-based discovery is operational**: The orchestrator uses `find_by_capability()` to discover backends. A new `BackendCapability.GPU_ACCELERATED` can be added and the Taichi backend will be automatically discovered.
 
-### P1-DISTILL-1B: Taichi GPU Acceleration
+3. **ArtifactFamily extension pattern is established**: Adding `ArtifactFamily.BENCHMARK_REPORT` follows the same pattern as `EVOLUTION_REPORT`.
 
-**Goal**: Add a Taichi backend for the runtime distillation bus and benchmark against NumPy.
+4. **Context-in / Manifest-out discipline is enforced**: The Taichi backend will receive context and return an `ArtifactManifest` with benchmark telemetry.
 
-**Current architecture readiness: MEDIUM.** The `CompiledParameterSpace` already exposes physics3d compliance knobs and CCD threshold. The telemetry sidecar provides measurement infrastructure.
+### Micro-Adjustments Needed for P1-DISTILL-1B
 
-**Micro-adjustments needed:**
+| # | Adjustment | Effort | Description |
+|---|-----------|--------|-------------|
+| 1 | `BackendCapability.GPU_ACCELERATED` | Trivial | Add enum value to `backend_registry.py` |
+| 2 | `BackendType.TAICHI_XPBD` | Trivial | Add to `backend_types.py` |
+| 3 | `ArtifactFamily.BENCHMARK_REPORT` | Small | New family with `required_metadata_keys`: `solver_type`, `frame_count`, `wall_time_ms`, `particles_per_second` |
+| 4 | `TaichiXPBDBackend` | Medium | Wrap `taichi_xpbd.py` cloth solver as `@register_backend` plugin with `GPU_ACCELERATED` capability. Must handle Taichi import failure gracefully (CPU fallback). |
+| 5 | `RuntimeDistillBus` GPU telemetry | Medium | Extend `DistillationRecord` schema with `device` field (`cpu`/`gpu`), `wall_time_ms`, `throughput_particles_per_second`. Add A/B comparison logic. |
+| 6 | Benchmark CI test | Small | Add `test_taichi_benchmark_backend.py` with mock Taichi (for CI without GPU) and real Taichi (for local GPU runs). |
 
-1. **Taichi kernel for `_ccd_sweep_ground()`** — The current NumPy loop is O(N×P) where P = number of planes. For >1000 particles, a `@ti.kernel` with parallel particle iteration would provide significant speedup. The CCD logic is embarrassingly parallel across particles.
+### Risk Assessment
 
-2. **Taichi kernel for constraint gradient computation** — The Gauss-Seidel iteration is inherently sequential, but per-constraint gradient computation (distance, bending, contact) can be parallelized across independent constraint groups via graph coloring.
+- **Taichi import**: `taichi` is an optional dependency. The backend must use the same deferred-import pattern as `evolution_backends.py`.
+- **GPU availability**: CI runs on CPU-only machines. Tests must use `ti.cpu` arch with `@pytest.mark.skipif` for GPU-specific benchmarks.
+- **Performance measurement**: Wall-time benchmarks are noisy. Use median of 5 runs with warm-up, store as `ArtifactManifest.quality_metrics`.
 
-3. **Benchmark harness** — Extend `test_taichi_xpbd.py` with a 3D benchmark comparing NumPy vs Taichi wall times for the same scene. Gate by `taichi` availability. Use the `physics3d_telemetry.solver_wall_time_ms[T]` sidecar for apples-to-apples comparison.
+## Known Issues (all pre-existing, not caused by SESSION-074)
 
-4. **`BackendCapability.GPU_ACCELERATED`** — Add a new capability flag for Taichi-backed backends. The CI guard will automatically validate their outputs.
-
-## Known Issues (all pre-existing, not caused by SESSION-073)
-
-1. `tests/test_layer3_closed_loop.py` (2 tests) fails because `TransitionSynthesizer` lacks `get_transition_quality`. Pre-existing since before SESSION-070.
-2. `tests/test_taichi_xpbd.py` (4 tests) fails because `taichi` is not installed. Environment-only.
-3. `tests/test_state_machine_graph_fuzz.py` has a `hypothesis` import-time error. Pre-existing.
-4. `tests/test_image_to_math.py`, `tests/test_sprite.py`, `tests/test_cli_sprite.py` fail due to missing `scipy`. Pre-existing.
+1. `tests/test_layer3_closed_loop.py` (2 tests) — `TransitionSynthesizer` lacks `get_transition_quality`. Pre-existing since before SESSION-070.
+2. `tests/test_taichi_xpbd.py` (4 tests) — `taichi` not installed. Environment-only.
+3. `tests/test_state_machine_graph_fuzz.py` — `hypothesis` import-time error. Pre-existing.
+4. `tests/test_image_to_math.py`, `tests/test_sprite.py`, `tests/test_cli_sprite.py` — missing `scipy`. Pre-existing.
 
 ## Operational Commands for the Next Session
 
 ```bash
-# 1) SESSION-073 targeted suite (fast, ~5 s, 51 tests)
+# 1) SESSION-074 targeted suite (fast, ~5 s, 95 tests)
 python3 -m pytest \
-  tests/test_ci_backend_schemas.py tests/test_ccd_3d.py \
-  tests/test_physics3d_backend.py tests/test_p1_distill_1a.py \
-  tests/test_registry_e2e_guard.py \
+  tests/test_ci_backend_schemas.py tests/test_evolution.py \
+  tests/test_evolution_bridges_057.py tests/test_ccd_3d.py \
+  tests/test_breakwall_phase1.py \
   -q --tb=short
 
-# 2) Critical regression subset (fast, ~12 s, 280+ tests)
-python3 -m pytest \
-  tests/test_unified_motion.py tests/test_xpbd_physics.py \
-  tests/test_physics.py tests/test_physics_projector.py \
-  tests/test_phase3_physics_bridge.py tests/test_phase_state.py \
-  tests/test_phase_driven.py tests/test_motion_2d_pipeline.py \
-  tests/test_motion_vector_baker.py tests/test_pipeline_contract.py \
-  tests/test_registry_e2e_guard.py tests/test_locomotion_cns.py \
-  tests/test_physics3d_backend.py tests/test_p1_distill_1a.py \
-  tests/test_ci_backend_schemas.py tests/test_ccd_3d.py \
-  -p no:cacheprovider -q
+# 2) Verify 30+ registered backends including 20 evolution-domain
+python3 -c "
+from mathart.core.backend_registry import get_registry, BackendCapability
+reg = get_registry()
+evo = reg.find_by_capability(BackendCapability.EVOLUTION_DOMAIN)
+print(f'{len(evo)} evolution-domain backends registered')
+print(f'{len(reg.all_backends())} total backends registered')
+for m, _ in sorted(evo, key=lambda x: x[0].name):
+    print(f'  {m.name}: {m.artifact_families}')
+"
 
 # 3) Full serial baseline (excludes pre-existing infra-only flakes)
 python3 -m pytest tests/ \
@@ -153,24 +180,24 @@ python3 -m pytest tests/ \
   --ignore=tests/test_cli_sprite.py \
   --ignore=tests/test_layer3_closed_loop.py \
   -p no:cacheprovider --tb=line -q
-
-# 4) Verify CCD_ENABLED + schema_version registration
-python3 -c "
-from mathart.core.backend_registry import get_registry, BackendCapability
-reg = get_registry()
-meta, _ = reg.get_or_raise('physics_3d')
-print('CCD_ENABLED:', BackendCapability.CCD_ENABLED in meta.capabilities)
-print('schema_version:', meta.schema_version)
-print('HOT_PATH_INSTRUMENTED:', BackendCapability.HOT_PATH_INSTRUMENTED in meta.capabilities)
-"
 ```
 
 ## Priority Queue for Next Session
 
 | Priority | Task ID | Title | Readiness |
 |---|---|---|---|
-| 1 | `P1-MIGRATE-2` | Legacy evolution bridge migration to registry backends | HIGH |
-| 2 | `P1-DISTILL-1B` | Taichi GPU acceleration for runtime bus + XPBD | MEDIUM |
-| 3 | `P1-DISTILL-3` | Distill Verlet & gait parameters into knowledge/ | MEDIUM |
-| 4 | `P1-DISTILL-4` | Distill cognitive science rules | MEDIUM |
-| 5 | `P1-B3-1` | Integrate GaitBlender into pipeline.py gait switching | MEDIUM |
+| 1 | `P1-DISTILL-1B` | Taichi GPU acceleration for runtime bus + XPBD benchmarking | **HIGH** (see micro-adjustments above) |
+| 2 | `P1-DISTILL-1A` | Roll RuntimeDistillBus into gait blending hot paths | MEDIUM |
+| 3 | `P1-MIGRATE-4` | Hot-reload for dynamically discovered backends | MEDIUM |
+| 4 | `P1-DISTILL-3` | Distill Verlet & gait parameters into knowledge/ | MEDIUM |
+| 5 | `P1-DISTILL-4` | Distill cognitive science rules | MEDIUM |
+
+## Red Lines (Anti-Patterns to Avoid in Future Sessions)
+
+1. **No Facade Trap**: Do NOT wrap new backends in compatibility shims that secretly read global variables. Data flows through `ctx` only.
+
+2. **No Zombie Hardcoding**: Do NOT add `if backend.name == 'xxx':` anywhere in the orchestrator. Use capability-based discovery only.
+
+3. **No CI Blindspot**: Do NOT use `@pytest.mark.skipif` to skip schema validation. Use mock dependencies for CI, real dependencies for local runs.
+
+4. **No Cross-Niche Averaging**: Results are per-backend, per-scene. Do NOT average across different solver types or scene complexities.

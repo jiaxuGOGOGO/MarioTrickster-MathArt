@@ -29,6 +29,31 @@ class BackendType(str, Enum):
     UNIFIED_MOTION = "unified_motion"
     MICROKERNEL = "microkernel"
     PHYSICS_3D = "physics_3d"
+    # SESSION-074 (P1-MIGRATE-2): Evolution bridge backend types.
+    # Each legacy EvolutionBridge is promoted to a first-class backend
+    # identity so the registry can discover, route, and CI-guard them
+    # without any hardcoded bridge lists in the orchestrator.
+    EVOLUTION_XPBD = "evolution_xpbd"
+    EVOLUTION_FLUID_VFX = "evolution_fluid_vfx"
+    EVOLUTION_BREAKWALL = "evolution_breakwall"
+    EVOLUTION_MORPHOLOGY = "evolution_morphology"
+    EVOLUTION_WFC = "evolution_wfc"
+    EVOLUTION_MOTION_2D = "evolution_motion_2d"
+    EVOLUTION_DIM_UPLIFT = "evolution_dim_uplift"
+    EVOLUTION_GAIT_BLEND = "evolution_gait_blend"
+    EVOLUTION_JAKOBSEN = "evolution_jakobsen"
+    EVOLUTION_TERRAIN = "evolution_terrain"
+    EVOLUTION_NEURAL_RENDER = "evolution_neural_render"
+    EVOLUTION_VISUAL_REGRESSION = "evolution_visual_regression"
+    EVOLUTION_URP2D = "evolution_urp2d"
+    EVOLUTION_PHASE3_PHYSICS = "evolution_phase3_physics"
+    EVOLUTION_INDUSTRIAL_SKIN = "evolution_industrial_skin"
+    EVOLUTION_LOCOMOTION_CNS = "evolution_locomotion_cns"
+    EVOLUTION_STATE_MACHINE = "evolution_state_machine"
+    EVOLUTION_RUNTIME_DISTILL = "evolution_runtime_distill"
+    EVOLUTION_CONTRACT = "evolution_contract"
+    EVOLUTION_ENV_CLOSEDLOOP = "evolution_env_closedloop"
+    EVOLUTION_RESEARCH = "evolution_research"
 
 
 _BACKEND_ALIASES: dict[str, str] = {
@@ -66,6 +91,28 @@ _BACKEND_ALIASES: dict[str, str] = {
     "xpbd_3d": BackendType.PHYSICS_3D.value,
     "physics3d": BackendType.PHYSICS_3D.value,
     "physics_xpbd_3d": BackendType.PHYSICS_3D.value,
+    # SESSION-074 (P1-MIGRATE-2): Evolution bridge backend aliases
+    "xpbd_evolution": BackendType.EVOLUTION_XPBD.value,
+    "fluid_vfx_evolution": BackendType.EVOLUTION_FLUID_VFX.value,
+    "breakwall_evolution": BackendType.EVOLUTION_BREAKWALL.value,
+    "smooth_morphology_evolution": BackendType.EVOLUTION_MORPHOLOGY.value,
+    "constraint_wfc_evolution": BackendType.EVOLUTION_WFC.value,
+    "motion_2d_evolution": BackendType.EVOLUTION_MOTION_2D.value,
+    "dimension_uplift_evolution": BackendType.EVOLUTION_DIM_UPLIFT.value,
+    "gait_blend_evolution": BackendType.EVOLUTION_GAIT_BLEND.value,
+    "jakobsen_evolution": BackendType.EVOLUTION_JAKOBSEN.value,
+    "terrain_sensor_evolution": BackendType.EVOLUTION_TERRAIN.value,
+    "neural_rendering_evolution": BackendType.EVOLUTION_NEURAL_RENDER.value,
+    "visual_regression_evolution": BackendType.EVOLUTION_VISUAL_REGRESSION.value,
+    "unity_urp_2d_evolution": BackendType.EVOLUTION_URP2D.value,
+    "phase3_physics_evolution": BackendType.EVOLUTION_PHASE3_PHYSICS.value,
+    "industrial_skin_evolution": BackendType.EVOLUTION_INDUSTRIAL_SKIN.value,
+    "locomotion_cns_evolution": BackendType.EVOLUTION_LOCOMOTION_CNS.value,
+    "state_machine_evolution": BackendType.EVOLUTION_STATE_MACHINE.value,
+    "runtime_distill_evolution": BackendType.EVOLUTION_RUNTIME_DISTILL.value,
+    "contract_evolution": BackendType.EVOLUTION_CONTRACT.value,
+    "env_closedloop_evolution": BackendType.EVOLUTION_ENV_CLOSEDLOOP.value,
+    "research_evolution": BackendType.EVOLUTION_RESEARCH.value,
 }
 
 

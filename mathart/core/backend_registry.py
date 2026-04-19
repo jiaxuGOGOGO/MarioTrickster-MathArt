@@ -95,6 +95,12 @@ class BackendCapability(Enum):
     # velocity threshold, preventing fast-moving bodies from tunneling
     # through thin geometry (Erin Catto GDC 2013 / Brian Mirtich 1996).
     CCD_ENABLED = auto()
+    # SESSION-074 (P1-MIGRATE-2): Evolution bridge capability marker.
+    # Backends declaring this flag are evolution-domain bridges migrated
+    # from the legacy EvolutionOrchestrator into the microkernel registry.
+    # The orchestrator uses this capability to dynamically discover all
+    # evolution backends without hardcoded import lists.
+    EVOLUTION_DOMAIN = auto()
 
 
 # ---------------------------------------------------------------------------
@@ -440,6 +446,14 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.physics3d_backend")
         except Exception as e:
             logger.debug("Failed to auto-load physics3d backend: %s", e)
+        # SESSION-074 (P1-MIGRATE-2): auto-register all evolution bridge
+        # backends.  Each legacy EvolutionBridge is now a first-class
+        # @register_backend plugin discovered here — the orchestrator
+        # finds them via BackendCapability.EVOLUTION_DOMAIN.
+        try:
+            importlib.import_module("mathart.core.evolution_backends")
+        except Exception as e:
+            logger.debug("Failed to auto-load evolution backends: %s", e)
     return registry
 
 

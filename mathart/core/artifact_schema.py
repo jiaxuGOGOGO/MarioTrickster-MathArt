@@ -103,6 +103,11 @@ class ArtifactFamily(Enum):
     MOTION_UMR = "motion_umr"
     PHYSICS_3D_MOTION_UMR = "physics_3d_motion_umr"
     COMPOSITE = "composite"
+    # SESSION-074 (P1-MIGRATE-2): Evolution report family.
+    # Every migrated evolution bridge must produce an EVOLUTION_REPORT
+    # manifest with mandatory metadata keys enforcing the Pixar USD
+    # Schema Compliance pattern for evolution domain outputs.
+    EVOLUTION_REPORT = "evolution_report"
 
     @classmethod
     def required_metadata_keys(cls, family_value: str) -> frozenset[str]:
@@ -126,6 +131,16 @@ class ArtifactFamily(Enum):
                 "frame_count",
                 "fps",
                 "joint_channel_schema",
+            }),
+            # SESSION-074 (P1-MIGRATE-2): Mandatory metadata for evolution
+            # reports.  Every evolution backend must declare how many cycles
+            # it ran, the best fitness achieved, and how many knowledge
+            # rules were distilled.  This prevents silent schema drift
+            # across the 20+ evolution bridges.
+            cls.EVOLUTION_REPORT.value: frozenset({
+                "cycle_count",
+                "best_fitness",
+                "knowledge_rules_distilled",
             }),
         }
         return _FAMILY_REQUIRED_METADATA.get(family_value, frozenset())
@@ -435,6 +450,12 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     ArtifactFamily.COMPOSITE.value: {
         "required_outputs": [],
         "required_metadata": [],
+        "required_quality": [],
+    },
+    # SESSION-074 (P1-MIGRATE-2): Evolution report schema.
+    ArtifactFamily.EVOLUTION_REPORT.value: {
+        "required_outputs": ["report_file"],
+        "required_metadata": ["cycle_count", "best_fitness", "knowledge_rules_distilled"],
         "required_quality": [],
     },
 }

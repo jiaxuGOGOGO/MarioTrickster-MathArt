@@ -302,7 +302,51 @@ class TestCIBackendSchemas:
                     f"has empty schema_version"
                 )
 
+    def test_evolution_domain_backends_registered(self):
+        """SESSION-074 (P1-MIGRATE-2): All 20+ evolution-domain backends
+        must be discoverable via BackendCapability.EVOLUTION_DOMAIN."""
+        reg = get_registry()
+        evo_backends = reg.find_by_capability(BackendCapability.EVOLUTION_DOMAIN)
+        assert len(evo_backends) >= 20, (
+            f"Expected at least 20 evolution-domain backends, found "
+            f"{len(evo_backends)}: "
+            f"{sorted(m.name for m, _ in evo_backends)}"
+        )
+
+    def test_evolution_report_family_schema_enforced(self):
+        """SESSION-074 (P1-MIGRATE-2): EVOLUTION_REPORT family must
+        require cycle_count, best_fitness, knowledge_rules_distilled."""
+        required = ArtifactFamily.required_metadata_keys(
+            ArtifactFamily.EVOLUTION_REPORT.value,
+        )
+        assert "cycle_count" in required
+        assert "best_fitness" in required
+        assert "knowledge_rules_distilled" in required
+
+    def test_evolution_backends_produce_evolution_report_family(self):
+        """SESSION-074 (P1-MIGRATE-2): Every evolution-domain backend
+        must declare EVOLUTION_REPORT in its artifact_families."""
+        reg = get_registry()
+        evo_backends = reg.find_by_capability(BackendCapability.EVOLUTION_DOMAIN)
+        failures = []
+        for meta, _cls in evo_backends:
+            if ArtifactFamily.EVOLUTION_REPORT.value not in meta.artifact_families:
+                failures.append(
+                    f"{meta.name}: declared families {meta.artifact_families} "
+                    f"missing '{ArtifactFamily.EVOLUTION_REPORT.value}'"
+                )
+        assert not failures, (
+            f"{len(failures)} evolution backend(s) missing EVOLUTION_REPORT family:\n"
+            + "\n".join(failures)
+        )
+
     def test_ccd_enabled_capability_exists(self):
         """BackendCapability.CCD_ENABLED must be available."""
         assert hasattr(BackendCapability, "CCD_ENABLED")
         assert BackendCapability.CCD_ENABLED is not None
+
+    def test_evolution_domain_capability_exists(self):
+        """SESSION-074 (P1-MIGRATE-2): BackendCapability.EVOLUTION_DOMAIN
+        must be available."""
+        assert hasattr(BackendCapability, "EVOLUTION_DOMAIN")
+        assert BackendCapability.EVOLUTION_DOMAIN is not None

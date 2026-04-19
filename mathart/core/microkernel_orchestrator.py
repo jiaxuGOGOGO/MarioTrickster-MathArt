@@ -471,63 +471,66 @@ class MicrokernelOrchestrator:
     # -------------------------------------------------------------------
 
     def _run_legacy_bridges(self, report: MicrokernelCycleReport) -> None:
-        """Run existing SESSION-055/059 bridges for backward compatibility.
+        """Run all evolution-domain backends via registry reflection.
 
-        The microkernel wraps legacy bridges as niche evaluations,
-        preserving all existing functionality while adding the new
-        registry-based architecture on top.
+        SESSION-074 (P1-MIGRATE-2): Strangler Fig completion.
+
+        The hardcoded ``bridge_specs`` list is **eliminated**.  Instead,
+        the orchestrator discovers every backend that declares
+        ``BackendCapability.EVOLUTION_DOMAIN`` through the registry's
+        ``find_by_capability()`` API.  This makes the orchestrator
+        completely blind to individual bridge identities — it only
+        recognises the abstract EVOLUTION_DOMAIN contract.
+
+        Design references:
+            - Eclipse OSGi dynamic service discovery
+            - Martin Fowler, Strangler Fig Application (2004)
         """
-        bridge_specs = [
-            ("smooth_morphology", "mathart.evolution.smooth_morphology_bridge",
-             "SmoothMorphologyEvolutionBridge", {"resolution": 48}),
-            ("constraint_wfc", "mathart.evolution.constraint_wfc_bridge",
-             "ConstraintWFCEvolutionBridge",
-             {"n_levels": 4, "width": 18, "height": 7, "seed": 64}),
-            ("phase3_physics", "mathart.evolution.phase3_physics_bridge",
-             "Phase3PhysicsEvolutionBridge", {}),
-            ("unity_urp_2d", "mathart.evolution.unity_urp_2d_bridge",
-             "UnityURP2DEvolutionBridge", {}),
-            ("motion_2d_pipeline", "mathart.evolution.motion_2d_pipeline_bridge",
-             "Motion2DPipelineEvolutionBridge", {"n_frames": 30}),
-            ("dimension_uplift", "mathart.evolution.dimension_uplift_bridge",
-             "DimensionUpliftEvolutionBridge", {}),
-            ("env_closedloop", "mathart.evolution.env_closedloop_bridge",
-             "EnvClosedLoopOrchestrator", {}),
-        ]
+        from mathart.core.pipeline_bridge import MicrokernelPipelineBridge
 
-        for bridge_name, module_name, class_name, kwargs in bridge_specs:
+        bridge = MicrokernelPipelineBridge(
+            project_root=self.root, session_id=self.session_id,
+        )
+
+        evo_backends = self.backend_registry.find_by_capability(
+            BackendCapability.EVOLUTION_DOMAIN,
+        )
+
+        for meta, _cls in sorted(evo_backends, key=lambda x: x[0].name):
+            backend_name = meta.name
             try:
-                module = __import__(module_name, fromlist=[class_name])
-                bridge_cls = getattr(module, class_name)
-                try:
-                    bridge = bridge_cls(project_root=self.root, verbose=self.verbose)
-                except TypeError:
-                    bridge = bridge_cls(project_root=self.root)
+                ctx = {
+                    "output_dir": str(self.root),
+                    "name": f"evo_{backend_name}",
+                    "verbose": self.verbose,
+                    "evolution_state": {"cycle": 1, "population": []},
+                }
+                manifest = bridge.run_backend(backend_name, ctx)
 
-                metrics, knowledge_ref, bonus = bridge.run_full_cycle(**kwargs)
-                bridge_pass = bool(
-                    getattr(metrics, "all_pass", False)
-                    or getattr(metrics, "pass_gate", False)
-                )
+                bonus = manifest.quality_metrics.get("fitness_bonus", 0.0)
+                best_fitness = manifest.metadata.get("best_fitness", 0.0)
+                bridge_pass = best_fitness > 0.0 or bonus > 0.0
 
-                report.legacy_bridge_results[bridge_name] = {
+                report.legacy_bridge_results[backend_name] = {
                     "pass": bridge_pass,
                     "bonus": round(float(bonus), 4),
-                    "knowledge_ref": str(knowledge_ref) if knowledge_ref else None,
+                    "knowledge_ref": manifest.metadata.get("knowledge_path"),
+                    "artifact_family": manifest.artifact_family,
+                    "schema_hash": manifest.schema_hash,
                 }
                 report.layer1_internal_actions.append(
-                    f"legacy_bridge:{bridge_name}={'PASS' if bridge_pass else 'FAIL'}"
+                    f"evo_backend:{backend_name}={'PASS' if bridge_pass else 'FAIL'}"
                 )
                 self._log(
-                    f"  Legacy bridge {bridge_name}: "
+                    f"  Evolution backend {backend_name}: "
                     f"{'PASS' if bridge_pass else 'FAIL'} (bonus={float(bonus):.4f})"
                 )
             except Exception as e:
-                report.legacy_bridge_results[bridge_name] = {
+                report.legacy_bridge_results[backend_name] = {
                     "pass": False,
                     "error": str(e),
                 }
-                self._log(f"  Legacy bridge {bridge_name} error: {e}")
+                self._log(f"  Evolution backend {backend_name} error: {e}")
 
     # -------------------------------------------------------------------
     # Full Cycle
