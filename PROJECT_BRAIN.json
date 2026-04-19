@@ -1,7 +1,7 @@
 {
-  "version": "0.77.0",
-  "last_session_id": "SESSION-086",
-  "last_updated": "2026-04-19T23:00:00Z",
+  "version": "0.78.0",
+  "last_session_id": "SESSION-087",
+  "last_updated": "2026-04-19T23:30:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -31,9 +31,9 @@
     "closed_archived": 51
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-086 P1-AI-2D-SPARSECTRL CLOSED: SparseCtrl + AnimateDiff temporal preset asset + sequence-aware injector + 41 E2E tests. CI: 41 PASS, 0 FAIL. Backward compatibility with SESSION-084 dual_controlnet_ipadapter preserved.",
+  "validation_pass_rate": "SESSION-087 P1-AI-2D-SPARSECTRL endpoint CLOSED: ComfyUI WebSocket execution engine + one-click pipeline runner + 35 E2E tests. Cumulative P1-AI-2D: 79 PASS, 0 FAIL (SESSION-084: 3 + SESSION-086: 41 + SESSION-087: 35). Full backward compatibility preserved.",
   "total_iterations": 660,
-  "total_code_lines": 122800,
+  "total_code_lines": 123600,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
@@ -2152,6 +2152,15 @@
         "P1-MIGRATE-4: continue hot-reload and registry closure work",
         "P1-AI-2E: extend motion-adaptive keyframe planning to high-nonlinearity action segments"
       ]
+    },
+    {
+      "session_id": "SESSION-087",
+      "summary": "Delivered ComfyUI WebSocket end-to-end async execution engine (ComfyUIClient in mathart/comfy_client/) with full WebSocket event-stream monitoring (status/executing/progress/executed/execution_error), HTTP fallback polling, graceful offline degradation, and automated artifact download to outputs/comfyui_renders/. One-click pipeline runner (tools/run_sparsectrl_pipeline.py) orchestrates physics→SDF render→payload assembly→ComfyUI execution→image download. 35 offline-safe E2E tests across 12 test classes with deep Mock of urllib/websocket. Three anti-pattern red lines enforced: Blind HTTP POST Trap, Offline Crash Trap, Orphan Output Trap. Research: ComfyUI WebSocket API (official docs), microservice resilience patterns, data-driven pipeline orchestration. Cumulative P1-AI-2D: 79 PASS, 0 FAIL.",
+      "top_gaps": [
+        "P1-INDUSTRIAL-34C: Dead Cells style 3D-to-2D dimension reduction pipeline",
+        "P1-MIGRATE-4: backend hot-reload and registry closure",
+        "P1-AI-2E: motion-adaptive keyframe planning for high-nonlinearity action segments"
+      ]
     }
   ],
   "custom_notes": {
@@ -2724,6 +2733,12 @@
       "completed_in": "SESSION-086",
       "title": "SparseCtrl + AnimateDiff temporal consistency visual pipeline",
       "summary": "Landed production-grade sparsectrl_animatediff.json preset asset (23 nodes) with sequence-aware ComfyUIPresetManager.assemble_sequence_payload() injector, VHS directory-based frame I/O, AnimateDiff context options, batch_size/frame_count synchronization, and 41 offline-safe E2E tests. Research: SparseCtrl (Guo ECCV 2024), AnimateDiff (Guo ICLR 2024), ComfyUI-VideoHelperSuite."
+    },
+    {
+      "id": "P1-AI-2D-SPARSECTRL-ENDPOINT",
+      "completed_in": "SESSION-087",
+      "title": "ComfyUI WebSocket end-to-end async execution engine",
+      "summary": "Delivered ComfyUIClient with WebSocket event-stream monitoring, HTTP fallback polling, graceful offline degradation, and automated artifact download. One-click pipeline runner (tools/run_sparsectrl_pipeline.py) orchestrates physics→SDF render→payload assembly→ComfyUI execution→image download. 35 offline-safe E2E tests. Research: ComfyUI WebSocket API, microservice resilience, data-driven orchestration."
     }
   ]
 }

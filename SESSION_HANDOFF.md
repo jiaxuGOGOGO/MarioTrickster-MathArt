@@ -2,124 +2,221 @@
 
 ## Executive Summary
 
-**SESSION-086** closes **`P1-AI-2D-SPARSECTRL`** by landing the full **SparseCtrl + AnimateDiff temporal consistency visual pipeline** as a production-grade preset asset with a sequence-aware injector and comprehensive offline-safe E2E test coverage.
+**SESSION-087** delivers the **ComfyUI WebSocket End-to-End Async Execution Engine**, closing the final gap between the offline preset-assembly pipeline (SESSION-084/086) and live GPU-accelerated pixel output. The system now has a complete, production-grade path from physics simulation through SDF rendering, ComfyUI payload assembly, WebSocket-monitored execution, and automated image/video download to the project tree.
 
-The SESSION-084 preset-asset architecture (`ComfyUIPresetManager` + external `workflow_api` JSON) has been extended from single-image dual-ControlNet workflows to **frame-sequence temporal workflows**. The new `sparsectrl_animatediff.json` preset defines a 23-node ComfyUI graph topology incorporating AnimateDiff motion modules, SparseCtrl sparse conditioning, VHS directory-based sequence I/O, and VHS_VideoCombine video output. The upgraded `ComfyUIPresetManager.assemble_sequence_payload()` injects directory paths, frame counts, context lengths, and temporal parameters without ever modifying the node graph topology.
+The new `ComfyUIClient` class in `mathart/comfy_client/` implements the industrial-standard ComfyUI automation pattern: HTTP POST `/prompt` for queue submission, WebSocket event-stream monitoring for real-time progress tracking, and HTTP GET `/history` + `/view` for artifact retrieval. A one-click pipeline runner script (`tools/run_sparsectrl_pipeline.py`) orchestrates the full chain. All code enforces three anti-pattern red lines: no blind HTTP polling, graceful offline degradation, and mandatory artifact download into the project directory.
 
-| Area | SESSION-086 outcome |
+| Area | SESSION-087 outcome |
 |---|---|
-| **Task closure** | **`P1-AI-2D-SPARSECTRL` CLOSED** |
-| **New preset asset** | `sparsectrl_animatediff.json` — 23-node SparseCtrl + AnimateDiff + VHS topology |
-| **Injector upgrade** | `assemble_sequence_payload()` with VHS directory injection, batch_size sync, temporal config |
-| **Anti-pattern guards** | Single-Frame Fallacy, Python Topology Trap, CI HTTP Blocking Trap |
-| **Test coverage** | **41 PASS, 0 FAIL** — 5 test classes, 41 test cases |
-| **Backward compatibility** | Original `dual_controlnet_ipadapter` preset and `assemble_payload()` fully preserved |
-| **Research** | SparseCtrl (ECCV 2024), AnimateDiff (ICLR 2024), VHS industrial I/O |
+| **Task closure** | **P1-AI-2D-SPARSECTRL endpoint fully closed** — end-to-end execution engine landed |
+| **New module** | `mathart/comfy_client/` — `ComfyUIClient` + `ExecutionResult` |
+| **Pipeline runner** | `tools/run_sparsectrl_pipeline.py` — one-click physics-to-pixel automation |
+| **Anti-pattern guards** | Blind HTTP POST Trap, Offline Crash Trap, Orphan Output Trap |
+| **Test coverage** | **35 PASS, 0 FAIL** — 12 test classes, 35 test cases (SESSION-087 only) |
+| **Cumulative P1-AI-2D tests** | **79 PASS, 0 FAIL** (SESSION-084: 3 + SESSION-086: 41 + SESSION-087: 35) |
+| **Research** | ComfyUI WebSocket API, microservice resilience patterns, data-driven pipeline orchestration |
 
 ## What Landed in Code
 
-The main code landing consists of three deliverables: a new preset asset, an upgraded injector, and a comprehensive test suite.
+### 1. ComfyUI WebSocket Execution Client (`mathart/comfy_client/comfyui_ws_client.py`)
 
-**1. Preset Asset: `sparsectrl_animatediff.json`**
+A production-grade async execution client implementing the full ComfyUI API contract:
 
-A 23-node ComfyUI `workflow_api` JSON defining the complete SparseCtrl + AnimateDiff temporal consistency pipeline. The topology includes: `CheckpointLoaderSimple` → `ADE_AnimateDiffLoaderWithContext` (with `ADE_AnimateDiffUniformContextOptions` for sliding window context) → three `VHS_LoadImagesPath` nodes for normal/depth/RGB frame sequences → dual `ControlNetLoader` + `ControlNetApplyAdvanced` chains → `ACN_SparseCtrlLoaderAdvanced` with `ControlNetApplyAdvanced` for sparse RGB conditioning → `EmptyLatentImage` (batch_size = frame_count) → `KSampler` → `VAEDecode` → `VHS_VideoCombine` + `SaveImage`. Optional IP-Adapter identity lock chain preserved from SESSION-084.
+- **Health check**: `is_server_online()` probes `GET /system_stats` with configurable timeout.
+- **Queue submission**: `_queue_prompt()` sends `POST /prompt` with `{prompt, client_id}` payload.
+- **WebSocket monitoring**: `_ws_listen_until_complete()` connects to `ws://{server}/ws?clientId={id}` and parses the event stream (`status`, `executing`, `progress`, `executed`, `execution_error`). Completion is detected by `executing` with `node: null` — the official ComfyUI completion signal.
+- **HTTP fallback polling**: `_http_poll_until_complete()` polls `GET /history/{prompt_id}` when `websocket-client` is not installed, with exponential backoff.
+- **Artifact download**: `_download_outputs()` retrieves all generated images and videos via `GET /view?filename={f}&subfolder={s}&type={t}` and saves them to timestamped directories under `outputs/comfyui_renders/`.
+- **Graceful degradation**: Every network call is wrapped in `try-except` for `ConnectionRefusedError`, `OSError`, `TimeoutError`, and `urllib.error.URLError`. Server offline → `ExecutionResult(degraded=True)`, never an unhandled crash.
 
-**2. Sequence-Aware Injector: `assemble_sequence_payload()`**
+### 2. End-to-End Pipeline Runner (`tools/run_sparsectrl_pipeline.py`)
 
-New method on `ComfyUIPresetManager` that accepts frame sequence directories instead of single image paths. Key injection points: VHS `directory` paths, `EmptyLatentImage.batch_size` synchronized with `frame_count`, `ADE_AnimateDiffUniformContextOptions.context_length/context_overlap`, `ACN_SparseCtrlLoaderAdvanced.sparsectrl_name/motion_strength`, `VHS_VideoCombine.frame_rate`, and all existing ControlNet/KSampler/IP-Adapter parameters. The `_SPARSECTRL_SELECTORS` tuple defines 33 semantic bindings for the new preset.
+A CLI facade script that orchestrates the complete chain in four phases:
 
-**3. Lock Manifest Extension**
+1. **Phase 1 — Guide Generation**: Invokes the industrial SDF renderer to produce normal/depth/RGB frame sequences. Falls back to placeholder frames when the renderer is unavailable (CI safety).
+2. **Phase 2 — Payload Assembly**: Calls `ComfyUIPresetManager.assemble_sequence_payload()` to inject guide directories into the SparseCtrl + AnimateDiff preset topology.
+3. **Phase 3 — ComfyUI Execution**: Submits the payload via `ComfyUIClient`, monitors via WebSocket, downloads outputs. Degrades gracefully if server is offline.
+4. **Phase 4 — Report Generation**: Saves execution report JSON and raw payload snapshot for reproducibility.
 
-The `mathart_lock_manifest` now includes `temporal_config` (frame_count, context_length, context_overlap, frame_rate, animatediff/sparsectrl model names, batch_size_synced flag), `sequence_directories` (normal/depth/rgb absolute paths), and an extended `workflow_contract` with `sequence_aware: true` and `vhs_directory_injection: true`.
+**One-click command for local 4070 execution:**
+
+```bash
+# Start ComfyUI first (in a separate terminal):
+cd /path/to/ComfyUI && python main.py --listen 0.0.0.0 --port 8188
+
+# Then run the pipeline:
+python tools/run_sparsectrl_pipeline.py \
+    --server 127.0.0.1:8188 \
+    --frames 16 \
+    --width 512 --height 512 \
+    --steps 20 --cfg 7.5 \
+    --prompt "pixel art game character sprite, Dead Cells style, detailed shading"
+
+# Dry run (assemble payload without submitting):
+python tools/run_sparsectrl_pipeline.py --dry-run
+```
+
+### 3. Offline-Safe E2E Tests (`tests/test_p1_ai_2d_sparsectrl_client.py`)
+
+35 tests across 12 test classes, all using `unittest.mock` to deeply mock `urllib.request.urlopen` and `websocket.WebSocket`. Zero real HTTP or WebSocket calls.
 
 | File | Purpose |
 |---|---|
-| `mathart/assets/comfyui_presets/sparsectrl_animatediff.json` | 23-node SparseCtrl + AnimateDiff + VHS preset topology |
-| `mathart/animation/comfyui_preset_manager.py` | Upgraded with `assemble_sequence_payload()`, `_SPARSECTRL_SELECTORS`, preset-specific validation |
-| `tests/test_p1_ai_2d_sparsectrl.py` | 41 offline-safe E2E tests across 5 test classes |
-| `research/session086_sparsectrl_animatediff_research.md` | Research notes: SparseCtrl, AnimateDiff, VHS node specifications and workflow topology |
-| `PROJECT_BRAIN.json` | P1-AI-2D-SPARSECTRL → CLOSED, session metadata |
+| `mathart/comfy_client/__init__.py` | Package init — exports `ComfyUIClient`, `ExecutionResult` |
+| `mathart/comfy_client/comfyui_ws_client.py` | WebSocket execution engine with graceful degradation |
+| `tools/run_sparsectrl_pipeline.py` | One-click end-to-end pipeline runner |
+| `tests/test_p1_ai_2d_sparsectrl_client.py` | 35 offline-safe E2E tests for client and pipeline |
+| `research/session087_comfyui_ws_client_research.md` | Research notes: ComfyUI WebSocket API, resilience patterns |
+| `PROJECT_BRAIN.json` | SESSION-087 metadata, updated gap status |
 | `SESSION_HANDOFF.md` | This file |
 
 ## Research Decisions That Were Enforced
 
-The external research was not decorative. It directly constrained implementation across three domains.
+### ComfyUI WebSocket Execution Paradigm
 
-**SparseCtrl Sparse Conditioning** (Guo et al., ECCV 2024) [1]. The paper establishes that SparseCtrl injects temporally sparse condition maps (keyframes) into the temporal attention layers of a video diffusion model. The `ACN_SparseCtrlLoaderAdvanced` node in ComfyUI-Advanced-ControlNet implements this as a loadable model with `use_motion`, `motion_strength`, and `sparse_method` parameters. This directly constrained the preset to include the SparseCtrl loader as a separate node from the standard ControlNet loaders, with its own `ControlNetApplyAdvanced` chain using `end_percent` to control temporal influence decay.
+The ComfyUI official API documentation [1] establishes that the correct automation pattern is: (1) POST `/prompt` to queue the workflow, (2) connect to `ws://{server}/ws?clientId={id}` to receive real-time events, (3) detect completion via the `executing` event with `node: null`, (4) retrieve outputs via `GET /history/{prompt_id}`. This directly constrained the implementation to use WebSocket monitoring rather than blind HTTP polling or `time.sleep()` loops.
 
-**AnimateDiff Motion Module** (Guo et al., ICLR 2024) [2]. AnimateDiff inserts temporal attention modules into a frozen text-to-image model. The critical implementation constraint is that `EmptyLatentImage.batch_size` MUST equal the desired frame count — AnimateDiff connects independent frames in latent space into a coherent video tensor through temporal attention. The `ADE_AnimateDiffUniformContextOptions` node controls the sliding window size (`context_length`) and overlap for infinite-length generation. This directly constrained the injector to synchronize `batch_size` with `frame_count` and expose `context_length`/`context_overlap` as injectable parameters.
+### Microservice Resilience and Graceful Degradation
 
-**VHS Directory-Based Sequence I/O** (ComfyUI-VideoHelperSuite) [3]. The `VHS_LoadImagesPath` node loads frame sequences from a directory path, not individual image files. This is the industrial-standard approach for temporal workflows. The anti-pattern guard "Single-Frame Fallacy" was enforced: the preset uses three `VHS_LoadImagesPath` nodes (normal, depth, RGB) with `directory` inputs, NOT `LoadImage` nodes. The `VHS_VideoCombine` node combines decoded frames into video output with configurable `frame_rate`.
+The system assumes ComfyUI may be offline (CI environments, cold starts, GPU maintenance). Every network call in `ComfyUIClient` is wrapped in comprehensive exception handling. The `ExecutionResult` dataclass has explicit `degraded` and `degraded_reason` fields. Tests verify that `ConnectionRefusedError`, `OSError`, and `TimeoutError` all result in graceful degradation, not crashes.
+
+### Data-Driven Pipeline Orchestration
+
+The pipeline runner script lives in `tools/` as a facade layer. It consumes `AntiFlickerRenderBackend` output manifests and `ComfyUIPresetManager` payloads as pure data. It NEVER modifies core math engine code. The `ComfyUIClient` lives in `mathart/comfy_client/` as an independent module that can be registered as a backend in the future without polluting the core.
 
 | Research theme | Enforced implementation consequence |
 |---|---|
-| **SparseCtrl sparse conditioning** | Separate `ACN_SparseCtrlLoaderAdvanced` node with `end_percent`-controlled temporal decay [1] |
-| **AnimateDiff batch_size sync** | `EmptyLatentImage.batch_size` = `frame_count`; `context_length`/`context_overlap` exposed [2] |
-| **VHS directory I/O** | Three `VHS_LoadImagesPath` nodes with `directory` inputs; `VHS_VideoCombine` for video output [3] |
+| **WebSocket execution paradigm** | `_ws_listen_until_complete()` with `executing(node=null)` completion signal [1] |
+| **Graceful degradation** | Every network call wrapped in `try-except`; `ExecutionResult.degraded` field [2] |
+| **Data-driven orchestration** | Pipeline runner in `tools/`; client in `mathart/comfy_client/`; core untouched [3] |
 
-## Anti-Pattern Guards (SESSION-086 Red Lines)
+## Anti-Pattern Guards (SESSION-087 Red Lines)
 
-Three anti-patterns were identified during research and explicitly guarded against in both code and tests.
+### Blind HTTP POST Trap
 
-**Single-Frame Fallacy**: Temporal workflows MUST use `VHS_LoadImagesPath` with directory paths, NOT single-image `LoadImage` nodes. The test `test_preset_contains_vhs_load_images_path` asserts >= 3 VHS loader nodes exist. The tests `test_vhs_normal_directory_injected`, `test_vhs_depth_directory_injected`, and `test_vhs_rgb_directory_injected` verify that actual directory paths are injected.
+The client MUST NOT use `requests.post()` followed by `time.sleep()` polling. It MUST use WebSocket event monitoring to detect completion. The test `test_ws_listen_complete_flow` verifies the full WebSocket event sequence. The test `test_full_successful_execution` verifies end-to-end flow with WebSocket.
 
-**Python Topology Trap**: All node wiring MUST exist in the external JSON preset. The injector MUST NOT add or remove nodes. The tests `test_node_count_unchanged_after_injection` and `test_class_types_unchanged_after_injection` verify topology invariance before and after injection.
+### Offline Crash Trap
 
-**CI HTTP Blocking Trap**: Zero HTTP calls in tests. All 41 tests validate JSON payload structure only, with no live ComfyUI server dependency. The `mathart_lock_manifest` is validated for structural completeness offline.
+The client MUST NOT crash when ComfyUI is offline. `ConnectionRefusedError` MUST result in a degraded `ExecutionResult`, not an unhandled exception. Tests `test_execute_workflow_offline_returns_degraded`, `test_execute_workflow_offline_no_exception`, `test_execute_workflow_os_error_degraded`, `test_server_offline_connection_refused`, `test_server_offline_os_error`, and `test_server_offline_timeout` all verify this.
+
+### Orphan Output Trap
+
+The client MUST NOT submit a workflow and then abandon the outputs in ComfyUI's internal `output/` directory. It MUST download all generated images and videos to the project's `outputs/comfyui_renders/` directory. Tests `test_download_file_success`, `test_download_outputs_with_images_and_videos`, and `test_full_successful_execution` verify that files are physically written to disk.
 
 ## Testing and Validation
 
 | Test command | Result |
 |---|---|
-| `pytest tests/test_p1_ai_2d_sparsectrl.py -v` | **41 passed, 0 failed** |
+| `pytest tests/test_p1_ai_2d_sparsectrl_client.py -v` | **35 passed, 0 failed** |
+| `pytest tests/test_p1_ai_2d_preset_injection.py tests/test_p1_ai_2d_sparsectrl.py tests/test_p1_ai_2d_sparsectrl_client.py -v` | **79 passed, 0 failed** |
 
 | Test class | Count | Purpose |
 |---|---|---|
-| `TestSparseCtrlPresetAsset` | 10 | Preset file existence, JSON validity, required node class_types, selector validation |
-| `TestSequencePayloadAssembly` | 17 | Directory injection, batch_size sync, parameter injection for all temporal nodes |
-| `TestSequenceLockManifest` | 8 | Lock manifest structure: temporal_config, sequence_directories, workflow_contract |
-| `TestTopologyInvariance` | 2 | Node count and class_type invariance after injection |
-| `TestBackwardCompatibility` | 2 | Original preset and `assemble_payload()` still work |
-| `TestAntiFlickerReportIntegration` | 2 | JSON serialization round-trip and disk persistence |
+| `TestComfyUIClientConstruction` | 6 | Default and custom configuration |
+| `TestHealthCheck` | 4 | Online/offline detection with multiple error types |
+| `TestGracefulDegradation` | 4 | Server offline → degraded result, no crash |
+| `TestQueuePrompt` | 2 | POST /prompt success and offline handling |
+| `TestWebSocketExecution` | 2 | Full WS event flow and execution_error handling |
+| `TestHTTPFallbackPolling` | 2 | HTTP polling success and offline timeout |
+| `TestHistoryAndDownload` | 5 | /history retrieval and /view image download |
+| `TestExecutionResult` | 3 | Dataclass defaults and serialization |
+| `TestPipelineRunnerIntegration` | 3 | Guide generation, payload assembly, offline execution |
+| `TestFullE2EMockExecution` | 1 | Complete end-to-end flow with all mocks |
+| `TestOutputDirectoryStructure` | 1 | Timestamped output directory creation |
+| `TestBackwardCompatibility` | 2 | SESSION-086 and SESSION-084 presets still load |
+
+## How to Run the Full Pipeline on Local 4070
+
+### Prerequisites
+
+1. **ComfyUI** installed with the following custom nodes:
+   - `ComfyUI-AnimateDiff-Evolved` (AnimateDiff motion modules)
+   - `ComfyUI-Advanced-ControlNet` (SparseCtrl support)
+   - `ComfyUI-VideoHelperSuite` (VHS directory I/O)
+
+2. **Model weights** downloaded to ComfyUI's `models/` directory:
+   - SD1.5 checkpoint (e.g., `v1-5-pruned-emaonly.safetensors`)
+   - AnimateDiff v3 motion module (`v3_sd15_mm.ckpt`)
+   - SparseCtrl RGB model (`v3_sd15_sparsectrl_rgb.ckpt`)
+   - ControlNet normal (`control_v11p_sd15_normalbae.pth`)
+   - ControlNet depth (`control_v11f1p_sd15_depth.pth`)
+   - (Optional) IP-Adapter Plus (`ip-adapter-plus_sdxl_vit-h.safetensors`)
+   - (Optional) Pixel art LoRA
+
+3. **Start ComfyUI**:
+   ```bash
+   cd /path/to/ComfyUI
+   python main.py --listen 0.0.0.0 --port 8188
+   ```
+
+### Execute
+
+```bash
+cd /path/to/MarioTrickster-MathArt
+python tools/run_sparsectrl_pipeline.py --server 127.0.0.1:8188 --frames 16 --steps 20
+```
+
+### Expected Output
+
+```
+outputs/comfyui_renders/run_YYYYMMDD_HHMMSS/
+├── guides/
+│   ├── normal/frame_0000.png ... frame_0015.png
+│   ├── depth/frame_0000.png ... frame_0015.png
+│   └── rgb/frame_0000.png ... frame_0015.png
+├── images/
+│   └── (downloaded ComfyUI output frames)
+├── videos/
+│   └── (downloaded ComfyUI output video)
+├── reports/
+│   ├── execution_report_YYYYMMDD_HHMMSS.json
+│   └── payload_YYYYMMDD_HHMMSS.json
+└── execution_metadata.json
+```
 
 ## Recommended Next Priorities
 
 | Priority | Recommendation | Reason |
 |---|---|---|
-| **Immediate** | Start **`P1-INDUSTRIAL-34C`** | Industrial sprite quality is the next visual-delivery gap |
-| **High** | Continue **`P1-MIGRATE-4`** | Registry hot-reload remains a force multiplier for future backends |
-| **High** | Start **`P1-AI-2E`** | Motion-adaptive keyframe planning for high-nonlinearity action segments |
+| **Immediate** | **P1-INDUSTRIAL-34C** | Dead Cells style 3D→2D dimension reduction pipeline — the next visual delivery gap |
+| **High** | **P1-MIGRATE-4** | Backend hot-reload — force multiplier for rapid iteration |
+| **High** | **P1-AI-2E** | Motion-adaptive keyframe planning for high-nonlinearity action segments |
 
 ### Architecture Micro-Adjustments for Next Tasks
 
-**For P1-INDUSTRIAL-34C**: The industrial sprite backend (`IndustrialSpriteBackend`) and its MaterialX/glTF PBR-inspired `texture_channels` manifest are established. The next step is to improve the quality of the generated texture channels (albedo, normal, depth, roughness) to match commercial 2D game art standards.
+**For P1-INDUSTRIAL-34C (Dead Cells 3D→2D)**: The `ComfyUIClient` can be reused as the execution backend. The industrial renderer's multi-channel output (albedo/normal/depth/mask/roughness) maps directly to ControlNet guide inputs. The next step is to build a Dead Cells-specific preset asset that applies the characteristic hand-painted 2D aesthetic to 3D-rendered frames.
 
-**For P1-AI-2E**: The `assemble_sequence_payload()` method provides the foundation for motion-adaptive keyframe planning. The next step is to integrate the motion vector baker's temporal analysis with the SparseCtrl preset to automatically select sparse keyframes based on motion complexity metrics.
+**For P1-MIGRATE-4 (Backend Hot-Reload)**: The `ComfyUIClient` is already an independent module in `mathart/comfy_client/`. It can be registered as a new `BackendType.COMFYUI_EXECUTOR` in the registry with minimal wiring. Hot-reload would allow swapping preset assets and client configurations without restarting the pipeline.
 
-**For P1-MIGRATE-4**: The registry pattern is fully established. Hot-reload requires adding a file-watcher or signal-based reload trigger to `BackendRegistry.discover()`.
+**For P1-AI-2E (Motion-Adaptive Keyframes)**: The `assemble_sequence_payload()` method's `frame_count` and SparseCtrl `end_percent` parameters can be dynamically adjusted based on motion complexity metrics from the motion vector baker. High-nonlinearity segments would get more keyframes (higher SparseCtrl influence) while stable segments use fewer.
 
 ## Known Constraints and Non-Blocking Notes
 
 | Constraint | Status |
 |---|---|
-| SparseCtrl/AnimateDiff model weights | **Not included** — must be downloaded separately for live execution |
-| Live ComfyUI server execution | **Not tested** — all tests are offline structural validation |
-| VHS_VideoCombine output format | **h264-mp4 default** — configurable via `format` parameter |
-| IP-Adapter in temporal workflows | **Optional** — weight set to 0.0 when `use_ip_adapter=False` |
+| `websocket-client` Python package | **Optional** — HTTP fallback polling available if not installed |
+| SparseCtrl/AnimateDiff model weights | **Not included** — must be downloaded separately |
+| Live ComfyUI execution | **Not tested in CI** — all 35 tests are offline-safe with deep mocks |
+| VRAM requirement | **~8-10GB** for SD1.5 + AnimateDiff + SparseCtrl on RTX 4070 (12GB) |
+| Pixel art style | **Prompt-driven** — no dedicated LoRA included; recommend pixel-art-style LoRA |
 
 ## Files to Inspect First in the Next Session
 
 | File | Why it matters |
 |---|---|
+| `mathart/comfy_client/comfyui_ws_client.py` | The WebSocket execution engine — all network I/O lives here |
+| `tools/run_sparsectrl_pipeline.py` | The one-click pipeline runner — the user-facing entry point |
 | `mathart/assets/comfyui_presets/sparsectrl_animatediff.json` | The 23-node preset topology — all wiring lives here |
-| `mathart/animation/comfyui_preset_manager.py` | The upgraded injector with `assemble_sequence_payload()` |
-| `tests/test_p1_ai_2d_sparsectrl.py` | 41 E2E tests — the contract specification for the temporal pipeline |
-| `research/session086_sparsectrl_animatediff_research.md` | Research notes with node specifications and workflow topology |
+| `mathart/animation/comfyui_preset_manager.py` | The sequence-aware injector — payload assembly logic |
+| `tests/test_p1_ai_2d_sparsectrl_client.py` | 35 E2E tests — the contract specification for the execution engine |
 
 ## References
 
-[1]: https://arxiv.org/abs/2311.16933 "Guo et al., SparseCtrl: Adding Sparse Controls to Text-to-Video Diffusion Models, ECCV 2024"
-[2]: https://arxiv.org/abs/2307.04725 "Guo et al., AnimateDiff: Animate Your Personalized Text-to-Image Diffusion Models, ICLR 2024"
-[3]: https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite "ComfyUI-VideoHelperSuite — Industrial sequence I/O for ComfyUI"
-[4]: https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved "ComfyUI-AnimateDiff-Evolved — AnimateDiff integration for ComfyUI"
-[5]: https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet "ComfyUI-Advanced-ControlNet — SparseCtrl support for ComfyUI"
+[1]: https://mintlify.wiki/Comfy-Org/ComfyUI/api/websocket-events "ComfyUI WebSocket Events API Documentation"
+[2]: https://mintlify.wiki/Comfy-Org/ComfyUI/api/prompt "ComfyUI POST /prompt API Documentation"
+[3]: https://mintlify.wiki/Comfy-Org/ComfyUI/api/history "ComfyUI GET /history API Documentation"
+[4]: https://arxiv.org/abs/2311.16933 "Guo et al., SparseCtrl: Adding Sparse Controls to Text-to-Video Diffusion Models, ECCV 2024"
+[5]: https://arxiv.org/abs/2307.04725 "Guo et al., AnimateDiff: Animate Your Personalized Text-to-Image Diffusion Models, ICLR 2024"
+[6]: https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite "ComfyUI-VideoHelperSuite — Industrial sequence I/O for ComfyUI"
+[7]: https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved "ComfyUI-AnimateDiff-Evolved — AnimateDiff integration for ComfyUI"
