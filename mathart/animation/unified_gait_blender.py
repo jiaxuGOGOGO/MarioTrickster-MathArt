@@ -272,6 +272,16 @@ class UnifiedGaitRuntimeConfig:
     parameter_source: str = "defaults"
 
 
+@dataclass(frozen=True)
+class UnifiedTransitionRuntimeConfig:
+    """Once-resolved scalar inputs for high-nonlinearity transient motion lanes."""
+
+    recovery_half_life: float = 0.12
+    impact_damping_weight: float = 1.0
+    landing_anticipation_window: float = 0.18
+    parameter_source: str = "defaults"
+
+
 def resolve_unified_gait_runtime_config(
     runtime_distillation_bus: Any | None = None,
     *,
@@ -304,6 +314,52 @@ def resolve_unified_gait_runtime_config(
     return UnifiedGaitRuntimeConfig(
         blend_time=resolved_blend_time,
         phase_weight=resolved_phase_weight,
+        parameter_source="defaults",
+    )
+
+
+def resolve_unified_transition_runtime_config(
+    runtime_distillation_bus: Any | None = None,
+    *,
+    recovery_half_life: float = 0.12,
+    impact_damping_weight: float = 1.0,
+    landing_anticipation_window: float = 0.18,
+) -> UnifiedTransitionRuntimeConfig:
+    """Resolve transient-motion parameters exactly once, outside the frame hot path."""
+
+    resolved_half_life = max(float(recovery_half_life), 1e-3)
+    resolved_damping = max(float(impact_damping_weight), 0.05)
+    resolved_window = float(np.clip(landing_anticipation_window, 0.02, 0.45))
+    resolver = getattr(runtime_distillation_bus, "resolve_scalar", None)
+    if callable(resolver):
+        resolved_half_life = max(float(resolver([
+            "transient_motion.recovery_half_life",
+            "recovery_half_life",
+            "transition_recovery_half_life",
+            "hit_recovery_half_life",
+        ], resolved_half_life)), 1e-3)
+        resolved_damping = max(float(resolver([
+            "transient_motion.impact_damping_weight",
+            "impact_damping_weight",
+            "landing_impact_damping_weight",
+            "transition_impact_damping_weight",
+        ], resolved_damping)), 0.05)
+        resolved_window = float(np.clip(resolver([
+            "transient_motion.landing_anticipation_window",
+            "landing_anticipation_window",
+            "anticipation_window",
+            "landing_buffer_window",
+        ], resolved_window), 0.02, 0.45))
+        return UnifiedTransitionRuntimeConfig(
+            recovery_half_life=resolved_half_life,
+            impact_damping_weight=resolved_damping,
+            landing_anticipation_window=resolved_window,
+            parameter_source="runtime_distillation_bus",
+        )
+    return UnifiedTransitionRuntimeConfig(
+        recovery_half_life=resolved_half_life,
+        impact_damping_weight=resolved_damping,
+        landing_anticipation_window=resolved_window,
         parameter_source="defaults",
     )
 
@@ -1233,6 +1289,7 @@ class MotionStateLane:
     def begin_clip(
         self,
         gait_runtime_config: UnifiedGaitRuntimeConfig | None = None,
+        transition_runtime_config: UnifiedTransitionRuntimeConfig | None = None,
     ) -> "MotionStateLane":
         return self
 
@@ -1304,6 +1361,7 @@ class _LocomotionLane(MotionStateLane):
     def begin_clip(
         self,
         gait_runtime_config: UnifiedGaitRuntimeConfig | None = None,
+        transition_runtime_config: UnifiedTransitionRuntimeConfig | None = None,
     ) -> MotionStateLane:
         if gait_runtime_config is None:
             return self
@@ -1382,20 +1440,103 @@ _TRANSIENT_PHASE_PROFILES: dict[str, dict[str, Any]] = {
 
 
 class _ProceduralStateLane(MotionStateLane):
-    def __init__(self, state_name: str, pose_fn, vx: float = 0.0, vy: float = 0.0) -> None:
+    def __init__(
+        self,
+        state_name: str,
+        pose_fn,
+        vx: float = 0.0,
+        vy: float = 0.0,
+        transition_runtime_config: UnifiedTransitionRuntimeConfig | None = None,
+    ) -> None:
         self.state_name = state_name
         self._pose_fn = pose_fn
         self._vx = vx
         self._vy = vy
+        self._transition_runtime_config = transition_runtime_config or UnifiedTransitionRuntimeConfig()
+
+    @staticmethod
+    def _clip01(value: float) -> float:
+        return float(np.clip(value, 0.0, 1.0))
+
+    def begin_clip(
+        self,
+        gait_runtime_config: UnifiedGaitRuntimeConfig | None = None,
+        transition_runtime_config: UnifiedTransitionRuntimeConfig | None = None,
+    ) -> MotionStateLane:
+        if transition_runtime_config is None:
+            return self
+        return _ProceduralStateLane(
+            self.state_name,
+            self._pose_fn,
+            vx=self._vx,
+            vy=self._vy,
+            transition_runtime_config=transition_runtime_config,
+        )
+
+    def _anticipation_profile(self, progress: float) -> tuple[float, float, float]:
+        cfg = self._transition_runtime_config
+        window = float(np.clip(cfg.landing_anticipation_window, 0.02, 0.45))
+        damping = max(float(cfg.impact_damping_weight), 0.05)
+        p = self._clip01(progress)
+        start = 1.0 - window
+        if p <= start:
+            return p, 1.0, window
+        tau = (p - start) / max(window, 1e-6)
+        denom = max(1.0 - math.exp(-damping), 1e-6)
+        q = start + window * ((1.0 - math.exp(-damping * tau)) / denom)
+        return q, math.exp(-damping * tau), window
 
     def preview_pose(self, phase: float) -> dict[str, float]:
         return dict(self._pose_fn(float(phase) % 1.0))
 
     def infer_root_transform(self, *, progress: float, frame_index: int, frame_count: int, fps: int) -> MotionRootTransform:
-        frame_duration = max(frame_count / max(fps, 1), 1e-6)
+        duration = max(frame_count / max(fps, 1), 1e-6)
+        p = self._clip01(progress)
+        cfg = self._transition_runtime_config
+
+        if self.state_name == "jump":
+            q, landing_scale, window = self._anticipation_profile(p)
+            in_landing_window = p > (1.0 - window)
+            velocity_scale = landing_scale if in_landing_window else 1.0
+            return MotionRootTransform(
+                x=q * duration * self._vx,
+                y=max(0.0, 1.15 * 4.0 * q * (1.0 - q) * max(0.35, landing_scale)),
+                velocity_x=self._vx * velocity_scale,
+                velocity_y=2.20 * (1.0 - 2.0 * q) * max(0.35, landing_scale),
+                rotation=0.0,
+                angular_velocity=0.0,
+            )
+
+        if self.state_name == "fall":
+            q, landing_scale, _window = self._anticipation_profile(p)
+            velocity_scale = max(0.20, landing_scale)
+            return MotionRootTransform(
+                x=q * duration * self._vx,
+                y=max(0.0, (1.0 - q) ** 2 * 1.15),
+                velocity_x=self._vx * velocity_scale,
+                velocity_y=-abs(self._vy) * velocity_scale,
+                rotation=0.0,
+                angular_velocity=0.0,
+            )
+
+        if self.state_name == "hit":
+            half_life = max(float(cfg.recovery_half_life), 1e-3)
+            damping = max(float(cfg.impact_damping_weight), 0.05)
+            elapsed = p * duration
+            decay = math.exp(-math.log(2.0) * elapsed / half_life)
+            recovery_rate = math.log(2.0) / half_life
+            return MotionRootTransform(
+                x=-0.35 * damping * decay,
+                y=0.06 * damping * decay,
+                velocity_x=0.35 * damping * recovery_rate * decay,
+                velocity_y=-0.06 * damping * recovery_rate * decay,
+                rotation=0.0,
+                angular_velocity=0.0,
+            )
+
         return MotionRootTransform(
-            x=float(progress) * frame_duration * self._vx,
-            y=float(progress) * frame_duration * self._vy,
+            x=p * duration * self._vx,
+            y=p * duration * self._vy,
             velocity_x=self._vx,
             velocity_y=self._vy,
             rotation=0.0,
@@ -1406,7 +1547,7 @@ class _ProceduralStateLane(MotionStateLane):
         pose = self.preview_pose(request.phase)
         root = self.infer_root_transform(progress=request.phase, frame_index=request.frame_index, frame_count=request.frame_count, fps=request.fps)
         root = MotionRootTransform(
-            x=request.root_x if self._vx != 0.0 else root.x,
+            x=request.root_x if self._vx != 0.0 and self.state_name not in {"jump", "fall", "hit"} else root.x,
             y=root.y,
             velocity_x=root.velocity_x,
             velocity_y=root.velocity_y,
@@ -1421,6 +1562,14 @@ class _ProceduralStateLane(MotionStateLane):
         if transient_profile is not None:
             for k, v in transient_profile.items():
                 merged_meta.setdefault(k, v)
+            merged_meta.update(
+                {
+                    "transient_recovery_half_life": self._transition_runtime_config.recovery_half_life,
+                    "transient_impact_damping_weight": self._transition_runtime_config.impact_damping_weight,
+                    "transient_landing_anticipation_window": self._transition_runtime_config.landing_anticipation_window,
+                    "transient_param_source": self._transition_runtime_config.parameter_source,
+                }
+            )
 
         # Determine phase_state for transient vs cyclic
         from .unified_motion import PhaseState
@@ -1477,7 +1626,9 @@ __all__ = [
     "TransitionStrategy",
     "TransitionQualityMetrics",
     "UnifiedGaitRuntimeConfig",
+    "UnifiedTransitionRuntimeConfig",
     "resolve_unified_gait_runtime_config",
+    "resolve_unified_transition_runtime_config",
     "TransitionSynthesizer",
     "TransitionPipelineNode",
     "InertializationChannel",

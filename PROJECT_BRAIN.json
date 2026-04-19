@@ -1,46 +1,46 @@
 {
-  "version": "0.69.0",
-  "last_session_id": "SESSION-078",
-  "last_updated": "2026-04-19T18:20:00Z",
+  "version": "0.70.0",
+  "last_session_id": "SESSION-079",
+  "last_updated": "2026-04-19T20:35:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
     "baseline_session": "SESSION-075",
     "head_commit": "SESSION-075",
-    "active_total": 74,
+    "active_total": 73,
     "by_priority": {
-      "P1": 38,
+      "P1": 37,
       "P2": 34,
       "P3": 3
     },
     "by_status": {
-      "PARTIAL": 5,
+      "PARTIAL": 4,
       "SUBSTANTIALLY-ADVANCED": 2,
       "SUBSTANTIALLY-CLOSED": 5,
       "TODO": 62
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
-      "P1-GAP4-BATCH",
       "P1-B3-2",
       "P1-XPBD-1",
       "P1-MIGRATE-4",
       "P1-AI-2D",
       "P1-AI-2D-SPARSECTRL",
       "P1-INDUSTRIAL-34C",
-      "P1-ARCH-4"
+      "P1-ARCH-4",
+      "P1-AI-2E"
     ],
-    "closed_archived": 47
+    "closed_archived": 48
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-078 P1-DISTILL-4 PASS: cognitive science / biological motion distillation is now closed-loop through real UnifiedMotion telemetry sidecars, a registry-native cognitive distillation backend, typed cognitive_motion runtime preload, and end-to-end resolve_scalar proof. 29/29 targeted regressions PASS (tests/test_p1_distill_3.py + tests/test_p1_distill_4.py). Zero regressions introduced in the adjacent physics-gait distillation path.",
-  "total_iterations": 624,
-  "total_code_lines": 116600,
+  "validation_pass_rate": "SESSION-079 P1-GAP4-BATCH PASS: transient-motion batch tuning is now closed-loop through a typed transient_motion namespace, once-only UnifiedTransitionRuntimeConfig injection in UnifiedMotionBackend/unified_gait_blender, backend-rendered jump/fall/hit evaluation, knowledge/transient_motion_rules.json write->preload->resolve proof, and targeted regressions at 10 PASS / 1 SKIP (tests/test_p1_gap4_batch.py + tests/test_locomotion_cns.py + tests/test_layer3_closed_loop.py). Zero regressions introduced in the adjacent locomotion CNS path.",
+  "total_iterations": 640,
+  "total_code_lines": 117600,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 152,
-  "math_model_count": 37,
+  "knowledge_rule_count": 160,
+  "math_model_count": 38,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
@@ -79,7 +79,7 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-078 closes P1-DISTILL-4 by landing a telemetry-driven cognitive science distillation loop: UnifiedMotionBackend now emits cognition sidecars, principles_quantifier scores continuous anticipation / follow-through / phase-manifold / perceptual-naturalness traces, CognitiveDistillationBackend writes knowledge/cognitive_science_rules.json, and knowledge_preloader registers the new cognitive_motion namespace alongside physics_gait on RuntimeDistillationBus. Next priority: P1-GAP4-BATCH, then P1-B3-2.",
+  "current_focus": "SESSION-079 closes P1-GAP4-BATCH by widening the active Layer 3 loop from gait-only audits into a typed transient-motion batch path: UnifiedMotionBackend now resolves and injects UnifiedTransitionRuntimeConfig once per clip, jump/fall/hit lanes materially respond to transient_motion scalars, RuntimeDistillationBus compiles transient batch acceptance rules, locomotion_cns evaluates run->jump / fall->land / hit_stagger recovery over real UMR clips, and knowledge_preloader registers transient_motion alongside physics_gait and cognitive_motion. Next priority: P1-B3-2, then P1-XPBD-1.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "tests/test_ccd_3d.py",
@@ -389,11 +389,12 @@
       "id": "P1-GAP4-BATCH",
       "priority": "P1",
       "title": "Batch-tune multiple hard transitions through the active Layer 3 loop",
-      "status": "PARTIAL",
+      "status": "DONE",
       "estimated_effort": "medium",
-      "description": "SESSION-053 adds locomotion CNS batch evaluation and a dedicated Layer 3 bridge covering walk->run, run->walk, walk->sneak, sneak->run, and run acceleration. Remaining work: widen the batch to jump/fall/hit disruptions and recurring audit mode.",
+      "description": "SESSION-079 CLOSED. The active Layer 3 loop now batch-evaluates high-nonlinearity transient families (run->jump, fall->land, hit_stagger recovery) through real UnifiedMotionBackend clips, compiles transient runtime acceptance rules, writes knowledge/transient_motion_rules.json, preloads the transient_motion namespace, and proves runtime materialization with 10 PASS / 1 SKIP targeted regressions (tests/test_p1_gap4_batch.py + tests/test_locomotion_cns.py + tests/test_layer3_closed_loop.py).",
       "added_in": "SESSION-043",
-      "updated_in": "SESSION-053"
+      "updated_in": "SESSION-079",
+      "completed_in": "SESSION-079"
     },
     {
       "id": "P1-HUMAN-31A",
@@ -943,6 +944,12 @@
     }
   ],
   "completed_tasks": [
+    {
+      "id": "SESSION-079-P1-GAP4-BATCH",
+      "title": "Transient-motion batch tuning closure for jump/fall/hit Layer 3 loop",
+      "completed_in": "SESSION-079",
+      "result": "Added transient_motion runtime namespace, once-only UnifiedTransitionRuntimeConfig injection, backend-rendered transient batch evaluation for run->jump / fall->land / hit_stagger recovery, knowledge/transient_motion_rules.json write->preload->resolve closure, and 10 PASS / 1 SKIP targeted regressions across tests/test_p1_gap4_batch.py, tests/test_locomotion_cns.py, and tests/test_layer3_closed_loop.py."
+    },
     {
       "id": "SESSION-078-P1-DISTILL-4",
       "title": "Cognitive science / biological motion distillation closed loop",
@@ -2173,28 +2180,40 @@
     "session067_future_cli_preparation": "Before anti_flicker_render and industrial_sprite become production-grade CLI backends, keep extending the generic --set dotted-key transport and enrich ArtifactManifest IPC payloads for multi-channel, temporal, and auxiliary asset groups instead of adding bespoke per-backend flags."
   },
   "recent_focus_snapshot": {
-    "session": "SESSION-078",
-    "focus": "P1-DISTILL-4: cognitive science / biological motion perception distillation loop with backend telemetry sidecars and runtime preload closure",
+    "session": "SESSION-079",
+    "focus": "P1-GAP4-BATCH: transient-motion namespace, high-nonlinearity batch evaluation, and write->preload->resolve closure for jump/fall/hit families",
     "closed": [
-      "P0-ARCH-064A",
-      "P0-ARCH-064B",
-      "P0-ARCH-064C",
-      "P0-ARCH-064D",
-      "P0-ARCH-064E",
-      "P0-ARCH-064F"
+      "P1-GAP4-BATCH"
     ],
-    "architecture_pillars": [
-      "LLVM Registry Pattern (Backend Registry + IoC)",
-      "Pixar USD Artifact Schema (Typed Manifests)",
-      "MAP-Elites Niche Registry (Pareto Front + Isolated Fitness)"
-    ],
-    "next_priorities": [
-      "P1-DISTILL-1A: Roll RuntimeDistillBus into gait blending hot paths and physics3d hot path",
-      "P1-MIGRATE-4: Implement hot-reload for dynamically discovered backends",
-      "P1-DISTILL-3: Distill Verlet and gait parameters into knowledge/ with stronger runtime consumption paths"
+    "next": [
+      "P1-B3-2",
+      "P1-XPBD-1",
+      "P1-MIGRATE-4"
     ]
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-079",
+      "date": "2026-04-19",
+      "focus": "P1-GAP4-BATCH: typed transient-motion runtime config and high-nonlinearity Layer 3 batch closure",
+      "changes": [
+        "mathart/animation/unified_gait_blender.py: added UnifiedTransitionRuntimeConfig, once-only transient resolve, and real transient lane parameter binding",
+        "mathart/core/builtin_backends.py: UnifiedMotionBackend now resolves transient runtime scalars once per clip and persists active transient parameters in clip/manifest metadata",
+        "mathart/distill/runtime_bus.py + knowledge_preloader.py + distill/__init__.py: added transient_transition_runtime rule program, transient_motion preload/registration, and package exports",
+        "mathart/animation/locomotion_cns.py: added backend-driven transient batch evaluation, transient metrics, and transient knowledge asset writer",
+        "tests/test_p1_gap4_batch.py: new E2E proof of knowledge preload materialization, transient batch write->preload->resolve roundtrip, and jump/hit runtime response",
+        "research/session079_browser_notes.md + SESSION_HANDOFF.md + PROJECT_BRAIN.json: external research traceability and session-079 state refresh"
+      ],
+      "test_results": "10 PASS / 1 SKIP targeted regressions across tests/test_p1_gap4_batch.py, tests/test_locomotion_cns.py, and tests/test_layer3_closed_loop.py",
+      "tasks_closed": [
+        "P1-GAP4-BATCH"
+      ],
+      "next_priorities": [
+        "P1-B3-2: add reference-motion / RL consumers for the widened runtime-knowledge ecosystem",
+        "P1-XPBD-1: extend physics realism work that can benefit from transient recovery telemetry",
+        "P1-MIGRATE-4: continue registry and migration closure work"
+      ]
+    },
     {
       "session_id": "SESSION-078",
       "date": "2026-04-19",

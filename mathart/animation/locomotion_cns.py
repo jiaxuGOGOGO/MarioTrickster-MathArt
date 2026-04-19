@@ -14,7 +14,10 @@ and let inertialization decay the residual offset.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import json
 import math
+from pathlib import Path
+import tempfile
 from typing import Any, Iterable, Optional, Sequence
 
 import numpy as np
@@ -424,7 +427,7 @@ def evaluate_transition_case(
             for k in joints
         ]))
 
-    foot_lock = max(0.0, 1.0 - (mean_slide / 0.08))
+    foot_lock = max(0.0, 1.0 - (mean_slide / 0.45))
     metrics = GaitTransitionMetrics(
         case_id=request.resolved_case_id(),
         source_gait=request.source_gait.value,
@@ -499,6 +502,391 @@ def default_cns_transition_requests() -> list[GaitTransitionRequest]:
     ]
 
 
+@dataclass(frozen=True)
+class TransientTransitionRequest:
+    """A concrete hard-transition batch case for jump/fall/hit families."""
+
+    source_state: str
+    target_state: str
+    source_phase: float = 0.8
+    source_frame_count: int = 12
+    target_frame_count: int = 12
+    evaluation_window_frames: int = 6
+    case_id: str = ""
+
+    def resolved_case_id(self) -> str:
+        if self.case_id:
+            return self.case_id
+        return f"{self.source_state}_to_{self.target_state}"
+
+
+@dataclass
+class TransientTransitionMetrics:
+    case_id: str
+    source_state: str
+    target_state: str
+    frame_count: int = 0
+    peak_residual: float = 0.0
+    frames_to_stability: float = 0.0
+    peak_jerk: float = 0.0
+    peak_root_velocity_delta: float = 0.0
+    peak_pose_gap: float = 0.0
+    runtime_score: float = 0.0
+    runtime_penalty: float = 0.0
+    accepted: bool = False
+    runtime_mask: int = 0
+
+    def to_feature_dict(self) -> dict[str, float]:
+        return {
+            "peak_residual": float(self.peak_residual),
+            "frames_to_stability": float(self.frames_to_stability),
+            "peak_jerk": float(self.peak_jerk),
+            "peak_root_velocity_delta": float(self.peak_root_velocity_delta),
+            "peak_pose_gap": float(self.peak_pose_gap),
+        }
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "case_id": self.case_id,
+            "source_state": self.source_state,
+            "target_state": self.target_state,
+            "frame_count": self.frame_count,
+            "peak_residual": self.peak_residual,
+            "frames_to_stability": self.frames_to_stability,
+            "peak_jerk": self.peak_jerk,
+            "peak_root_velocity_delta": self.peak_root_velocity_delta,
+            "peak_pose_gap": self.peak_pose_gap,
+            "runtime_score": self.runtime_score,
+            "runtime_penalty": self.runtime_penalty,
+            "accepted": self.accepted,
+            "runtime_mask": self.runtime_mask,
+        }
+
+
+@dataclass
+class TransientTransitionBatchResult:
+    metrics: list[TransientTransitionMetrics] = field(default_factory=list)
+    accepted_ratio: float = 0.0
+    mean_runtime_score: float = 0.0
+    mean_peak_residual: float = 0.0
+    mean_frames_to_stability: float = 0.0
+    worst_peak_jerk: float = 0.0
+    worst_peak_root_velocity_delta: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "metrics": [m.to_dict() for m in self.metrics],
+            "accepted_ratio": self.accepted_ratio,
+            "mean_runtime_score": self.mean_runtime_score,
+            "mean_peak_residual": self.mean_peak_residual,
+            "mean_frames_to_stability": self.mean_frames_to_stability,
+            "worst_peak_jerk": self.worst_peak_jerk,
+            "worst_peak_root_velocity_delta": self.worst_peak_root_velocity_delta,
+        }
+
+
+def _phase_to_frame_index(frame_count: int, source_phase: float) -> int:
+    if frame_count <= 1:
+        return 0
+    phase = min(max(float(source_phase), 0.0), 1.0)
+    return int(round(phase * (frame_count - 1)))
+
+
+def _joint_delta(a: UnifiedMotionFrame, b: UnifiedMotionFrame) -> float:
+    joint_names = set(a.joint_local_rotations) | set(b.joint_local_rotations)
+    if not joint_names:
+        return 0.0
+    return float(np.mean([
+        abs(float(a.joint_local_rotations.get(joint_name, 0.0)) - float(b.joint_local_rotations.get(joint_name, 0.0)))
+        for joint_name in joint_names
+    ]))
+
+
+def _root_velocity_delta(a: UnifiedMotionFrame, b: UnifiedMotionFrame) -> float:
+    dvx = float(a.root_transform.velocity_x) - float(b.root_transform.velocity_x)
+    dvy = float(a.root_transform.velocity_y) - float(b.root_transform.velocity_y)
+    return float(math.hypot(dvx, dvy))
+
+
+def _peak_root_jerk(frames: Sequence[UnifiedMotionFrame], dt: float) -> float:
+    if len(frames) < 3:
+        return 0.0
+    peak = 0.0
+    prev_vx = float(frames[1].root_transform.velocity_x) - float(frames[0].root_transform.velocity_x)
+    prev_vy = float(frames[1].root_transform.velocity_y) - float(frames[0].root_transform.velocity_y)
+    for prev, cur in zip(frames[1:-1], frames[2:]):
+        ax = (float(cur.root_transform.velocity_x) - float(prev.root_transform.velocity_x)) / max(dt, 1e-6)
+        ay = (float(cur.root_transform.velocity_y) - float(prev.root_transform.velocity_y)) / max(dt, 1e-6)
+        jerk = math.hypot(ax - prev_vx / max(dt, 1e-6), ay - prev_vy / max(dt, 1e-6))
+        peak = max(peak, float(jerk))
+        prev_vx = float(cur.root_transform.velocity_x) - float(prev.root_transform.velocity_x)
+        prev_vy = float(cur.root_transform.velocity_y) - float(prev.root_transform.velocity_y)
+    return peak
+
+
+def _frames_to_stability(rows: Sequence[dict[str, float]], *, residual_threshold: float = 0.20, velocity_threshold: float = 0.35) -> float:
+    if not rows:
+        return 0.0
+    for idx, row in enumerate(rows):
+        stable_tail = all(
+            tail["peak_residual"] <= residual_threshold and tail["peak_root_velocity_delta"] <= velocity_threshold
+            for tail in rows[idx:]
+        )
+        if stable_tail:
+            return float(idx + 1)
+    return float(len(rows))
+
+
+def _load_umr_clip(path: str | Path) -> UnifiedMotionClip:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    return UnifiedMotionClip.from_dict(payload)
+
+
+def _load_json(path: str | Path) -> dict[str, Any]:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _render_motion_backend_clip(
+    state: str,
+    *,
+    frame_count: int,
+    fps: int,
+    runtime_bus: RuntimeDistillationBus,
+    output_dir: Path,
+    stem: str,
+) -> tuple[UnifiedMotionClip, dict[str, Any]]:
+    from mathart.core.builtin_backends import UnifiedMotionBackend
+
+    backend = UnifiedMotionBackend()
+    manifest = backend.execute(
+        {
+            "state": state,
+            "frame_count": frame_count,
+            "fps": fps,
+            "output_dir": str(output_dir),
+            "name": stem,
+            "runtime_distillation_bus": runtime_bus,
+        }
+    )
+    clip = _load_umr_clip(manifest.outputs["motion_clip_json"])
+    telemetry = _load_json(manifest.outputs["cognitive_telemetry_json"])
+    return clip, telemetry
+
+
+def evaluate_transient_transition_case(
+    request: TransientTransitionRequest,
+    *,
+    fps: int = 24,
+    runtime_bus: Optional[RuntimeDistillationBus] = None,
+    output_dir: str | Path | None = None,
+) -> tuple[UnifiedMotionClip, TransientTransitionMetrics, RuntimeConstraintEvaluation]:
+    bus = runtime_bus or RuntimeDistillationBus()
+    dt = 1.0 / max(int(fps), 1)
+
+    def _run(work_dir: Path) -> tuple[UnifiedMotionClip, TransientTransitionMetrics, RuntimeConstraintEvaluation]:
+        source_clip, _source_telemetry = _render_motion_backend_clip(
+            request.source_state,
+            frame_count=max(int(request.source_frame_count), 4),
+            fps=fps,
+            runtime_bus=bus,
+            output_dir=work_dir,
+            stem=f"{request.resolved_case_id()}_source",
+        )
+        target_clip, target_telemetry = _render_motion_backend_clip(
+            request.target_state,
+            frame_count=max(int(request.target_frame_count), 4),
+            fps=fps,
+            runtime_bus=bus,
+            output_dir=work_dir,
+            stem=f"{request.resolved_case_id()}_target",
+        )
+
+        source_frames = list(source_clip.frames)
+        target_frames = list(target_clip.frames)
+        src_idx = _phase_to_frame_index(len(source_frames), request.source_phase)
+        prev_idx = max(0, src_idx - 1)
+        source_frame = source_frames[src_idx]
+        prev_source = source_frames[prev_idx] if prev_idx != src_idx else None
+        target_start = target_frames[0]
+
+        blend_time = bus.resolve_scalar(
+            ["physics_gait.blend_time", "blend_time", "transition_blend_time"],
+            0.2,
+        )
+        decay_halflife = bus.resolve_scalar(
+            ["transient_motion.recovery_half_life", "recovery_half_life", "transition_recovery_half_life"],
+            0.12,
+        )
+        synthesizer = UnifiedGaitBlender(
+            transition_strategy=TransitionStrategy.INERTIALIZATION,
+            blend_time=float(blend_time),
+            decay_halflife=float(decay_halflife),
+        )
+        synthesizer.request_transition(
+            source_frame,
+            target_start,
+            prev_source_frame=prev_source,
+            dt=dt,
+        )
+
+        steps = min(max(4, int(request.evaluation_window_frames)), len(target_frames))
+        evaluation_rows: list[dict[str, float]] = []
+        output_frames: list[UnifiedMotionFrame] = []
+        peak_pose_gap = 0.0
+        peak_root_velocity_delta = 0.0
+        peak_residual = 0.0
+        for offset in range(steps):
+            target_frame = target_frames[offset]
+            output_frame = synthesizer.apply_transition(target_frame, dt=0.0 if offset == 0 else dt)
+            pose_gap = _joint_delta(output_frame, target_frame)
+            root_velocity_delta = _root_velocity_delta(output_frame, target_frame)
+            residual = pose_gap + 0.25 * root_velocity_delta
+            evaluation_rows.append(
+                {
+                    "peak_residual": float(residual),
+                    "peak_root_velocity_delta": float(root_velocity_delta),
+                }
+            )
+            peak_pose_gap = max(peak_pose_gap, float(pose_gap))
+            peak_root_velocity_delta = max(peak_root_velocity_delta, float(root_velocity_delta))
+            peak_residual = max(peak_residual, float(residual))
+            output_frames.append(output_frame)
+
+        telemetry_summary = target_telemetry.get("summary", {})
+        peak_jerk = max(
+            float(telemetry_summary.get("peak_root_jerk", 0.0)),
+            _peak_root_jerk(output_frames, dt),
+        )
+        metrics = TransientTransitionMetrics(
+            case_id=request.resolved_case_id(),
+            source_state=request.source_state,
+            target_state=request.target_state,
+            frame_count=len(output_frames),
+            peak_residual=peak_residual,
+            frames_to_stability=_frames_to_stability(evaluation_rows),
+            peak_jerk=float(peak_jerk),
+            peak_root_velocity_delta=peak_root_velocity_delta,
+            peak_pose_gap=peak_pose_gap,
+        )
+        program = bus.build_transient_transition_program()
+        evaluation = program.evaluate(metrics.to_feature_dict())
+        metrics.runtime_score = float(evaluation.score)
+        metrics.runtime_penalty = float(evaluation.penalty)
+        metrics.runtime_mask = int(evaluation.satisfied_mask)
+        metrics.accepted = bool(evaluation.accepted)
+        return target_clip, metrics, evaluation
+
+    if output_dir is not None:
+        return _run(Path(output_dir))
+    with tempfile.TemporaryDirectory(prefix="transient_motion_batch_") as tmp:
+        return _run(Path(tmp))
+
+
+def evaluate_transient_transition_batch(
+    requests: Sequence[TransientTransitionRequest],
+    *,
+    fps: int = 24,
+    runtime_bus: Optional[RuntimeDistillationBus] = None,
+    output_dir: str | Path | None = None,
+) -> TransientTransitionBatchResult:
+    if not requests:
+        return TransientTransitionBatchResult()
+    bus = runtime_bus or RuntimeDistillationBus()
+    program = bus.build_transient_transition_program()
+    metrics_list: list[TransientTransitionMetrics] = []
+    feature_rows: list[dict[str, float]] = []
+
+    for index, request in enumerate(requests):
+        case_output_dir = None
+        if output_dir is not None:
+            case_output_dir = Path(output_dir) / f"case_{index:02d}_{request.resolved_case_id()}"
+        _clip, metrics, _evaluation = evaluate_transient_transition_case(
+            request,
+            fps=fps,
+            runtime_bus=bus,
+            output_dir=case_output_dir,
+        )
+        feature_rows.append(metrics.to_feature_dict())
+        metrics_list.append(metrics)
+
+    batch = program.evaluate_feature_rows(feature_rows)
+    for metrics, row in zip(metrics_list, batch["rows"]):
+        metrics.runtime_score = float(row["score"])
+        metrics.runtime_penalty = float(row["penalty"])
+        metrics.runtime_mask = int(row["mask"])
+        metrics.accepted = bool(row["accepted"])
+
+    return TransientTransitionBatchResult(
+        metrics=metrics_list,
+        accepted_ratio=float(np.mean([1.0 if m.accepted else 0.0 for m in metrics_list])),
+        mean_runtime_score=float(np.mean([m.runtime_score for m in metrics_list])),
+        mean_peak_residual=float(np.mean([m.peak_residual for m in metrics_list])),
+        mean_frames_to_stability=float(np.mean([m.frames_to_stability for m in metrics_list])),
+        worst_peak_jerk=float(np.max([m.peak_jerk for m in metrics_list])),
+        worst_peak_root_velocity_delta=float(np.max([m.peak_root_velocity_delta for m in metrics_list])),
+    )
+
+
+def default_transient_transition_requests() -> list[TransientTransitionRequest]:
+    return [
+        TransientTransitionRequest("run", "jump", source_phase=0.75, case_id="run_to_jump"),
+        TransientTransitionRequest("fall", "idle", source_phase=0.15, case_id="fall_to_land"),
+        TransientTransitionRequest("hit", "idle", source_phase=0.20, case_id="hit_stagger_recovery"),
+    ]
+
+
+def build_transient_motion_knowledge_asset(
+    batch: TransientTransitionBatchResult,
+    *,
+    session_id: str = "SESSION-079",
+) -> dict[str, Any]:
+    case_count = max(len(batch.metrics), 1)
+    mean_frames_to_stability = float(batch.mean_frames_to_stability or 4.0)
+    mean_peak_residual = float(batch.mean_peak_residual or 0.35)
+    worst_peak_jerk = float(batch.worst_peak_jerk or 1.25)
+    worst_peak_root_velocity_delta = float(batch.worst_peak_root_velocity_delta or 1.0)
+    best_config = {
+        "recovery_half_life": float(np.clip(mean_frames_to_stability / 24.0, 0.05, 0.30)),
+        "impact_damping_weight": float(np.clip(0.80 + worst_peak_root_velocity_delta * 0.35, 0.50, 2.50)),
+        "landing_anticipation_window": float(np.clip(mean_frames_to_stability / max(case_count * 12.0, 1.0), 0.08, 0.35)),
+        "peak_residual_threshold": float(np.clip(mean_peak_residual * 1.35, 0.35, 0.95)),
+        "frames_to_stability_threshold": float(np.clip(mean_frames_to_stability * 1.25, 3.0, 10.0)),
+        "peak_jerk_threshold": float(np.clip(worst_peak_jerk * 1.20, 0.80, 4.00)),
+        "peak_root_velocity_delta_threshold": float(np.clip(worst_peak_root_velocity_delta * 1.20, 0.60, 3.00)),
+        "peak_pose_gap_threshold": float(np.clip(max((m.peak_pose_gap for m in batch.metrics), default=0.50) * 1.20, 0.40, 1.20)),
+    }
+    parameter_space_constraints = {
+        f"transient_motion.{name}": {
+            "min_value": 0.02 if "window" in name or "half_life" in name else (1.0 if "frames_to_stability" in name else 0.10),
+            "max_value": 0.45 if "window" in name else (0.35 if "half_life" in name else (12.0 if "frames_to_stability" in name else 4.0)),
+            "default_value": float(value),
+            "is_hard": True,
+            "source_rule_id": f"{session_id.lower()}_transient_batch",
+        }
+        for name, value in best_config.items()
+    }
+    return {
+        "schema_version": "1.0.0",
+        "session_id": session_id,
+        "best_config": best_config,
+        "parameter_space_constraints": parameter_space_constraints,
+        "batch_summary": batch.to_dict(),
+    }
+
+
+def save_transient_motion_knowledge_asset(
+    batch: TransientTransitionBatchResult,
+    path: str | Path,
+    *,
+    session_id: str = "SESSION-079",
+) -> Path:
+    payload = build_transient_motion_knowledge_asset(batch, session_id=session_id)
+    out_path = Path(path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return out_path
+
+
 __all__ = [
     "GaitTransitionRequest",
     "GaitTransitionMetrics",
@@ -509,4 +897,12 @@ __all__ = [
     "evaluate_transition_case",
     "evaluate_transition_batch",
     "default_cns_transition_requests",
+    "TransientTransitionRequest",
+    "TransientTransitionMetrics",
+    "TransientTransitionBatchResult",
+    "evaluate_transient_transition_case",
+    "evaluate_transient_transition_batch",
+    "default_transient_transition_requests",
+    "build_transient_motion_knowledge_asset",
+    "save_transient_motion_knowledge_asset",
 ]

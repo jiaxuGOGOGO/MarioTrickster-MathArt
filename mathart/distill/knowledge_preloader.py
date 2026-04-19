@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 PHYSICS_GAIT_MODULE = "physics_gait"
 COGNITIVE_MOTION_MODULE = "cognitive_motion"
+TRANSIENT_MOTION_MODULE = "transient_motion"
 
 _PHYSICS_GAIT_SYNONYMS: dict[str, tuple[str, ...]] = {
     "physics_gait.compliance_distance": (
@@ -95,6 +96,52 @@ _COGNITIVE_MOTION_SYNONYMS: dict[str, tuple[str, ...]] = {
         "contact_expectation_weight",
         "cognitive_contact_expectation_weight",
         "distilled_contact_expectation_weight",
+    ),
+}
+
+_TRANSIENT_MOTION_SYNONYMS: dict[str, tuple[str, ...]] = {
+    "transient_motion.recovery_half_life": (
+        "recovery_half_life",
+        "transition_recovery_half_life",
+        "hit_recovery_half_life",
+        "distilled_recovery_half_life",
+    ),
+    "transient_motion.impact_damping_weight": (
+        "impact_damping_weight",
+        "landing_impact_damping_weight",
+        "transition_impact_damping_weight",
+        "distilled_impact_damping_weight",
+    ),
+    "transient_motion.landing_anticipation_window": (
+        "landing_anticipation_window",
+        "anticipation_window",
+        "landing_buffer_window",
+        "distilled_landing_anticipation_window",
+    ),
+    "transient_motion.peak_residual_threshold": (
+        "peak_residual_threshold",
+        "transition_peak_residual_threshold",
+        "distilled_peak_residual_threshold",
+    ),
+    "transient_motion.frames_to_stability_threshold": (
+        "frames_to_stability_threshold",
+        "transition_frames_to_stability_threshold",
+        "distilled_frames_to_stability_threshold",
+    ),
+    "transient_motion.peak_jerk_threshold": (
+        "peak_jerk_threshold",
+        "transition_peak_jerk_threshold",
+        "distilled_peak_jerk_threshold",
+    ),
+    "transient_motion.peak_root_velocity_delta_threshold": (
+        "peak_root_velocity_delta_threshold",
+        "transition_peak_root_velocity_delta_threshold",
+        "distilled_peak_root_velocity_delta_threshold",
+    ),
+    "transient_motion.peak_pose_gap_threshold": (
+        "peak_pose_gap_threshold",
+        "transition_peak_pose_gap_threshold",
+        "distilled_peak_pose_gap_threshold",
     ),
 }
 
@@ -159,6 +206,10 @@ def build_cognitive_parameter_space_from_knowledge(knowledge: dict[str, Any]) ->
     return _build_parameter_space_from_knowledge(knowledge, module_name=COGNITIVE_MOTION_MODULE)
 
 
+def build_transient_parameter_space_from_knowledge(knowledge: dict[str, Any]) -> ParameterSpace:
+    return _build_parameter_space_from_knowledge(knowledge, module_name=TRANSIENT_MOTION_MODULE)
+
+
 def register_physics_gait_knowledge(
     bus: RuntimeDistillationBus,
     knowledge_path: Path | str,
@@ -187,6 +238,24 @@ def register_cognitive_science_knowledge(
     return compiled
 
 
+def load_transient_motion_knowledge(knowledge_path: Path | str) -> dict[str, Any]:
+    return _load_knowledge_asset(knowledge_path)
+
+
+def register_transient_motion_knowledge(
+    bus: RuntimeDistillationBus,
+    knowledge_path: Path | str,
+) -> CompiledParameterSpace:
+    knowledge = load_transient_motion_knowledge(knowledge_path)
+    space = build_transient_parameter_space_from_knowledge(knowledge)
+    compiled = bus.register_space(TRANSIENT_MOTION_MODULE, space)
+    logger.info(
+        "Registered transient-motion knowledge: %d parameters",
+        compiled.dimensions,
+    )
+    return compiled
+
+
 def preload_all_distilled_knowledge(
     bus: RuntimeDistillationBus,
     knowledge_dir: Path | str | None = None,
@@ -208,6 +277,13 @@ def preload_all_distilled_knowledge(
         except Exception as exc:
             logger.warning("Failed to preload cognitive-motion knowledge: %s", exc)
 
+    transient_path = kdir / "transient_motion_rules.json"
+    if transient_path.exists():
+        try:
+            loaded[TRANSIENT_MOTION_MODULE] = register_transient_motion_knowledge(bus, transient_path)
+        except Exception as exc:
+            logger.warning("Failed to preload transient-motion knowledge: %s", exc)
+
     return loaded
 
 
@@ -227,20 +303,34 @@ def inject_cognitive_motion_synonyms() -> None:
             _RUNTIME_PARAM_SYNONYMS[canonical] = aliases
 
 
+def inject_transient_motion_synonyms() -> None:
+    from mathart.distill.runtime_bus import _RUNTIME_PARAM_SYNONYMS
+
+    for canonical, aliases in _TRANSIENT_MOTION_SYNONYMS.items():
+        if canonical not in _RUNTIME_PARAM_SYNONYMS:
+            _RUNTIME_PARAM_SYNONYMS[canonical] = aliases
+
+
 inject_physics_gait_synonyms()
 inject_cognitive_motion_synonyms()
+inject_transient_motion_synonyms()
 
 
 __all__ = [
     "PHYSICS_GAIT_MODULE",
     "COGNITIVE_MOTION_MODULE",
+    "TRANSIENT_MOTION_MODULE",
     "build_parameter_space_from_knowledge",
     "build_cognitive_parameter_space_from_knowledge",
+    "build_transient_parameter_space_from_knowledge",
     "inject_physics_gait_synonyms",
     "inject_cognitive_motion_synonyms",
+    "inject_transient_motion_synonyms",
     "load_physics_gait_knowledge",
     "load_cognitive_science_knowledge",
+    "load_transient_motion_knowledge",
     "preload_all_distilled_knowledge",
     "register_physics_gait_knowledge",
     "register_cognitive_science_knowledge",
+    "register_transient_motion_knowledge",
 ]

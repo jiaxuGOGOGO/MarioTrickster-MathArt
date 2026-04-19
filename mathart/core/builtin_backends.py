@@ -1371,6 +1371,7 @@ class UnifiedMotionBackend:
             MotionStateRequest,
             get_motion_lane_registry,
             resolve_unified_gait_runtime_config,
+            resolve_unified_transition_runtime_config,
         )
         from mathart.animation.unified_motion import (
             JOINT_CHANNEL_2D_SCALAR,
@@ -1394,7 +1395,16 @@ class UnifiedMotionBackend:
             blend_time=float(context.get("blend_time", 0.2)),
             phase_weight=float(context.get("phase_weight", 1.0)),
         )
-        lane = lane.begin_clip(gait_runtime_config=gait_runtime_config)
+        transition_runtime_config = resolve_unified_transition_runtime_config(
+            context.get("runtime_distillation_bus"),
+            recovery_half_life=float(context.get("recovery_half_life", 0.12)),
+            impact_damping_weight=float(context.get("impact_damping_weight", 1.0)),
+            landing_anticipation_window=float(context.get("landing_anticipation_window", 0.18)),
+        )
+        lane = lane.begin_clip(
+            gait_runtime_config=gait_runtime_config,
+            transition_runtime_config=transition_runtime_config,
+        )
 
         frames = []
         for i in range(frame_count):
@@ -1424,6 +1434,10 @@ class UnifiedMotionBackend:
                     "gait_blend_time": gait_runtime_config.blend_time,
                     "gait_phase_weight": gait_runtime_config.phase_weight,
                     "gait_param_source": gait_runtime_config.parameter_source,
+                    "transient_recovery_half_life": transition_runtime_config.recovery_half_life,
+                    "transient_impact_damping_weight": transition_runtime_config.impact_damping_weight,
+                    "transient_landing_anticipation_window": transition_runtime_config.landing_anticipation_window,
+                    "transient_param_source": transition_runtime_config.parameter_source,
                 },
                 root_x=root.x,
             )
@@ -1450,6 +1464,10 @@ class UnifiedMotionBackend:
                 "gait_blend_time": gait_runtime_config.blend_time,
                 "gait_phase_weight": gait_runtime_config.phase_weight,
                 "gait_param_source": gait_runtime_config.parameter_source,
+                "transient_recovery_half_life": transition_runtime_config.recovery_half_life,
+                "transient_impact_damping_weight": transition_runtime_config.impact_damping_weight,
+                "transient_landing_anticipation_window": transition_runtime_config.landing_anticipation_window,
+                "transient_param_source": transition_runtime_config.parameter_source,
                 "cognitive_telemetry": cognitive_telemetry,
             },
         )
@@ -1482,6 +1500,10 @@ class UnifiedMotionBackend:
                 "gait_blend_time": gait_runtime_config.blend_time,
                 "gait_phase_weight": gait_runtime_config.phase_weight,
                 "gait_param_source": gait_runtime_config.parameter_source,
+                "transient_recovery_half_life": transition_runtime_config.recovery_half_life,
+                "transient_impact_damping_weight": transition_runtime_config.impact_damping_weight,
+                "transient_landing_anticipation_window": transition_runtime_config.landing_anticipation_window,
+                "transient_param_source": transition_runtime_config.parameter_source,
                 "cognitive_telemetry": cognitive_telemetry,
                 "payload": {
                     "type": "motion_umr_clip",
@@ -1493,6 +1515,10 @@ class UnifiedMotionBackend:
                     "gait_blend_time": gait_runtime_config.blend_time,
                     "gait_phase_weight": gait_runtime_config.phase_weight,
                     "gait_param_source": gait_runtime_config.parameter_source,
+                    "transient_recovery_half_life": transition_runtime_config.recovery_half_life,
+                    "transient_impact_damping_weight": transition_runtime_config.impact_damping_weight,
+                    "transient_landing_anticipation_window": transition_runtime_config.landing_anticipation_window,
+                    "transient_param_source": transition_runtime_config.parameter_source,
                     "cognitive_telemetry_path": str(cognitive_telemetry_path),
                     "cognitive_telemetry_summary": cognitive_telemetry.get("summary", {}),
                 },

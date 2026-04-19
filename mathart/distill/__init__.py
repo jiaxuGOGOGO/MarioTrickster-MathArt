@@ -30,10 +30,13 @@ from .runtime_bus import (
 from .knowledge_preloader import (
     PHYSICS_GAIT_MODULE,
     COGNITIVE_MOTION_MODULE,
+    TRANSIENT_MOTION_MODULE,
     load_physics_gait_knowledge,
     load_cognitive_science_knowledge,
+    load_transient_motion_knowledge,
     register_physics_gait_knowledge,
     register_cognitive_science_knowledge,
+    register_transient_motion_knowledge,
     preload_all_distilled_knowledge,
 )
 
@@ -56,9 +59,12 @@ __all__ = [
     "load_runtime_distillation_bus",
     "PHYSICS_GAIT_MODULE",
     "COGNITIVE_MOTION_MODULE",
+    "TRANSIENT_MOTION_MODULE",
     "load_physics_gait_knowledge",
     "load_cognitive_science_knowledge",
+    "load_transient_motion_knowledge",
     "register_physics_gait_knowledge",
     "register_cognitive_science_knowledge",
+    "register_transient_motion_knowledge",
     "preload_all_distilled_knowledge",
 ]

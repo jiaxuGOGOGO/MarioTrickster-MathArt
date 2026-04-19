@@ -4,114 +4,121 @@
 
 | Field | Value |
 |---|---|
-| Current version | **0.69.0** |
+| Current version | **0.70.0** |
 | Last updated | **2026-04-19** |
-| Last session | **SESSION-078** |
-| Base commit inspected at session start | `ea28fe4` |
+| Last session | **SESSION-079** |
+| Base commit inspected at session start | `8e92c1f` |
 | Best quality score achieved | **0.892** |
-| Total iterations run | **625+** |
-| Total code lines | **~117.2k** |
-| Latest validation status | **SESSION-078: `pytest -q tests/test_p1_distill_3.py tests/test_p1_distill_4.py` => 29/29 PASS. The new cognitive distillation loop, sidecar telemetry path, registry registration, preloader closure, and adjacent physics-gait distillation path all remain green.** |
+| Total iterations run | **640+** |
+| Total code lines | **~117.6k** |
+| Latest validation status | **SESSION-079: `pytest -q tests/test_p1_gap4_batch.py tests/test_locomotion_cns.py tests/test_layer3_closed_loop.py` => 10 PASS, 1 SKIP. The new transient-motion namespace, once-only runtime config injection, batch telemetry loop, knowledge preload roundtrip, and adjacent locomotion CNS path all remain green.** |
 
-## What SESSION-078 Delivered
+## What SESSION-079 Delivered
 
-SESSION-078 closes **P1-DISTILL-4** by landing a real **research → telemetry → distill → preload → resolve** loop for cognitive-science and biological-motion priors. The implementation does not hide cognition behind prose-only notes. Instead, it converts the external references on **Disney anticipation/follow-through**, **DeepPhase phase manifolds**, **biological motion perception**, and **data-oriented typed runtime configuration** into concrete telemetry traces, runtime namespaces, a registry-native distillation backend, and end-to-end proof that the distilled values can be resolved from the runtime bus.
+SESSION-079 closes **P1-GAP4-BATCH** by expanding the previous gait-only Layer 3 audit into a real **high-nonlinearity transient batch loop**. The landing is grounded in external references rather than local intuition alone. Ubisoft motion-matching and ragdoll-recovery material were used to justify **separate transient-state contracts, recovery-time controls, and disruption-family isolation** [1] [2]. Frostbite’s data-oriented design guidance was used to preserve **once-only resolution and hot-path O(1) consumption through a typed config object instead of repeated dynamic lookups** [3]. Google Vizier’s optimization references were used to preserve **orthogonal multi-objective metrics, trial-style reporting, and Pareto-style acceptance discipline** [4] [5]. MLPerf Endpoints was used as the comparison model for **multi-dimensional throughput/latency style trade-off surfaces and standardized batch telemetry reporting** [6].
 
-| Workstream | SESSION-078 Landing |
+| Workstream | SESSION-079 Landing |
 |---|---|
-| **External reference grounding** | Re-audited DeepPhase, biological motion perception, Disney principles, and Frostbite-style data-oriented configuration; distilled the actionable implementation notes into `research/session078_browser_notes.md` |
-| **Continuous telemetry sidecar** | `UnifiedMotionBackend` now emits a cognition-focused sidecar JSON containing continuous per-frame traces: phase, phase velocity, root position/velocity/speed/jerk, extremity motion energy, angular velocity, and contact expectation |
-| **Trace-based scoring** | `mathart/animation/principles_quantifier.py` now includes trace-native helpers for anticipation, follow-through, phase-manifold consistency, and perceptual naturalness, rather than relying on isolated pose snapshots |
-| **Direction-sensitive phase manifold evaluation** | Phase-manifold consistency now penalizes temporal reversal / incoherent direction, making the metric sensitive to continuous ordering instead of only unordered displacement magnitude |
-| **Registry-native distillation backend** | Added `mathart/core/cognitive_distillation_backend.py`, a new evolution-domain backend that reuses the SESSION-076 grid-search and Pareto infrastructure while consuming real motion telemetry sidecars |
-| **Typed runtime namespace** | Added canonical runtime namespace **`cognitive_motion.*`** with aliases for `anticipation_bias`, `phase_salience`, `jerk_tolerance`, and `contact_expectation_weight` |
-| **Preload closure** | `mathart/distill/knowledge_preloader.py` now loads both `physics_gait_rules.json` and `cognitive_science_rules.json`, registers both compiled spaces on the same `RuntimeDistillationBus`, and injects synonyms for each namespace |
-| **Schema guardrails** | `mathart/core/artifact_schema.py` now validates optional `cognitive_telemetry` motion sidecars when present, ensuring the trace payload remains typed and auditable |
-| **Backend discovery** | Added `BackendType.EVOLUTION_COGNITIVE_DISTILL` plus registry auto-loading so orchestration remains plugin-driven rather than hardwired |
-| **E2E proof** | New suite `tests/test_p1_distill_4.py` proves registration, telemetry emission, continuous-trace scoring, knowledge writing, preload closure, and coexistence with `physics_gait` |
+| **External research grounding** | Re-audited Ubisoft Motion Matching, Ubisoft ragdoll recovery, Frostbite data-oriented design, Google Vizier, and MLPerf endpoints; distilled implementation notes into `research/session079_browser_notes.md` |
+| **Typed transient runtime namespace** | Added canonical runtime namespace **`transient_motion.*`** with aliases for `recovery_half_life`, `impact_damping_weight`, `landing_anticipation_window`, and transient batch acceptance thresholds |
+| **Once-only transient config injection** | `UnifiedMotionBackend` now resolves a dedicated **`UnifiedTransitionRuntimeConfig`** exactly once per clip and binds it into procedural transient lanes, preserving hot-path discipline established in SESSION-077 |
+| **Real output-side parameter effect** | `jump`, `fall`, and `hit` lane families now materially respond to transient runtime scalars instead of merely carrying metadata, so root motion and recovery behavior change when knowledge is preloaded |
+| **Batch transient evaluation** | `mathart/animation/locomotion_cns.py` now supports **run→jump, fall→land, and hit_stagger recovery** evaluation over real UMR clips emitted by `UnifiedMotionBackend`, using peak residual, frames-to-stability, jerk, root-velocity discontinuity, and pose-gap metrics |
+| **Runtime acceptance program** | `RuntimeDistillationBus` now compiles a dedicated **`transient_transition_runtime`** rule program so batch evaluation uses the same typed bus discipline as gait transition audits |
+| **Knowledge asset roundtrip** | The transient batch loop now writes **`knowledge/transient_motion_rules.json`** and `knowledge_preloader.py` can preload/register it back into the runtime bus without orchestrator edits |
+| **Package export closure** | `mathart/distill/__init__.py` now exports transient knowledge loading / registration helpers so downstream tests and runtime code can consume the new namespace consistently |
+| **E2E proof** | New suite `tests/test_p1_gap4_batch.py` proves transient knowledge preload, runtime resolution, material jump/hit response, batch evaluation, and knowledge roundtrip back into runtime playback |
 
-## Core Files Changed in SESSION-078
+## Core Files Changed in SESSION-079
 
 | File | Change Type | Description |
 |---|---|---|
-| `mathart/animation/principles_quantifier.py` | **EXTENDED** | Added cognition-trace datamodel adapters and scoring helpers for anticipation, follow-through, phase-manifold consistency, and perceptual naturalness; phase scoring now respects temporal directionality |
-| `mathart/core/builtin_backends.py` | **EXTENDED** | `UnifiedMotionBackend` now derives and persists cognition telemetry sidecars without intruding into the numerical kernel |
-| `mathart/core/cognitive_distillation_backend.py` | **NEW** | New registry-native cognitive distillation backend using telemetry-driven evaluation and typed JSON knowledge emission |
-| `mathart/core/backend_types.py` | **EXTENDED** | Added `BackendType.EVOLUTION_COGNITIVE_DISTILL` plus aliases such as `cognitive_distill` and `biomotion_distill` |
-| `mathart/core/backend_registry.py` | **EXTENDED** | Auto-load hook for the new cognitive distillation backend |
-| `mathart/core/artifact_schema.py` | **EXTENDED** | Added optional validation for `cognitive_telemetry` sidecars on motion UMR manifests |
-| `mathart/distill/knowledge_preloader.py` | **REWRITTEN** | Shared preload logic for both `physics_gait` and `cognitive_motion`, including runtime synonym injection and dual-space registration |
-| `mathart/distill/__init__.py` | **EXTENDED** | Exported cognitive knowledge loading / registration helpers |
-| `tests/test_p1_distill_4.py` | **NEW** | 6-test E2E suite covering registration, sidecars, trace-order sensitivity, distillation output, preload closure, and coexistence with `physics_gait` |
-| `PROJECT_BRAIN.json` | **UPDATED** | Version bump, session record refresh, task closure, and new current-focus summary |
+| `mathart/animation/unified_gait_blender.py` | **EXTENDED** | Added `UnifiedTransitionRuntimeConfig`, once-only transient parameter resolution, and procedural lane binding so jump/fall/hit consume transient runtime controls in the real motion path |
+| `mathart/core/builtin_backends.py` | **EXTENDED** | `UnifiedMotionBackend` now resolves transient runtime config alongside gait config, injects it once per clip, and persists active transient parameters in clip / manifest metadata |
+| `mathart/distill/runtime_bus.py` | **EXTENDED** | Added `build_transient_transition_program()` for typed batch acceptance over transient metrics |
+| `mathart/distill/knowledge_preloader.py` | **EXTENDED** | Added `TRANSIENT_MOTION_MODULE`, transient knowledge loading/registration, and synonym injection for the new namespace |
+| `mathart/distill/__init__.py` | **EXTENDED** | Exported transient knowledge helpers and namespace constant |
+| `mathart/animation/locomotion_cns.py` | **EXTENDED** | Added transient batch request/metric/result models, backend-driven evaluation, and transient knowledge asset writing helpers |
+| `tests/test_p1_gap4_batch.py` | **NEW** | 2-test E2E suite covering knowledge preload materialization, transient batch evaluation, and write→preload→resolve roundtrip |
+| `research/session079_browser_notes.md` | **NEW** | External-reference implementation notes for transient-state isolation, once-only config injection, and batch telemetry discipline |
+| `PROJECT_BRAIN.json` | **UPDATED** | Version bump, session record refresh, task closure, and next-priority reorder |
 | `SESSION_HANDOFF.md` | **REWRITE** | This document |
 
 ## Validation Evidence
 
 | Validation item | Result |
 |---|---|
-| `tests/test_p1_distill_4.py` | **6 / 6 PASS** — backend registration, telemetry sidecars, trace-order sensitivity, cognitive knowledge writing, preload closure, and dual-namespace coexistence all verified |
-| `tests/test_p1_distill_3.py` | **23 / 23 PASS** — adjacent physics-gait distillation loop remains intact after the dual-namespace preload rewrite |
-| Combined targeted regression | **29 / 29 PASS** — `pytest -q tests/test_p1_distill_3.py tests/test_p1_distill_4.py` |
-| Dependency repair | **PASS** — installed missing `pytest` and `networkx` in the sandbox so the animation package and test runner could execute locally |
+| `tests/test_p1_gap4_batch.py` | **2 / 2 PASS** — transient knowledge preload changes real jump/hit outputs, batch evaluation writes knowledge, and reloaded runtime config resolves from bus correctly |
+| `tests/test_locomotion_cns.py` | **7 / 7 PASS** — existing gait transition evaluation and bridge behaviors remain intact after transient batch expansion |
+| `tests/test_layer3_closed_loop.py` | **1 / 1 PASS, 1 SKIP** — adjacent Layer 3 closed-loop path remains stable |
+| Combined targeted regression | **10 PASS, 1 SKIP** — `pytest -q tests/test_p1_gap4_batch.py tests/test_locomotion_cns.py tests/test_layer3_closed_loop.py` |
 
 ## Red-Line Enforcement Summary
 
-| Red Line | How SESSION-078 Enforces It |
+| Red Line | How SESSION-079 Enforces It |
 |---|---|
-| **No telemetry-blind cognition scoring** | The distillation backend consumes real sidecar traces emitted by `UnifiedMotionBackend`; cognition metrics are not derived from static constants or prose-only rules |
-| **No kernel intrusion** | Telemetry is captured at the backend boundary and persisted as sidecar JSON; the numerical motion core is not polluted with distillation-only I/O concerns |
-| **No namespace collision** | `physics_gait.*` and `cognitive_motion.*` now coexist on the same runtime bus with separate canonical keys and aliases |
-| **No phantom preload loop** | `tests/test_p1_distill_4.py` proves that `cognitive_science_rules.json` is written, read back, registered, and resolved through `RuntimeDistillationBus.resolve_scalar()` |
-| **No unordered-trace fake metric** | Phase-manifold scoring now penalizes reversed temporal direction and sign-flip incoherence, so continuous sequence order materially affects the result |
+| **No gait-only fake batch closure** | The batch loop now covers three non-steady disruption families: `run→jump`, `fall→land`, and `hit_stagger_recovery` through real backend-rendered UMR clips |
+| **No metadata-only transient namespace** | `transient_motion.*` scalars are not just stored; they materially alter procedural transient lanes in `jump`, `fall`, and `hit` playback |
+| **No hot-path repeated resolve** | Transient parameters are resolved once into `UnifiedTransitionRuntimeConfig` before clip generation, matching the data-oriented once-only rule from SESSION-077 and Frostbite guidance [3] |
+| **No orphaned knowledge asset** | `transient_motion_rules.json` can now be written, preloaded, registered, and resolved through `RuntimeDistillationBus` without orchestrator surgery |
+| **No single-metric transition judgement** | Batch acceptance is based on orthogonal residual/stability/jerk/root-velocity/pose-gap signals through a typed runtime program informed by Vizier-style multi-objective discipline [4] [5] |
 
 ## Task-by-Task Status Update
 
 | Task ID | Previous Status | New Status | Notes |
 |---|---|---|---|
-| `P1-DISTILL-4` | TODO | **DONE** | Cognitive science / biological motion distillation loop now exists end-to-end: telemetry sidecars, registry-native distillation backend, typed knowledge asset, preloader closure, and 29/29 targeted regressions with adjacent P1-DISTILL-3 |
-| `P1-DISTILL-3` | DONE | DONE | Revalidated after the shared preloader rewrite; no regressions |
-| `P1-B3-1` | DONE | DONE | Its once-only runtime injection discipline remains the baseline that SESSION-078 extends into a second runtime namespace |
-| `P1-GAP4-BATCH` | TODO | TODO | Still the highest-value next batch tuning target, now with richer telemetry infrastructure available |
-| `P1-B3-2` | TODO | TODO | Remains open; reference-motion/RL integration still not landed |
+| `P1-GAP4-BATCH` | PARTIAL | **DONE** | SESSION-079 closes the missing widening step: transient batch evaluation now covers jump/fall/hit disruption families, writes `transient_motion_rules.json`, preloads the new namespace, and proves runtime materialization with 10 PASS / 1 SKIP targeted regression results |
+| `P1-DISTILL-4` | DONE | DONE | Reused as the telemetry and typed-preload baseline for transient batch work |
+| `P1-B3-1` | DONE | DONE | Its once-only runtime injection discipline now extends into a second non-gait runtime config object |
+| `P1-B3-2` | TODO | TODO | Still open; RL/reference-motion consumer saturation is the next motion-stack value multiplier |
+| `P1-XPBD-1` | TODO | TODO | Still an important physics realism gap, but no longer the top motion-runtime blocker after transient batch closure |
 
-## Architecture State After SESSION-078
+## Architecture State After SESSION-079
 
-The repository now has a proper **dual-domain distillation bus** in the motion stack. SESSION-076 established typed preload for `physics_gait`; SESSION-077 proved once-only runtime injection in the real gait path; SESSION-078 extends the same contract discipline into **cognitive motion perception**. The important architectural change is that cognition is no longer a side note attached to animation principles. It is now represented as a typed parameter space, a real telemetry contract, and a discoverable backend that can participate in the same microkernel ecosystem as the other evolution-domain plugins.
+The motion stack now has **three cooperating runtime knowledge domains** instead of one practical gait-only path and one partially isolated cognition path. `physics_gait` still controls steady locomotion transition priors. `cognitive_motion` still scores and distills perception-oriented trace priors. SESSION-079 adds **`transient_motion`** as the missing runtime contract for high-nonlinearity disruption families. The important architectural shift is that the project no longer treats jump/fall/hit as exceptional procedural branches outside the distillation ecosystem. They now sit inside the same **research → typed knowledge → preload → once-only runtime resolve → E2E validation** discipline as the other motion domains.
 
-| Layer | State after SESSION-078 |
+| Layer | State after SESSION-079 |
 |---|---|
-| **Knowledge production** | `cognitive_distillation_backend.py` writes `knowledge/cognitive_science_rules.json` from real telemetry traces using grid search + Pareto ranking |
-| **Knowledge preload** | `knowledge_preloader.py` preloads both `physics_gait` and `cognitive_motion` into the runtime bus |
-| **Runtime transport** | Canonical dotted namespaces and aliases make both spaces resolvable through `RuntimeDistillationBus.resolve_scalar()` |
-| **Motion export boundary** | `UnifiedMotionBackend` emits typed cognition sidecars with summary + traces alongside clip JSON |
-| **Schema enforcement** | Motion artifacts can validate cognition sidecars instead of treating them as opaque blobs |
-| **Research traceability** | `research/session078_browser_notes.md` records the external-reference constraints that informed the landing |
+| **Knowledge production** | `locomotion_cns.py` can evaluate transient families and write `knowledge/transient_motion_rules.json` |
+| **Knowledge preload** | `knowledge_preloader.py` now preloads `physics_gait`, `cognitive_motion`, and `transient_motion` into the same runtime bus |
+| **Runtime transport** | `RuntimeDistillationBus` can compile a transient-specific rule program and resolve transient scalars through canonical dotted keys plus aliases |
+| **Motion execution** | `UnifiedMotionBackend` injects both gait and transient configs once per clip, then procedural transient lanes consume the resolved object directly |
+| **Output auditability** | Clip metadata and manifest metadata now record the active transient runtime parameters and their source |
+| **Research traceability** | `research/session079_browser_notes.md` records the external constraints behind transient isolation, batch telemetry, and config injection discipline |
 
 ## What Still Needs Attention Next
 
-The SESSION-078 landing closes the requested distillation loop, but it also exposes the next bottlenecks more clearly. The most valuable next work is not another abstract research pass; it is broadening the same telemetry-and-distillation discipline into higher-nonlinearity transitions and runtime consumers.
+SESSION-079 closes the highest-priority batch gap, so the next valuable work shifts from widening transition families to **raising consumer depth and physical richness**. The motion stack can now distill and preload steady gait, cognitive motion, and transient recovery priors, but not all runtime consumers exploit those priors equally.
 
 | Priority | Recommendation | Reason |
 |---|---|---|
-| **1** | Start **P1-GAP4-BATCH** using the new telemetry sidecar channel for jump / fall / hit transition families | The sidecar contract is now rich enough to compare non-steady locomotion clips without inventing another metric dialect |
-| **2** | Extend cognitive scalar consumption into more runtime consumers, not just preload availability | SESSION-078 proves preload/resolve closure, but broader runtime use sites for cognition-aware priors are still sparse |
-| **3** | Add cross-family evaluation fixtures that mix gait, transient, and impact clips in a single distillation batch | This would let the cognitive backend evolve beyond locomotion-centered reference contexts |
-| **4** | Preserve typed JSON / registry discipline when expanding the cognitive namespace | Avoid letting future additions drift into ad-hoc aliases or backend-local magic constants |
+| **1** | Start **P1-B3-2** and feed reference-motion / RL consumers with the now richer runtime parameter ecosystem | The runtime bus is no longer gait-only; RL/reference systems can now consume typed locomotion + transient priors instead of ad-hoc constants |
+| **2** | Advance **P1-XPBD-1** or adjacent physics realism work that benefits from transient recovery telemetry | The new transient batch metrics expose where physical recovery and discontinuity remain synthetic rather than simulation-grounded |
+| **3** | Add recurring CI/audit scheduling for transient batches | The widened batch loop now exists; the remaining governance step is making it periodic rather than session-only |
+| **4** | Extend transient knowledge writing into richer per-family rule stores if jump/fall/hit begin to diverge sharply | The current unified namespace is correct for this landing, but future specialization may need family-scoped assets while preserving typed registry discipline |
 
 ## Known Issues / Non-Blocking Notes
 
 | Issue | Status |
 |---|---|
-| `pytest` and `networkx` were missing from the sandbox at first | **Handled during session** by installing the missing packages before validation |
-| Current cognitive distillation evaluation still uses generated reference contexts (`walk`, `run`, `jump`, `hit`) rather than a broader external clip corpus | **Acceptable for this landing**, but future tuning could widen the telemetry set |
-| The new runtime namespace is fully preloadable/resolvable, but widespread downstream runtime consumers for cognition priors remain limited | **Deferred** — the task requirement was distillation closure, not full consumer saturation |
+| Transient batch evaluation currently uses internal generated UMR clips rather than an external captured corpus | **Acceptable for this landing** because the user requirement was typed batch closure and runtime materialization, not dataset expansion |
+| `tests/test_layer3_closed_loop.py` still includes one skipped case | **Unchanged / acceptable** — the skip predates this session and no new regression was introduced |
+| The transient knowledge asset currently stores a unified rule set rather than separate per-family assets for jump/fall/hit | **Intentional for this landing** to preserve a clean namespace and smaller governance surface |
 
 ## Quick Resume Checklist for the Next Session
 
-1. Read `PROJECT_BRAIN.json` and confirm **SESSION-078 / P1-DISTILL-4 DONE** status.
-2. Read `research/session078_browser_notes.md` for the distilled external-reference constraints behind the implementation.
-3. Read `mathart/core/cognitive_distillation_backend.py` to understand the telemetry-driven grid search and knowledge asset contract.
-4. Read `mathart/core/builtin_backends.py` focusing on the cognitive telemetry sidecar helpers attached to `UnifiedMotionBackend`.
-5. Run `pytest -q tests/test_p1_distill_3.py tests/test_p1_distill_4.py` before extending distillation or transition-batch work.
-6. If starting **P1-GAP4-BATCH**, preserve the same rule: **emit telemetry at the backend boundary, keep namespaces typed, preload through the runtime bus, and prove with E2E resolution rather than note-only “research completion.”**
+1. Read `PROJECT_BRAIN.json` and confirm **SESSION-079 / P1-GAP4-BATCH DONE** status.
+2. Read `research/session079_browser_notes.md` for the external-reference constraints behind transient-state isolation and batch telemetry design.
+3. Read `mathart/animation/unified_gait_blender.py` and `mathart/core/builtin_backends.py` to understand where transient runtime config is resolved once and injected into procedural lanes.
+4. Read `mathart/animation/locomotion_cns.py` for the transient batch request schema, evaluation metrics, and knowledge-asset writer.
+5. Run `pytest -q tests/test_p1_gap4_batch.py tests/test_locomotion_cns.py tests/test_layer3_closed_loop.py` before extending RL consumers or batch CI automation.
+6. If starting **P1-B3-2** or transient CI work, preserve the same rule: **typed namespaces, once-only runtime resolve, real backend-rendered telemetry, and E2E preload proof instead of note-only “support.”**
+
+## References
+
+[1]: https://www.gdcvault.com/play/1023280/Motion-Matching-and-The-Road "Motion Matching and The Road to Next-Gen Animation — GDC Vault"
+[2]: https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/74NXgJKzhhZw5sy4XsRag8/1327abfd28611ed5fd5e66efbdfb8a17/GDC20RagdollMotionMatching4.pdf "Ragdoll Motion Matching — Ubisoft / GDC 2020"
+[3]: https://www.ea.com/frostbite/news/introduction-to-data-oriented-design "Introduction to Data-Oriented Design — Frostbite"
+[4]: https://medium.com/google-cloud/google-vizier-for-multi-objective-optimization-moo-ce607e3e5ee3 "Google Vizier for Multi-objective Optimization — Google Cloud"
+[5]: https://research.google.com/pubs/archive/46180.pdf "Google Vizier: A Service for Black-Box Optimization — Google Research"
+[6]: https://mlcommons.org/benchmarks/endpoints/ "MLPerf Endpoints — MLCommons"

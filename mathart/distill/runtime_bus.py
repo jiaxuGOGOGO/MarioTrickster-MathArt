@@ -807,6 +807,75 @@ class RuntimeDistillationBus:
             min_score=0.75,
         )
 
+    def build_transient_transition_program(
+        self,
+        *,
+        peak_residual_threshold: Optional[float] = None,
+        frames_to_stability_threshold: Optional[float] = None,
+        peak_jerk_threshold: Optional[float] = None,
+        peak_root_velocity_delta_threshold: Optional[float] = None,
+        peak_pose_gap_threshold: Optional[float] = None,
+    ) -> RuntimeRuleProgram:
+        peak_residual = float(peak_residual_threshold) if peak_residual_threshold is not None else self.resolve_scalar(
+            [
+                "transient_motion.peak_residual_threshold",
+                "peak_residual_threshold",
+                "transition_peak_residual_threshold",
+            ],
+            0.65,
+        )
+        frames_to_stability = float(frames_to_stability_threshold) if frames_to_stability_threshold is not None else self.resolve_scalar(
+            [
+                "transient_motion.frames_to_stability_threshold",
+                "frames_to_stability_threshold",
+                "transition_frames_to_stability_threshold",
+            ],
+            6.0,
+        )
+        peak_jerk = float(peak_jerk_threshold) if peak_jerk_threshold is not None else self.resolve_scalar(
+            [
+                "transient_motion.peak_jerk_threshold",
+                "peak_jerk_threshold",
+                "transition_peak_jerk_threshold",
+            ],
+            1.75,
+        )
+        peak_root_velocity_delta = float(peak_root_velocity_delta_threshold) if peak_root_velocity_delta_threshold is not None else self.resolve_scalar(
+            [
+                "transient_motion.peak_root_velocity_delta_threshold",
+                "peak_root_velocity_delta_threshold",
+                "transition_peak_root_velocity_delta_threshold",
+            ],
+            1.50,
+        )
+        peak_pose_gap = float(peak_pose_gap_threshold) if peak_pose_gap_threshold is not None else self.resolve_scalar(
+            [
+                "transient_motion.peak_pose_gap_threshold",
+                "peak_pose_gap_threshold",
+                "transition_peak_pose_gap_threshold",
+            ],
+            0.90,
+        )
+        clauses = [
+            RuntimeRuleClause(feature="peak_residual", op="le", threshold=peak_residual, weight=1.0, tag="peak_residual_gate"),
+            RuntimeRuleClause(feature="frames_to_stability", op="le", threshold=frames_to_stability, weight=1.0, tag="stability_gate"),
+            RuntimeRuleClause(feature="peak_jerk", op="le", threshold=peak_jerk, weight=1.0, tag="jerk_gate"),
+            RuntimeRuleClause(feature="peak_root_velocity_delta", op="le", threshold=peak_root_velocity_delta, weight=1.0, tag="root_velocity_gate"),
+            RuntimeRuleClause(feature="peak_pose_gap", op="le", threshold=peak_pose_gap, weight=0.5, tag="pose_gap_gate"),
+        ]
+        return self.build_rule_program(
+            name="transient_transition_runtime",
+            feature_names=[
+                "peak_residual",
+                "frames_to_stability",
+                "peak_jerk",
+                "peak_root_velocity_delta",
+                "peak_pose_gap",
+            ],
+            clauses=clauses,
+            min_score=0.75,
+        )
+
     def summary(self) -> dict[str, Any]:
         if not self.last_refresh_summary:
             self.refresh_from_knowledge()
