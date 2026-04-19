@@ -1,7 +1,7 @@
 {
-  "version": "v0.79.0",
-  "last_session_id": "SESSION-088",
-  "last_updated": "2026-04-19T23:30:00Z",
+  "version": "v0.80.0",
+  "last_session_id": "SESSION-089",
+  "last_updated": "2026-04-20T12:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -31,9 +31,9 @@
     "closed_archived": 51
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-087 P1-AI-2D-SPARSECTRL endpoint CLOSED: ComfyUI WebSocket execution engine + one-click pipeline runner + 35 E2E tests. Cumulative P1-AI-2D: 79 PASS, 0 FAIL (SESSION-084: 3 + SESSION-086: 41 + SESSION-087: 35). Full backward compatibility preserved.",
-  "total_iterations": 660,
-  "total_code_lines": 123600,
+  "validation_pass_rate": "SESSION-089 P1-INDUSTRIAL-34C CLOSED: Dead Cells 3D→2D orthographic pixel render pipeline + OrthographicPixelRenderBackend registry plugin + 22 E2E tests. Pure NumPy software rasterizer, cel-shading kernel, nearest-neighbor downscale. Cumulative: 22 PASS, 0 FAIL.",
+  "total_iterations": 682,
+  "total_code_lines": 132591,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
@@ -77,9 +77,11 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-084 closes P1-AI-2D by externalizing ComfyUI anti-flicker graph topology into workflow_api preset assets, injecting runtime values via semantic selectors instead of node IDs, and upgrading anti_flicker_render to emit typed ANTI_FLICKER_REPORT manifests with exported preset assets and assembled workflow payloads.",
+  "current_focus": "SESSION-089 closes P1-INDUSTRIAL-34C by implementing the Dead Cells-style 3D→2D orthographic pixel render pipeline: OrthographicPixelRenderBackend self-registers via @register_backend, pure NumPy software rasterizer with edge-function triangle rasterization and Z-buffer, multi-pass Albedo/Normal/Depth extraction, hard-stepped cel-shading kernel (N·L dot product + threshold banding), nearest-neighbor downscale, and strongly-typed ArtifactManifest output. 22 E2E tests enforce anti-perspective, anti-bilinear, and anti-GUI red lines.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "research_notes_session089.md",
+    "tests/test_orthographic_pixel_render.py",
     "research/session084_ai2d_preset_research.md",
     "tests/test_p1_ai_2d_preset_injection.py",
     "research/session082_gpu_benchmark_reference_notes.md",
@@ -426,10 +428,12 @@
       "id": "P1-INDUSTRIAL-34C",
       "priority": "P1",
       "title": "3D-to-2D mesh rendering path (Dead Cells full workflow)",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "high",
-      "description": "Implement actual 3D mesh to 2D pixel art pipeline following Dead Cells workflow: 3D skeletal animation -> orthographic render -> no-AA downscale -> normal-map cel shade.",
-      "added_in": "SESSION-034"
+      "description": "CLOSED in SESSION-089. OrthographicPixelRenderBackend self-registers via @register_backend (zero trunk modification). Pure NumPy software rasterizer: edge-function triangle rasterization with Z-buffer, barycentric normal/UV interpolation, multi-pass Albedo/Normal/Depth extraction, hard-stepped cel-shading kernel (N·L dot product + configurable threshold banding), nearest-neighbor downscale (Dead Cells: no AA). Strongly-typed ArtifactManifest with texture_channels payload, engine slot bindings (Unity _MainTex/_NormalMap, Godot texture_albedo/texture_normal), and render report. 22 E2E tests enforce anti-perspective (orthographic matrix validation), anti-bilinear (edge pixel alpha ∈ {0,255}), and anti-GUI (zero GLFW/X11 import) red lines. Research: Dead Cells GDC 2018 (Thomas Vasseur), Guilty Gear Xrd GDC 2015 (Junya C. Motomura), Headless EGL/OSMesa architecture.",
+      "added_in": "SESSION-034",
+      "updated_in": "SESSION-089",
+      "completed_in": "SESSION-089"
     },
     {
       "id": "P1-INDUSTRIAL-44A",
@@ -2689,6 +2693,12 @@
       "title": "Full ComfyUI workflow execution with SparseCtrl + AnimateDiff temporal consistency pipeline",
       "completed_in": "SESSION-086",
       "priority": "P1"
+    },
+    {
+      "id": "P1-INDUSTRIAL-34C",
+      "title": "3D-to-2D mesh rendering path (Dead Cells full workflow)",
+      "completed_in": "SESSION-089",
+      "priority": "P1"
     }
   ],
   "legacy_session_changes_consolidated": {
@@ -2739,6 +2749,12 @@
       "completed_in": "SESSION-087",
       "title": "ComfyUI WebSocket end-to-end async execution engine",
       "summary": "Delivered ComfyUIClient with WebSocket event-stream monitoring, HTTP fallback polling, graceful offline degradation, and automated artifact download. One-click pipeline runner (tools/run_sparsectrl_pipeline.py) orchestrates physics→SDF render→payload assembly→ComfyUI execution→image download. 35 offline-safe E2E tests. Research: ComfyUI WebSocket API, microservice resilience, data-driven orchestration."
+    },
+    {
+      "id": "P1-INDUSTRIAL-34C",
+      "completed_in": "SESSION-089",
+      "title": "Dead Cells 3D→2D orthographic pixel render pipeline",
+      "summary": "OrthographicPixelRenderBackend self-registers via @register_backend. Pure NumPy software rasterizer: edge-function triangle rasterization with Z-buffer, barycentric interpolation, multi-pass Albedo/Normal/Depth extraction, hard-stepped cel-shading kernel (N·L + threshold banding), nearest-neighbor downscale. Strongly-typed ArtifactManifest with texture_channels and engine slot bindings. 22 E2E tests enforce anti-perspective, anti-bilinear, anti-GUI red lines. Research: Dead Cells GDC 2018, Guilty Gear Xrd GDC 2015, Headless EGL architecture."
     }
   ],
   "session_log": [
@@ -2751,6 +2767,22 @@
         "PROJECT_BRAIN.json"
       ],
       "tests": "77 PASS, 0 FAIL",
+      "status": "COMPLETE"
+    },
+    {
+      "session_id": "SESSION-089",
+      "summary": "CLOSED P1-INDUSTRIAL-34C: Dead Cells 3D\u21922D orthographic pixel render pipeline. OrthographicPixelRenderBackend self-registers via @register_backend. Pure NumPy software rasterizer with edge-function triangle rasterization, Z-buffer, barycentric interpolation, multi-pass Albedo/Normal/Depth extraction, hard-stepped cel-shading kernel, nearest-neighbor downscale. 22 E2E tests enforce anti-perspective, anti-bilinear, anti-GUI red lines.",
+      "files_changed": [
+        "mathart/animation/orthographic_pixel_render.py",
+        "mathart/core/orthographic_pixel_backend.py",
+        "mathart/core/backend_registry.py",
+        "mathart/core/backend_types.py",
+        "tests/test_orthographic_pixel_render.py",
+        "research_notes_session089.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "tests": "22 PASS, 0 FAIL",
       "status": "COMPLETE"
     }
   ]

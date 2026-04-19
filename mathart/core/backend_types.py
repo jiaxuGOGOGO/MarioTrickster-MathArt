@@ -62,6 +62,9 @@ class BackendType(str, Enum):
     EVOLUTION_PHYSICS_GAIT_DISTILL = "evolution_physics_gait_distill"
     # SESSION-078 (P1-DISTILL-4): Cognitive science / biological motion distillation backend.
     EVOLUTION_COGNITIVE_DISTILL = "evolution_cognitive_distill"
+    # SESSION-089 (P1-INDUSTRIAL-34C): Dead Cells-style orthographic pixel
+    # render backend for 3D→2D dimension-reduction rendering.
+    ORTHOGRAPHIC_PIXEL_RENDER = "orthographic_pixel_render"
 
 
 _BACKEND_ALIASES: dict[str, str] = {
@@ -139,6 +142,12 @@ _BACKEND_ALIASES: dict[str, str] = {
     "cognitive_distill": BackendType.EVOLUTION_COGNITIVE_DISTILL.value,
     "cognitive_science_distill": BackendType.EVOLUTION_COGNITIVE_DISTILL.value,
     "biomotion_distill": BackendType.EVOLUTION_COGNITIVE_DISTILL.value,
+    # SESSION-089 (P1-INDUSTRIAL-34C): Orthographic pixel render backend aliases
+    BackendType.ORTHOGRAPHIC_PIXEL_RENDER.value: BackendType.ORTHOGRAPHIC_PIXEL_RENDER.value,
+    "ortho_pixel": BackendType.ORTHOGRAPHIC_PIXEL_RENDER.value,
+    "dead_cells_render": BackendType.ORTHOGRAPHIC_PIXEL_RENDER.value,
+    "orthographic_render": BackendType.ORTHOGRAPHIC_PIXEL_RENDER.value,
+    "3d_to_2d_pixel": BackendType.ORTHOGRAPHIC_PIXEL_RENDER.value,
 }
 
 

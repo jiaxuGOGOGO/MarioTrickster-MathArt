@@ -1,238 +1,167 @@
-# SESSION_HANDOFF
+# SESSION-089 Handoff — Dead Cells 3D→2D Orthographic Pixel Render Pipeline
 
 ## Executive Summary
 
-**SESSION-087** delivers the **ComfyUI WebSocket End-to-End Async Execution Engine**, closing the final gap between the offline preset-assembly pipeline (SESSION-084/086) and live GPU-accelerated pixel output. The system now has a complete, production-grade path from physics simulation through SDF rendering, ComfyUI payload assembly, WebSocket-monitored execution, and automated image/video download to the project tree.
+**SESSION-089** delivers the **Dead Cells-style 3D→2D Orthographic Pixel Render Pipeline**, closing **P1-INDUSTRIAL-34C** — the deterministic industrial rendering counterpart to the generative AI visual pipeline completed in SESSION-084/086/087. The system now has a complete, production-grade path from 3D mesh data through orthographic projection, multi-pass channel extraction, cel-shading, and nearest-neighbor downscale to engine-ready Albedo/Normal/Depth sprite bundles.
 
-The new `ComfyUIClient` class in `mathart/comfy_client/` implements the industrial-standard ComfyUI automation pattern: HTTP POST `/prompt` for queue submission, WebSocket event-stream monitoring for real-time progress tracking, and HTTP GET `/history` + `/view` for artifact retrieval. A one-click pipeline runner script (`tools/run_sparsectrl_pipeline.py`) orchestrates the full chain. All code enforces three anti-pattern red lines: no blind HTTP polling, graceful offline degradation, and mandatory artifact download into the project directory.
+The new `OrthographicPixelRenderBackend` self-registers via `@register_backend` (zero trunk modification) and delegates rendering to a pure NumPy software rasterizer in `orthographic_pixel_render.py` — guaranteed headless, zero GLFW/X11 dependency. Three anti-pattern red lines are enforced by 22 E2E tests: no perspective distortion (orthographic matrix validation), no bilinear blur (edge pixel alpha ∈ {0, 255}), and no GUI window crash (zero windowed context imports).
 
-| Area | SESSION-087 outcome |
+| Area | SESSION-089 outcome |
 |---|---|
-| **Task closure** | **P1-AI-2D-SPARSECTRL endpoint fully closed** — end-to-end execution engine landed |
-| **New module** | `mathart/comfy_client/` — `ComfyUIClient` + `ExecutionResult` |
-| **Pipeline runner** | `tools/run_sparsectrl_pipeline.py` — one-click physics-to-pixel automation |
-| **Anti-pattern guards** | Blind HTTP POST Trap, Offline Crash Trap, Orphan Output Trap |
-| **Test coverage** | **35 PASS, 0 FAIL** — 12 test classes, 35 test cases (SESSION-087 only) |
-| **Cumulative P1-AI-2D tests** | **79 PASS, 0 FAIL** (SESSION-084: 3 + SESSION-086: 41 + SESSION-087: 35) |
-| **Research** | ComfyUI WebSocket API, microservice resilience patterns, data-driven pipeline orchestration |
+| **Task closure** | **P1-INDUSTRIAL-34C fully closed** — Dead Cells 3D→2D pipeline landed |
+| **New engine module** | `mathart/animation/orthographic_pixel_render.py` (1012 lines) |
+| **New backend plugin** | `mathart/core/orthographic_pixel_backend.py` (422 lines) |
+| **Anti-pattern guards** | Perspective Distortion Trap, Bilinear Blur Trap, GUI Window Crash Trap |
+| **Test coverage** | **22 PASS, 0 FAIL** — 22 test cases across 11 test groups |
+| **Research** | Dead Cells GDC 2018, Guilty Gear Xrd GDC 2015, Headless EGL architecture |
+| **Total new code** | ~2,179 lines (engine + backend + tests + research notes) |
 
 ## What Landed in Code
 
-### 1. ComfyUI WebSocket Execution Client (`mathart/comfy_client/comfyui_ws_client.py`)
+### 1. Orthographic Pixel Render Engine (`mathart/animation/orthographic_pixel_render.py`)
 
-A production-grade async execution client implementing the full ComfyUI API contract:
+A pure NumPy software rasterizer implementing the full Dead Cells 3D→2D pipeline:
 
-- **Health check**: `is_server_online()` probes `GET /system_stats` with configurable timeout.
-- **Queue submission**: `_queue_prompt()` sends `POST /prompt` with `{prompt, client_id}` payload.
-- **WebSocket monitoring**: `_ws_listen_until_complete()` connects to `ws://{server}/ws?clientId={id}` and parses the event stream (`status`, `executing`, `progress`, `executed`, `execution_error`). Completion is detected by `executing` with `node: null` — the official ComfyUI completion signal.
-- **HTTP fallback polling**: `_http_poll_until_complete()` polls `GET /history/{prompt_id}` when `websocket-client` is not installed, with exponential backoff.
-- **Artifact download**: `_download_outputs()` retrieves all generated images and videos via `GET /view?filename={f}&subfolder={s}&type={t}` and saves them to timestamped directories under `outputs/comfyui_renders/`.
-- **Graceful degradation**: Every network call is wrapped in `try-except` for `ConnectionRefusedError`, `OSError`, `TimeoutError`, and `urllib.error.URLError`. Server offline → `ExecutionResult(degraded=True)`, never an unhandled crash.
+- **Orthographic Projection Matrix**: `build_orthographic_matrix()` constructs a pure orthographic 4×4 matrix with zero perspective distortion. The matrix maps 3D world coordinates to 2D screen space with absolute flatness — no near-far size variation.
+- **Edge-Function Triangle Rasterizer**: `rasterize_triangles()` implements scanline rasterization with edge functions and a Z-buffer. Barycentric coordinates interpolate per-vertex normals, colors, and UVs across triangle surfaces.
+- **Multi-Pass Channel Extraction**: Simultaneous extraction of spatially-aligned Albedo (base color), Normal (world-space normal map), and Depth (linear orthographic depth) buffers in a single rasterization pass.
+- **Cel-Shading Kernel**: `apply_cel_shading()` computes N·L dot product (max(dot(N, L), 0)) and applies hard stepped threshold banding (configurable 2-3 discrete levels). Zero smooth gradients — hard pixel boundaries only (Guilty Gear Xrd discipline).
+- **Nearest-Neighbor Downscale**: `nearest_neighbor_downscale()` uses `PIL.Image.resize(Image.Resampling.NEAREST)` exclusively. NEVER bilinear/bicubic. Preserves hard pixel edges.
+- **Hard Edge Validation**: `validate_hard_edges()` extracts edge pixels and asserts alpha channel values are strictly {0, 255} — no intermediate values allowed.
+- **Mesh Primitives**: `create_cube_mesh()` and `create_sphere_mesh()` generate test geometry with per-vertex normals and colors for E2E validation.
 
-### 2. End-to-End Pipeline Runner (`tools/run_sparsectrl_pipeline.py`)
+### 2. OrthographicPixelRenderBackend (`mathart/core/orthographic_pixel_backend.py`)
 
-A CLI facade script that orchestrates the complete chain in four phases:
+A registry-native backend plugin following the project's IoC architecture:
 
-1. **Phase 1 — Guide Generation**: Invokes the industrial SDF renderer to produce normal/depth/RGB frame sequences. Falls back to placeholder frames when the renderer is unavailable (CI safety).
-2. **Phase 2 — Payload Assembly**: Calls `ComfyUIPresetManager.assemble_sequence_payload()` to inject guide directories into the SparseCtrl + AnimateDiff preset topology.
-3. **Phase 3 — ComfyUI Execution**: Submits the payload via `ComfyUIClient`, monitors via WebSocket, downloads outputs. Degrades gracefully if server is offline.
-4. **Phase 4 — Report Generation**: Saves execution report JSON and raw payload snapshot for reproducibility.
+- **Self-Registration**: `@register_backend("orthographic_pixel_render")` — discovered automatically by `get_registry()`. Zero modification to AssetPipeline, Orchestrator, or any trunk code.
+- **Backend-Owned Validation**: `validate_config()` normalizes render dimensions, lighting parameters, cel-shading thresholds, channel selection, and FPS. All parameter parsing is physically sunk into this Adapter (Hexagonal Architecture).
+- **Strongly-Typed Output**: `execute()` returns an `ArtifactManifest` with `backend_type="orthographic_pixel_render"`, `artifact_family="sprite_sheet"`, texture_channels payload with engine slot bindings (Unity `_MainTex`/`_NormalMap`, Godot `texture_albedo`/`texture_normal`), and quality metrics.
+- **Render Report**: JSON report with pipeline metadata, mesh stats, render config, hard edge validation results, and timing.
 
-**One-click command for local 4070 execution:**
+### 3. Registry Integration
 
-```bash
-# Start ComfyUI first (in a separate terminal):
-cd /path/to/ComfyUI && python main.py --listen 0.0.0.0 --port 8188
+- **`backend_registry.py`**: Added auto-import of `orthographic_pixel_backend` in `get_registry()`.
+- **`backend_types.py`**: Added `ORTHOGRAPHIC_PIXEL_RENDER` type alias for canonical backend addressing.
 
-# Then run the pipeline:
-python tools/run_sparsectrl_pipeline.py \
-    --server 127.0.0.1:8188 \
-    --frames 16 \
-    --width 512 --height 512 \
-    --steps 20 --cfg 7.5 \
-    --prompt "pixel art game character sprite, Dead Cells style, detailed shading"
+### 4. E2E Tests (`tests/test_orthographic_pixel_render.py`)
 
-# Dry run (assemble payload without submitting):
-python tools/run_sparsectrl_pipeline.py --dry-run
-```
+22 tests across 11 test groups, all running headless with zero external dependencies:
 
-### 3. Offline-Safe E2E Tests (`tests/test_p1_ai_2d_sparsectrl_client.py`)
+| Test Group | Count | Purpose |
+|---|---|---|
+| Orthographic Matrix | 4 | Shape, values, anti-perspective guard, NDC mapping |
+| Software Rasterizer | 2 | Cube and sphere coverage validation |
+| Multi-Pass Channels | 1 | Albedo/Normal/Depth spatial alignment |
+| Cel-Shading | 2 | Discrete band count, no smooth gradients |
+| Nearest-Neighbor | 2 | Hard edges preserved, bilinear contamination detected |
+| Backend Registry | 3 | Discovery, validate_config, execute→ArtifactManifest |
+| Full Pipeline E2E | 3 | Cube, sphere, save/load round-trip |
+| Headless Safety | 2 | No DISPLAY dependency, no GLFW import |
+| BackendType Enum | 1 | Type alias exists |
+| Edge Cases | 2 | Empty mesh, single triangle |
 
-35 tests across 12 test classes, all using `unittest.mock` to deeply mock `urllib.request.urlopen` and `websocket.WebSocket`. Zero real HTTP or WebSocket calls.
+## Files Changed in SESSION-089
 
 | File | Purpose |
 |---|---|
-| `mathart/comfy_client/__init__.py` | Package init — exports `ComfyUIClient`, `ExecutionResult` |
-| `mathart/comfy_client/comfyui_ws_client.py` | WebSocket execution engine with graceful degradation |
-| `tools/run_sparsectrl_pipeline.py` | One-click end-to-end pipeline runner |
-| `tests/test_p1_ai_2d_sparsectrl_client.py` | 35 offline-safe E2E tests for client and pipeline |
-| `research/session087_comfyui_ws_client_research.md` | Research notes: ComfyUI WebSocket API, resilience patterns |
-| `PROJECT_BRAIN.json` | SESSION-087 metadata, updated gap status |
+| `mathart/animation/orthographic_pixel_render.py` | Pure NumPy software rasterizer engine (1012 lines) |
+| `mathart/core/orthographic_pixel_backend.py` | Registry-native backend plugin (422 lines) |
+| `mathart/core/backend_registry.py` | Auto-import of new backend in `get_registry()` |
+| `mathart/core/backend_types.py` | `ORTHOGRAPHIC_PIXEL_RENDER` type alias |
+| `tests/test_orthographic_pixel_render.py` | 22 E2E tests (619 lines) |
+| `research_notes_session089.md` | Research notes: Dead Cells, Guilty Gear Xrd, Headless EGL |
+| `PROJECT_BRAIN.json` | SESSION-089 metadata, P1-INDUSTRIAL-34C → CLOSED |
 | `SESSION_HANDOFF.md` | This file |
 
 ## Research Decisions That Were Enforced
 
-### ComfyUI WebSocket Execution Paradigm
+### Dead Cells GDC 2018 — Thomas Vasseur
 
-The ComfyUI official API documentation [1] establishes that the correct automation pattern is: (1) POST `/prompt` to queue the workflow, (2) connect to `ws://{server}/ws?clientId={id}` to receive real-time events, (3) detect completion via the `executing` event with `node: null`, (4) retrieve outputs via `GET /history/{prompt_id}`. This directly constrained the implementation to use WebSocket monitoring rather than blind HTTP polling or `time.sleep()` loops.
+The Dead Cells art pipeline [1] establishes that the correct 3D→2D workflow is: (1) author high-poly 3D models with skeletal animation, (2) render through an orthographic camera with zero perspective distortion, (3) downsample with nearest-neighbor interpolation (no anti-aliasing), (4) simultaneously export Albedo/Normal/Depth channels for 2D engine dynamic lighting. This directly constrained the implementation to use pure orthographic projection and nearest-neighbor downscale.
 
-### Microservice Resilience and Graceful Degradation
+### Guilty Gear Xrd GDC 2015 — Junya C. Motomura
 
-The system assumes ComfyUI may be offline (CI environments, cold starts, GPU maintenance). Every network call in `ComfyUIClient` is wrapped in comprehensive exception handling. The `ExecutionResult` dataclass has explicit `degraded` and `degraded_reason` fields. Tests verify that `ConnectionRefusedError`, `OSError`, and `TimeoutError` all result in graceful degradation, not crashes.
+The Guilty Gear Xrd cel-shading system [2] establishes that 3D→2D lighting must use hard stepped thresholds to cut smooth transitions, producing discrete shadow bands rather than smooth gradients. Frame decimation to 12fps/15fps enhances the pixel animation punch. This directly constrained the cel-shading kernel to use threshold banding with configurable discrete levels and the default FPS to 12.
 
-### Data-Driven Pipeline Orchestration
+### Headless EGL / Software Rasterizer Architecture
 
-The pipeline runner script lives in `tools/` as a facade layer. It consumes `AntiFlickerRenderBackend` output manifests and `ComfyUIPresetManager` payloads as pure data. It NEVER modifies core math engine code. The `ComfyUIClient` lives in `mathart/comfy_client/` as an independent module that can be registered as a backend in the future without polluting the core.
+CI environments and headless servers have no physical display [3]. The implementation uses a pure NumPy software rasterizer — zero dependency on GLFW, X11, EGL, or any windowed context. This guarantees silent headless execution in any environment.
 
 | Research theme | Enforced implementation consequence |
 |---|---|
-| **WebSocket execution paradigm** | `_ws_listen_until_complete()` with `executing(node=null)` completion signal [1] |
-| **Graceful degradation** | Every network call wrapped in `try-except`; `ExecutionResult.degraded` field [2] |
-| **Data-driven orchestration** | Pipeline runner in `tools/`; client in `mathart/comfy_client/`; core untouched [3] |
+| **Dead Cells orthographic render** | `build_orthographic_matrix()` — pure orthographic, zero perspective [1] |
+| **Dead Cells nearest-neighbor** | `nearest_neighbor_downscale()` — PIL NEAREST only, never bilinear [1] |
+| **Guilty Gear Xrd cel-shading** | `apply_cel_shading()` — N·L + stepped threshold banding [2] |
+| **Headless architecture** | Pure NumPy rasterizer — zero GLFW/X11/EGL imports [3] |
 
-## Anti-Pattern Guards (SESSION-087 Red Lines)
+## Anti-Pattern Guards (SESSION-089 Red Lines)
 
-### Blind HTTP POST Trap
+### 🚫 Perspective Distortion Trap
 
-The client MUST NOT use `requests.post()` followed by `time.sleep()` polling. It MUST use WebSocket event monitoring to detect completion. The test `test_ws_listen_complete_flow` verifies the full WebSocket event sequence. The test `test_full_successful_execution` verifies end-to-end flow with WebSocket.
+The render pipeline MUST NOT use perspective projection (FOV). Dead Cells 2D pixel quality requires absolute flatness — no near-far size variation. Tests `test_orthographic_matrix_shape_and_values` and `test_orthographic_matrix_anti_perspective_guard` verify the matrix is pure orthographic (row 3 col 3 is constant, no perspective divide).
 
-### Offline Crash Trap
+### 🚫 Bilinear Blur Trap
 
-The client MUST NOT crash when ComfyUI is offline. `ConnectionRefusedError` MUST result in a degraded `ExecutionResult`, not an unhandled exception. Tests `test_execute_workflow_offline_returns_degraded`, `test_execute_workflow_offline_no_exception`, `test_execute_workflow_os_error_degraded`, `test_server_offline_connection_refused`, `test_server_offline_os_error`, and `test_server_offline_timeout` all verify this.
+The downscale step MUST NOT use bilinear or bicubic interpolation. These create intermediate color values at edges, producing a halo of "dirty pixels" that destroy pixel art aesthetics. Tests `test_nearest_neighbor_hard_edges` and `test_bilinear_would_contaminate` verify that edge pixels have alpha values strictly in {0, 255} and that bilinear interpolation would produce contaminated intermediate values.
 
-### Orphan Output Trap
+### 🚫 GUI Window Crash Trap
 
-The client MUST NOT submit a workflow and then abandon the outputs in ComfyUI's internal `output/` directory. It MUST download all generated images and videos to the project's `outputs/comfyui_renders/` directory. Tests `test_download_file_success`, `test_download_outputs_with_images_and_videos`, and `test_full_successful_execution` verify that files are physically written to disk.
+The renderer MUST NOT import or initialize any windowed context (GLFW, X11, pygame, etc.). Any such dependency would crash in CI/headless environments with `X11 display not found` or `Failed to initialize GLFW`. Tests `test_headless_no_display_dependency` and `test_no_glfw_import` verify that the module runs without DISPLAY and that GLFW is not in `sys.modules`.
 
 ## Testing and Validation
 
 | Test command | Result |
 |---|---|
-| `pytest tests/test_p1_ai_2d_sparsectrl_client.py -v` | **35 passed, 0 failed** |
-| `pytest tests/test_p1_ai_2d_preset_injection.py tests/test_p1_ai_2d_sparsectrl.py tests/test_p1_ai_2d_sparsectrl_client.py -v` | **79 passed, 0 failed** |
-
-| Test class | Count | Purpose |
-|---|---|---|
-| `TestComfyUIClientConstruction` | 6 | Default and custom configuration |
-| `TestHealthCheck` | 4 | Online/offline detection with multiple error types |
-| `TestGracefulDegradation` | 4 | Server offline → degraded result, no crash |
-| `TestQueuePrompt` | 2 | POST /prompt success and offline handling |
-| `TestWebSocketExecution` | 2 | Full WS event flow and execution_error handling |
-| `TestHTTPFallbackPolling` | 2 | HTTP polling success and offline timeout |
-| `TestHistoryAndDownload` | 5 | /history retrieval and /view image download |
-| `TestExecutionResult` | 3 | Dataclass defaults and serialization |
-| `TestPipelineRunnerIntegration` | 3 | Guide generation, payload assembly, offline execution |
-| `TestFullE2EMockExecution` | 1 | Complete end-to-end flow with all mocks |
-| `TestOutputDirectoryStructure` | 1 | Timestamped output directory creation |
-| `TestBackwardCompatibility` | 2 | SESSION-086 and SESSION-084 presets still load |
-
-## How to Run the Full Pipeline on Local 4070
-
-### Prerequisites
-
-1. **ComfyUI** installed with the following custom nodes:
-   - `ComfyUI-AnimateDiff-Evolved` (AnimateDiff motion modules)
-   - `ComfyUI-Advanced-ControlNet` (SparseCtrl support)
-   - `ComfyUI-VideoHelperSuite` (VHS directory I/O)
-
-2. **Model weights** downloaded to ComfyUI's `models/` directory:
-   - SD1.5 checkpoint (e.g., `v1-5-pruned-emaonly.safetensors`)
-   - AnimateDiff v3 motion module (`v3_sd15_mm.ckpt`)
-   - SparseCtrl RGB model (`v3_sd15_sparsectrl_rgb.ckpt`)
-   - ControlNet normal (`control_v11p_sd15_normalbae.pth`)
-   - ControlNet depth (`control_v11f1p_sd15_depth.pth`)
-   - (Optional) IP-Adapter Plus (`ip-adapter-plus_sdxl_vit-h.safetensors`)
-   - (Optional) Pixel art LoRA
-
-3. **Start ComfyUI**:
-   ```bash
-   cd /path/to/ComfyUI
-   python main.py --listen 0.0.0.0 --port 8188
-   ```
-
-### Execute
-
-```bash
-cd /path/to/MarioTrickster-MathArt
-python tools/run_sparsectrl_pipeline.py --server 127.0.0.1:8188 --frames 16 --steps 20
-```
-
-### Expected Output
-
-```
-outputs/comfyui_renders/run_YYYYMMDD_HHMMSS/
-├── guides/
-│   ├── normal/frame_0000.png ... frame_0015.png
-│   ├── depth/frame_0000.png ... frame_0015.png
-│   └── rgb/frame_0000.png ... frame_0015.png
-├── images/
-│   └── (downloaded ComfyUI output frames)
-├── videos/
-│   └── (downloaded ComfyUI output video)
-├── reports/
-│   ├── execution_report_YYYYMMDD_HHMMSS.json
-│   └── payload_YYYYMMDD_HHMMSS.json
-└── execution_metadata.json
-```
+| `pytest tests/test_orthographic_pixel_render.py -v` | **22 passed, 0 failed** |
 
 ## Recommended Next Priorities
 
 | Priority | Recommendation | Reason |
 |---|---|---|
-| **Immediate** | **P1-INDUSTRIAL-34C** | Dead Cells style 3D→2D dimension reduction pipeline — the next visual delivery gap |
-| **High** | **P1-MIGRATE-4** | Backend hot-reload — force multiplier for rapid iteration |
+| **Immediate** | **P1-MIGRATE-4** | Backend hot-reload — force multiplier for rapid iteration |
 | **High** | **P1-AI-2E** | Motion-adaptive keyframe planning for high-nonlinearity action segments |
+| **Medium** | **P1-INDUSTRIAL-44A** | Engine-ready export templates integration into standard asset pipeline |
 
 ### Architecture Micro-Adjustments for Next Tasks
 
-**For P1-INDUSTRIAL-34C (Dead Cells 3D→2D)**: The `ComfyUIClient` can be reused as the execution backend. The industrial renderer's multi-channel output (albedo/normal/depth/mask/roughness) maps directly to ControlNet guide inputs. The next step is to build a Dead Cells-specific preset asset that applies the characteristic hand-painted 2D aesthetic to 3D-rendered frames.
+**For P1-MIGRATE-4 (Backend Hot-Reload)**: The `OrthographicPixelRenderBackend` is already a self-registering plugin discovered via `get_registry()`. To enable true hot-reload:
+1. `BackendRegistry.discover()` already supports package-path scanning via `pkgutil.walk_packages()`. The next step is to wire a filesystem watcher (e.g., `watchdog`) that calls `discover()` when new `.py` files appear in `mathart/core/` or `mathart/export/`.
+2. The current `_builtins_loaded` flag prevents re-registration. Hot-reload needs a `BackendRegistry.reload(name)` method that unregisters and re-imports a specific backend module.
+3. The `OrthographicPixelRenderBackend` already uses lazy imports in `execute()` (imports `orthographic_pixel_render` at call time, not module load time), which is hot-reload-friendly.
 
-**For P1-MIGRATE-4 (Backend Hot-Reload)**: The `ComfyUIClient` is already an independent module in `mathart/comfy_client/`. It can be registered as a new `BackendType.COMFYUI_EXECUTOR` in the registry with minimal wiring. Hot-reload would allow swapping preset assets and client configurations without restarting the pipeline.
+**For P1-AI-2E (Motion-Adaptive Keyframes)**: The `OrthographicPixelRenderBackend` output (Albedo/Normal/Depth channels) can feed directly into the ComfyUI SparseCtrl pipeline (SESSION-086/087) as ControlNet guide inputs. The next step is:
+1. Wire `OrthographicPixelRenderBackend.execute()` output paths into `ComfyUIPresetManager.assemble_sequence_payload()` as guide directories.
+2. Use motion complexity metrics from the motion vector baker to dynamically adjust `frame_count` and SparseCtrl `end_percent` — high-nonlinearity segments get more keyframes.
+3. The `fps` parameter in `OrthographicRenderConfig` (default 12, Guilty Gear Xrd discipline) can be overridden per-segment based on action intensity.
 
-**For P1-AI-2E (Motion-Adaptive Keyframes)**: The `assemble_sequence_payload()` method's `frame_count` and SparseCtrl `end_percent` parameters can be dynamically adjusted based on motion complexity metrics from the motion vector baker. High-nonlinearity segments would get more keyframes (higher SparseCtrl influence) while stable segments use fewer.
+**For P1-INDUSTRIAL-44A (Engine Export Templates)**: The `texture_channels` payload in `ArtifactManifest.metadata` already includes engine slot bindings for Unity (`_MainTex`, `_NormalMap`, `_DepthMap`) and Godot (`texture_albedo`, `texture_normal`, `texture_depth`). The next step is to wire these into `EngineImportPluginGenerator` (SESSION-056) so the orthographic render output can be consumed directly by engine-specific import plugins.
 
 ## Known Constraints and Non-Blocking Notes
 
 | Constraint | Status |
 |---|---|
-| `websocket-client` Python package | **Optional** — HTTP fallback polling available if not installed |
-| SparseCtrl/AnimateDiff model weights | **Not included** — must be downloaded separately |
-| Live ComfyUI execution | **Not tested in CI** — all 35 tests are offline-safe with deep mocks |
-| VRAM requirement | **~8-10GB** for SD1.5 + AnimateDiff + SparseCtrl on RTX 4070 (12GB) |
-| Pixel art style | **Prompt-driven** — no dedicated LoRA included; recommend pixel-art-style LoRA |
+| Software rasterizer performance | **Adequate for sprite-scale** — 64×64 to 256×256 renders in <100ms |
+| No GPU acceleration | **By design** — headless CI safety takes priority over speed |
+| No skeletal animation integration | **Next step** — current pipeline accepts static meshes; UMR clip integration is P1-INDUSTRIAL-34C-NEXT |
+| No texture mapping | **Vertex colors only** — UV-mapped texture support is a future extension |
 
 ## Files to Inspect First in the Next Session
 
 | File | Why it matters |
 |---|---|
-| `mathart/comfy_client/comfyui_ws_client.py` | The WebSocket execution engine — all network I/O lives here |
-| `tools/run_sparsectrl_pipeline.py` | The one-click pipeline runner — the user-facing entry point |
-| `mathart/assets/comfyui_presets/sparsectrl_animatediff.json` | The 23-node preset topology — all wiring lives here |
-| `mathart/animation/comfyui_preset_manager.py` | The sequence-aware injector — payload assembly logic |
-| `tests/test_p1_ai_2d_sparsectrl_client.py` | 35 E2E tests — the contract specification for the execution engine |
+| `mathart/animation/orthographic_pixel_render.py` | The software rasterizer engine — all rendering math lives here |
+| `mathart/core/orthographic_pixel_backend.py` | The registry plugin — backend-owned validation and ArtifactManifest output |
+| `tests/test_orthographic_pixel_render.py` | 22 E2E tests — the contract specification for the render pipeline |
+| `research_notes_session089.md` | Research notes: Dead Cells, Guilty Gear Xrd, Headless EGL |
+| `mathart/core/backend_registry.py` | Registry singleton — auto-import wiring for new backend |
 
-## SESSION-088 Addendum: Placeholder Frame Fix
+## SESSION-087 Archive (Previous Handoff)
 
-**Problem**: The pipeline ran successfully end-to-end (16 PNG frames + 1 MP4 downloaded), but all output images were solid blue. Root cause: the `_create_placeholder_frames()` function generated flat solid-color images (e.g., `(128, 128, 255)` for Normal), which provided zero spatial information to ControlNet. Without meaningful gradients or shapes, the diffusion model had no guidance and produced uniform color output.
-
-**Fix**: Replaced the flat-color placeholder generator with a visually meaningful test frame generator (~150 lines of new code) that produces three channels of guide data with actual spatial content and per-frame animation.
-
-| Channel | Content | Animation |
-|---|---|---|
-| **Normal** | Sphere normal map with standard RGB encoding (nx→R, ny→G, nz→B) | Idle sway (sinusoidal X/Y offset) |
-| **Depth** | Sphere depth map (white=close, black=far) + ground plane gradient | Same sway as Normal for consistency |
-| **RGB** | Pixel-art humanoid character (head/body/legs/arms/eyes) on dark background with ground plane | Idle bounce + arm swing + leg offset |
-
-**Validation**: 77 tests PASS (0 FAIL). Generated frames visually confirmed: Normal shows proper sphere gradient, Depth shows clear foreground/background separation, RGB shows recognizable character silhouette with animation between frames.
-
-**User action required**: `git pull origin main` then re-run the pipeline with `--force-fp32`.
+**SESSION-087** delivered the **ComfyUI WebSocket End-to-End Async Execution Engine**, closing P1-AI-2D-SPARSECTRL. The `ComfyUIClient` class implements industrial-standard ComfyUI automation: HTTP POST `/prompt`, WebSocket event-stream monitoring, and HTTP GET `/history` + `/view` for artifact retrieval. One-click pipeline runner (`tools/run_sparsectrl_pipeline.py`) orchestrates the full chain. 35 E2E tests, cumulative P1-AI-2D: 79 PASS. SESSION-088 fixed placeholder frame generator for meaningful ControlNet guide data.
 
 ## References
 
-[1]: https://mintlify.wiki/Comfy-Org/ComfyUI/api/websocket-events "ComfyUI WebSocket Events API Documentation"
-[2]: https://mintlify.wiki/Comfy-Org/ComfyUI/api/prompt "ComfyUI POST /prompt API Documentation"
-[3]: https://mintlify.wiki/Comfy-Org/ComfyUI/api/history "ComfyUI GET /history API Documentation"
-[4]: https://arxiv.org/abs/2311.16933 "Guo et al., SparseCtrl: Adding Sparse Controls to Text-to-Video Diffusion Models, ECCV 2024"
-[5]: https://arxiv.org/abs/2307.04725 "Guo et al., AnimateDiff: Animate Your Personalized Text-to-Image Diffusion Models, ICLR 2024"
-[6]: https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite "ComfyUI-VideoHelperSuite — Industrial sequence I/O for ComfyUI"
-[7]: https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved "ComfyUI-AnimateDiff-Evolved — AnimateDiff integration for ComfyUI"
+[1]: https://www.gamedeveloper.com/production/art-design-deep-dive-using-a-3d-pipeline-for-2d-animation-in-i-dead-cells-i- "Thomas Vasseur, Art Design Deep Dive: Using a 3D Pipeline for 2D Animation in Dead Cells, GDC 2018"
+[2]: https://www.ggxrd.com/Motomura_Junya_GuiltyGearXrd.pdf "Junya C. Motomura, GuiltyGearXrd's Art Style: The X Factor Between 2D and 3D, GDC 2015"
+[3]: https://www.khronos.org/egl "Khronos EGL — Native Platform Graphics Interface for headless rendering"

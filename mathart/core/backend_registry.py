@@ -490,6 +490,13 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.rl_training_backend")
         except Exception as e:
             logger.debug("Failed to auto-load rl training backend: %s", e)
+        # SESSION-089 (P1-INDUSTRIAL-34C): auto-register the Dead Cells-style
+        # orthographic pixel render backend so the microkernel can discover
+        # 3D→2D dimension-reduction rendering without any trunk modification.
+        try:
+            importlib.import_module("mathart.core.orthographic_pixel_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load orthographic pixel backend: %s", e)
     return registry
 
 
