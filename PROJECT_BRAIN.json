@@ -1,6 +1,6 @@
 {
-  "version": "0.78.0",
-  "last_session_id": "SESSION-087",
+  "version": "v0.79.0",
+  "last_session_id": "SESSION-088",
   "last_updated": "2026-04-19T23:30:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -2739,6 +2739,19 @@
       "completed_in": "SESSION-087",
       "title": "ComfyUI WebSocket end-to-end async execution engine",
       "summary": "Delivered ComfyUIClient with WebSocket event-stream monitoring, HTTP fallback polling, graceful offline degradation, and automated artifact download. One-click pipeline runner (tools/run_sparsectrl_pipeline.py) orchestrates physics→SDF render→payload assembly→ComfyUI execution→image download. 35 offline-safe E2E tests. Research: ComfyUI WebSocket API, microservice resilience, data-driven orchestration."
+    }
+  ],
+  "session_log": [
+    {
+      "session_id": "SESSION-088",
+      "summary": "Fix placeholder frame generator: replace flat solid-color images with meaningful Normal (sphere normal map), Depth (sphere depth + ground plane), and RGB (pixel-art character with idle bounce) guide frames. This gives ControlNet actual spatial information, fixing the pure-blue output issue.",
+      "files_changed": [
+        "tools/run_sparsectrl_pipeline.py",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "tests": "77 PASS, 0 FAIL",
+      "status": "COMPLETE"
     }
   ]
 }

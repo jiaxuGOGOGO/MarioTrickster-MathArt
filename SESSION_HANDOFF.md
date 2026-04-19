@@ -211,6 +211,22 @@ outputs/comfyui_renders/run_YYYYMMDD_HHMMSS/
 | `mathart/animation/comfyui_preset_manager.py` | The sequence-aware injector — payload assembly logic |
 | `tests/test_p1_ai_2d_sparsectrl_client.py` | 35 E2E tests — the contract specification for the execution engine |
 
+## SESSION-088 Addendum: Placeholder Frame Fix
+
+**Problem**: The pipeline ran successfully end-to-end (16 PNG frames + 1 MP4 downloaded), but all output images were solid blue. Root cause: the `_create_placeholder_frames()` function generated flat solid-color images (e.g., `(128, 128, 255)` for Normal), which provided zero spatial information to ControlNet. Without meaningful gradients or shapes, the diffusion model had no guidance and produced uniform color output.
+
+**Fix**: Replaced the flat-color placeholder generator with a visually meaningful test frame generator (~150 lines of new code) that produces three channels of guide data with actual spatial content and per-frame animation.
+
+| Channel | Content | Animation |
+|---|---|---|
+| **Normal** | Sphere normal map with standard RGB encoding (nx→R, ny→G, nz→B) | Idle sway (sinusoidal X/Y offset) |
+| **Depth** | Sphere depth map (white=close, black=far) + ground plane gradient | Same sway as Normal for consistency |
+| **RGB** | Pixel-art humanoid character (head/body/legs/arms/eyes) on dark background with ground plane | Idle bounce + arm swing + leg offset |
+
+**Validation**: 77 tests PASS (0 FAIL). Generated frames visually confirmed: Normal shows proper sphere gradient, Depth shows clear foreground/background separation, RGB shows recognizable character silhouette with animation between frames.
+
+**User action required**: `git pull origin main` then re-run the pipeline with `--force-fp32`.
+
 ## References
 
 [1]: https://mintlify.wiki/Comfy-Org/ComfyUI/api/websocket-events "ComfyUI WebSocket Events API Documentation"

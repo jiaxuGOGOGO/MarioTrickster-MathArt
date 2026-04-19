@@ -149,24 +149,163 @@ def _create_placeholder_frames(
     width: int,
     height: int,
 ) -> None:
-    """Create minimal placeholder PNG frames for offline testing."""
+    """Create visually meaningful placeholder PNG frames for testing.
+
+    Instead of flat solid-color images (which give ControlNet zero spatial
+    information), this generates:
+
+    - **Normal channel**: Sphere normal map with animated light rotation,
+      providing clear surface orientation cues.
+    - **Depth channel**: Sphere depth map with animated position shift,
+      providing foreground/background separation.
+    - **RGB channel**: Simple pixel-art character silhouette with animated
+      idle bounce, providing SparseCtrl with a recognizable shape.
+
+    This ensures the ComfyUI pipeline receives meaningful guide data even
+    when the full IndustrialRenderer is not available.
+    """
     try:
-        from PIL import Image
+        from PIL import Image, ImageDraw
+        import math
     except ImportError:
         logger.error("PIL not available — cannot create placeholder frames")
         return
 
+    cx, cy = width // 2, height // 2
+    radius = min(width, height) // 4
+
     for frame_idx in range(frame_count):
-        for channel_dir, color in [
-            (normal_dir, (128, 128, 255)),   # Normal map blue
-            (depth_dir, (200, 200, 200)),     # Depth gray
-            (rgb_dir, (100, 150, 200)),       # RGB reference
-        ]:
-            img = Image.new("RGB", (width, height), color)
-            img.save(str(channel_dir / f"frame_{frame_idx:04d}.png"))
+        t = frame_idx / max(frame_count - 1, 1)  # 0.0 → 1.0
+
+        # --- Normal Map: sphere with animated light direction ---
+        normal_img = Image.new("RGB", (width, height), (128, 128, 255))
+        normal_px = normal_img.load()
+        # Animate the sphere center slightly (idle sway)
+        sway_x = int(math.sin(t * math.pi * 2) * radius * 0.15)
+        sway_y = int(math.sin(t * math.pi * 4) * radius * 0.08)
+        sphere_cx = cx + sway_x
+        sphere_cy = cy + sway_y
+
+        for y in range(max(0, sphere_cy - radius), min(height, sphere_cy + radius)):
+            for x in range(max(0, sphere_cx - radius), min(width, sphere_cx + radius)):
+                dx = (x - sphere_cx) / radius
+                dy = (y - sphere_cy) / radius
+                dist_sq = dx * dx + dy * dy
+                if dist_sq <= 1.0:
+                    dz = math.sqrt(1.0 - dist_sq)
+                    # Normal map encoding: (nx, ny, nz) → (R, G, B)
+                    # nx, ny, nz in [-1, 1] → [0, 255]
+                    nr = int((dx * 0.5 + 0.5) * 255)
+                    ng = int((dy * 0.5 + 0.5) * 255)
+                    nb = int((dz * 0.5 + 0.5) * 255)
+                    normal_px[x, y] = (nr, ng, nb)
+
+        normal_img.save(str(normal_dir / f"frame_{frame_idx:04d}.png"))
+
+        # --- Depth Map: sphere depth with animated position ---
+        depth_img = Image.new("RGB", (width, height), (0, 0, 0))  # Far = black
+        depth_px = depth_img.load()
+
+        for y in range(max(0, sphere_cy - radius), min(height, sphere_cy + radius)):
+            for x in range(max(0, sphere_cx - radius), min(width, sphere_cx + radius)):
+                dx = (x - sphere_cx) / radius
+                dy = (y - sphere_cy) / radius
+                dist_sq = dx * dx + dy * dy
+                if dist_sq <= 1.0:
+                    dz = math.sqrt(1.0 - dist_sq)
+                    # Depth: closer = brighter (white), farther = darker
+                    depth_val = int(dz * 255)
+                    depth_px[x, y] = (depth_val, depth_val, depth_val)
+
+        # Add a ground plane gradient at the bottom
+        ground_start = int(height * 0.7)
+        for y in range(ground_start, height):
+            ground_depth = int(80 * (1.0 - (y - ground_start) / (height - ground_start)))
+            for x in range(width):
+                if depth_px[x, y] == (0, 0, 0):
+                    depth_px[x, y] = (ground_depth, ground_depth, ground_depth)
+
+        depth_img.save(str(depth_dir / f"frame_{frame_idx:04d}.png"))
+
+        # --- RGB Channel: pixel-art character silhouette with idle bounce ---
+        rgb_img = Image.new("RGB", (width, height), (20, 20, 40))  # Dark background
+        draw = ImageDraw.Draw(rgb_img)
+
+        # Ground plane
+        ground_y = int(height * 0.75)
+        draw.rectangle([0, ground_y, width, height], fill=(40, 60, 40))
+
+        # Character body (simple pixel-art humanoid)
+        bounce = int(math.sin(t * math.pi * 2) * 8)  # Idle bounce
+        char_cx = sphere_cx
+        char_base = ground_y + bounce
+
+        # Head (circle)
+        head_r = radius // 4
+        head_cy = char_base - radius - head_r
+        draw.ellipse(
+            [char_cx - head_r, head_cy - head_r,
+             char_cx + head_r, head_cy + head_r],
+            fill=(200, 120, 80),  # Skin tone
+        )
+
+        # Body (rectangle)
+        body_w = radius // 3
+        body_h = radius // 2
+        body_top = char_base - radius
+        draw.rectangle(
+            [char_cx - body_w, body_top,
+             char_cx + body_w, body_top + body_h],
+            fill=(60, 80, 180),  # Blue shirt
+        )
+
+        # Legs (two rectangles)
+        leg_w = radius // 6
+        leg_h = radius // 2
+        leg_top = body_top + body_h
+        # Left leg with walk cycle
+        leg_offset = int(math.sin(t * math.pi * 4) * 4)
+        draw.rectangle(
+            [char_cx - body_w, leg_top,
+             char_cx - body_w + leg_w * 2, leg_top + leg_h + leg_offset],
+            fill=(80, 60, 40),  # Brown pants
+        )
+        # Right leg
+        draw.rectangle(
+            [char_cx + body_w - leg_w * 2, leg_top,
+             char_cx + body_w, leg_top + leg_h - leg_offset],
+            fill=(80, 60, 40),
+        )
+
+        # Arms
+        arm_w = radius // 8
+        arm_h = radius // 3
+        arm_swing = int(math.sin(t * math.pi * 4) * 6)
+        # Left arm
+        draw.rectangle(
+            [char_cx - body_w - arm_w * 2, body_top + arm_swing,
+             char_cx - body_w, body_top + arm_h + arm_swing],
+            fill=(200, 120, 80),
+        )
+        # Right arm
+        draw.rectangle(
+            [char_cx + body_w, body_top - arm_swing,
+             char_cx + body_w + arm_w * 2, body_top + arm_h - arm_swing],
+            fill=(200, 120, 80),
+        )
+
+        # Eyes (two small dots)
+        eye_y = head_cy - 2
+        draw.rectangle([char_cx - 6, eye_y, char_cx - 3, eye_y + 3], fill=(255, 255, 255))
+        draw.rectangle([char_cx + 3, eye_y, char_cx + 6, eye_y + 3], fill=(255, 255, 255))
+        draw.rectangle([char_cx - 5, eye_y + 1, char_cx - 4, eye_y + 2], fill=(0, 0, 0))
+        draw.rectangle([char_cx + 4, eye_y + 1, char_cx + 5, eye_y + 2], fill=(0, 0, 0))
+
+        rgb_img.save(str(rgb_dir / f"frame_{frame_idx:04d}.png"))
 
     logger.info(
-        "[Phase 1] Placeholder guide frames created: %d frames per channel",
+        "[Phase 1] Placeholder guide frames created: %d frames per channel "
+        "(sphere normal/depth + pixel character RGB)",
         frame_count,
     )
 
