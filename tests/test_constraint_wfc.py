@@ -28,6 +28,7 @@ from mathart.level.templates import (
     PLATFORM_CHARS,
     AIR_CHAR,
 )
+from mathart.level.wfc import AdjacencyRules, WFCConstraintConflictError, _Cell
 
 
 # ── PhysicsConstraint Tests ──────────────────────────────────────────────────
@@ -282,38 +283,68 @@ class TestReachabilityValidator:
 class TestConstraintAwareWFC:
     """Test constraint-aware WFC generation."""
 
+    @staticmethod
+    def _average_column_difficulty(level: str) -> float:
+        grid = parse_fragment(level)
+        physics = PhysicsConstraint.mario_default()
+        validator = ReachabilityValidator(physics)
+        return sum(
+            validator.difficulty_at_column(grid, c)
+            for c in range(len(grid[0]))
+        ) / len(grid[0])
+
+    @staticmethod
+    def _make_lock_conflict_generator() -> ConstraintAwareWFC:
+        gen = ConstraintAwareWFC(seed=7)
+        rules = AdjacencyRules()
+        for d in range(4):
+            rules.rules[d]["A"].update({"A": 1})
+            rules.rules[d]["B"].update({"B": 1})
+        rules.tile_weights.update({"A": 1, "B": 1})
+        gen.rules = rules
+        return gen
+
     def test_basic_generation(self):
-        """Constraint-aware WFC generates a non-empty level."""
+        """Constraint-aware WFC should return a well-formed level grid."""
         gen = ConstraintAwareWFC(seed=42)
         gen.learn()
         level = gen.generate(20, 7, validate_playability=False)
-        assert len(level) > 0
         lines = level.strip().split("\n")
         assert len(lines) == 7
+        assert all(len(line) == 20 for line in lines)
+        assert "M" in level
+        assert "G" in level
 
     def test_generation_with_validation(self):
-        """Constraint-aware WFC generates a playable level."""
+        """Constraint-aware WFC generates a playable, well-formed level."""
         gen = ConstraintAwareWFC(seed=42)
         gen.learn()
         level = gen.generate(20, 7, validate_playability=True, max_retries=50)
-        assert len(level) > 0
+        lines = level.strip().split("\n")
+        assert len(lines) == 7
+        assert all(len(line) == 20 for line in lines)
         # Verify it's actually playable
         grid = parse_fragment(level)
         physics = PhysicsConstraint.mario_default()
         validator = ReachabilityValidator(physics)
-        is_playable, _ = validator.validate_level(grid)
+        is_playable, path = validator.validate_level(grid)
         assert is_playable
+        assert len(path) >= 1
+        assert all(isinstance(node, tuple) and len(node) == 2 for node in path)
 
     def test_generation_stats(self):
-        """Generation should produce stats."""
+        """Generation should produce structured stats with useful counters."""
         gen = ConstraintAwareWFC(seed=42)
         gen.learn()
         gen.generate(20, 7, validate_playability=False)
         stats = gen.generation_stats
-        assert "attempts" in stats
+        assert stats["attempts"] >= 1
+        assert stats["veto_count"] >= 0
+        assert stats["conflict_count"] >= 0
+        assert stats["playable"] is False
 
     def test_difficulty_target_affects_output(self):
-        """Different difficulty targets should produce different levels."""
+        """Higher difficulty target should not produce an easier average layout."""
         gen_easy = ConstraintAwareWFC(seed=42, difficulty_target=0.1)
         gen_easy.learn()
         gen_hard = ConstraintAwareWFC(seed=42, difficulty_target=0.9)
@@ -322,13 +353,12 @@ class TestConstraintAwareWFC:
         level_easy = gen_easy.generate(20, 7, validate_playability=False)
         level_hard = gen_hard.generate(20, 7, validate_playability=False)
 
-        # They should be different (different difficulty targeting)
-        # Note: with same seed, internal randomness may still differ
-        assert isinstance(level_easy, str)
-        assert isinstance(level_hard, str)
+        easy_score = self._average_column_difficulty(level_easy)
+        hard_score = self._average_column_difficulty(level_hard)
+        assert hard_score >= easy_score
 
     def test_batch_validated_generation(self):
-        """Batch generation with validation produces results."""
+        """Batch generation should return three well-formed result tuples."""
         gen = ConstraintAwareWFC(seed=42)
         gen.learn()
         results = gen.generate_batch_validated(
@@ -336,8 +366,76 @@ class TestConstraintAwareWFC:
         )
         assert len(results) == 3
         for level, is_playable, stats in results:
-            assert isinstance(level, str)
-            assert isinstance(stats, dict)
+            lines = level.strip().split("\n")
+            assert len(lines) == 7
+            assert all(len(line) == 18 for line in lines)
+            assert isinstance(is_playable, bool)
+            assert stats["attempts"] >= 1
+
+    def test_locked_tile_radiates_constraints_to_neighbour(self):
+        """Locked tiles must stay immutable while still pruning neighbours."""
+        gen = self._make_lock_conflict_generator()
+        gen._rows = 1
+        gen._cols = 2
+        gen._grid = [[_Cell(options={"A", "B"}), _Cell(options={"A", "B"})]]
+        gen._lock_cell(0, 0, "A")
+
+        gen._propagate_locked_cells()
+
+        locked = gen._grid[0][0]
+        neighbour = gen._grid[0][1]
+        assert locked.is_locked is True
+        assert locked.tile == "A"
+        assert locked.options == {"A"}
+        assert neighbour.options == {"A"}
+        assert neighbour.tile == "A"
+        assert neighbour.collapsed is True
+
+    def test_conflicting_non_locked_tile_raises_explicit_error_and_preserves_lock(self):
+        """A non-locked collapse may fail, but it may not rewrite a locked tile."""
+        gen = self._make_lock_conflict_generator()
+        gen._rows = 1
+        gen._cols = 2
+        gen._grid = [[_Cell(options={"A", "B"}), _Cell(options={"B"}, collapsed=True, tile="B")]]
+        gen._lock_cell(0, 0, "A")
+        locked = gen._grid[0][0]
+        initial_options = set(locked.options)
+        initial_tile = locked.tile
+        initial_collapsed = locked.collapsed
+        initial_locked = locked.is_locked
+
+        with pytest.raises(WFCConstraintConflictError, match="Locked cell conflict"):
+            gen._propagate(0, 1)
+
+        assert locked.options == initial_options
+        assert locked.tile == initial_tile
+        assert locked.collapsed is initial_collapsed
+        assert locked.is_locked is initial_locked
+
+    def test_incompatible_locked_tiles_raise_conflict_and_remain_intact(self):
+        """Two incompatible locked tiles in a tiny space must fail explicitly."""
+        gen = self._make_lock_conflict_generator()
+        gen._rows = 1
+        gen._cols = 2
+        gen._grid = [[_Cell(options={"A", "B"}), _Cell(options={"A", "B"})]]
+        gen._lock_cell(0, 0, "A")
+        gen._lock_cell(0, 1, "B")
+        left = gen._grid[0][0]
+        right = gen._grid[0][1]
+        left_initial = (set(left.options), left.tile, left.collapsed, left.is_locked)
+        right_initial = (set(right.options), right.tile, right.collapsed, right.is_locked)
+
+        with pytest.raises(WFCConstraintConflictError, match="Locked cell conflict"):
+            gen._propagate_locked_cells()
+
+        assert left.options == left_initial[0]
+        assert left.tile == left_initial[1]
+        assert left.collapsed is left_initial[2]
+        assert left.is_locked is left_initial[3]
+        assert right.options == right_initial[0]
+        assert right.tile == right_initial[1]
+        assert right.collapsed is right_initial[2]
+        assert right.is_locked is right_initial[3]
 
     def test_ground_row_is_solid(self):
         """Bottom row should always be solid ground."""

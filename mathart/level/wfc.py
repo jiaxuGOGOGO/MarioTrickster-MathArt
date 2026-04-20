@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import math
 import random
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -103,10 +103,11 @@ class _Cell:
     options: set[str]
     collapsed: bool = False
     tile: Optional[str] = None
+    is_locked: bool = False
 
     @property
     def entropy(self) -> float:
-        if self.collapsed:
+        if self.collapsed or self.is_locked:
             return 0.0
         n = len(self.options)
         if n <= 1:
@@ -224,6 +225,8 @@ class WFCGenerator:
         if ensure_spawn:
             self._force_top_air()
 
+        self._propagate_locked_cells()
+
         # Main WFC loop
         while True:
             cell_pos = self._find_min_entropy()
@@ -249,10 +252,7 @@ class WFCGenerator:
         """Force the bottom row to be solid ground."""
         bottom = self._rows - 1
         for c in range(self._cols):
-            cell = self._grid[bottom][c]
-            cell.options = {"#"}
-            cell.collapsed = True
-            cell.tile = "#"
+            self._lock_cell(bottom, c, "#")
 
     def _force_top_air(self) -> None:
         """Force the top two rows to be mostly air (for playability)."""
@@ -263,6 +263,25 @@ class WFCGenerator:
                 air_options = cell.options - SOLID_CHARS - HAZARD_CHARS
                 if air_options:
                     cell.options = air_options
+
+    def _lock_cell(self, r: int, c: int, tile: str) -> None:
+        """Collapse a cell to a read-only singleton domain."""
+        cell = self._grid[r][c]
+        cell.options = {tile}
+        cell.tile = tile
+        cell.collapsed = True
+        cell.is_locked = True
+
+    def _propagate_locked_cells(self) -> None:
+        """Seed propagation from every locked cell so hard constraints radiate."""
+        locked_seeds = [
+            (r, c)
+            for r in range(self._rows)
+            for c in range(self._cols)
+            if self._grid[r][c].is_locked
+        ]
+        if locked_seeds:
+            self._propagate_queue(locked_seeds)
 
     def _find_min_entropy(self) -> Optional[tuple[int, int]]:
         """Find the uncollapsed cell with the lowest entropy."""
@@ -299,35 +318,75 @@ class WFCGenerator:
 
     def _propagate(self, start_r: int, start_c: int) -> None:
         """Propagate constraints from a collapsed cell outward."""
-        stack = [(start_r, start_c)]
-        while stack:
-            r, c = stack.pop()
+        self._propagate_queue([(start_r, start_c)])
+
+    def _propagate_queue(self, seeds: list[tuple[int, int]]) -> None:
+        """Run propagation from one or more seed cells using a queue."""
+        queue = deque(seeds)
+        while queue:
+            r, c = queue.popleft()
             cell = self._grid[r][c]
+            if len(cell.options) == 0:
+                raise _Contradiction(f"Cell ({r},{c}) has no options")
+
             for d, (dr, dc) in enumerate(DIRECTIONS):
                 nr, nc = r + dr, c + dc
                 if not (0 <= nr < self._rows and 0 <= nc < self._cols):
                     continue
-                neighbour = self._grid[nr][nc]
-                if neighbour.collapsed:
-                    continue
 
-                # Compute allowed tiles for the neighbour based on current cell
                 allowed = set()
                 for tile in cell.options:
                     allowed |= self.rules.get_allowed(tile, d)
 
-                # Intersect with neighbour's current options
-                new_options = neighbour.options & allowed
-                if len(new_options) < len(neighbour.options):
-                    if len(new_options) == 0:
-                        raise _Contradiction(
-                            f"Propagation emptied cell ({nr},{nc})"
-                        )
-                    neighbour.options = new_options
-                    if len(new_options) == 1:
-                        neighbour.tile = next(iter(new_options))
-                        neighbour.collapsed = True
-                    stack.append((nr, nc))
+                if self._restrict_cell_options(
+                    nr, nc, allowed, source_r=r, source_c=c, direction=d
+                ):
+                    queue.append((nr, nc))
+
+    def _restrict_cell_options(
+        self,
+        target_r: int,
+        target_c: int,
+        allowed: set[str],
+        *,
+        source_r: int,
+        source_c: int,
+        direction: int,
+    ) -> bool:
+        """Intersect a target cell domain with allowed options.
+
+        Locked cells are treated as read-only singleton domains. Any attempted
+        reduction of a locked domain is raised as an explicit conflict so the
+        caller can restart or backtrack without silently overwriting ground
+        truth.
+        """
+        target = self._grid[target_r][target_c]
+        new_options = target.options & allowed
+        if new_options == target.options:
+            return False
+
+        if target.is_locked:
+            raise WFCConstraintConflictError(
+                "Locked cell conflict at "
+                f"({target_r},{target_c}) while propagating "
+                f"{DIR_NAMES[direction]} from ({source_r},{source_c}); "
+                f"locked domain {sorted(target.options)} would shrink to "
+                f"{sorted(new_options)}"
+            )
+
+        if len(new_options) == 0:
+            raise _Contradiction(
+                f"Propagation emptied cell ({target_r},{target_c})"
+            )
+
+        target.options = new_options
+        if len(new_options) == 1:
+            target.tile = next(iter(new_options))
+            target.collapsed = True
+        else:
+            target.tile = None
+            target.collapsed = False
+        return True
 
     def _place_element(
         self,
@@ -374,4 +433,9 @@ class WFCGenerator:
 
 class _Contradiction(Exception):
     """Raised when WFC reaches an impossible state."""
+    pass
+
+
+class WFCConstraintConflictError(_Contradiction):
+    """Raised when propagation attempts to overwrite a locked cell domain."""
     pass

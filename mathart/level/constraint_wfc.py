@@ -100,6 +100,7 @@ from .templates import (
 from .wfc import (
     WFCGenerator,
     AdjacencyRules,
+    WFCConstraintConflictError,
     _Cell,
     _Contradiction,
     DIRECTIONS,
@@ -635,7 +636,9 @@ class ConstraintAwareWFC(WFCGenerator):
             "attempts": 0,
             "veto_count": 0,
             "playable": False,
+            "conflict_count": 0,
         }
+        last_error: Optional[Exception] = None
 
         for attempt in range(max_retries):
             self._generation_stats["attempts"] = attempt + 1
@@ -653,21 +656,20 @@ class ConstraintAwareWFC(WFCGenerator):
                         return result
                     # Not playable — retry
                     continue
-                else:
-                    return result
-
-            except _Contradiction:
-                continue
-
-        # Final fallback: generate without constraints
-        for attempt in range(5):
-            try:
-                result = self._try_generate(
-                    width, height, ensure_ground, ensure_spawn, ensure_goal
-                )
                 return result
-            except _Contradiction:
+
+            except WFCConstraintConflictError as exc:
+                last_error = exc
+                self._generation_stats["conflict_count"] += 1
+                self._generation_stats["last_error"] = str(exc)
                 continue
+            except _Contradiction as exc:
+                last_error = exc
+                self._generation_stats["last_error"] = str(exc)
+                continue
+
+        if last_error is not None:
+            raise last_error
 
         raise RuntimeError(
             f"ConstraintAwareWFC failed after {max_retries} retries."
@@ -700,6 +702,8 @@ class ConstraintAwareWFC(WFCGenerator):
 
         # Apply difficulty curve constraints
         self._apply_difficulty_constraints()
+
+        self._propagate_locked_cells()
 
         # Main WFC loop with physics veto
         while True:

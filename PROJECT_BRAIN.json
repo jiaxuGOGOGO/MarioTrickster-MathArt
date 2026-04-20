@@ -1,7 +1,7 @@
 {
-  "version": "v0.83.0",
-  "last_session_id": "SESSION-093",
-  "last_updated": "2026-04-20T10:30:00Z",
+  "version": "v0.84.0",
+  "last_session_id": "SESSION-094",
+  "last_updated": "2026-04-20T06:38:34Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -21,6 +21,7 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      "HIGH-2.3-WFC-BOUNDARY-VALIDATION",
       "P1-ARCH-4",
       "P3-GPU-BENCH-1",
       "P1-AI-2D-SPARSECTRL",
@@ -31,9 +32,9 @@
     "closed_archived": 53
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-093 CRITICAL-2.1 CLOSED: XPBD Post-Stabilization Final Contact Pass. Two-tier constraint classification + independent post-iteration contact projection + ground constraint bus compliance + 12 extreme stress tests. Cumulative: 88 PASS (12 new + 76 regression), 0 FAIL.",
-  "total_iterations": 682,
-  "total_code_lines": 132591,
+  "validation_pass_rate": "SESSION-094 CRITICAL-2.2 CLOSED: WFC locked-tile absolute survival override. Base propagation refactored into queue-driven domain restriction with read-only locked cells, explicit WFCConstraintConflictError on overwrite attempts, and outward propagation from locked seeds. Added deterministic dead-end tests plus exporter regression coverage. Cumulative: 46 PASS (36 WFC core + 10 tilemap exporter), 0 FAIL.",
+  "total_iterations": 683,
+  "total_code_lines": 132767,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
@@ -943,6 +944,15 @@
       "title": "End-to-end demo showcase script",
       "status": "TODO",
       "estimated_effort": "low"
+    },
+    {
+      "id": "HIGH-2.3-WFC-BOUNDARY-VALIDATION",
+      "priority": "P1",
+      "title": "Gene Mutation: extreme pressure-testing and purge of unvalidated WFC boundary constraints",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "SESSION-094 follow-up. Build boundary/frontier verification for locked and newly collapsed cells, adversarial fuzz cases for edges/narrow corridors/fan-in-fan-out seams, reproducible contradiction seed corpus minimization, and exporter-side topology assertions so CRITICAL-2.2 lock immunity extends to boundary semantics without silent seam drift.",
+      "added_in": "SESSION-094"
     }
   ],
   "completed_tasks": [
@@ -1982,6 +1992,12 @@
       "title": "Contact-frame absolute survival override in min_gap filter (Two-Phase Immune Pool)",
       "completed_in": "SESSION-092",
       "result": "Rewrote select_adaptive_keyframes() with strict two-phase immune pool architecture. Phase 1 unconditionally injects boundary anchors and Contact frames into immune_frames set. Phase 2 evaluates non-Contact peaks with distance-yielding fill, discarding any candidate within min_gap of an immune frame. 55/55 keyframe tests PASS including 2 extreme conflict interception tests."
+    },
+    {
+      "id": "CRITICAL-2.2-WFC-LOCK-IMMUNITY",
+      "title": "WFC locked-tile absolute survival and explicit conflict closure",
+      "completed_in": "SESSION-094",
+      "result": "Refactored the base WFC propagation kernel into queue-driven domain restriction with read-only locked cells (`is_locked`). `_force_bottom_ground()` now locks cells through `_lock_cell()`, locked seeds propagate constraints outward from initialization via `_propagate_locked_cells()`, and any propagation that would shrink a locked domain raises `WFCConstraintConflictError` instead of silently overwriting ground truth. `ConstraintAwareWFC.generate()` now records `conflict_count` / `last_error` and re-raises the last contradiction instead of degrading to the old unconstrained fallback. Added deterministic adversarial tests for outward lock radiation, non-locked-to-locked overwrite conflict, and incompatible locked-tile dead-end with value-level state preservation. 46/46 targeted WFC + tilemap exporter regressions PASS."
     }
   ],
   "capability_gaps": [
@@ -2089,7 +2105,9 @@
     "REMAINING-S064: MicrokernelOrchestrator not yet wired into AssetPipeline trunk (additive overlay)",
     "REMAINING-S064: Legacy EvolutionOrchestrator bridges not yet migrated to NicheRegistry",
     "REMAINING-S064: No per-backend CI validation with artifact schema checks",
-    "REMAINING-S064: No hot-reload for dynamically discovered backends"
+    "REMAINING-S064: No hot-reload for dynamically discovered backends",
+    "RESOLVED-S094: WFC locked tiles could be silently overwritten or ignored during propagation -> queue-based lock immunity, outward propagation from locked seeds, and explicit WFCConstraintConflictError dead-end signaling",
+    "REMAINING-S094: Boundary/frontier constraints are not yet exhaustively fuzzed at map edges and seam-heavy topologies -> HIGH-2.3-WFC-BOUNDARY-VALIDATION"
   ],
   "recent_audit": {
     "session": "SESSION-036",
@@ -2272,15 +2290,15 @@
     "session085_research_notes": "research/session085_sparse_cloth_benchmark_research.md documents Taichi sparse SNode layouts, Google Benchmark warm-up/sampling discipline, NASA-STD-7009B verification/validation credibility, and XPBD GPU race condition mitigation via parity-based constraint coloring."
   },
   "recent_focus_snapshot": {
-    "session": "SESSION-085",
-    "focus": "P3-GPU-BENCH-1: sparse-cloth topology benchmark, sequential NumPy XPBD reference solver, and NASA-STD-7009B physical-equivalence parity closure",
+    "session": "SESSION-094",
+    "focus": "CRITICAL-2.2: WFC locked-tile absolute survival, explicit contradiction closure, and anti-overwrite propagation refactor",
     "closed": [
-      "P3-GPU-BENCH-1 (SUBSTANTIALLY-CLOSED — CUDA ignition verified on RTX 4070, remaining: complete full sparse_cloth run)"
+      "CRITICAL-2.2-WFC-LOCK-IMMUNITY (CLOSED — locked cells are read-only, radiate constraints outward, and trigger explicit conflict errors on overwrite attempts)"
     ],
     "next": [
-      "P3-GPU-BENCH-1: complete full sparse_cloth benchmark run on RTX 4070 (use --particle-budget 4096 for faster evidence)",
-      "P1-MIGRATE-4: continue hot-reload and registry closure work",
-      "P1-AI-2D-SPARSECTRL: execute full ComfyUI workflows with real SparseCtrl/AnimateDiff weights"
+      "HIGH-2.3-WFC-BOUNDARY-VALIDATION: extreme pressure-test edge/frontier constraints and seam-heavy micro-topologies",
+      "P1-ARCH-4: continue PDG v2 runtime semantics closure",
+      "P3-GPU-BENCH-1: finish production-scale sparse-cloth CUDA evidence"
     ]
   },
   "recent_sessions": [
@@ -2425,6 +2443,13 @@
         "P1-MIGRATE-4: continue hot-reload and registry closure work",
         "P1-AI-2D-SPARSECTRL: execute full ComfyUI workflows with real SparseCtrl/AnimateDiff weights"
       ]
+    },
+    {
+      "id": "SESSION-094",
+      "version": "0.84.0",
+      "date": "2026-04-20",
+      "title": "WFC Locked-Tile Absolute Survival & Explicit Conflict Closure",
+      "summary": "Closed CRITICAL-2.2 by refactoring WFC propagation into a queue-based lock-immunity kernel with explicit contradiction signaling, removing silent fallback on lock conflicts, and adding deterministic dead-end tests plus tilemap-exporter regressions."
     }
   ],
   "closed_tasks_archive": [
@@ -2775,14 +2800,20 @@
     {
       "id": "P1-INDUSTRIAL-34C",
       "completed_in": "SESSION-089",
-      "title": "Dead Cells 3D\u21922D orthographic pixel render pipeline",
-      "summary": "OrthographicPixelRenderBackend self-registers via @register_backend. Pure NumPy software rasterizer: edge-function triangle rasterization with Z-buffer, barycentric interpolation, multi-pass Albedo/Normal/Depth extraction, hard-stepped cel-shading kernel (N\u00b7L + threshold banding), nearest-neighbor downscale. Strongly-typed ArtifactManifest with texture_channels and engine slot bindings. 22 E2E tests enforce anti-perspective, anti-bilinear, anti-GUI red lines. Research: Dead Cells GDC 2018, Guilty Gear Xrd GDC 2015, Headless EGL architecture."
+      "title": "Dead Cells 3D→2D orthographic pixel render pipeline",
+      "summary": "OrthographicPixelRenderBackend self-registers via @register_backend. Pure NumPy software rasterizer: edge-function triangle rasterization with Z-buffer, barycentric interpolation, multi-pass Albedo/Normal/Depth extraction, hard-stepped cel-shading kernel (N·L + threshold banding), nearest-neighbor downscale. Strongly-typed ArtifactManifest with texture_channels and engine slot bindings. 22 E2E tests enforce anti-perspective, anti-bilinear, anti-GUI red lines. Research: Dead Cells GDC 2018, Guilty Gear Xrd GDC 2015, Headless EGL architecture."
     },
     {
       "id": "CRITICAL-2.1-XPBD-POST-STAB",
       "completed_in": "SESSION-093",
       "title": "XPBD Post-Stabilization Final Contact Pass (Contact Priority Inversion Fix)",
       "summary": "CODE RED Campaign II. Refactored XPBD solver with two-tier constraint classification (_INTERNAL_SOFT_KINDS / _TERMINAL_CONTACT_KINDS frozensets) and independent Final Contact Pass post-stabilization. Contact and self-collision constraints receive unconditional zero-compliance re-projection after all Gauss-Seidel iterations. Ground constraints refactored from hard-coded position clamp to constraint-bus-compliant kinematic anchor injection. 12 extreme stress tests with coordinate-level penetration <= 1e-5 assertions. 88/88 targeted tests PASS. Research: Macklin XPBD 2016, PhysX/FleX post-solve, Jolt Physics contact manifold."
+    },
+    {
+      "id": "CRITICAL-2.2-WFC-LOCK-IMMUNITY",
+      "completed_in": "SESSION-094",
+      "title": "WFC locked-tile absolute survival and explicit contradiction closure",
+      "summary": "Refactored the WFC propagation core so locked tiles are immutable singleton domains with outward-radiating constraints. Added queue-driven propagation seeds, explicit `WFCConstraintConflictError` on overwrite attempts, removed the constrained generator's silent unconstrained fallback after lock conflicts, and verified the closure with deterministic dead-end tests plus tilemap-exporter regressions."
     }
   ],
   "session_log": [
@@ -2799,7 +2830,7 @@
     },
     {
       "session_id": "SESSION-089",
-      "summary": "CLOSED P1-INDUSTRIAL-34C: Dead Cells 3D\u21922D orthographic pixel render pipeline. OrthographicPixelRenderBackend self-registers via @register_backend. Pure NumPy software rasterizer with edge-function triangle rasterization, Z-buffer, barycentric interpolation, multi-pass Albedo/Normal/Depth extraction, hard-stepped cel-shading kernel, nearest-neighbor downscale. 22 E2E tests enforce anti-perspective, anti-bilinear, anti-GUI red lines.",
+      "summary": "CLOSED P1-INDUSTRIAL-34C: Dead Cells 3D→2D orthographic pixel render pipeline. OrthographicPixelRenderBackend self-registers via @register_backend. Pure NumPy software rasterizer with edge-function triangle rasterization, Z-buffer, barycentric interpolation, multi-pass Albedo/Normal/Depth extraction, hard-stepped cel-shading kernel, nearest-neighbor downscale. 22 E2E tests enforce anti-perspective, anti-bilinear, anti-GUI red lines.",
       "files_changed": [
         "mathart/animation/orthographic_pixel_render.py",
         "mathart/core/orthographic_pixel_backend.py",
@@ -2825,6 +2856,19 @@
       ],
       "tests": "88 PASS, 0 FAIL",
       "status": "COMPLETE"
+    },
+    {
+      "session_id": "SESSION-094",
+      "summary": "CODE RED Campaign III: CLOSED CRITICAL-2.2 WFC constraint propagation lock-tile survival. Refactored mathart/level/wfc.py into queue-driven propagation with read-only locked cells and explicit WFCConstraintConflictError signaling. ConstraintAwareWFC now seeds locked propagation before collapse and no longer silently falls back to unconstrained generation after lock conflicts. Strengthened tests/test_constraint_wfc.py with deterministic dead-end conflict cases and verified downstream tilemap export regressions.",
+      "files_changed": [
+        "mathart/level/wfc.py",
+        "mathart/level/constraint_wfc.py",
+        "tests/test_constraint_wfc.py",
+        "research/session094_wfc_lock_audit_notes.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "tests": "46 PASS, 0 FAIL"
     }
   ]
 }
