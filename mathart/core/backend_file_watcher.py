@@ -348,13 +348,23 @@ class BackendFileWatcher:
             backend_name, module_name, file_path,
         )
 
-    def process_pending_reloads(
+    def poll_safe_point(
         self,
         *,
         backend_name: str | None = None,
         frame_index: int | None = None,
+        on_reload_complete: Optional[Callable[[str], None]] = None,
     ) -> list[dict[str, Any]]:
-        """Consume queued reload requests at a main-thread frame boundary."""
+        """Poll for queued reload requests at a frame boundary.
+
+        This is the main-thread handshake point for hot reload.  The watcher
+        thread only raises ``reload_requested_event``; the render/orchestration
+        loop calls this method between work units so reload occurs exactly in the
+        gap after the previous task and before the next task starts.
+        """
+        if not self._reload_requested_event.is_set():
+            return []
+
         if backend_name is None:
             with self._pending_lock:
                 pending_names = sorted(self._pending_reload_requests.keys())
@@ -371,12 +381,14 @@ class BackendFileWatcher:
             success = False
             error_msg = None
             try:
-                consumed = self._safe_point_lock.process_reload_if_requested(
+                consumed = self._safe_point_lock.poll_safe_point(
                     pending_name,
                     reload_callback=lambda name=pending_name: self._registry.reload(name),
                     frame_index=frame_index,
                 )
                 success = bool(consumed)
+                if success and on_reload_complete is not None:
+                    on_reload_complete(pending_name)
             except Exception as exc:
                 error_msg = str(exc)
                 logger.error("Hot-reload FAILED for %s: %s", pending_name, exc)
@@ -405,6 +417,18 @@ class BackendFileWatcher:
             self._reload_event.set()
 
         return results
+
+    def process_pending_reloads(
+        self,
+        *,
+        backend_name: str | None = None,
+        frame_index: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Backward-compatible alias for ``poll_safe_point()``."""
+        return self.poll_safe_point(
+            backend_name=backend_name,
+            frame_index=frame_index,
+        )
 
     def _on_file_changed(self, file_path: str) -> None:
         """Debounce callback — resolve file to backend and queue reload request."""

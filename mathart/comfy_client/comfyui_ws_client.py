@@ -188,12 +188,44 @@ class ComfyUIClient:
     ) -> "ExecutionResult":
         """Execute a workflow without reintroducing a batch-wide coarse lock.
 
-        SESSION-092 hotfix: frame-boundary Safe Point checks must live inside
-        the caller's per-frame loop.  Wrapping the entire workflow call in a
-        single outer fence would recreate the original lock-granularity bug.
+        Safe-point polling belongs in the surrounding batch loop, not around a
+        whole network task bundle.  This method therefore preserves the legacy
+        signature but delegates directly to single-workflow execution.
         """
         _ = backend_name  # kept for backward-compatible call signatures
         return self.execute_workflow(payload, run_label=run_label)
+
+    def execute_workflow_batch(
+        self,
+        payloads: list[dict[str, Any]],
+        *,
+        backend_name: str = "comfyui",
+        run_label: str = "mathart",
+        poll_safe_point: Any | None = None,
+    ) -> list["ExecutionResult"]:
+        """Execute a batch of workflows with frame-boundary safe-point polling.
+
+        ``poll_safe_point`` is invoked after each completed task and before the
+        next task starts.  This preserves batch throughput while allowing the
+        main thread to service queued hot-reload requests only at task gaps.
+        """
+        results: list[ExecutionResult] = []
+        total = len(payloads)
+        for index, payload in enumerate(payloads):
+            results.append(
+                self.execute_workflow_safe(
+                    payload,
+                    backend_name=backend_name,
+                    run_label=f"{run_label}_{index:04d}",
+                )
+            )
+            if poll_safe_point is not None:
+                poll_safe_point(frame_index=index)
+
+        if total == 0 and poll_safe_point is not None:
+            poll_safe_point(frame_index=None)
+
+        return results
 
     # ------------------------------------------------------------------
     # Health check

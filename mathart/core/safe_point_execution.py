@@ -1,37 +1,31 @@
-"""Safe-Point Execution Coordination — SESSION-092 frame-boundary hotfix.
+"""Safe-Point Execution Coordination — frame-boundary hot-reload polling.
 
-SESSION-092 replaces the coarse batch-wide execution fence from SESSION-091
-with a **frame-boundary safe-point** protocol.
+The safe-point protocol intentionally separates **requesting** a reload from
+**executing** a reload.  A file-watcher thread may observe backend source-file
+changes at any time, but it must never perform ``registry.reload()`` directly.
+Instead it raises a thread-safe request signal, and the main render loop polls
+that signal only at deterministic frame boundaries.
 
-Architecture
-------------
-Inspired by:
-- Unity Domain Reloading: patch code only at deterministic safe points.
-- Unreal Live Coding: let the main loop yield between frames, not mid-frame.
-- Erlang/OTP: code swap between work units, never during one work unit.
-
-The corrected protocol has three moving parts:
-
+Protocol
+--------
 1. ``request_reload(backend_name)``
-   Called by a file-watcher thread when source changes are detected.  This does
-   **not** reload code immediately.  It only marks a pending reload request.
+   Called by a watcher/background thread.  This only sets a pending request
+   signal; it never reloads code inline.
 
 2. ``frame_execution(backend_name)``
-   Marks the execution of **one frame-sized work unit**.  This context must wrap
-   the computation of an individual frame (or equivalent atomic slice), never an
-   entire multi-frame batch.
+   Wraps exactly one frame-sized unit of work.  This is intentionally tiny and
+   must not surround a whole multi-frame network/render batch.
 
-3. ``process_reload_if_requested(backend_name, reload_callback, frame_index=...)``
-   Called by the main render thread **after frame N completes and before frame
-   N+1 begins**.  If a pending reload exists, the current thread temporarily
-   yields the render loop, executes ``reload_callback`` at the boundary, and
-   then resumes batch processing.
+3. ``poll_safe_point(backend_name, reload_callback, frame_index=...)``
+   Called by the main loop after frame *N* and before frame *N+1*.  If a reload
+   request is pending, the current thread temporarily takes ownership, performs
+   the reload at the boundary, clears the request signal, and resumes the batch.
 
-Anti-Pattern Guards (SESSION-092 Red Lines)
--------------------------------------------
-- 🚫 No coarse lock around a whole multi-frame render batch.
-- 🚫 The watcher thread must not call ``registry.reload()`` directly.
-- 🚫 Reload must never start while any frame-sized compute section is active.
+Anti-Pattern Guards
+-------------------
+- No coarse lock around a whole multi-frame render batch.
+- The watcher thread must never call ``registry.reload()`` directly.
+- Reload must never start while a frame-sized compute section is active.
 """
 from __future__ import annotations
 
@@ -45,11 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 class SafePointExecutionLock:
-    """Per-backend frame-boundary reload coordinator.
-
-    The watcher thread only raises a pending-reload signal.  The main render
-    thread performs the actual reload during a deterministic frame boundary.
-    """
+    """Per-backend frame-boundary reload coordinator."""
 
     def __init__(self, *, reload_timeout: float = 10.0) -> None:
         self._reload_timeout = float(reload_timeout)
@@ -63,23 +53,18 @@ class SafePointExecutionLock:
                 self._backend_states[backend_name] = {
                     "active_frames": 0,
                     "reloading": False,
-                    "reload_requested": False,
                     "reload_request_count": 0,
                     "reload_completed_count": 0,
                     "last_reload_boundary_after_frame": None,
                     "last_reload_error": None,
+                    "reload_requested_event": threading.Event(),
                     "condition": threading.Condition(threading.Lock()),
                 }
             return self._backend_states[backend_name]
 
     @contextmanager
     def frame_execution(self, backend_name: str) -> Generator[None, None, None]:
-        """Mark execution of one frame-sized atomic work unit.
-
-        This context is intentionally **small**.  It should wrap one frame's
-        computation only.  If a reload is currently executing, the next frame
-        waits at the boundary until reload completes.
-        """
+        """Mark execution of one frame-sized atomic work unit."""
         state = self._get_state(backend_name)
         cond = state["condition"]
 
@@ -105,24 +90,22 @@ class SafePointExecutionLock:
 
     @contextmanager
     def execution_fence(self, backend_name: str) -> Generator[None, None, None]:
-        """Backward-compatible alias for ``frame_execution``.
+        """Backward-compatible alias kept for legacy single-frame tests only.
 
-        SESSION-092 repurposes this API for **single-frame** execution only.
-        It must not be used as a batch-wide outer lock.
+        This name used to encourage coarse batch-wide locking.  It now maps to
+        ``frame_execution()`` so legacy callers do not regress, while the actual
+        coordination protocol is driven by explicit frame-boundary polling.
         """
         with self.frame_execution(backend_name):
             yield
 
     def request_reload(self, backend_name: str) -> int:
-        """Register a pending reload request from a watcher thread.
-
-        Returns the cumulative reload request count for observability.
-        Multiple rapid requests are coalesced into a single pending flag.
-        """
+        """Register a pending reload request from a watcher thread."""
         state = self._get_state(backend_name)
         cond = state["condition"]
+        reload_event = state["reload_requested_event"]
         with cond:
-            state["reload_requested"] = True
+            reload_event.set()
             state["reload_request_count"] += 1
             cond.notify_all()
             return int(state["reload_request_count"])
@@ -130,38 +113,26 @@ class SafePointExecutionLock:
     def has_pending_reload(self, backend_name: str) -> bool:
         """Whether a backend currently has a queued reload request."""
         state = self._get_state(backend_name)
-        return bool(state["reload_requested"])
+        return bool(state["reload_requested_event"].is_set())
 
-    def process_reload_if_requested(
+    def poll_safe_point(
         self,
         backend_name: str,
         reload_callback: Optional[Callable[[], Any]] = None,
         *,
         frame_index: int | None = None,
     ) -> bool:
-        """Process a pending reload exactly at a frame boundary.
+        """Poll the frame boundary and consume a pending reload request.
 
-        Parameters
-        ----------
-        backend_name : str
-            Backend whose boundary is being checked.
-        reload_callback : callable, optional
-            Actual reload operation to run if a pending request exists.  This is
-            typically ``lambda: registry.reload(backend_name)``.
-        frame_index : int | None
-            The frame that just completed.  Stored for diagnostics.
-
-        Returns
-        -------
-        bool
-            ``True`` if a pending reload was consumed and processed, else
-            ``False``.
+        Returns ``True`` only when a queued reload request is actually consumed
+        and processed at this safe point.
         """
         state = self._get_state(backend_name)
         cond = state["condition"]
+        reload_event = state["reload_requested_event"]
 
         with cond:
-            if not state["reload_requested"]:
+            if not reload_event.is_set():
                 return False
 
             deadline = time.monotonic() + self._reload_timeout
@@ -176,7 +147,7 @@ class SafePointExecutionLock:
                 cond.wait(timeout=remaining)
 
             state["reloading"] = True
-            state["reload_requested"] = False
+            reload_event.clear()
             state["last_reload_boundary_after_frame"] = frame_index
             state["last_reload_error"] = None
 
@@ -194,14 +165,23 @@ class SafePointExecutionLock:
                 state["reload_completed_count"] += 1
                 cond.notify_all()
 
+    def process_reload_if_requested(
+        self,
+        backend_name: str,
+        reload_callback: Optional[Callable[[], Any]] = None,
+        *,
+        frame_index: int | None = None,
+    ) -> bool:
+        """Backward-compatible alias for ``poll_safe_point()``."""
+        return self.poll_safe_point(
+            backend_name,
+            reload_callback,
+            frame_index=frame_index,
+        )
+
     @contextmanager
     def reload_gate(self, backend_name: str) -> Generator[None, None, None]:
-        """Manual exclusive reload context for boundary-safe direct reloads.
-
-        This remains available for explicit maintenance flows, but the watcher
-        thread must prefer ``request_reload()`` and let the main loop consume the
-        request at a frame boundary.
-        """
+        """Manual exclusive reload context for explicit maintenance flows."""
         state = self._get_state(backend_name)
         cond = state["condition"]
 
@@ -246,7 +226,7 @@ class SafePointExecutionLock:
                 name: {
                     "active_frames": int(s["active_frames"]),
                     "reloading": bool(s["reloading"]),
-                    "reload_requested": bool(s["reload_requested"]),
+                    "reload_requested": bool(s["reload_requested_event"].is_set()),
                     "reload_request_count": int(s["reload_request_count"]),
                     "reload_completed_count": int(s["reload_completed_count"]),
                     "last_reload_boundary_after_frame": s["last_reload_boundary_after_frame"],
@@ -255,10 +235,6 @@ class SafePointExecutionLock:
                 for name, s in self._backend_states.items()
             }
 
-
-# ---------------------------------------------------------------------------
-# Module-level singleton
-# ---------------------------------------------------------------------------
 
 _global_lock: SafePointExecutionLock | None = None
 _singleton_mutex = threading.Lock()

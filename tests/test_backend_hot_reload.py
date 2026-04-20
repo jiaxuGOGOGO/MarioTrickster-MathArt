@@ -487,6 +487,120 @@ class TestBackendFileWatcher:
         finally:
             watcher.stop()
 
+    def test_concurrent_reload_is_polled_only_at_frame_boundary(self, tmp_backend_dir: Path):
+        """并发 Watcher 请求只能在帧边界被主循环轮询消费，且不得撕裂单次计算。"""
+        from mathart.core.backend_file_watcher import BackendFileWatcher
+        from mathart.core.safe_point_execution import SafePointExecutionLock
+
+        reg = BackendRegistry()
+        backend_file = tmp_backend_dir / "dummy_hot_backend.py"
+        backend_file.write_text(_generate_backend_source("1.0.0", "v1_result"))
+        importlib.import_module("dynamic_backends.dummy_hot_backend")
+
+        class DummyOrchestrator:
+            def __init__(self) -> None:
+                self.cache = {"dummy_hot_backend": {"stale": True}}
+                self.invalidations: list[tuple[str, float]] = []
+
+            def on_backend_reload(self, backend_name: str) -> None:
+                self.cache.pop(backend_name, None)
+                self.invalidations.append((backend_name, time.time()))
+
+        orch = DummyOrchestrator()
+        lock = SafePointExecutionLock(reload_timeout=5.0)
+        watcher = BackendFileWatcher(
+            reg,
+            extra_watch_paths=[str(tmp_backend_dir)],
+            debounce_seconds=0.05,
+            safe_point_lock=lock,
+        )
+        watcher.start()
+
+        frame_log: list[tuple[str, int, float]] = []
+        reload_records: list[dict[str, Any]] = []
+        request_times: list[float] = []
+        render_started = threading.Event()
+        frame_zero_started = threading.Event()
+        release_frame_zero = threading.Event()
+
+        def render_loop() -> None:
+            render_started.set()
+            for frame_idx in range(3):
+                with lock.frame_execution("dummy_hot_backend"):
+                    frame_log.append(("start", frame_idx, time.time()))
+                    if frame_idx == 0:
+                        frame_zero_started.set()
+                        assert release_frame_zero.wait(timeout=3.0)
+                    else:
+                        time.sleep(0.05)
+                    frame_log.append(("end", frame_idx, time.time()))
+                reload_records.extend(
+                    watcher.poll_safe_point(
+                        backend_name="dummy_hot_backend",
+                        frame_index=frame_idx,
+                        on_reload_complete=orch.on_backend_reload,
+                    )
+                )
+                time.sleep(0.01)
+
+        def watcher_trigger() -> None:
+            assert frame_zero_started.wait(timeout=2.0), "Render loop never started frame 0"
+            backend_file.write_text(_generate_backend_source("2.0.0", "v2_result"))
+            assert watcher.reload_requested_event.wait(timeout=5.0), (
+                "Watcher did not queue a reload request while frame 0 was active"
+            )
+            request_times.append(time.time())
+            _, still_v1_class = reg.get_or_raise("dummy_hot_backend")
+            assert still_v1_class.HOT_RELOAD_VERSION == "v1_result", (
+                "Backend reloaded before the frame-boundary poll"
+            )
+            release_frame_zero.set()
+
+        try:
+            watcher.reload_requested_event.clear()
+            watcher.reload_event.clear()
+
+            render_thread = threading.Thread(target=render_loop, daemon=True)
+            trigger_thread = threading.Thread(target=watcher_trigger, daemon=True)
+            render_thread.start()
+            trigger_thread.start()
+
+            assert render_started.wait(timeout=1.0), "Render loop startup was blocked"
+            trigger_thread.join(timeout=6.0)
+            render_thread.join(timeout=6.0)
+
+            assert not trigger_thread.is_alive(), "Watcher trigger thread deadlocked"
+            assert not render_thread.is_alive(), "Render loop deadlocked"
+            assert request_times, "No reload request timestamp recorded"
+            assert reload_records, "No reload record produced at any frame boundary"
+            assert reload_records[0]["success"] is True
+            assert reload_records[0]["frame_boundary_after"] == 0
+            assert not watcher.reload_requested_event.is_set(), (
+                "Reload request signal was not cleared after boundary consumption"
+            )
+            assert watcher.reload_event.is_set(), "Reload completion event was never raised"
+
+            frame0_start = next(ts for tag, idx, ts in frame_log if tag == "start" and idx == 0)
+            frame0_end = next(ts for tag, idx, ts in frame_log if tag == "end" and idx == 0)
+            frame1_start = next(ts for tag, idx, ts in frame_log if tag == "start" and idx == 1)
+            reload_ts = reload_records[0]["timestamp"]
+
+            assert frame0_start <= request_times[0] <= frame0_end, (
+                f"Reload request was not raised during frame 0 execution: frame_log={frame_log}, requests={request_times}"
+            )
+            assert frame0_end <= reload_ts <= frame1_start, (
+                f"Reload did not occur in the task gap between frame 0 and frame 1: record={reload_records[0]}, frame_log={frame_log}"
+            )
+            assert orch.invalidations == [("dummy_hot_backend", orch.invalidations[0][1])]
+            assert orch.cache.get("dummy_hot_backend") is None, (
+                "Orchestrator dirty cache was not cleared after hot reload"
+            )
+
+            _, v2_class = reg.get_or_raise("dummy_hot_backend")
+            assert v2_class.HOT_RELOAD_VERSION == "v2_result"
+        finally:
+            watcher.stop()
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Test Group 6: Debounce Scheduler

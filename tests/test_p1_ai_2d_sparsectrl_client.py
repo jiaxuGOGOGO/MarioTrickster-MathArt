@@ -169,6 +169,42 @@ class TestGracefulDegradation(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertIn("prompt", result.error_message.lower())
 
+    def test_execute_workflow_batch_polls_between_tasks(self):
+        """批量执行必须在任务间隙轮询安全点，而不是用粗粒度大锁包住整个批次。"""
+        client = ComfyUIClient()
+        payloads = [
+            {"prompt": {"1": {"class_type": "Test"}}, "client_id": "task-a"},
+            {"prompt": {"1": {"class_type": "Test"}}, "client_id": "task-b"},
+        ]
+        call_log: list[tuple[str, object]] = []
+
+        def fake_execute_workflow_safe(payload, *, backend_name="comfyui", run_label="mathart"):
+            call_log.append(("execute", payload["client_id"]))
+            return ExecutionResult(success=True, prompt_id=payload["client_id"])
+
+        def fake_poll_safe_point(*, frame_index=None):
+            call_log.append(("poll", frame_index))
+
+        client.execute_workflow_safe = mock.MagicMock(side_effect=fake_execute_workflow_safe)
+
+        results = client.execute_workflow_batch(
+            payloads,
+            backend_name="dummy_hot_backend",
+            run_label="batch_run",
+            poll_safe_point=fake_poll_safe_point,
+        )
+
+        self.assertEqual(
+            call_log,
+            [
+                ("execute", "task-a"),
+                ("poll", 0),
+                ("execute", "task-b"),
+                ("poll", 1),
+            ],
+        )
+        self.assertEqual([r.prompt_id for r in results], ["task-a", "task-b"])
+
     @mock.patch("urllib.request.urlopen", side_effect=OSError("Connection refused"))
     def test_execute_workflow_os_error_degraded(self, mock_urlopen):
         """OSError → degraded result."""
