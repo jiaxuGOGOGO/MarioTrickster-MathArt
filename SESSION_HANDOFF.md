@@ -4,114 +4,98 @@
 
 | Field | Value |
 |---|---|
-| Session | `SESSION-103` |
-| Focus | `P1-ARCH-4` — 轻量级 DAG 核心升级为 PDG v2 运行时语义 |
+| Session | `SESSION-104` |
+| Focus | `P1-ARCH-4` 跟进收口 —— 让 PDG v2 具备真正的单机有界 Fan-out 调度语义 |
 | Status | `COMPLETE` |
 | Working Branch | `main` |
-| Validation | `1725 PASS, 7 SKIP`（`python3.11 -m pytest tests/ -p no:cov`，无 FAIL） |
-| Primary Files | `mathart/level/pdg.py`，`mathart/level/__init__.py`，`mathart/pipeline.py`，`tests/test_level_pdg.py`，`research_notes_p1_arch4_session103.md` |
+| Validation | `1726 PASS, 7 SKIP`（`python3.11 -m pytest tests/ -p no:cov`，无 FAIL） |
+| Primary Files | `mathart/level/pdg.py`，`tests/test_level_pdg.py`，`research_notes_p1_arch4_session104.md`，`PROJECT_BRAIN.json`，`SESSION_HANDOFF.md` |
 
 ## Executive Summary
 
-本轮聚焦 **P1-ARCH-4: PDG v2 runtime semantics**，目标不是给旧 DAG 套一层注释式包装，而是把仓库中原本“只有拓扑排序 + 裸 `dict` 传递”的轻量执行器，升级为具备 **冻结态 WorkItem 契约、Hermetic SHA-256 缓存、真实 Fan-out / Fan-in 调度原语，以及向下兼容 facade** 的工业化运行底盘。[1] [2] [3]
+本轮不是从零重做 `P1-ARCH-4`，而是先对仓库头部已落地的 PDG v2 实现做了一次严格白盒审计。审计结果表明，`SESSION-103` 已经完成了 **WorkItem 契约、Hermetic SHA-256 磁盘缓存、Fan-out / Fan-in 运行时语义与 facade 向下兼容** 等关键升级，但距离本轮要求的“**单机特化版工业级 PDG 调度语义**”仍有一个剩余缺口：**mapped fan-out 虽然在数据结构上已存在，却仍通过顺序 `for` 循环执行，尚未真正进入有界本地并发池。** [1] [2] [3]
 
-改造后的 `mathart/level/pdg.py` 不再把运行期单元视为“节点名 -> 输出字典”的松散映射，而是显式引入 `WorkItem`、`PDGFanOutItem`、`PDGFanOutResult`、磁盘式 Action Cache + CAS、映射分区派发、Collect 屏障汇聚和 work-item 级 trace。现有串行 DAG 未被破坏；旧图仍然作为 **fan-out = 1** 的特例继续运行，`ProceduralDependencyGraph.run()` 对外仍保持返回 `dict` 风格结果，确保 `AssetPipeline.produce_level_pack()` 等上游调用点零签名回归。[4] [5]
+本轮的核心价值，就是把这个残余缺口彻底收口。`mathart/level/pdg.py` 现在在保持 `graph.run()` 外部返回契约不变的前提下，新增了 **可配置 `max_workers` 的本地有界调度路径**。对 Fan-out 产生的 mapped invocations，运行时不再顺序串行执行，而是通过 **受 `max_workers` 硬限制的本地线程池** 做物理派发；同时，结果汇总、trace 记录与 cache 统计仍在主线程按稳定顺序收口，确保 **Barrier/Fan-in 继续是运行时层职责，而不是 worker 内部互等 future 的伪拓扑**。[3]
 
-## Research Alignment
+与此同步，本轮还把磁盘缓存写入升级为**原子写入**，避免在并发 fan-out 下出现 CAS / Action Cache 文件竞争导致的脏读或半写入风险。新增白盒测试进一步证明了三条证据链：其一，哈希一致时旧算子真实重算次数仍然严格为零；其二，1→N fan-out 在 `max_workers=2` 时确实形成了**真实并发且上限被硬性钳住**；其三，N→1 collect 在并发执行之后没有产生 payload 污染、死锁或顺序漂移。全量回归达到 **1726 PASS / 7 SKIP / 0 FAIL**，说明此次收口没有破坏主干兼容性。[4]
 
-| Reference | Applied Principle | Concrete Landing |
+## Research Alignment Audit
+
+| Reference | Requested Industrial Principle | `SESSION-104` Concrete Closure |
 |---|---|---|
-| SideFX Houdini PDG / TOPs [1] | WorkItem 是运行时核心对象；节点逻辑与调度分层；Partition/Collect 有独立生命周期 | `WorkItem` 成为运行时传递单元；`_PDGv2RuntimeFacade` 单独负责映射、收集与缓存；`topology="collect"` 触发真实聚合路径 |
-| Bazel Remote Caching [2] | Action Cache 与 CAS 分层；依据输入、环境与上游产物内容摘要命中缓存 | `_PDGDiskCache` 显式拆分 `ac/` 与 `cas/`；每次节点执行用稳定序列化 + SHA-256 生成 cache key |
-| Apache Airflow Dynamic Task Mapping [3] | 1→N runtime expansion、map→reduce、lazy aggregate、repeated mapping | fan-out 节点通过 `PDGFanOutResult` 在运行时裂变 work items；普通 task 节点对分区 work items 自动映射；collect 节点建立 N→1 屏障 |
-| Repository state / SESSION-102 handoff [4] [5] | 保持主干兼容与三层进化连续性 | `ProceduralDependencyGraph.run()` 输出仍兼容旧 `results/target_outputs/execution_order` 结构；level pipeline 只需显式设置隔离缓存目录 |
+| SideFX Houdini PDG / TOPs [1] | WorkItem 是运行期中心对象，Partition / Collect 是独立生命周期，调度与节点逻辑分层 | 继续保持 `WorkItem` 为执行单元，并把 mapped fan-out 的真实调度职责落在 runtime facade，而不是业务节点内部循环 |
+| Bazel Remote Caching [2] | Action Cache 与 CAS 分层；内容哈希决定复用；命中缓存必须 dry-run 短路 | 保持 SHA-256 action key + payload digest 结构，并把并发写入改为原子落盘，避免并发下缓存污染 |
+| Python `concurrent.futures` [3] | 使用受限 worker pool、安全 barrier 汇聚，并避免 worker 内 future 互等造成死锁 | 新增 `max_workers` 限流与有界 in-flight future 提交；汇聚发生在主线程，不让 worker 相互等待 |
 
-研究笔记已落盘到 `research_notes_p1_arch4_session103.md`，后续若继续扩展 OpenUSD 互换、GPU benchmark 或多轨微内核编排，可直接复用本轮约束结论。[6]
+本轮审计的结论非常明确：仓库现在终于不仅“看起来像 PDG”，而且在**单机特化的 bounded scheduler 语义**上也真正越过了最后一道坎。[1] [2] [3]
 
 ## What Changed in Code
 
 | File | Change | Effect |
 |---|---|---|
-| `mathart/level/pdg.py` | 新增 `WorkItem`、`PDGFanOutItem`、`PDGFanOutResult` | 将运行期数据单元从裸 `dict` 提升为显式契约对象 |
-| `mathart/level/pdg.py` | 新增 `_PDGDiskCache` | 以 Action Cache + CAS 结构实现基于 SHA-256 的跨生命周期磁盘缓存 |
-| `mathart/level/pdg.py` | 新增 `_PDGv2RuntimeFacade` | 将拓扑排序、映射分区、collect 屏障、缓存判定与 trace 收集从节点逻辑中分离 |
-| `mathart/level/pdg.py` | 扩展 `PDGNode(topology, config, cache_enabled, collect_by_partition)` | 允许节点声明真实运行时语义，而非在业务函数内部偷渡拓扑控制 |
-| `mathart/level/pdg.py` | `ProceduralDependencyGraph.run()` 代理到 facade | 保留旧公共 API，同时让新运行时在物理层面接管执行 |
-| `mathart/level/__init__.py` | 导出 `WorkItem` / `PDGFanOutItem` / `PDGFanOutResult` | 为白盒测试与后续主干接入暴露稳定类型入口 |
-| `mathart/pipeline.py` | Level PDG 显式使用 `level_dir/.pdg_cache` | 避免默认工作目录缓存污染，落实生命周期隔离 |
-| `tests/test_level_pdg.py` | 新增缓存、fan-out/fan-in、WorkItem 契约白盒测试 | 锁死“相同哈希零重算”“1→N、N→1 数据完备”“WorkItem 暴露 cache key/partition”三条硬约束 |
+| `mathart/level/pdg.py` | `ProceduralDependencyGraph.__init__()` 新增 `max_workers` 与 `scheduler_backend` | 让 PDG 运行时具备显式单机调度上限配置，而非隐式无限 fan-out |
+| `mathart/level/pdg.py` | `_execute_task_node()` 改为“顺序回退 + 有界并发路径”双态执行 | 保持向下兼容；只有当 `max_workers > 1` 且存在多 invocation 时才启用真实并发 |
+| `mathart/level/pdg.py` | 新增 `_execute_task_invocations_concurrently()` | 以 bounded in-flight futures 的方式进行物理派发，避免一次性无限提交撑爆单机 |
+| `mathart/level/pdg.py` | `_execute_invocation()` 改为返回 `_InvocationResult`，主线程统一汇聚 trace / cache stats | 避免多线程直接修改共享 trace/counter，消除并发污染与顺序不确定性 |
+| `mathart/level/pdg.py` | `_PDGDiskCache` 新增原子 JSON 写入 | 让 AC / CAS 在并发 fan-out 下依然保持一致性与可恢复性 |
+| `tests/test_level_pdg.py` | 新增 `test_pdg_v2_bounded_fan_out_respects_max_workers_and_collects_without_contamination()` | 白盒锁死“真实并发且不超过上限”“collect 无污染”“结果顺序稳定”三条证据链 |
+| `research_notes_p1_arch4_session104.md` | 新增本轮审计与收口笔记 | 记录为什么 `SESSION-103` 还差最后一层调度语义，以及 `SESSION-104` 如何补齐 |
 
-## Architecture Closure
+## White-Box Physical Proof
 
-| Red Line | Outcome |
+| Assertion | Evidence |
 |---|---|
-| 防“改注释逃课” | 已合规。Fan-out、Collect、Cache 均在独立运行时路径中物理存在，不是旧 `for` 循环换名。 |
-| 防“内存字典式伪缓存” | 已合规。缓存为磁盘 `ac/` + `cas/` 结构，cache key 基于稳定序列化与 SHA-256，未使用 `id()`、`hash()` 或模块级全局 dict。 |
-| 防“主干零退化” | 已合规。`ProceduralDependencyGraph.run()` 仍返回兼容字典结果；旧串行 DAG 测试与 `AssetPipeline` 级回归全部通过。 |
-| 防“生命周期污染/OOM” | 已合规。缓存目录显式落在图实例范围内，可按运行隔离清理，未引入长驻进程级结果池。 |
+| 相同哈希真实重算次数等于 0 | 既有 `test_pdg_v2_hermetic_cache_short_circuits_recomputation()` 继续通过，说明本轮并发改造没有破坏 dry-run cache short-circuit |
+| Fan-out 不是“旧 for 循环换名” | 新测试通过 `active/max_active` 计数器证明并发峰值真实达到 `2`，不是伪并发 |
+| Fan-out 不会无限并发打爆单机 | 同一测试证明 `max_active == max_workers == 2`，没有越上限失控 |
+| Fan-in / Collect 不污染数据 | 并发后的 collect 输出稳定为 `p0..p3` 对应 `10,20,30,40`，没有分支 payload 串线 |
+| 主干零退化 | 全量回归 `1726 PASS / 7 SKIP / 0 FAIL`，无旧测试回归 |
 
-本轮真正完成的，不是“让 DAG 看起来更像 PDG”，而是把 **WorkItem / Cache / Fan-out / Fan-in** 从文档口号变成了可执行、可审计、可测试的代码事实。[1] [2] [3]
+## Validation Closure
 
-## Test Closure
-
-| Validation Layer | Scope | Result |
+| Validation Layer | Command | Result |
 |---|---|---|
-| 专项白盒 | `python3.11 -m pytest tests/test_level_pdg.py -p no:cov` | **7 PASS / 0 FAIL** |
-| 全量回归 | `python3.11 -m pytest tests/ -p no:cov` | **1725 PASS / 7 SKIP / 0 FAIL** |
+| PDG 专项白盒 | `python3.11 -m pytest tests/test_level_pdg.py -p no:cov` | **8 PASS / 0 FAIL** |
+| 全量回归 | `python3.11 -m pytest tests/ -p no:cov` | **1726 PASS / 7 SKIP / 0 FAIL** |
 
-本轮全量结果较 `SESSION-102` 多出 3 个新增通过项，来自本轮新增的 PDG v2 白盒测试。未修改任何既有断言去迁就新实现；旧回归在原契约下保持通过。[5]
+全量回归过程中唯一出现的非代码阻塞是 sandbox 环境缺少 `watchdog`，补齐依赖后重新执行即恢复全绿。因此这不是本轮代码回归，而是本地验证环境差异；`PROJECT_BRAIN.json` 已同步记录该点，便于后续复现。[4]
 
-## Files Touched This Session
+## Architecture Discipline Check
 
-| Category | Files |
+| Red Line | Result |
 |---|---|
-| Production | `mathart/level/pdg.py`, `mathart/level/__init__.py`, `mathart/pipeline.py` |
-| Tests | `tests/test_level_pdg.py` |
-| Research | `research_notes_p1_arch4_session103.md` |
-| Project State | `PROJECT_BRAIN.json`, `SESSION_HANDOFF.md` |
+| 严禁写回中心中枢 if/else | 已合规。本轮只修改 `mathart/level/pdg.py` 的 runtime substrate，没有破坏 registry / microkernel 主干原则。 |
+| 严禁内存字典式伪缓存 | 已合规。缓存仍为本地磁盘 `ac/` + `cas/`，且在并发下升级为原子写入。 |
+| 严禁 fan-out 伪拓扑 | 已合规。mapped invocations 已经走真实 executor 路径，而不是旧串行 `for` 循环。 |
+| 主干向下兼容零退化 | 已合规。`graph.run()` 返回契约保持不变，全量回归通过。 |
+| 单机硬件约束 | 已合规。未引入 Redis、Celery、RabbitMQ 或任何分布式框架；调度严格限定在本地线程池 + 本地磁盘缓存。 |
 
-## PROJECT_BRAIN Update Summary
+## Preparation Notes for P3-GPU-BENCH-1 on RTX 4070
 
-`PROJECT_BRAIN.json` 需要同步为 `SESSION-103`：将 `P1-ARCH-4` 标记为 `CLOSED`，刷新 `last_session_id`、`last_updated`、`validation_pass_rate`、`recent_focus_snapshot`、`recent_sessions`、`session_summaries`、`session_log` 与 `resolved_issues`，并把本轮验证结果更新为 `1725 PASS / 7 SKIP / 0 FAIL`。[5]
+本轮把 PDG v2 的**单机 bounded scheduler 底盘**补齐之后，下一步若要在当前这台 **i5-12600KF / 32GB RAM / RTX 4070 12GB** 工作站上无缝推进 `P3-GPU-BENCH-1`，已经不需要再推倒运行时，只需要做几项**微调准备**。
 
-## Preparation Notes for P3-GPU-BENCH-1
+第一，应该把 benchmark scenario 正式提升为 **WorkItem 级契约**。`free_fall_cloud`、`sparse_cloth`、`cpu_reference`、`cuda_real_device`、`particle_budget`、`warmup_count`、`sample_count` 等都应成为显式 payload / attributes，而不是散落在脚本参数里。这样一来，PDG runtime 才能自然地把“场景 × 设备 × 粒子预算”映射成可 fan-out 的 benchmark 分区。[1] [3]
 
-本轮打通 PDG v2 后，接下来若要无缝接入 **P3-GPU-BENCH-1（CUDA 硬件稀疏布料真实硬件验证与生产可信度证据闭环）**，当前架构只需做几处**微调准备**，而不再需要推倒重来。
+第二，benchmark 节点的缓存指纹还需要补齐**硬件环境指纹维度**。建议至少显式纳入 `device_name`、`driver_version`、`cuda_available`、`cuda_runtime_version`、`taichi_version`、`arch`、`precision_mode`、`snode_layout`。否则，同一测试场景在 CPU 参考模式和真实 CUDA 模式之间，仍有被误判为同一 cache lineage 的风险。[2]
 
-### 1. 将 Benchmark Scenario 提升为独立 WorkItem 契约
+第三，collect 节点需要从“普通聚合”进一步升级为**统计归约协议**。下一步建议 collect 统一输出：warmup 后中位数、P95、最差帧、样本数、对照组 drift / RMSE、设备信息、原始明细路径、可审计报告路径。这样即可直接为 `P3-GPU-BENCH-1` 形成生产可信度证据闭环。[3]
 
-GPU benchmark 的 `free_fall_cloud`、`sparse_cloth`、`CPU reference`、`CUDA real device`、`particle_budget`、`warmup_count`、`sample_count` 等，都应作为显式 payload/attributes 进入 `WorkItem`，而不是继续散落在脚本参数或局部变量中。这样一来，不同硬件、不同场景、不同预算将天然成为可 fan-out 的 benchmark 分区，且每个分区都有自己的 cache lineage 与 trace。
+第四，大型 benchmark 轨迹和诊断数据不应直接塞进 JSON payload。现在的 PDG v2 已经适合把这些产物改为“**文件路径 + 内容摘要**”模式：payload 中只保留文件引用与 digest，本体落盘为 artifact。这样既能保持 hermetic key，又能守住 32GB RAM 和 12GB 显存的单机底线。[2]
 
-### 2. 为 GPU 证据链补充环境指纹维度
-
-当前 cache key 已覆盖节点契约、上下文与上游产物，但若要进入真实 CUDA 证据闭环，建议在 benchmark 节点的 `config` / `context` 中显式纳入以下环境指纹：`device_name`、`driver_version`、`cuda_available`、`taichi_version`、`arch`、`precision_mode`、`snode_layout`。否则不同硬件环境下的 benchmark 可能被误判为同一缓存命中。
-
-### 3. 为 Collect 节点补充统计归约协议
-
-现在的 collect 已经能完成 N→1 屏障汇聚，但 GPU benchmark 下一步需要把多个 work items 规整成 **可信统计报告**。建议在 benchmark collect 节点上统一输出：样本数、warmup 后中位数、P95、最差帧、设备信息、误差界、对照组差异、原始报告路径。这样可直接对接后续 `ArtifactManifest` 或外部审计文档。
-
-### 4. 给不可 JSON 化的大型数值产物增加“文件化 payload”约定
-
-当前缓存层对 JSON 友好 payload 最稳定。若 GPU benchmark 要缓存更大的曲线、逐步诊断或粒子快照，建议采用“payload 保存文件路径 + 内容摘要，文件本体落盘”的约定，而不是把巨量数组直接塞进 payload。这样既保持 Hermetic key，又不会把 CAS 推向 OOM 或过度序列化开销。
-
-### 5. 把 GPU benchmark 接入 registry/microkernel 时坚持 lane 化而非中心路由化
-
-下一步若需要让 GPU benchmark 进入更大的主干编排，应新增独立 benchmark backend / lane，由 registry 挂载；不要把 CUDA 逻辑重新写回中心中枢的 `if/else`。PDG v2 现在已经提供 runtime substrate，下一步要做的是 **把 benchmark lane 挂在这块底盘上**，而不是破坏它。
+第五，等 benchmark lane 真正接入主干时，仍然要坚持 **lane 化 / registry 化挂载**，不要把 CUDA benchmark 逻辑重新塞回中心路由。PDG v2 现在已经提供运行时底盘，下一步应该挂新的 benchmark backend，而不是破坏当前的 registry discipline。
 
 ## Recommended Next Actions
 
 | Order | Task | Purpose |
 |---|---|---|
-| 1 | `P3-GPU-BENCH-1` 最后一公里 | 利用当前 PDG v2 fan-out/fan-in + hermetic cache，把 CPU/GPU、场景、预算、设备证据编排成正式 benchmark DAG |
-| 2 | `P1-ARCH-5` | 在 PDG v2 底盘稳定后推进 OpenUSD-compatible scene interchange，让场景与工序契约进一步统一 |
-| 3 | `P1-B1-1` | 把 Jakobsen 链真正提升为可见二次动画成品，而不止是运动学元数据 |
-| 4 | 文件化 payload 规范 | 为未来 GPU/工业渲染大对象缓存做好 payload→artifact path 约束 |
+| 1 | `P3-GPU-BENCH-1` 最后一公里 | 将场景、设备、预算、warmup/sample 变成显式 WorkItem，形成正式 benchmark DAG |
+| 2 | `P1-ARCH-5` | 在稳定 PDG substrate 之上推进 OpenUSD-compatible scene interchange |
+| 3 | 文件化 payload 规范 | 为 GPU benchmark / 工业渲染的大对象缓存建立 payload→artifact path 契约 |
+| 4 | benchmark lane registry 接入 | 以 backend/lane 方式挂载 GPU benchmark，避免中心中枢退化为 if/else 总线 |
 
 ## References
 
 [1]: https://www.sidefx.com/docs/houdini/tops/pdg/index.html "SideFX Houdini PDG / TOPs"
 [2]: https://bazel.build/remote/caching "Bazel Remote Caching"
-[3]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/dynamic-task-mapping.html "Apache Airflow Dynamic Task Mapping"
-[4]: ./research_notes_p1_arch4_session103.md "research_notes_p1_arch4_session103.md"
-[5]: ./PROJECT_BRAIN.json "PROJECT_BRAIN.json"
-[6]: ./SESSION_HANDOFF.md "SESSION_HANDOFF.md"
+[3]: https://docs.python.org/3/library/concurrent.futures.html "Python concurrent.futures"
+[4]: ./PROJECT_BRAIN.json "PROJECT_BRAIN.json"

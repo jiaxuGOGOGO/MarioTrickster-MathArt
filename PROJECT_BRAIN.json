@@ -1,7 +1,7 @@
 {
-  "version": "v0.92.0",
-  "last_session_id": "SESSION-103",
-  "last_updated": "2026-04-20T11:20:13-04:00",
+  "version": "v0.92.1",
+  "last_session_id": "SESSION-104",
+  "last_updated": "2026-04-20T11:56:28-04:00",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -32,9 +32,9 @@
     "closed_archived": 52
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-103 P1-ARCH-4 CLOSED: lightweight DAG runtime now exposes immutable WorkItem contracts, hermetic SHA-256 caching, fan-out/fan-in orchestration, and facade-preserved backward compatibility. Validation: 1725 PASS / 7 SKIP / 0 FAIL.",
-  "total_iterations": 685,
-  "total_code_lines": 132767,
+  "validation_pass_rate": "SESSION-104 reaffirmed P1-ARCH-4 with bounded local scheduler semantics: PDG v2 now preserves immutable WorkItem contracts and hermetic SHA-256 disk caching while adding real max_workers-bounded fan-out execution and main-thread fan-in barrier collection. Validation: 1726 PASS / 7 SKIP / 0 FAIL.",
+  "total_iterations": 686,
+  "total_code_lines": 135507,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
@@ -2407,6 +2407,18 @@
       "focus": "P1-ARCH-4 (PDG v2 runtime semantics closure)",
       "status": "COMPLETE",
       "summary": "Closed P1-ARCH-4 by upgrading mathart/level/pdg.py from a linear dict-passing DAG into a PDG v2 runtime: immutable WorkItem contract, Bazel-style hermetic SHA-256 disk cache (AC + CAS), explicit fan-out/fan-in runtime semantics, and facade-preserved backward compatibility for existing level pipelines. Added white-box cache/fan-out/collect tests. Full suite reached 1725 PASS / 7 SKIP / 0 FAIL."
+    },
+    {
+      "session_id": "SESSION-104",
+      "date": "2026-04-20",
+      "focus": "P1-ARCH-4 follow-through (bounded local scheduler closure)",
+      "status": "COMPLETE",
+      "summary": "Audited the already-landed PDG v2 runtime against SideFX PDG, Bazel hermetic caching, and Python concurrent.futures. Found one residual gap: mapped fan-out execution was still sequential. Closed that gap by introducing bounded local executor scheduling with configurable max_workers, atomic disk-cache writes, and a white-box concurrency test proving 1→N dispatch stays bounded and N→1 collect remains clean. Full suite: 1726 PASS / 7 SKIP / 0 FAIL.",
+      "top_gaps": [
+        "P3-GPU-BENCH-1: lift CUDA benchmark scenarios into explicit PDG WorkItems with hardware/environment fingerprints",
+        "P1-ARCH-5: extend the stabilized PDG substrate toward OpenUSD-compatible scene interchange",
+        "P1-B1-1: convert Jakobsen secondary-chain metadata into visibly shippable secondary-animation output"
+      ]
     }
   ],
   "custom_notes": {
@@ -2496,12 +2508,27 @@
     "session103_research_notes": "research_notes_p1_arch4_session103.md distills SideFX PDG/TOPs, Bazel remote caching, and Airflow dynamic task mapping into concrete repository runtime rules."
   },
   "recent_focus_snapshot": {
-    "session_id": "SESSION-103",
-    "focus": "P1-ARCH-4 (PDG v2 runtime semantics closure)",
+    "session_id": "SESSION-104",
+    "focus": "P1-ARCH-4 follow-through (bounded local scheduler closure)",
     "status": "COMPLETE",
-    "updated_at": "2026-04-20T11:20:13-04:00"
+    "updated_at": "2026-04-20T11:56:28-04:00"
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-104",
+      "focus": "P1-ARCH-4 follow-through (bounded local scheduler closure)",
+      "status": "COMPLETE",
+      "date": "2026-04-20",
+      "summary": "Audited the PDG v2 runtime already landed in SESSION-103 and found one residual architecture gap: mapped fan-out was still executed sequentially. Closed that gap by adding a bounded local scheduler with configurable max_workers, ordered main-thread aggregation, and atomic disk-cache writes. Added a new white-box test proving bounded 1→N dispatch and clean N→1 collect. Full suite reached 1726 PASS / 7 SKIP / 0 FAIL.",
+      "files_touched": [
+        "mathart/level/pdg.py",
+        "tests/test_level_pdg.py",
+        "research_notes_p1_arch4_session104.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "validation": "1726 PASS / 7 SKIP / 0 FAIL (python3.11 -m pytest tests/ -p no:cov)"
+    },
     {
       "session_id": "SESSION-103",
       "focus": "P1-ARCH-4 (PDG v2 runtime semantics closure)",
@@ -3326,6 +3353,29 @@
         "PROJECT_BRAIN.json"
       ],
       "test_results": "1725 PASS / 7 SKIP / 0 FAIL (python3.11 -m pytest tests/ -p no:cov)"
+    },
+    {
+      "session_id": "SESSION-104",
+      "version": "v0.92.1",
+      "date": "2026-04-20",
+      "focus": "P1-ARCH-4 follow-through (bounded local scheduler closure)",
+      "status": "COMPLETE",
+      "summary": "Closed the remaining scheduler-semantic gap in PDG v2 by replacing sequential mapped invocation execution with a bounded local executor path, preserving deterministic result ordering and facade compatibility while keeping fan-in aggregation on the runtime side.",
+      "changes": [
+        "UPD mathart/level/pdg.py — add configurable max_workers + scheduler_backend on ProceduralDependencyGraph, bounded ThreadPoolExecutor dispatch for mapped fan-out, main-thread trace/cache aggregation, scheduler metadata, and atomic JSON cache writes",
+        "UPD tests/test_level_pdg.py — add bounded fan-out / clean collect white-box test that proves concurrency remains capped and payloads are not cross-contaminated",
+        "NEW research_notes_p1_arch4_session104.md — audit of SideFX PDG / Bazel / concurrent.futures alignment and residual-gap closure rationale",
+        "UPD PROJECT_BRAIN.json — refresh session metadata, validation summary, recent focus, and P1-ARCH-4 closure details",
+        "UPD SESSION_HANDOFF.md — document SESSION-104 closure, validation, and P3-GPU-BENCH-1 preparation notes"
+      ],
+      "files_touched": [
+        "mathart/level/pdg.py",
+        "tests/test_level_pdg.py",
+        "research_notes_p1_arch4_session104.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "test_results": "1726 PASS / 7 SKIP / 0 FAIL (python3.11 -m pytest tests/ -p no:cov)"
     }
   ],
   "resolved_issues": [
@@ -3358,6 +3408,14 @@
       "resolved_at": "2026-04-20T11:20:13-04:00",
       "resolution": "mathart/level/pdg.py now executes through a PDG v2 runtime facade with immutable-ish WorkItem contracts, hermetic SHA-256 cache keys, disk-backed Action Cache + CAS, runtime fan-out/fan-in orchestration, and work-item-level trace metadata. Existing graph.run() callers remain backward-compatible.",
       "validation_test_file": "tests/test_level_pdg.py"
+    },
+    "RESOLVED-S104: PDG v2 already had WorkItem/cache/collect semantics but mapped fan-out still executed sequentially -> replaced with max_workers-bounded local executor scheduling, atomic disk-cache writes, and white-box bounded-concurrency evidence while preserving facade compatibility.",
+    {
+      "issue_id": "P1-ARCH-4",
+      "session_id": "SESSION-104",
+      "resolved_at": "2026-04-20T11:56:28-04:00",
+      "resolution": "mathart/level/pdg.py now executes mapped work-item invocations through a bounded local scheduler with configurable max_workers while keeping immutable-ish WorkItem contracts, hermetic SHA-256 disk cache keys, atomic Action Cache + CAS persistence, and runtime-side fan-in aggregation. Existing graph.run() callers remain backward-compatible.",
+      "validation_test_file": "tests/test_level_pdg.py"
     }
   ],
   "backlog": [],
@@ -3366,6 +3424,9 @@
     "session100_perf1_status": "PERF-1-EVOLUTION-LOOP-OOM CLOSED. Root cause: scan_internal_todos() recursively read 110.7 MB of generated CYCLE JSON from evolution_reports/ (34 files, largest 71 MB), causing 445.6 MB peak RSS and exponential report JSON growth. Fix: exclude_dirs DI (frozenset, 11 excluded dirs), max_file_size DI (1 MiB threshold), streaming line-by-line read, proposal_limit DI (500 cap), streaming json.dump(). Peak RSS: 445.6 MB -> 59.4 MB (87% reduction). 16 new regression tests with tracemalloc guards (<50 MB scan, <100 MB cycle). Public API fully backward-compatible.",
     "session102_validation": "Local validation completed with python3.11 -m pytest tests/ -p no:cov -> 1722 PASS / 7 SKIP / 0 FAIL. Sandbox environment required dev extras plus watchdog for complete execution.",
     "session103_validation": "Local validation completed with python3.11 -m pytest tests/ -p no:cov -> 1725 PASS / 7 SKIP / 0 FAIL. New PDG v2 white-box tests cover hermetic cache short-circuiting, fan-out/fan-in completeness, and WorkItem contract exposure.",
-    "session103_gpu_prep": "For P3-GPU-BENCH-1, benchmark scenarios should next be promoted into explicit WorkItems with hardware/environment fingerprints (device_name, driver_version, taichi_version, arch, snode_layout, precision_mode) so PDG v2 cache keys distinguish real CUDA evidence from CPU/reference runs."
+    "session103_gpu_prep": "For P3-GPU-BENCH-1, benchmark scenarios should next be promoted into explicit WorkItems with hardware/environment fingerprints (device_name, driver_version, taichi_version, arch, snode_layout, precision_mode) so PDG v2 cache keys distinguish real CUDA evidence from CPU/reference runs.",
+    "session104_validation": "Local validation completed with python3.11 -m pytest tests/ -p no:cov -> 1726 PASS / 7 SKIP / 0 FAIL. Sandbox required dev extras plus watchdog for complete suite execution.",
+    "session104_pdg_status": "P1-ARCH-4 remains CLOSED, now with bounded local scheduler semantics. mathart/level/pdg.py keeps immutable WorkItem contracts and hermetic disk caching, but mapped fan-out now executes through a max_workers-bounded ThreadPoolExecutor path with ordered main-thread trace aggregation.",
+    "session104_gpu_prep": "For P3-GPU-BENCH-1 on the local RTX 4070, the PDG substrate is now ready for scenario-level fan-out. Remaining micro-adjustments: promote benchmark scenarios into explicit WorkItem payloads, include device/driver/CUDA/Taichi/precision/snode fingerprints in cache lineage, keep large numeric traces file-backed instead of JSON-inline payloads, and define a collect-node reduction schema for warmup-trimmed median, P95, worst frame, parity drift, and report paths."
   }
 }

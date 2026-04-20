@@ -19,7 +19,9 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
+import os
 import time
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import asdict, dataclass, field, is_dataclass
 from enum import Enum
 from pathlib import Path
@@ -285,6 +287,15 @@ class _PDGDiskCache:
     def _payload_path(self, payload_digest: str) -> Path:
         return self.cas_dir / f"{payload_digest}.json"
 
+    def _write_json_atomic(self, path: Path, payload: Any) -> None:
+        temp_path = path.with_name(f".{path.name}.{time.time_ns()}.tmp")
+        try:
+            temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            temp_path.replace(path)
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
     def load(self, cache_key: str) -> Optional[dict[str, Any]]:
         action_path = self._action_path(cache_key)
         if not action_path.exists():
@@ -310,7 +321,7 @@ class _PDGDiskCache:
                 payload_digest = _sha256_from_data(payload_json)
                 payload_path = self._payload_path(payload_digest)
                 if not payload_path.exists():
-                    payload_path.write_text(json.dumps(payload_json, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                    self._write_json_atomic(payload_path, payload_json)
                 persisted_entries.append(
                     {
                         "item_id": item["item_id"],
@@ -323,10 +334,7 @@ class _PDGDiskCache:
                     }
                 )
             action_path = self._action_path(cache_key)
-            action_path.write_text(
-                json.dumps({**action_record, "items": persisted_entries}, ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8",
-            )
+            self._write_json_atomic(action_path, {**action_record, "items": persisted_entries})
             return True
         except (TypeError, OSError):
             return False
@@ -340,6 +348,13 @@ class _Invocation:
     @property
     def upstream_item_ids(self) -> tuple[str, ...]:
         return tuple(item.item_id for item in self.dependencies.values())
+
+
+@dataclass(frozen=True)
+class _InvocationResult:
+    items: list[WorkItem]
+    trace: PDGTraceEntry
+    cache_hit: bool
 
 
 class _PDGv2RuntimeFacade:
@@ -390,6 +405,12 @@ class _PDGv2RuntimeFacade:
             "target_outputs": target_outputs,
             "work_items": {name: [item.to_dict() for item in self._results[name]] for name in order},
             "cache_stats": {"hits": self._cache_hits, "misses": self._cache_misses},
+            "scheduler": {
+                "backend": self.graph.scheduler_backend,
+                "max_workers": self.graph.max_workers,
+                "host_cpu_count": os.cpu_count() or 1,
+                "bounded_submission": True,
+            },
             "topology_summary": {
                 name: {
                     "topology": self.graph._nodes[name].topology,
@@ -402,9 +423,22 @@ class _PDGv2RuntimeFacade:
 
     def _execute_task_node(self, node: PDGNode) -> list[WorkItem]:
         invocations = self._build_mapped_invocations(node)
+        if len(invocations) <= 1 or self.graph.max_workers <= 1:
+            execution_results = [
+                self._execute_invocation(node, invocation, invocation_index=index)
+                for index, invocation in enumerate(invocations)
+            ]
+        else:
+            execution_results = self._execute_task_invocations_concurrently(node, invocations)
+
         produced: list[WorkItem] = []
-        for index, invocation in enumerate(invocations):
-            produced.extend(self._execute_invocation(node, invocation, invocation_index=index))
+        for execution in execution_results:
+            produced.extend(execution.items)
+            if execution.cache_hit:
+                self._cache_hits += 1
+            else:
+                self._cache_misses += 1
+            self._trace.append(execution.trace)
         return produced
 
     def _execute_collect_node(self, node: PDGNode) -> list[WorkItem]:
@@ -443,6 +477,7 @@ class _PDGv2RuntimeFacade:
             )
             cached = self._load_cached_items(node, execution_cache_key)
             if cached is not None:
+                self._cache_hits += 1
                 produced.extend(cached)
                 self._trace.append(
                     PDGTraceEntry(
@@ -503,6 +538,38 @@ class _PDGv2RuntimeFacade:
             )
         return produced
 
+    def _execute_task_invocations_concurrently(
+        self,
+        node: PDGNode,
+        invocations: list[_Invocation],
+    ) -> list[_InvocationResult]:
+        if self.graph.scheduler_backend != "thread":
+            raise PDGError(f"Unsupported scheduler_backend '{self.graph.scheduler_backend}'")
+
+        ordered_results: dict[int, _InvocationResult] = {}
+        in_flight: dict[Any, int] = {}
+        next_index = 0
+        max_workers = min(self.graph.max_workers, max(1, len(invocations)))
+
+        with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix=f"pdg-{node.name}") as executor:
+            while next_index < len(invocations) or in_flight:
+                while next_index < len(invocations) and len(in_flight) < max_workers:
+                    future = executor.submit(
+                        self._execute_invocation,
+                        node,
+                        invocations[next_index],
+                        invocation_index=next_index,
+                    )
+                    in_flight[future] = next_index
+                    next_index += 1
+
+                done, _pending = wait(tuple(in_flight.keys()), return_when=FIRST_COMPLETED)
+                for future in done:
+                    index = in_flight.pop(future)
+                    ordered_results[index] = future.result()
+
+        return [ordered_results[index] for index in range(len(invocations))]
+
     def _build_mapped_invocations(self, node: PDGNode) -> list[_Invocation]:
         if not node.dependencies:
             return [_Invocation(partition_key=None, dependencies={})]
@@ -549,7 +616,13 @@ class _PDGv2RuntimeFacade:
             invocations.append(_Invocation(partition_key=str(partition_key), dependencies=deps_for_key))
         return invocations
 
-    def _execute_invocation(self, node: PDGNode, invocation: _Invocation, *, invocation_index: int) -> list[WorkItem]:
+    def _execute_invocation(
+        self,
+        node: PDGNode,
+        invocation: _Invocation,
+        *,
+        invocation_index: int,
+    ) -> _InvocationResult:
         invocation_context = dict(self._context)
         deps_payload = {dep_name: item.payload_dict() for dep_name, item in invocation.dependencies.items()}
         invocation_context["_pdg"] = {
@@ -567,8 +640,10 @@ class _PDGv2RuntimeFacade:
         )
         cached = self._load_cached_items(node, execution_cache_key)
         if cached is not None:
-            self._trace.append(
-                PDGTraceEntry(
+            return _InvocationResult(
+                items=cached,
+                cache_hit=True,
+                trace=PDGTraceEntry(
                     node_name=node.name,
                     dependencies=list(node.dependencies),
                     duration_ms=0.0,
@@ -580,9 +655,8 @@ class _PDGv2RuntimeFacade:
                     topology=node.topology,
                     parent_ids=[],
                     upstream_item_ids=list(invocation.upstream_item_ids),
-                )
+                ),
             )
-            return cached
 
         start = time.perf_counter()
         output = node.operation(invocation_context, deps_payload)
@@ -596,10 +670,11 @@ class _PDGv2RuntimeFacade:
             upstream_item_ids=invocation.upstream_item_ids,
             invocation_index=invocation_index,
         )
-        self._cache_misses += 1
         self._persist_items(node, execution_cache_key, items)
-        self._trace.append(
-            PDGTraceEntry(
+        return _InvocationResult(
+            items=items,
+            cache_hit=False,
+            trace=PDGTraceEntry(
                 node_name=node.name,
                 dependencies=list(node.dependencies),
                 duration_ms=duration_ms,
@@ -611,9 +686,8 @@ class _PDGv2RuntimeFacade:
                 topology=node.topology,
                 parent_ids=[],
                 upstream_item_ids=list(invocation.upstream_item_ids),
-            )
+            ),
         )
-        return items
 
     def _load_cached_items(self, node: PDGNode, execution_cache_key: str) -> Optional[list[WorkItem]]:
         if not node.cache_enabled:
@@ -621,7 +695,6 @@ class _PDGv2RuntimeFacade:
         cached = self.cache.load(execution_cache_key)
         if cached is None:
             return None
-        self._cache_hits += 1
         return [
             WorkItem(
                 item_id=entry["item_id"],
@@ -729,9 +802,22 @@ class _PDGv2RuntimeFacade:
 class ProceduralDependencyGraph:
     """A lightweight PDG runtime with PDG v2 execution semantics."""
 
-    def __init__(self, name: str = "pdg", *, cache_dir: Optional[str | Path] = None) -> None:
+    def __init__(
+        self,
+        name: str = "pdg",
+        *,
+        cache_dir: Optional[str | Path] = None,
+        max_workers: int = 1,
+        scheduler_backend: str = "thread",
+    ) -> None:
+        if max_workers < 1:
+            raise PDGError("max_workers must be >= 1")
+        if scheduler_backend != "thread":
+            raise PDGError(f"Unsupported scheduler_backend '{scheduler_backend}'")
         self.name = name
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
+        self.max_workers = int(max_workers)
+        self.scheduler_backend = scheduler_backend
         self._nodes: dict[str, PDGNode] = {}
 
     def add_node(self, node: PDGNode) -> None:

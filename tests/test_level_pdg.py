@@ -1,4 +1,6 @@
 import json
+import threading
+import time
 from pathlib import Path
 
 from mathart.level import (
@@ -123,6 +125,65 @@ def test_pdg_v2_fan_out_and_collect_preserves_all_work_items(tmp_path: Path):
     fan_out_items = result["work_items"]["fan_out"]
     assert [item["partition_key"] for item in fan_out_items] == ["p0", "p1", "p2"]
     assert all(len(item["cache_key"]) == 64 for item in fan_out_items)
+
+
+
+def test_pdg_v2_bounded_fan_out_respects_max_workers_and_collects_without_contamination(tmp_path: Path):
+    graph = ProceduralDependencyGraph(
+        name="bounded_fanout_demo",
+        cache_dir=tmp_path / ".pdg_cache",
+        max_workers=2,
+    )
+
+    graph.add_node(PDGNode(name="seed", operation=lambda _ctx, _deps: {"values": [1, 2, 3, 4]}))
+
+    def fan_out(_ctx: dict, deps: dict) -> PDGFanOutResult:
+        values = deps["seed"]["values"]
+        return PDGFanOutResult.from_payloads(
+            [{"value": value} for value in values],
+            partition_keys=[f"p{index}" for index in range(len(values))],
+            labels=[f"branch_{index}" for index in range(len(values))],
+        )
+
+    counters = {"active": 0, "max_active": 0}
+    seen: list[tuple[str, int]] = []
+    lock = threading.Lock()
+
+    def scale(ctx: dict, deps: dict) -> dict:
+        partition_key = ctx["_pdg"]["partition_key"]
+        value = deps["fan_out"]["value"]
+        with lock:
+            counters["active"] += 1
+            counters["max_active"] = max(counters["max_active"], counters["active"])
+            seen.append((partition_key, value))
+        time.sleep(0.05)
+        with lock:
+            counters["active"] -= 1
+        return {"partition": partition_key, "value": value * 10}
+
+    def collect(_ctx: dict, deps: dict) -> dict:
+        items = sorted(deps["scale"], key=lambda item: item["partition"])
+        return {
+            "partitions": [item["partition"] for item in items],
+            "values": [item["value"] for item in items],
+            "sum": sum(item["value"] for item in items),
+        }
+
+    graph.add_node(PDGNode(name="fan_out", dependencies=["seed"], operation=fan_out))
+    graph.add_node(PDGNode(name="scale", dependencies=["fan_out"], operation=scale))
+    graph.add_node(PDGNode(name="collect", dependencies=["scale"], operation=collect, topology="collect"))
+
+    result = graph.run(["collect"], initial_context={"mode": "bounded_concurrency_test"})
+
+    assert result["scheduler"]["max_workers"] == 2
+    assert result["scheduler"]["backend"] == "thread"
+    assert counters["active"] == 0
+    assert counters["max_active"] == 2
+    assert sorted(seen) == [("p0", 1), ("p1", 2), ("p2", 3), ("p3", 4)]
+    assert result["target_outputs"]["collect"]["partitions"] == ["p0", "p1", "p2", "p3"]
+    assert result["target_outputs"]["collect"]["values"] == [10, 20, 30, 40]
+    assert result["target_outputs"]["collect"]["sum"] == 100
+    assert len([entry for entry in result["trace"] if entry["node_name"] == "scale"]) == 4
 
 
 
