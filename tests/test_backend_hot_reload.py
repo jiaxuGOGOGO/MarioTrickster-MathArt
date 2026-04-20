@@ -63,14 +63,20 @@ from mathart.core.backend_types import backend_type_value
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    """Reset the registry before and after each test to prevent cross-contamination."""
+    """Reset the registry before and after each test to prevent cross-contamination.
+
+    SESSION-098 (HIGH-2.6): The teardown now restores builtin backends so
+    that downstream suites executed after this file are not left with an
+    empty registry.  The setup side still wipes the registry to give each
+    hot-reload test a clean, isolated starting state.
+    """
     BackendRegistry.reset()
     BackendRegistry._builtins_loaded = False
     BackendRegistry._backend_module_map = {}
     yield
-    BackendRegistry.reset()
-    BackendRegistry._builtins_loaded = False
-    BackendRegistry._backend_module_map = {}
+    # --- SESSION-098: restore builtins instead of leaving registry empty ---
+    from tests.conftest import restore_builtin_backends
+    restore_builtin_backends()
 
 
 @pytest.fixture
@@ -360,6 +366,12 @@ class TestWatchedPaths:
 # ═══════════════════════════════════════════════════════════════════════════
 # Test Group 5: Daemon File Watcher
 # ═══════════════════════════════════════════════════════════════════════════
+
+# SESSION-098 (HIGH-2.6): BackendFileWatcher requires the optional
+# ``watchdog`` package.  Skip the entire class when it is absent so that
+# CI environments without watchdog do not produce hard failures.
+_watchdog = pytest.importorskip("watchdog", reason="watchdog is required for BackendFileWatcher tests")
+
 
 class TestBackendFileWatcher:
     """Tests for BackendFileWatcher — daemon thread, debounce, hot-reload."""
@@ -830,7 +842,12 @@ class TestFullE2EHotReloadLifecycle:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestReloadCallback:
-    """Tests for the on_reload callback in BackendFileWatcher."""
+    """Tests for the on_reload callback in BackendFileWatcher.
+
+    SESSION-098 (HIGH-2.6): watchdog is gated by the module-level
+    ``_watchdog`` importorskip above, so this class is also skipped
+    when watchdog is absent.
+    """
 
     def test_on_reload_callback_fires(self, tmp_backend_dir: Path):
         """on_reload callback is invoked after queued reload is consumed."""

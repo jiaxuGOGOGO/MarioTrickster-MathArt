@@ -93,9 +93,13 @@ def test_evolution_orchestrator_runs_unified_bridge_suite():
         report = orch.run_full_cycle()
 
         assert report.unified_bridges_total >= 4
+        # SESSION-098 (HIGH-2.6): Since SESSION-074 (P1-MIGRATE-2), legacy
+        # bridges are registered under their canonical evolution_* names.
+        # The old bare names (smooth_morphology, constraint_wfc, etc.) are
+        # no longer present as top-level keys in unified_bridge_status.
         assert {
-            "smooth_morphology",
-            "constraint_wfc",
-            "phase3_physics",
-            "unity_urp_2d",
+            "evolution_morphology",
+            "evolution_wfc",
+            "evolution_phase3_physics",
+            "evolution_urp2d",
         }.issubset(set(report.unified_bridge_status.keys()))

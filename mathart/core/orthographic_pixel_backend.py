@@ -324,6 +324,12 @@ class OrthographicPixelRenderBackend:
         for ch_name, ch_info in texture_channels.items():
             outputs[ch_name] = ch_info["path"]
 
+        # SESSION-098 (HIGH-2.6): FAMILY_SCHEMAS requires a "spritesheet"
+        # output key for ArtifactFamily.SPRITE_SHEET.  Use the albedo channel
+        # (the primary visual output) as the canonical spritesheet path.
+        if "albedo" in outputs and "spritesheet" not in outputs:
+            outputs["spritesheet"] = outputs["albedo"]
+
         # Save render report
         report = {
             "pipeline": "dead_cells_orthographic_pixel_render",
@@ -365,6 +371,12 @@ class OrthographicPixelRenderBackend:
             session_id=validated.get("session_id", "SESSION-089"),
             outputs=outputs,
             metadata={
+                # SESSION-098 (HIGH-2.6): FAMILY_SCHEMAS for sprite_sheet
+                # requires frame_count, frame_width, frame_height at the
+                # top level of metadata.
+                "frame_count": 1,
+                "frame_width": config.output_width,
+                "frame_height": config.output_height,
                 "channels": requested_channels,
                 "bundle_kind": "orthographic_pixel_sprite",
                 "lane": "rendering_3d_to_2d",

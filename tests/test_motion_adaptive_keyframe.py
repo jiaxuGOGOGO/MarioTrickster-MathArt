@@ -1016,14 +1016,12 @@ class DummyHotBackend:
                 if str(tmp_path) in sys.path:
                     sys.path.remove(str(tmp_path))
 
-                from mathart.core.backend_registry import BackendRegistry
-                import mathart.core.builtin_backends as builtin_backends_module
+                # SESSION-098 (HIGH-2.6): Use the canonical restore helper
+                # instead of hand-rolled partial reload that misses modules.
+                from tests.conftest import restore_builtin_backends
+                restore_builtin_backends()
+                # Also reload the motion adaptive keyframe backend
                 import mathart.core.motion_adaptive_keyframe_backend as motion_backend_module
-
-                BackendRegistry.reset()
-                BackendRegistry._builtins_loaded = True
-                BackendRegistry._backend_module_map = {}
-                importlib.reload(builtin_backends_module)
                 importlib.reload(motion_backend_module)
 
     def test_concurrent_executions_allowed(self):

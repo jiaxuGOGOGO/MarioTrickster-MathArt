@@ -1,7 +1,7 @@
 {
-  "version": "v0.87.0",
-  "last_session_id": "SESSION-097",
-  "last_updated": "2026-04-20T09:30:49Z",
+  "version": "v0.88.0",
+  "last_session_id": "SESSION-098",
+  "last_updated": "2026-04-20T12:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -23,7 +23,7 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
-      "HIGH-2.6-CI-OPTIONAL-DEPENDENCY-AND-REGISTRY-BOOTSTRAP",
+      "HIGH-2.7-PRODUCTION-CODE-RNG-DEPENDENCY-INJECTION",
       "P1-ARCH-4",
       "P3-GPU-BENCH-1",
       "P1-AI-2D-SPARSECTRL",
@@ -34,7 +34,7 @@
     "closed_archived": 51
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-097 HIGH-2.5 CLOSED: audited global regression hotspots no longer rely on legacy bare NumPy randomness or RandomState, deterministic value-level baselines now cover keyframe, motion-vector, OKLAB, SparseCtrl, and evaluator paths, and the SafePoint watcher teardown restores builtin backends after registry resets. Validation: 247 PASS, 0 FAIL on the edited deterministic suites. Broad-suite audit: 1564 PASS, 97 FAIL, 7 SKIP, with remaining failures isolated to optional dependencies (SciPy/Taichi) and unrelated registry/bootstrap gaps outside HIGH-2.5 scope.",
+  "validation_pass_rate": "SESSION-098 HIGH-2.6 CLOSED: full-suite CI bootstrap hardened with session-scoped registry restoration fixture, optional dependency gating (Taichi/watchdog), manifest schema compliance for orthographic_pixel_render, and bridge key alignment. Validation: 1652+ PASS, 0 FAIL, 9 SKIP across 82 verifiable test files. Baseline 68 failures all eliminated. test_evolution_loop.py excluded due to pre-existing OOM (>2.4 GB RSS, not introduced by this session).",
   "total_iterations": 684,
   "total_code_lines": 132767,
   "distill_session_id": "DISTILL-012",
@@ -973,10 +973,21 @@
       "id": "HIGH-2.6-CI-OPTIONAL-DEPENDENCY-AND-REGISTRY-BOOTSTRAP",
       "priority": "P1",
       "title": "Full-suite CI bootstrap hardening for optional dependencies and registry restoration",
+      "status": "CLOSED",
+      "estimated_effort": "high",
+      "description": "SESSION-098 CLOSED. Introduced tests/conftest.py with session-scoped autouse registry bootstrap fixture and restore_builtin_backends() helper that fully resets and reloads all builtin backend modules via importlib.reload. Fixed registry teardown in test_backend_hot_reload, test_orthographic_pixel_render, and test_motion_adaptive_keyframe. Added pytest.importorskip/skipif gating for Taichi and watchdog optional dependencies. Fixed orthographic_pixel_backend manifest schema compliance (spritesheet output alias + frame_count/frame_width/frame_height metadata). Updated unity_urp_native bridge key assertions to canonical evolution_* names. Adapted gpu_benchmark_realism tests to accept degraded manifests. Result: baseline 68 FAIL → 0 FAIL, 1652+ PASS, 9 SKIP.",
+      "added_in": "SESSION-097",
+      "completed_in": "SESSION-098",
+      "notes": "SESSION-098 closed the full-suite CI bootstrap hardening by introducing a shared conftest.py registry safety net, gating optional dependencies with importorskip/skipif, fixing manifest schema compliance, and aligning bridge key assertions. All 68 baseline failures eliminated."
+    },
+    {
+      "id": "HIGH-2.7-PRODUCTION-CODE-RNG-DEPENDENCY-INJECTION",
+      "priority": "P1",
+      "title": "Refactor production code bare np.random to injectable Generator parameters",
       "status": "TODO",
       "estimated_effort": "high",
-      "description": "SESSION-097 follow-up. Finish broader CI bootstrap hardening by restoring builtin backend registration after any registry resets across the remaining suites, and gate or provision optional dependencies such as SciPy and Taichi so the full repository test run is reproducible instead of failing on environment drift.",
-      "added_in": "SESSION-097"
+      "description": "SESSION-098 follow-up. Audit identified 39 bare np.random calls in mathart/ production code (human_math.py, rl_locomotion.py, skill_embeddings.py, session065_research_bridge.py, etc.). Refactor each to accept optional rng: np.random.Generator | None parameter with default_rng() fallback, preserving backward compatibility while enabling test-side deterministic control per NEP-19.",
+      "added_in": "SESSION-098"
     }
   ],
   "completed_tasks": [
@@ -2040,6 +2051,12 @@
       "title": "Global tests: eliminate unseeded random masking and harden deterministic CI closure",
       "completed_in": "SESSION-097",
       "result": "Removed legacy bare NumPy randomness from the audited high-risk regression suites, introduced isolated Generator fixtures plus deterministic value-level baselines, and repaired registry-reset teardown leakage that made unified_motion validation depend on test execution order."
+    },
+    {
+      "id": "HIGH-2.6-CI-OPTIONAL-DEPENDENCY-AND-REGISTRY-BOOTSTRAP",
+      "title": "Full-suite CI bootstrap hardening for optional dependencies and registry restoration",
+      "completed_in": "SESSION-098",
+      "result": "Introduced tests/conftest.py with session-scoped autouse registry bootstrap fixture and restore_builtin_backends() helper. Fixed registry teardown in 3 test files, gated Taichi/watchdog with importorskip/skipif, fixed orthographic_pixel_backend manifest schema compliance, and aligned unity_urp_native bridge key assertions. Baseline 68 FAIL reduced to 0 FAIL across 82 verifiable test files (1652+ PASS, 9 SKIP)."
     }
   ],
   "capability_gaps": [
@@ -2151,7 +2168,9 @@
     "RESOLVED-S094: WFC locked tiles could be silently overwritten or ignored during propagation -> queue-based lock immunity, outward propagation from locked seeds, and explicit WFCConstraintConflictError dead-end signaling",
     "REMAINING-S094: Boundary/frontier constraints are not yet exhaustively fuzzed at map edges and seam-heavy topologies -> HIGH-2.3-WFC-BOUNDARY-VALIDATION",
     "RESOLVED-S096: Phase-driven semantic control could silently accept illegal state jumps -> explicit adjacency-map guard, typed IllegalStateTransitionError / False-path rejection, and value-level preservation tests for forbidden transitions",
-    "REMAINING-S096: Global regression coverage still contains dispersed RNG setup and unseeded random masking risk -> HIGH-2.5-CI-RANDOM-MASKING-DETERMINISM"
+    "REMAINING-S096: Global regression coverage still contains dispersed RNG setup and unseeded random masking risk -> HIGH-2.5-CI-RANDOM-MASKING-DETERMINISM",
+    "RESOLVED-S098: Full-suite CI failed on optional dependency drift (Taichi/watchdog), registry bootstrap pollution after reset(), manifest schema non-compliance, and stale bridge key names -> session-scoped conftest.py registry safety net, importorskip/skipif gating, orthographic_pixel manifest fix, and evolution_ bridge key alignment",
+    "REMAINING-S098: Production code (mathart/) still contains 39 bare np.random calls without dependency injection -> HIGH-2.7-PRODUCTION-CODE-RNG-DEPENDENCY-INJECTION"
   ],
   "recent_audit": {
     "session": "SESSION-036",
@@ -2211,6 +2230,12 @@
       "completed_in": "SESSION-097",
       "title": "Deterministic CI randomness cleanup and registry-isolation repair",
       "summary": "Closed HIGH-2.5 by replacing legacy global NumPy randomness with isolated local generators across the highest-risk regression hotspots, upgrading weak shape-only checks to deterministic value-level assertions, and repairing a backend-registry teardown leak that had been making isolated unified_motion validation order-dependent."
+    },
+    {
+      "id": "HIGH-2.6-CI-OPTIONAL-DEPENDENCY-AND-REGISTRY-BOOTSTRAP",
+      "completed_in": "SESSION-098",
+      "title": "Full-suite CI bootstrap hardening for optional dependencies and registry restoration",
+      "summary": "Closed HIGH-2.6 by introducing tests/conftest.py with a session-scoped autouse registry bootstrap fixture and restore_builtin_backends() helper that fully resets and reloads all builtin backend modules. Fixed registry teardown in test_backend_hot_reload, test_orthographic_pixel_render, and test_motion_adaptive_keyframe. Gated Taichi and watchdog optional dependencies with importorskip/skipif. Fixed orthographic_pixel_backend manifest schema compliance. Aligned unity_urp_native bridge key assertions to canonical evolution_* names. Adapted gpu_benchmark_realism to accept degraded manifests. Baseline 68 FAIL eliminated to 0 FAIL."
     }
   ],
   "session_summaries": [
@@ -2311,6 +2336,31 @@
         "P1-ARCH-4: continue PDG v2 runtime semantics closure",
         "P3-GPU-BENCH-1: finish the production-scale sparse-cloth CUDA evidence pass"
       ]
+    },
+    {
+      "session_id": "SESSION-098",
+      "date": "2026-04-20",
+      "focus": "HIGH-2.6: full-suite CI bootstrap hardening for registry restoration, optional dependency gating, manifest schema compliance, and bridge key alignment",
+      "changes": [
+        "NEW tests/conftest.py — session-scoped autouse registry bootstrap fixture with restore_builtin_backends() helper that fully resets and reloads all builtin backend modules via importlib.reload",
+        "UPD tests/test_backend_hot_reload.py — _clean_registry fixture teardown calls restore_builtin_backends(); TestBackendFileWatcher gated with pytest.importorskip('watchdog')",
+        "UPD tests/test_taichi_xpbd.py — runtime dependency tests gated with skipif marker based on get_taichi_xpbd_backend_status()",
+        "UPD tests/test_gpu_benchmark_realism.py — free-fall and sparse-cloth report tests adapted to accept degraded manifests when Taichi unavailable",
+        "UPD tests/test_orthographic_pixel_render.py — test_backend_registry_discovery calls restore_builtin_backends() instead of bare reset/get_registry",
+        "UPD tests/test_motion_adaptive_keyframe.py — teardown replaced with restore_builtin_backends() + explicit reload of motion_adaptive_keyframe module",
+        "UPD tests/test_unity_urp_native.py — unified_bridge_status assertions updated to canonical evolution_* prefixed bridge names",
+        "UPD mathart/core/orthographic_pixel_backend.py — manifest outputs adds spritesheet alias, metadata adds frame_count/frame_width/frame_height for sprite_sheet family schema compliance",
+        "UPD PROJECT_BRAIN.json + SESSION_HANDOFF.md — close HIGH-2.6, queue HIGH-2.7 for production code RNG dependency injection"
+      ],
+      "test_results": "1652+ PASS, 0 FAIL, 9 SKIP across 82 verifiable test files. Baseline 68 failures all eliminated. test_evolution_loop.py excluded due to pre-existing OOM (>2.4 GB RSS).",
+      "tasks_closed": [
+        "HIGH-2.6-CI-OPTIONAL-DEPENDENCY-AND-REGISTRY-BOOTSTRAP"
+      ],
+      "next_priorities": [
+        "HIGH-2.7-PRODUCTION-CODE-RNG-DEPENDENCY-INJECTION: refactor 39 bare np.random calls in mathart/ to injectable Generator parameters",
+        "P1-ARCH-4: continue PDG v2 runtime semantics closure",
+        "PERF-1-EVOLUTION-LOOP-OOM: audit run_evolution_cycle() memory usage to fix test_evolution_loop.py OOM"
+      ]
     }
   ],
   "custom_notes": {
@@ -2396,15 +2446,15 @@
     "session085_research_notes": "research/session085_sparse_cloth_benchmark_research.md documents Taichi sparse SNode layouts, Google Benchmark warm-up/sampling discipline, NASA-STD-7009B verification/validation credibility, and XPBD GPU race condition mitigation via parity-based constraint coloring."
   },
   "recent_focus_snapshot": {
-    "session": "SESSION-097",
-    "focus": "HIGH-2.5: deterministic CI cleanup for seeded RNG isolation, value-level assertion hardening, and registry-isolation repair",
+    "session": "SESSION-098",
+    "focus": "HIGH-2.6: full-suite CI bootstrap hardening for registry restoration, optional dependency gating, manifest schema compliance, and bridge key alignment",
     "closed": [
-      "HIGH-2.5-CI-RANDOM-MASKING-DETERMINISM (CLOSED — legacy bare NumPy randomness removed from audited hotspots, value-level deterministic baselines added, and hot-reload registry teardown no longer poisons later unified_motion tests)"
+      "HIGH-2.6-CI-OPTIONAL-DEPENDENCY-AND-REGISTRY-BOOTSTRAP (CLOSED — session-scoped conftest.py registry safety net, importorskip/skipif gating for Taichi/watchdog, orthographic_pixel manifest schema fix, evolution_ bridge key alignment, 68 FAIL → 0 FAIL)"
     ],
     "next": [
-      "HIGH-2.6-CI-OPTIONAL-DEPENDENCY-AND-REGISTRY-BOOTSTRAP: harden full-suite builtin backend restoration and optional dependency provisioning/gating",
+      "HIGH-2.7-PRODUCTION-CODE-RNG-DEPENDENCY-INJECTION: refactor 39 bare np.random calls in mathart/ to injectable Generator parameters",
       "P1-ARCH-4: continue PDG v2 runtime semantics closure",
-      "P3-GPU-BENCH-1: finish the production-scale sparse-cloth CUDA evidence pass"
+      "PERF-1-EVOLUTION-LOOP-OOM: audit run_evolution_cycle() memory usage to fix test_evolution_loop.py OOM"
     ]
   },
   "recent_sessions": [
@@ -2577,6 +2627,13 @@
       "date": "2026-04-20",
       "title": "Deterministic CI Randomness Cleanup & Registry-Isolation Repair",
       "summary": "Closed HIGH-2.5 by replacing legacy global NumPy randomness with isolated local generators across the highest-risk regression hotspots, upgrading weak shape-only checks to deterministic value-level assertions, and repairing a backend-registry teardown leak that had been making isolated unified_motion validation order-dependent."
+    },
+    {
+      "id": "SESSION-098",
+      "version": "0.88.0",
+      "date": "2026-04-20",
+      "title": "Full-Suite CI Bootstrap Hardening: Registry Restoration, Optional Dependency Gating & Manifest Schema Compliance",
+      "summary": "Closed HIGH-2.6 by introducing tests/conftest.py with session-scoped autouse registry bootstrap fixture and restore_builtin_backends() helper. Fixed registry teardown in 3 test files, gated Taichi/watchdog with importorskip/skipif, fixed orthographic_pixel_backend manifest schema compliance, aligned unity_urp_native bridge key assertions, and adapted gpu_benchmark_realism to accept degraded manifests. Baseline 68 FAIL eliminated to 0 FAIL (1652+ PASS, 9 SKIP)."
     }
   ],
   "closed_tasks_archive": [
@@ -2891,6 +2948,12 @@
       "completed_in": "SESSION-097",
       "title": "Deterministic CI randomness cleanup and registry-isolation repair",
       "summary": "Replaced legacy bare NumPy RNG usage and RandomState fixtures in the highest-risk global regression hotspots with isolated local generators, strengthened multiple suites to value-level baselines, and repaired backend-registry restoration after hot reload tests so isolated unified_motion runs are stable."
+    },
+    {
+      "id": "HIGH-2.6-CI-OPTIONAL-DEPENDENCY-AND-REGISTRY-BOOTSTRAP",
+      "completed_in": "SESSION-098",
+      "title": "Full-suite CI bootstrap hardening for optional dependencies and registry restoration",
+      "summary": "Introduced tests/conftest.py with session-scoped autouse registry bootstrap fixture and restore_builtin_backends() helper. Fixed registry teardown in test_backend_hot_reload, test_orthographic_pixel_render, and test_motion_adaptive_keyframe. Gated Taichi/watchdog with importorskip/skipif. Fixed orthographic_pixel_backend manifest schema compliance. Aligned unity_urp_native bridge key assertions. Adapted gpu_benchmark_realism to accept degraded manifests. Baseline 68 FAIL eliminated to 0 FAIL."
     }
   ],
   "legacy_session_changes_consolidated": {
@@ -3057,12 +3120,30 @@
         "PROJECT_BRAIN.json",
         "SESSION_HANDOFF.md"
       ]
+    },
+    {
+      "session_id": "SESSION-098",
+      "summary": "CLOSED HIGH-2.6 full-suite CI bootstrap hardening. Introduced tests/conftest.py with session-scoped autouse registry bootstrap fixture and restore_builtin_backends() helper. Fixed registry teardown in test_backend_hot_reload, test_orthographic_pixel_render, and test_motion_adaptive_keyframe. Gated Taichi/watchdog optional dependencies with importorskip/skipif. Fixed orthographic_pixel_backend manifest schema compliance (spritesheet alias + frame metadata). Aligned unity_urp_native bridge key assertions to canonical evolution_* names. Adapted gpu_benchmark_realism to accept degraded manifests. Baseline 68 FAIL eliminated to 0 FAIL (1652+ PASS, 9 SKIP).",
+      "files_changed": [
+        "tests/conftest.py",
+        "tests/test_backend_hot_reload.py",
+        "tests/test_taichi_xpbd.py",
+        "tests/test_gpu_benchmark_realism.py",
+        "tests/test_orthographic_pixel_render.py",
+        "tests/test_motion_adaptive_keyframe.py",
+        "tests/test_unity_urp_native.py",
+        "mathart/core/orthographic_pixel_backend.py",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
+      ]
     }
   ],
   "resolved_issues": [
     "RESOLVED-S095: Genotype mutation boundary constraints were scattered and weakly tested -> unified enforce_genotype_bounds() hard-clipping contract plus deterministic ±1e6 value-level stress assertions across all continuous genes",
     "RESOLVED-S096: Phase-driven semantic control could silently accept illegal state jumps -> explicit adjacency-map guard, typed IllegalStateTransitionError / False-path rejection, and value-level preservation tests for forbidden transitions",
     "RESOLVED-S097: Audited global regression hotspots still relied on legacy bare NumPy randomness and order-dependent registry teardown -> isolated Generator fixtures, deterministic value-level baselines, and builtin-backend restoration after SafePoint hot-reload resets",
-    "REMAINING-S097: Full-suite CI still fails on optional dependency drift (SciPy/Taichi) and additional registry/bootstrap gaps outside the deterministic RNG cleanup scope -> HIGH-2.6-CI-OPTIONAL-DEPENDENCY-AND-REGISTRY-BOOTSTRAP"
+    "REMAINING-S097: Full-suite CI still fails on optional dependency drift (SciPy/Taichi) and additional registry/bootstrap gaps outside the deterministic RNG cleanup scope -> HIGH-2.6-CI-OPTIONAL-DEPENDENCY-AND-REGISTRY-BOOTSTRAP",
+    "RESOLVED-S098: Full-suite CI failed on registry bootstrap pollution, optional dependency drift, manifest schema non-compliance, and stale bridge key names -> session-scoped conftest.py registry safety net with restore_builtin_backends(), importorskip/skipif gating for Taichi/watchdog, orthographic_pixel manifest schema fix, and evolution_ bridge key alignment (68 FAIL -> 0 FAIL)",
+    "REMAINING-S098: Production code (mathart/) still contains 39 bare np.random calls without dependency injection -> HIGH-2.7-PRODUCTION-CODE-RNG-DEPENDENCY-INJECTION"
   ]
 }

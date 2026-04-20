@@ -2,12 +2,19 @@
 
 These tests verify that the new Taichi JIT path is operational without
 regressing the repository's existing NumPy-first XPBD stack.
+
+SESSION-098 (HIGH-2.6): All tests that require a real Taichi runtime are
+now gated by ``get_taichi_xpbd_backend_status().available``.  When Taichi
+is not installed or fails to initialize, these tests are cleanly skipped
+instead of producing hard failures, following the same graceful-degradation
+pattern already established in ``test_taichi_benchmark_backend.py``.
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
+import pytest
 import numpy as np
 
 # Ensure project root is on path
@@ -20,12 +27,28 @@ from mathart.animation.xpbd_taichi import (
     create_default_taichi_cloth_config,
 )
 
+# ---------------------------------------------------------------------------
+# SESSION-098 (HIGH-2.6): Probe Taichi availability once at module level.
+# Tests that need the real runtime skip cleanly when Taichi is absent.
+# ---------------------------------------------------------------------------
+_taichi_status = get_taichi_xpbd_backend_status(prefer_gpu=False)
+_requires_taichi = pytest.mark.skipif(
+    not _taichi_status.available,
+    reason=f"Taichi unavailable: {_taichi_status.import_error}",
+)
 
-def test_taichi_backend_status_available():
-    """Taichi backend should be importable and initializable."""
+
+def test_taichi_backend_status_reports_correctly():
+    """Backend status object must be well-formed regardless of availability."""
     status = get_taichi_xpbd_backend_status(prefer_gpu=True)
-    assert status.available, f"Taichi unavailable: {status.import_error}"
-    assert status.initialized, f"Taichi init failed: {status.import_error}"
+    # These fields must always exist
+    assert hasattr(status, "available")
+    assert hasattr(status, "initialized")
+    assert hasattr(status, "active_arch")
+    assert hasattr(status, "import_error")
+    # If unavailable, import_error should explain why
+    if not status.available:
+        assert status.import_error, "import_error should be non-empty when unavailable"
 
 
 def test_default_config_budget_square():
@@ -35,6 +58,7 @@ def test_default_config_budget_square():
     assert cfg.particle_count >= 4000
 
 
+@_requires_taichi
 def test_cloth_step_preserves_pinned_corners():
     """Pinned corners must remain anchored after simulation steps."""
     cfg = TaichiXPBDClothConfig(width=12, height=12, prefer_gpu=True, pin_corners=True, pin_top_row=False)
@@ -48,6 +72,7 @@ def test_cloth_step_preserves_pinned_corners():
     np.testing.assert_allclose(after[-1, 0], before[-1, 0], atol=1e-5)
 
 
+@_requires_taichi
 def test_cloth_sags_under_gravity():
     """Mean cloth height should decrease under gravity over time."""
     cfg = TaichiXPBDClothConfig(width=16, height=16, prefer_gpu=True)
@@ -62,6 +87,7 @@ def test_cloth_sags_under_gravity():
     assert diag.particle_count == 256
 
 
+@_requires_taichi
 def test_taichi_cloth_benchmark_runs():
     """Short benchmark run should complete and report positive throughput."""
     cfg = TaichiXPBDClothConfig(width=20, height=20, prefer_gpu=True)

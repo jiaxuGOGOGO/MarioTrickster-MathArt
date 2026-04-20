@@ -317,10 +317,16 @@ def test_bilinear_would_contaminate():
 # ═══════════════════════════════════════════════════════════════════════════
 
 def test_backend_registry_discovery():
-    """OrthographicPixelRenderBackend must be discoverable via registry."""
-    from mathart.core.backend_registry import BackendRegistry, get_registry
+    """OrthographicPixelRenderBackend must be discoverable via registry.
 
-    BackendRegistry.reset()
+    SESSION-098 (HIGH-2.6): Uses restore_builtin_backends() instead of
+    bare reset() + get_registry() to ensure the registry is properly
+    repopulated via importlib.reload, preventing downstream pollution.
+    """
+    from mathart.core.backend_registry import BackendRegistry, get_registry
+    from tests.conftest import restore_builtin_backends
+
+    restore_builtin_backends()
     registry = get_registry()
 
     # The backend should be auto-registered
