@@ -298,7 +298,25 @@ class XPBDCollisionManager:
         return count
 
     def _generate_ground_constraints(self, soft_indices: list[int]) -> int:
-        """Generate ground-plane contact constraints."""
+        """Generate ground-plane contact constraints via the constraint bus.
+
+        SESSION-093 refactor: the previous implementation hard-coded
+        ``positions[idx, 1] = ground_y + radius`` and flipped velocity,
+        bypassing the solver constraint pipeline entirely.  This violated
+        the multi-track architecture by giving the collision manager direct
+        write access to solver state.
+
+        The new implementation injects a kinematic **ground anchor particle**
+        (created lazily, once) and registers proper ``ConstraintKind.CONTACT``
+        constraints between each penetrating soft particle and the ground
+        anchor.  The solver's Gauss-Seidel iterations + Final Contact Pass
+        then handle the actual position correction and velocity recomputation,
+        preserving the single-authority constraint bus architecture.
+
+        The ground anchor is placed at ``(particle_x, ground_y)`` with zero
+        inverse mass (kinematic), and the contact rest distance equals the
+        particle's radius — exactly matching the half-space ``y >= ground_y``.
+        """
         if self._ground_y is None:
             return 0
 
@@ -309,10 +327,26 @@ class XPBDCollisionManager:
             radius = self._solver._radii[idx]
             min_y = self._ground_y + radius
             if self._solver._positions[idx, 1] < min_y:
-                self._solver._positions[idx, 1] = min_y
-                # Zero out downward velocity
-                if self._solver._velocities[idx, 1] < 0:
-                    self._solver._velocities[idx, 1] *= -0.2  # Slight bounce
+                # Create a kinematic ground anchor directly below the particle
+                ground_anchor_pos = (
+                    float(self._solver._positions[idx, 0]),
+                    float(self._ground_y),
+                )
+                from .xpbd_solver import ParticleKind
+                anchor_idx = self._solver.add_particle(
+                    ground_anchor_pos,
+                    mass=0.0,
+                    kind=ParticleKind.KINEMATIC,
+                    radius=0.0,
+                )
+                # Register a Contact constraint through the constraint bus
+                c = XPBDConstraint(
+                    kind=ConstraintKind.CONTACT,
+                    particle_indices=(idx, anchor_idx),
+                    rest_value=radius,  # min separation = particle radius
+                    compliance=0.0,     # infinite stiffness (ground)
+                )
+                self._solver._constraints.append(c)
                 count += 1
 
         return count

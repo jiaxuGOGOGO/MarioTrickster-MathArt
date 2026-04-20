@@ -1,7 +1,7 @@
 {
-  "version": "v0.82.0",
-  "last_session_id": "SESSION-091",
-  "last_updated": "2026-04-20T22:00:00Z",
+  "version": "v0.83.0",
+  "last_session_id": "SESSION-093",
+  "last_updated": "2026-04-20T10:30:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -31,7 +31,7 @@
     "closed_archived": 53
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-091 P1-AI-2E CLOSED: Motion-Adaptive Keyframe Planning. MotionAdaptiveKeyframeBackend + SafePointExecutionLock + Orchestrator hot-reload coordination + ComfyUI Client resilience + 51 E2E tests. Cumulative: 80 PASS (51 new + 29 regression), 0 FAIL.",
+  "validation_pass_rate": "SESSION-093 CRITICAL-2.1 CLOSED: XPBD Post-Stabilization Final Contact Pass. Two-tier constraint classification + independent post-iteration contact projection + ground constraint bus compliance + 12 extreme stress tests. Cumulative: 88 PASS (12 new + 76 regression), 0 FAIL.",
   "total_iterations": 682,
   "total_code_lines": 132591,
   "distill_session_id": "DISTILL-012",
@@ -1970,6 +1970,18 @@
       "title": "Free-fall test precision optimization (gravity/damping decoupling)",
       "completed_in": "SESSION-081",
       "result": "Reworked 2D/3D XPBD solvers so gravity integrates through constant-acceleration prediction while velocity damping applies only to component-relative internal motion. Analytical free-fall tests now pass with damping enabled, and targeted regressions across CCD, Taichi, distillation, and backend schemas remain green."
+    },
+    {
+      "id": "CRITICAL-2.1-XPBD-POST-STAB",
+      "title": "XPBD Post-Stabilization Final Contact Pass (Contact Priority Inversion Fix)",
+      "completed_in": "SESSION-093",
+      "result": "Refactored XPBD solver step() with two-tier constraint classification (_INTERNAL_SOFT_KINDS / _TERMINAL_CONTACT_KINDS frozensets) and independent Final Contact Pass post-stabilization. Contact and self-collision constraints now receive unconditional zero-compliance re-projection after all Gauss-Seidel iterations, with velocity recomputation from corrected positions to prevent ghost energy. Ground constraints refactored from hard-coded position clamp to constraint-bus-compliant kinematic anchor injection. 12 extreme stress tests with coordinate-level penetration <= 1e-5 assertions. 88/88 targeted tests PASS. Research: Macklin XPBD 2016, PhysX/FleX post-solve, Jolt Physics contact manifold."
+    },
+    {
+      "id": "SESSION-092-CONTACT-MINGAP",
+      "title": "Contact-frame absolute survival override in min_gap filter (Two-Phase Immune Pool)",
+      "completed_in": "SESSION-092",
+      "result": "Rewrote select_adaptive_keyframes() with strict two-phase immune pool architecture. Phase 1 unconditionally injects boundary anchors and Contact frames into immune_frames set. Phase 2 evaluates non-Contact peaks with distance-yielding fill, discarding any candidate within min_gap of an immune frame. 55/55 keyframe tests PASS including 2 extreme conflict interception tests."
     }
   ],
   "capability_gaps": [
@@ -2010,6 +2022,9 @@
     "RESOLVED-S029: No ZMP/CoM balance analysis -> ZMPAnalyzer with stability scoring and GA penalty",
     "RESOLVED-S029: No inverted pendulum locomotion model -> InvertedPendulumModel with LIPM trajectory + bounce + sway",
     "RESOLVED-S029: No calculus-based skating cleanup -> SkatingCleanupCalculus with finite-difference velocity + Hermite blending",
+    "RESOLVED-S093: XPBD contact priority inversion -> Two-tier constraint classification + Final Contact Pass post-stabilization (Macklin XPBD 2016, PhysX/FleX)",
+    "RESOLVED-S093: Ground constraint hard-coded position clamp -> Constraint-bus-compliant kinematic anchor injection through ConstraintKind.CONTACT",
+    "RESOLVED-S092: Contact-frame min_gap eviction vulnerability -> Two-phase immune pool architecture with absolute survival override",
     "REMAINING: No production benchmark asset suite",
     "REMAINING: No per-frame SDF parameter animation",
     "REMAINING: No reaction-diffusion textures",
@@ -2760,8 +2775,14 @@
     {
       "id": "P1-INDUSTRIAL-34C",
       "completed_in": "SESSION-089",
-      "title": "Dead Cells 3D→2D orthographic pixel render pipeline",
-      "summary": "OrthographicPixelRenderBackend self-registers via @register_backend. Pure NumPy software rasterizer: edge-function triangle rasterization with Z-buffer, barycentric interpolation, multi-pass Albedo/Normal/Depth extraction, hard-stepped cel-shading kernel (N·L + threshold banding), nearest-neighbor downscale. Strongly-typed ArtifactManifest with texture_channels and engine slot bindings. 22 E2E tests enforce anti-perspective, anti-bilinear, anti-GUI red lines. Research: Dead Cells GDC 2018, Guilty Gear Xrd GDC 2015, Headless EGL architecture."
+      "title": "Dead Cells 3D\u21922D orthographic pixel render pipeline",
+      "summary": "OrthographicPixelRenderBackend self-registers via @register_backend. Pure NumPy software rasterizer: edge-function triangle rasterization with Z-buffer, barycentric interpolation, multi-pass Albedo/Normal/Depth extraction, hard-stepped cel-shading kernel (N\u00b7L + threshold banding), nearest-neighbor downscale. Strongly-typed ArtifactManifest with texture_channels and engine slot bindings. 22 E2E tests enforce anti-perspective, anti-bilinear, anti-GUI red lines. Research: Dead Cells GDC 2018, Guilty Gear Xrd GDC 2015, Headless EGL architecture."
+    },
+    {
+      "id": "CRITICAL-2.1-XPBD-POST-STAB",
+      "completed_in": "SESSION-093",
+      "title": "XPBD Post-Stabilization Final Contact Pass (Contact Priority Inversion Fix)",
+      "summary": "CODE RED Campaign II. Refactored XPBD solver with two-tier constraint classification (_INTERNAL_SOFT_KINDS / _TERMINAL_CONTACT_KINDS frozensets) and independent Final Contact Pass post-stabilization. Contact and self-collision constraints receive unconditional zero-compliance re-projection after all Gauss-Seidel iterations. Ground constraints refactored from hard-coded position clamp to constraint-bus-compliant kinematic anchor injection. 12 extreme stress tests with coordinate-level penetration <= 1e-5 assertions. 88/88 targeted tests PASS. Research: Macklin XPBD 2016, PhysX/FleX post-solve, Jolt Physics contact manifold."
     }
   ],
   "session_log": [
@@ -2790,6 +2811,19 @@
         "PROJECT_BRAIN.json"
       ],
       "tests": "22 PASS, 0 FAIL",
+      "status": "COMPLETE"
+    },
+    {
+      "session_id": "SESSION-093",
+      "summary": "CODE RED Campaign II: CLOSED CRITICAL-2.1 XPBD Contact Priority Inversion. Refactored xpbd_solver.py step() with two-tier constraint classification (INTERNAL_SOFT / TERMINAL_CONTACT frozensets) and independent Final Contact Pass post-stabilization. Refactored xpbd_collision.py _generate_ground_constraints() from hard-coded position clamp to constraint-bus-compliant kinematic anchor injection. Added 12 extreme stress tests (test_xpbd_post_stabilization.py) with coordinate-level penetration <= 1e-5 assertions. Carried forward SESSION-092 Contact-frame min_gap two-phase immune pool. Research: Macklin XPBD 2016, PhysX/FleX post-solve, Jolt Physics contact manifold.",
+      "files_changed": [
+        "mathart/animation/xpbd_solver.py",
+        "mathart/animation/xpbd_collision.py",
+        "tests/test_xpbd_post_stabilization.py",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "tests": "88 PASS, 0 FAIL",
       "status": "COMPLETE"
     }
   ]

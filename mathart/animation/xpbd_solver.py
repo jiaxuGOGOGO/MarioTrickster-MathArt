@@ -24,6 +24,20 @@ Core design choices for MarioTrickster-MathArt:
   5. Sub-stepping divides Δt for stability; each sub-step runs the full
      predict → solve → update loop.
   6. Backward-compatible with existing SecondaryChainProjector interface.
+
+Architecture (SESSION-093 Post-Stabilization refactor):
+  The solver pipeline now enforces a strict two-tier constraint classification:
+    - **INTERNAL_SOFT**: Distance, Attachment, Bending constraints — resolved
+      during the main Gauss-Seidel iteration loop.
+    - **TERMINAL_CONTACT**: Contact and Self-Collision constraints — resolved
+      during the main loop AND given an unconditional Final Contact Pass
+      (post-stabilization) after all iterations complete.
+
+  This follows the NVIDIA PhysX / Jolt Physics architecture: soft constraints
+  compete within the iterative solver, but contact/ground constraints receive
+  an absolute final projection that overwrites any soft-constraint drift.
+  Velocity is recomputed from corrected positions per XPBD: v = (x - x_prev)/dt
+  to prevent ghost energy injection.
 """
 from __future__ import annotations
 
@@ -54,6 +68,24 @@ class ConstraintKind(Enum):
     SELF_COLLISION = auto() # Particle-particle minimum separation
     ATTACHMENT = auto()     # Pin soft root to rigid CoM
     BENDING = auto()        # Angular stiffness between 3 consecutive nodes
+
+
+# ---------------------------------------------------------------------------
+# Constraint tier classification (SESSION-093)
+# ---------------------------------------------------------------------------
+
+#: Constraint kinds resolved only during Gauss-Seidel iterations (soft).
+_INTERNAL_SOFT_KINDS = frozenset({
+    ConstraintKind.DISTANCE,
+    ConstraintKind.ATTACHMENT,
+    ConstraintKind.BENDING,
+})
+
+#: Constraint kinds that receive the unconditional Final Contact Pass.
+_TERMINAL_CONTACT_KINDS = frozenset({
+    ConstraintKind.CONTACT,
+    ConstraintKind.SELF_COLLISION,
+})
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +150,7 @@ class XPBDDiagnostics:
     iterations_per_substep: int = 0
     max_velocity_observed: float = 0.0
     energy_estimate: float = 0.0
+    final_contact_pass_corrections: int = 0  # SESSION-093: post-stabilization
 
     def to_dict(self) -> dict[str, float | int]:
         return {
@@ -133,6 +166,7 @@ class XPBDDiagnostics:
             "iterations_per_substep": self.iterations_per_substep,
             "max_velocity_observed": float(self.max_velocity_observed),
             "energy_estimate": float(self.energy_estimate),
+            "final_contact_pass_corrections": self.final_contact_pass_corrections,
         }
 
 
@@ -169,6 +203,15 @@ class XPBDSolver:
     distance constraint between them generates a correction Δx, the solver
     distributes it proportionally to inverse masses — automatically producing
     Newton's Third Law reaction forces.
+
+    SESSION-093 Architecture:
+      The step() method now implements a three-stage pipeline per sub-step:
+        Stage 1 — Gauss-Seidel iterations (ALL constraints participate)
+        Stage 2 — Final Contact Pass (TERMINAL_CONTACT constraints only,
+                  single unconditional projection with zero compliance)
+        Stage 3 — Velocity recomputation from corrected positions
+      This ensures contact/ground constraints have absolute non-penetration
+      authority regardless of soft-constraint drift.
     """
 
     def __init__(self, config: Optional[XPBDSolverConfig] = None):
@@ -240,13 +283,30 @@ class XPBDSolver:
         self._inv_masses[index] = 0.0
 
     def update_position(self, index: int, position: tuple[float, float]) -> None:
-        """Externally set a particle position (for kinematic driving)."""
+        """Externally set a particle's position (for kinematic animation)."""
         self._positions[index] = [position[0], position[1]]
-        self._prev_positions[index] = [position[0], position[1]]
+        self._predicted[index] = [position[0], position[1]]
 
     # -----------------------------------------------------------------------
     # Constraint management
     # -----------------------------------------------------------------------
+
+    def add_contact_constraint(
+        self,
+        i: int,
+        j: int,
+        min_distance: float,
+        compliance: float = 0.0,
+    ) -> int:
+        """Add a unilateral contact constraint between particles i and j."""
+        c = XPBDConstraint(
+            kind=ConstraintKind.CONTACT,
+            particle_indices=(i, j),
+            rest_value=max(min_distance, _EPS),
+            compliance=compliance,
+        )
+        self._constraints.append(c)
+        return len(self._constraints) - 1
 
     def add_distance_constraint(
         self,
@@ -325,20 +385,26 @@ class XPBDSolver:
         return float(np.arccos(np.clip(cos_angle, -1.0, 1.0)))
 
     # -----------------------------------------------------------------------
-    # Core XPBD simulation step
+    # Core XPBD simulation step (SESSION-093 refactored pipeline)
     # -----------------------------------------------------------------------
 
     def step(self, dt: float = 1.0 / 60.0) -> XPBDDiagnostics:
         """Run one full XPBD time step with sub-stepping.
 
-        Algorithm (per sub-step):
-          1. Predict positions: x̃ = x + Δt·v + 0.5·Δt²·a_ext
-          2. Initialise solve: x_i ← x̃, λ ← 0
-          3. For each solver iteration:
-             a. For each constraint: compute Δλ (Eq 18), Δx (Eq 17)
-             b. Update λ and x
-          4. Update velocities: v = (x - x_prev) / Δt
-          5. Apply Galilean-invariant component-relative damping and clamping
+        Architecture (SESSION-093 Post-Stabilization Pipeline):
+          Per sub-step:
+            1. Predict positions: x̃ = x + Δt·v + 0.5·Δt²·a_ext
+            2. Initialise solve: x_i ← x̃, λ ← 0
+            3. Gauss-Seidel iterations (ALL constraints participate):
+               a. For each constraint: compute Δλ (Eq 18), Δx (Eq 17)
+               b. Update λ and x
+            4. **Final Contact Pass** (TERMINAL_CONTACT constraints only):
+               Single unconditional projection with zero compliance override.
+               This is the post-stabilization stage (Macklin 2016 / PhysX).
+               Contact constraints receive absolute overwrite authority.
+            5. Velocity recomputation: v = (x_corrected - x_prev) / Δt
+               Strictly derived from corrected positions to prevent ghost energy.
+            6. Apply Galilean-invariant component-relative damping and clamping.
         """
         n = self._particle_count
         if n == 0:
@@ -354,10 +420,17 @@ class XPBDSolver:
         total_constraint_errors = []
         self_collision_count = 0
         contact_collision_count = 0
+        final_contact_corrections = 0
         max_vel = 0.0
 
+        # Pre-classify constraints into tiers (avoids per-iteration branching)
+        all_constraints = self._constraints
+        terminal_contact_constraints = [
+            c for c in all_constraints if c.kind in _TERMINAL_CONTACT_KINDS
+        ]
+
         for _sub in range(self.config.sub_steps):
-            # --- 1. Predict ---
+            # --- Stage 1: Predict ---
             external_velocities = self._velocities.copy()
             gravity_step = gravity * sub_dt
             gravity_drift = 0.5 * gravity * (sub_dt * sub_dt)
@@ -372,14 +445,14 @@ class XPBDSolver:
                     + gravity_drift
                 )
 
-            # --- 2. Initialise solve ---
+            # --- Stage 2: Initialise solve ---
             solve_x = self._predicted.copy()
-            for c in self._constraints:
+            for c in all_constraints:
                 c.lambda_accumulated = 0.0
 
-            # --- 3. Gauss-Seidel iterations ---
+            # --- Stage 3: Gauss-Seidel iterations (ALL constraints) ---
             for _iter in range(self.config.solver_iterations):
-                for c in self._constraints:
+                for c in all_constraints:
                     if c.kind == ConstraintKind.DISTANCE or c.kind == ConstraintKind.ATTACHMENT:
                         err = self._solve_distance_constraint(c, solve_x, sub_dt)
                         total_constraint_errors.append(abs(err))
@@ -397,8 +470,26 @@ class XPBDSolver:
                             self_collision_count += 1
                         total_constraint_errors.append(abs(err))
 
-            # --- 4. Update velocities and positions ---
+            # --- Stage 4: Final Contact Pass (Post-Stabilization) ---
+            # This is the architectural keystone: after all soft constraints
+            # have had their say, terminal contact constraints get one final
+            # unconditional projection with zero compliance (infinite stiffness).
+            # This guarantees non-penetration regardless of soft-constraint drift.
+            # Reference: Macklin et al. 2016 §4 unilateral constraints;
+            #            PhysX/FleX post-solve contact projection;
+            #            Jolt Physics contact manifold final pass.
+            final_contact_corrections += self._execute_final_contact_pass(
+                terminal_contact_constraints, solve_x, sub_dt,
+            )
+
+            # --- Stage 5: Velocity recomputation from corrected positions ---
+            # CRITICAL: v must be derived from the post-stabilized positions,
+            # not from the pre-contact solve_x. This prevents ghost energy
+            # injection from the position override.
+            # Formula: v = (x_corrected - x_prev) / dt  (XPBD core equation)
             candidate_velocities = external_velocities + (solve_x - self._predicted) / sub_dt
+
+            # --- Stage 6: Damping and clamping ---
             damped_velocities = self._apply_component_relative_damping(candidate_velocities)
             for i in range(n):
                 if self._inv_masses[i] <= 0:
@@ -441,8 +532,117 @@ class XPBDSolver:
             iterations_per_substep=self.config.solver_iterations,
             max_velocity_observed=max_vel,
             energy_estimate=energy,
+            final_contact_pass_corrections=final_contact_corrections,
         )
         return self._last_diagnostics
+
+    # -----------------------------------------------------------------------
+    # Final Contact Pass — Post-Stabilization (SESSION-093)
+    # -----------------------------------------------------------------------
+
+    def _execute_final_contact_pass(
+        self,
+        terminal_constraints: list[XPBDConstraint],
+        solve_x: np.ndarray,
+        sub_dt: float,
+    ) -> int:
+        """Execute the unconditional Final Contact Pass.
+
+        This is a single-pass projection over all TERMINAL_CONTACT constraints
+        with **zero compliance override** (infinite stiffness). It runs after
+        all Gauss-Seidel iterations are complete, giving contact constraints
+        absolute authority over particle positions.
+
+        The pass uses the same geometric projection as the iterative solver
+        but forces compliance to zero, ensuring the constraint is satisfied
+        exactly (within floating-point precision) in one shot.
+
+        Velocity correction is handled by the caller (Stage 5) which
+        recomputes v from the corrected positions.
+
+        Returns:
+            Number of constraints that required correction in this pass.
+        """
+        corrections = 0
+        for c in terminal_constraints:
+            if c.kind == ConstraintKind.CONTACT:
+                corrected = self._project_contact_final(c, solve_x, sub_dt)
+            elif c.kind == ConstraintKind.SELF_COLLISION:
+                corrected = self._project_separation_final(c, solve_x)
+            else:
+                continue
+            if corrected:
+                corrections += 1
+        return corrections
+
+    def _project_contact_final(
+        self,
+        c: XPBDConstraint,
+        x: np.ndarray,
+        sub_dt: float,
+    ) -> bool:
+        """Final unconditional contact projection (zero compliance).
+
+        If the constraint is still violated after Gauss-Seidel iterations,
+        this method forces exact satisfaction by distributing the full
+        correction proportional to inverse masses.
+        """
+        i, j = c.particle_indices[0], c.particle_indices[1]
+        w_i = self._inv_masses[i]
+        w_j = self._inv_masses[j]
+        w_sum = w_i + w_j
+        if w_sum < _EPS:
+            return False
+
+        delta = x[i] - x[j]
+        dist = float(np.linalg.norm(delta))
+        if dist < _EPS:
+            return False
+
+        # Unilateral: only correct if penetrating (C < 0)
+        C = dist - c.rest_value
+        if C >= 0:
+            return False
+
+        # Zero-compliance projection: Δx = -C * n * w / w_sum
+        n = delta / dist
+        correction_magnitude = -C  # Full correction, no compliance softening
+        x[i] += (w_i / w_sum) * correction_magnitude * n
+        x[j] -= (w_j / w_sum) * correction_magnitude * n
+
+        # Apply friction after final contact correction
+        if self.config.friction_coefficient > 0:
+            self._apply_friction(i, j, x, n, correction_magnitude, sub_dt)
+
+        return True
+
+    def _project_separation_final(
+        self,
+        c: XPBDConstraint,
+        x: np.ndarray,
+    ) -> bool:
+        """Final unconditional self-collision separation projection."""
+        i, j = c.particle_indices[0], c.particle_indices[1]
+        w_i = self._inv_masses[i]
+        w_j = self._inv_masses[j]
+        w_sum = w_i + w_j
+        if w_sum < _EPS:
+            return False
+
+        delta = x[i] - x[j]
+        dist = float(np.linalg.norm(delta))
+        if dist < _EPS:
+            return False
+
+        C = dist - c.rest_value
+        if C >= 0:
+            return False
+
+        n = delta / dist
+        correction_magnitude = -C
+        x[i] += (w_i / w_sum) * correction_magnitude * n
+        x[j] -= (w_j / w_sum) * correction_magnitude * n
+        return True
 
     # -----------------------------------------------------------------------
     # Velocity post-processing

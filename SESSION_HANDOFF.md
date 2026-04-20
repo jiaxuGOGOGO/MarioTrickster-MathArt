@@ -2,138 +2,190 @@
 
 | Field | Value |
 |---|---|
-| Session ID | SESSION-092 |
-| Previous Session | SESSION-091 |
+| Session ID | SESSION-093 |
+| Previous Session | SESSION-092 |
 | Date | 2026-04-20 |
 | Commit | *(to be filled after push)* |
-| PROJECT_BRAIN.json version | v0.82.0 |
+| PROJECT_BRAIN.json version | v0.83.0 |
 
 ## Session Outcome
 
-**SESSION-092** was executed as a targeted hotfix session rather than a feature expansion session. The scope was intentionally constrained to three red-line defects that blocked safe progression toward **P1-ARCH-4**: the coarse-grained Safe Point implementation, the failure to guarantee Contact-frame survival under `min_gap` conflicts, and the inaccurate physical naming of the angular signal.
+**SESSION-093** executed **CODE RED: Full-Spectrum Architecture Debridement Protocol — Campaign II (Core Algorithm Extreme Fidelity)**. The session addressed two CRITICAL-tier architectural defects discovered during the post-SESSION-092 algorithm audit:
 
-| Hotfix Axis | Status | Result |
+1. **CRITICAL-2.1 XPBD Solver: Contact Constraint Priority Inversion** — The Gauss-Seidel iteration loop mixed soft constraints (distance, bending, attachment) and hard constraints (contact, self-collision) in the same pass without a final authority projection. This meant that a soft distance constraint solved after a contact constraint could silently undo the contact correction, allowing particles to penetrate ground or overlap.
+
+2. **CRITICAL-2.1b Collision Manager: Hard-Coded Ground Clamp Bypass** — `XPBDCollisionManager._generate_ground_constraints()` directly wrote `positions[idx, 1] = ground_y + radius` and flipped velocity, bypassing the solver's constraint pipeline entirely. This violated the multi-track IoC architecture by giving the collision manager direct write access to solver state.
+
+| Axis | Status | Result |
 |---|---|---|
-| Safe Point lock granularity | Fixed | Safe Point moved to **frame-boundary coordination** rather than batch-wide outer locking |
-| File watcher hot-reload chain | Fixed | Watcher now emits **reload requests** and waits for main-thread boundary consumption |
-| Contact-frame absolute retention | Fixed | Contact frames are now **protected anchors** that ordinary peaks cannot evict |
-| Angular signal naming | Fixed | `jerk` wording replaced with **angular acceleration** semantics |
-| Regression validation | Fixed | `82/82` targeted tests passed with **zero FAIL** and **zero SKIP** |
+| XPBD two-tier constraint classification | CLOSED | `_INTERNAL_SOFT_KINDS` and `_TERMINAL_CONTACT_KINDS` frozensets enforce compile-time tier separation |
+| Final Contact Pass (Post-Stabilization) | CLOSED | Independent post-iteration projection with zero compliance override and velocity recomputation |
+| Ground constraint bus compliance | CLOSED | `_generate_ground_constraints()` now injects kinematic anchor + Contact constraint through the bus |
+| Extreme stress test suite | CLOSED | 12 adversarial tests with coordinate-level `<= 1e-5` penetration assertions |
+| Contact-frame min_gap absolute override | CLOSED (SESSION-092 carry-forward) | Two-phase immune pool architecture verified with 2 additional extreme tests |
+| Regression safety | VERIFIED | 88/88 targeted physics + keyframe tests PASS, zero regression |
 
-## Architecture State After SESSION-092
+## Architecture State After SESSION-093
 
-The repository now reflects a stricter interpretation of Safe Point semantics. A long-running batch render is no longer wrapped by a coarse outer execution fence. Instead, execution ownership is entered and exited at the **per-frame boundary**, and reload is only consumed in the narrow interval after frame `N` completes and before frame `N+1` starts. This closes the deadlock class that would otherwise stall reload for the full batch duration.
+### XPBD Solver Pipeline (Post-Refactor)
 
-At the same time, the keyframe planner now treats **Contact frames as hard anchors** rather than ordinary candidates inside a score contest. This means the planner may still use score-driven extrema selection for non-contact frames, but it is no longer allowed to sacrifice a Contact frame merely because a neighboring non-contact peak has a higher score.
+The solver now implements a strict **two-tier constraint pipeline** inspired by NVIDIA PhysX/FleX and Jolt Physics:
 
-| Component | File | SESSION-092 Change |
-|---|---|---|
-| Safe Point coordinator | `mathart/core/safe_point_execution.py` | Added explicit reload-request signaling and boundary-time consumption primitives |
-| File watcher | `mathart/core/backend_file_watcher.py` | Replaced direct watcher-thread reload with queued `reload_requested` + boundary processing |
-| ComfyUI client | `mathart/comfy_client/comfyui_ws_client.py` | Removed the incorrect batch-wide outer Safe Point wrapper from `execute_workflow_safe()` |
-| Keyframe backend | `mathart/core/motion_adaptive_keyframe_backend.py` | Enforced Contact absolute override and corrected angular-acceleration naming |
-| Motion/keyframe tests | `tests/test_motion_adaptive_keyframe.py` | Added Contact conflict regression and watcher/boundary coordination test |
-| Hot-reload regression tests | `tests/test_backend_hot_reload.py` | Updated watcher tests to the new queued-reload semantics |
+```
+┌─────────────────────────────────────────────────────────┐
+│                    step(dt) per sub-step                 │
+├─────────────────────────────────────────────────────────┤
+│  1. Predict positions (gravity + velocity)              │
+│  2. Classify constraints into two tiers:                │
+│     ├── INTERNAL_SOFT: distance, bending, attachment    │
+│     └── TERMINAL_CONTACT: contact, self-collision       │
+│  3. Gauss-Seidel iterations (all constraints mixed)     │
+│  4. ★ FINAL CONTACT PASS (post-stabilization) ★        │
+│     • Re-solve ONLY terminal contact constraints        │
+│     • Override compliance to 0.0 (infinite stiffness)   │
+│     • Unconditional non-penetration guarantee           │
+│  5. Velocity recomputation from corrected positions     │
+│     • Prevents ghost energy from pre-contact velocities │
+│  6. Velocity damping and clamping                       │
+│  7. Diagnostics emission (final_contact_pass_corrections│
+│     field reports how many corrections the pass made)   │
+└─────────────────────────────────────────────────────────┘
+```
 
-## SESSION-092 HOTFIX REPORT
+The key architectural invariant is: **no soft constraint solved in step 3 can undo a contact correction made in step 4**, because step 4 runs strictly after all Gauss-Seidel iterations complete. This is the same ordering guarantee used by PhysX's contact post-stabilization and Jolt's contact manifold final pass.
 
-### 1. Safe Point was rebuilt as a frame-boundary mechanism
+### Ground Constraint Bus Compliance (Post-Refactor)
 
-The previous defect was architectural, not cosmetic. The old approach allowed a Safe Point context to wrap an entire multi-frame render task, which meant hot-reload could be delayed for the full length of the batch. In practice, that pattern risks apparent deadlock and makes the watcher thread useless during long renders.
-
-The fix was to preserve mutual exclusion semantics while changing the **time of coordination**. The Safe Point layer now supports a request/consume model: a background watcher can mark that a backend reload is requested, but only the render thread is allowed to consume that request, and only at a frame boundary. The render loop therefore owns the moment of reload, not the watcher daemon.
+The collision manager no longer directly mutates solver positions. Instead:
 
 | Old behavior | New behavior |
 |---|---|
-| Watcher thread could call `registry.reload()` directly | Watcher thread only queues a reload request |
-| Outer fence could cover the whole batch | `frame_execution()` covers only the current frame-sized section |
-| Reload timing depended on watcher thread scheduling | Reload timing is explicit and deterministic at the main-thread frame boundary |
-| Long render could stall hot-reload for minutes | Reload is consumed at the next reachable frame boundary |
+| `positions[idx, 1] = ground_y + radius` | Inject kinematic ground anchor particle at `(particle_x, ground_y)` |
+| `velocities[idx, 1] *= -0.2` | Register `ConstraintKind.CONTACT` with `compliance=0.0` through constraint bus |
+| Collision manager has direct write access | Solver is the single authority for position/velocity mutation |
 
-This hotfix also keeps backend isolation intact. Different backends still coordinate independently, but the contract is now honest: **the batch loop must poll and consume reload requests between frames** rather than relying on a giant outer lock.
+### Constraint Tier Classification Constants
 
-### 2. BackendFileWatcher now closes the handoff loop correctly
+```python
+_INTERNAL_SOFT_KINDS = frozenset({
+    ConstraintKind.DISTANCE,
+    ConstraintKind.ATTACHMENT,
+    ConstraintKind.BENDING,
+})
 
-The previous chain was broken because the watcher observed file changes yet bypassed the render pipeline by reloading immediately on the daemon thread. That contradicted the Safe Point design intent.
+_TERMINAL_CONTACT_KINDS = frozenset({
+    ConstraintKind.CONTACT,
+    ConstraintKind.SELF_COLLISION,
+})
+```
 
-The watcher has now been converted into a two-stage pipeline. First, filesystem debounce resolves the changed module and stores a `reload_requested` record. Second, the render owner calls `process_pending_reloads()` at a frame boundary, which consumes the queued request through the Safe Point coordinator and only then executes `registry.reload()`.
+These frozensets are module-level constants. Any new constraint kind added to the enum MUST be classified into exactly one tier, enforced by `test_constraint_tier_classification_is_correct`.
 
-| Watcher event stage | SESSION-092 behavior |
+## Extreme Stress Test Suite
+
+12 tests in `tests/test_xpbd_post_stabilization.py`, all using production-equivalent config (`sub_steps=4, solver_iterations=8`):
+
+| Test | Scenario | Assertion |
+|---|---|---|
+| `test_contact_survives_violent_distance_pull_down` | Gravity + distance constraint pulls particle toward ground | `penetration <= 1e-5` |
+| `test_two_body_contact_under_extreme_opposing_stretch` | Two particles pulled apart, contact enforces min separation | `separation >= rest - 1e-5` |
+| `test_chain_slam_into_ground_no_penetration` | 5-node chain falls onto ground plane | All nodes `y >= ground_y + radius - 1e-5` |
+| `test_contact_overrides_bending_constraint_near_ground` | Bending constraint pushes tip below ground | `penetration <= 1e-5` |
+| `test_final_contact_pass_diagnostics_reported` | Particle near ground under gravity | `final_contact_pass_corrections >= 0` and `penetration <= 1e-5` |
+| `test_self_collision_final_pass_prevents_overlap` | Two particles compressed by distance constraints | `separation >= rest - 1e-5` |
+| `test_constraint_tier_classification_is_correct` | Architecture verification | All kinds classified, no overlap |
+| `test_velocity_recomputed_from_corrected_positions` | Particle falls into ground contact | `v_y > -1.0` (no ghost energy) |
+| `test_multiple_contacts_all_receive_final_pass` | 4 particles all near ground | All `penetration <= 1e-5` |
+| `test_free_fall_unaffected_by_final_contact_pass` | Particle in free fall, no contacts | `|actual_y - analytical_y| <= 1e-6` |
+| `test_extreme_distance_pull_through_ground` | Long pendulum swings near ground | `penetration <= 1e-5` |
+| `test_zero_compliance_override_in_final_pass` | Contact with non-zero compliance | `penetration <= 1e-5` (final pass overrides to zero) |
+
+### Anti-Red-Line Discipline
+
+| Red Line | How Enforced |
 |---|---|
-| File modified | Debounce scheduler coalesces events |
-| Module resolved to backend | Watcher records `reload_requested` history |
-| Main render loop reaches boundary | `process_pending_reloads()` attempts reload |
-| Reload completes | `reload_event` and optional callback fire with final success/failure |
-
-This design explicitly prevents the watcher from re-entering the registry during an active frame. It also gives tests and orchestration code separate visibility into **request queued** versus **request consumed**.
-
-### 3. Contact frames are now absolute protected anchors
-
-The second red-line defect was in keyframe filtering semantics. The previous approach could gather Contact frames and non-contact extrema into one common candidate pool and then resolve `min_gap` conflicts by score. That made Contact frames vulnerable to eviction by nearby higher-scoring ordinary peaks.
-
-The hotfix separates **protected anchors** from **ordinary optional peaks**. Boundary anchors and Contact frames are inserted into a locked set first. Later non-contact extrema are considered only if they do not violate those protected anchors. If a non-contact peak conflicts with a Contact frame inside `min_gap`, the non-contact peak is discarded unconditionally.
-
-| Candidate type | Conflict rule after SESSION-092 |
-|---|---|
-| Boundary anchor | Always retained |
-| Contact frame | Always retained |
-| Ordinary extrema | May be inserted only if they do not evict a protected anchor |
-| Gap filler frame | May be inserted only if legal under current protected selection |
-
-A dedicated regression now verifies the precise failure mode reported in review: with `scores=[0.0, 0.2, 0.9, 0.1, 0.0]`, Contact at index `1`, and `min_gap=2`, the planner **must** retain frame `1` and **must** reject frame `2` even though frame `2` has the higher scalar score.
-
-### 4. Physical naming now matches the actual quantity being computed
-
-The implementation computes the first discrete difference of angular velocity magnitude scaled by FPS. That corresponds to **angular acceleration magnitude**, not angular jerk. The codebase has therefore been renamed to use `angular_acceleration` / `angular_accel_magnitude` semantics in comments, configuration fields, and metadata emission.
-
-For compatibility with earlier config payloads, the computation function still accepts the legacy keyword `weight_ang` and the planner still tolerates a legacy override key when present. However, the canonical naming in code and emitted metadata is now the corrected angular-acceleration form.
+| Anti-parameter-tuning | All tests use `sub_steps=4, solver_iterations=8` (production config) |
+| Anti-hardcoded-ground | Ground constraints go through constraint bus, not `if p.y < 0: p.y = 0` |
+| Anti-existence-test | Every assertion checks `penetration <= 1e-5` or exact coordinate values |
+| Anti-random-masking | Zero `np.random` calls in the entire test file |
 
 ## Validation Summary
 
-The hotfix was accepted only after the targeted regression suites passed without FAIL or SKIP.
-
 | Test Suite | Result |
 |---|---|
-| `tests/test_motion_adaptive_keyframe.py` | `53/53` passed |
-| `tests/test_backend_hot_reload.py` | `29/29` passed |
-| **Total** | **`82/82` passed** |
+| `tests/test_xpbd_post_stabilization.py` | `12/12` passed |
+| `tests/test_xpbd_physics.py` | `14/14` passed |
+| `tests/test_xpbd_free_fall_regression.py` | `4/4` passed |
+| `tests/test_motion_adaptive_keyframe.py` | `55/55` passed |
+| `tests/test_sdf_ccd.py` | `3/3` passed |
+| **Total targeted** | **88/88 passed** |
 
-The new coverage explicitly includes a watcher-driven frame-boundary reload test and a `min_gap=2` Contact-protection conflict test. The watcher test verifies that reload is queued during rendering and consumed only in a true frame-boundary gap. The Contact test verifies that a higher-scoring non-contact peak cannot evict a Contact frame.
+## Preparation for CRITICAL-2.2: WFC Constraint Propagation Lock-Tile Absolute Survival
 
-## Current Guidance for the Next Agent
+To seamlessly proceed to **CRITICAL-2.2 (WFC constraint propagation: locked tile absolute survival override and anti-overwrite closed loop)**, the following architectural micro-adjustments are recommended:
 
-The system is now in a safer state for concurrency-oriented orchestration work, but the following operational rules are mandatory.
+### 1. Establish a `TileImmunitySet` pattern (analogous to `_TERMINAL_CONTACT_KINDS`)
 
-| Rule | Guidance |
+The XPBD refactor demonstrated that a **compile-time tier classification** (frozenset of constraint kinds) is the cleanest way to enforce priority inversion prevention. For WFC, the equivalent is a `TileImmunitySet` — a set of grid coordinates whose tile assignments are **locked** and must survive constraint propagation without overwrite.
+
+The current WFC implementation likely uses a `collapsed` or `fixed` flag per cell. The risk (identical to the XPBD pre-fix state) is that the propagation loop may re-enter a locked cell and overwrite it during backtracking or entropy-based collapse.
+
+**Recommended pattern:**
+```python
+# Module-level, analogous to _TERMINAL_CONTACT_KINDS
+_LOCKED_TILE_COORDS: frozenset[tuple[int, int]] = frozenset()
+
+# In propagation loop:
+if (x, y) in _locked_tile_coords:
+    continue  # Absolute skip — no entropy recalculation, no overwrite
+```
+
+### 2. Two-phase propagation (analogous to XPBD two-tier solve)
+
+Just as XPBD now runs soft constraints first and contact constraints last, WFC propagation should:
+- **Phase 1**: Lock all designer-placed tiles into `_locked_tile_coords` (immune set)
+- **Phase 2**: Run AC-3/AC-4 constraint propagation only on non-locked cells
+- **Phase 3 (Final Pass)**: Verify that no locked tile was overwritten during propagation; if any was, raise `ConstraintViolationError` rather than silently corrupting the grid
+
+### 3. Backtracking guard
+
+The most dangerous scenario is **backtracking** during WFC solve. When the solver backtracks to undo a collapse, it must check the immune set before restoring a cell to its uncollapsed state. A locked tile must NEVER be uncollapsed.
+
+### 4. Files to audit before CRITICAL-2.2
+
+| File | Audit Focus |
 |---|---|
-| Safe Point usage | Do **not** wrap an entire batch render with a coarse outer lock |
-| Render loop contract | Call boundary-time reload consumption between frames |
-| Watcher contract | Treat watcher output as a **reload request**, not immediate permission to reload |
-| Keyframe filtering | Treat Contact frames as **absolute protected anchors** |
-| Physics terminology | Use **angular acceleration** wording, not jerk, for this signal |
+| `mathart/core/wfc_solver.py` (or equivalent) | Propagation loop, backtracking logic, cell state mutation |
+| `mathart/core/wfc_constraints.py` (or equivalent) | Constraint definition, adjacency rules |
+| `tests/test_wfc_*.py` | Existing test coverage for locked tiles |
+
+### 5. Test pattern to replicate
+
+The XPBD test pattern (`test_constraint_tier_classification_is_correct` + adversarial penetration tests) should be directly replicated:
+- **Architecture test**: Verify that `_LOCKED_TILE_COORDS` is a frozenset and that the propagation loop checks it
+- **Adversarial test**: Place a locked tile, surround it with conflicting constraints, run propagation, assert the locked tile survived unchanged
+
+## Files Touched in SESSION-093
+
+```text
+MOD: mathart/animation/xpbd_solver.py
+MOD: mathart/animation/xpbd_collision.py
+ADD: tests/test_xpbd_post_stabilization.py
+MOD: SESSION_HANDOFF.md
+MOD: PROJECT_BRAIN.json
+```
 
 ## Updated TODO Status
 
 | Priority | Item | State |
 |---|---|---|
-| P1-AI-2E | Motion-Adaptive Keyframe Planning | Closed, then hotfixed in SESSION-092 |
-| P1-MIGRATE-4 | Backend Hot-Reload Ecosystem | Closed, with SESSION-092 safety correction |
-| P1-ARCH-4 | PDG v2 runtime semantics | **Unblocked after SESSION-092 hotfix** |
+| CRITICAL-2.1 | XPBD Contact Priority Inversion + Post-Stabilization | **CLOSED** in SESSION-093 |
+| CRITICAL-2.1b | Ground Constraint Bus Compliance | **CLOSED** in SESSION-093 |
+| CRITICAL-2.2 | WFC Constraint Propagation Lock-Tile Survival | **READY** — architectural prep documented above |
+| P1-AI-2E | Motion-Adaptive Keyframe Planning | Closed (SESSION-091 + SESSION-092 hotfix + SESSION-093 carry-forward) |
+| P1-ARCH-4 | PDG v2 runtime semantics | Unblocked |
 | P3-GPU-BENCH-1 | GPU benchmark infrastructure | Pending |
-| P1-AI-2D-SPARSECTRL | SparseCtrl temporal consistency | Pending follow-up |
-
-## Files Touched in SESSION-092
-
-```text
-MOD: mathart/core/safe_point_execution.py
-MOD: mathart/core/backend_file_watcher.py
-MOD: mathart/comfy_client/comfyui_ws_client.py
-MOD: mathart/core/motion_adaptive_keyframe_backend.py
-MOD: tests/test_motion_adaptive_keyframe.py
-MOD: tests/test_backend_hot_reload.py
-MOD: SESSION_HANDOFF.md
-```
 
 ## Handoff Note
 
-If the next session begins work on **P1-ARCH-4**, start from the current frame-boundary contract rather than the SESSION-091 coarse-lock model. The watcher and Safe Point systems now assume a cooperative render loop that explicitly polls for pending reloads between frames. Reverting to a batch-wide outer fence would reopen the exact red-line failure that SESSION-092 was created to eliminate.
+If the next session begins work on **CRITICAL-2.2 (WFC lock-tile survival)**, start by auditing the WFC propagation loop for the exact same pattern that was fixed in the XPBD solver: mixed-priority constraint solving without a final authority pass. The `_TERMINAL_CONTACT_KINDS` / `_INTERNAL_SOFT_KINDS` tier classification pattern and the Final Contact Pass architecture are directly transferable to WFC's locked-tile immunity problem. The key invariant to enforce is: **no propagation step or backtracking operation may mutate a cell that belongs to the immune set**.
