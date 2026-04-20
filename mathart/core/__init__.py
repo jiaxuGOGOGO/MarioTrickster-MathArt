@@ -33,6 +33,9 @@ from mathart.core.backend_registry import (
     register_backend,
     get_registry,
 )
+from mathart.core.backend_file_watcher import (
+    BackendFileWatcher,
+)
 from mathart.core.backend_types import (
     BackendType,
     backend_alias_map,
@@ -60,6 +63,8 @@ __all__ = [
     "BackendMeta",
     "register_backend",
     "get_registry",
+    # Backend Hot-Reload (SESSION-090)
+    "BackendFileWatcher",
     "BackendType",
     "backend_alias_map",
     "backend_type_value",

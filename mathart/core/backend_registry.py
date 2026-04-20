@@ -48,6 +48,8 @@ from __future__ import annotations
 import importlib
 import logging
 import pkgutil
+import sys
+import threading
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
@@ -216,15 +218,28 @@ class BackendRegistry:
 
     Thread Safety
     -------------
-    The registry uses a simple dict and is not thread-safe. This is
-    acceptable because registration happens at import time (single-threaded)
-    and lookup happens during pipeline execution (also single-threaded in
-    the current architecture).
+    SESSION-090 (P1-MIGRATE-4) upgrades thread safety: a ``_reload_lock``
+    (``threading.Lock``) serializes all mutation operations (register,
+    unregister, reload) so the daemon file-watcher thread can safely
+    trigger hot-reload without corrupting the registry dict.  Read-only
+    lookups remain lock-free for zero-overhead pipeline execution.
     """
 
     _instance: Optional["BackendRegistry"] = None
     _backends: dict[str, tuple[BackendMeta, Type]] = {}
     _builtins_loaded: bool = False
+    # SESSION-090 (P1-MIGRATE-4): Per-module reload tracking.
+    # Maps canonical backend name → the fully-qualified module name that
+    # registered it, enabling targeted ``importlib.reload`` without
+    # scanning all of sys.modules.
+    _backend_module_map: dict[str, str] = {}
+    # SESSION-090 (P1-MIGRATE-4): Thread-safe mutation lock.
+    # Uses RLock (reentrant lock) because reload() holds the lock while
+    # calling importlib.import_module(), which triggers @register_backend
+    # → register() on the same thread.  A plain Lock would deadlock.
+    # Design reference: Erlang/OTP code_server uses a reentrant gen_server
+    # call pattern for the same reason.
+    _reload_lock: threading.RLock = threading.RLock()
 
     def __new__(cls) -> "BackendRegistry":
         if cls._instance is None:
@@ -252,22 +267,28 @@ class BackendRegistry:
             If a backend with the same name is already registered.
         """
         canonical_name = backend_type_value(meta.name)
-        if canonical_name in self._backends:
-            existing_meta, _ = self._backends[canonical_name]
-            if existing_meta.version < meta.version:
-                logger.info(
-                    "Upgrading backend %r from v%s to v%s",
-                    canonical_name, existing_meta.version, meta.version,
-                )
-                self._backends[canonical_name] = (meta, backend_class)
-            else:
-                logger.warning(
-                    "Backend %r already registered (v%s). Skipping v%s.",
-                    canonical_name, existing_meta.version, meta.version,
-                )
-            return
-        self._backends[canonical_name] = (meta, backend_class)
-        logger.debug("Registered backend: %s (v%s)", canonical_name, meta.version)
+        with self._reload_lock:
+            if canonical_name in self._backends:
+                existing_meta, _ = self._backends[canonical_name]
+                if existing_meta.version < meta.version:
+                    logger.info(
+                        "Upgrading backend %r from v%s to v%s",
+                        canonical_name, existing_meta.version, meta.version,
+                    )
+                    self._backends[canonical_name] = (meta, backend_class)
+                else:
+                    logger.warning(
+                        "Backend %r already registered (v%s). Skipping v%s.",
+                        canonical_name, existing_meta.version, meta.version,
+                    )
+                return
+            self._backends[canonical_name] = (meta, backend_class)
+            # SESSION-090 (P1-MIGRATE-4): Track which module registered this
+            # backend so targeted reload can find the right sys.modules key.
+            caller_module = getattr(backend_class, "__module__", None)
+            if caller_module:
+                self._backend_module_map[canonical_name] = caller_module
+            logger.debug("Registered backend: %s (v%s)", canonical_name, meta.version)
 
     def get(self, name: str) -> Optional[tuple[BackendMeta, Type]]:
         """Look up a backend by name.
@@ -360,6 +381,201 @@ class BackendRegistry:
         except Exception as e:
             logger.debug("Failed to discover package %s: %s", package_path, e)
         return len(self._backends) - before
+
+    # ------------------------------------------------------------------
+    # SESSION-090 (P1-MIGRATE-4): Hot-Reload Primitives
+    # ------------------------------------------------------------------
+
+    def unregister(self, name: str) -> bool:
+        """Atomically remove a single backend from the registry.
+
+        This is the **targeted eviction** primitive required by the
+        hot-reload ecosystem.  It surgically pops only the named backend
+        from ``_backends`` and ``_backend_module_map`` — all other entries
+        remain untouched (Erlang/OTP two-version coexistence discipline).
+
+        Parameters
+        ----------
+        name : str
+            Backend name (canonical or alias).
+
+        Returns
+        -------
+        bool
+            ``True`` if the backend was found and removed, ``False`` otherwise.
+        """
+        canonical_name = backend_type_value(name)
+        with self._reload_lock:
+            removed = self._backends.pop(canonical_name, None)
+            self._backend_module_map.pop(canonical_name, None)
+            if removed is not None:
+                logger.info("Unregistered backend: %s", canonical_name)
+                return True
+            logger.warning("Unregister: backend %r not found.", canonical_name)
+            return False
+
+    def reload(self, name: str) -> bool:
+        """Atomically unregister, reimport, and re-register a single backend.
+
+        Implements the full Erlang/OTP-inspired hot-swap sequence:
+
+        1. **Evict** the old ``(BackendMeta, Type)`` tuple from ``_backends``.
+        2. **Deep-clean** the target module from ``sys.modules`` so
+           ``importlib.reload`` fetches fresh bytecode from disk.
+        3. **Re-import** the module, which re-executes the top-level
+           ``@register_backend`` decorator and inserts the new class.
+        4. **Verify** the new class ``id()`` differs from the old one,
+           catching the "zombie reference" anti-pattern.
+
+        The entire sequence is protected by ``_reload_lock`` to prevent
+        concurrent mutation from the daemon file-watcher thread.
+
+        Parameters
+        ----------
+        name : str
+            Backend name (canonical or alias).
+
+        Returns
+        -------
+        bool
+            ``True`` if the reload succeeded and a new class was registered.
+
+        Raises
+        ------
+        RuntimeError
+            If the module cannot be found or the reload produces a
+            SyntaxError / ImportError.
+        """
+        canonical_name = backend_type_value(name)
+        with self._reload_lock:
+            # --- Step 0: Capture old class identity for zombie detection ---
+            old_entry = self._backends.get(canonical_name)
+            old_class_id = id(old_entry[1]) if old_entry else None
+            module_name = self._backend_module_map.get(canonical_name)
+
+            if module_name is None:
+                raise RuntimeError(
+                    f"Cannot reload backend {canonical_name!r}: "
+                    f"no module mapping found. Was it registered via "
+                    f"@register_backend?"
+                )
+
+            # --- Step 1: Evict old entry (targeted, NOT clear()) ---
+            self._backends.pop(canonical_name, None)
+            # Do NOT pop from _backend_module_map yet — we need the
+            # module name for reimport.
+
+            # --- Step 2: Deep-clean sys.modules, bytecode cache, and
+            #     import finder caches ---
+            # Strategy: (a) pop the module from sys.modules, (b) purge
+            # __pycache__ .pyc files for the module so Python does not
+            # serve stale bytecode, (c) call invalidate_caches() so
+            # FileFinder picks up the new source.  Then import_module()
+            # will compile fresh bytecode from the updated .py file.
+            # This is the Python equivalent of OSGi classloader isolation.
+            old_module_obj = sys.modules.pop(module_name, None)
+
+            # Purge __pycache__ for the target module
+            if old_module_obj is not None:
+                src_file = getattr(old_module_obj, "__file__", None)
+                if src_file:
+                    import shutil
+                    cache_dir = Path(src_file).parent / "__pycache__"
+                    if cache_dir.is_dir():
+                        # Only remove .pyc files matching this module stem
+                        stem = Path(src_file).stem
+                        for pyc in cache_dir.glob(f"{stem}*.pyc"):
+                            try:
+                                pyc.unlink()
+                            except OSError:
+                                pass
+
+            # Invalidate all import finder caches
+            importlib.invalidate_caches()
+
+            # --- Step 3: Re-import the module (fresh import, not reload) ---
+            try:
+                importlib.import_module(module_name)
+            except Exception as exc:
+                # Restore the old entry on failure to prevent registry
+                # corruption (atomic rollback).
+                if old_entry is not None:
+                    self._backends[canonical_name] = old_entry
+                if old_module_obj is not None:
+                    sys.modules[module_name] = old_module_obj
+                logger.error(
+                    "Hot-reload FAILED for %s: %s. Old version restored.",
+                    canonical_name, exc,
+                )
+                raise RuntimeError(
+                    f"Hot-reload failed for {canonical_name!r}: {exc}"
+                ) from exc
+
+            # --- Step 4: Verify new class registered & zombie check ---
+            new_entry = self._backends.get(canonical_name)
+            if new_entry is None:
+                # The reimported module did not re-register — restore old.
+                if old_entry is not None:
+                    self._backends[canonical_name] = old_entry
+                raise RuntimeError(
+                    f"Hot-reload of {canonical_name!r}: module reimported "
+                    f"but backend did not re-register. Check "
+                    f"@register_backend decorator."
+                )
+
+            new_class_id = id(new_entry[1])
+            if old_class_id is not None and new_class_id == old_class_id:
+                logger.warning(
+                    "Hot-reload of %s: class id() unchanged (%d). "
+                    "Possible zombie reference — verify sys.modules cleanup.",
+                    canonical_name, new_class_id,
+                )
+
+            logger.info(
+                "Hot-reload SUCCESS: %s (old_id=%s → new_id=%s)",
+                canonical_name, old_class_id, new_class_id,
+            )
+            return True
+
+    def get_watched_package_paths(self) -> list[str]:
+        """Return filesystem paths that should be monitored for hot-reload.
+
+        Derives paths from the same package roots used by ``discover()``
+        — currently ``mathart.core`` and ``mathart.export``.  The daemon
+        file-watcher uses these to set up ``watchdog`` observers without
+        any hardcoded directory strings.
+
+        Returns
+        -------
+        list[str]
+            Absolute filesystem directory paths.
+        """
+        paths: list[str] = []
+        for pkg_name in ("mathart.core", "mathart.export"):
+            try:
+                pkg = importlib.import_module(pkg_name)
+                pkg_path = getattr(pkg, "__path__", None)
+                if pkg_path:
+                    for p in pkg_path:
+                        abs_p = str(Path(p).resolve())
+                        if abs_p not in paths:
+                            paths.append(abs_p)
+            except Exception:
+                pass
+        return paths
+
+    def module_to_backend_name(self, module_name: str) -> Optional[str]:
+        """Reverse-lookup: given a module name, find the backend it registered.
+
+        Returns
+        -------
+        str or None
+            The canonical backend name, or ``None`` if no mapping exists.
+        """
+        for bname, mname in self._backend_module_map.items():
+            if mname == module_name:
+                return bname
+        return None
 
     def summary_table(self) -> str:
         """Generate a Markdown summary table of all registered backends."""

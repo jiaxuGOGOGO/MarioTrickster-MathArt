@@ -1,7 +1,7 @@
 {
-  "version": "v0.80.0",
-  "last_session_id": "SESSION-089",
-  "last_updated": "2026-04-20T12:00:00Z",
+  "version": "v0.81.0",
+  "last_session_id": "SESSION-090",
+  "last_updated": "2026-04-20T13:30:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -31,7 +31,7 @@
     "closed_archived": 51
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-089 P1-INDUSTRIAL-34C CLOSED: Dead Cells 3D→2D orthographic pixel render pipeline + OrthographicPixelRenderBackend registry plugin + 22 E2E tests. Pure NumPy software rasterizer, cel-shading kernel, nearest-neighbor downscale. Cumulative: 22 PASS, 0 FAIL.",
+  "validation_pass_rate": "SESSION-090 P1-MIGRATE-4 CLOSED: Backend Hot-Reload Ecosystem. BackendRegistry atomic unregister/reload + BackendFileWatcher daemon + 29 E2E tests. Cumulative: 29 PASS, 0 FAIL.",
   "total_iterations": 682,
   "total_code_lines": 132591,
   "distill_session_id": "DISTILL-012",
@@ -77,9 +77,12 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-089 closes P1-INDUSTRIAL-34C by implementing the Dead Cells-style 3D→2D orthographic pixel render pipeline: OrthographicPixelRenderBackend self-registers via @register_backend, pure NumPy software rasterizer with edge-function triangle rasterization and Z-buffer, multi-pass Albedo/Normal/Depth extraction, hard-stepped cel-shading kernel (N·L dot product + threshold banding), nearest-neighbor downscale, and strongly-typed ArtifactManifest output. 22 E2E tests enforce anti-perspective, anti-bilinear, and anti-GUI red lines.",
+  "current_focus": "SESSION-090 CLOSES P1-MIGRATE-4: Full Backend Hot-Reload Ecosystem. BackendRegistry.unregister()/reload() atomic primitives with RLock thread safety, __pycache__ purge, importlib.invalidate_caches(), atomic rollback. BackendFileWatcher daemon thread with 400ms debounce via watchdog. 29/29 E2E tests cover zombie reference detection, state wipeout guards, debounce coalescing, concurrent safety, and full v1→v2→v3 lifecycle.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "research_notes_session090.md",
+    "tests/test_backend_hot_reload.py",
+    "mathart/core/backend_file_watcher.py",
     "research_notes_session089.md",
     "tests/test_orthographic_pixel_render.py",
     "research/session084_ai2d_preset_research.md",
@@ -470,10 +473,11 @@
       "id": "P1-MIGRATE-4",
       "priority": "P1",
       "title": "Implement hot-reload for dynamically discovered backends",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "Use BackendRegistry.discover() to auto-scan mathart/export/ and mathart/core/builtin_backends.py at startup. New backends added as files should be automatically available without manual import.",
-      "added_in": "SESSION-064"
+      "description": "SESSION-090 CLOSES P1-MIGRATE-4: Full Erlang/OTP-inspired Backend Hot-Reload Ecosystem. (1) BackendRegistry gains atomic unregister(name) and reload(name) primitives with RLock-protected thread safety, targeted sys.modules eviction + __pycache__ purge + importlib.invalidate_caches() for genuine class replacement (anti-zombie-reference), and atomic rollback on SyntaxError/ImportError. (2) BackendFileWatcher daemon thread monitors backend source directories via watchdog with 400ms debounce (anti-IDE-burst), auto-detects new backend files, and triggers targeted hot-reload without clearing the global registry (anti-state-wipeout). (3) 29/29 E2E tests validate: unregister/reload primitives, zombie reference id() assertions, state wipeout guards, atomic rollback, debounce coalescing, daemon thread lifecycle, full v1→v2→v3 sequential reload lifecycle, concurrent thread safety, and reload callback integration.",
+      "added_in": "SESSION-064",
+      "closed_in": "SESSION-090"
     },
     {
       "id": "P1-NEW-10",

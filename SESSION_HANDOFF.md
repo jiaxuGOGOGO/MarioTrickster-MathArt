@@ -1,167 +1,233 @@
-# SESSION-089 Handoff — Dead Cells 3D→2D Orthographic Pixel Render Pipeline
+# SESSION-090 Handoff — P1-MIGRATE-4: Backend Hot-Reload Ecosystem
+
+**Commit**: SESSION-090
+**Status**: **P1-MIGRATE-4 CLOSED**
+**Date**: 2026-04-20
+**Previous Session**: SESSION-089 (P1-INDUSTRIAL-34C: Orthographic Pixel Render)
 
 ## Executive Summary
 
-**SESSION-089** delivers the **Dead Cells-style 3D→2D Orthographic Pixel Render Pipeline**, closing **P1-INDUSTRIAL-34C** — the deterministic industrial rendering counterpart to the generative AI visual pipeline completed in SESSION-084/086/087. The system now has a complete, production-grade path from 3D mesh data through orthographic projection, multi-pass channel extraction, cel-shading, and nearest-neighbor downscale to engine-ready Albedo/Normal/Depth sprite bundles.
+SESSION-090 delivers the complete **Backend Hot-Reload Ecosystem**, closing the P1-MIGRATE-4 gap that has been tracked since SESSION-064. The implementation follows industrial-grade hot-reload patterns from Erlang/OTP, Eclipse OSGi, Unity Domain Reloading, and Python `watchdog` + `importlib.reload` best practices.
 
-The new `OrthographicPixelRenderBackend` self-registers via `@register_backend` (zero trunk modification) and delegates rendering to a pure NumPy software rasterizer in `orthographic_pixel_render.py` — guaranteed headless, zero GLFW/X11 dependency. Three anti-pattern red lines are enforced by 22 E2E tests: no perspective distortion (orthographic matrix validation), no bilinear blur (edge pixel alpha ∈ {0, 255}), and no GUI window crash (zero windowed context imports).
-
-| Area | SESSION-089 outcome |
+| Metric | Value |
 |---|---|
-| **Task closure** | **P1-INDUSTRIAL-34C fully closed** — Dead Cells 3D→2D pipeline landed |
-| **New engine module** | `mathart/animation/orthographic_pixel_render.py` (1012 lines) |
-| **New backend plugin** | `mathart/core/orthographic_pixel_backend.py` (422 lines) |
-| **Anti-pattern guards** | Perspective Distortion Trap, Bilinear Blur Trap, GUI Window Crash Trap |
-| **Test coverage** | **22 PASS, 0 FAIL** — 22 test cases across 11 test groups |
-| **Research** | Dead Cells GDC 2018, Guilty Gear Xrd GDC 2015, Headless EGL architecture |
-| **Total new code** | ~2,179 lines (engine + backend + tests + research notes) |
+| **Gap closed** | P1-MIGRATE-4 |
+| **New files** | 2 production + 1 test + 1 research |
+| **Registry upgrades** | `unregister()`, `reload()`, `_backend_module_map`, `_reload_lock` (RLock), `get_watched_package_paths()`, `module_to_backend_name()` |
+| **Daemon watcher** | `BackendFileWatcher` with 400ms debounce, daemon thread, context manager |
+| **Anti-pattern guards** | Zombie Reference Trap, State Wipeout Trap, Blocking & Debounce Trap |
+| **Test coverage** | **29 PASS, 0 FAIL** — 29 test cases across 11 test groups |
+| **Research** | Erlang/OTP, Eclipse OSGi, Unity/Unreal Domain Reloading, Python importlib |
+| **Total new code** | ~1,800 lines (registry upgrades + watcher + tests + research notes) |
 
 ## What Landed in Code
 
-### 1. Orthographic Pixel Render Engine (`mathart/animation/orthographic_pixel_render.py`)
+### 1. BackendRegistry Atomic Hot-Reload Primitives (`mathart/core/backend_registry.py`)
 
-A pure NumPy software rasterizer implementing the full Dead Cells 3D→2D pipeline:
+Upgrades to the existing singleton registry, fully backward-compatible:
 
-- **Orthographic Projection Matrix**: `build_orthographic_matrix()` constructs a pure orthographic 4×4 matrix with zero perspective distortion. The matrix maps 3D world coordinates to 2D screen space with absolute flatness — no near-far size variation.
-- **Edge-Function Triangle Rasterizer**: `rasterize_triangles()` implements scanline rasterization with edge functions and a Z-buffer. Barycentric coordinates interpolate per-vertex normals, colors, and UVs across triangle surfaces.
-- **Multi-Pass Channel Extraction**: Simultaneous extraction of spatially-aligned Albedo (base color), Normal (world-space normal map), and Depth (linear orthographic depth) buffers in a single rasterization pass.
-- **Cel-Shading Kernel**: `apply_cel_shading()` computes N·L dot product (max(dot(N, L), 0)) and applies hard stepped threshold banding (configurable 2-3 discrete levels). Zero smooth gradients — hard pixel boundaries only (Guilty Gear Xrd discipline).
-- **Nearest-Neighbor Downscale**: `nearest_neighbor_downscale()` uses `PIL.Image.resize(Image.Resampling.NEAREST)` exclusively. NEVER bilinear/bicubic. Preserves hard pixel edges.
-- **Hard Edge Validation**: `validate_hard_edges()` extracts edge pixels and asserts alpha channel values are strictly {0, 255} — no intermediate values allowed.
-- **Mesh Primitives**: `create_cube_mesh()` and `create_sphere_mesh()` generate test geometry with per-vertex normals and colors for E2E validation.
+- **`unregister(name) -> bool`**: Atomically removes a single backend from `_backends` and `_backend_module_map`. Targeted eviction — all other backends remain untouched (Erlang/OTP two-version coexistence discipline). Returns `True` if found and removed, `False` otherwise.
 
-### 2. OrthographicPixelRenderBackend (`mathart/core/orthographic_pixel_backend.py`)
+- **`reload(name) -> bool`**: Full Erlang/OTP-inspired hot-swap sequence:
+  1. **Capture** old class identity (`id()`) for zombie detection.
+  2. **Evict** the old `(BackendMeta, Type)` tuple from `_backends`.
+  3. **Deep-clean** `sys.modules` (pop the module), purge `__pycache__` `.pyc` files for the module stem, and call `importlib.invalidate_caches()`.
+  4. **Re-import** the module via `importlib.import_module()` (not `reload()` — the module was popped from `sys.modules`).
+  5. **Verify** the new class `id()` differs from the old one (zombie reference check).
+  6. **Atomic rollback** on failure: if `SyntaxError` or `ImportError`, restore the old entry and old `sys.modules` mapping.
 
-A registry-native backend plugin following the project's IoC architecture:
+- **`_reload_lock: threading.RLock`**: Reentrant lock protecting all mutation operations (`register`, `unregister`, `reload`). Uses `RLock` (not `Lock`) because `reload()` holds the lock while calling `importlib.import_module()`, which triggers `@register_backend` -> `register()` on the same thread. A plain `Lock` would deadlock.
 
-- **Self-Registration**: `@register_backend("orthographic_pixel_render")` — discovered automatically by `get_registry()`. Zero modification to AssetPipeline, Orchestrator, or any trunk code.
-- **Backend-Owned Validation**: `validate_config()` normalizes render dimensions, lighting parameters, cel-shading thresholds, channel selection, and FPS. All parameter parsing is physically sunk into this Adapter (Hexagonal Architecture).
-- **Strongly-Typed Output**: `execute()` returns an `ArtifactManifest` with `backend_type="orthographic_pixel_render"`, `artifact_family="sprite_sheet"`, texture_channels payload with engine slot bindings (Unity `_MainTex`/`_NormalMap`, Godot `texture_albedo`/`texture_normal`), and quality metrics.
-- **Render Report**: JSON report with pipeline metadata, mesh stats, render config, hard edge validation results, and timing.
+- **`_backend_module_map: dict[str, str]`**: Maps canonical backend name -> fully-qualified module name. Populated automatically during `register()` from `backend_class.__module__`. Enables targeted `importlib.import_module()` without scanning all of `sys.modules`.
 
-### 3. Registry Integration
+- **`get_watched_package_paths() -> list[str]`**: Returns absolute filesystem paths for `mathart.core` and `mathart.export` packages. Used by `BackendFileWatcher` to set up `watchdog` observers without hardcoded directory strings.
 
-- **`backend_registry.py`**: Added auto-import of `orthographic_pixel_backend` in `get_registry()`.
-- **`backend_types.py`**: Added `ORTHOGRAPHIC_PIXEL_RENDER` type alias for canonical backend addressing.
+- **`module_to_backend_name(module_name) -> Optional[str]`**: Reverse lookup from module name to backend name. Used by the file watcher to determine which backend to reload when a `.py` file changes.
 
-### 4. E2E Tests (`tests/test_orthographic_pixel_render.py`)
+### 2. BackendFileWatcher Daemon (`mathart/core/backend_file_watcher.py`)
 
-22 tests across 11 test groups, all running headless with zero external dependencies:
+A non-blocking daemon file watcher for backend hot-reload:
+
+- **Daemon Thread**: The `watchdog.Observer` runs as a daemon thread that automatically terminates when the main process exits. No `while True` blocking of the main thread (anti-Blocking Trap).
+
+- **Debounce Scheduler** (`_DebouncedReloadScheduler`): Per-file debounce timer (default 400ms, configurable) coalesces rapid filesystem events from IDE save bursts. Only when the timer expires without further events does the reload callback fire (anti-Debounce Trap).
+
+- **Targeted Reload**: Only the backend whose source file changed is reloaded. All other backends remain untouched (anti-State Wipeout Trap).
+
+- **New Backend Detection**: When a new `.py` file appears in a watched directory that doesn't map to any existing backend, the watcher attempts `importlib.import_module()` to trigger `@register_backend`.
+
+- **Fail-Safe**: If `reload()` raises (e.g., `SyntaxError`), the old backend version is atomically restored by the registry. The watcher logs the error and continues monitoring.
+
+- **Introspection API**: `reload_history` property returns a list of reload event dicts. `reload_event` (`threading.Event`) enables test synchronization. `on_reload` callback fires after each reload attempt.
+
+- **Context Manager**: `with BackendFileWatcher(registry) as watcher:` for automatic start/stop.
+
+### 3. E2E Tests (`tests/test_backend_hot_reload.py`)
+
+29 tests across 11 test groups, all running headless with zero external dependencies:
 
 | Test Group | Count | Purpose |
 |---|---|---|
-| Orthographic Matrix | 4 | Shape, values, anti-perspective guard, NDC mapping |
-| Software Rasterizer | 2 | Cube and sphere coverage validation |
-| Multi-Pass Channels | 1 | Albedo/Normal/Depth spatial alignment |
-| Cel-Shading | 2 | Discrete band count, no smooth gradients |
-| Nearest-Neighbor | 2 | Hard edges preserved, bilinear contamination detected |
-| Backend Registry | 3 | Discovery, validate_config, execute→ArtifactManifest |
-| Full Pipeline E2E | 3 | Cube, sphere, save/load round-trip |
-| Headless Safety | 2 | No DISPLAY dependency, no GLFW import |
-| BackendType Enum | 1 | Type alias exists |
-| Edge Cases | 2 | Empty mesh, single triangle |
+| Registry Unregister | 4 | Targeted eviction, nonexistent returns False, preserves other backends, cleans module map |
+| Registry Reload | 4 | Class identity change (zombie check), preserves other backends, atomic rollback on SyntaxError, nonexistent raises |
+| Module Mapping | 3 | Register populates map, reverse lookup, unknown returns None |
+| Watched Paths | 2 | Absolute paths, includes mathart.core |
+| File Watcher Lifecycle | 3 | Start/stop, context manager, daemon thread |
+| File Watcher E2E | 2 | Detects new backend file, hot-reloads modified backend |
+| Debounce Scheduler | 2 | Coalesces rapid events, independent per-file |
+| File Path Conversion | 2 | Valid path converts, non-Python rejected |
+| Thread Safety | 1 | Concurrent register + lookup no errors |
+| Full E2E Lifecycle | 2 | v1->v2 complete lifecycle, v1->v2->v3 sequential reloads |
+| Reload Callback + Edge Cases | 4 | on_reload fires, empty file, double unregister, register after unregister |
 
-## Files Changed in SESSION-089
+### 4. Package Integration
+
+- **`mathart/core/__init__.py`**: Added `BackendFileWatcher` to imports and `__all__`.
+
+## Files Changed in SESSION-090
 
 | File | Purpose |
 |---|---|
-| `mathart/animation/orthographic_pixel_render.py` | Pure NumPy software rasterizer engine (1012 lines) |
-| `mathart/core/orthographic_pixel_backend.py` | Registry-native backend plugin (422 lines) |
-| `mathart/core/backend_registry.py` | Auto-import of new backend in `get_registry()` |
-| `mathart/core/backend_types.py` | `ORTHOGRAPHIC_PIXEL_RENDER` type alias |
-| `tests/test_orthographic_pixel_render.py` | 22 E2E tests (619 lines) |
-| `research_notes_session089.md` | Research notes: Dead Cells, Guilty Gear Xrd, Headless EGL |
-| `PROJECT_BRAIN.json` | SESSION-089 metadata, P1-INDUSTRIAL-34C → CLOSED |
+| `mathart/core/backend_registry.py` | Atomic `unregister()`/`reload()` primitives, RLock, module map, watched paths |
+| `mathart/core/backend_file_watcher.py` | **NEW** — Daemon file watcher with debounce (380 lines) |
+| `mathart/core/__init__.py` | Added `BackendFileWatcher` export |
+| `tests/test_backend_hot_reload.py` | **NEW** — 29 E2E tests (750 lines) |
+| `research_notes_session090.md` | **NEW** — Research notes and implementation plan |
+| `PROJECT_BRAIN.json` | SESSION-090 metadata, P1-MIGRATE-4 -> CLOSED |
 | `SESSION_HANDOFF.md` | This file |
 
 ## Research Decisions That Were Enforced
 
-### Dead Cells GDC 2018 — Thomas Vasseur
+### Erlang/OTP Hot Code Swapping
 
-The Dead Cells art pipeline [1] establishes that the correct 3D→2D workflow is: (1) author high-poly 3D models with skeletal animation, (2) render through an orthographic camera with zero perspective distortion, (3) downsample with nearest-neighbor interpolation (no anti-aliasing), (4) simultaneously export Albedo/Normal/Depth channels for 2D engine dynamic lighting. This directly constrained the implementation to use pure orthographic projection and nearest-neighbor downscale.
+The gold standard for zero-downtime code replacement. Key principle enforced: **code state and singleton runtime state are strictly isolated**. The `BackendRegistry` singleton identity is preserved across reloads — only the internal `_backends` dict entries are surgically replaced. Long-lived objects (e.g., `MicrokernelOrchestrator`, `MicrokernelPipelineBridge`) that cache `self.backend_registry = get_registry()` continue to work because they hold a reference to the same singleton, and the singleton's internal state is mutated in-place.
 
-### Guilty Gear Xrd GDC 2015 — Junya C. Motomura
+### Eclipse OSGi Dynamic Module System
 
-The Guilty Gear Xrd cel-shading system [2] establishes that 3D→2D lighting must use hard stepped thresholds to cut smooth transitions, producing discrete shadow bands rather than smooth gradients. Frame decimation to 12fps/15fps enhances the pixel animation punch. This directly constrained the cel-shading kernel to use threshold banding with configurable discrete levels and the default FPS to 12.
+Strict lifecycle: **atomic unregister -> clean -> reload -> re-register**. The `reload()` method follows this exact sequence. The old entry is evicted before the new module is imported, preventing "dual registration" conflicts. If the new import fails, the old entry is atomically restored.
 
-### Headless EGL / Software Rasterizer Architecture
+### Unity Domain Reloading / Unreal Live Coding
 
-CI environments and headless servers have no physical display [3]. The implementation uses a pure NumPy software rasterizer — zero dependency on GLFW, X11, EGL, or any windowed context. This guarantees silent headless execution in any environment.
+Background thread compilation at "safe points". The `BackendFileWatcher` runs on a daemon thread and uses debounce to ensure files are fully written before triggering reload. The reload itself is serialized by `_reload_lock` (RLock) to prevent concurrent mutation.
 
-| Research theme | Enforced implementation consequence |
-|---|---|
-| **Dead Cells orthographic render** | `build_orthographic_matrix()` — pure orthographic, zero perspective [1] |
-| **Dead Cells nearest-neighbor** | `nearest_neighbor_downscale()` — PIL NEAREST only, never bilinear [1] |
-| **Guilty Gear Xrd cel-shading** | `apply_cel_shading()` — N·L + stepped threshold banding [2] |
-| **Headless architecture** | Pure NumPy rasterizer — zero GLFW/X11/EGL imports [3] |
+### Python `watchdog` + `importlib.reload` Best Practices
 
-## Anti-Pattern Guards (SESSION-089 Red Lines)
+Three critical discoveries enforced in the implementation:
 
-### 🚫 Perspective Distortion Trap
+1. **`importlib.reload()` requires the module in `sys.modules`** — but we need to pop it to force fresh bytecode. Solution: use `sys.modules.pop()` + `importlib.import_module()` instead of `importlib.reload()`.
 
-The render pipeline MUST NOT use perspective projection (FOV). Dead Cells 2D pixel quality requires absolute flatness — no near-far size variation. Tests `test_orthographic_matrix_shape_and_values` and `test_orthographic_matrix_anti_perspective_guard` verify the matrix is pure orthographic (row 3 col 3 is constant, no perspective divide).
+2. **`__pycache__` bytecode caching** — Python's import system serves `.pyc` files from `__pycache__/` even after `sys.modules.pop()`. Solution: purge `.pyc` files matching the module stem before re-import.
 
-### 🚫 Bilinear Blur Trap
+3. **`importlib.invalidate_caches()`** — Python's `FileFinder` caches directory listings. Without invalidation, `import_module()` may not see the updated file. Solution: call `importlib.invalidate_caches()` after `sys.modules.pop()` and `__pycache__` purge.
 
-The downscale step MUST NOT use bilinear or bicubic interpolation. These create intermediate color values at edges, producing a halo of "dirty pixels" that destroy pixel art aesthetics. Tests `test_nearest_neighbor_hard_edges` and `test_bilinear_would_contaminate` verify that edge pixels have alpha values strictly in {0, 255} and that bilinear interpolation would produce contaminated intermediate values.
+### Anti-Pattern Guards Enforced
 
-### 🚫 GUI Window Crash Trap
-
-The renderer MUST NOT import or initialize any windowed context (GLFW, X11, pygame, etc.). Any such dependency would crash in CI/headless environments with `X11 display not found` or `Failed to initialize GLFW`. Tests `test_headless_no_display_dependency` and `test_no_glfw_import` verify that the module runs without DISPLAY and that GLFW is not in `sys.modules`.
+| Anti-Pattern | Guard | Verification |
+|---|---|---|
+| Zombie Reference Trap | `id()` assertion on old vs new class | `test_reload_updates_class_identity`, `test_full_lifecycle_v1_to_v2`, `test_watcher_hot_reloads_modified_backend` |
+| State Wipeout Trap | Targeted eviction, never `clear()` | `test_unregister_preserves_other_backends`, `test_reload_preserves_other_backends` |
+| Blocking & Debounce Trap | Daemon thread + 400ms debounce | `test_watcher_daemon_thread`, `test_debounce_coalesces_rapid_events` |
+| Deadlock Trap | RLock (reentrant) instead of Lock | `test_concurrent_register_and_lookup`, all reload tests |
+| Bytecode Cache Trap | `__pycache__` purge + `invalidate_caches()` | `test_reload_updates_class_identity`, `test_multiple_sequential_reloads` |
 
 ## Testing and Validation
 
 | Test command | Result |
 |---|---|
-| `pytest tests/test_orthographic_pixel_render.py -v` | **22 passed, 0 failed** |
+| `pytest tests/test_backend_hot_reload.py -v` | **29 passed, 0 failed** |
+
+## Architecture Micro-Adjustments for P1-AI-2E (Motion-Adaptive Keyframe Planning)
+
+P1-AI-2E requires **high-frequency rendering and verification cycles** for high-nonlinearity action segments. The hot-reload ecosystem delivered in SESSION-090 is a direct force multiplier for this task. Here is what needs to be micro-adjusted:
+
+### 1. Watcher Integration with MicrokernelOrchestrator
+
+The `MicrokernelOrchestrator` currently caches `self.backend_registry = get_registry()` at init time. Because the hot-reload mutates the singleton's internal `_backends` dict (not the singleton reference itself), the orchestrator automatically picks up reloaded backends on the next `run_backend()` call. **No change needed** — this is by design.
+
+However, for P1-AI-2E's high-frequency iteration loop, the orchestrator should be enhanced with:
+
+- **Reload notification hook**: Wire `BackendFileWatcher.on_reload` callback to `MicrokernelOrchestrator` so it can invalidate any cached backend execution results when the underlying backend code changes mid-evolution.
+- **Iteration counter reset**: When a backend is hot-reloaded during an evolution cycle, the orchestrator should reset the iteration counter for that backend's niche to avoid comparing results from different code versions.
+
+### 2. ComfyUI Client Resilience
+
+The `ComfyUIClient` (SESSION-087) maintains WebSocket connections and HTTP sessions. During hot-reload of the `ComfyUIPresetManager` or related backends:
+
+- **Connection pooling**: The client should detect backend reload events and gracefully drain in-flight requests before switching to the new backend version.
+- **Workflow cache invalidation**: ComfyUI workflow JSON is generated by backend code. If the backend is hot-reloaded, cached workflows must be invalidated.
+
+### 3. Render Pipeline Safe Points
+
+For P1-AI-2E's high-frequency render-verify loop:
+
+- **Frame boundary safe points**: Hot-reload should only trigger between frame renders, not mid-frame. The `BackendFileWatcher` debounce (400ms) naturally provides this for typical frame rates (12-24 FPS), but explicit safe-point gating may be needed for batch renders.
+- **Render result versioning**: Each render result should be tagged with the backend code version (commit hash or reload counter) so that results from different code versions are not mixed in quality comparisons.
+
+### 4. Motion Complexity Metrics -> Keyframe Density
+
+The hot-reload ecosystem enables rapid iteration on the keyframe density algorithm:
+
+- **Modify `motion_adaptive_keyframe_planner.py`** -> save -> watcher detects change -> 400ms debounce -> targeted reload -> next render cycle uses new algorithm -> verify quality metrics.
+- **No restart required** — the developer stays in the IDE and sees results in the next render cycle.
+
+### 5. Suggested New Backend: `MotionAdaptiveKeyframeBackend`
+
+Register a new backend (`BackendType.MOTION_ADAPTIVE_KEYFRAME`) that:
+- Takes UMR motion clips as input.
+- Computes per-frame nonlinearity scores (acceleration magnitude, angular velocity, contact events).
+- Outputs a keyframe plan (`ArtifactFamily.KEYFRAME_PLAN`) with frame indices and SparseCtrl `end_percent` values.
+- Hot-reloadable via the SESSION-090 ecosystem for rapid algorithm iteration.
 
 ## Recommended Next Priorities
 
 | Priority | Recommendation | Reason |
 |---|---|---|
-| **Immediate** | **P1-MIGRATE-4** | Backend hot-reload — force multiplier for rapid iteration |
-| **High** | **P1-AI-2E** | Motion-adaptive keyframe planning for high-nonlinearity action segments |
-| **Medium** | **P1-INDUSTRIAL-44A** | Engine-ready export templates integration into standard asset pipeline |
+| **Immediate** | **P1-AI-2E** | Motion-adaptive keyframe planning — hot-reload ecosystem is now the force multiplier |
+| **High** | **P1-ARCH-4** | Architecture closure — registry migration work continues |
+| **Medium** | **P1-AI-2D-SPARSECTRL** | SparseCtrl integration with orthographic render output |
 
-### Architecture Micro-Adjustments for Next Tasks
+## Updated Todo List
 
-**For P1-MIGRATE-4 (Backend Hot-Reload)**: The `OrthographicPixelRenderBackend` is already a self-registering plugin discovered via `get_registry()`. To enable true hot-reload:
-1. `BackendRegistry.discover()` already supports package-path scanning via `pkgutil.walk_packages()`. The next step is to wire a filesystem watcher (e.g., `watchdog`) that calls `discover()` when new `.py` files appear in `mathart/core/` or `mathart/export/`.
-2. The current `_builtins_loaded` flag prevents re-registration. Hot-reload needs a `BackendRegistry.reload(name)` method that unregisters and re-imports a specific backend module.
-3. The `OrthographicPixelRenderBackend` already uses lazy imports in `execute()` (imports `orthographic_pixel_render` at call time, not module load time), which is hot-reload-friendly.
-
-**For P1-AI-2E (Motion-Adaptive Keyframes)**: The `OrthographicPixelRenderBackend` output (Albedo/Normal/Depth channels) can feed directly into the ComfyUI SparseCtrl pipeline (SESSION-086/087) as ControlNet guide inputs. The next step is:
-1. Wire `OrthographicPixelRenderBackend.execute()` output paths into `ComfyUIPresetManager.assemble_sequence_payload()` as guide directories.
-2. Use motion complexity metrics from the motion vector baker to dynamically adjust `frame_count` and SparseCtrl `end_percent` — high-nonlinearity segments get more keyframes.
-3. The `fps` parameter in `OrthographicRenderConfig` (default 12, Guilty Gear Xrd discipline) can be overridden per-segment based on action intensity.
-
-**For P1-INDUSTRIAL-44A (Engine Export Templates)**: The `texture_channels` payload in `ArtifactManifest.metadata` already includes engine slot bindings for Unity (`_MainTex`, `_NormalMap`, `_DepthMap`) and Godot (`texture_albedo`, `texture_normal`, `texture_depth`). The next step is to wire these into `EngineImportPluginGenerator` (SESSION-056) so the orthographic render output can be consumed directly by engine-specific import plugins.
+| ID | Status | Title |
+|---|---|---|
+| P1-MIGRATE-4 | **CLOSED** (SESSION-090) | Backend hot-reload ecosystem |
+| P1-AI-2E | TODO | Motion-adaptive keyframe planning for high-nonlinearity segments |
+| P1-ARCH-4 | TODO | Architecture closure — registry migration |
+| P1-AI-2D-SPARSECTRL | SUBSTANTIALLY-CLOSED | SparseCtrl ComfyUI integration |
+| P1-INDUSTRIAL-34C | CLOSED (SESSION-089) | Orthographic pixel render pipeline |
+| P1-INDUSTRIAL-44A | TODO | Engine-ready export templates |
+| P1-NEW-10 | SUBSTANTIALLY-ADVANCED | Production benchmark asset suite |
 
 ## Known Constraints and Non-Blocking Notes
 
 | Constraint | Status |
 |---|---|
-| Software rasterizer performance | **Adequate for sprite-scale** — 64×64 to 256×256 renders in <100ms |
-| No GPU acceleration | **By design** — headless CI safety takes priority over speed |
-| No skeletal animation integration | **Next step** — current pipeline accepts static meshes; UMR clip integration is P1-INDUSTRIAL-34C-NEXT |
-| No texture mapping | **Vertex colors only** — UV-mapped texture support is a future extension |
+| `watchdog` dependency | **Required** — added to project dependencies |
+| Debounce window | **400ms default** — configurable via `debounce_seconds` parameter |
+| RLock vs Lock | **RLock required** — `reload()` -> `import_module()` -> `@register_backend` -> `register()` is reentrant |
+| `__pycache__` purge | **Per-module only** — does not clear entire `__pycache__` directory |
+| Thread safety scope | **Mutation only** — read-only lookups remain lock-free for zero overhead |
 
 ## Files to Inspect First in the Next Session
 
 | File | Why it matters |
 |---|---|
-| `mathart/animation/orthographic_pixel_render.py` | The software rasterizer engine — all rendering math lives here |
-| `mathart/core/orthographic_pixel_backend.py` | The registry plugin — backend-owned validation and ArtifactManifest output |
-| `tests/test_orthographic_pixel_render.py` | 22 E2E tests — the contract specification for the render pipeline |
-| `research_notes_session089.md` | Research notes: Dead Cells, Guilty Gear Xrd, Headless EGL |
-| `mathart/core/backend_registry.py` | Registry singleton — auto-import wiring for new backend |
+| `mathart/core/backend_registry.py` | Registry singleton — `unregister()`, `reload()`, RLock, module map |
+| `mathart/core/backend_file_watcher.py` | Daemon watcher — debounce, targeted reload, context manager |
+| `tests/test_backend_hot_reload.py` | 29 E2E tests — the contract specification for hot-reload |
+| `research_notes_session090.md` | Research notes: Erlang/OTP, OSGi, Unity, Python importlib |
+| `mathart/core/pipeline_bridge.py` | Pipeline bridge — consumers of registry entries |
+| `mathart/core/microkernel_orchestrator.py` | Orchestrator — cached registry reference, evolution loop |
 
-## SESSION-087 Archive (Previous Handoff)
+## SESSION-089 Archive (Previous Handoff)
 
-**SESSION-087** delivered the **ComfyUI WebSocket End-to-End Async Execution Engine**, closing P1-AI-2D-SPARSECTRL. The `ComfyUIClient` class implements industrial-standard ComfyUI automation: HTTP POST `/prompt`, WebSocket event-stream monitoring, and HTTP GET `/history` + `/view` for artifact retrieval. One-click pipeline runner (`tools/run_sparsectrl_pipeline.py`) orchestrates the full chain. 35 E2E tests, cumulative P1-AI-2D: 79 PASS. SESSION-088 fixed placeholder frame generator for meaningful ControlNet guide data.
+**SESSION-089** delivered the **Dead Cells-style 3D->2D Orthographic Pixel Render Pipeline**, closing P1-INDUSTRIAL-34C. `OrthographicPixelRenderBackend` self-registers via `@register_backend`, pure NumPy software rasterizer with edge-function triangle rasterization and Z-buffer, multi-pass Albedo/Normal/Depth extraction, hard-stepped cel-shading kernel, nearest-neighbor downscale. 22 E2E tests enforce anti-perspective, anti-bilinear, and anti-GUI red lines.
 
 ## References
 
-[1]: https://www.gamedeveloper.com/production/art-design-deep-dive-using-a-3d-pipeline-for-2d-animation-in-i-dead-cells-i- "Thomas Vasseur, Art Design Deep Dive: Using a 3D Pipeline for 2D Animation in Dead Cells, GDC 2018"
-[2]: https://www.ggxrd.com/Motomura_Junya_GuiltyGearXrd.pdf "Junya C. Motomura, GuiltyGearXrd's Art Style: The X Factor Between 2D and 3D, GDC 2015"
-[3]: https://www.khronos.org/egl "Khronos EGL — Native Platform Graphics Interface for headless rendering"
+[1]: https://www.erlang.org/doc/design_principles/release_handling "Erlang/OTP Release Handling — Hot Code Replacement"
+[2]: https://docs.osgi.org/specification/osgi.core/8.0.0/framework.module.html "OSGi Core Release 8 — Module Layer Specification"
+[3]: https://docs.unity3d.com/Manual/DomainReloading.html "Unity Manual — Domain Reloading"
+[4]: https://docs.unrealengine.com/5.0/en-US/live-coding-in-unreal-engine/ "Unreal Engine 5 — Live Coding"
+[5]: https://docs.python.org/3/library/importlib.html "Python importlib — The implementation of import"
+[6]: https://python-watchdog.readthedocs.io/ "watchdog — Filesystem Events Monitoring"
