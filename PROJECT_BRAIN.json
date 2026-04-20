@@ -1,27 +1,29 @@
 {
-  "version": "v0.85.0",
-  "last_session_id": "SESSION-095",
-  "last_updated": "2026-04-20T07:18:00Z",
+  "version": "v0.86.0",
+  "last_session_id": "SESSION-096",
+  "last_updated": "2026-04-20T08:06:30Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
     "baseline_session": "SESSION-075",
     "head_commit": "SESSION-075",
-    "active_total": 70,
+    "active_total": 78,
     "by_priority": {
       "P1": 37,
       "P2": 34,
       "P3": 3
     },
     "by_status": {
+      "CLOSED": 6,
+      "DONE": 6,
       "PARTIAL": 4,
       "SUBSTANTIALLY-ADVANCED": 2,
-      "SUBSTANTIALLY-CLOSED": 5,
-      "TODO": 59
+      "SUBSTANTIALLY-CLOSED": 6,
+      "TODO": 54
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
-      "HIGH-2.4-PHASE-DRIVEN-ILLEGAL-TRANSITIONS",
+      "HIGH-2.5-CI-RANDOM-MASKING-DETERMINISM",
       "P1-ARCH-4",
       "P3-GPU-BENCH-1",
       "P1-AI-2D-SPARSECTRL",
@@ -29,10 +31,10 @@
       "P1-ARCH-5",
       "P1-B1-1"
     ],
-    "closed_archived": 54
+    "closed_archived": 51
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-095 HIGH-2.3 CLOSED: genotype mutation now routes through a unified hard-clipping boundary interceptor backed by declared continuous-domain bounds. Extreme deterministic stress tests validate every continuous gene under ±1e6 mutation pressure, and genotype AssetPipeline E2E regressions remain green. Cumulative: 50 PASS (46 genotype core + 4 genotype E2E), 0 FAIL.",
+  "validation_pass_rate": "SESSION-096 HIGH-2.4 CLOSED: phase-driven animation now routes semantic control through an explicit legal-transition graph with typed guard failures and idempotent rejection semantics. Negative tests verify forbidden hit→sprint and dead→idle requests preserve current_state, phase_clock, and transition_blend_weight exactly. Cumulative: 68 PASS (65 legacy phase-driven + 3 guarded state-machine), 0 FAIL.",
   "total_iterations": 684,
   "total_code_lines": 132767,
   "distill_session_id": "DISTILL-012",
@@ -949,10 +951,21 @@
       "id": "HIGH-2.4-PHASE-DRIVEN-ILLEGAL-TRANSITIONS",
       "priority": "P1",
       "title": "Phase Driven: intercept and reverse-test silent illegal state transitions",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "high",
       "description": "SESSION-095 follow-up. Build an explicit legal transition contract for mathart/animation/phase_driven.py, intercept illegal cyclic/transient state changes before frame generation, add reverse/negative tests for forbidden transitions, and expose guard-failure provenance so state-machine violations cannot pass silently.",
-      "added_in": "SESSION-095"
+      "added_in": "SESSION-095",
+      "completed_in": "SESSION-096",
+      "notes": "Explicit adjacency-map guard landed in mathart/animation/phase_driven.py. Illegal requests now return False or raise IllegalStateTransitionError without mutating current_state, phase_clock, or transition_blend_weight."
+    },
+    {
+      "id": "HIGH-2.5-CI-RANDOM-MASKING-DETERMINISM",
+      "priority": "P1",
+      "title": "Global tests: eliminate unseeded random masking and harden deterministic CI closure",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "SESSION-096 follow-up. Remove random masking from global tests by centralizing seeded RNG fixtures, explicit scenario catalogs, deterministic property-test budgets, and reproducible CI audit helpers across the regression suite.",
+      "added_in": "SESSION-096"
     }
   ],
   "completed_tasks": [
@@ -2004,6 +2017,12 @@
       "title": "Genotype mutation hard-clipping boundary interceptor and extreme-pressure verification",
       "completed_in": "SESSION-095",
       "result": "Unified contract-driven hard clipping for genotype mutation plus deterministic extreme stress verification."
+    },
+    {
+      "id": "HIGH-2.4-PHASE-DRIVEN-ILLEGAL-TRANSITIONS",
+      "title": "Phase Driven: intercept and reverse-test silent illegal state transitions",
+      "completed_in": "SESSION-096",
+      "result": "Added an explicit phase-driven transition graph, typed IllegalStateTransitionError guard failures, idempotent False-path rejection for illegal requests, and negative tests that preserve state/phase/blend values on forbidden hit→sprint and dead→idle transitions."
     }
   ],
   "capability_gaps": [
@@ -2113,7 +2132,9 @@
     "REMAINING-S064: No per-backend CI validation with artifact schema checks",
     "REMAINING-S064: No hot-reload for dynamically discovered backends",
     "RESOLVED-S094: WFC locked tiles could be silently overwritten or ignored during propagation -> queue-based lock immunity, outward propagation from locked seeds, and explicit WFCConstraintConflictError dead-end signaling",
-    "REMAINING-S094: Boundary/frontier constraints are not yet exhaustively fuzzed at map edges and seam-heavy topologies -> HIGH-2.3-WFC-BOUNDARY-VALIDATION"
+    "REMAINING-S094: Boundary/frontier constraints are not yet exhaustively fuzzed at map edges and seam-heavy topologies -> HIGH-2.3-WFC-BOUNDARY-VALIDATION",
+    "RESOLVED-S096: Phase-driven semantic control could silently accept illegal state jumps -> explicit adjacency-map guard, typed IllegalStateTransitionError / False-path rejection, and value-level preservation tests for forbidden transitions",
+    "REMAINING-S096: Global regression coverage still contains dispersed RNG setup and unseeded random masking risk -> HIGH-2.5-CI-RANDOM-MASKING-DETERMINISM"
   ],
   "recent_audit": {
     "session": "SESSION-036",
@@ -2161,6 +2182,12 @@
       "completed_in": "SESSION-095",
       "title": "Genotype mutation hard-clipping boundary interceptor and extreme-pressure verification",
       "summary": "Refactored mathart/animation/genotype.py around declared continuous-domain bounds for proportion modifiers, scalar style genes, and palette coordinates. mutate_genotype() now accumulates perturbations first and then passes through enforce_genotype_bounds() as a single post-mutation hard-clipping projector. Negative strengths are interpreted by magnitude, enabling deterministic ±1e6 stress tests. tests/test_genotype.py now performs value-level assertions across every constrained continuous gene and genotype E2E regressions remain green."
+    },
+    {
+      "id": "HIGH-2.4-PHASE-DRIVEN-ILLEGAL-TRANSITIONS",
+      "completed_in": "SESSION-096",
+      "title": "Phase Driven illegal-transition guard and deterministic negative verification",
+      "summary": "Refactored mathart/animation/phase_driven.py around a declared legal-transition adjacency map and a PhaseDrivenStateMachine that enforces O(1) graph guards before any semantic state hop is accepted. Illegal requests now either return False or raise IllegalStateTransitionError, while preserving current_state, phase_clock, and transition_blend_weight exactly. tests/test_phase_driven_state_machine.py adds explicit negative coverage for hit→sprint and dead→idle plus the strict exception path; legacy tests/test_phase_driven.py remains green."
     }
   ],
   "session_summaries": [
@@ -2216,6 +2243,27 @@
         "P1-INDUSTRIAL-34C: Dead Cells style 3D-to-2D dimension reduction pipeline",
         "P1-MIGRATE-4: backend hot-reload and registry closure",
         "P1-AI-2E: motion-adaptive keyframe planning for high-nonlinearity action segments"
+      ]
+    },
+    {
+      "session_id": "SESSION-096",
+      "date": "2026-04-20",
+      "focus": "HIGH-2.4: explicit phase-driven legal-transition graph, safe guard failures, and deterministic negative transition coverage",
+      "changes": [
+        "UPD mathart/animation/phase_driven.py — declared PHASE_DRIVEN_ALLOWED_TRANSITIONS adjacency map, IllegalStateTransitionError, and PhaseDrivenStateMachine with idempotent illegal-edge rejection",
+        "UPD mathart/animation/__init__.py — export the guarded phase-driven state-machine surface for downstream imports",
+        "NEW tests/test_phase_driven_state_machine.py — explicit negative coverage for hit→sprint, dead→idle, strict exception path, and legal recovery transition semantics",
+        "NEW research/session096_phase_guard_research_notes.md — Statecharts / Unreal transition-rule / state-based negative-testing rationale distilled for the guard design",
+        "UPD PROJECT_BRAIN.json + SESSION_HANDOFF.md — close HIGH-2.4, queue deterministic CI cleanup as HIGH-2.5, and refresh validation metadata"
+      ],
+      "test_results": "68 PASS, 0 FAIL across tests/test_phase_driven.py and tests/test_phase_driven_state_machine.py",
+      "tasks_closed": [
+        "HIGH-2.4-PHASE-DRIVEN-ILLEGAL-TRANSITIONS"
+      ],
+      "next_priorities": [
+        "HIGH-2.5-CI-RANDOM-MASKING-DETERMINISM: centralize seeded RNG fixtures, deterministic scenario catalogs, and CI reproducibility helpers across the global suite",
+        "P1-ARCH-4: continue PDG v2 runtime semantics closure",
+        "P3-GPU-BENCH-1: finish the production-scale sparse-cloth CUDA evidence pass"
       ]
     }
   ],
@@ -2302,13 +2350,13 @@
     "session085_research_notes": "research/session085_sparse_cloth_benchmark_research.md documents Taichi sparse SNode layouts, Google Benchmark warm-up/sampling discipline, NASA-STD-7009B verification/validation credibility, and XPBD GPU race condition mitigation via parity-based constraint coloring."
   },
   "recent_focus_snapshot": {
-    "session": "SESSION-095",
-    "focus": "HIGH-2.3: genotype hard-clipping boundary interceptor, deterministic mutation reproducibility, and extreme stress closure",
+    "session": "SESSION-096",
+    "focus": "HIGH-2.4: phase-driven illegal-transition interception, typed guard failures, and deterministic negative testing closure",
     "closed": [
-      "HIGH-2.3-GENOTYPE-BOUNDARY-VALIDATION (CLOSED — mutate_genotype now routes through a single post-perturbation hard-clipping projector and extreme ±1e6 tests assert every continuous gene remains inside bounds)"
+      "HIGH-2.4-PHASE-DRIVEN-ILLEGAL-TRANSITIONS (CLOSED — explicit allowed-transition graph now rejects forbidden state hops and preserves phase/blend state on guard failure)"
     ],
     "next": [
-      "HIGH-2.4-PHASE-DRIVEN-ILLEGAL-TRANSITIONS: intercept forbidden state changes and add reverse/negative guard-path tests",
+      "HIGH-2.5-CI-RANDOM-MASKING-DETERMINISM: eliminate unseeded random masking by centralizing seeded RNG fixtures, deterministic scenario catalogs, and CI-grade reproducibility helpers",
       "P1-ARCH-4: continue PDG v2 runtime semantics closure",
       "P3-GPU-BENCH-1: finish production-scale sparse-cloth CUDA evidence"
     ]
@@ -2469,6 +2517,13 @@
       "date": "2026-04-20",
       "title": "Genotype Hard-Clipping Boundary Closure & Extreme Mutation Stress Validation",
       "summary": "Closed HIGH-2.3 by refactoring mathart/animation/genotype.py around a declared continuous-domain contract, a unified enforce_genotype_bounds() hard-clipping pass, and deterministic extreme-strength mutation tests that assert every continuous gene remains inside bounds under ±1e6 mutation pressure. Verified downstream AssetPipeline genotype E2E regressions."
+    },
+    {
+      "id": "SESSION-096",
+      "version": "0.86.0",
+      "date": "2026-04-20",
+      "title": "Phase-Driven Illegal Transition Guard Closure & Deterministic Negative Testing",
+      "summary": "Closed HIGH-2.4 by turning phase-driven semantic control into an explicit guarded state machine with a declared legal-transition graph, typed IllegalStateTransitionError failures, and deterministic negative tests that prove forbidden requests preserve phase/blend state instead of silently mutating the animation controller."
     }
   ],
   "closed_tasks_archive": [
@@ -2771,6 +2826,12 @@
       "completed_in": "SESSION-095",
       "title": "Genotype mutation hard-clipping boundary interceptor and extreme-pressure verification",
       "summary": "Refactored mathart/animation/genotype.py around declared continuous-domain bounds for proportion modifiers, scalar style genes, and palette coordinates. mutate_genotype() now accumulates perturbations first and then passes through enforce_genotype_bounds() as a single post-mutation hard-clipping projector. Negative strengths are interpreted by magnitude, enabling deterministic ±1e6 stress tests. tests/test_genotype.py now performs value-level assertions across every constrained continuous gene and genotype E2E regressions remain green."
+    },
+    {
+      "id": "HIGH-2.4-PHASE-DRIVEN-ILLEGAL-TRANSITIONS",
+      "completed_in": "SESSION-096",
+      "title": "Phase Driven illegal-transition guard and deterministic negative verification",
+      "summary": "Declared an explicit legal-transition adjacency map for phase-driven semantic states, added PhaseDrivenStateMachine with idempotent illegal-edge rejection plus typed IllegalStateTransitionError failures, exported the new guard surface, and verified forbidden hit→sprint / dead→idle requests with value-level preservation assertions."
     }
   ],
   "legacy_session_changes_consolidated": {
@@ -2907,10 +2968,25 @@
       ],
       "tests": "50 PASS, 0 FAIL",
       "status": "COMPLETE"
+    },
+    {
+      "session_id": "SESSION-096",
+      "summary": "CLOSED HIGH-2.4 phase-driven illegal-transition guard path. Added a declared legal-transition adjacency map and PhaseDrivenStateMachine in mathart/animation/phase_driven.py, introduced typed IllegalStateTransitionError failures plus non-throwing False-path rejection, strengthened tests with explicit hit→sprint / dead→idle preservation checks, and kept the legacy phase-driven suite green.",
+      "files_changed": [
+        "mathart/animation/phase_driven.py",
+        "mathart/animation/__init__.py",
+        "tests/test_phase_driven_state_machine.py",
+        "research/session096_phase_guard_research_notes.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "tests": "68 PASS, 0 FAIL",
+      "status": "COMPLETE"
     }
   ],
   "resolved_issues": [
     "RESOLVED-S095: Genotype mutation boundary constraints were scattered and weakly tested -> unified enforce_genotype_bounds() hard-clipping contract plus deterministic ±1e6 value-level stress assertions across all continuous genes",
-    "REMAINING-S095: Phase-driven animation still lacks explicit illegal-transition interception and reverse guard tests -> HIGH-2.4-PHASE-DRIVEN-ILLEGAL-TRANSITIONS"
+    "RESOLVED-S096: Phase-driven semantic control could silently accept illegal state jumps -> explicit adjacency-map guard, typed IllegalStateTransitionError / False-path rejection, and value-level preservation tests for forbidden transitions",
+    "REMAINING-S096: Global regression coverage still contains dispersed RNG setup and unseeded random masking risk -> HIGH-2.5-CI-RANDOM-MASKING-DETERMINISM"
   ]
 }

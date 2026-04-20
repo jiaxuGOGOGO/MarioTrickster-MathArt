@@ -71,7 +71,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Callable
+from typing import Optional, Callable, Any, Mapping
 
 import numpy as np
 
@@ -1046,6 +1046,334 @@ class PhaseDrivenAnimator:
     def run_frame(self, t: float, **kwargs: float) -> UnifiedMotionFrame:
         """Convenience: generate run UMR frame at normalized time t ∈ [0, 1)."""
         return self.generate_frame(t, GaitMode.RUN, **kwargs)
+
+
+_PHASE_DRIVEN_STATE_REGISTRY: dict[str, dict[str, object]] = {
+    "idle": {
+        "is_cyclic": True,
+        "phase_kind": "idle",
+        "gait": None,
+        "default_steps_per_second": 1.0,
+    },
+    "walk": {
+        "is_cyclic": True,
+        "phase_kind": "walk",
+        "gait": GaitMode.WALK,
+        "default_steps_per_second": 2.0,
+    },
+    "run": {
+        "is_cyclic": True,
+        "phase_kind": "run",
+        "gait": GaitMode.RUN,
+        "default_steps_per_second": 3.0,
+    },
+    "sneak": {
+        "is_cyclic": True,
+        "phase_kind": "sneak",
+        "gait": GaitMode.SNEAK,
+        "default_steps_per_second": 1.5,
+    },
+    "sprint": {
+        "is_cyclic": True,
+        "phase_kind": "run",
+        "gait": GaitMode.RUN,
+        "default_steps_per_second": 3.4,
+    },
+    "jump": {
+        "is_cyclic": False,
+        "phase_kind": "distance_to_apex",
+        "gait": None,
+        "default_steps_per_second": 1.0,
+    },
+    "apex": {
+        "is_cyclic": False,
+        "phase_kind": "distance_to_apex",
+        "gait": None,
+        "default_steps_per_second": 1.0,
+    },
+    "fall": {
+        "is_cyclic": False,
+        "phase_kind": "distance_to_ground",
+        "gait": None,
+        "default_steps_per_second": 1.0,
+    },
+    "ground_contact": {
+        "is_cyclic": True,
+        "phase_kind": "idle",
+        "gait": None,
+        "default_steps_per_second": 1.0,
+    },
+    "hit": {
+        "is_cyclic": False,
+        "phase_kind": "hit_recovery",
+        "gait": None,
+        "default_steps_per_second": 1.0,
+    },
+    "stable_balance": {
+        "is_cyclic": True,
+        "phase_kind": "idle",
+        "gait": None,
+        "default_steps_per_second": 1.0,
+    },
+    "dead": {
+        "is_cyclic": False,
+        "phase_kind": "dead",
+        "gait": None,
+        "default_steps_per_second": 0.0,
+    },
+}
+
+_PHASE_DRIVEN_TRANSITION_TEMPLATE: dict[str, tuple[str, ...]] = {
+    "idle": ("walk", "run", "sneak", "jump", "fall", "hit", "dead"),
+    "walk": ("idle", "run", "sneak", "jump", "fall", "hit", "dead"),
+    "run": ("idle", "walk", "sneak", "sprint", "jump", "fall", "hit", "dead"),
+    "sneak": ("idle", "walk", "run", "jump", "fall", "hit", "dead"),
+    "sprint": ("run", "jump", "fall", "hit", "dead"),
+    "jump": ("apex", "fall", "hit", "dead"),
+    "apex": ("fall", "hit", "dead"),
+    "fall": ("ground_contact", "hit", "dead"),
+    "ground_contact": ("idle", "walk", "run", "sneak", "stable_balance", "dead"),
+    "hit": ("stable_balance", "dead"),
+    "stable_balance": ("idle", "walk", "run", "sneak", "jump", "fall", "hit", "dead"),
+    "dead": (),
+}
+
+PHASE_DRIVEN_ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
+    state: frozenset({state, *targets})
+    for state, targets in _PHASE_DRIVEN_TRANSITION_TEMPLATE.items()
+}
+
+
+class IllegalStateTransitionError(ValueError):
+    """Safe, typed guard failure for rejected phase-driven transitions."""
+
+    def __init__(self, current_state: str, target_state: str, allowed_targets: tuple[str, ...]):
+        self.current_state = str(current_state)
+        self.target_state = str(target_state)
+        self.allowed_targets = tuple(allowed_targets)
+        allowed_text = ", ".join(self.allowed_targets) if self.allowed_targets else "<none>"
+        super().__init__(
+            f"Illegal phase-driven transition {self.current_state!r} -> {self.target_state!r}; "
+            f"allowed targets: {allowed_text}"
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "error": "illegal_state_transition",
+            "current_state": self.current_state,
+            "target_state": self.target_state,
+            "allowed_targets": list(self.allowed_targets),
+        }
+
+
+def _normalize_phase_driven_state_name(state: str) -> str:
+    return str(state).strip().lower()
+
+
+class PhaseDrivenStateMachine:
+    """Data-driven guarded controller for phase-driven animation states.
+
+    The machine keeps the legal transition graph as a first-class contract.
+    Transition checks are O(1) set lookups, and rejected requests leave all
+    mutable runtime variables unchanged.
+    """
+
+    def __init__(
+        self,
+        current_state: str = "idle",
+        *,
+        phase_clock: float = 0.0,
+        transition_blend_weight: float = 1.0,
+        allowed_transitions: Mapping[str, frozenset[str]] | None = None,
+        animator: PhaseDrivenAnimator | None = None,
+    ) -> None:
+        self.allowed_transitions = {
+            _normalize_phase_driven_state_name(state): frozenset(
+                _normalize_phase_driven_state_name(target) for target in targets
+            )
+            for state, targets in dict(allowed_transitions or PHASE_DRIVEN_ALLOWED_TRANSITIONS).items()
+        }
+        normalized_state = _normalize_phase_driven_state_name(current_state)
+        if normalized_state not in self.allowed_transitions:
+            raise ValueError(f"Unknown phase-driven state: {current_state!r}")
+        self.current_state = normalized_state
+        self.phase_clock = self._sanitize_phase_clock(normalized_state, phase_clock)
+        self.transition_blend_weight = _clamp01(transition_blend_weight)
+        self.cycle_count = 0
+        self.last_transition_error: IllegalStateTransitionError | None = None
+        self._animator = animator or _get_animator()
+
+    def _state_descriptor(self, state: str | None = None) -> dict[str, object]:
+        normalized_state = _normalize_phase_driven_state_name(state or self.current_state)
+        return dict(_PHASE_DRIVEN_STATE_REGISTRY.get(normalized_state, _PHASE_DRIVEN_STATE_REGISTRY["idle"]))
+
+    def _sanitize_phase_clock(self, state: str, value: float) -> float:
+        descriptor = self._state_descriptor(state)
+        if bool(descriptor["is_cyclic"]):
+            return float(value) % 1.0
+        return _clamp01(value)
+
+    def snapshot(self) -> dict[str, float | int | str]:
+        descriptor = self._state_descriptor()
+        return {
+            "current_state": self.current_state,
+            "phase_clock": float(self.phase_clock),
+            "transition_blend_weight": float(self.transition_blend_weight),
+            "cycle_count": int(self.cycle_count),
+            "phase_kind": str(descriptor["phase_kind"]),
+        }
+
+    def allowed_targets_for(self, state: str | None = None) -> frozenset[str]:
+        normalized_state = _normalize_phase_driven_state_name(state or self.current_state)
+        return self.allowed_transitions.get(normalized_state, frozenset())
+
+    def can_transition_to(self, target_state: str) -> bool:
+        normalized_target = _normalize_phase_driven_state_name(target_state)
+        return normalized_target in self.allowed_targets_for(self.current_state)
+
+    def transition_to(
+        self,
+        target_state: str,
+        *,
+        strict: bool = False,
+        phase_clock: float = 0.0,
+        blend_weight: float | None = None,
+    ) -> bool:
+        """Attempt to move to ``target_state`` under an explicit graph guard.
+
+        When the edge is not declared, the machine returns ``False`` by default
+        and preserves ``current_state``, ``phase_clock``, and
+        ``transition_blend_weight`` exactly. Callers that prefer typed failures
+        can set ``strict=True`` to receive ``IllegalStateTransitionError``.
+        """
+        normalized_target = _normalize_phase_driven_state_name(target_state)
+        allowed_targets = self.allowed_targets_for(self.current_state)
+        if normalized_target not in allowed_targets:
+            error = IllegalStateTransitionError(
+                self.current_state,
+                normalized_target,
+                tuple(sorted(allowed_targets)),
+            )
+            self.last_transition_error = error
+            if strict:
+                raise error
+            return False
+
+        if normalized_target != self.current_state:
+            self.current_state = normalized_target
+            self.phase_clock = self._sanitize_phase_clock(normalized_target, phase_clock)
+            self.transition_blend_weight = _clamp01(blend_weight) if blend_weight is not None else 0.0
+        elif blend_weight is not None:
+            self.transition_blend_weight = _clamp01(blend_weight)
+
+        self.last_transition_error = None
+        return True
+
+    def set_phase_clock(self, value: float) -> float:
+        self.phase_clock = self._sanitize_phase_clock(self.current_state, value)
+        return self.phase_clock
+
+    def set_transition_blend_weight(self, value: float) -> float:
+        self.transition_blend_weight = _clamp01(value)
+        return self.transition_blend_weight
+
+    def advance(
+        self,
+        dt: float,
+        *,
+        speed: float = 1.0,
+        steps_per_second: float | None = None,
+        progress_scale: float = 1.0,
+    ) -> float:
+        """Advance the internal phase clock without bypassing state guards."""
+        descriptor = self._state_descriptor()
+        if bool(descriptor["is_cyclic"]):
+            effective_sps = float(steps_per_second) if steps_per_second is not None else float(descriptor["default_steps_per_second"])
+            previous_phase = self.phase_clock
+            delta = max(float(dt), 0.0) * max(float(speed), 0.0) * effective_sps / 2.0
+            self.phase_clock = (self.phase_clock + delta) % 1.0
+            if self.phase_clock < previous_phase and delta > 0.0:
+                self.cycle_count += 1
+            return self.phase_clock
+
+        delta = max(float(dt), 0.0) * max(float(speed), 0.0) * max(float(progress_scale), 0.0)
+        self.phase_clock = _clamp01(self.phase_clock + delta)
+        return self.phase_clock
+
+    def current_phase_state(self) -> PhaseState:
+        descriptor = self._state_descriptor()
+        phase_kind = str(descriptor["phase_kind"])
+        if bool(descriptor["is_cyclic"]):
+            return PhaseState.cyclic(self.phase_clock, phase_kind=phase_kind)
+        return PhaseState.transient(self.phase_clock, phase_kind=phase_kind, amplitude=1.0)
+
+    def generate_frame(
+        self,
+        *,
+        time: float = 0.0,
+        frame_index: int = 0,
+        root_x: float = 0.0,
+        root_y: float = 0.0,
+        root_rotation: float = 0.0,
+        root_velocity_x: float = 0.0,
+        root_velocity_y: float = 0.0,
+    ) -> UnifiedMotionFrame:
+        """Generate a frame for the machine's current legal state."""
+        descriptor = self._state_descriptor()
+        gait = descriptor.get("gait")
+        state_name = self.current_state
+
+        if state_name in {"idle", "stable_balance", "ground_contact"}:
+            from .phase_driven_idle import phase_driven_idle_frame
+
+            return phase_driven_idle_frame(
+                self.phase_clock,
+                time=time,
+                frame_index=frame_index,
+                source_state=state_name,
+                root_x=root_x,
+                root_y=root_y,
+                root_velocity_x=root_velocity_x,
+                root_velocity_y=root_velocity_y,
+            )
+
+        if state_name == "dead":
+            pose = phase_driven_hit(1.0, impact_energy=1.0)
+            return pose_to_umr(
+                pose,
+                time=float(time),
+                phase=float(_clamp01(self.phase_clock)),
+                frame_index=int(frame_index),
+                source_state=state_name,
+                root_transform=MotionRootTransform(
+                    x=float(root_x),
+                    y=float(root_y),
+                    rotation=float(root_rotation),
+                    velocity_x=float(root_velocity_x),
+                    velocity_y=float(root_velocity_y),
+                    angular_velocity=0.0,
+                ),
+                contact_tags=MotionContactState(left_foot=True, right_foot=True),
+                metadata={
+                    "generator": "phase_driven_state_machine_dead_pose",
+                    "phase_gate": "terminal",
+                    "phase_kind": "dead",
+                },
+                phase_state=PhaseState.transient(self.phase_clock, phase_kind="dead", amplitude=1.0),
+            )
+
+        resolved_gait = gait if isinstance(gait, GaitMode) else GaitMode.RUN
+        return self._animator.generate_frame(
+            self.current_phase_state(),
+            gait=resolved_gait,
+            time=time,
+            frame_index=frame_index,
+            source_state=state_name,
+            root_x=root_x,
+            root_rotation=root_rotation,
+            root_velocity_x=root_velocity_x,
+            root_velocity_y=root_velocity_y,
+        )
 
 
 # ── Drop-in Replacement Functions ───────────────────────────────────────────

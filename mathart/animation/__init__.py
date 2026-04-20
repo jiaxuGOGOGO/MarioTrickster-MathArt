@@ -85,6 +85,8 @@ from .phase_driven import (
     phase_driven_jump_frame, phase_driven_fall_frame, phase_driven_hit_frame,
     jump_distance_phase, fall_distance_phase, hit_recovery_phase,
     TransientPhaseVariable, critically_damped_hit_phase,
+    PhaseDrivenStateMachine, IllegalStateTransitionError,
+    PHASE_DRIVEN_ALLOWED_TRANSITIONS,
     extract_phase_parameters, create_phase_channel_from_signal,
     WALK_KEY_POSES, RUN_KEY_POSES, WALK_CHANNELS, RUN_CHANNELS,
 )
@@ -397,6 +399,8 @@ __all__ = [
     "phase_driven_jump_frame", "phase_driven_fall_frame", "phase_driven_hit_frame",
     "jump_distance_phase", "fall_distance_phase", "hit_recovery_phase",
     "TransientPhaseVariable", "critically_damped_hit_phase",
+    "PhaseDrivenStateMachine", "IllegalStateTransitionError",
+    "PHASE_DRIVEN_ALLOWED_TRANSITIONS",
     "extract_phase_parameters", "create_phase_channel_from_signal",
     "WALK_KEY_POSES", "RUN_KEY_POSES", "WALK_CHANNELS", "RUN_CHANNELS",
     # SESSION-036: Unified Motion Representation (UMR)
