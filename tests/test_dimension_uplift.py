@@ -296,7 +296,7 @@ class TestAdaptiveSDFCache:
                     np.array([1.5, 1.5, 1.5]))
 
         # Test accuracy at random points
-        rng = np.random.RandomState(42)
+        rng = np.random.default_rng(42)
         max_error = 0.0
         for _ in range(50):
             p = rng.uniform(-1.0, 1.0, size=3)

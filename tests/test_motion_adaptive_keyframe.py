@@ -31,6 +31,19 @@ import numpy as np
 import pytest
 
 
+TEST_RNG_SEED = 42
+
+
+def make_rng(seed: int = TEST_RNG_SEED) -> np.random.Generator:
+    """Return an isolated RNG for a single test context."""
+    return np.random.default_rng(seed)
+
+
+def make_random_scores(length: int, seed: int = TEST_RNG_SEED) -> np.ndarray:
+    """Create a deterministic high-variance score vector for a single test."""
+    return make_rng(seed).random(length).astype(np.float64)
+
+
 # ---------------------------------------------------------------------------
 # Helpers: Generate synthetic UMR clips
 # ---------------------------------------------------------------------------
@@ -277,11 +290,13 @@ class TestAdaptiveKeyframeSelection:
         from mathart.core.motion_adaptive_keyframe_backend import (
             select_adaptive_keyframes,
         )
-        scores = np.random.rand(48)
+        scores = make_random_scores(48)
         contact_events = np.zeros(48)
         keyframes = select_adaptive_keyframes(scores, contact_events)
         assert keyframes[0] == 0, "First frame not a keyframe"
         assert keyframes[-1] == 47, "Last frame not a keyframe"
+        assert keyframes == [0, 2, 5, 7, 11, 13, 16, 18, 20, 22, 31, 39, 41, 44, 47]
+        assert [keyframes[i + 1] - keyframes[i] for i in range(len(keyframes) - 1)] == [2, 3, 2, 4, 2, 3, 2, 2, 2, 9, 8, 2, 3, 3]
 
     def test_contact_events_always_captured(self):
         """🚫 ANTI-PATTERN: Contact events MUST be captured as keyframes.
@@ -418,7 +433,7 @@ class TestAdaptiveKeyframeSelection:
             select_adaptive_keyframes,
         )
         max_gap = 8
-        scores = np.random.rand(60)
+        scores = make_random_scores(60, seed=102)
         contact_events = np.zeros(60)
 
         keyframes = select_adaptive_keyframes(
@@ -431,6 +446,8 @@ class TestAdaptiveKeyframeSelection:
             f"Max gap {max_actual} exceeds max_gap {max_gap}! "
             f"Gaps: {gaps}, Keyframes: {keyframes}"
         )
+        assert keyframes == [0, 2, 4, 6, 8, 12, 15, 20, 22, 24, 28, 32, 36, 40, 47, 50, 54, 56, 59]
+        assert gaps == [2, 2, 2, 2, 4, 3, 5, 2, 2, 4, 4, 4, 4, 7, 3, 4, 2, 3]
 
     def test_min_gap_constraint_no_cluster(self):
         """🚫 ANTI-PATTERN: No two keyframes may be closer than min_gap.
@@ -441,7 +458,7 @@ class TestAdaptiveKeyframeSelection:
             select_adaptive_keyframes,
         )
         min_gap = 3
-        scores = np.random.rand(48)
+        scores = make_random_scores(48)
         contact_events = np.zeros(48)
 
         keyframes = select_adaptive_keyframes(
@@ -528,11 +545,17 @@ class TestEndPercentMapping:
     def test_end_percent_bounds(self):
         """end_percent must be in [base, max]."""
         from mathart.core.motion_adaptive_keyframe_backend import map_end_percent
-        scores = np.random.rand(20)
+        scores = make_random_scores(20, seed=104)
         keyframes = list(range(20))
         eps = map_end_percent(scores, keyframes, base_end_percent=0.3, max_end_percent=0.9)
         for ep in eps:
             assert 0.3 <= ep <= 0.9, f"end_percent {ep} out of bounds"
+        np.testing.assert_allclose(
+            eps,
+            [0.8031, 0.7153, 0.4297, 0.3752, 0.5250, 0.7523, 0.7411, 0.5477, 0.6870, 0.7945, 0.3398, 0.6230, 0.7535, 0.7952, 0.4315, 0.5904, 0.5197, 0.4592, 0.7790, 0.6361],
+            atol=1e-4,
+        )
+        assert np.mean(eps) == pytest.approx(0.614915, abs=1e-6)
 
 
 # ===========================================================================
@@ -992,7 +1015,15 @@ class DummyHotBackend:
                     del sys.modules[mod_name]
                 if str(tmp_path) in sys.path:
                     sys.path.remove(str(tmp_path))
+
+                from mathart.core.backend_registry import BackendRegistry
+                import mathart.core.builtin_backends as builtin_backends_module
                 import mathart.core.motion_adaptive_keyframe_backend as motion_backend_module
+
+                BackendRegistry.reset()
+                BackendRegistry._builtins_loaded = True
+                BackendRegistry._backend_module_map = {}
+                importlib.reload(builtin_backends_module)
                 importlib.reload(motion_backend_module)
 
     def test_concurrent_executions_allowed(self):

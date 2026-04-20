@@ -4,86 +4,87 @@
 
 | Field | Value |
 |---|---|
-| Session | `SESSION-096` |
-| Focus | `HIGH-2.4` Phase Driven 非法状态转移拦截闭环：显式转移图、守卫失败语义、反向负路径验证 |
+| Session | `SESSION-097` |
+| Focus | `HIGH-2.5` 全局测试确定性清扫：移除 legacy bare RNG、强化值级断言、修复 registry teardown 污染 |
 | Status | `COMPLETE` |
 | Working Branch | `main` |
-| Validation | `68 PASS, 0 FAIL` |
-| Primary Files | `mathart/animation/phase_driven.py`, `mathart/animation/__init__.py`, `tests/test_phase_driven_state_machine.py`, `research/session096_phase_guard_research_notes.md`, `PROJECT_BRAIN.json` |
+| Validation | `247 PASS, 0 FAIL`（编辑范围定向回归）；广域审计 `1564 PASS, 97 FAIL, 7 SKIP` |
+| Primary Files | `tests/test_motion_adaptive_keyframe.py`, `tests/test_motion_vector_baker.py`, `tests/test_session065_research_modules.py`, `tests/test_evaluator.py`, `tests/test_oklab.py`, `tests/test_p1_b3_2_rl_reference.py`, `tests/test_dimension_uplift.py`, `research/session097_test_determinism_research_notes.md`, `PROJECT_BRAIN.json` |
 
 ## Executive Summary
 
-本轮任务已经把项目第四块刚性基石中的关键缺口——**Phase Driven 行为控制层对非法状态跃迁的静默放行**——从“语义错误但仍可能继续出帧”的脆弱态，升级为**显式状态图约束、可诊断守卫失败、负路径可重复验证**的闭环态。上一轮 `HIGH-2.3` 解决的是连续数值基因在极端扰动下的合法域投影问题；而本轮 `HIGH-2.4` 处理的是另一类完全不同的风险：**离散状态机控制错误**。对这类问题，正确策略不是继续做数值修复，而是把**允许的状态边**提升为一级架构对象，并在任何状态改变发生之前先执行守卫判断。
+本轮 `HIGH-2.5` 的核心目标，不是单纯“把随机数都加个种子”，而是把项目测试层从**隐式、分散、可能掩盖问题的随机输入习惯**，推进到**显式、本地化、可回放、可值级校验**的 CI 友好状态。Martin Fowler 对非确定性测试的分析强调，flaky tests 的危害不只是偶发失败本身，而是它们会持续侵蚀团队对测试结果的信任，使 CI 反馈失去决策价值 [1]。NumPy NEP 19 也明确建议以独立 `Generator` 对象替代全局随机状态，从而避免模块间的隐藏耦合与污染 [2]。Google 对 flaky tests 的治理经验进一步说明，真正可维护的测试体系，必须优先消灭不可复现输入、执行顺序依赖与环境漂移 [3]；而持续集成的基本要求，则是每次提交都要面对一套高可信、可快速反馈的自测试构建 [4]。
 
-这次落地严格对齐了三条外部参考线。Harel 的 Statecharts 明确强调，系统语义必须建立在**显式状态**与**显式转移**之上，而不是靠隐式推断或宽松 fallback 拼接出来 [1]。Unreal Engine 的 AnimGraph / Transition Rules 文档则给出工业动画图的直观工程语义：**只有当某条边对应的 transition rule 计算为真时，状态才允许迁移** [2]。状态测试资料进一步说明，非法事件的负路径验证重点，不只是“报错了没有”，而是**被拒绝后机器内部是否仍维持最后一个合法状态且不产生隐藏副作用** [3]。本轮实现正是把这三条原则合并进 `mathart/animation/phase_driven.py` 的实际控制面。
+这次落地正是沿着这条路线执行。项目中若干高风险回归文件此前仍散布着 `np.random.rand`、`np.random.randn`、`np.random.randint`、`RandomState(42)` 以及局部的全局 seed 模式。它们的问题在于，即便“多数时候能跑过”，也容易把真正的数值回归、边界退化或顺序污染埋在随机样本波动里。本轮已经把这些热点用例统一改成**每个测试上下文自己构造本地 `Generator`**，并把几类原本只有 shape、数量、范围的弱断言，升级为**精确 keyframe 列表、精确 gap 序列、精确颜色集合、精确统计均值、精确 temporal metrics** 等值级基线，从而让测试输出变成可追溯的、可解释的、可稳定回放的工程信号。
 
 ## What Changed in Code
 
 | File | Change | Effect |
 |---|---|---|
-| `mathart/animation/phase_driven.py` | 新增 `_PHASE_DRIVEN_STATE_REGISTRY` 与 `PHASE_DRIVEN_ALLOWED_TRANSITIONS` | 把允许的语义状态与状态边从隐式习惯，提升为可审计、可扩展、O(1) 查询的数据契约 |
-| `mathart/animation/phase_driven.py` | 新增 `IllegalStateTransitionError` | 为守卫失败提供显式、可诊断、可上抛的 typed error，而不是继续走泛化 fallback |
-| `mathart/animation/phase_driven.py` | 新增 `PhaseDrivenStateMachine` | 把 `current_state`、`phase_clock`、`transition_blend_weight`、`cycle_count` 统一纳入受控状态机壳层 |
-| `mathart/animation/phase_driven.py` | `transition_to()` 实现非法边 `False` 返回与 `strict=True` 异常路径 | 满足“可无异常安全拒绝”与“可强诊断失败上抛”双重调用语义 |
-| `mathart/animation/phase_driven.py` | 非法转移拒绝路径保持 `current_state` / `phase_clock` / `transition_blend_weight` 不变 | 消除“请求失败但内部相位或混合权重已被污染”的隐蔽退化 |
-| `mathart/animation/__init__.py` | 导出 `PhaseDrivenStateMachine`、`IllegalStateTransitionError`、`PHASE_DRIVEN_ALLOWED_TRANSITIONS` | 让后续运行时控制层、测试层与外部调用方可以通过统一包面导入新能力 |
-| `tests/test_phase_driven_state_machine.py` | 新增 `test_illegal_state_transitions()` 与严格模式 / 合法恢复路径用例 | 形成显式负路径回归护栏，直接钉住 `hit → sprint` 与 `dead → idle` 两个禁止边 |
+| `tests/test_motion_adaptive_keyframe.py` | 引入 `make_rng()` / `make_random_scores()` 本地生成器辅助函数，移除 bare `np.random.rand` | 关键帧选择、gap 约束、`end_percent` 映射不再依赖全局随机状态 |
+| `tests/test_motion_adaptive_keyframe.py` | 为固定输入增加精确 keyframe 列表、gap 序列、`end_percent` 值级断言 | 原先只验证边界/范围的弱断言升级为可回放基线 |
+| `tests/test_motion_adaptive_keyframe.py` | 修复 `BackendFileWatcher` 热重载测试的 registry teardown 恢复逻辑 | 解决测试结束后 builtin backends 未恢复、污染后续 `unified_motion` 套件的问题 |
+| `tests/test_motion_vector_baker.py` | 用本地 `Generator` 固定 temporal-consistency 帧夹具 | `warp_error` / `warp_ssim_proxy` / `coverage` 可做精确字典断言 |
+| `tests/test_session065_research_modules.py` | 移除 `np.random.seed()` 与分散 `randn` / `randint` 用法 | SparseCtrl 与 KD-tree 研究回归不再泄漏全局随机状态 |
+| `tests/test_session065_research_modules.py` | 增加精确 temporal score、motion-vector 编码像素/均值/和校验 | 将“能跑通”升级为“输出数值正确且稳定” |
+| `tests/test_evaluator.py` | 固定 `_rgb_to_oklab()` 批量输入 | 增加首行与均值基线，避免仅靠 shape 掩盖颜色空间回归 |
+| `tests/test_oklab.py` | 固定量化输入图像 | 将“unique color 数量减少”升级为精确颜色集合、均值与左上角像素断言 |
+| `tests/test_p1_b3_2_rl_reference.py` | 用 `default_rng(42)` 替换 `RandomState(42)`，并显式导入 builtin backend 注册模块 | RL 参考测试的随机输入更现代、更隔离，且不再依赖外部执行顺序导入 |
+| `tests/test_dimension_uplift.py` | 用 `default_rng(42)` 替换 `RandomState(42)` | 3D SDF cache 误差采样点可稳定回放 |
+| `research/session097_test_determinism_research_notes.md` | 新增外部研究与仓库审计记录 | 保留 determinism / PRNG / flaky test 的外部依据与热点清单 |
 
-本轮真正的架构价值，不在于“多写了几个状态判断”，而在于把**状态机合法性**从分散于若干生成函数上下文中的默认行为，提升为独立、先行、可复用的控制面。以后新增语义状态时，不必继续把“当前状态能否跳到目标状态”的知识散落到多个分支里，只需要在转移表里声明，并自动受同一套守卫、快照与测试模板保护。
+本轮最关键的“额外收益”是发现并修掉了一个**测试层全局状态污染问题**。`test_motion_adaptive_keyframe.py` 的 watcher 热重载用例会在测试内部 reset 全局 backend registry，如果 teardown 只恢复 `motion_adaptive_keyframe` 而不恢复 builtins，那么之后的 `unified_motion` 回归就会因 registry 被掏空而失败。这个问题并不是随机输入本身，但它和 flaky / non-deterministic test 的治理目标完全一致：**任何测试都不允许把全局状态污染留给下一组测试接盘**。因此，本轮把 teardown 扩展为显式 reload builtin backends，再 reload motion-adaptive backend，从而恢复稳定、可隔离的全局注册面。
 
 ## Why This Fix Is Architecturally Correct
 
-这次修复与 `HIGH-2.3` 的核心差异在于：前者处理的是**连续值越界**，后者处理的是**离散控制错误**。连续值越界适合用投影修复，因为目标是把候选值重新拉回合法数域；但非法状态转移则意味着控制逻辑本身出现了语义断裂，若继续“帮它兜过去”，只会把本应尽早暴露的上游错误扩散到动画生成、混合、测试与后续 AI 层。因此本轮不采用“自动修正到最近合法状态”的数值思路，而采用**显式拒绝 + 保持最后合法状态不变**的状态机语义，这与 Statecharts 的图约束思想完全一致 [1]。
+这次修复之所以正确，在于它没有采用“给整个进程统一 `np.random.seed(42)`”这种看似简单、实则隐藏耦合的做法。NEP 19 的核心建议是：**随机状态应该被当成显式依赖传递和管理，而不是作为模块级共享隐变量** [2]。本轮所有修复都遵循这个原则：每个测试 helper 或测试函数都通过自己的 `Generator` 生成样本，从而做到输入可追溯、失败可回放、不同用例之间互不干扰。
 
-从工业动画图视角看，这样做也更贴近 Unreal 的状态机写法。Unreal 并不是看到目标状态存在就允许切过去，而是先问“这条边是否存在，以及它的 transition rule 是否成立” [2]。这意味着**状态存在**与**状态可达**是两件不同的事。本轮 `PhaseDrivenStateMachine.transition_to()` 的职责，就是把这层区分正式放入项目代码：`target_state` 不再因为名字合法就默认被接纳，而必须先命中 `PHASE_DRIVEN_ALLOWED_TRANSITIONS[current_state]` 中声明的边。
+从测试工程视角看，把弱断言升级为值级断言也同样重要。Fowler 讨论 non-determinism 时反复强调，测试必须提供可信、可解释的反馈 [1]。如果一个测试只断言“shape 没变”“颜色数量没超标”“score 在 0 到 1 之间”，那么真实输出即便已经发生明显漂移，测试也可能继续绿灯。本轮在 keyframe、motion-vector、OKLAB 和 quantization 路径上补入了固定值级基线后，回归不再只能以“粗略性质”暴露，而会以**具体数值差异**直接暴露，从而显著提高 CI 信号密度。
 
-负路径测试的设计也遵循了状态测试的标准思路：验证失败路径时，最重要的是**拒绝动作是否保持机器内部快照不变** [3]。因此，新测试并没有停留在“返回 False 就算过”，而是对 `current_state`、`phase_clock`、`transition_blend_weight` 做了值级别保持断言。这样一来，即便未来有人修改守卫逻辑、偷偷在拒绝路径上重置 phase 或 blend，这组测试也会第一时间抓到真正的回归。
+Google 对 flaky tests 的治理实践也说明，可靠测试不仅要避免随机输入，还要避免顺序依赖与环境偶然性 [3]。这正是本轮顺手修复 registry teardown 的原因。一个理想的测试文件，应该既能单独运行，也能和其它测试一起运行，不会因为先后顺序不同而得到不同结果。`BackendFileWatcher` 用例的清理逻辑现在已经朝这个方向完成闭环。
 
 ## Test Closure
 
-| Test Group | Coverage | Result |
+| Validation Layer | Scope | Result |
 |---|---|---|
-| `tests/test_phase_driven_state_machine.py` | 非法 `hit → sprint`、非法 `dead → idle`、`strict=True` 异常路径、合法 `hit → stable_balance` 恢复路径 | `3 PASS` |
-| `tests/test_phase_driven.py` | 既有 cyclic / transient 相位驱动行为、UMR 输出、辅助函数与历史回归 | `65 PASS` |
-| Total | 新守卫层 + 既有 Phase Driven 回归 | `68 PASS, 0 FAIL` |
+| 定向回归 | `tests/test_evaluator.py` `tests/test_oklab.py` `tests/test_motion_adaptive_keyframe.py` `tests/test_motion_vector_baker.py` `tests/test_session065_research_modules.py` `tests/test_p1_b3_2_rl_reference.py` `tests/test_dimension_uplift.py` | `247 PASS, 0 FAIL` |
+| 广域审计 | `pytest -q` 全仓测试 | `1564 PASS, 97 FAIL, 7 SKIP` |
 
-本轮测试的关键升级点，在于把“状态机负路径”从过去未明确验证的灰区，转成**显式案例集**。`test_illegal_state_transitions()` 直接验证两个审计红线：其一，`hit → sprint` 这种缺乏中间恢复语义的跳变必须被拒绝；其二，`dead → idle` 这种终止态回流必须被拒绝。更重要的是，测试不是只看拒绝信号，还逐项要求 `current_state`、`phase_clock`、`transition_blend_weight` 与调用前快照严格一致。这使得“返回 False 但内部数据偷偷变了”的伪安全实现无法蒙混过关。
+定向回归已经完成闭环，覆盖了本轮所有改动文件，因此可以确认这次 deterministic cleanup 本身已经稳定落地。广域审计也已执行，其暴露出的剩余失败并非 `HIGH-2.5` 新引入回归，而主要来自两类既有问题。第一类是**可选依赖缺失**，例如 `SciPy`、`Taichi` 等未安装导致的 sprite / taichi 相关测试失败。第二类是**更广范围的 registry/bootstrap 问题**，例如部分非本轮范围内的 suite 在全量运行时仍会遇到 builtin backend 空集合或注册恢复不全的问题。换言之，本轮已经把“RNG 掩盖与局部 registry 污染”这一块拆干净，但全仓 CI 仍需要一个下一阶段任务来处理环境与 bootstrap 的系统性收口。
 
 ## Files Touched This Session
 
 | Category | Files |
 |---|---|
-| Code | `mathart/animation/phase_driven.py`, `mathart/animation/__init__.py` |
-| Tests | `tests/test_phase_driven_state_machine.py` |
-| Research Notes | `research/session096_phase_guard_research_notes.md` |
+| Tests | `tests/test_motion_adaptive_keyframe.py`, `tests/test_motion_vector_baker.py`, `tests/test_session065_research_modules.py`, `tests/test_evaluator.py`, `tests/test_oklab.py`, `tests/test_p1_b3_2_rl_reference.py`, `tests/test_dimension_uplift.py` |
+| Research Notes | `research/session097_test_determinism_research_notes.md` |
 | Project State | `PROJECT_BRAIN.json`, `SESSION_HANDOFF.md` |
 
 ## PROJECT_BRAIN Update Summary
 
-`PROJECT_BRAIN.json` 已完成以下同步。首先，`last_session_id`、`version`、`recent_focus_snapshot`、`validation_pass_rate` 已切换到 `SESSION-096` / `v0.86.0`。其次，`HIGH-2.4-PHASE-DRIVEN-ILLEGAL-TRANSITIONS` 已在 `pending_tasks` 中标记为 `CLOSED`，并同步写入 `completed_tasks`、`completed_work`、`closed_tasks_archive` 与 `session_log`。再次，下一阶段面向全局测试稳定性的清扫任务已经正式立项为 **`HIGH-2.5-CI-RANDOM-MASKING-DETERMINISM`**，用于系统性消灭无种子随机掩盖、分散 RNG 初始化与不可复现 CI 波动。最后，`resolved_issues` / `capability_gaps` 已移除 `REMAINING-S095`，并写入新的 `RESOLVED-S096` 与 `REMAINING-S096` 记录。
+`PROJECT_BRAIN.json` 已在本轮同步为 `SESSION-097` / `v0.87.0`。`HIGH-2.5-CI-RANDOM-MASKING-DETERMINISM` 已标记为 `CLOSED`，并写入 `completed_tasks`、`completed_work`、`closed_tasks_archive`、`session_summaries`、`recent_sessions` 与 `session_log`。同时，新的后续任务 **`HIGH-2.6-CI-OPTIONAL-DEPENDENCY-AND-REGISTRY-BOOTSTRAP`** 已进入 backlog，专门承接本轮广域审计暴露出的 full-suite 依赖与 bootstrap 闭环问题。
 
-## Preparation Notes for HIGH-2.5
+更新后的项目状态也更准确地区分了两件事。其一，`HIGH-2.5` 已经完成，因为“无种子随机掩盖与弱断言热点”确实已从审计范围内移除。其二，全仓 CI 还没有完全闭环，因为 optional deps 与剩余 registry/bootstrap 缺口依然存在。这种拆分比把所有问题都混在一个任务里更利于后续追踪，也更符合项目当前的架构治理节奏。
 
-下一轮如果要无缝接入 **“彻底消灭全局测试中的无种子随机掩盖，以稳固 CI/CD 管道”** 的大扫除任务，当前测试架构已经具备良好地基，但还需要做四项微调准备。
+## Preparation Notes for HIGH-2.6
 
-第一，应该把项目中所有仍然各自 `random.seed(...)`、`np.random.seed(...)`、或隐式依赖全局 RNG 的测试入口，统一收口到**集中式 seeded fixture / helper**。也就是说，未来不应再让单个测试随手创建随机源，而要通过统一工厂显式声明：本次测试使用哪类 RNG、种子是多少、场景目录是什么。只有这样，CI 失败时才能稳定回放。
+下一轮 `HIGH-2.6` 的重点，应该从“输入随机性治理”切换到“环境与 bootstrap 稳定性治理”。首先，需要梳理哪些测试是真正**必须**依赖 `SciPy`、`Taichi` 之类的重型可选依赖，哪些其实应该通过 `pytest.importorskip()`、feature flag、或更明确的 environment marker 做条件化收口。否则 full-suite 会继续因为环境差异而失真，CI 结果也很难具有跨机器一致性。
 
-第二，建议把本轮 `PhaseDrivenStateMachine` 用到的**场景目录化思路**推广到更广的测试层。与其让测试在函数体里临时拼装随机输入，不如建立一套“合法场景目录 + 非法场景目录 + 断言模板”的结构化 case catalog。这样后续要清理 random masking 时，就能先把随机样本替换为有限但覆盖关键边界的显式案例，再决定哪些部分继续保留受控随机探索。
+其次，需要扩展本轮对 `BackendFileWatcher` teardown 的修复思路，把所有涉及 `BackendRegistry.reset()`、动态导入、热重载、或 registry monkeypatch 的测试都做一次统一审计。凡是会修改全局注册面的测试，都必须在结束时显式恢复 builtin backends 与目标 backend 插件，而不能默认指望后续套件自行修复环境。
 
-第三，属性测试或 fuzz 测试若继续保留，必须从“每次自动乱跑”升级为**固定种子、固定预算、失败样本可持久化**的 CI 友好模式。也就是说，随机探索并不是完全禁止，但它必须从“掩盖问题的不可复现噪声”转变为“可回放的定向搜索器”。本轮 phase-driven 负路径测试已经证明，很多最关键的回归其实可以通过少量高价值显式案例稳定抓住，这对下一轮缩减随机掩盖面非常有帮助。
-
-第四，建议把“状态保持不变”的快照断言模板进一步抽象成可跨模块复用的测试 helper。`HIGH-2.4` 已经验证，负路径是否安全，本质上就是看**拒绝后对象是否仍保留最后合法快照**。这一模板不仅适用于状态机，也适用于 WFC 冲突、XPBD 非法输入、基因投影前后不该被污染的缓存对象。若先把这类 helper 规范化，`HIGH-2.5` 清扫全局随机掩盖时就能更快把大量“弱断言”升级为“快照级别强断言”。
+再次，建议把本轮成功的 deterministic fixture 模式抽象成更通用的测试 helper 规范。例如，按模块提供 `make_rng(seed)`、`scenario_catalog()`、`snapshot_assert_*()` 等 helper，可以把未来新测试天然拉到“局部 RNG + 显式场景 + 值级断言”的正确轨道上，避免项目再次回到“想测点东西就随手 `np.random.rand()`”的状态。
 
 ## Recommended Next Actions
 
 | Order | Task | Purpose |
 |---|---|---|
-| 1 | `HIGH-2.5-CI-RANDOM-MASKING-DETERMINISM` | 统一 seeded fixture、场景目录、属性测试预算与可回放失败样本，清除全局随机掩盖 |
-| 2 | 复用本轮 `PhaseDrivenStateMachine` 的快照保持断言模板 | 把“拒绝路径不污染内部状态”的强断言推广到更多模块 |
-| 3 | 保留 `research/session096_phase_guard_research_notes.md` | 作为后续行为树 / AnimGraph / runtime state-machine 语义约束的长期参考 |
+| 1 | `HIGH-2.6-CI-OPTIONAL-DEPENDENCY-AND-REGISTRY-BOOTSTRAP` | 收敛 SciPy/Taichi 等可选依赖策略，并系统修复 full-suite 的 registry/bootstrap 漏口 |
+| 2 | 抽象通用 deterministic fixture / snapshot helper | 把本轮成功模式推广到更多测试模块，继续提高 CI 信号密度 |
+| 3 | 保留 `research/session097_test_determinism_research_notes.md` | 作为后续 flaky-test 治理、属性测试预算固定、PRNG 规范化的长期参考 |
 
 ## References
 
-[1]: https://www.state-machine.com/doc/Harel87.pdf "David Harel - Statecharts: A Visual Formalism for Complex Systems"
-[2]: https://dev.epicgames.com/documentation/unreal-engine/transition-rules-in-unreal-engine?lang=en-US "Unreal Engine Documentation - Transition Rules"
-[3]: https://www.eecs.yorku.ca/course_archive/2008-09/W/4313/slides/13-StateBasedTesting.pdf "York University - State-Based Testing"
+[1]: https://martinfowler.com/articles/nonDeterminism.html "Martin Fowler - Eradicating Non-Determinism in Tests"
+[2]: https://numpy.org/neps/nep-0019-rng-policy.html "NumPy NEP 19 — Random number generator policy"
+[3]: https://testing.googleblog.com/2016/05/flaky-tests-at-google-and-how-we.html "Google Testing Blog - Flaky Tests at Google and How We Mitigate Them"
+[4]: https://martinfowler.com/articles/continuousIntegration.html "Martin Fowler - Continuous Integration"

@@ -18,6 +18,14 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+TEST_RNG_SEED = 42
+
+
+def _make_rng(seed: int = TEST_RNG_SEED) -> np.random.Generator:
+    """Return an isolated RNG for a single test context."""
+    return np.random.default_rng(seed)
+
+
 from mathart.animation.skeleton import Skeleton
 from mathart.animation.parts import CharacterStyle
 from mathart.animation.motion_vector_baker import (
@@ -381,7 +389,7 @@ class TestEbSynthExport:
 class TestTemporalConsistency:
     def test_identical_frames_zero_error(self):
         """Identical frames with zero motion should have zero warp error."""
-        frame = np.random.randint(0, 255, (32, 32, 4), dtype=np.uint8)
+        frame = _make_rng().integers(0, 255, size=(32, 32, 4), dtype=np.uint8)
         mv = MotionVectorField(
             dx=np.zeros((32, 32)),
             dy=np.zeros((32, 32)),
@@ -391,8 +399,11 @@ class TestTemporalConsistency:
             height=32,
         )
         scores = compute_temporal_consistency_score(frame, frame, mv)
-        assert scores["warp_error"] < 1e-6
-        assert scores["warp_ssim_proxy"] > 0.999
+        assert scores == {
+            "warp_error": 0.0,
+            "warp_ssim_proxy": 1.0,
+            "coverage": 1.0,
+        }
 
     def test_different_frames_nonzero_error(self):
         """Different frames should produce non-zero warp error."""
@@ -423,9 +434,13 @@ class TestTemporalConsistency:
         )
         # Half the pixels are valid
         mv.mask[:16, :] = True
-        frame = np.random.randint(0, 255, (32, 32, 4), dtype=np.uint8)
+        frame = _make_rng().integers(0, 255, size=(32, 32, 4), dtype=np.uint8)
         scores = compute_temporal_consistency_score(frame, frame, mv)
-        assert abs(scores["coverage"] - 0.5) < 0.01
+        assert scores == {
+            "warp_error": 0.0,
+            "warp_ssim_proxy": 1.0,
+            "coverage": 0.5,
+        }
 
 
 # ── Neural Rendering Bridge Tests ──────────────────────────────────────────

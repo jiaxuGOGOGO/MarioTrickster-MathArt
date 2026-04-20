@@ -10,6 +10,14 @@ from mathart.oklab.quantizer import quantize_image
 from PIL import Image
 
 
+TEST_RNG_SEED = 42
+
+
+def make_rng(seed: int = TEST_RNG_SEED) -> np.random.Generator:
+    """Return an isolated RNG for a single test context."""
+    return np.random.default_rng(seed)
+
+
 class TestColorSpaceConversions:
     """Test OKLAB ↔ sRGB round-trip accuracy."""
 
@@ -147,10 +155,25 @@ class TestQuantizer:
         gen = PaletteGenerator(seed=42)
         pal = gen.generate("tonal_ramp", count=4)
         # Create image with many colors
-        arr = np.random.randint(0, 255, (16, 16, 3), dtype=np.uint8)
+        arr = make_rng().integers(0, 255, size=(16, 16, 3), dtype=np.uint8)
         img = Image.fromarray(arr, "RGB")
         result = quantize_image(img, pal, preserve_alpha=False)
         # Count unique colors in result
         result_arr = np.array(result)
         unique = np.unique(result_arr.reshape(-1, 3), axis=0)
         assert len(unique) <= pal.count
+        np.testing.assert_array_equal(
+            unique,
+            np.array([
+                [16, 13, 58],
+                [68, 74, 157],
+                [145, 147, 239],
+                [234, 237, 255],
+            ], dtype=np.uint8),
+        )
+        np.testing.assert_allclose(
+            result_arr.mean(axis=(0, 1)),
+            [135.38671875, 138.67578125, 207.16015625],
+            atol=1e-12,
+        )
+        np.testing.assert_array_equal(result_arr[0, 0], np.array([68, 74, 157], dtype=np.uint8))

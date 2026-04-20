@@ -45,6 +45,7 @@ from mathart.animation.unified_motion import (
     UnifiedMotionClip,
     UnifiedMotionFrame,
 )
+from mathart.core import builtin_backends as _builtin_backends  # noqa: F401
 from mathart.animation.umr_rl_adapter import (
     RL_JOINT_ORDER,
     DeepMimicRewardConfig,
@@ -478,19 +479,19 @@ class TestDeepMimicImitationReward:
 
     def test_all_subrewards_in_unit_interval(self) -> None:
         """All sub-rewards are in [0, 1] for arbitrary inputs."""
-        rng = np.random.RandomState(42)
+        rng = np.random.default_rng(42)
         n_joints = len(RL_JOINT_ORDER)
 
         for _ in range(100):
             result = compute_imitation_reward(
-                agent_pose=rng.randn(n_joints).astype(np.float32),
-                agent_velocity=rng.randn(n_joints).astype(np.float32),
-                agent_ee=rng.randn(4).astype(np.float32),
-                agent_com=rng.randn(2).astype(np.float32),
-                ref_pose=rng.randn(n_joints).astype(np.float32),
-                ref_velocity=rng.randn(n_joints).astype(np.float32),
-                ref_ee=rng.randn(4).astype(np.float32),
-                ref_com=rng.randn(2).astype(np.float32),
+                agent_pose=rng.standard_normal(n_joints).astype(np.float32),
+                agent_velocity=rng.standard_normal(n_joints).astype(np.float32),
+                agent_ee=rng.standard_normal(4).astype(np.float32),
+                agent_com=rng.standard_normal(2).astype(np.float32),
+                ref_pose=rng.standard_normal(n_joints).astype(np.float32),
+                ref_velocity=rng.standard_normal(n_joints).astype(np.float32),
+                ref_ee=rng.standard_normal(4).astype(np.float32),
+                ref_com=rng.standard_normal(2).astype(np.float32),
             )
             for key in ["pose", "velocity", "end_effector", "com", "total"]:
                 assert 0.0 <= result[key] <= 1.0 + 1e-10, (

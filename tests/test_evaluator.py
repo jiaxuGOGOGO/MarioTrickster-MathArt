@@ -6,6 +6,14 @@ from PIL import Image
 from mathart.evaluator import AssetEvaluator, EvaluationResult, QualityMetric
 
 
+TEST_RNG_SEED = 42
+
+
+def make_rng(seed: int = TEST_RNG_SEED) -> np.random.Generator:
+    """Return an isolated RNG for a single test context."""
+    return np.random.default_rng(seed)
+
+
 # ── Fixtures ──
 
 def make_solid_image(r, g, b, size=(32, 32)) -> Image.Image:
@@ -220,6 +228,16 @@ class TestOKLABConversion:
         assert lab[0, 0] > 0.9  # L should be near 1
 
     def test_output_shape(self):
-        rgb = np.random.rand(100, 3)
+        rgb = make_rng().random((100, 3)).astype(np.float64)
         lab = AssetEvaluator._rgb_to_oklab(rgb)
         assert lab.shape == (100, 3)
+        np.testing.assert_allclose(
+            lab[0],
+            [0.6797732375545988, 0.13212815562436353, -0.11375634027634618],
+            atol=1e-12,
+        )
+        np.testing.assert_allclose(
+            lab.mean(axis=0),
+            [0.6245975774984233, 0.011660055584670924, 0.0006625880936872064],
+            atol=1e-12,
+        )

@@ -12,6 +12,14 @@ import numpy as np
 import pytest
 
 
+TEST_RNG_SEED = 42
+
+
+def make_rng(seed: int = TEST_RNG_SEED) -> np.random.Generator:
+    """Return an isolated RNG for a single test context."""
+    return np.random.default_rng(seed)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 1. QEM Simplifier Tests
 # ═══════════════════════════════════════════════════════════════════════════
@@ -454,25 +462,35 @@ class TestSparseCtrlBridge:
         frames = [np.full((32, 32, 3), 128, dtype=np.uint8)] * 5
         score = bridge.compute_temporal_consistency_score(frames)
         assert score > 0.99
+        assert score == pytest.approx(1.0, abs=1e-12)
 
         # Random frames = low consistency
+        rng = make_rng(301)
         random_frames = [
-            np.random.randint(0, 255, (32, 32, 3), dtype=np.uint8)
+            rng.integers(0, 255, size=(32, 32, 3), dtype=np.uint8)
             for _ in range(5)
         ]
         random_score = bridge.compute_temporal_consistency_score(random_frames)
         assert random_score < score
+        assert random_score == pytest.approx(0.18722671690384815, abs=1e-12)
 
     def test_motion_vector_encoding(self):
         """Motion vector RGB encoding produces valid images."""
         from mathart.animation.sparse_ctrl_bridge import MotionVectorConditioner
         conditioner = MotionVectorConditioner(resolution=(32, 32))
 
-        mv = np.random.randn(32, 32, 2).astype(np.float32)
+        mv = make_rng(302).standard_normal((32, 32, 2)).astype(np.float32)
         encoded = conditioner.encode_motion_vectors([mv])
         assert len(encoded) == 1
         assert encoded[0].shape == (32, 32, 3)
         assert encoded[0].dtype == np.uint8
+        np.testing.assert_array_equal(encoded[0][0, 0], np.array([126, 105, 21], dtype=np.uint8))
+        np.testing.assert_allclose(
+            encoded[0].mean(axis=(0, 1)),
+            [126.3447265625, 127.6337890625, 40.783203125],
+            atol=1e-12,
+        )
+        assert int(encoded[0].sum()) == 301836
 
     def test_adaptive_keyframe_selection(self):
         """Adaptive keyframe selection picks high-energy frames."""
@@ -506,12 +524,12 @@ class TestMotionMatchingKDTree:
         db = KDTreeMotionDatabase()
 
         # Walk clip: 30 frames, 16-dim features
-        np.random.seed(42)
-        walk_features = np.random.randn(30, 16).astype(np.float32)
+        rng = make_rng(303)
+        walk_features = rng.standard_normal((30, 16)).astype(np.float32)
         walk_features[:, 0] = np.linspace(0, 2, 30)  # Velocity ramp
 
         # Run clip: 20 frames
-        run_features = np.random.randn(20, 16).astype(np.float32)
+        run_features = rng.standard_normal((20, 16)).astype(np.float32)
         run_features[:, 0] = np.linspace(2, 5, 20)  # Higher velocity
 
         db.add_clip("walk", walk_features, tags=["locomotion"])
@@ -537,7 +555,7 @@ class TestMotionMatchingKDTree:
     def test_query_returns_results(self):
         """Query returns valid match results."""
         db = self._make_test_database()
-        query = np.random.randn(16).astype(np.float32)
+        query = make_rng(304).standard_normal(16).astype(np.float32)
         results = db.query(query, k=3)
 
         assert len(results) == 3
@@ -548,7 +566,7 @@ class TestMotionMatchingKDTree:
         db = self._make_test_database()
         # Query with features similar to walk clip frame 15
         walk_features = db._clips["walk"].features
-        query = walk_features[15] + np.random.randn(16) * 0.01
+        query = walk_features[15] + make_rng(305).standard_normal(16) * 0.01
 
         results = db.query(query, k=1)
         assert len(results) == 1
@@ -575,7 +593,7 @@ class TestMotionMatchingKDTree:
         db = self._make_test_database()
         controller = MotionMatchingController(db)
 
-        query = np.random.randn(16).astype(np.float32)
+        query = make_rng(304).standard_normal(16).astype(np.float32)
         cmd = controller.update(query)
 
         assert cmd.target_clip != ""
@@ -589,7 +607,7 @@ class TestMotionMatchingKDTree:
         db = self._make_test_database()
         controller = MotionMatchingController(db)
 
-        query = np.random.randn(16).astype(np.float32)
+        query = make_rng(304).standard_normal(16).astype(np.float32)
         controller.update(query)
 
         diag = controller.get_diagnostics()
@@ -610,7 +628,7 @@ class TestMotionMatchingKDTree:
             create_kdtree_database
         )
         clips = {
-            "test": np.random.randn(10, 8).astype(np.float32)
+            "test": make_rng(308).standard_normal((10, 8)).astype(np.float32)
         }
         db = create_kdtree_database(clips)
         assert db.total_frames == 10
