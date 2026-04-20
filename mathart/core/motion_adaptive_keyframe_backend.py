@@ -211,17 +211,23 @@ def select_adaptive_keyframes(
     max_gap: int = 12,
     extrema_threshold: float = 0.5,
 ) -> list[int]:
-    """Select keyframe indices using score-driven adaptive sampling.
+    """Select keyframe indices using **two-phase pooling** with Contact
+    absolute survival override.
 
     This function NEVER uses ``frame_idx % step == 0`` static sampling.
-    Instead, it:
-    1. Force-captures first and last frame (boundary anchors).
-    2. Force-captures all contact event frames into the final pool with
-       absolute override semantics.
-    3. Adds non-contact extrema only when they do not violate the protected
-       contact anchors.
-    4. Fills gaps exceeding ``max_gap`` with the highest-scored legal frame
-       while preserving contact immunity.
+
+    **Phase 1 — Absolute Immunity Pool**:
+        Boundary anchors (first & last frame) and ALL Contact event frames
+        are unconditionally force-inserted into ``selected_frames``.  These
+        frames are *immutable* — no subsequent logic may remove them.
+
+    **Phase 2 — Distance-Yielding Fill**:
+        Non-contact high-score peaks and gap-fill candidates are evaluated
+        against ``min_gap``.  If a candidate's distance to **any** Phase-1
+        immune frame is less than ``min_gap``, the candidate is
+        **unconditionally discarded** — the Contact frame always wins.
+        Among non-immune candidates that conflict only with other
+        non-immune frames, the higher-scored frame survives.
 
     Parameters
     ----------
@@ -230,9 +236,10 @@ def select_adaptive_keyframes(
     contact_events : np.ndarray
         Per-frame contact event indicators (0 or 1).
     min_gap : int
-        Minimum frames between consecutive non-contact keyframes.
+        Minimum frames between consecutive keyframes (Contact-to-Contact
+        pairs are exempt from this constraint).
     max_gap : int
-        Maximum frames between consecutive keyframes.
+        Maximum frames between consecutive keyframes (anti-void).
     extrema_threshold : float
         Score threshold for force-capturing local maxima.
 
@@ -247,34 +254,60 @@ def select_adaptive_keyframes(
     if n == 1:
         return [0]
 
-    locked_frames: set[int] = {0, n - 1}
+    # ------------------------------------------------------------------
+    # Phase 1: Absolute Immunity Pool
+    # ------------------------------------------------------------------
+    # Boundary anchors + every Contact event frame — unconditional, final.
+    immune_frames: set[int] = {0, n - 1}
     contact_indices = np.where(contact_events > 0.5)[0]
-    locked_frames.update(contact_indices.tolist())
-    selected: set[int] = set(locked_frames)
+    immune_frames.update(contact_indices.tolist())
 
-    def _conflicts(candidate: int, indices: set[int]) -> list[int]:
-        return sorted(idx for idx in indices if idx != candidate and abs(candidate - idx) < min_gap)
+    # selected starts as a copy of the immune pool; immune frames are
+    # NEVER removed from this set.
+    selected: set[int] = set(immune_frames)
+
+    # ------------------------------------------------------------------
+    # Phase 2: Distance-Yielding Fill
+    # ------------------------------------------------------------------
+
+    def _too_close_to_immune(candidate: int) -> bool:
+        """Return True if *candidate* is within min_gap of any immune frame."""
+        for imm in immune_frames:
+            if imm != candidate and abs(candidate - imm) < min_gap:
+                return True
+        return False
+
+    def _non_immune_conflicts(candidate: int) -> list[int]:
+        """Return non-immune selected frames within min_gap of *candidate*."""
+        return sorted(
+            idx for idx in selected
+            if idx != candidate
+            and idx not in immune_frames
+            and abs(candidate - idx) < min_gap
+        )
 
     def _try_add_non_contact(candidate: int) -> bool:
+        """Attempt to add a non-contact candidate respecting Phase-1 immunity."""
         if candidate in selected:
             return False
-        conflicts = _conflicts(candidate, selected)
-        if any(idx in locked_frames for idx in conflicts):
+        # Rule A: unconditionally reject if too close to ANY immune frame.
+        if _too_close_to_immune(candidate):
             return False
+        # Rule B: check conflicts with other non-immune selected frames.
+        conflicts = _non_immune_conflicts(candidate)
         if not conflicts:
             selected.add(candidate)
             return True
+        # Rule C: candidate beats all conflicting non-immune frames → replace.
         best_existing = max(conflicts, key=lambda idx: float(scores[idx]))
         if float(scores[candidate]) > float(scores[best_existing]):
-            for idx in conflicts:
-                if idx in locked_frames:
-                    return False
             for idx in conflicts:
                 selected.discard(idx)
             selected.add(candidate)
             return True
         return False
 
+    # --- Collect peak candidates (local maxima above threshold) ---
     peak_candidates: set[int] = set()
     for i in range(1, n - 1):
         if (
@@ -288,11 +321,13 @@ def select_adaptive_keyframes(
     if scores[global_max_idx] >= extrema_threshold:
         peak_candidates.add(global_max_idx)
 
+    # Process peaks highest-score-first; skip immune frames (already in).
     for idx in sorted(peak_candidates, key=lambda i: (-float(scores[i]), i)):
-        if idx in locked_frames:
+        if idx in immune_frames:
             continue
         _try_add_non_contact(idx)
 
+    # --- Gap fill: ensure no gap exceeds max_gap ---
     while True:
         ordered = sorted(selected)
         max_current_gap = 0
@@ -309,7 +344,12 @@ def select_adaptive_keyframes(
         candidate_indices = [
             idx
             for idx in range(left + 1, right)
-            if idx not in selected and not _conflicts(idx, selected)
+            if idx not in selected and not _too_close_to_immune(idx)
+        ]
+        # Further filter: no non-immune conflicts either
+        candidate_indices = [
+            idx for idx in candidate_indices
+            if not _non_immune_conflicts(idx)
         ]
         if not candidate_indices:
             break

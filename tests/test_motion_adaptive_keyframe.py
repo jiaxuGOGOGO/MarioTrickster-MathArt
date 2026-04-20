@@ -327,6 +327,88 @@ class TestAdaptiveKeyframeSelection:
         assert 1 in keyframes, f"Contact frame 1 was dropped: {keyframes}"
         assert 2 not in keyframes, f"Non-contact peak 2 should lose to contact frame: {keyframes}"
 
+    def test_extreme_contact_vs_peak_conflict_interception(self):
+        """Extreme conflict interception: Contact frame MUST survive even when
+        a much-higher-scored non-contact neighbour exists within min_gap.
+
+        Scenario (CODE RED — Campaign 2):
+            scores        = [0.0, 0.2, 0.9, 0.1, 0.0]
+            contact_events= [0,   1,   0,   0,   0  ]
+            min_gap = 2
+
+        Frame 1 (score 0.2) is a Contact frame.
+        Frame 2 (score 0.9) is a non-contact peak.
+        Distance |2 - 1| = 1 < min_gap = 2.
+
+        Strict assertions:
+        - Index 1 MUST be in the returned keyframes (Contact absolute survival).
+        - Index 2 MUST NOT be in the returned keyframes (unconditionally
+          discarded because it conflicts with an immune Contact frame).
+        """
+        from mathart.core.motion_adaptive_keyframe_backend import (
+            select_adaptive_keyframes,
+        )
+
+        scores = np.array([0.0, 0.2, 0.9, 0.1, 0.0], dtype=np.float64)
+        contact_events = np.array([0.0, 1.0, 0.0, 0.0, 0.0], dtype=np.float64)
+
+        keyframes = select_adaptive_keyframes(
+            scores,
+            contact_events,
+            min_gap=2,
+            max_gap=12,
+            extrema_threshold=0.5,
+        )
+
+        # --- Strict assertion: Contact frame 1 MUST survive ---
+        assert 1 in keyframes, (
+            f"CODE RED VIOLATION: Contact frame at index 1 was murdered by "
+            f"min_gap filter! Returned keyframes: {keyframes}"
+        )
+        # --- Strict assertion: Non-contact peak 2 MUST be discarded ---
+        assert 2 not in keyframes, (
+            f"CODE RED VIOLATION: Non-contact peak at index 2 (score=0.9) "
+            f"survived despite distance conflict with Contact frame 1! "
+            f"Returned keyframes: {keyframes}"
+        )
+        # --- Verify boundary anchors still present ---
+        assert 0 in keyframes, f"Boundary anchor 0 missing: {keyframes}"
+        assert 4 in keyframes, f"Boundary anchor 4 missing: {keyframes}"
+
+    def test_multi_contact_immune_sandwich(self):
+        """Multiple Contact frames sandwich a high-score non-contact peak.
+
+        Scenario:
+            scores        = [0.0, 0.3, 0.95, 0.3, 0.0]
+            contact_events= [0,   1,   0,    1,   0  ]
+            min_gap = 2
+
+        Frame 1 and 3 are Contact (immune).  Frame 2 (score 0.95) is
+        within min_gap of BOTH immune frames → must be discarded.
+        Both Contact frames must survive despite distance = 2 >= min_gap.
+        """
+        from mathart.core.motion_adaptive_keyframe_backend import (
+            select_adaptive_keyframes,
+        )
+
+        scores = np.array([0.0, 0.3, 0.95, 0.3, 0.0], dtype=np.float64)
+        contact_events = np.array([0.0, 1.0, 0.0, 1.0, 0.0], dtype=np.float64)
+
+        keyframes = select_adaptive_keyframes(
+            scores,
+            contact_events,
+            min_gap=2,
+            max_gap=12,
+            extrema_threshold=0.5,
+        )
+
+        assert 1 in keyframes, f"Contact frame 1 dropped: {keyframes}"
+        assert 3 in keyframes, f"Contact frame 3 dropped: {keyframes}"
+        assert 2 not in keyframes, (
+            f"Non-contact peak 2 survived sandwich between two Contact "
+            f"frames: {keyframes}"
+        )
+
     def test_max_gap_constraint_no_void(self):
         """🚫 ANTI-PATTERN: No gap between keyframes may exceed max_gap.
 
