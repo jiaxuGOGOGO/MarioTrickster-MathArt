@@ -1,7 +1,7 @@
 {
-  "version": "v0.90.0",
-  "last_session_id": "SESSION-101",
-  "last_updated": "2026-04-20T13:47:37+00:00",
+  "version": "v0.91.0",
+  "last_session_id": "SESSION-102",
+  "last_updated": "2026-04-20T10:25:45-04:00",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -32,7 +32,7 @@
     "closed_archived": 52
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-100 PERF-1-EVOLUTION-LOOP-OOM CLOSED: evolution-loop memory audit — scan_internal_todos() peak RSS reduced from 445.6 MB to 59.4 MB (87% reduction) via exclude_dirs DI, max_file_size DI, and streaming line-by-line read. generate_evolution_report() peak reduced from ~445 MB to 0.7 MB via proposal_limit DI. Validation: 1646 PASS, 0 FAIL (PERF-1 scope), 8 SKIP across full test suite. 16 new PERF-1 regression tests.",
+  "validation_pass_rate": "SESSION-102 HIGH-ArchitectureDeception CLOSED: terrain_sensor fall-pose topology now physically matches the documented 3-phase design. Validation: 1722 PASS / 7 SKIP / 0 FAIL.",
   "total_iterations": 685,
   "total_code_lines": 132767,
   "distill_session_id": "DISTILL-012",
@@ -2390,6 +2390,13 @@
       "focus": "HIGH-TestBlindSpot (math deepwater coverage)",
       "status": "COMPLETE",
       "summary": "Landed 42 new industrial-grade blind-spot tests covering fluid_vfx, unified_motion, nsm_gait and terrain_ik_2d. Followed NASA JPL Power of Ten, Hypothesis property-based testing and Pixar/Disney fluid-QA philosophy. Full suite 1719 PASS / 7 SKIP / 0 FAIL (+73 vs SESSION-100 baseline 1646). Zero production code touched."
+    },
+    {
+      "session_id": "SESSION-102",
+      "date": "2026-04-20",
+      "focus": "HIGH-ArchitectureDeception (terrain_sensor 3-phase pipeline closure)",
+      "status": "COMPLETE",
+      "summary": "Closed the remaining terrain_sensor Architecture Deception by refactoring scene_aware_fall_pose() into an explicit 3-phase pipeline: _phase1_query_geometry() -> _phase2_evaluate_clearance() -> _phase3_apply_kinematic_adaptation(). Added frozen dataclass artifacts, strengthened test_batch_query/test_slope_compensation, and landed white-box phase-level assertions. Full suite reached 1722 PASS / 7 SKIP / 0 FAIL."
     }
   ],
   "custom_notes": {
@@ -2472,15 +2479,32 @@
     "session085_gpu_bench_status": "P3-GPU-BENCH-1 SUBSTANTIALLY-CLOSED. TaichiXPBDBackend v2.0.0 with sparse_cloth scenario. SESSION-085b hotfix: CUDA detection now uses direct ti.init(arch=ti.cuda) probe — verified on RTX 4070 (NVIDIA GeForce RTX 4070, CUDA 13.1, Driver 591.86, i5-12600KF). Ignition script successfully enters Mode: real_cuda with 16384 particles. free_fall_cloud CPU+GPU cases completed. sparse_cloth CPU reference at 16K particles is time-intensive (~10-20 min on i5-12600KF); recommend --particle-budget 4096 for faster evidence.",
     "session085_sparse_cloth_solver": "mathart/core/taichi_xpbd_backend.py _run_numpy_sparse_cloth_reference() implements sequential XPBD constraint projection in pure NumPy: predict → constraint solve (structural + shear + bending with compliance α̃ = α/Δt²) → finalize with velocity damping and clamping. This is the ground-truth reference for CPU/GPU parity comparison.",
     "session085_ignition_script": "tools/run_session085_gpu_benchmark.py is the end-to-end ignition script for real-device benchmark evidence. Auto-detects CUDA via direct ti.init(arch=ti.cuda) probe (hotfixed in SESSION-085b). Scales parameters (16K particles for GPU, 64 for CI), runs both free_fall_cloud and sparse_cloth scenarios, and produces session085_benchmark_summary.json. Verified on RTX 4070: CUDA detected: True, Mode: real_cuda. Use --particle-budget 4096 for faster sparse_cloth CPU reference.",
-    "session085_research_notes": "research/session085_sparse_cloth_benchmark_research.md documents Taichi sparse SNode layouts, Google Benchmark warm-up/sampling discipline, NASA-STD-7009B verification/validation credibility, and XPBD GPU race condition mitigation via parity-based constraint coloring."
+    "session085_research_notes": "research/session085_sparse_cloth_benchmark_research.md documents Taichi sparse SNode layouts, Google Benchmark warm-up/sampling discipline, NASA-STD-7009B verification/validation credibility, and XPBD GPU race condition mitigation via parity-based constraint coloring.",
+    "session102_terrain_sensor_status": "HIGH-ArchitectureDeception CLOSED. scene_aware_fall_pose() now orchestrates three explicit phases via frozen dataclass artifacts: geometry query, clearance evaluation, and kinematic adaptation. Public API preserved; full suite 1722 PASS / 7 SKIP / 0 FAIL.",
+    "session102_research_notes": "research_notes_architecture_deception_session102.md distills Screaming Architecture, Data-Oriented Design, and Design by Contract into concrete terrain_sensor refactor rules."
   },
   "recent_focus_snapshot": {
-    "session_id": "SESSION-101",
-    "focus": "HIGH-TestBlindSpot (math deepwater coverage)",
+    "session_id": "SESSION-102",
+    "focus": "HIGH-ArchitectureDeception (terrain_sensor 3-phase pipeline closure)",
     "status": "COMPLETE",
-    "updated_at": "2026-04-20T13:47:37+00:00"
+    "updated_at": "2026-04-20T10:25:45-04:00"
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-102",
+      "focus": "HIGH-ArchitectureDeception (terrain_sensor 3-phase pipeline closure)",
+      "status": "COMPLETE",
+      "date": "2026-04-20",
+      "summary": "Closed the remaining terrain_sensor Architecture Deception by refactoring scene_aware_fall_pose() into an explicit 3-phase pipeline: _phase1_query_geometry() -> _phase2_evaluate_clearance() -> _phase3_apply_kinematic_adaptation(). Added frozen dataclass artifacts, strengthened test_batch_query/test_slope_compensation, and landed white-box phase-level assertions. Full suite reached 1722 PASS / 7 SKIP / 0 FAIL.",
+      "files_touched": [
+        "mathart/animation/terrain_sensor.py",
+        "tests/test_terrain_sensor.py",
+        "research_notes_architecture_deception_session102.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "validation": "1722 PASS / 7 SKIP / 0 FAIL (python3.11 -m pytest tests/ -p no:cov)"
+    },
     {
       "session_id": "SESSION-101",
       "focus": "HIGH-TestBlindSpot (math deepwater coverage)",
@@ -3267,6 +3291,20 @@
         "PROJECT_BRAIN.json",
         "scripts/sync_project_brain_session101.py"
       ]
+    },
+    {
+      "session_id": "SESSION-102",
+      "date": "2026-04-20",
+      "focus": "HIGH-ArchitectureDeception (terrain_sensor 3-phase pipeline closure)",
+      "status": "COMPLETE",
+      "summary": "Closed the remaining terrain_sensor Architecture Deception by refactoring scene_aware_fall_pose() into an explicit 3-phase pipeline: _phase1_query_geometry() -> _phase2_evaluate_clearance() -> _phase3_apply_kinematic_adaptation(). Added frozen dataclass artifacts, strengthened test_batch_query/test_slope_compensation, and landed white-box phase-level assertions. Full suite reached 1722 PASS / 7 SKIP / 0 FAIL.",
+      "files_touched": [
+        "mathart/animation/terrain_sensor.py",
+        "tests/test_terrain_sensor.py",
+        "research_notes_architecture_deception_session102.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ]
     }
   ],
   "resolved_issues": [
@@ -3283,11 +3321,20 @@
       "resolved_at": "2026-04-20T13:47:37+00:00",
       "resolution": "Added 42 deterministic value-level tests across fluid_vfx, unified_motion, nsm_gait and terrain_ik_2d. No production code modified; no Mock usage; no global np.random.seed.",
       "validation_test_file": "tests/test_session101_math_blind_spots.py"
+    },
+    "RESOLVED-S102: terrain_sensor documented a 3-stage scene-aware fall-pose pipeline but implemented it as a monolith -> refactored into _phase1_query_geometry(), _phase2_evaluate_clearance(), and _phase3_apply_kinematic_adaptation() with frozen artifacts, explicit data flow, and value-level white-box tests while preserving the public API contract.",
+    {
+      "issue_id": "HIGH-ArchitectureDeception",
+      "session_id": "SESSION-102",
+      "resolved_at": "2026-04-20T10:25:45-04:00",
+      "resolution": "scene_aware_fall_pose() now exposes a physical 3-phase topology backed by immutable intermediate artifacts. Strengthened terrain_sensor regression tests now pin phase-1 geometry, phase-2 compensation, and phase-3 pose-matrix values.",
+      "validation_test_file": "tests/test_terrain_sensor.py"
     }
   ],
   "backlog": [],
   "notes": {
     "session099_rng_refactor_status": "HIGH-2.7 CLOSED. All 43 bare np.random calls eliminated from mathart/. Pattern: production functions accept optional rng: Generator | None with default_rng() fallback. Deterministic projection matrices use cached instance-level _get_projection_matrix(). Legacy RandomState replaced with default_rng throughout. Three red-line constraints strictly enforced.",
-    "session100_perf1_status": "PERF-1-EVOLUTION-LOOP-OOM CLOSED. Root cause: scan_internal_todos() recursively read 110.7 MB of generated CYCLE JSON from evolution_reports/ (34 files, largest 71 MB), causing 445.6 MB peak RSS and exponential report JSON growth. Fix: exclude_dirs DI (frozenset, 11 excluded dirs), max_file_size DI (1 MiB threshold), streaming line-by-line read, proposal_limit DI (500 cap), streaming json.dump(). Peak RSS: 445.6 MB -> 59.4 MB (87% reduction). 16 new regression tests with tracemalloc guards (<50 MB scan, <100 MB cycle). Public API fully backward-compatible."
+    "session100_perf1_status": "PERF-1-EVOLUTION-LOOP-OOM CLOSED. Root cause: scan_internal_todos() recursively read 110.7 MB of generated CYCLE JSON from evolution_reports/ (34 files, largest 71 MB), causing 445.6 MB peak RSS and exponential report JSON growth. Fix: exclude_dirs DI (frozenset, 11 excluded dirs), max_file_size DI (1 MiB threshold), streaming line-by-line read, proposal_limit DI (500 cap), streaming json.dump(). Peak RSS: 445.6 MB -> 59.4 MB (87% reduction). 16 new regression tests with tracemalloc guards (<50 MB scan, <100 MB cycle). Public API fully backward-compatible.",
+    "session102_validation": "Local validation completed with python3.11 -m pytest tests/ -p no:cov -> 1722 PASS / 7 SKIP / 0 FAIL. Sandbox environment required dev extras plus watchdog for complete execution."
   }
 }

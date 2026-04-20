@@ -623,8 +623,258 @@ class TTCPredictor:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 4. Scene-Aware Distance Phase — replaces flat-ground fall_distance_phase
+# 5. Scene-Aware Fall Pose & Frame — TTC-driven pose generation
 # ══════════════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class _FallPoseGeometryArtifact:
+    """Immutable phase-1 artifact for terrain / geometry queries."""
+
+    root_x: float
+    root_y: float
+    foot_x: float
+    foot_y: float
+    velocity_y: float
+    ground_height: float
+    fall_reference_height: float | None
+    fall_reference_ttc: float | None
+    gravity: float
+    terrain_name: str
+    terrain_query_mode: str
+    distance_to_ground: float
+    surface_normal_x: float
+    surface_normal_y: float
+
+
+@dataclass(frozen=True)
+class _FallPoseEvaluationArtifact:
+    """Immutable phase-2 artifact for clearance evaluation and compensation."""
+
+    geometry: _FallPoseGeometryArtifact
+    phase: float
+    phase_source: str
+    landing_window_threshold: float
+    is_landing_window: bool
+    landing_preparation: float
+    ttc: float
+    ttc_velocity: float
+    ttc_is_approaching: bool
+    ttc_is_contact: bool
+    ttc_brace_signal: float
+    ttc_landing_preparation: float
+    ttc_confidence: float
+    ttc_reference: float
+    reported_fall_reference_height: float
+    stretch_weight: float
+    brace_weight: float
+    landing_weight: float
+    brace_boost: float
+    slope_lean: float
+    compensation_vector: tuple[float, float]
+
+
+@dataclass(frozen=True)
+class _FallPoseKinematicArtifact:
+    """Immutable phase-3 artifact carrying the final pose matrix."""
+
+    evaluation: _FallPoseEvaluationArtifact
+    final_pose_matrix: tuple[tuple[str, float], ...]
+
+    def to_pose_dict(self) -> dict[str, float]:
+        return dict(self.final_pose_matrix)
+
+
+def _phase1_query_geometry(
+    *,
+    root_x: float,
+    root_y: float,
+    velocity_y: float = 0.0,
+    terrain: TerrainSDF | None = None,
+    ground_height: float = 0.0,
+    fall_reference_height: float | None = None,
+    fall_reference_ttc: float | None = None,
+    foot_offset_y: float = 0.0,
+    gravity: float = 9.81,
+) -> _FallPoseGeometryArtifact:
+    """Phase 1 — query terrain geometry and capture immutable sensor outputs."""
+    foot_x = float(root_x)
+    foot_y = float(root_y) - float(foot_offset_y)
+
+    if terrain is not None:
+        sensor = TerrainRaySensor(terrain)
+        distance_to_ground, surface_normal = sensor.cast_down_with_normal(foot_x, foot_y)
+        terrain_name = terrain.name
+        query_mode = 'sdf_terrain'
+    else:
+        distance_to_ground = max(foot_y - float(ground_height), 0.0)
+        surface_normal = (0.0, 1.0)
+        terrain_name = f'flat@{ground_height:.2f}'
+        query_mode = 'flat_ground_fallback'
+
+    return _FallPoseGeometryArtifact(
+        root_x=float(root_x),
+        root_y=float(root_y),
+        foot_x=foot_x,
+        foot_y=foot_y,
+        velocity_y=float(velocity_y),
+        ground_height=float(ground_height),
+        fall_reference_height=fall_reference_height,
+        fall_reference_ttc=fall_reference_ttc,
+        gravity=float(gravity),
+        terrain_name=terrain_name,
+        terrain_query_mode=query_mode,
+        distance_to_ground=float(distance_to_ground),
+        surface_normal_x=float(surface_normal[0]),
+        surface_normal_y=float(surface_normal[1]),
+    )
+
+
+def _phase2_evaluate_clearance(
+    geometry: _FallPoseGeometryArtifact,
+) -> _FallPoseEvaluationArtifact:
+    """Phase 2 — convert geometry into phase, clearance and compensation signals."""
+    predictor = TTCPredictor(gravity=geometry.gravity)
+    ttc_result = predictor.compute_ttc(geometry.distance_to_ground, geometry.velocity_y)
+
+    if geometry.fall_reference_ttc is not None and geometry.fall_reference_ttc > 0:
+        phase = predictor.ttc_to_phase(ttc_result.ttc, geometry.fall_reference_ttc)
+        phase_source = 'ttc_bound'
+    elif ttc_result.is_contact:
+        phase = 1.0
+        phase_source = 'contact_detected'
+    elif ttc_result.is_approaching and ttc_result.ttc < predictor.max_ttc:
+        ref_height = (
+            float(geometry.fall_reference_height)
+            if geometry.fall_reference_height is not None
+            else max(geometry.distance_to_ground, 0.22)
+        )
+        ref_height = max(ref_height, 1e-4)
+        phase = _clamp01(1.0 - (geometry.distance_to_ground / ref_height))
+        phase_source = 'distance_matching_with_ttc'
+    else:
+        ref_height = (
+            float(geometry.fall_reference_height)
+            if geometry.fall_reference_height is not None
+            else max(geometry.distance_to_ground, 0.22)
+        )
+        ref_height = max(ref_height, 1e-4)
+        phase = _clamp01(1.0 - (geometry.distance_to_ground / ref_height))
+        phase_source = 'distance_matching'
+
+    landing_window_threshold = (
+        max(0.03, geometry.distance_to_ground * 0.15)
+        if geometry.distance_to_ground > 0
+        else 0.03
+    )
+    landing_window = bool(
+        geometry.distance_to_ground <= landing_window_threshold or phase >= 0.82
+    )
+    landing_preparation = ease_in_out(_clamp01((phase - 0.42) / 0.58))
+
+    stretch = 1.0 - phase
+    brace = ease_in_out(_clamp01((phase - 0.40) / 0.60))
+    landing = ease_in_out(_clamp01((phase - 0.78) / 0.22))
+    ttc_brace = float(ttc_result.brace_signal)
+    brace_boost = ttc_brace * 0.15
+    slope_lean = geometry.surface_normal_x * 0.08
+    compensation_vector = (slope_lean, brace_boost)
+
+    return _FallPoseEvaluationArtifact(
+        geometry=geometry,
+        phase=float(phase),
+        phase_source=phase_source,
+        landing_window_threshold=float(landing_window_threshold),
+        is_landing_window=landing_window,
+        landing_preparation=float(landing_preparation),
+        ttc=float(ttc_result.ttc),
+        ttc_velocity=float(ttc_result.velocity),
+        ttc_is_approaching=bool(ttc_result.is_approaching),
+        ttc_is_contact=bool(ttc_result.is_contact),
+        ttc_brace_signal=ttc_brace,
+        ttc_landing_preparation=float(ttc_result.landing_preparation),
+        ttc_confidence=float(ttc_result.confidence),
+        ttc_reference=(
+            float(geometry.fall_reference_ttc)
+            if geometry.fall_reference_ttc is not None
+            else float(ttc_result.ttc)
+        ),
+        reported_fall_reference_height=float(
+            geometry.fall_reference_height or max(geometry.distance_to_ground, 0.22)
+        ),
+        stretch_weight=float(stretch),
+        brace_weight=float(brace),
+        landing_weight=float(landing),
+        brace_boost=float(brace_boost),
+        slope_lean=float(slope_lean),
+        compensation_vector=compensation_vector,
+    )
+
+
+def _phase3_apply_kinematic_adaptation(
+    evaluation: _FallPoseEvaluationArtifact,
+) -> _FallPoseKinematicArtifact:
+    """Phase 3 — fuse phase and compensation signals into the final pose matrix."""
+    stretch = evaluation.stretch_weight
+    landing = evaluation.landing_weight
+    ttc_brace = evaluation.ttc_brace_signal
+    brace_boost = evaluation.brace_boost
+    slope_lean = evaluation.slope_lean
+
+    return _FallPoseKinematicArtifact(
+        evaluation=evaluation,
+        final_pose_matrix=(
+            ('spine', -0.05 * stretch - 0.18 * landing + slope_lean),
+            ('chest', -0.02 * stretch + 0.05 * landing),
+            ('head', 0.03 * stretch - 0.06 * landing),
+            ('l_shoulder', -0.60 * stretch + 0.22 * landing),
+            ('r_shoulder', -0.55 * stretch + 0.26 * landing),
+            ('l_elbow', 0.20 + 0.10 * landing + 0.05 * ttc_brace),
+            ('r_elbow', 0.22 + 0.12 * landing + 0.05 * ttc_brace),
+            ('l_hip', 0.10 * stretch - 0.22 * landing - brace_boost),
+            ('r_hip', -0.10 * stretch - 0.22 * landing - brace_boost),
+            ('l_knee', -0.16 * stretch - 0.54 * evaluation.brace_weight - 0.08 * ttc_brace),
+            ('r_knee', -0.12 * stretch - 0.54 * evaluation.brace_weight - 0.08 * ttc_brace),
+            ('l_foot', -0.05 * stretch + 0.06 * landing + 0.04 * ttc_brace),
+            ('r_foot', -0.03 * stretch + 0.06 * landing + 0.04 * ttc_brace),
+        ),
+    )
+
+
+def _evaluation_to_scene_aware_phase_metrics(
+    evaluation: _FallPoseEvaluationArtifact,
+) -> dict[str, float | bool | str]:
+    """Project phase-2 artifacts back into the legacy public metrics contract."""
+    geometry = evaluation.geometry
+    return {
+        'phase': float(evaluation.phase),
+        'phase_kind': 'scene_aware_distance',
+        'phase_source': evaluation.phase_source,
+        'distance_to_ground': float(geometry.distance_to_ground),
+        'distance_window': float(evaluation.landing_window_threshold),
+        'target_distance': 0.0,
+        'ground_height': float(geometry.ground_height),
+        'fall_reference_height': float(evaluation.reported_fall_reference_height),
+        'landing_preparation': float(evaluation.landing_preparation),
+        'target_state': 'ground_contact',
+        'contact_expectation': 'landing_window' if evaluation.is_landing_window else 'airborne',
+        'desired_contact_state': 'ground_contact',
+        'is_landing_window': evaluation.is_landing_window,
+        'window_signal': evaluation.is_landing_window,
+        'terrain_sensor_active': True,
+        'terrain_name': geometry.terrain_name,
+        'terrain_query_mode': geometry.terrain_query_mode,
+        'surface_normal_x': float(geometry.surface_normal_x),
+        'surface_normal_y': float(geometry.surface_normal_y),
+        'ttc': float(evaluation.ttc),
+        'ttc_velocity': float(evaluation.ttc_velocity),
+        'ttc_is_approaching': evaluation.ttc_is_approaching,
+        'ttc_is_contact': evaluation.ttc_is_contact,
+        'ttc_brace_signal': float(evaluation.ttc_brace_signal),
+        'ttc_landing_preparation': float(evaluation.ttc_landing_preparation),
+        'ttc_confidence': float(evaluation.ttc_confidence),
+        'ttc_reference': float(evaluation.ttc_reference),
+    }
 
 
 def scene_aware_distance_phase(
@@ -673,91 +923,19 @@ def scene_aware_distance_phase(
         Phase metrics compatible with the existing fall_distance_phase contract,
         plus additional terrain_sensor metadata.
     """
-    foot_x = float(root_x)
-    foot_y = float(root_y) - float(foot_offset_y)
-
-    # ── Distance query ──
-    if terrain is not None:
-        sensor = TerrainRaySensor(terrain)
-        distance_to_ground, surface_normal = sensor.cast_down_with_normal(foot_x, foot_y)
-        terrain_name = terrain.name
-        query_mode = "sdf_terrain"
-    else:
-        distance_to_ground = max(foot_y - float(ground_height), 0.0)
-        surface_normal = (0.0, 1.0)
-        terrain_name = f"flat@{ground_height:.2f}"
-        query_mode = "flat_ground_fallback"
-
-    # ── TTC computation ──
-    predictor = TTCPredictor(gravity=gravity)
-    ttc_result = predictor.compute_ttc(distance_to_ground, velocity_y)
-
-    # ── Phase computation ──
-    # If we have a reference TTC, use TTC-based phase (preferred)
-    if fall_reference_ttc is not None and fall_reference_ttc > 0:
-        phase = predictor.ttc_to_phase(ttc_result.ttc, fall_reference_ttc)
-        phase_source = "ttc_bound"
-    elif ttc_result.is_contact:
-        phase = 1.0
-        phase_source = "contact_detected"
-    elif ttc_result.is_approaching and ttc_result.ttc < predictor.max_ttc:
-        # Auto-estimate reference TTC from current state
-        # Use the current TTC as reference if no explicit reference given
-        ref_height = float(fall_reference_height) if fall_reference_height is not None else max(distance_to_ground, 0.22)
-        ref_height = max(ref_height, 1e-4)
-        phase = _clamp01(1.0 - (distance_to_ground / ref_height))
-        phase_source = "distance_matching_with_ttc"
-    else:
-        # Not falling — phase stays at 0
-        ref_height = float(fall_reference_height) if fall_reference_height is not None else max(distance_to_ground, 0.22)
-        ref_height = max(ref_height, 1e-4)
-        phase = _clamp01(1.0 - (distance_to_ground / ref_height))
-        phase_source = "distance_matching"
-
-    # ── Landing window ──
-    landing_window_threshold = max(0.03, distance_to_ground * 0.15) if distance_to_ground > 0 else 0.03
-    landing_window = bool(distance_to_ground <= landing_window_threshold or phase >= 0.82)
-
-    # ── Landing preparation (eased) ──
-    landing_preparation = ease_in_out(_clamp01((phase - 0.42) / 0.58))
-
-    return {
-        # ── Core phase contract (backward compatible) ──
-        "phase": float(phase),
-        "phase_kind": "scene_aware_distance",
-        "phase_source": phase_source,
-        "distance_to_ground": float(distance_to_ground),
-        "distance_window": float(landing_window_threshold),
-        "target_distance": 0.0,
-        "ground_height": float(ground_height),
-        "fall_reference_height": float(fall_reference_height or max(distance_to_ground, 0.22)),
-        "landing_preparation": float(landing_preparation),
-        "target_state": "ground_contact",
-        "contact_expectation": "landing_window" if landing_window else "airborne",
-        "desired_contact_state": "ground_contact",
-        "is_landing_window": landing_window,
-        "window_signal": landing_window,
-        # ── Gap B2 terrain sensor metadata ──
-        "terrain_sensor_active": True,
-        "terrain_name": terrain_name,
-        "terrain_query_mode": query_mode,
-        "surface_normal_x": float(surface_normal[0]),
-        "surface_normal_y": float(surface_normal[1]),
-        # ── Gap B2 TTC metadata ──
-        "ttc": float(ttc_result.ttc),
-        "ttc_velocity": float(ttc_result.velocity),
-        "ttc_is_approaching": bool(ttc_result.is_approaching),
-        "ttc_is_contact": bool(ttc_result.is_contact),
-        "ttc_brace_signal": float(ttc_result.brace_signal),
-        "ttc_landing_preparation": float(ttc_result.landing_preparation),
-        "ttc_confidence": float(ttc_result.confidence),
-        "ttc_reference": float(fall_reference_ttc) if fall_reference_ttc is not None else float(ttc_result.ttc),
-    }
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 5. Scene-Aware Fall Pose & Frame — TTC-driven pose generation
-# ══════════════════════════════════════════════════════════════════════════════
+    geometry = _phase1_query_geometry(
+        root_x=root_x,
+        root_y=root_y,
+        velocity_y=velocity_y,
+        terrain=terrain,
+        ground_height=ground_height,
+        fall_reference_height=fall_reference_height,
+        fall_reference_ttc=fall_reference_ttc,
+        foot_offset_y=foot_offset_y,
+        gravity=gravity,
+    )
+    evaluation = _phase2_evaluate_clearance(geometry)
+    return _evaluation_to_scene_aware_phase_metrics(evaluation)
 
 
 def scene_aware_fall_pose(
@@ -783,7 +961,7 @@ def scene_aware_fall_pose(
     The TTC binding ensures that regardless of terrain shape (flat, slope,
     step, sine wave), the phase reaches 1.0 at the exact moment of contact.
     """
-    metrics = scene_aware_distance_phase(
+    geometry = _phase1_query_geometry(
         root_x=root_x,
         root_y=root_y,
         velocity_y=velocity_y,
@@ -794,36 +972,9 @@ def scene_aware_fall_pose(
         foot_offset_y=foot_offset_y,
         gravity=gravity,
     )
-    phase = float(metrics["phase"])
-
-    # Blend weights
-    stretch = 1.0 - phase
-    brace = ease_in_out(_clamp01((phase - 0.40) / 0.60))
-    landing = ease_in_out(_clamp01((phase - 0.78) / 0.22))
-
-    # TTC-driven brace enhancement: when TTC < 0.3s, intensify brace
-    ttc_brace = float(metrics.get("ttc_brace_signal", 0.0))
-    brace_boost = ttc_brace * 0.15
-
-    # Surface normal tilt: adjust pose based on terrain slope
-    nx = float(metrics.get("surface_normal_x", 0.0))
-    slope_lean = nx * 0.08  # lean into the slope
-
-    return {
-        "spine": -0.05 * stretch - 0.18 * landing + slope_lean,
-        "chest": -0.02 * stretch + 0.05 * landing,
-        "head": 0.03 * stretch - 0.06 * landing,
-        "l_shoulder": -0.60 * stretch + 0.22 * landing,
-        "r_shoulder": -0.55 * stretch + 0.26 * landing,
-        "l_elbow": 0.20 + 0.10 * landing + 0.05 * ttc_brace,
-        "r_elbow": 0.22 + 0.12 * landing + 0.05 * ttc_brace,
-        "l_hip": 0.10 * stretch - 0.22 * landing - brace_boost,
-        "r_hip": -0.10 * stretch - 0.22 * landing - brace_boost,
-        "l_knee": -0.16 * stretch - 0.54 * brace - 0.08 * ttc_brace,
-        "r_knee": -0.12 * stretch - 0.54 * brace - 0.08 * ttc_brace,
-        "l_foot": -0.05 * stretch + 0.06 * landing + 0.04 * ttc_brace,
-        "r_foot": -0.03 * stretch + 0.06 * landing + 0.04 * ttc_brace,
-    }
+    evaluation = _phase2_evaluate_clearance(geometry)
+    kinematic = _phase3_apply_kinematic_adaptation(evaluation)
+    return kinematic.to_pose_dict()
 
 
 def scene_aware_fall_frame(
@@ -836,22 +987,22 @@ def scene_aware_fall_frame(
     is available.  Falls back gracefully to flat-ground when no terrain is
     provided.
     """
-    time = float(kwargs.pop("time", 0.0))
-    frame_index = int(kwargs.pop("frame_index", 0))
-    source_state = str(kwargs.pop("source_state", "fall"))
-    root_x = float(kwargs.pop("root_x", 0.0))
-    root_y = float(kwargs.pop("root_y", 0.0))
-    root_rotation = float(kwargs.pop("root_rotation", 0.0))
-    root_velocity_x = float(kwargs.pop("root_velocity_x", 0.0))
-    root_velocity_y = float(kwargs.pop("root_velocity_y", 0.0))
-    ground_height = float(kwargs.pop("ground_height", 0.0))
-    fall_reference_height = kwargs.pop("fall_reference_height", None)
-    fall_reference_ttc = kwargs.pop("fall_reference_ttc", None)
-    terrain = kwargs.pop("terrain", None)
-    foot_offset_y = float(kwargs.pop("foot_offset_y", 0.0))
-    gravity = float(kwargs.pop("gravity", 9.81))
+    time = float(kwargs.pop('time', 0.0))
+    frame_index = int(kwargs.pop('frame_index', 0))
+    source_state = str(kwargs.pop('source_state', 'fall'))
+    root_x = float(kwargs.pop('root_x', 0.0))
+    root_y = float(kwargs.pop('root_y', 0.0))
+    root_rotation = float(kwargs.pop('root_rotation', 0.0))
+    root_velocity_x = float(kwargs.pop('root_velocity_x', 0.0))
+    root_velocity_y = float(kwargs.pop('root_velocity_y', 0.0))
+    ground_height = float(kwargs.pop('ground_height', 0.0))
+    fall_reference_height = kwargs.pop('fall_reference_height', None)
+    fall_reference_ttc = kwargs.pop('fall_reference_ttc', None)
+    terrain = kwargs.pop('terrain', None)
+    foot_offset_y = float(kwargs.pop('foot_offset_y', 0.0))
+    gravity = float(kwargs.pop('gravity', 9.81))
 
-    metrics = scene_aware_distance_phase(
+    geometry = _phase1_query_geometry(
         root_x=root_x,
         root_y=root_y,
         velocity_y=root_velocity_y,
@@ -862,26 +1013,16 @@ def scene_aware_fall_frame(
         foot_offset_y=foot_offset_y,
         gravity=gravity,
     )
+    evaluation = _phase2_evaluate_clearance(geometry)
+    metrics = _evaluation_to_scene_aware_phase_metrics(evaluation)
+    pose = _phase3_apply_kinematic_adaptation(evaluation).to_pose_dict()
 
-    pose = scene_aware_fall_pose(
-        t,
-        root_x=root_x,
-        root_y=root_y,
-        velocity_y=root_velocity_y,
-        terrain=terrain,
-        ground_height=ground_height,
-        fall_reference_height=fall_reference_height,
-        fall_reference_ttc=fall_reference_ttc,
-        foot_offset_y=foot_offset_y,
-        gravity=gravity,
-    )
-
-    landing_contact = bool(float(metrics["distance_to_ground"]) <= 1e-3)
+    landing_contact = bool(float(metrics['distance_to_ground']) <= 1e-3)
 
     return pose_to_umr(
         pose,
         time=time,
-        phase=float(metrics["phase"]),
+        phase=float(evaluation.phase),
         frame_index=frame_index,
         source_state=source_state,
         root_transform=MotionRootTransform(
@@ -894,7 +1035,7 @@ def scene_aware_fall_frame(
         ),
         contact_tags=MotionContactState(left_foot=landing_contact, right_foot=landing_contact),
         metadata={
-            "generator": "scene_aware_fall_ttc_distance_matching",
+            'generator': 'scene_aware_fall_ttc_distance_matching',
             **{k: v for k, v in metrics.items() if not isinstance(v, (dict, list))},
         },
     )

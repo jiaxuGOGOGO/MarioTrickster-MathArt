@@ -1,116 +1,98 @@
-# SESSION_HANDOFF — SESSION-101
+# SESSION_HANDOFF
 
 ## Session Metadata
 
 | Field | Value |
 |---|---|
-| Session | `SESSION-101` |
-| Focus | `HIGH-TestBlindSpot` — 数学深水区地毯式测试覆盖：Fluid VFX、Unified Motion、NSM Gait、2D FABRIK IK |
+| Session | `SESSION-102` |
+| Focus | `HIGH-ArchitectureDeception` — `terrain_sensor.scene_aware_fall_pose` 三阶段拓扑收官 |
 | Status | `COMPLETE` |
 | Working Branch | `main` |
-| Validation | `1719 PASS, 7 SKIP`（`pytest tests/ -p no:cov`，无 FAIL）。相比上一轮 `1646 PASS` 净增 **73 个新测试**全部通过 |
-| Primary Files | `tests/test_session101_math_blind_spots.py`（新增，42 个测试用例），`research_notes_session101.md`（新增） |
+| Validation | `1722 PASS, 7 SKIP`（`python3.11 -m pytest tests/ -p no:cov`，无 FAIL） |
+| Primary Files | `mathart/animation/terrain_sensor.py`，`tests/test_terrain_sensor.py`，`research_notes_architecture_deception_session102.md` |
 
 ## Executive Summary
 
-本轮严格遵循用户下发的《SESSION-101 强制执行清单》，对项目数学深水区（流体 VFX、Unified Motion 数据大动脉、NSM 步态、FABRIK 2D IK 求解器）进行**地毯式盲区测试覆盖**，填补 `AUDIT_REPORT.md §3` 指出的 "Random Masking" 与 "Mock Abuse" 风险。
+本轮针对用户明确指定的 **Architecture Deception（架构欺骗）** 收尾目标，对 `mathart/animation/terrain_sensor.py` 中的 `scene_aware_fall_pose()` 进行了**物理层面的拓扑重构**，不再允许“文档说三阶段、代码却是单函数大杂烩”的表里不一。重构严格对齐 **Uncle Bob Screaming Architecture**、**Data-Oriented Design** 与 **Design by Contract** 三条工业准则：代码拓扑必须直接尖叫出设计意图；阶段间数据必须显式传递、不可偷渡；公共 API 必须 100% 向下兼容。
 
-**研究前置闭环**：在动笔之前，完成对以下工业级参考的外网研究并落盘到 `research_notes_session101.md`：
+本轮不是改注释，也不是改命名，而是把原先混杂在一个函数中的几何查询、落地评估、运动学适配三类责任，拆分为三段显式流水线，并用冻结 dataclass artifact 作为阶段边界，彻底消除“局部变量暗传、阶段边界形同虚设”的架构欺骗风险。
 
-1. **NASA JPL《The Power of Ten: Rules for Developing Safety-Critical Code》**（Holzmann, 2006）——采纳 Rule 2（可证明上界的循环）、Rule 5（每个函数至少两条断言）、Rule 6（最小作用域变量）。
-2. **Hypothesis / Property-Based Testing**（Alan Du, 2023）——提炼"少量不变量优于大量样例"、"越界与边界值胜过随机值"、"算法律（代数律）高于点测"三条范式。
-3. **Disney / Pixar 流体测试哲学**（Pixar TD 团队长年公开分享）——单次确定性脉冲 + 守恒律断言 + GIF 回写磁盘的三段式流体回归契约。
+## Research Alignment
 
-**落地成果**：42 个新增测试覆盖 4 条工业级主题，全部在 3.6 秒内完成，无 OOM、无 Mock、无全局 seed，在不修改任何生产代码的前提下将目标模块的测试见证力从"黑盒冒烟"提升至"白盒代数律验证"。
+| Reference | Applied Principle | Concrete Landing |
+|---|---|---|
+| Robert C. Martin, *Screaming Architecture* [1] | 代码结构必须直接暴露设计意图 | `scene_aware_fall_pose()` 现在显式串联 `_phase1_query_geometry()` → `_phase2_evaluate_clearance()` → `_phase3_apply_kinematic_adaptation()` |
+| Data-Oriented Design [2] | 阶段隔离、数据显式流动、减少隐式共享状态 | 引入 `_FallPoseGeometryArtifact`、`_FallPoseEvaluationArtifact`、`_FallPoseKinematicArtifact` 三个冻结中间产物 |
+| Design by Contract [3] | 前置条件、后置条件、不变量必须清晰可检验 | 保持 `scene_aware_fall_pose()` 与 `scene_aware_distance_phase()` 既有输入签名与输出字典契约不变，并用白盒测试锁死中间产物数值 |
+
+研究结论已落盘到 `research_notes_architecture_deception_session102.md`，供后续审计与复盘直接引用。
 
 ## What Changed in Code
 
 | File | Change | Effect |
 |---|---|---|
-| `tests/test_session101_math_blind_spots.py` | 新增 42 个测试用例，分布在 7 个 TestClass | 填补 fluid_vfx / unified_motion / nsm_gait / terrain_ik_2d 的高价值盲区 |
-| `research_notes_session101.md` | 新增研究落盘文件 | 外网参考研究前置闭环落地，可被后续 Session 溯源 |
-| `SESSION_HANDOFF.md` | 本文件 | Session-101 交接 |
-| `PROJECT_BRAIN.json` | 更新 `last_session_id`、`recent_sessions`、`session_log`、`resolved_issues`、`recent_focus_snapshot` | 项目大脑同步 |
+| `mathart/animation/terrain_sensor.py` | 新增 `_FallPoseGeometryArtifact` / `_FallPoseEvaluationArtifact` / `_FallPoseKinematicArtifact` 三个冻结 dataclass | 将三阶段数据流显式化，杜绝阶段间隐式局部变量耦合 |
+| `mathart/animation/terrain_sensor.py` | 新增 `_phase1_query_geometry()` | 将地形 / 射线 / 法向 / 距地信息的采集固化为 **Phase 1** |
+| `mathart/animation/terrain_sensor.py` | 新增 `_phase2_evaluate_clearance()` | 将 TTC、phase、landing window、brace boost、compensation vector 的决策固化为 **Phase 2** |
+| `mathart/animation/terrain_sensor.py` | 新增 `_phase3_apply_kinematic_adaptation()` | 将最终 pose matrix 融合固化为 **Phase 3** |
+| `mathart/animation/terrain_sensor.py` | 新增 `_evaluation_to_scene_aware_phase_metrics()` | 将 Phase 2 artifact 回投到既有 `scene_aware_distance_phase()` 公共字典契约 |
+| `tests/test_terrain_sensor.py` | 重写 `test_batch_query()` | 从弱断言升级为批量坡面距离值级断言 |
+| `tests/test_terrain_sensor.py` | 重写 `test_slope_compensation()` | 从“`spine` 是 float”升级为三阶段白盒数值闭环断言 |
+| `tests/test_terrain_sensor.py` | 新增 `TestSceneAwareFallPosePipelinePhases` | 分别锁死 **Phase 1 射线距离与法向**、**Phase 2 补偿向量**、**Phase 3 最终姿态矩阵** |
 
-**未修改任何生产代码**：本轮是纯"测试纵深"加固，完全绕开 `mathart/animation/` 下的任何实现文件。这是工业界"测试先于重构"纪律的标准做法——先把外部可见行为以机械化断言钉死，才能安全地进入下一轮 `P1-ARCH-4` 的 PDG v2 语义闭合。
+## Architecture Closure
 
-## Test Classes Landed
+| Red Line | Outcome |
+|---|---|
+| 防“改注释逃课” | 已合规。存在真实的函数级拆分与阶段 artifact，不是注释换皮。 |
+| 防“破坏向下兼容” | 已合规。`scene_aware_fall_pose()` 输入参数与返回姿态字典结构保持不变。 |
+| 防“局部修改导致变量未定义” | 已合规。所有阶段依赖均通过冻结 artifact 显式传递。 |
 
-| TestClass | 作用域 | 用例数 |
-|---|---|---|
-| `TestFluidVFXDeterministicImpulse` | 单次确定性脉冲、质量单调衰减、速度峰值非增、障碍物泄漏、越界采样、掩膜形状拒绝 | 6 |
-| `TestFluidDrivenVFXSystemSinks` | 斩击/冲刺驱动器非空帧验证、`export_gif` 磁盘回写三段式契约 | 2 |
-| `TestUnifiedMotionRoundTrip` | `UnifiedMotionClip` JSON 往返可逆、3D 根位姿字段、Contact Manifold 字节级、`PhaseState` 参数化归一化 | 8 |
-| `TestUnifiedMotionAlgebraicInvariants` | `with_pose` / `with_root` / `with_contacts` 三条正交代数律、`pose_to_umr` ↔ `umr_to_pose` 互逆、`__post_init__` 默认 schema 强制 | 5 |
-| `TestNSMGaitAsymmetrySweep` | 32 相位采样跛行非对称性、接触概率 ∈ [0,1] 守恒、四足小跑对角对称性、形态学拒绝守卫、FABRIK 偏移加性律、空标签直通 | 6 |
-| `TestFABRIK2DSolverEdgeCases` | 短链直通、无法到达拉伸、精确边界、无穷远目标有限性、零长节段避零除、收敛容差、角度约束求解 | 7 |
-| `TestTerrainAdaptiveIKLoop` | 零 SDF 地形、法向单位长度、前向探针单调性、双足 pin-to-ground、摆动腿跳过 | 5 |
-| `TestSession101Determinism` | 流体系统两次运行逐字节一致、NSM 控制器逐字节一致 | 2 |
-
-共 42 个 `assert` 驱动的新用例。
+本轮最关键的架构收益，是让“**三阶段**”从文案宣称升级为**代码物理事实**。后续任何人审阅 `scene_aware_fall_pose()`，无需阅读长段注释，也能从函数编排中直接看到 Phase 1 / 2 / 3 的存在与边界。
 
 ## Test Closure
 
 | Validation Layer | Scope | Result |
 |---|---|---|
-| Session-101 专项 | `tests/test_session101_math_blind_spots.py` | **42 PASS / 0 FAIL** |
-| 原有流体测试 | `tests/test_fluid_vfx.py` | **6 PASS** (零回归) |
-| 原有 UMR 测试 | `tests/test_unified_motion.py` | **6 PASS** (零回归) |
-| 原有 NSM 测试 | `tests/test_nsm_gait.py` | **PASS** (零回归) |
-| 完整测试套件 | 全部 `tests/` | **1719 PASS, 7 SKIP, 0 FAIL** |
+| 专项回归 | `python3.11 -m pytest tests/test_terrain_sensor.py -p no:cov` | **54 PASS / 0 FAIL** |
+| 单测诊断 | `tests/test_constraint_wfc.py::TestConstraintAwareWFC::test_difficulty_target_affects_output` | 单独复跑 **PASS**，确认一次性全量失败为瞬态波动 |
+| 完整测试套件 | `python3.11 -m pytest tests/ -p no:cov` | **1722 PASS / 7 SKIP / 0 FAIL** |
 
-**关键修复**：`watchdog` 缺失导致的 `test_motion_adaptive_keyframe.py::test_watcher_reload_occurs_at_frame_boundary` 预存失败，通过在本地环境 `pip install watchdog` 解决。下一轮建议在测试文件内添加 `pytest.importorskip("watchdog")` 守卫（见 `test_backend_hot_reload.py` 的工程范式），将可选依赖的硬失败降级为 skip。
-
-**三条防混线红线合规审计**：
-
-1. **防"全局污染逃课"红线** — 无任何 `np.random.seed()`。凡需随机采样的测试均使用 `np.random.default_rng(seed=20260420)` 独立 RNG（遵守 NumPy NEP 19）。
-2. **防"阉割物理复杂性"红线** — 无任何 Mock / MagicMock。流体测试使用真实 `FluidGrid2D(16×16)` 网格，GIF 测试真实写盘、真实重读。
-3. **防"生产代码被定死"红线** — 未修改任何 `mathart/` 下生产代码。测试仅断言外部可见行为。
-
-## Known Environmental Note
-
-`pytest-cov` 5.0 与系统 NumPy 2.2 交互时会触发 NumPy 双重导入（其本身会在 UserWarning 中明确告警：`The NumPy module was reloaded`），在流体系统 `FluidGrid2D.render_density_image()` 中的 `dens.max()` 调用处表现为 `TypeError: float() argument must be a string or a real number, not '_NoValueType'`。
-
-- **复现条件**：`python3 -m pytest ... --cov=...`
-- **规避方式**：`python3 -m pytest ... -p no:cov` 后使用 `python3 -m coverage run -m pytest ... -p no:cov` 独立收集，可得到目标模块覆盖率（`fluid_vfx.py` 78%、`nsm_gait.py` 97%、`terrain_ik_2d.py` 96%、`unified_motion.py` 83%）。
-- **本轮不做修改**：该问题属于 CI 工具链层，独立于 `HIGH-TestBlindSpot` 范围，留给后续 `TOOLCHAIN-` 系列任务处理。
+为了完成本地全量验证，沙箱内补齐了开发依赖与 `watchdog`。这属于环境准备，不涉及本轮生产代码范围。
 
 ## Files Touched This Session
 
 | Category | Files |
 |---|---|
-| Tests (new) | `tests/test_session101_math_blind_spots.py` |
-| Research (new) | `research_notes_session101.md` |
+| Production | `mathart/animation/terrain_sensor.py` |
+| Tests | `tests/test_terrain_sensor.py` |
+| Research | `research_notes_architecture_deception_session102.md` |
 | Project State | `PROJECT_BRAIN.json`, `SESSION_HANDOFF.md` |
-
-**零生产代码变更**。
 
 ## PROJECT_BRAIN Update Summary
 
-`PROJECT_BRAIN.json` 已在本轮同步为 `SESSION-101`。`HIGH-TestBlindSpot` 已从开放任务升级为 `RESOLVED`，并追加至 `resolved_issues`、`recent_sessions`、`recent_focus_snapshot`、`session_log`。
+`PROJECT_BRAIN.json` 将同步更新为 `SESSION-102`：刷新 `last_session_id`、`last_updated`、`recent_focus_snapshot`、`recent_sessions`、`session_summaries`、`session_log` 与 `resolved_issues`，并把本轮 `HIGH-ArchitectureDeception` 收官信息写入项目大脑。
 
 ## Preparation Notes for Next Session
 
-候选下一轮优先级：
+建议下一轮优先级如下。
 
-1. **P1-ARCH-4 / PDG v2**：继续 PDG v2 运行时语义闭合（SESSION-100 Preparation Notes 留下的主干任务）。
-2. **TOOLCHAIN-COV**：修复 pytest-cov + NumPy 2.2 交互的覆盖率采集管线，让目标模块能在 CI 里直接产生 `--cov-report=xml`。
-3. **watchdog 可选依赖守卫**：在 `tests/test_motion_adaptive_keyframe.py::TestSafePointExecutionLock` 测试类上补 `pytest.importorskip("watchdog")`，消除跨机器环境的 `ImportError` 硬失败。
-4. **P3-GPU-BENCH-1**：在真实 GPU 环境中运行 Taichi XPBD 基准测试（从 SESSION-100 继承）。
-5. **terrain_sensor 架构收尾**：原指令文档提及的 `terrain_sensor` 建模欺骗收尾方案，留待 `P1-ARCH-4` 前后专项处理。
+1. **P1-ARCH-4**：继续处理 PDG v2 语义闭合中剩余的“文档契约 ≠ 代码拓扑”类问题。
+2. **TOOLCHAIN-COV**：恢复稳定的覆盖率采集链路，避免 `pytest-cov` 与当前环境耦合造成噪声。
+3. **watchdog 可选依赖守卫**：将环境依赖问题降级为显式 skip，而非跨机器硬失败。
+4. **P3-GPU-BENCH-1**：继续真实 GPU 稀疏拓扑基准验证与性能证据收集。
 
 ## Recommended Next Actions
 
 | Order | Task | Purpose |
 |---|---|---|
-| 1 | watchdog 可选依赖守卫 | 最低成本消除跨机器 `ImportError` 硬失败 |
-| 2 | `P1-ARCH-4` | 继续 PDG v2 运行时语义闭合 |
-| 3 | `TOOLCHAIN-COV` | 恢复干净的覆盖率采集管线 |
-| 4 | `P3-GPU-BENCH-1` | 真实 GPU 基准测试 |
+| 1 | `P1-ARCH-4` 余项排查 | 继续清除“架构欺骗”与语义-拓扑错位 |
+| 2 | `TOOLCHAIN-COV` | 恢复稳定覆盖率采集 |
+| 3 | `watchdog` 守卫 | 消除环境依赖硬失败 |
+| 4 | `P3-GPU-BENCH-1` | 延续 GPU 性能证据闭环 |
 
 ## References
 
-[1]: https://en.wikipedia.org/wiki/The_Power_of_10:_Rules_for_Developing_Safety-Critical_Code "Gerard J. Holzmann — The Power of Ten: Rules for Developing Safety-Critical Code (NASA JPL, 2006)"
-[2]: https://alanhdu.github.io/posts/2023-07-14-property-based-testing/ "Alan Du — A Gentle Introduction to Property-Based Testing"
-[3]: https://numpy.org/neps/nep-0019-rng-policy.html "NumPy NEP 19 — Random number generator policy"
-[4]: https://hypothesis.readthedocs.io/en/latest/stateful.html "Hypothesis — Stateful / Rule-based state machines"
+[1]: https://blog.cleancoder.com/uncle-bob/2011/09/30/Screaming-Architecture.html "Robert C. Martin — Screaming Architecture"
+[2]: https://gamesfromwithin.com/data-oriented-design "Richard Fabian / Games From Within — Data-Oriented Design"
+[3]: https://en.wikipedia.org/wiki/Design_by_contract "Wikipedia — Design by contract"

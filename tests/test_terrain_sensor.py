@@ -39,6 +39,9 @@ from mathart.animation.terrain_sensor import (
     scene_aware_jump_distance_phase,
     TerrainSensorDiagnostics,
     evaluate_terrain_sensor_accuracy,
+    _phase1_query_geometry,
+    _phase2_evaluate_clearance,
+    _phase3_apply_kinematic_adaptation,
 )
 
 
@@ -117,12 +120,16 @@ class TestTerrainSDFPrimitives:
         assert d >= 0  # above both surfaces
 
     def test_batch_query(self):
-        terrain = create_flat_terrain(0.0)
-        x = np.array([0.0, 0.5, 1.0])
-        y = np.array([0.1, 0.2, 0.3])
+        terrain = create_slope_terrain(0.0, 0.0, 1.0, 0.5)
+        x = np.array([0.0, 0.25, 0.5, 1.0])
+        y = np.array([0.2, 0.3, 0.4, 0.8])
         d = terrain.query_batch(x, y)
-        assert d.shape == (3,)
-        np.testing.assert_allclose(d, y, atol=1e-6)
+        expected_surface = np.array([0.0, 0.125, 0.25, 0.5])
+        expected_distance = y - expected_surface
+
+        assert d.shape == (4,)
+        np.testing.assert_allclose(d, expected_distance, atol=1e-6)
+        np.testing.assert_allclose(d + expected_surface, y, atol=1e-6)
 
 
 # ── 2. TerrainRaySensor ──────────────────────────────────────────────────────
@@ -381,12 +388,87 @@ class TestSceneAwareFallPose:
 
     def test_slope_compensation(self):
         slope = create_slope_terrain(0.0, 0.0, 1.0, 0.5)
+        geometry = _phase1_query_geometry(
+            root_x=0.5,
+            root_y=0.5,
+            velocity_y=-2.0,
+            terrain=slope,
+        )
+        evaluation = _phase2_evaluate_clearance(geometry)
+        final_pose = _phase3_apply_kinematic_adaptation(evaluation).to_pose_dict()
         pose = scene_aware_fall_pose(
             0.5, root_x=0.5, root_y=0.5, velocity_y=-2.0,
             terrain=slope,
         )
-        # Spine should have some slope lean
-        assert isinstance(pose["spine"], float)
+
+        expected_normal_x = -1.0 / math.sqrt(5.0)
+        expected_ttc = (-2.0 + math.sqrt(4.0 + 2.0 * 9.81 * 0.25)) / 9.81
+        expected_brace_signal = 1.0 - (expected_ttc / 0.3)
+        expected_slope_lean = expected_normal_x * 0.08
+        expected_brace_boost = expected_brace_signal * 0.15
+
+        assert geometry.distance_to_ground == pytest.approx(0.25, abs=5e-3)
+        assert geometry.surface_normal_x == pytest.approx(expected_normal_x, abs=5e-3)
+        assert evaluation.compensation_vector == pytest.approx(
+            (expected_slope_lean, expected_brace_boost),
+            abs=5e-3,
+        )
+        assert final_pose["spine"] == pytest.approx(-0.05 + expected_slope_lean, abs=5e-3)
+        assert pose == pytest.approx(final_pose, abs=1e-9)
+
+
+class TestSceneAwareFallPosePipelinePhases:
+    """White-box phase tests for the three-stage fall-pose pipeline."""
+
+    @staticmethod
+    def _build_slope_pipeline():
+        slope = create_slope_terrain(0.0, 0.0, 1.0, 0.5)
+        geometry = _phase1_query_geometry(
+            root_x=0.5,
+            root_y=0.5,
+            velocity_y=-2.0,
+            terrain=slope,
+        )
+        evaluation = _phase2_evaluate_clearance(geometry)
+        kinematic = _phase3_apply_kinematic_adaptation(evaluation)
+        return geometry, evaluation, kinematic
+
+    def test_phase1_query_geometry_returns_exact_slope_distance_and_normal(self):
+        geometry, _, _ = self._build_slope_pipeline()
+        expected_normal = (-1.0 / math.sqrt(5.0), 2.0 / math.sqrt(5.0))
+
+        assert geometry.terrain_query_mode == "sdf_terrain"
+        assert geometry.distance_to_ground == pytest.approx(0.25, abs=5e-3)
+        assert geometry.surface_normal_x == pytest.approx(expected_normal[0], abs=5e-3)
+        assert geometry.surface_normal_y == pytest.approx(expected_normal[1], abs=5e-3)
+
+    def test_phase2_evaluate_clearance_returns_exact_compensation_vector(self):
+        geometry, evaluation, _ = self._build_slope_pipeline()
+        expected_ttc = (-2.0 + math.sqrt(4.0 + 2.0 * 9.81 * geometry.distance_to_ground)) / 9.81
+        expected_brace_signal = 1.0 - (expected_ttc / 0.3)
+        expected_slope_lean = (-1.0 / math.sqrt(5.0)) * 0.08
+        expected_brace_boost = expected_brace_signal * 0.15
+
+        assert evaluation.phase == pytest.approx(0.0, abs=1e-6)
+        assert evaluation.phase_source == "distance_matching_with_ttc"
+        assert evaluation.ttc == pytest.approx(expected_ttc, abs=5e-6)
+        assert evaluation.ttc_brace_signal == pytest.approx(expected_brace_signal, abs=5e-6)
+        assert evaluation.compensation_vector == pytest.approx(
+            (expected_slope_lean, expected_brace_boost),
+            abs=5e-6,
+        )
+
+    def test_phase3_apply_kinematic_adaptation_returns_expected_pose_matrix(self):
+        _, evaluation, kinematic = self._build_slope_pipeline()
+        pose_matrix = dict(kinematic.final_pose_matrix)
+        expected_slope_lean, expected_brace_boost = evaluation.compensation_vector
+        expected_ttc_brace = evaluation.ttc_brace_signal
+
+        assert pose_matrix["spine"] == pytest.approx(-0.05 + expected_slope_lean, abs=5e-6)
+        assert pose_matrix["l_hip"] == pytest.approx(0.10 - expected_brace_boost, abs=5e-6)
+        assert pose_matrix["r_hip"] == pytest.approx(-0.10 - expected_brace_boost, abs=5e-6)
+        assert pose_matrix["l_knee"] == pytest.approx(-0.16 - 0.08 * expected_ttc_brace, abs=5e-6)
+        assert pose_matrix["r_knee"] == pytest.approx(-0.12 - 0.08 * expected_ttc_brace, abs=5e-6)
 
 
 # ── 7. Scene-Aware Jump Phase ─────────────────────────────────────────────────
