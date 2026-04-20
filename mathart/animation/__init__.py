@@ -306,6 +306,16 @@ from .fluid_sequence_exporter import (
     generate_fluid_vfx_controller,
     export_fluid_vfx_bundle,
 )
+# SESSION-106: Physical Ribbon Mesh Extractor (P1-B1-1)
+from .physical_ribbon_extractor import (
+    RibbonExtractorConfig,
+    RibbonMeshMetadata,
+    PhysicalRibbonExtractor,
+    catmull_rom_interpolate,
+    compute_tangent_frames,
+    extrude_ribbon_mesh,
+    merge_meshes,
+)
 # SESSION-080: UMR→RL Reference Adapter (P1-B3-2 — DeepMimic Imitation Closed Loop)
 from .umr_rl_adapter import (
     RL_JOINT_ORDER, RL_END_EFFECTOR_JOINTS,
@@ -571,4 +581,12 @@ __all__ = [
     "PrebakedReferenceBuffers", "DeepMimicRewardConfig",
     "flatten_umr_to_rl_state", "interpolate_reference",
     "compute_imitation_reward", "generate_umr_reference_clips",
+    # SESSION-106: Physical Ribbon Mesh Extractor (P1-B1-1)
+    "RibbonExtractorConfig",
+    "RibbonMeshMetadata",
+    "PhysicalRibbonExtractor",
+    "catmull_rom_interpolate",
+    "compute_tangent_frames",
+    "extrude_ribbon_mesh",
+    "merge_meshes",
 ]

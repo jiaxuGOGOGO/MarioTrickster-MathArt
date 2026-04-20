@@ -69,6 +69,10 @@ class BackendType(str, Enum):
     # Computes per-frame nonlinearity scores from UMR clips and outputs
     # adaptive keyframe plans with SparseCtrl end_percent mapping.
     MOTION_ADAPTIVE_KEYFRAME = "motion_adaptive_keyframe"
+    # SESSION-106 (P1-B1-1): Physical ribbon mesh extractor backend.
+    # Produces 3D ribbon meshes from secondary animation chain snapshots
+    # (cape, hair, cloth) for orthographic pixel rendering.
+    PHYSICAL_RIBBON = "physical_ribbon"
 
 
 _BACKEND_ALIASES: dict[str, str] = {
@@ -157,6 +161,12 @@ _BACKEND_ALIASES: dict[str, str] = {
     "adaptive_keyframe": BackendType.MOTION_ADAPTIVE_KEYFRAME.value,
     "keyframe_planner": BackendType.MOTION_ADAPTIVE_KEYFRAME.value,
     "motion_keyframe": BackendType.MOTION_ADAPTIVE_KEYFRAME.value,
+    # SESSION-106 (P1-B1-1): Physical ribbon mesh extractor backend aliases
+    BackendType.PHYSICAL_RIBBON.value: BackendType.PHYSICAL_RIBBON.value,
+    "ribbon_mesh": BackendType.PHYSICAL_RIBBON.value,
+    "cape_mesh": BackendType.PHYSICAL_RIBBON.value,
+    "hair_mesh": BackendType.PHYSICAL_RIBBON.value,
+    "secondary_chain_mesh": BackendType.PHYSICAL_RIBBON.value,
 }
 
 

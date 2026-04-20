@@ -1,7 +1,7 @@
 {
-  "version": "v0.92.1",
-  "last_session_id": "SESSION-105",
-  "last_updated": "2026-04-21T01:15:00+08:00",
+  "version": "v0.93.0",
+  "last_session_id": "SESSION-106",
+  "last_updated": "2026-04-21T12:00:00+08:00",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -23,16 +23,16 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
-      "P3-GPU-BENCH-1",
+      "P1-AI-1",
       "P1-ARCH-5",
-      "P1-B1-1",
       "P1-NEW-10",
-      "P1-INDUSTRIAL-34A"
+      "P1-INDUSTRIAL-34A",
+      "P1-B2-1"
     ],
     "closed_archived": 52
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-105 advanced P3-GPU-BENCH-1 from a standalone benchmark harness into a production-ready PDG-aware GPU lane: PDG v2 now exposes requires_gpu work-item scheduling through a bounded semaphore gate, TaichiXPBDBackend v2.1.0 can consume PDG work-item payloads directly, strict GPU mode refuses silent CPU fallback, and each Taichi sample now performs explicit sync+reset cleanup to prevent VRAM residency leaks. Validation: 1729 PASS / 7 SKIP / 0 FAIL.",
+  "validation_pass_rate": "SESSION-106 CLOSES P1-B1-1: PhysicalRibbonExtractor converts Jakobsen/XPBD secondary chain snapshots into real 3D Ribbon Mesh geometry (vertices, normals, depth, UVs) via UE5-Niagara-inspired Tangent-Binormal frame construction + Catmull-Rom C1 interpolation + Guilty Gear Xrd capsule-normal injection. PhysicalRibbonBackend self-registers via @register_backend, produces NPZ mesh + JSON report, and compose_character_with_attachments() implements Pixar OpenUSD Composition Arcs pattern for non-destructive scene assembly. 45 new white-box tests + full regression. Validation: 1743 PASS / 8 SKIP / 1 FAIL (pre-existing watchdog dep).",
   "total_iterations": 686,
   "total_code_lines": 135507,
   "distill_session_id": "DISTILL-012",
@@ -78,7 +78,7 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-099 CLOSES HIGH-2.7: Production code RNG dependency injection. All 43 bare np.random calls across 8 production files refactored to NEP-19 compliant np.random.default_rng / Generator injection. Production APIs accept optional rng: np.random.Generator | None parameters. 1631 PASS, 0 FAIL, 8 SKIP.",
+  "current_focus": "SESSION-106 CLOSES P1-B1-1: Physical Ribbon Mesh Extraction from secondary animation chains. Project transitions from bottom-layer scheduling into visible art asset production. PhysicalRibbonExtractor (6-stage pipeline: Catmull-Rom → TBN frame → width extrusion → triangle strip → GGXrd normal injection → UV generation) + PhysicalRibbonBackend (@register_backend plugin) + compose_character_with_attachments() (OpenUSD Composition Arcs). Next: P1-AI-1 bridge to ComfyUI/ControlNet with NormalMapExporter + DepthMapExporter.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research_notes_session091.md",
@@ -231,9 +231,10 @@
       "id": "P1-AI-1",
       "priority": "P1",
       "title": "Math-to-AI Pipeline Prototype",
-      "status": "TODO",
+      "status": "IN-PROGRESS",
       "estimated_effort": "medium",
-      "description": "Export skeleton/pose data as ControlNet inputs for external AI diffusion models."
+      "description": "Export skeleton/pose data as ControlNet inputs for external AI diffusion models. SESSION-106 closes P1-B1-1 prerequisite: Albedo/Normal/Depth rendering from physical ribbon meshes is now available. Remaining sub-tasks: P1-AI-1A (NormalMapExporter float64->uint8 ControlNet format), P1-AI-1B (FrameSequenceExporter VHS directory format), P1-AI-1C (normal_depth_dual_controlnet.json ComfyUI preset), P1-AI-1D (extend assemble_sequence_payload for dual Normal/Depth channels), P1-AI-1E (RTX 4070 end-to-end validation).",
+      "updated_in": "SESSION-106"
     },
     {
       "id": "P1-AI-2C",
@@ -308,10 +309,12 @@
       "id": "P1-B1-1",
       "priority": "P1",
       "title": "Render cape/hair ribbons or meshes directly from Jakobsen chain snapshots",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "Convert secondary-chain points into visible ribbon, strip, or mesh surfaces so Gap B1 moves from metadata-ready motion to full rendered attachment output.",
-      "added_in": "SESSION-047"
+      "description": "SESSION-106 CLOSES P1-B1-1: PhysicalRibbonExtractor (600+ lines) converts Jakobsen/XPBD secondary chain snapshots into real 3D Ribbon Mesh geometry via 6-stage pipeline: Catmull-Rom C1 interpolation, Tangent-Binormal orthogonal frame construction (UE5 Niagara Ribbon pattern), width extrusion with taper, triangle strip indexing (double-sided), Guilty Gear Xrd capsule-proxy normal injection, arc-length UV generation. PhysicalRibbonBackend self-registers via @register_backend (BackendType.PHYSICAL_RIBBON), produces NPZ mesh + JSON report ArtifactManifest (MESH_OBJ family). compose_character_with_attachments() implements Pixar OpenUSD Composition Arcs pattern for non-destructive base+attachment scene assembly via CompositeManifestBuilder. 45/45 white-box tests covering geometry precision, TBN orthogonality, UV bounds, graceful fallback, registry compliance, composite assembly, and renderer pixel-coverage proof. Full regression: 1743 PASS / 8 SKIP / 1 FAIL (pre-existing).",
+      "added_in": "SESSION-047",
+      "updated_in": "SESSION-106",
+      "completed_in": "SESSION-106"
     },
     {
       "id": "P1-B2-1",
@@ -3169,6 +3172,12 @@
       "completed_in": "SESSION-094",
       "title": "WFC locked-tile absolute survival and explicit contradiction closure",
       "summary": "Refactored the WFC propagation core so locked tiles are immutable singleton domains with outward-radiating constraints. Added queue-driven propagation seeds, explicit `WFCConstraintConflictError` on overwrite attempts, removed the constrained generator's silent unconstrained fallback after lock conflicts, and verified the closure with deterministic dead-end tests plus tilemap-exporter regressions."
+    },
+    {
+      "id": "P1-B1-1",
+      "completed_in": "SESSION-106",
+      "title": "Physical Ribbon Mesh Extraction from secondary animation chain snapshots",
+      "summary": "PhysicalRibbonExtractor (600+ lines) converts Jakobsen/XPBD secondary chain snapshots into real 3D Ribbon Mesh geometry via 6-stage pipeline: Catmull-Rom C1 interpolation, TBN frame construction (UE5 Niagara Ribbon pattern), width extrusion with taper, triangle strip indexing (double-sided), GGXrd capsule-proxy normal injection, arc-length UV generation. PhysicalRibbonBackend self-registers via @register_backend (BackendType.PHYSICAL_RIBBON, ArtifactFamily.MESH_OBJ). compose_character_with_attachments() implements Pixar OpenUSD Composition Arcs pattern via CompositeManifestBuilder. 45/45 white-box tests. Research: UE5 Niagara Ribbon Data Interface, Catmull-Rom (1974), Guilty Gear Xrd GDC 2015, Pixar OpenUSD Composition Arcs, Dead Cells GDC 2018."
     }
   ],
   "session_log": [
@@ -3413,6 +3422,52 @@
         "PROJECT_BRAIN.json"
       ],
       "test_results": "1726 PASS / 7 SKIP / 0 FAIL (python3.11 -m pytest tests/ -p no:cov)"
+    },
+    {
+      "session_id": "SESSION-105",
+      "version": "v0.92.1",
+      "date": "2026-04-21",
+      "focus": "P3-GPU-BENCH-1 production integration (PDG GPU semaphore scheduling)",
+      "status": "COMPLETE",
+      "summary": "Advanced P3-GPU-BENCH-1 from standalone benchmark harness into production-ready PDG-aware GPU lane. PDG v2 now exposes requires_gpu work-item scheduling through bounded gpu_slots semaphore gate. TaichiXPBDBackend v2.1.0 consumes PDG WorkItem payloads directly, enforces strict GPU mode with no silent CPU fallback, and performs sync+reset cleanup after each sample. Full suite: 1729 PASS / 7 SKIP / 0 FAIL.",
+      "files_touched": [
+        "mathart/level/pdg.py",
+        "mathart/core/taichi_xpbd_backend.py",
+        "mathart/animation/xpbd_taichi.py",
+        "tests/test_level_pdg.py",
+        "tests/test_taichi_benchmark_backend.py",
+        "tools/run_session085_gpu_benchmark.py",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "test_results": "1729 PASS / 7 SKIP / 0 FAIL (python3.11 -m pytest tests/ -p no:cov)"
+    },
+    {
+      "session_id": "SESSION-106",
+      "version": "v0.93.0",
+      "date": "2026-04-21",
+      "focus": "P1-B1-1 closure (Physical Ribbon Mesh Extraction + Scene Assembly Contract)",
+      "status": "COMPLETE",
+      "summary": "CLOSED P1-B1-1: PhysicalRibbonExtractor (600+ lines) converts Jakobsen/XPBD secondary chain snapshots into real 3D Ribbon Mesh geometry via 6-stage pipeline (Catmull-Rom C1 interpolation, TBN frame construction, width extrusion with taper, triangle strip indexing, GGXrd capsule-normal injection, arc-length UV generation). PhysicalRibbonBackend self-registers via @register_backend (BackendType.PHYSICAL_RIBBON, ArtifactFamily.MESH_OBJ), produces NPZ mesh + JSON report. compose_character_with_attachments() implements Pixar OpenUSD Composition Arcs pattern via CompositeManifestBuilder. 45/45 new white-box tests. Full suite: 1743 PASS / 8 SKIP / 1 FAIL (pre-existing watchdog dep).",
+      "changes": [
+        "NEW mathart/animation/physical_ribbon_extractor.py — 6-stage PhysicalRibbonExtractor pipeline: Catmull-Rom interpolation, TBN frame construction, width extrusion, triangle strip indexing, GGXrd normal injection, UV generation. Mesh3D dataclass, RibbonExtractorConfig, RibbonMeshMetadata, merge_meshes utility",
+        "NEW mathart/core/physical_ribbon_backend.py — PhysicalRibbonBackend @register_backend plugin with backend-owned validate_config(), NPZ mesh + JSON report output, ArtifactManifest (MESH_OBJ family). compose_character_with_attachments() scene assembly contract (OpenUSD Composition Arcs pattern)",
+        "UPD mathart/core/backend_types.py — add BackendType.PHYSICAL_RIBBON enum + ribbon_mesh/cape_mesh/hair_mesh/secondary_chain_mesh aliases",
+        "UPD mathart/animation/__init__.py — export PhysicalRibbonExtractor, RibbonExtractorConfig, RibbonMeshMetadata, catmull_rom_interpolate, compute_tangent_frames, extrude_ribbon_mesh, merge_meshes",
+        "NEW tests/test_physical_ribbon.py — 45 white-box tests: Catmull-Rom precision, TBN orthogonality, UV bounds, double-sided geometry, width taper, graceful fallback, backend registry, manifest contract, composite assembly, renderer pixel-coverage proof",
+        "UPD PROJECT_BRAIN.json — P1-B1-1 -> CLOSED, P1-AI-1 -> IN-PROGRESS, SESSION-106 metadata, top priorities reordered",
+        "UPD SESSION_HANDOFF.md — SESSION-106 handoff with P1-B1-1 closure, ComfyUI/ControlNet bridging preparation assessment"
+      ],
+      "files_touched": [
+        "mathart/animation/physical_ribbon_extractor.py",
+        "mathart/core/physical_ribbon_backend.py",
+        "mathart/core/backend_types.py",
+        "mathart/animation/__init__.py",
+        "tests/test_physical_ribbon.py",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "test_results": "1743 PASS / 8 SKIP / 1 FAIL (pre-existing watchdog dep) (python3.11 -m pytest tests/ -p no:cov)"
     }
   ],
   "resolved_issues": [
@@ -3460,6 +3515,13 @@
       "resolved_at": "2026-04-21T01:15:00+08:00",
       "resolution": "PDG v2 now exposes requires_gpu node scheduling via gpu_slots semaphore gating, while TaichiXPBDBackend v2.1.0 consumes PDG WorkItem payloads directly, enforces strict GPU mode with no silent CPU fallback, records lineage/hardware evidence, and performs sync+reset cleanup after each sample to avoid VRAM leakage.",
       "validation_test_file": "tests/test_level_pdg.py + tests/test_taichi_benchmark_backend.py + tests/"
+    },
+    {
+      "issue_id": "P1-B1-1",
+      "session_id": "SESSION-106",
+      "resolved_at": "2026-04-21T12:00:00+08:00",
+      "resolution": "PhysicalRibbonExtractor converts Jakobsen/XPBD secondary chain snapshots into real 3D Ribbon Mesh geometry via 6-stage pipeline (Catmull-Rom, TBN frame, width extrusion, triangle strip, GGXrd normal injection, UV generation). PhysicalRibbonBackend self-registers via @register_backend, produces NPZ mesh + JSON report. compose_character_with_attachments() implements Pixar OpenUSD Composition Arcs pattern. 45/45 white-box tests. Zero regression on existing 1729+ tests.",
+      "validation_test_file": "tests/test_physical_ribbon.py"
     }
   ],
   "backlog": [],

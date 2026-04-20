@@ -42,3 +42,4 @@ evolution_reports/CYCLE-*.json
 .venv/
 reports/
 ci_fixture_output_dir/
+.pdg_cache/
