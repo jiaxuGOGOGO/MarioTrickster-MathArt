@@ -156,7 +156,7 @@ def _canonical_taichi_arch_name(arch_value: Any) -> str:
     return "cpu"
 
 
-def _ensure_taichi_initialized(prefer_gpu: bool = True) -> str:
+def _ensure_taichi_initialized(prefer_gpu: bool = True, strict_gpu: bool = False) -> str:
     """Initialize Taichi once and return the real active backend name."""
     global _TAICHI_READY, _TAICHI_ARCH
 
@@ -174,7 +174,10 @@ def _ensure_taichi_initialized(prefer_gpu: bool = True) -> str:
             arch = getattr(ti, name, None)
             if arch is not None:
                 candidates.append((name, arch))
-    candidates.append(("cpu", ti.cpu))
+        if not strict_gpu:
+            candidates.append(("cpu", ti.cpu))
+    else:
+        candidates.append(("cpu", ti.cpu))
 
     last_error: Optional[Exception] = None
     for _name, arch in candidates:
@@ -194,7 +197,7 @@ def _ensure_taichi_initialized(prefer_gpu: bool = True) -> str:
     raise RuntimeError(f"Failed to initialize Taichi backend: {last_error}")
 
 
-def get_taichi_xpbd_backend_status(prefer_gpu: bool = True) -> TaichiXPBDBackendStatus:
+def get_taichi_xpbd_backend_status(prefer_gpu: bool = True, strict_gpu: bool = False) -> TaichiXPBDBackendStatus:
     """Return runtime status without forcing callers to know Taichi internals."""
     if ti is None:
         return TaichiXPBDBackendStatus(
@@ -204,7 +207,7 @@ def get_taichi_xpbd_backend_status(prefer_gpu: bool = True) -> TaichiXPBDBackend
             import_error=str(_TAICHI_IMPORT_ERROR),
         )
     try:
-        arch = _ensure_taichi_initialized(prefer_gpu=prefer_gpu)
+        arch = _ensure_taichi_initialized(prefer_gpu=prefer_gpu, strict_gpu=strict_gpu)
         return TaichiXPBDBackendStatus(
             available=True,
             initialized=True,

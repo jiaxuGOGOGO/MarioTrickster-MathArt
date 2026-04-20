@@ -20,6 +20,7 @@ import hashlib
 import inspect
 import json
 import os
+import threading
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import asdict, dataclass, field, is_dataclass
@@ -135,6 +136,7 @@ class PDGNode:
     config: dict[str, Any] = field(default_factory=dict)
     cache_enabled: bool = True
     collect_by_partition: bool = False
+    requires_gpu: bool = False
 
 
 @dataclass
@@ -152,6 +154,8 @@ class PDGTraceEntry:
     topology: str = "task"
     parent_ids: list[str] = field(default_factory=list)
     upstream_item_ids: list[str] = field(default_factory=list)
+    requires_gpu: bool = False
+    resource_wait_ms: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -166,6 +170,8 @@ class PDGTraceEntry:
             "topology": self.topology,
             "parent_ids": list(self.parent_ids),
             "upstream_item_ids": list(self.upstream_item_ids),
+            "requires_gpu": self.requires_gpu,
+            "resource_wait_ms": round(self.resource_wait_ms, 3),
         }
 
 
@@ -369,6 +375,10 @@ class _PDGv2RuntimeFacade:
         self._context: dict[str, Any] = {}
         self._cache_hits = 0
         self._cache_misses = 0
+        self._gpu_semaphore = threading.Semaphore(graph.gpu_slots)
+        self._gpu_state_lock = threading.Lock()
+        self._gpu_inflight = 0
+        self._gpu_max_inflight = 0
 
     def run(
         self,
@@ -410,6 +420,8 @@ class _PDGv2RuntimeFacade:
                 "max_workers": self.graph.max_workers,
                 "host_cpu_count": os.cpu_count() or 1,
                 "bounded_submission": True,
+                "gpu_slots": self.graph.gpu_slots,
+                "gpu_max_inflight_observed": self._gpu_max_inflight,
             },
             "topology_summary": {
                 name: {
@@ -496,13 +508,17 @@ class _PDGv2RuntimeFacade:
                             for items in grouped_deps.values()
                             for item_id in [dep_item.item_id for dep_item in items]
                         ],
+                        requires_gpu=node.requires_gpu,
+                        resource_wait_ms=0.0,
                     )
                 )
                 continue
 
-            start = time.perf_counter()
-            output = node.operation(invocation_context, deps_payload)
-            duration_ms = (time.perf_counter() - start) * 1000.0
+            output, duration_ms, resource_wait_ms = self._execute_operation(
+                node,
+                invocation_context,
+                deps_payload,
+            )
             items = self._normalize_operation_output(
                 node=node,
                 output=output,
@@ -534,9 +550,39 @@ class _PDGv2RuntimeFacade:
                         for items in grouped_deps.values()
                         for item_id in [dep_item.item_id for dep_item in items]
                     ],
+                    requires_gpu=node.requires_gpu,
+                    resource_wait_ms=resource_wait_ms,
                 )
             )
         return produced
+
+    def _execute_operation(
+        self,
+        node: PDGNode,
+        invocation_context: dict[str, Any],
+        deps_payload: dict[str, Any],
+    ) -> tuple[Any, float, float]:
+        resource_wait_ms = 0.0
+        acquired_gpu = False
+        if node.requires_gpu:
+            wait_start = time.perf_counter()
+            self._gpu_semaphore.acquire()
+            resource_wait_ms = (time.perf_counter() - wait_start) * 1000.0
+            acquired_gpu = True
+            with self._gpu_state_lock:
+                self._gpu_inflight += 1
+                self._gpu_max_inflight = max(self._gpu_max_inflight, self._gpu_inflight)
+
+        start = time.perf_counter()
+        try:
+            output = node.operation(invocation_context, deps_payload)
+        finally:
+            duration_ms = (time.perf_counter() - start) * 1000.0
+            if acquired_gpu:
+                with self._gpu_state_lock:
+                    self._gpu_inflight -= 1
+                self._gpu_semaphore.release()
+        return output, duration_ms, resource_wait_ms
 
     def _execute_task_invocations_concurrently(
         self,
@@ -631,6 +677,9 @@ class _PDGv2RuntimeFacade:
             "topology": node.topology,
             "partition_key": invocation.partition_key,
             "dependency_item_ids": {dep_name: item.item_id for dep_name, item in invocation.dependencies.items()},
+            "dependency_work_items": dict(invocation.dependencies),
+            "requires_gpu": node.requires_gpu,
+            "gpu_slots": self.graph.gpu_slots,
         }
         execution_cache_key = self._build_execution_cache_key(
             node=node,
@@ -655,12 +704,16 @@ class _PDGv2RuntimeFacade:
                     topology=node.topology,
                     parent_ids=[],
                     upstream_item_ids=list(invocation.upstream_item_ids),
+                    requires_gpu=node.requires_gpu,
+                    resource_wait_ms=0.0,
                 ),
             )
 
-        start = time.perf_counter()
-        output = node.operation(invocation_context, deps_payload)
-        duration_ms = (time.perf_counter() - start) * 1000.0
+        output, duration_ms, resource_wait_ms = self._execute_operation(
+            node,
+            invocation_context,
+            deps_payload,
+        )
         items = self._normalize_operation_output(
             node=node,
             output=output,
@@ -686,6 +739,8 @@ class _PDGv2RuntimeFacade:
                 topology=node.topology,
                 parent_ids=[],
                 upstream_item_ids=list(invocation.upstream_item_ids),
+                requires_gpu=node.requires_gpu,
+                resource_wait_ms=resource_wait_ms,
             ),
         )
 
@@ -789,6 +844,7 @@ class _PDGv2RuntimeFacade:
             "node_name": node.name,
             "node_description": node.description,
             "topology": node.topology,
+            "requires_gpu": node.requires_gpu,
             "node_config": _stable_hash_serialize(node.config),
             "dependencies": list(node.dependencies),
             "partition_key": partition_key,
@@ -809,15 +865,19 @@ class ProceduralDependencyGraph:
         cache_dir: Optional[str | Path] = None,
         max_workers: int = 1,
         scheduler_backend: str = "thread",
+        gpu_slots: int = 1,
     ) -> None:
         if max_workers < 1:
             raise PDGError("max_workers must be >= 1")
+        if gpu_slots < 1:
+            raise PDGError("gpu_slots must be >= 1")
         if scheduler_backend != "thread":
             raise PDGError(f"Unsupported scheduler_backend '{scheduler_backend}'")
         self.name = name
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
         self.max_workers = int(max_workers)
         self.scheduler_backend = scheduler_backend
+        self.gpu_slots = int(gpu_slots)
         self._nodes: dict[str, PDGNode] = {}
 
     def add_node(self, node: PDGNode) -> None:

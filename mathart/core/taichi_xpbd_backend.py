@@ -33,7 +33,9 @@ from dataclasses import replace
 import importlib.util
 import json
 import math
+import os
 from pathlib import Path
+import platform
 from statistics import median
 import subprocess
 import sys
@@ -56,7 +58,7 @@ _VALID_SCENARIOS = {"free_fall_cloud", "cloth_grid", "sparse_cloth"}
 @register_backend(
     BackendType.TAICHI_XPBD,
     display_name="Taichi XPBD Benchmark Backend",
-    version="2.0.0",
+    version="2.1.0",
     artifact_families=(ArtifactFamily.BENCHMARK_REPORT.value,),
     capabilities=(
         BackendCapability.GPU_ACCELERATED,
@@ -64,8 +66,8 @@ _VALID_SCENARIOS = {"free_fall_cloud", "cloth_grid", "sparse_cloth"}
     ),
     input_requirements=(),
     dependencies=(),
-    session_origin="SESSION-085",
-    schema_version="2.0.0",
+    session_origin="SESSION-105",
+    schema_version="2.1.0",
 )
 class TaichiXPBDBackend:
     """Registry plugin for correctness-aware Taichi XPBD benchmark evidence.
@@ -97,14 +99,14 @@ class TaichiXPBDBackend:
         return BackendMeta(
             name=BackendType.TAICHI_XPBD,
             display_name="Taichi XPBD Benchmark Backend",
-            version="2.0.0",
+            version="2.1.0",
             artifact_families=(ArtifactFamily.BENCHMARK_REPORT.value,),
             capabilities=(
                 BackendCapability.GPU_ACCELERATED,
                 BackendCapability.PHYSICS_SIMULATION,
             ),
-            session_origin="SESSION-085",
-            schema_version="2.0.0",
+            session_origin="SESSION-105",
+            schema_version="2.1.0",
         )
 
     def validate_config(self, context: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
@@ -126,6 +128,18 @@ class TaichiXPBDBackend:
                 warnings.append(f"{key} invalid, defaulting to {default}")
                 return default
             return max(value, minimum)
+
+        def _as_bool(key: str, default: bool) -> bool:
+            value = ctx.get(key, default)
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                lowered = value.strip().lower()
+                if lowered in {"1", "true", "yes", "on"}:
+                    return True
+                if lowered in {"0", "false", "no", "off"}:
+                    return False
+            return bool(value)
 
         frames = _as_int(
             "benchmark_frame_count",
@@ -167,6 +181,9 @@ class TaichiXPBDBackend:
             )
             scenario = self._DEFAULT_SCENARIO
 
+        strict_gpu_required = _as_bool("strict_gpu_required", _as_bool("cuda_production", False))
+        requires_gpu = _as_bool("requires_gpu", requested_device == "gpu" or strict_gpu_required)
+
         # Scenario-aware tolerance defaults
         if scenario == "sparse_cloth":
             default_drift = self._SPARSE_CLOTH_DRIFT_ATOL
@@ -190,6 +207,8 @@ class TaichiXPBDBackend:
             "benchmark_scenario": scenario,
             "benchmark_drift_atol": drift_atol,
             "benchmark_rmse_atol": rmse_atol,
+            "strict_gpu_required": strict_gpu_required,
+            "requires_gpu": requires_gpu,
         })
         return ctx, warnings
 
@@ -288,6 +307,92 @@ class TaichiXPBDBackend:
         path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         return path
 
+    @staticmethod
+    def build_context_from_work_item(work_item: Any, *, overrides: dict[str, Any] | None = None) -> dict[str, Any]:
+        if hasattr(work_item, "payload_dict") and callable(work_item.payload_dict):
+            payload = dict(work_item.payload_dict())
+            item_id = str(getattr(work_item, "item_id", ""))
+            partition_key = getattr(work_item, "partition_key", None)
+            payload_digest = str(getattr(work_item, "payload_digest", ""))
+        elif isinstance(work_item, dict):
+            payload = dict(work_item.get("payload", work_item))
+            item_id = str(work_item.get("item_id", ""))
+            partition_key = work_item.get("partition_key")
+            payload_digest = str(work_item.get("payload_digest", ""))
+        else:
+            raise TypeError(f"Unsupported work item type for TaichiXPBDBackend: {type(work_item)!r}")
+
+        ctx = dict(payload)
+        ctx.update(overrides or {})
+        if item_id and "name" not in ctx:
+            ctx["name"] = f"pdg_{item_id.replace(':', '_')}"
+        ctx["_pdg_work_item"] = work_item
+        ctx["_pdg_input_work_item_id"] = item_id
+        ctx["_pdg_input_partition_key"] = partition_key
+        ctx["_pdg_input_payload_digest"] = payload_digest
+        return ctx
+
+    def execute_work_item(self, work_item: Any, *, overrides: dict[str, Any] | None = None) -> ArtifactManifest:
+        ctx, _warnings = self.validate_config(self.build_context_from_work_item(work_item, overrides=overrides))
+        return self.execute(ctx)
+
+    @staticmethod
+    def _get_backend_status(tx, *, prefer_gpu: bool, strict_gpu_required: bool):
+        getter = tx.get_taichi_xpbd_backend_status
+        try:
+            return getter(prefer_gpu=prefer_gpu, strict_gpu=strict_gpu_required)
+        except TypeError:
+            return getter(prefer_gpu=prefer_gpu)
+
+    @staticmethod
+    def _cleanup_taichi_runtime(tx) -> float:
+        start = perf_counter()
+        sync_runtime = getattr(tx, "sync_taichi_runtime", None)
+        if callable(sync_runtime):
+            try:
+                sync_runtime()
+            except Exception:
+                pass
+        reset_runtime = getattr(tx, "reset_taichi_runtime", None)
+        if callable(reset_runtime):
+            reset_runtime()
+        return (perf_counter() - start) * 1000.0
+
+    @staticmethod
+    def _query_hardware_fingerprint() -> dict[str, Any]:
+        fingerprint: dict[str, Any] = {
+            "platform": platform.platform(),
+            "host_cpu_count": os.cpu_count() or 1,
+        }
+        try:
+            result = subprocess.run(
+                [
+                    "nvidia-smi",
+                    "--query-gpu=name,driver_version,memory.total,memory.free",
+                    "--format=csv,noheader,nounits",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            first_line = (result.stdout or "").strip().splitlines()
+            if first_line:
+                name, driver, total_mem, free_mem = [part.strip() for part in first_line[0].split(",", maxsplit=3)]
+                fingerprint.update(
+                    {
+                        "gpu_name": name,
+                        "gpu_driver_version": driver,
+                        "gpu_memory_total_mb": int(float(total_mem)),
+                        "gpu_memory_free_mb": int(float(free_mem)),
+                    }
+                )
+            else:
+                fingerprint["gpu_name"] = "unavailable"
+        except Exception:
+            fingerprint["gpu_name"] = "unavailable"
+        return fingerprint
+
     def _degraded_manifest(self, context: dict[str, Any], *, requested_device: str, status: Any) -> ArtifactManifest:
         frames = int(context["benchmark_frame_count"])
         payload = {
@@ -318,6 +423,14 @@ class TaichiXPBDBackend:
             "parity_passed": False,
             "taichi_available": bool(getattr(status, "available", False)),
             "taichi_initialized": bool(getattr(status, "initialized", False)),
+            "strict_gpu_required": bool(context.get("strict_gpu_required", False)),
+            "requires_gpu": bool(context.get("requires_gpu", requested_device == "gpu")),
+            "runtime_cleanup_calls": 0,
+            "runtime_cleanup_total_ms": 0.0,
+            "runtime_cleanup_samples_ms": [],
+            "pdg_input_work_item_id": str(context.get("_pdg_input_work_item_id", "")),
+            "pdg_input_partition_key": context.get("_pdg_input_partition_key"),
+            "hardware_fingerprint": self._query_hardware_fingerprint(),
             "degraded": True,
             "reason": getattr(status, "import_error", "Taichi unavailable"),
             "samples_ms": [],
@@ -326,8 +439,8 @@ class TaichiXPBDBackend:
         return ArtifactManifest(
             artifact_family=ArtifactFamily.BENCHMARK_REPORT.value,
             backend_type=BackendType.TAICHI_XPBD,
-            version="2.0.0",
-            session_id="SESSION-085",
+            version="2.1.0",
+            session_id="SESSION-105",
             outputs={"report_file": str(report_path)},
             metadata=payload,
             quality_metrics={
@@ -341,17 +454,24 @@ class TaichiXPBDBackend:
 
     def _run_taichi_lane(self, tx, *, config: Any, frames: int, dt: float, warmup_frames: int, sample_count: int) -> dict[str, Any]:
         samples_ms: list[float] = []
+        cleanup_samples_ms: list[float] = []
         final_positions = None
         last_result = None
+        active_arch = "failed"
         for _ in range(sample_count):
-            system = tx.TaichiXPBDClothSystem(config)
-            for _ in range(warmup_frames):
-                system.advance(dt)
-            system.sync()
-            last_result = system.run(frames=frames, dt=dt, collect_diagnostics=False)
-            samples_ms.append(float(last_result.seconds) * 1000.0)
-            final_positions = np.asarray(system.positions_numpy(), dtype=np.float64)
-        active_arch = getattr(last_result, "active_arch", getattr(config, "prefer_gpu", False) and "gpu" or "cpu")
+            try:
+                system = tx.TaichiXPBDClothSystem(config)
+                for _ in range(warmup_frames):
+                    system.advance(dt)
+                system.sync()
+                last_result = system.run(frames=frames, dt=dt, collect_diagnostics=False)
+                samples_ms.append(float(last_result.seconds) * 1000.0)
+                final_positions = np.asarray(system.positions_numpy(), dtype=np.float64)
+                active_arch = getattr(last_result, "active_arch", getattr(config, "prefer_gpu", False) and "gpu" or "cpu")
+            finally:
+                cleanup_samples_ms.append(float(self._cleanup_taichi_runtime(tx)))
+        if last_result is None:
+            raise RuntimeError("Taichi lane failed before producing a benchmark result")
         wall_time_ms = float(median(samples_ms)) if samples_ms else 0.0
         particle_count = int(config.particle_count)
         simulated_particle_steps = int(frames) * particle_count
@@ -366,6 +486,9 @@ class TaichiXPBDBackend:
             "particles_per_second": particles_per_second,
             "constraint_count": int(config.total_constraint_count),
             "positions": final_positions,
+            "cleanup_samples_ms": cleanup_samples_ms,
+            "runtime_cleanup_calls": len(cleanup_samples_ms),
+            "runtime_cleanup_total_ms": float(sum(cleanup_samples_ms)),
         }
 
     # ------------------------------------------------------------------
@@ -574,14 +697,30 @@ class TaichiXPBDBackend:
     def execute(self, context: dict[str, Any]) -> ArtifactManifest:
         tx = self._load_taichi_api()
         ctx = dict(context)
+        raw_work_item = ctx.get("_pdg_work_item") or ctx.get("pdg_work_item")
+        if raw_work_item is not None and ("benchmark_scenario" not in ctx or "particle_budget" not in ctx):
+            passthrough = {key: value for key, value in ctx.items() if key not in {"_pdg_work_item", "pdg_work_item"}}
+            ctx = self.build_context_from_work_item(raw_work_item, overrides=passthrough)
         if "benchmark_frame_count" not in ctx:
             ctx, _ = self.validate_config(ctx)
 
         requested_device = ctx["benchmark_device"]
         scenario = ctx["benchmark_scenario"]
+        strict_gpu_required = bool(ctx.get("strict_gpu_required", False))
         prefer_gpu = requested_device != "cpu"
         tx.reset_taichi_runtime()
-        status = tx.get_taichi_xpbd_backend_status(prefer_gpu=prefer_gpu)
+        status = self._get_backend_status(
+            tx,
+            prefer_gpu=prefer_gpu,
+            strict_gpu_required=strict_gpu_required,
+        )
+        actual_status_device = self._normalized_device(str(getattr(status, "active_arch", "failed")))
+        if strict_gpu_required and requested_device == "gpu":
+            if not status.available or not status.initialized or actual_status_device != "gpu":
+                self._cleanup_taichi_runtime(tx)
+                raise RuntimeError(
+                    f"Strict GPU execution requested for scenario {scenario!r}, but CUDA runtime was unavailable: {getattr(status, 'import_error', 'unknown error')}"
+                )
         if not status.available or not status.initialized:
             return self._degraded_manifest(ctx, requested_device=requested_device, status=status)
 
@@ -620,7 +759,6 @@ class TaichiXPBDBackend:
             and rmse <= float(ctx["benchmark_rmse_atol"])
         )
 
-        # Determine CPU reference solver name
         if scenario == "free_fall_cloud":
             cpu_ref_name = "numpy_free_fall_cloud"
         elif scenario == "sparse_cloth":
@@ -658,14 +796,23 @@ class TaichiXPBDBackend:
             "parity_passed": bool(parity_passed),
             "taichi_available": bool(status.available),
             "taichi_initialized": bool(status.initialized),
+            "strict_gpu_required": strict_gpu_required,
+            "requires_gpu": bool(ctx.get("requires_gpu", requested_device == "gpu")),
+            "runtime_cleanup_calls": int(lane["runtime_cleanup_calls"]),
+            "runtime_cleanup_total_ms": float(lane["runtime_cleanup_total_ms"]),
+            "runtime_cleanup_samples_ms": list(lane["cleanup_samples_ms"]),
+            "runtime_cleanup_strategy": "sync_then_reset",
+            "pdg_input_work_item_id": str(ctx.get("_pdg_input_work_item_id", "")),
+            "pdg_input_partition_key": ctx.get("_pdg_input_partition_key"),
+            "hardware_fingerprint": self._query_hardware_fingerprint(),
             "degraded": False,
         }
         report_path = self._write_report(ctx, payload)
         return ArtifactManifest(
             artifact_family=ArtifactFamily.BENCHMARK_REPORT.value,
             backend_type=BackendType.TAICHI_XPBD,
-            version="2.0.0",
-            session_id="SESSION-085",
+            version="2.1.0",
+            session_id="SESSION-105",
             outputs={"report_file": str(report_path)},
             metadata=payload,
             quality_metrics={

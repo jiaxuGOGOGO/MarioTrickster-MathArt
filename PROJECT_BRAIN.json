@@ -1,7 +1,7 @@
 {
   "version": "v0.92.1",
-  "last_session_id": "SESSION-104",
-  "last_updated": "2026-04-20T11:56:28-04:00",
+  "last_session_id": "SESSION-105",
+  "last_updated": "2026-04-21T01:15:00+08:00",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -32,7 +32,7 @@
     "closed_archived": 52
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-104 reaffirmed P1-ARCH-4 with bounded local scheduler semantics: PDG v2 now preserves immutable WorkItem contracts and hermetic SHA-256 disk caching while adding real max_workers-bounded fan-out execution and main-thread fan-in barrier collection. Validation: 1726 PASS / 7 SKIP / 0 FAIL.",
+  "validation_pass_rate": "SESSION-105 advanced P3-GPU-BENCH-1 from a standalone benchmark harness into a production-ready PDG-aware GPU lane: PDG v2 now exposes requires_gpu work-item scheduling through a bounded semaphore gate, TaichiXPBDBackend v2.1.0 can consume PDG work-item payloads directly, strict GPU mode refuses silent CPU fallback, and each Taichi sample now performs explicit sync+reset cleanup to prevent VRAM residency leaks. Validation: 1729 PASS / 7 SKIP / 0 FAIL.",
   "total_iterations": 686,
   "total_code_lines": 135507,
   "distill_session_id": "DISTILL-012",
@@ -2419,6 +2419,18 @@
         "P1-ARCH-5: extend the stabilized PDG substrate toward OpenUSD-compatible scene interchange",
         "P1-B1-1: convert Jakobsen secondary-chain metadata into visibly shippable secondary-animation output"
       ]
+    },
+    {
+      "session_id": "SESSION-105",
+      "date": "2026-04-21",
+      "focus": "P3-GPU-BENCH-1 production integration: PDG GPU semaphore scheduling, strict CUDA lane semantics, and Taichi VRAM cleanup",
+      "status": "COMPLETE",
+      "summary": "Closed the remaining production-integration gap around P3-GPU-BENCH-1 by wiring GPU-aware scheduling into PDG v2 and promoting the Taichi benchmark harness into a strict, PDG-consumable lane. mathart/level/pdg.py now supports requires_gpu nodes gated by gpu_slots semaphore scheduling, trace-level resource_wait_ms evidence, and dependency_work_items in context. TaichiXPBDBackend v2.1.0 now consumes PDG WorkItem payloads directly, records lineage/hardware fingerprints, performs explicit sync+reset cleanup after each sample, and raises instead of silently falling back when strict GPU execution is requested. Full suite: 1729 PASS / 7 SKIP / 0 FAIL. Sandbox benchmark evidence remained CPU-fallback because CUDA/Taichi hardware was unavailable locally.",
+      "top_gaps": [
+        "P3-GPU-BENCH-1: rerun strict-GPU benchmark on the maintainer's RTX 4070 workstation to capture real CUDA evidence under SESSION-105 semantics",
+        "P1-ARCH-5: extend the stabilized PDG + GPU substrate toward OpenUSD-compatible scene interchange",
+        "P1-B1-1: convert Jakobsen secondary-chain output into visible renderable ribbon/mesh attachments with file-backed artifacts"
+      ]
     }
   ],
   "custom_notes": {
@@ -2505,15 +2517,40 @@
     "session102_terrain_sensor_status": "HIGH-ArchitectureDeception CLOSED. scene_aware_fall_pose() now orchestrates three explicit phases via frozen dataclass artifacts: geometry query, clearance evaluation, and kinematic adaptation. Public API preserved; full suite 1722 PASS / 7 SKIP / 0 FAIL.",
     "session102_research_notes": "research_notes_architecture_deception_session102.md distills Screaming Architecture, Data-Oriented Design, and Design by Contract into concrete terrain_sensor refactor rules.",
     "session103_pdg_v2_status": "P1-ARCH-4 CLOSED. PDG v2 runtime landed with WorkItem contract, hermetic SHA-256 disk cache, explicit fan-out/fan-in semantics, and facade-preserved compatibility for existing level pipelines.",
-    "session103_research_notes": "research_notes_p1_arch4_session103.md distills SideFX PDG/TOPs, Bazel remote caching, and Airflow dynamic task mapping into concrete repository runtime rules."
+    "session103_research_notes": "research_notes_p1_arch4_session103.md distills SideFX PDG/TOPs, Bazel remote caching, and Airflow dynamic task mapping into concrete repository runtime rules.",
+    "session105_gpu_bench_status": "P3-GPU-BENCH-1 remains SUBSTANTIALLY-CLOSED, now with production PDG integration. PDG v2 supports requires_gpu nodes with gpu_slots semaphore scheduling and trace-level resource_wait_ms evidence; TaichiXPBDBackend v2.1.0 consumes PDG WorkItems directly, emits hardware_fingerprint + lineage metadata, executes strict GPU mode without silent fallback, and performs per-sample sync+reset cleanup to defend 12 GB VRAM budgets.",
+    "session105_validation": "Local validation completed with python3.11 -m pytest tests/ -p no:cov -> 1729 PASS / 7 SKIP / 0 FAIL. Supplementary targeted validation: 20 PASS / 2 SKIP on tests/test_level_pdg.py + tests/test_taichi_benchmark_backend.py. Local sandbox benchmark run executed tools/run_session085_gpu_benchmark.py in cpu_fallback mode because CUDA/Taichi hardware was unavailable.",
+    "session105_render_prep": "For P1-B1-1 after SESSION-105, the render pipeline should accept file-backed mesh/frame artifacts from the physics lane instead of JSON-inline arrays, standardize cloth ribbon/mesh topology metadata (vertex order, UV seams, normals/tangents, material slots), add a collect reduction for keyframe bundles + preview frames, and keep GPU render jobs under the same requires_gpu semaphore discipline used by the Taichi solve lane."
   },
   "recent_focus_snapshot": {
-    "session_id": "SESSION-104",
-    "focus": "P1-ARCH-4 follow-through (bounded local scheduler closure)",
+    "session_id": "SESSION-105",
+    "focus": "P3-GPU-BENCH-1 production integration: PDG GPU semaphore scheduling, strict CUDA lane semantics, and Taichi VRAM cleanup",
     "status": "COMPLETE",
-    "updated_at": "2026-04-20T11:56:28-04:00"
+    "updated_at": "2026-04-21T01:15:00+08:00"
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-105",
+      "focus": "P3-GPU-BENCH-1 production integration: PDG GPU semaphore scheduling, strict CUDA lane semantics, and Taichi VRAM cleanup",
+      "status": "COMPLETE",
+      "date": "2026-04-21",
+      "summary": "Integrated GPU-aware scheduling into PDG v2 and upgraded TaichiXPBDBackend into a strict, PDG-work-item-consumable benchmark lane with explicit sync+reset cleanup and lineage/hardware evidence fields. Full suite reached 1729 PASS / 7 SKIP / 0 FAIL.",
+      "files_touched": [
+        "mathart/level/pdg.py",
+        "mathart/core/taichi_xpbd_backend.py",
+        "mathart/animation/xpbd_taichi.py",
+        "tests/test_level_pdg.py",
+        "tests/test_taichi_benchmark_backend.py",
+        "tools/run_session085_gpu_benchmark.py",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
+      ],
+      "next_priorities": [
+        "P3-GPU-BENCH-1: rerun strict-GPU benchmark on RTX 4070 and archive the real CUDA summary/report set",
+        "P1-B1-1: connect file-backed cloth/secondary-chain outputs into visible ribbon or mesh rendering",
+        "P1-ARCH-5: extend PDG/GPU artifact flow into OpenUSD-compatible scene interchange"
+      ]
+    },
     {
       "session_id": "SESSION-104",
       "focus": "P1-ARCH-4 follow-through (bounded local scheduler closure)",
@@ -3416,6 +3453,13 @@
       "resolved_at": "2026-04-20T11:56:28-04:00",
       "resolution": "mathart/level/pdg.py now executes mapped work-item invocations through a bounded local scheduler with configurable max_workers while keeping immutable-ish WorkItem contracts, hermetic SHA-256 disk cache keys, atomic Action Cache + CAS persistence, and runtime-side fan-in aggregation. Existing graph.run() callers remain backward-compatible.",
       "validation_test_file": "tests/test_level_pdg.py"
+    },
+    {
+      "issue_id": "P3-GPU-BENCH-1-PRODUCTION-INTEGRATION",
+      "session_id": "SESSION-105",
+      "resolved_at": "2026-04-21T01:15:00+08:00",
+      "resolution": "PDG v2 now exposes requires_gpu node scheduling via gpu_slots semaphore gating, while TaichiXPBDBackend v2.1.0 consumes PDG WorkItem payloads directly, enforces strict GPU mode with no silent CPU fallback, records lineage/hardware evidence, and performs sync+reset cleanup after each sample to avoid VRAM leakage.",
+      "validation_test_file": "tests/test_level_pdg.py + tests/test_taichi_benchmark_backend.py + tests/"
     }
   ],
   "backlog": [],

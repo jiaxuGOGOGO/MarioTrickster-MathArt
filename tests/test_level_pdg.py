@@ -187,6 +187,64 @@ def test_pdg_v2_bounded_fan_out_respects_max_workers_and_collects_without_contam
 
 
 
+def test_pdg_v2_requires_gpu_nodes_are_serialized_by_gpu_slots(tmp_path: Path):
+    graph = ProceduralDependencyGraph(
+        name="gpu_gate_demo",
+        cache_dir=tmp_path / ".pdg_cache",
+        max_workers=4,
+        gpu_slots=1,
+    )
+
+    graph.add_node(PDGNode(name="seed", operation=lambda _ctx, _deps: {"values": [1, 2, 3]}))
+
+    def fan_out(_ctx: dict, deps: dict) -> PDGFanOutResult:
+        values = deps["seed"]["values"]
+        return PDGFanOutResult.from_payloads(
+            [{"value": value} for value in values],
+            partition_keys=[f"gpu_p{index}" for index in range(len(values))],
+        )
+
+    counters = {"active": 0, "max_active": 0}
+    lock = threading.Lock()
+
+    def gpu_scale(ctx: dict, deps: dict) -> dict:
+        dependency_items = ctx["_pdg"]["dependency_work_items"]
+        assert dependency_items["fan_out"].partition_key == ctx["_pdg"]["partition_key"]
+        assert ctx["_pdg"]["requires_gpu"] is True
+        with lock:
+            counters["active"] += 1
+            counters["max_active"] = max(counters["max_active"], counters["active"])
+        time.sleep(0.05)
+        with lock:
+            counters["active"] -= 1
+        return {"value": deps["fan_out"]["value"] * 100, "partition": ctx["_pdg"]["partition_key"]}
+
+    def collect(_ctx: dict, deps: dict) -> dict:
+        items = sorted(deps["gpu_scale"], key=lambda item: item["partition"])
+        return {
+            "partitions": [item["partition"] for item in items],
+            "values": [item["value"] for item in items],
+        }
+
+    graph.add_node(PDGNode(name="fan_out", dependencies=["seed"], operation=fan_out))
+    graph.add_node(PDGNode(name="gpu_scale", dependencies=["fan_out"], operation=gpu_scale, requires_gpu=True))
+    graph.add_node(PDGNode(name="collect", dependencies=["gpu_scale"], operation=collect, topology="collect"))
+
+    result = graph.run(["collect"], initial_context={"mode": "gpu_gate_test"})
+
+    assert result["scheduler"]["gpu_slots"] == 1
+    assert result["scheduler"]["gpu_max_inflight_observed"] == 1
+    assert counters["active"] == 0
+    assert counters["max_active"] == 1
+    assert result["target_outputs"]["collect"]["partitions"] == ["gpu_p0", "gpu_p1", "gpu_p2"]
+    assert result["target_outputs"]["collect"]["values"] == [100, 200, 300]
+    trace = [entry for entry in result["trace"] if entry["node_name"] == "gpu_scale"]
+    assert len(trace) == 3
+    assert all(entry["requires_gpu"] is True for entry in trace)
+    assert all(entry["resource_wait_ms"] >= 0.0 for entry in trace)
+
+
+
 def test_work_item_contract_is_frozen_and_dict_roundtrips() -> None:
     work_item = WorkItem(
         item_id="node:0:branch:abcdef123456",

@@ -128,12 +128,16 @@ class _FakeTaichiApi:
         self.initialized = initialized
         self.gpu_available = gpu_available
         self.reset_calls = 0
+        self.sync_calls = 0
         self.TaichiXPBDClothSystem = _FakeClothSystem
 
     def reset_taichi_runtime(self) -> None:
         self.reset_calls += 1
 
-    def get_taichi_xpbd_backend_status(self, prefer_gpu: bool = True):
+    def sync_taichi_runtime(self) -> None:
+        self.sync_calls += 1
+
+    def get_taichi_xpbd_backend_status(self, prefer_gpu: bool = True, strict_gpu: bool = False):
         if not self.available:
             return SimpleNamespace(
                 available=False,
@@ -154,6 +158,13 @@ class _FakeTaichiApi:
                 initialized=True,
                 active_arch="cuda",
                 import_error="",
+            )
+        if prefer_gpu and strict_gpu and not self.gpu_available:
+            return SimpleNamespace(
+                available=True,
+                initialized=False,
+                active_arch="failed",
+                import_error="strict gpu unavailable",
             )
         return SimpleNamespace(
             available=True,
@@ -243,6 +254,32 @@ def test_taichi_benchmark_backend_gpu_report_contains_median_sync_and_parity(tmp
     assert gpu_report["cpu_gpu_max_drift"] == pytest.approx(0.0, abs=1e-12)
     assert gpu_report["cpu_gpu_rmse"] == pytest.approx(0.0, abs=1e-12)
     assert gpu_report["parity_passed"] is True
+    assert gpu_report["runtime_cleanup_calls"] == 3
+    assert fake_tx.reset_calls == 4
+    assert fake_tx.sync_calls == 3
+
+
+def test_taichi_benchmark_backend_strict_gpu_raises_without_gpu(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    backend = TaichiXPBDBackend()
+    fake_tx = _FakeTaichiApi(available=True, initialized=True, gpu_available=False)
+    monkeypatch.setattr(backend, "_load_taichi_api", lambda: fake_tx)
+
+    gpu_ctx, _ = backend.validate_config(
+        {
+            "output_dir": str(tmp_path),
+            "name": "gpu_strict",
+            "benchmark_device": "gpu",
+            "benchmark_scenario": "free_fall_cloud",
+            "benchmark_frame_count": 4,
+            "benchmark_warmup_frames": 1,
+            "benchmark_sample_count": 2,
+            "particle_budget": 64,
+            "strict_gpu_required": True,
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="Strict GPU execution requested"):
+        backend.execute(gpu_ctx)
 
 
 def test_sparse_cloth_scenario_validation():
@@ -256,6 +293,42 @@ def test_sparse_cloth_scenario_validation():
     )
     assert ctx["benchmark_scenario"] == "sparse_cloth"
     assert not any("invalid" in w.lower() for w in warnings)
+
+
+def test_execute_work_item_consumes_pdg_payload_and_records_lineage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    backend = TaichiXPBDBackend()
+    fake_tx = _FakeTaichiApi(available=True, initialized=True, gpu_available=True)
+    monkeypatch.setattr(backend, "_load_taichi_api", lambda: fake_tx)
+    monkeypatch.setattr(backend, "_query_gpu_device_name", lambda actual_device: "Fake RTX 4070" if actual_device == "gpu" else "unavailable")
+
+    work_item = {
+        "item_id": "seed:0:i0:abcdef123456",
+        "partition_key": "gpu_lane_0",
+        "payload_digest": "d" * 64,
+        "payload": {
+            "benchmark_device": "gpu",
+            "benchmark_scenario": "free_fall_cloud",
+            "benchmark_frame_count": 4,
+            "benchmark_warmup_frames": 1,
+            "benchmark_sample_count": 2,
+            "particle_budget": 64,
+        },
+    }
+
+    manifest = backend.execute_work_item(
+        work_item,
+        overrides={
+            "output_dir": str(tmp_path),
+            "strict_gpu_required": True,
+        },
+    )
+    report = _read_report(manifest)
+
+    assert report["pdg_input_work_item_id"] == work_item["item_id"]
+    assert report["pdg_input_partition_key"] == "gpu_lane_0"
+    assert report["strict_gpu_required"] is True
+    assert report["requires_gpu"] is True
+    assert report["gpu_device_name"] == "Fake RTX 4070"
 
 
 def test_sparse_cloth_degraded_report_has_constraint_field(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

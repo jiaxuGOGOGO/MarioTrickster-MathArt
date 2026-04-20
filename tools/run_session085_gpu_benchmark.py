@@ -107,6 +107,8 @@ def run_case(
             "particle_budget": particle_budget,
             "taichi_sub_steps": sub_steps,
             "taichi_solver_iterations": solver_iterations,
+            "strict_gpu_required": device == "gpu",
+            "requires_gpu": device == "gpu",
         }
     )
     manifest = backend.execute(ctx)
@@ -220,15 +222,17 @@ def main() -> None:
 
     # --- Summary ---
     summary = {
-        "session": "SESSION-085",
+        "session": "SESSION-105",
+        "benchmark_entrypoint": "tools/run_session085_gpu_benchmark.py",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "execution_mode": mode,
         "cuda_detected": cuda_available,
         "particle_budget": budget,
+        "strict_gpu_required": cuda_available,
         "cases": cases,
     }
 
-    summary_path = output_dir / "session085_benchmark_summary.json"
+    summary_path = output_dir / "session105_benchmark_summary.json"
     summary_path.write_text(
         json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
