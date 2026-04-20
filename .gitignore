@@ -41,3 +41,4 @@ evolution_reports/CYCLE-*.json
 .pytest_cache/
 .venv/
 reports/
+ci_fixture_output_dir/
