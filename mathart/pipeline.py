@@ -2347,7 +2347,10 @@ class AssetPipeline:
             ExportConfig(output_dir=str(export_dir), style_name="Style_MathArt", version=1)
         )
 
-        graph = ProceduralDependencyGraph(name=f"pdg_{level_spec.level_id}")
+        graph = ProceduralDependencyGraph(
+            name=f"pdg_{level_spec.level_id}",
+            cache_dir=level_dir / ".pdg_cache",
+        )
 
         def _node_wfc(_: dict[str, Any], __: dict[str, Any]) -> dict[str, Any]:
             generator = WFCGenerator(seed=run_seed)

@@ -1,7 +1,7 @@
 {
-  "version": "v0.91.0",
-  "last_session_id": "SESSION-102",
-  "last_updated": "2026-04-20T10:25:45-04:00",
+  "version": "v0.92.0",
+  "last_session_id": "SESSION-103",
+  "last_updated": "2026-04-20T11:20:13-04:00",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -23,16 +23,16 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
-      "P1-ARCH-4",
       "P3-GPU-BENCH-1",
-      "P1-AI-2D-SPARSECTRL",
       "P1-ARCH-5",
-      "P1-B1-1"
+      "P1-B1-1",
+      "P1-NEW-10",
+      "P1-INDUSTRIAL-34A"
     ],
     "closed_archived": 52
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-102 HIGH-ArchitectureDeception CLOSED: terrain_sensor fall-pose topology now physically matches the documented 3-phase design. Validation: 1722 PASS / 7 SKIP / 0 FAIL.",
+  "validation_pass_rate": "SESSION-103 P1-ARCH-4 CLOSED: lightweight DAG runtime now exposes immutable WorkItem contracts, hermetic SHA-256 caching, fan-out/fan-in orchestration, and facade-preserved backward compatibility. Validation: 1725 PASS / 7 SKIP / 0 FAIL.",
   "total_iterations": 685,
   "total_code_lines": 132767,
   "distill_session_id": "DISTILL-012",
@@ -281,9 +281,12 @@
       "id": "P1-ARCH-4",
       "priority": "P1",
       "title": "PDG v2 runtime semantics",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "high",
-      "description": "Add cache keys, partition / collect, fan-out / fan-in orchestration, and reusable work-item attributes to the lightweight DAG runtime."
+      "description": "SESSION-103 CLOSED. The lightweight DAG runtime now provides immutable-ish WorkItem contracts, hermetic SHA-256 cache keys, disk-backed Action Cache + CAS persistence, explicit fan-out/fan-in orchestration, work-item trace metadata, and backward-compatible facade execution for existing level pipelines. Dedicated tests prove cache-hit dry-run short-circuiting and complete fan-out/fan-in data flow.",
+      "updated_in": "SESSION-103",
+      "completed_in": "SESSION-103",
+      "notes": "SESSION-103 closed P1-ARCH-4 by landing a PDG v2 runtime in mathart/level/pdg.py. The runtime now executes explicit WorkItem contracts, uses a hermetic SHA-256 disk cache (Action Cache + CAS), supports runtime fan-out and collect-based fan-in, and preserves the legacy graph.run() dict API through an internal facade. White-box tests lock cache hit zero recompute and 1→N / N→1 topology completeness."
     },
     {
       "id": "P1-ARCH-5",
@@ -2397,6 +2400,13 @@
       "focus": "HIGH-ArchitectureDeception (terrain_sensor 3-phase pipeline closure)",
       "status": "COMPLETE",
       "summary": "Closed the remaining terrain_sensor Architecture Deception by refactoring scene_aware_fall_pose() into an explicit 3-phase pipeline: _phase1_query_geometry() -> _phase2_evaluate_clearance() -> _phase3_apply_kinematic_adaptation(). Added frozen dataclass artifacts, strengthened test_batch_query/test_slope_compensation, and landed white-box phase-level assertions. Full suite reached 1722 PASS / 7 SKIP / 0 FAIL."
+    },
+    {
+      "session_id": "SESSION-103",
+      "date": "2026-04-20",
+      "focus": "P1-ARCH-4 (PDG v2 runtime semantics closure)",
+      "status": "COMPLETE",
+      "summary": "Closed P1-ARCH-4 by upgrading mathart/level/pdg.py from a linear dict-passing DAG into a PDG v2 runtime: immutable WorkItem contract, Bazel-style hermetic SHA-256 disk cache (AC + CAS), explicit fan-out/fan-in runtime semantics, and facade-preserved backward compatibility for existing level pipelines. Added white-box cache/fan-out/collect tests. Full suite reached 1725 PASS / 7 SKIP / 0 FAIL."
     }
   ],
   "custom_notes": {
@@ -2481,15 +2491,34 @@
     "session085_ignition_script": "tools/run_session085_gpu_benchmark.py is the end-to-end ignition script for real-device benchmark evidence. Auto-detects CUDA via direct ti.init(arch=ti.cuda) probe (hotfixed in SESSION-085b). Scales parameters (16K particles for GPU, 64 for CI), runs both free_fall_cloud and sparse_cloth scenarios, and produces session085_benchmark_summary.json. Verified on RTX 4070: CUDA detected: True, Mode: real_cuda. Use --particle-budget 4096 for faster sparse_cloth CPU reference.",
     "session085_research_notes": "research/session085_sparse_cloth_benchmark_research.md documents Taichi sparse SNode layouts, Google Benchmark warm-up/sampling discipline, NASA-STD-7009B verification/validation credibility, and XPBD GPU race condition mitigation via parity-based constraint coloring.",
     "session102_terrain_sensor_status": "HIGH-ArchitectureDeception CLOSED. scene_aware_fall_pose() now orchestrates three explicit phases via frozen dataclass artifacts: geometry query, clearance evaluation, and kinematic adaptation. Public API preserved; full suite 1722 PASS / 7 SKIP / 0 FAIL.",
-    "session102_research_notes": "research_notes_architecture_deception_session102.md distills Screaming Architecture, Data-Oriented Design, and Design by Contract into concrete terrain_sensor refactor rules."
+    "session102_research_notes": "research_notes_architecture_deception_session102.md distills Screaming Architecture, Data-Oriented Design, and Design by Contract into concrete terrain_sensor refactor rules.",
+    "session103_pdg_v2_status": "P1-ARCH-4 CLOSED. PDG v2 runtime landed with WorkItem contract, hermetic SHA-256 disk cache, explicit fan-out/fan-in semantics, and facade-preserved compatibility for existing level pipelines.",
+    "session103_research_notes": "research_notes_p1_arch4_session103.md distills SideFX PDG/TOPs, Bazel remote caching, and Airflow dynamic task mapping into concrete repository runtime rules."
   },
   "recent_focus_snapshot": {
-    "session_id": "SESSION-102",
-    "focus": "HIGH-ArchitectureDeception (terrain_sensor 3-phase pipeline closure)",
+    "session_id": "SESSION-103",
+    "focus": "P1-ARCH-4 (PDG v2 runtime semantics closure)",
     "status": "COMPLETE",
-    "updated_at": "2026-04-20T10:25:45-04:00"
+    "updated_at": "2026-04-20T11:20:13-04:00"
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-103",
+      "focus": "P1-ARCH-4 (PDG v2 runtime semantics closure)",
+      "status": "COMPLETE",
+      "date": "2026-04-20",
+      "summary": "Closed P1-ARCH-4 by upgrading mathart/level/pdg.py from a linear dict-passing DAG into a PDG v2 runtime: immutable WorkItem contract, Bazel-style hermetic SHA-256 disk cache (AC + CAS), explicit fan-out/fan-in runtime semantics, and facade-preserved backward compatibility for existing level pipelines. Added white-box cache/fan-out/collect tests. Full suite reached 1725 PASS / 7 SKIP / 0 FAIL.",
+      "files_touched": [
+        "mathart/level/pdg.py",
+        "mathart/level/__init__.py",
+        "mathart/pipeline.py",
+        "tests/test_level_pdg.py",
+        "research_notes_p1_arch4_session103.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "validation": "1725 PASS / 7 SKIP / 0 FAIL (python3.11 -m pytest tests/ -p no:cov)"
+    },
     {
       "session_id": "SESSION-102",
       "focus": "HIGH-ArchitectureDeception (terrain_sensor 3-phase pipeline closure)",
@@ -2675,41 +2704,6 @@
       "date": "2026-04-20",
       "title": "Genotype Hard-Clipping Boundary Closure & Extreme Mutation Stress Validation",
       "summary": "Closed HIGH-2.3 by refactoring mathart/animation/genotype.py around a declared continuous-domain contract, a unified enforce_genotype_bounds() hard-clipping pass, and deterministic extreme-strength mutation tests that assert every continuous gene remains inside bounds under ±1e6 mutation pressure. Verified downstream AssetPipeline genotype E2E regressions."
-    },
-    {
-      "id": "SESSION-096",
-      "version": "0.86.0",
-      "date": "2026-04-20",
-      "title": "Phase-Driven Illegal Transition Guard Closure & Deterministic Negative Testing",
-      "summary": "Closed HIGH-2.4 by turning phase-driven semantic control into an explicit guarded state machine with a declared legal-transition graph, typed IllegalStateTransitionError failures, and deterministic negative tests that prove forbidden requests preserve phase/blend state instead of silently mutating the animation controller."
-    },
-    {
-      "id": "SESSION-097",
-      "version": "0.87.0",
-      "date": "2026-04-20",
-      "title": "Deterministic CI Randomness Cleanup & Registry-Isolation Repair",
-      "summary": "Closed HIGH-2.5 by replacing legacy global NumPy randomness with isolated local generators across the highest-risk regression hotspots, upgrading weak shape-only checks to deterministic value-level assertions, and repairing a backend-registry teardown leak that had been making isolated unified_motion validation order-dependent."
-    },
-    {
-      "id": "SESSION-098",
-      "version": "0.88.0",
-      "date": "2026-04-20",
-      "title": "Full-Suite CI Bootstrap Hardening: Registry Restoration, Optional Dependency Gating & Manifest Schema Compliance",
-      "summary": "Closed HIGH-2.6 by introducing tests/conftest.py with session-scoped autouse registry bootstrap fixture and restore_builtin_backends() helper. Fixed registry teardown in 3 test files, gated Taichi/watchdog with importorskip/skipif, fixed orthographic_pixel_backend manifest schema compliance, aligned unity_urp_native bridge key assertions, and adapted gpu_benchmark_realism to accept degraded manifests. Baseline 68 FAIL eliminated to 0 FAIL (1652+ PASS, 9 SKIP)."
-    },
-    {
-      "id": "SESSION-099",
-      "version": "0.89.0",
-      "date": "2026-04-20",
-      "title": "Production Code RNG Dependency Injection (NEP-19 Compliance)",
-      "summary": "Closed HIGH-2.7 by refactoring all 43 bare np.random calls across 8 production files to NEP-19 compliant np.random.default_rng / Generator injection. No global seed pollution, no zero-matrix complexity reduction, no hardcoded seeds in production logic. 1631 PASS, 0 FAIL, 8 SKIP."
-    },
-    {
-      "id": "SESSION-100",
-      "version": "0.90.0",
-      "date": "2026-04-20",
-      "title": "Evolution Loop OOM Fix (PERF-1)",
-      "summary": "Closed PERF-1-EVOLUTION-LOOP-OOM by auditing and fixing run_evolution_cycle() memory usage. scan_internal_todos() peak RSS reduced from 445.6 MB to 59.4 MB (87%) via exclude_dirs DI, max_file_size DI, and streaming line-by-line read. generate_evolution_report() peak reduced from ~445 MB to 0.7 MB via proposal_limit DI. 16 new regression tests with tracemalloc memory guards. 1646 PASS, 0 FAIL (PERF-1 scope), 8 SKIP."
     }
   ],
   "closed_tasks_archive": [
@@ -3305,6 +3299,33 @@
         "SESSION_HANDOFF.md",
         "PROJECT_BRAIN.json"
       ]
+    },
+    {
+      "session_id": "SESSION-103",
+      "version": "v0.92.0",
+      "date": "2026-04-20",
+      "focus": "P1-ARCH-4 (PDG v2 runtime semantics closure)",
+      "status": "COMPLETE",
+      "summary": "Closed P1-ARCH-4 by upgrading mathart/level/pdg.py from a linear dict-passing DAG into a PDG v2 runtime: immutable WorkItem contract, Bazel-style hermetic SHA-256 disk cache (AC + CAS), explicit fan-out/fan-in runtime semantics, and facade-preserved backward compatibility for existing level pipelines. Added white-box cache/fan-out/collect tests. Full suite reached 1725 PASS / 7 SKIP / 0 FAIL.",
+      "changes": [
+        "REFACTOR mathart/level/pdg.py — replace linear dict-passing DAG runtime with PDG v2 facade: WorkItem contract, PDGFanOutResult, Action Cache + CAS, runtime fan-out mapping, collect barrier, work-item trace",
+        "UPD mathart/level/__init__.py — export WorkItem / PDGFanOutItem / PDGFanOutResult for white-box coverage and future registry integration",
+        "UPD mathart/pipeline.py — isolate level PDG cache into level_dir/.pdg_cache to prevent lifecycle bleed",
+        "NEW tests/test_level_pdg.py — cache short-circuit, fan-out/fan-in completeness, WorkItem contract coverage plus legacy compatibility checks",
+        "NEW research_notes_p1_arch4_session103.md — SideFX PDG, Bazel hermetic cache, and Airflow dynamic mapping distilled into repository-specific runtime rules",
+        "UPD PROJECT_BRAIN.json — P1-ARCH-4 → CLOSED, reprioritize top gaps after architecture closure",
+        "UPD SESSION_HANDOFF.md — SESSION-103 handoff with PDG v2 closure and P3-GPU-BENCH-1 preparation notes"
+      ],
+      "files_touched": [
+        "mathart/level/pdg.py",
+        "mathart/level/__init__.py",
+        "mathart/pipeline.py",
+        "tests/test_level_pdg.py",
+        "research_notes_p1_arch4_session103.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "test_results": "1725 PASS / 7 SKIP / 0 FAIL (python3.11 -m pytest tests/ -p no:cov)"
     }
   ],
   "resolved_issues": [
@@ -3329,12 +3350,22 @@
       "resolved_at": "2026-04-20T10:25:45-04:00",
       "resolution": "scene_aware_fall_pose() now exposes a physical 3-phase topology backed by immutable intermediate artifacts. Strengthened terrain_sensor regression tests now pin phase-1 geometry, phase-2 compensation, and phase-3 pose-matrix values.",
       "validation_test_file": "tests/test_terrain_sensor.py"
+    },
+    "RESOLVED-S103: lightweight level DAG only supported linear dict-passing execution with no reusable work-item contract, no hermetic cache, and no real fan-out/fan-in semantics -> upgraded to PDG v2 runtime with WorkItem, disk Action Cache + CAS, explicit mapped execution + collect barrier, and facade-preserved backward compatibility.",
+    {
+      "issue_id": "P1-ARCH-4",
+      "session_id": "SESSION-103",
+      "resolved_at": "2026-04-20T11:20:13-04:00",
+      "resolution": "mathart/level/pdg.py now executes through a PDG v2 runtime facade with immutable-ish WorkItem contracts, hermetic SHA-256 cache keys, disk-backed Action Cache + CAS, runtime fan-out/fan-in orchestration, and work-item-level trace metadata. Existing graph.run() callers remain backward-compatible.",
+      "validation_test_file": "tests/test_level_pdg.py"
     }
   ],
   "backlog": [],
   "notes": {
     "session099_rng_refactor_status": "HIGH-2.7 CLOSED. All 43 bare np.random calls eliminated from mathart/. Pattern: production functions accept optional rng: Generator | None with default_rng() fallback. Deterministic projection matrices use cached instance-level _get_projection_matrix(). Legacy RandomState replaced with default_rng throughout. Three red-line constraints strictly enforced.",
     "session100_perf1_status": "PERF-1-EVOLUTION-LOOP-OOM CLOSED. Root cause: scan_internal_todos() recursively read 110.7 MB of generated CYCLE JSON from evolution_reports/ (34 files, largest 71 MB), causing 445.6 MB peak RSS and exponential report JSON growth. Fix: exclude_dirs DI (frozenset, 11 excluded dirs), max_file_size DI (1 MiB threshold), streaming line-by-line read, proposal_limit DI (500 cap), streaming json.dump(). Peak RSS: 445.6 MB -> 59.4 MB (87% reduction). 16 new regression tests with tracemalloc guards (<50 MB scan, <100 MB cycle). Public API fully backward-compatible.",
-    "session102_validation": "Local validation completed with python3.11 -m pytest tests/ -p no:cov -> 1722 PASS / 7 SKIP / 0 FAIL. Sandbox environment required dev extras plus watchdog for complete execution."
+    "session102_validation": "Local validation completed with python3.11 -m pytest tests/ -p no:cov -> 1722 PASS / 7 SKIP / 0 FAIL. Sandbox environment required dev extras plus watchdog for complete execution.",
+    "session103_validation": "Local validation completed with python3.11 -m pytest tests/ -p no:cov -> 1725 PASS / 7 SKIP / 0 FAIL. New PDG v2 white-box tests cover hermetic cache short-circuiting, fan-out/fan-in completeness, and WorkItem contract exposure.",
+    "session103_gpu_prep": "For P3-GPU-BENCH-1, benchmark scenarios should next be promoted into explicit WorkItems with hardware/environment fingerprints (device_name, driver_version, taichi_version, arch, snode_layout, precision_mode) so PDG v2 cache keys distinguish real CUDA evidence from CPU/reference runs."
   }
 }

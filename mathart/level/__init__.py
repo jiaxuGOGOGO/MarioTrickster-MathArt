@@ -17,7 +17,14 @@ from .spec_bridge import (
     AssetCategory,
     RenderMode,
 )
-from .pdg import ProceduralDependencyGraph, PDGNode, PDGError
+from .pdg import (
+    ProceduralDependencyGraph,
+    PDGNode,
+    PDGError,
+    WorkItem,
+    PDGFanOutItem,
+    PDGFanOutResult,
+)
 from .scene_description import UniversalSceneDescription, SceneLayer, ScenePrim
 # SESSION-057: Constraint-Aware WFC (P2 — Cross-Dimensional Spawning)
 from .constraint_wfc import (
@@ -52,6 +59,9 @@ __all__ = [
     "ProceduralDependencyGraph",
     "PDGNode",
     "PDGError",
+    "WorkItem",
+    "PDGFanOutItem",
+    "PDGFanOutResult",
     "UniversalSceneDescription",
     "SceneLayer",
     "ScenePrim",
