@@ -4,96 +4,113 @@
 
 | Field | Value |
 |---|---|
-| Session | `SESSION-099` |
-| Focus | `HIGH-2.7` Production code RNG dependency injection: refactor all bare `np.random` calls to NEP-19 compliant `np.random.default_rng` / `Generator` injection |
+| Session | `SESSION-100` |
+| Focus | `PERF-1-EVOLUTION-LOOP-OOM` — Audit and fix `run_evolution_cycle()` memory usage to eliminate OOM in `test_evolution_loop.py` |
 | Status | `COMPLETE` |
 | Working Branch | `main` |
-| Validation | `1631 PASS, 0 FAIL, 8 SKIP` across full test suite |
-| Primary Files | `mathart/animation/human_math.py`, `mathart/animation/rl_locomotion.py`, `mathart/animation/skill_embeddings.py`, `mathart/animation/smooth_morphology.py`, `mathart/evolution/session065_research_bridge.py`, `mathart/evolution/dimension_uplift_bridge.py`, `mathart/headless_e2e_ci.py`, `mathart/quality/visual_fitness.py`, `mathart/sdf/noise.py` |
+| Validation | `1646 PASS, 0 FAIL (PERF-1 scope), 8 SKIP` across full test suite. 1 pre-existing `watchdog` dependency failure (unrelated to PERF-1). |
+| Primary Files | `mathart/evolution/evolution_loop.py`, `tests/test_perf1_evolution_oom.py` |
 
 ## Executive Summary
 
-本轮 `HIGH-2.7` 的核心目标，是将 SESSION-098 审计发现的 **43 处 bare `np.random` 用法**（分布在 8 个生产文件中）全部重构为 NEP-19 compliant 的 `np.random.default_rng` / `Generator` 依赖注入模式。这些调用使用全局随机状态，违反了 NumPy Enhancement Proposal 19 的显式依赖传递原则，导致测试之间存在隐性耦合风险。
+本轮 `PERF-1-EVOLUTION-LOOP-OOM` 的核心目标，是审计并修复 `run_evolution_cycle()` 的内存爆炸问题。此前 `test_evolution_loop.py` 在 CI 中因单次调用 `scan_internal_todos()` 导致 RSS 超过 **2.4 GB** 而 OOM 崩溃。
 
-重构策略严格遵守三条防混线护栏：
+**根因分析**：`scan_internal_todos()` 递归扫描项目根目录下所有 `.py`/`.md`/`.json` 文件，包括 `evolution_reports/` 目录下的 34 个 CYCLE JSON 文件（总计 **110.7 MB**），其中最大的单个文件达 **71 MB**。这些报告文件本身是由 `generate_evolution_report()` 生成的，其中嵌入了前次扫描的全部 proposals，导致报告 JSON 呈指数级膨胀（9KB → 37KB → 65KB → ... → 71MB）。每次 `scan_internal_todos()` 都会将这些巨型文件完整读入内存并逐行扫描，形成 **自我引用的指数膨胀循环**。
 
-1. **防"全局污染逃课"红线**：没有在任何 `__init__.py` 或 `conftest.py` 中写 `np.random.seed(42)` 全局污染。每个上下文都通过显式传递 `default_rng` 实例来控制随机性。
+**修复策略**（严格遵守 IoC / 依赖注入纪律）：
 
-2. **防"阉割物理复杂性"红线**：没有将任何随机矩阵替换为 `np.zeros()` 来降低测试难度。所有随机输入保持原有的高方差与扰动，确保算法鲁棒性得到充分压榨。
+1. **`scan_internal_todos()` — 添加 `exclude_dirs` 参数（DI）**：默认排除 `evolution_reports`、`artifacts`、`golden`、`stagnation_reports`、`output`、`node_modules`、`.git`、`__pycache__`、`.mypy_cache`、`.pytest_cache`、`mathart.egg-info` 等生成目录。调用方可通过 keyword-only 参数覆盖。
 
-3. **防"生产代码被定死"红线**：没有在生产逻辑中把 seed 写死为 42。生产侧函数通过 `rng: np.random.Generator | None = None` 参数接受外部注入，`rng is None` 时构造无种子的 `default_rng()`，保持生产环境的真随机性。只有确定性投影矩阵（如 `human_math.py` 的 Johnson-Lindenstrauss 投影）使用固定种子缓存，这是算法正确性要求而非测试便利。
+2. **`scan_internal_todos()` — 添加 `max_file_size` 参数（DI）**：默认 1 MiB 阈值，跳过超大文件。调用方可注入自定义阈值。
+
+3. **`scan_internal_todos()` — 流式逐行读取**：从 `filepath.read_text()` 全文加载改为 `filepath.open()` + `enumerate(fh)` 逐行流式读取，避免将整个文件内容持有在内存中。
+
+4. **`generate_evolution_report()` — 添加 `proposal_limit` 参数（DI）**：默认上限 500 条 proposals，超出时截断并在 summary 中注明。调用方可传 `None` 禁用截断。
+
+5. **`save_evolution_report()` — 流式 JSON 写入**：从 `json.dumps()` + `write_text()` 改为 `json.dump()` 直接写入文件句柄，避免构建完整序列化字符串。
+
+**内存优化效果**：
+
+| 指标 | 修复前 | 修复后 | 降幅 |
+|---|---|---|---|
+| `scan_internal_todos()` 峰值 RSS | 445.6 MB | 59.4 MB | **87%** |
+| `generate_evolution_report()` 峰值 | ~445 MB | 0.7 MB | **99.8%** |
+| proposals 数量 | 36,870 | 7 | 排除了生成目录 |
+| 最大 CYCLE JSON | 71 MB | ~38 KB | 不再自我引用 |
 
 ## What Changed in Code
 
 | File | Change | Effect |
 |---|---|---|
-| `mathart/animation/human_math.py` | `encode_to_latent` / `decode_from_latent` 中的 `np.random.seed(42)` + `np.random.randn` 替换为实例级缓存的 `_get_projection_matrix()` 使用 `default_rng(42)` | 确定性投影矩阵通过实例缓存生成，消除全局状态污染 |
-| `mathart/animation/rl_locomotion.py` | `LocomotionEnv.reset`: `np.random.seed(seed)` → `self._rng = default_rng(seed)`；`LocomotionPolicy.act`: 添加 `rng` 参数；`_init_mlp`: 添加 `rng` 参数 | 环境重置和策略采样的随机性完全可注入 |
-| `mathart/animation/skill_embeddings.py` | `SkillEncoder._init_mlp/sample`, `MotionDiscriminator.train_step/gradient_penalty`, `LowLevelController.act`, `HighLevelController.select_skill`, `SkillLibrary._register_default_skills`, `ASEFramework.pretrain_llc`: 全部添加 `rng` 参数 | ASE 框架全链路随机性可控 |
-| `mathart/animation/smooth_morphology.py` | `MorphologyFactory.__init__`: `RandomState(seed)` → `default_rng(seed)`；所有 `randint` → `integers` | 形态学进化工厂迁移到新 API |
-| `mathart/evolution/session065_research_bridge.py` | `ResearchModuleEvaluator` / `ResearchIntegrationTester`: 构造函数添加 `rng` 参数，内部 `np.random.seed(42)` + `np.random.randn` 替换为 `self._rng` | 研究桥评估器的随机性可注入 |
-| `mathart/evolution/dimension_uplift_bridge.py` | 缓存精度测试: `RandomState(42)` → `default_rng(42)` | 消除 legacy RandomState 依赖 |
-| `mathart/headless_e2e_ci.py` | `np.random.seed(HERMETIC_SEED)` → `default_rng(HERMETIC_SEED)`；测试函数使用局部生成器 | E2E CI 的随机性隔离 |
-| `mathart/quality/visual_fitness.py` | 内嵌测试函数: `np.random.RandomState(42)` → `default_rng(42)`；`randint` → `integers` | 视觉适应度测试迁移到新 API |
-| `mathart/sdf/noise.py` | `_build_permutation`: `RandomState(seed)` → `default_rng(seed)` | Perlin 噪声排列表生成迁移到新 API |
+| `mathart/evolution/evolution_loop.py` | `scan_internal_todos()`: 新增 `exclude_dirs: frozenset[str] \| None` 和 `max_file_size: int \| None` keyword-only 参数；流式逐行读取替代全文加载 | 消除对 `evolution_reports/` 等生成目录的递归扫描，防止 OOM |
+| `mathart/evolution/evolution_loop.py` | `generate_evolution_report()`: 新增 `proposal_limit: int \| None` keyword-only 参数；超限时截断并注明 | 防止报告 JSON 无限膨胀 |
+| `mathart/evolution/evolution_loop.py` | `save_evolution_report()`: `json.dumps()` + `write_text()` → `json.dump()` 流式写入 | 避免构建完整序列化字符串 |
+| `mathart/evolution/evolution_loop.py` | 新增导出常量 `_DEFAULT_EXCLUDE_DIRS`, `_DEFAULT_MAX_FILE_SIZE`, `_DEFAULT_PROPOSAL_LIMIT` | 支持测试和外部调用方的 DI 覆盖 |
+| `tests/test_perf1_evolution_oom.py` | 新增 16 个专项回归测试 | 覆盖 exclude_dirs、max_file_size、streaming、proposal_limit、JSON 有效性、内存回归守卫 |
 
 ## Why This Fix Is Architecturally Correct
 
 本轮修复严格遵守了项目的三条架构红线。
 
-**第一，严禁越权修改主干。** 所有修改都局限在各自的生产模块内部，通过在函数签名中添加可选的 `rng` 参数来实现依赖注入。没有修改任何核心中枢（AssetPipeline / Orchestrator / BackendRegistry）。每个模块自行管理自己的随机数控制权移交。
+**第一，严禁越权修改主干。** 所有修改都局限在 `mathart/evolution/evolution_loop.py` 内部的三个函数签名中。没有修改任何核心中枢（AssetPipeline / Orchestrator / BackendRegistry）。`run_evolution_cycle()` 的公共 API 签名完全不变，现有的 `scripts/run_session043_evolution_report.py` 和 `scripts/run_session044_evolution_report.py` 等外部脚本无需任何修改即可继续工作。
 
-**第二，独立封装挂载。** 每个文件的重构都是自包含的：`human_math.py` 使用实例级缓存投影矩阵，`rl_locomotion.py` 使用实例属性 `self._rng`，`skill_embeddings.py` 使用方法级 `rng` 参数。没有引入跨模块的全局随机数管理器或中央种子分发机制。
+**第二，独立封装挂载。** 新增的三个参数（`exclude_dirs`、`max_file_size`、`proposal_limit`）都是 keyword-only 参数，带有合理的默认值。它们通过依赖注入模式将控制权移交给调用方，而不是在函数内部写死策略。默认值通过模块级常量（`_DEFAULT_EXCLUDE_DIRS`、`_DEFAULT_MAX_FILE_SIZE`、`_DEFAULT_PROPOSAL_LIMIT`）定义并导出，支持外部覆盖。
 
-**第三，强类型契约。** 所有新增的 `rng` 参数都使用 `np.random.Generator | None` 类型注解，明确声明接口契约。`None` 默认值保持完全的向后兼容性——现有的所有调用方无需任何修改即可继续工作。
-
-**第四，NEP-19 合规。** 从 legacy `np.random.RandomState` 和 bare `np.random` 全局状态，统一迁移到 `np.random.default_rng` / `np.random.Generator` 新 API。`randint` → `integers`，`np.random.randn(shape)` → `rng.standard_normal(shape)`，`np.random.rand(shape)` → `rng.random(shape)`。
+**第三，强类型契约。** 所有新增参数都使用 `frozenset[str] | None` 和 `int | None` 类型注解。`None` 默认值触发模块级常量的使用，保持完全的向后兼容性。`EvolutionCycleReport` 的 `to_dict()` 输出格式不变，下游消费者无感知。
 
 ## Test Closure
 
 | Validation Layer | Scope | Result |
 |---|---|---|
-| Full test suite | 全部测试文件 | `1631 PASS, 0 FAIL, 8 SKIP` |
-| Bare np.random audit | `grep -rn "np\.random\.\(seed\|randn\|rand\b\|randint\|RandomState\)" mathart/` | **0 matches** — 生产代码中不再有任何 bare np.random 用法 |
-| Global seed audit | `grep -rn "np\.random\.seed" tests/` | **0 executable matches** — 仅 conftest.py docstring 中有禁止性说明 |
+| PERF-1 专项测试 | `tests/test_perf1_evolution_oom.py` | **16 PASS** |
+| 原有 evolution 测试 | `tests/test_evolution_loop.py` | **15 PASS** (零回归) |
+| 完整测试套件 | 全部测试文件 | **1646 PASS, 0 FAIL (PERF-1 scope), 8 SKIP** |
+| 内存回归守卫 | `scan_internal_todos()` 峰值 < 50 MB | **PASS** |
+| 内存回归守卫 | `run_evolution_cycle()` 峰值 < 100 MB | **PASS** |
+| 预存失败 | `test_watcher_reload_occurs_at_frame_boundary` (watchdog 缺失) | 与 PERF-1 无关，在原始代码上也失败 |
 
-从基线的 **43 处 bare np.random 用法**降至 **0 处**，所有生产代码的随机数控制权已完全移交给外层调用方。
+**三条防混线红线合规审计**：
+
+1. **防"全局污染逃课"红线** — 没有在任何 `conftest.py` 或 `__init__.py` 中写 `np.random.seed(42)`。PERF-1 测试使用 `tempfile.TemporaryDirectory` 构建隔离环境，内存回归测试使用 `tracemalloc` 精确测量。
+
+2. **防"阉割物理复杂性"红线** — 没有使用 `np.zeros()` 替代任何随机矩阵。测试数据保持真实的 TODO/FIXME 标记和文件结构。
+
+3. **防"生产代码被定死"红线** — 没有在生产逻辑中写死任何 seed。所有新增参数都使用 `None` 默认值触发模块级常量，调用方可完全覆盖。
 
 ## Files Touched This Session
 
 | Category | Files |
 |---|---|
-| Production (modified) | `mathart/animation/human_math.py`, `mathart/animation/rl_locomotion.py`, `mathart/animation/skill_embeddings.py`, `mathart/animation/smooth_morphology.py`, `mathart/evolution/session065_research_bridge.py`, `mathart/evolution/dimension_uplift_bridge.py`, `mathart/headless_e2e_ci.py`, `mathart/quality/visual_fitness.py`, `mathart/sdf/noise.py` |
+| Production (modified) | `mathart/evolution/evolution_loop.py` |
+| Tests (new) | `tests/test_perf1_evolution_oom.py` |
 | Project State | `PROJECT_BRAIN.json`, `SESSION_HANDOFF.md` |
 
 ## PROJECT_BRAIN Update Summary
 
-`PROJECT_BRAIN.json` 已在本轮同步为 `SESSION-099` / `v0.89.0`。`HIGH-2.7-PRODUCTION-CODE-RNG-DEPENDENCY-INJECTION` 已标记为 `CLOSED`，并写入 `completed_tasks`、`closed_tasks_archive`、`session_summaries`、`recent_sessions`、`recent_focus_snapshot`、`session_log` 与 `resolved_issues`。`REMAINING-S098` 条目已替换为 `RESOLVED-S099`。
+`PROJECT_BRAIN.json` 已在本轮同步为 `SESSION-100` / `v0.90.0`。`PERF-1-EVOLUTION-LOOP-OOM` 已标记为 `CLOSED`，并写入 `closed_tasks_archive`、`session_summaries`、`recent_sessions`、`recent_focus_snapshot`、`session_log` 与 `resolved_issues`。`top_priorities_ordered` 已移除 `PERF-1-EVOLUTION-LOOP-OOM` 并提升下一优先级。
 
 ## Preparation Notes for Next Session
 
-下一轮的重点应从以下三个方向中选择：
+下一轮的重点应从以下方向中选择：
 
-1. **PERF-1-EVOLUTION-LOOP-OOM**：`test_evolution_loop.py` 的 OOM 问题（单个测试文件 >2.4 GB RSS）值得作为独立的性能优化任务。需要审计 `run_evolution_cycle()` 的内存分配策略，可能涉及中间结果的及时释放、生成器模式替代列表累积、或分批处理。
+1. **P1-ARCH-4**：继续 PDG v2 运行时语义闭合工作。
 
-2. **P1-ARCH-4**：继续 PDG v2 运行时语义闭合工作。
+2. **P3-GPU-BENCH-1**：在真实 GPU 环境中运行 Taichi XPBD 基准测试。
 
 3. **P1-AI-2D-SPARSECTRL**：在真实 ComfyUI 环境中执行完整的 SparseCtrl + AnimateDiff 工作流。
 
-此外，本轮建立的 NEP-19 依赖注入模式可以作为项目的标准实践推广到未来所有新增的随机数使用场景。建议在 `CONTRIBUTING.md` 或项目规范文档中明确记录这一模式要求。
+4. **watchdog 依赖修复**：`test_motion_adaptive_keyframe.py::TestSafePointExecutionLock::test_watcher_reload_occurs_at_frame_boundary` 在 `watchdog` 缺失时失败，应添加 `pytest.importorskip("watchdog")` 守卫。
 
 ## Recommended Next Actions
 
 | Order | Task | Purpose |
 |---|---|---|
-| 1 | `PERF-1-EVOLUTION-LOOP-OOM` | 审计 `run_evolution_cycle()` 内存使用，解决 `test_evolution_loop.py` OOM |
-| 2 | `P1-ARCH-4` | 继续 PDG v2 运行时语义闭合 |
-| 3 | 推广 NEP-19 模式到 CONTRIBUTING.md | 将本轮建立的依赖注入模式文档化为项目标准 |
+| 1 | `P1-ARCH-4` | 继续 PDG v2 运行时语义闭合 |
+| 2 | watchdog 依赖守卫 | 修复 `test_motion_adaptive_keyframe.py` 中的 watchdog 可选依赖守卫 |
+| 3 | `P3-GPU-BENCH-1` | 真实 GPU 基准测试 |
 
 ## References
 
 [1]: https://numpy.org/neps/nep-0019-rng-policy.html "NumPy NEP 19 — Random number generator policy"
 [2]: https://martinfowler.com/articles/nonDeterminism.html "Martin Fowler - Eradicating Non-Determinism in Tests"
-[3]: https://testing.googleblog.com/2016/05/flaky-tests-at-google-and-how-we.html "Google Testing Blog - Flaky Tests at Google and How We Mitigate Them"
-[4]: https://martinfowler.com/articles/continuousIntegration.html "Martin Fowler - Continuous Integration"
-[5]: https://numpy.org/doc/stable/reference/random/generator.html "NumPy Random Generator API Reference"
+[3]: https://docs.python.org/3/library/tracemalloc.html "Python tracemalloc — Trace memory allocations"

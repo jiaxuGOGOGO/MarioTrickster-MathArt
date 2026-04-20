@@ -183,55 +183,125 @@ _INCOMPLETE_PATTERNS = [
 ]
 
 
+# SESSION-100 (PERF-1): Default directories excluded from TODO scanning.
+# These directories contain generated artifacts, reports, or third-party
+# content that should never be scanned for TODO markers.  The list is
+# injected as a parameter so callers can override without modifying this
+# module — honouring the IoC / dependency-injection discipline.
+_DEFAULT_EXCLUDE_DIRS: frozenset[str] = frozenset({
+    ".git",
+    "__pycache__",
+    "evolution_reports",
+    "artifacts",
+    "golden",
+    "output",
+    "node_modules",
+    ".mypy_cache",
+    ".pytest_cache",
+    "mathart.egg-info",
+    "stagnation_reports",
+})
+
+# SESSION-100 (PERF-1): Maximum file size (bytes) that scan_internal_todos
+# will read.  Files larger than this threshold are skipped to prevent OOM
+# when the repository contains large generated JSON reports.  The value is
+# injected as a parameter; the default (1 MiB) is generous enough for any
+# hand-written source file while excluding multi-megabyte CYCLE-*.json.
+_DEFAULT_MAX_FILE_SIZE: int = 1 * 1024 * 1024  # 1 MiB
+
+
 def scan_internal_todos(
     project_root: str | Path,
     extensions: tuple[str, ...] = (".py", ".md", ".json"),
+    *,
+    exclude_dirs: frozenset[str] | None = None,
+    max_file_size: int | None = None,
 ) -> list[EvolutionProposal]:
-    """Scan the codebase for TODO/FIXME markers and incomplete implementations."""
+    """Scan the codebase for TODO/FIXME markers and incomplete implementations.
+
+    Parameters
+    ----------
+    project_root:
+        Absolute or relative path to the repository root.
+    extensions:
+        File extensions to scan.
+    exclude_dirs:
+        Directory *names* (not paths) to skip during recursive traversal.
+        Defaults to ``_DEFAULT_EXCLUDE_DIRS`` which excludes generated
+        artifacts, reports, caches, and third-party directories.
+    max_file_size:
+        Maximum file size in bytes.  Files exceeding this limit are
+        silently skipped to prevent OOM on large generated reports.
+        Defaults to ``_DEFAULT_MAX_FILE_SIZE`` (1 MiB).
+
+    Returns
+    -------
+    list[EvolutionProposal]
+        Discovered proposals, one per TODO/FIXME marker or incomplete stub.
+
+    .. versionchanged:: SESSION-100 (PERF-1)
+       Added *exclude_dirs* and *max_file_size* parameters to prevent the
+       recursive scan from reading multi-megabyte CYCLE-*.json files inside
+       ``evolution_reports/``, which caused >2 GB RSS and OOM in CI.
+    """
     root = Path(project_root)
+    if exclude_dirs is None:
+        exclude_dirs = _DEFAULT_EXCLUDE_DIRS
+    if max_file_size is None:
+        max_file_size = _DEFAULT_MAX_FILE_SIZE
+
     proposals: list[EvolutionProposal] = []
     idx = 0
 
     for ext in extensions:
         for filepath in root.rglob(f"*{ext}"):
-            if ".git" in filepath.parts or "__pycache__" in filepath.parts:
+            # Skip excluded directories
+            if exclude_dirs.intersection(filepath.parts):
                 continue
+
+            # Skip files exceeding the size threshold (PERF-1 guard)
             try:
-                text = filepath.read_text(encoding="utf-8", errors="replace")
+                if filepath.stat().st_size > max_file_size:
+                    continue
             except OSError:
                 continue
 
-            for line_num, line in enumerate(text.splitlines(), start=1):
-                match = _TODO_PATTERN.search(line)
-                if match:
-                    idx += 1
-                    marker = match.group(1).upper()
-                    desc = match.group(2).strip() or "(no description)"
-                    priority = "high" if marker in {"FIXME", "HACK", "XXX"} else "medium"
-                    proposals.append(EvolutionProposal(
-                        id=f"L1-{idx:04d}",
-                        layer=1,
-                        category="todo_resolution",
-                        title=f"[{marker}] {desc[:80]}",
-                        description=desc,
-                        source_file=str(filepath.relative_to(root)),
-                        source_line=line_num,
-                        priority=priority,
-                    ))
+            # Stream line-by-line to avoid holding the full file in memory
+            try:
+                with filepath.open(encoding="utf-8", errors="replace") as fh:
+                    for line_num, line in enumerate(fh, start=1):
+                        match = _TODO_PATTERN.search(line)
+                        if match:
+                            idx += 1
+                            marker = match.group(1).upper()
+                            desc = match.group(2).strip() or "(no description)"
+                            priority = "high" if marker in {"FIXME", "HACK", "XXX"} else "medium"
+                            proposals.append(EvolutionProposal(
+                                id=f"L1-{idx:04d}",
+                                layer=1,
+                                category="todo_resolution",
+                                title=f"[{marker}] {desc[:80]}",
+                                description=desc,
+                                source_file=str(filepath.relative_to(root)),
+                                source_line=line_num,
+                                priority=priority,
+                            ))
 
-                for pattern in _INCOMPLETE_PATTERNS:
-                    if pattern.search(line):
-                        idx += 1
-                        proposals.append(EvolutionProposal(
-                            id=f"L1-{idx:04d}",
-                            layer=1,
-                            category="incomplete_implementation",
-                            title=f"Incomplete implementation at {filepath.name}:{line_num}",
-                            description=line.strip(),
-                            source_file=str(filepath.relative_to(root)),
-                            source_line=line_num,
-                            priority="high",
-                        ))
+                        for pattern in _INCOMPLETE_PATTERNS:
+                            if pattern.search(line):
+                                idx += 1
+                                proposals.append(EvolutionProposal(
+                                    id=f"L1-{idx:04d}",
+                                    layer=1,
+                                    category="incomplete_implementation",
+                                    title=f"Incomplete implementation at {filepath.name}:{line_num}",
+                                    description=line.strip(),
+                                    source_file=str(filepath.relative_to(root)),
+                                    source_line=line_num,
+                                    priority="high",
+                                ))
+            except OSError:
+                continue
 
     return proposals
 
@@ -757,15 +827,41 @@ def run_active_closed_loop(
 # ── Evolution Loop Report Generation ─────────────────────────────────────────
 
 
+# SESSION-100 (PERF-1): Default upper bound on proposals serialized into
+# the evolution report.  This prevents the report JSON from growing without
+# bound when the codebase contains thousands of TODO markers.  The value is
+# injected as a parameter; callers that need the full list can pass
+# ``proposal_limit=None``.
+_DEFAULT_PROPOSAL_LIMIT: int = 500
+
+
 def generate_evolution_report(
     project_root: str | Path,
     session_id: str = "SESSION-042",
     cycle_id: str = "CYCLE-001",
+    *,
+    proposal_limit: int | None = _DEFAULT_PROPOSAL_LIMIT,
 ) -> EvolutionCycleReport:
-    """Generate a complete evolution cycle report."""
+    """Generate a complete evolution cycle report.
+
+    Parameters
+    ----------
+    proposal_limit:
+        Maximum number of proposals to include in the report.  When the
+        full scan yields more proposals than this limit, only the first
+        *proposal_limit* are kept and the summary notes the truncation.
+        Pass ``None`` to disable truncation.  Defaults to 500.
+
+    .. versionchanged:: SESSION-100 (PERF-1)
+       Added *proposal_limit* to cap report size and prevent exponential
+       JSON growth when reports are re-scanned by subsequent cycles.
+    """
     root = Path(project_root)
 
     proposals = scan_internal_todos(root)
+    total_proposal_count = len(proposals)
+    if proposal_limit is not None and len(proposals) > proposal_limit:
+        proposals = proposals[:proposal_limit]
     distillations = get_distillation_registry()
     distillation_validation = validate_distillations(root)
     closed_loop_status = collect_closed_loop_status(root)
@@ -819,9 +915,17 @@ def generate_evolution_report(
     )
 
     valid_distillations = sum(1 for entry in distillation_validation if entry["status"] == "valid")
+    # SESSION-100 (PERF-1): report both total and retained counts
+    if total_proposal_count > len(proposals):
+        proposal_summary = (
+            f"{total_proposal_count} internal proposals found "
+            f"({len(proposals)} retained, {total_proposal_count - len(proposals)} truncated)"
+        )
+    else:
+        proposal_summary = f"{len(proposals)} internal proposals found"
     summary_parts = [
         f"Evolution Cycle {cycle_id} ({session_id})",
-        f"{len(proposals)} internal proposals found",
+        proposal_summary,
         f"{valid_distillations}/{len(distillations)} distillations validated",
         f"{total_tests} tests tracked",
     ]
@@ -889,10 +993,16 @@ def generate_evolution_report(
 
 
 def save_evolution_report(report: EvolutionCycleReport, output_path: str | Path) -> str:
-    """Save an evolution report to JSON."""
+    """Save an evolution report to JSON.
+
+    .. versionchanged:: SESSION-100 (PERF-1)
+       Uses streaming ``json.dump`` instead of ``json.dumps`` + ``write_text``
+       to avoid building the entire serialized string in memory.
+    """
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(report.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+    with path.open("w", encoding="utf-8") as fh:
+        json.dump(report.to_dict(), fh, indent=2, ensure_ascii=False)
     return str(path)
 
 
@@ -943,4 +1053,8 @@ __all__ = [
     "collect_neural_rendering_status",
     "collect_jakobsen_chain_status",
     "collect_terrain_sensor_status",
+    # SESSION-100 (PERF-1): Exported constants for DI override
+    "_DEFAULT_EXCLUDE_DIRS",
+    "_DEFAULT_MAX_FILE_SIZE",
+    "_DEFAULT_PROPOSAL_LIMIT",
 ]
