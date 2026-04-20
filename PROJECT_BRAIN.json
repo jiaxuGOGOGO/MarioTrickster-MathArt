@@ -1,7 +1,7 @@
 {
-  "version": "v0.81.0",
-  "last_session_id": "SESSION-090",
-  "last_updated": "2026-04-20T13:30:00Z",
+  "version": "v0.82.0",
+  "last_session_id": "SESSION-091",
+  "last_updated": "2026-04-20T22:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -21,17 +21,17 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      "P1-ARCH-4",
       "P3-GPU-BENCH-1",
-      "P1-MIGRATE-4",
       "P1-AI-2D-SPARSECTRL",
       "P1-INDUSTRIAL-34C",
-      "P1-ARCH-4",
-      "P1-AI-2E"
+      "P1-ARCH-5",
+      "P1-B1-1"
     ],
-    "closed_archived": 51
+    "closed_archived": 53
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-090 P1-MIGRATE-4 CLOSED: Backend Hot-Reload Ecosystem. BackendRegistry atomic unregister/reload + BackendFileWatcher daemon + 29 E2E tests. Cumulative: 29 PASS, 0 FAIL.",
+  "validation_pass_rate": "SESSION-091 P1-AI-2E CLOSED: Motion-Adaptive Keyframe Planning. MotionAdaptiveKeyframeBackend + SafePointExecutionLock + Orchestrator hot-reload coordination + ComfyUI Client resilience + 51 E2E tests. Cumulative: 80 PASS (51 new + 29 regression), 0 FAIL.",
   "total_iterations": 682,
   "total_code_lines": 132591,
   "distill_session_id": "DISTILL-012",
@@ -77,10 +77,12 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-090 CLOSES P1-MIGRATE-4: Full Backend Hot-Reload Ecosystem. BackendRegistry.unregister()/reload() atomic primitives with RLock thread safety, __pycache__ purge, importlib.invalidate_caches(), atomic rollback. BackendFileWatcher daemon thread with 400ms debounce via watchdog. 29/29 E2E tests cover zombie reference detection, state wipeout guards, debounce coalescing, concurrent safety, and full v1→v2→v3 lifecycle.",
+  "current_focus": "SESSION-091 CLOSES P1-AI-2E: Motion-Adaptive Keyframe Planning for high-nonlinearity action segments. MotionAdaptiveKeyframeBackend (Clavet/Ubisoft nonlinearity scoring + Guilty Gear Xrd contact safe-points + SparseCtrl end_percent mapping). SafePointExecutionLock (per-backend reader-writer frame-boundary gating). Orchestrator on_backend_reload() targeted cache invalidation. ComfyUI Client workflow cache resilience + execute_workflow_safe(). KeyframeEvolutionBridge three-layer evolution. 51/51 new E2E tests + 29/29 regression = 80/80 PASS.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "research_notes_session091.md",
     "research_notes_session090.md",
+    "tests/test_motion_adaptive_keyframe.py",
     "tests/test_backend_hot_reload.py",
     "mathart/core/backend_file_watcher.py",
     "research_notes_session089.md",
@@ -268,10 +270,11 @@
       "id": "P1-AI-2E",
       "priority": "P1",
       "title": "Extend motion-adaptive keyframe planning to high-nonlinearity action segments",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "Generalize SESSION-060 motion-adaptive keyframe planning from idle-like sequences to jump, fall, hit, attack, and segmented action clips with tighter max-gap control.",
-      "added_in": "SESSION-060"
+      "description": "SESSION-091 CLOSES P1-AI-2E: Full Motion-Adaptive Keyframe Planning for high-nonlinearity action segments. (1) MotionAdaptiveKeyframeBackend (530+ lines) — Clavet/Ubisoft-inspired nonlinearity scoring via root acceleration magnitude + angular velocity jerk + contact event detection; adaptive keyframe selection with min_gap/max_gap constraints (anti-Void, anti-Cluster); Guilty Gear Xrd hitstop/contact safe-point forced capture; SparseCtrl end_percent dynamic mapping per Guo et al. ECCV 2024. (2) SafePointExecutionLock — per-backend reader-writer lock for frame-boundary reload gating (anti-Mid-Frame-Reload-Trap). (3) Orchestrator hot-reload coordination — on_backend_reload() targeted cache invalidation + iteration counter reset (anti-Stale-Cache-Leak). (4) ComfyUI Client resilience — workflow cache invalidation on reload + execute_workflow_safe() with SafePoint fence. (5) KeyframeEvolutionBridge — three-layer evolution fitness evaluation + knowledge distillation. (6) 51/51 E2E tests covering all 3 anti-patterns + 11 test groups.",
+      "added_in": "SESSION-060",
+      "closed_in": "SESSION-091"
     },
     {
       "id": "P1-ARCH-4",

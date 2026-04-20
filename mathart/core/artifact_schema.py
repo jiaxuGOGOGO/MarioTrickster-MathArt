@@ -117,6 +117,10 @@ class ArtifactFamily(Enum):
     # SESSION-083 (P1-B4-1): RL training report family for Gymnasium /
     # rollout execution evidence and reproducible micro-batch telemetry.
     TRAINING_REPORT = "training_report"
+    # SESSION-091 (P1-AI-2E): Motion-adaptive keyframe plan family.
+    # Produced by MotionAdaptiveKeyframeBackend: per-frame nonlinearity
+    # scores, selected keyframe indices, and SparseCtrl end_percent mapping.
+    KEYFRAME_PLAN = "keyframe_plan"
 
     @classmethod
     def required_metadata_keys(cls, family_value: str) -> frozenset[str]:
@@ -179,6 +183,18 @@ class ArtifactFamily(Enum):
                 "keyframe_count",
                 "guides_locked",
                 "identity_lock_enabled",
+            }),
+            # SESSION-091 (P1-AI-2E): Mandatory metadata for keyframe plans
+            # so downstream SparseCtrl integration and quality audits can
+            # validate coverage without inferring field names.
+            cls.KEYFRAME_PLAN.value: frozenset({
+                "frame_count",
+                "fps",
+                "keyframe_count",
+                "min_gap",
+                "max_gap",
+                "mean_nonlinearity",
+                "contact_events_captured",
             }),
         }
         return _FAMILY_REQUIRED_METADATA.get(family_value, frozenset())

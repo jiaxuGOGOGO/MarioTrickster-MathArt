@@ -67,6 +67,10 @@ from mathart.core.backend_registry import (
     BackendMeta,
     get_registry,
 )
+from mathart.core.safe_point_execution import (
+    SafePointExecutionLock,
+    get_safe_point_lock,
+)
 from mathart.core.artifact_schema import (
     ArtifactFamily,
     ArtifactManifest,
@@ -275,6 +279,14 @@ class MicrokernelOrchestrator:
         self.state = self._load_state()
         self.backend_registry = get_registry()
         self.niche_registry = get_niche_registry()
+
+        # SESSION-091 (P1-AI-2E): Hot-reload coordination state.
+        # Result cache and iteration counters are invalidated on reload
+        # to prevent the Stale Cache Leak anti-pattern.
+        self._result_cache: dict[str, Any] = {}
+        self._iteration_counters: dict[str, int] = {}
+        self._safe_point_lock = get_safe_point_lock()
+        self._reload_callbacks: list[tuple[str, Any]] = []
 
     def _load_state(self) -> MicrokernelState:
         if not self.state_path.exists():
@@ -609,6 +621,82 @@ class MicrokernelOrchestrator:
             json.dumps(report.to_dict(), ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
+
+    # -------------------------------------------------------------------
+    # SESSION-091 (P1-AI-2E): Hot-Reload Coordination
+    # -------------------------------------------------------------------
+
+    def on_backend_reload(self, backend_name: str) -> None:
+        """Callback invoked when a backend is hot-reloaded.
+
+        SESSION-091 (P1-AI-2E): Implements the Stale Cache Invalidation
+        protocol.  When a backend is reloaded:
+
+        1. Purge its entry from ``_result_cache`` so stale keyframe plans
+           or render strategies are never reused.
+        2. Reset its ``_iteration_counters`` entry so the evolution loop
+           re-evaluates from scratch with the new code.
+        3. Notify all registered reload callbacks.
+
+        Anti-Pattern Guard:
+        - 🚫 **Stale Cache Leak Trap**: After reload, old KEYFRAME_PLAN
+          or render strategy MUST be discarded.  This method enforces that.
+        """
+        # Targeted invalidation — NOT a global clear()
+        if backend_name in self._result_cache:
+            self._log(
+                f"on_backend_reload: purging result cache for '{backend_name}'"
+            )
+            del self._result_cache[backend_name]
+
+        if backend_name in self._iteration_counters:
+            self._log(
+                f"on_backend_reload: resetting iteration counter for '{backend_name}'"
+            )
+            del self._iteration_counters[backend_name]
+
+        # Notify registered callbacks
+        for cb_name, cb_fn in self._reload_callbacks:
+            try:
+                cb_fn(backend_name)
+            except Exception as e:
+                self._log(f"Reload callback '{cb_name}' error: {e}")
+
+        self._log(f"on_backend_reload: '{backend_name}' cache invalidated")
+
+    def register_reload_callback(
+        self, name: str, callback: Any,
+    ) -> None:
+        """Register a callback to be invoked on backend reload.
+
+        Callbacks receive the backend_name as their sole argument.
+        Used by ComfyUI Client and other downstream consumers to
+        invalidate their own caches.
+        """
+        self._reload_callbacks.append((name, callback))
+
+    def cache_result(self, backend_name: str, result: Any) -> None:
+        """Cache a backend execution result for reuse."""
+        self._result_cache[backend_name] = result
+
+    def get_cached_result(self, backend_name: str) -> Any | None:
+        """Retrieve a cached result, or None if invalidated/missing."""
+        return self._result_cache.get(backend_name)
+
+    def increment_iteration(self, backend_name: str) -> int:
+        """Increment and return the iteration counter for a backend."""
+        count = self._iteration_counters.get(backend_name, 0) + 1
+        self._iteration_counters[backend_name] = count
+        return count
+
+    def get_iteration_count(self, backend_name: str) -> int:
+        """Get current iteration count for a backend."""
+        return self._iteration_counters.get(backend_name, 0)
+
+    @property
+    def safe_point_lock(self) -> SafePointExecutionLock:
+        """Access the SafePointExecutionLock for frame-boundary gating."""
+        return self._safe_point_lock
 
     def ingest_knowledge(
         self,

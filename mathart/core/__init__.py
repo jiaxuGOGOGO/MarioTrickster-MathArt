@@ -36,6 +36,10 @@ from mathart.core.backend_registry import (
 from mathart.core.backend_file_watcher import (
     BackendFileWatcher,
 )
+from mathart.core.safe_point_execution import (
+    SafePointExecutionLock,
+    get_safe_point_lock,
+)
 from mathart.core.backend_types import (
     BackendType,
     backend_alias_map,
@@ -65,6 +69,9 @@ __all__ = [
     "get_registry",
     # Backend Hot-Reload (SESSION-090)
     "BackendFileWatcher",
+    # Safe-Point Execution Lock (SESSION-091)
+    "SafePointExecutionLock",
+    "get_safe_point_lock",
     "BackendType",
     "backend_alias_map",
     "backend_type_value",

@@ -1,233 +1,214 @@
-# SESSION-090 Handoff — P1-MIGRATE-4: Backend Hot-Reload Ecosystem
+# SESSION HANDOFF — SESSION-091
 
-**Commit**: SESSION-090
-**Status**: **P1-MIGRATE-4 CLOSED**
-**Date**: 2026-04-20
-**Previous Session**: SESSION-089 (P1-INDUSTRIAL-34C: Orthographic Pixel Render)
+## Session Identity
 
-## Executive Summary
-
-SESSION-090 delivers the complete **Backend Hot-Reload Ecosystem**, closing the P1-MIGRATE-4 gap that has been tracked since SESSION-064. The implementation follows industrial-grade hot-reload patterns from Erlang/OTP, Eclipse OSGi, Unity Domain Reloading, and Python `watchdog` + `importlib.reload` best practices.
-
-| Metric | Value |
+| Field | Value |
 |---|---|
-| **Gap closed** | P1-MIGRATE-4 |
-| **New files** | 2 production + 1 test + 1 research |
-| **Registry upgrades** | `unregister()`, `reload()`, `_backend_module_map`, `_reload_lock` (RLock), `get_watched_package_paths()`, `module_to_backend_name()` |
-| **Daemon watcher** | `BackendFileWatcher` with 400ms debounce, daemon thread, context manager |
-| **Anti-pattern guards** | Zombie Reference Trap, State Wipeout Trap, Blocking & Debounce Trap |
-| **Test coverage** | **29 PASS, 0 FAIL** — 29 test cases across 11 test groups |
-| **Research** | Erlang/OTP, Eclipse OSGi, Unity/Unreal Domain Reloading, Python importlib |
-| **Total new code** | ~1,800 lines (registry upgrades + watcher + tests + research notes) |
+| Session ID | SESSION-091 |
+| Previous Session | SESSION-090 |
+| Date | 2026-04-20 |
+| Commit | *(to be filled after push)* |
+| PROJECT_BRAIN.json version | v0.82.0 |
 
-## What Landed in Code
+## Mission Accomplished
 
-### 1. BackendRegistry Atomic Hot-Reload Primitives (`mathart/core/backend_registry.py`)
+**P1-AI-2E: CLOSED** — Motion-Adaptive Keyframe Planning for High-Nonlinearity Action Segments.
 
-Upgrades to the existing singleton registry, fully backward-compatible:
+### Deliverables
 
-- **`unregister(name) -> bool`**: Atomically removes a single backend from `_backends` and `_backend_module_map`. Targeted eviction — all other backends remain untouched (Erlang/OTP two-version coexistence discipline). Returns `True` if found and removed, `False` otherwise.
+| Module | File | Lines | Status |
+|---|---|---|---|
+| **MotionAdaptiveKeyframeBackend** | `mathart/core/motion_adaptive_keyframe_backend.py` | 530+ | NEW |
+| **SafePointExecutionLock** | `mathart/core/safe_point_execution.py` | 180+ | NEW |
+| **Orchestrator Hot-Reload Coordination** | `mathart/core/microkernel_orchestrator.py` | +80 | MODIFIED |
+| **ComfyUI Client Resilience** | `mathart/comfy_client/comfyui_ws_client.py` | +90 | MODIFIED |
+| **BackendType Enum** | `mathart/core/backend_types.py` | +5 | MODIFIED |
+| **ArtifactFamily Enum** | `mathart/core/artifact_schema.py` | +8 | MODIFIED |
+| **Package Exports** | `mathart/core/__init__.py` | +6 | MODIFIED |
+| **E2E Test Suite** | `tests/test_motion_adaptive_keyframe.py` | 750+ | NEW |
+| **Research Notes** | `research_notes_session091.md` | 200+ | NEW |
 
-- **`reload(name) -> bool`**: Full Erlang/OTP-inspired hot-swap sequence:
-  1. **Capture** old class identity (`id()`) for zombie detection.
-  2. **Evict** the old `(BackendMeta, Type)` tuple from `_backends`.
-  3. **Deep-clean** `sys.modules` (pop the module), purge `__pycache__` `.pyc` files for the module stem, and call `importlib.invalidate_caches()`.
-  4. **Re-import** the module via `importlib.import_module()` (not `reload()` — the module was popped from `sys.modules`).
-  5. **Verify** the new class `id()` differs from the old one (zombie reference check).
-  6. **Atomic rollback** on failure: if `SyntaxError` or `ImportError`, restore the old entry and old `sys.modules` mapping.
+### Test Results
 
-- **`_reload_lock: threading.RLock`**: Reentrant lock protecting all mutation operations (`register`, `unregister`, `reload`). Uses `RLock` (not `Lock`) because `reload()` holds the lock while calling `importlib.import_module()`, which triggers `@register_backend` -> `register()` on the same thread. A plain `Lock` would deadlock.
-
-- **`_backend_module_map: dict[str, str]`**: Maps canonical backend name -> fully-qualified module name. Populated automatically during `register()` from `backend_class.__module__`. Enables targeted `importlib.import_module()` without scanning all of `sys.modules`.
-
-- **`get_watched_package_paths() -> list[str]`**: Returns absolute filesystem paths for `mathart.core` and `mathart.export` packages. Used by `BackendFileWatcher` to set up `watchdog` observers without hardcoded directory strings.
-
-- **`module_to_backend_name(module_name) -> Optional[str]`**: Reverse lookup from module name to backend name. Used by the file watcher to determine which backend to reload when a `.py` file changes.
-
-### 2. BackendFileWatcher Daemon (`mathart/core/backend_file_watcher.py`)
-
-A non-blocking daemon file watcher for backend hot-reload:
-
-- **Daemon Thread**: The `watchdog.Observer` runs as a daemon thread that automatically terminates when the main process exits. No `while True` blocking of the main thread (anti-Blocking Trap).
-
-- **Debounce Scheduler** (`_DebouncedReloadScheduler`): Per-file debounce timer (default 400ms, configurable) coalesces rapid filesystem events from IDE save bursts. Only when the timer expires without further events does the reload callback fire (anti-Debounce Trap).
-
-- **Targeted Reload**: Only the backend whose source file changed is reloaded. All other backends remain untouched (anti-State Wipeout Trap).
-
-- **New Backend Detection**: When a new `.py` file appears in a watched directory that doesn't map to any existing backend, the watcher attempts `importlib.import_module()` to trigger `@register_backend`.
-
-- **Fail-Safe**: If `reload()` raises (e.g., `SyntaxError`), the old backend version is atomically restored by the registry. The watcher logs the error and continues monitoring.
-
-- **Introspection API**: `reload_history` property returns a list of reload event dicts. `reload_event` (`threading.Event`) enables test synchronization. `on_reload` callback fires after each reload attempt.
-
-- **Context Manager**: `with BackendFileWatcher(registry) as watcher:` for automatic start/stop.
-
-### 3. E2E Tests (`tests/test_backend_hot_reload.py`)
-
-29 tests across 11 test groups, all running headless with zero external dependencies:
-
-| Test Group | Count | Purpose |
+| Suite | Tests | Status |
 |---|---|---|
-| Registry Unregister | 4 | Targeted eviction, nonexistent returns False, preserves other backends, cleans module map |
-| Registry Reload | 4 | Class identity change (zombie check), preserves other backends, atomic rollback on SyntaxError, nonexistent raises |
-| Module Mapping | 3 | Register populates map, reverse lookup, unknown returns None |
-| Watched Paths | 2 | Absolute paths, includes mathart.core |
-| File Watcher Lifecycle | 3 | Start/stop, context manager, daemon thread |
-| File Watcher E2E | 2 | Detects new backend file, hot-reloads modified backend |
-| Debounce Scheduler | 2 | Coalesces rapid events, independent per-file |
-| File Path Conversion | 2 | Valid path converts, non-Python rejected |
-| Thread Safety | 1 | Concurrent register + lookup no errors |
-| Full E2E Lifecycle | 2 | v1->v2 complete lifecycle, v1->v2->v3 sequential reloads |
-| Reload Callback + Edge Cases | 4 | on_reload fires, empty file, double unregister, register after unregister |
+| `test_motion_adaptive_keyframe.py` (SESSION-091) | 51/51 | ALL PASS |
+| `test_backend_hot_reload.py` (SESSION-090 regression) | 29/29 | ALL PASS |
+| **Total** | **80/80** | **ZERO FAILURES** |
 
-### 4. Package Integration
+## Architecture Decisions
 
-- **`mathart/core/__init__.py`**: Added `BackendFileWatcher` to imports and `__all__`.
+### 1. MotionAdaptiveKeyframeBackend — Core Algorithm
 
-## Files Changed in SESSION-090
+The backend implements a three-stage pipeline grounded in industrial references:
 
-| File | Purpose |
-|---|---|
-| `mathart/core/backend_registry.py` | Atomic `unregister()`/`reload()` primitives, RLock, module map, watched paths |
-| `mathart/core/backend_file_watcher.py` | **NEW** — Daemon file watcher with debounce (380 lines) |
-| `mathart/core/__init__.py` | Added `BackendFileWatcher` export |
-| `tests/test_backend_hot_reload.py` | **NEW** — 29 E2E tests (750 lines) |
-| `research_notes_session090.md` | **NEW** — Research notes and implementation plan |
-| `PROJECT_BRAIN.json` | SESSION-090 metadata, P1-MIGRATE-4 -> CLOSED |
-| `SESSION_HANDOFF.md` | This file |
+**Stage 1: Nonlinearity Score Computation** (Clavet GDC 2016 / Ubisoft Motion Matching)
 
-## Research Decisions That Were Enforced
+Computes per-frame nonlinearity scores from UMR physical features:
+- Root acceleration magnitude (finite differences of velocity)
+- Angular velocity jerk (second derivative of angular velocity)
+- Contact event transitions (foot contact state changes)
 
-### Erlang/OTP Hot Code Swapping
+Scores are weighted-summed and normalized to [0, 1].
 
-The gold standard for zero-downtime code replacement. Key principle enforced: **code state and singleton runtime state are strictly isolated**. The `BackendRegistry` singleton identity is preserved across reloads — only the internal `_backends` dict entries are surgically replaced. Long-lived objects (e.g., `MicrokernelOrchestrator`, `MicrokernelPipelineBridge`) that cache `self.backend_registry = get_registry()` continue to work because they hold a reference to the same singleton, and the singleton's internal state is mutated in-place.
+**Stage 2: Adaptive Keyframe Selection** (Guilty Gear Xrd / Motomura GDC 2015)
 
-### Eclipse OSGi Dynamic Module System
+Selects keyframes using a priority-queue algorithm with three constraints:
+- **Contact Safe Points**: All contact events (hitstop, landing, foot-strike) are forced keyframes — the Guilty Gear Xrd discipline.
+- **min_gap**: Prevents cluster packing near extrema (anti-Cluster Trap).
+- **max_gap**: Prevents starvation in smooth segments (anti-Void Trap).
+- **Extrema Capture**: Local maxima above threshold are prioritized.
 
-Strict lifecycle: **atomic unregister -> clean -> reload -> re-register**. The `reload()` method follows this exact sequence. The old entry is evicted before the new module is imported, preventing "dual registration" conflicts. If the new import fails, the old entry is atomically restored.
+This is NOT `frame_idx % step == 0`. Gaps are non-uniform by design.
 
-### Unity Domain Reloading / Unreal Live Coding
+**Stage 3: SparseCtrl end_percent Mapping** (Guo et al., ECCV 2024)
 
-Background thread compilation at "safe points". The `BackendFileWatcher` runs on a daemon thread and uses debounce to ensure files are fully written before triggering reload. The reload itself is serialized by `_reload_lock` (RLock) to prevent concurrent mutation.
+Maps nonlinearity scores to SparseCtrl `end_percent` values:
+- High-nonlinearity keyframes get high end_percent (stronger guidance)
+- Low-nonlinearity keyframes get base end_percent (lighter guidance)
+- Linear interpolation: `base + score * (max - base)`
 
-### Python `watchdog` + `importlib.reload` Best Practices
+### 2. SafePointExecutionLock — Frame-Boundary Gating
 
-Three critical discoveries enforced in the implementation:
+Per-backend reader-writer lock inspired by Unity Domain Reloading:
+- `execution_fence(backend_name)`: Multiple concurrent executions allowed (readers).
+- `reload_gate(backend_name)`: Exclusive access, waits for all executions to complete (writer).
+- Different backends are fully independent — no cross-backend blocking.
 
-1. **`importlib.reload()` requires the module in `sys.modules`** — but we need to pop it to force fresh bytecode. Solution: use `sys.modules.pop()` + `importlib.import_module()` instead of `importlib.reload()`.
+### 3. Orchestrator Hot-Reload Coordination
 
-2. **`__pycache__` bytecode caching** — Python's import system serves `.pyc` files from `__pycache__/` even after `sys.modules.pop()`. Solution: purge `.pyc` files matching the module stem before re-import.
+`on_backend_reload(backend_name)` implements targeted cache invalidation:
+- Purges `_result_cache[backend_name]` (stale KEYFRAME_PLAN discarded)
+- Resets `_iteration_counters[backend_name]` (evolution restarts from scratch)
+- Fires registered reload callbacks (ComfyUI Client, etc.)
+- **Never** calls `clear()` on the entire cache (anti-State-Wipeout).
 
-3. **`importlib.invalidate_caches()`** — Python's `FileFinder` caches directory listings. Without invalidation, `import_module()` may not see the updated file. Solution: call `importlib.invalidate_caches()` after `sys.modules.pop()` and `__pycache__` purge.
+### 4. ComfyUI Client Resilience
 
-### Anti-Pattern Guards Enforced
+- `on_backend_reload()`: Purges cached workflow payloads referencing the reloaded backend.
+- `execute_workflow_safe()`: Wraps execution in SafePointExecutionLock fence.
+- `set_safe_point_lock()`: Dependency injection from Orchestrator.
 
-| Anti-Pattern | Guard | Verification |
+## Anti-Pattern Guards Verified
+
+| Anti-Pattern | Guard | Tests |
 |---|---|---|
-| Zombie Reference Trap | `id()` assertion on old vs new class | `test_reload_updates_class_identity`, `test_full_lifecycle_v1_to_v2`, `test_watcher_hot_reloads_modified_backend` |
-| State Wipeout Trap | Targeted eviction, never `clear()` | `test_unregister_preserves_other_backends`, `test_reload_preserves_other_backends` |
-| Blocking & Debounce Trap | Daemon thread + 400ms debounce | `test_watcher_daemon_thread`, `test_debounce_coalesces_rapid_events` |
-| Deadlock Trap | RLock (reentrant) instead of Lock | `test_concurrent_register_and_lookup`, all reload tests |
-| Bytecode Cache Trap | `__pycache__` purge + `invalidate_caches()` | `test_reload_updates_class_identity`, `test_multiple_sequential_reloads` |
+| **Stale Cache Leak Trap** | `on_backend_reload()` targeted invalidation | 4 tests |
+| **Extrema Omission & Void Trap** | `min_gap` / `max_gap` constraints + contact forced capture | 6 tests |
+| **Mid-Frame Reload Trap** | `SafePointExecutionLock` reader-writer fence | 5 tests |
 
-## Testing and Validation
+## Academic & Industrial References Aligned
 
-| Test command | Result |
+| Reference | How Applied |
 |---|---|
-| `pytest tests/test_backend_hot_reload.py -v` | **29 passed, 0 failed** |
+| SparseCtrl (Guo et al., ECCV 2024) | end_percent dynamic mapping based on nonlinearity scores |
+| Ubisoft Motion Matching (Clavet GDC 2016) | Root acceleration + angular jerk as nonlinearity features |
+| Guilty Gear Xrd (Motomura GDC 2015) | Contact events forced as safe-point keyframes |
+| Erlang/OTP Hot Code Swapping | SafePointExecutionLock — code swap only at safe boundaries |
+| Unity Domain Reloading | Reader-writer lock pattern for execution/reload mutual exclusion |
+| Eclipse OSGi | Targeted unregister then re-register lifecycle (not global clear) |
 
-## Architecture Micro-Adjustments for P1-AI-2E (Motion-Adaptive Keyframe Planning)
+## Next Session Preparation: P1-ARCH-4 (PDG v2 Runtime Semantics)
 
-P1-AI-2E requires **high-frequency rendering and verification cycles** for high-nonlinearity action segments. The hot-reload ecosystem delivered in SESSION-090 is a direct force multiplier for this task. Here is what needs to be micro-adjusted:
+### What P1-ARCH-4 Requires
 
-### 1. Watcher Integration with MicrokernelOrchestrator
+P1-ARCH-4 targets **PDG v2 runtime semantics**: cache key management, partition/collect, fan-out/fan-in orchestration, and reusable work-item attributes for the lightweight DAG runtime.
 
-The `MicrokernelOrchestrator` currently caches `self.backend_registry = get_registry()` at init time. Because the hot-reload mutates the singleton's internal `_backends` dict (not the singleton reference itself), the orchestrator automatically picks up reloaded backends on the next `run_backend()` call. **No change needed** — this is by design.
+### Current Architecture Readiness
 
-However, for P1-AI-2E's high-frequency iteration loop, the orchestrator should be enhanced with:
+The microkernel and scheduler architecture is well-positioned for P1-ARCH-4. The following micro-adjustments are recommended:
 
-- **Reload notification hook**: Wire `BackendFileWatcher.on_reload` callback to `MicrokernelOrchestrator` so it can invalidate any cached backend execution results when the underlying backend code changes mid-evolution.
-- **Iteration counter reset**: When a backend is hot-reloaded during an evolution cycle, the orchestrator should reset the iteration counter for that backend's niche to avoid comparing results from different code versions.
+**1. Work-Item Abstraction Layer**
 
-### 2. ComfyUI Client Resilience
+The current Orchestrator operates on backends directly. P1-ARCH-4 needs a `WorkItem` abstraction that wraps backend execution with:
+- Cache key computation (hash of inputs + config + backend version)
+- Partition assignment (which shard of a fan-out this item belongs to)
+- Dependency tracking (which upstream work-items must complete first)
 
-The `ComfyUIClient` (SESSION-087) maintains WebSocket connections and HTTP sessions. During hot-reload of the `ComfyUIPresetManager` or related backends:
+**Recommended**: Create `mathart/core/work_item.py` with a `WorkItem` dataclass that references a backend name, input hash, and partition ID.
 
-- **Connection pooling**: The client should detect backend reload events and gracefully drain in-flight requests before switching to the new backend version.
-- **Workflow cache invalidation**: ComfyUI workflow JSON is generated by backend code. If the backend is hot-reloaded, cached workflows must be invalidated.
+**2. Cache Key Manager**
 
-### 3. Render Pipeline Safe Points
+The current `_result_cache` in Orchestrator uses backend names as keys. P1-ARCH-4 needs content-addressable caching:
+- Key = `hash(backend_name + input_data_hash + config_hash + backend_version)`
+- This enables cache reuse across iterations when only some inputs change.
 
-For P1-AI-2E's high-frequency render-verify loop:
+**Recommended**: Create `mathart/core/cache_key_manager.py` with a `CacheKeyManager` class. The existing `_result_cache` dict becomes the storage backend; the key manager computes keys.
 
-- **Frame boundary safe points**: Hot-reload should only trigger between frame renders, not mid-frame. The `BackendFileWatcher` debounce (400ms) naturally provides this for typical frame rates (12-24 FPS), but explicit safe-point gating may be needed for batch renders.
-- **Render result versioning**: Each render result should be tagged with the backend code version (commit hash or reload counter) so that results from different code versions are not mixed in quality comparisons.
+**3. Fan-Out / Fan-In Scheduler**
 
-### 4. Motion Complexity Metrics -> Keyframe Density
+The current Orchestrator runs backends sequentially. P1-ARCH-4 needs:
+- Fan-out: Split a batch of frames into N partitions, each processed by a separate backend instance.
+- Fan-in: Collect results from all partitions and merge.
+- The `SafePointExecutionLock` already supports concurrent executions of the same backend — this is the foundation for fan-out.
 
-The hot-reload ecosystem enables rapid iteration on the keyframe density algorithm:
+**Recommended**: Extend `MicrokernelOrchestrator` with `run_fan_out(backend_name, partitions)` and `run_fan_in(results)` methods. Use `concurrent.futures.ThreadPoolExecutor` for parallel partition execution.
 
-- **Modify `motion_adaptive_keyframe_planner.py`** -> save -> watcher detects change -> 400ms debounce -> targeted reload -> next render cycle uses new algorithm -> verify quality metrics.
-- **No restart required** — the developer stays in the IDE and sees results in the next render cycle.
+**4. Partition / Collect Primitives**
 
-### 5. Suggested New Backend: `MotionAdaptiveKeyframeBackend`
+Frame-level partitioning for the keyframe planner:
+- Partition by time segments (e.g., 0-2s, 2-4s, 4-6s)
+- Partition by nonlinearity regions (high-NL segments get finer partitions)
+- Collect: merge keyframe plans from all partitions, resolving boundary overlaps.
 
-Register a new backend (`BackendType.MOTION_ADAPTIVE_KEYFRAME`) that:
-- Takes UMR motion clips as input.
-- Computes per-frame nonlinearity scores (acceleration magnitude, angular velocity, contact events).
-- Outputs a keyframe plan (`ArtifactFamily.KEYFRAME_PLAN`) with frame indices and SparseCtrl `end_percent` values.
-- Hot-reloadable via the SESSION-090 ecosystem for rapid algorithm iteration.
+**Recommended**: Add `partition()` and `collect()` methods to `MotionAdaptiveKeyframeBackend` as a reference implementation.
 
-## Recommended Next Priorities
+**5. Hot-Reload Integration**
 
-| Priority | Recommendation | Reason |
+The SafePointExecutionLock and on_backend_reload() infrastructure from SESSION-091 directly supports P1-ARCH-4:
+- Cache invalidation on reload already works per-backend.
+- The lock prevents mid-execution reload during fan-out partitions.
+- **No additional changes needed** for hot-reload support.
+
+### Minimal Code Changes Required
+
+| Component | Change | Effort |
 |---|---|---|
-| **Immediate** | **P1-AI-2E** | Motion-adaptive keyframe planning — hot-reload ecosystem is now the force multiplier |
-| **High** | **P1-ARCH-4** | Architecture closure — registry migration work continues |
-| **Medium** | **P1-AI-2D-SPARSECTRL** | SparseCtrl integration with orthographic render output |
+| `mathart/core/work_item.py` | NEW: WorkItem dataclass | Small |
+| `mathart/core/cache_key_manager.py` | NEW: Content-addressable cache keys | Small |
+| `microkernel_orchestrator.py` | ADD: `run_fan_out()`, `run_fan_in()` | Medium |
+| `motion_adaptive_keyframe_backend.py` | ADD: `partition()`, `collect()` | Small |
+| `tests/test_pdg_v2_runtime.py` | NEW: Full E2E test suite | Medium |
 
-## Updated Todo List
+## Updated TODO List
 
-| ID | Status | Title |
-|---|---|---|
-| P1-MIGRATE-4 | **CLOSED** (SESSION-090) | Backend hot-reload ecosystem |
-| P1-AI-2E | TODO | Motion-adaptive keyframe planning for high-nonlinearity segments |
-| P1-ARCH-4 | TODO | Architecture closure — registry migration |
-| P1-AI-2D-SPARSECTRL | SUBSTANTIALLY-CLOSED | SparseCtrl ComfyUI integration |
-| P1-INDUSTRIAL-34C | CLOSED (SESSION-089) | Orthographic pixel render pipeline |
-| P1-INDUSTRIAL-44A | TODO | Engine-ready export templates |
-| P1-NEW-10 | SUBSTANTIALLY-ADVANCED | Production benchmark asset suite |
+### Closed This Session
 
-## Known Constraints and Non-Blocking Notes
+- [x] **P1-AI-2E**: Motion-Adaptive Keyframe Planning (SESSION-091)
+- [x] **P1-MIGRATE-4**: Backend Hot-Reload Ecosystem (SESSION-090)
 
-| Constraint | Status |
-|---|---|
-| `watchdog` dependency | **Required** — added to project dependencies |
-| Debounce window | **400ms default** — configurable via `debounce_seconds` parameter |
-| RLock vs Lock | **RLock required** — `reload()` -> `import_module()` -> `@register_backend` -> `register()` is reentrant |
-| `__pycache__` purge | **Per-module only** — does not clear entire `__pycache__` directory |
-| Thread safety scope | **Mutation only** — read-only lookups remain lock-free for zero overhead |
+### Next Priorities
 
-## Files to Inspect First in the Next Session
+1. **P1-ARCH-4**: PDG v2 runtime semantics (cache keys, partition, fan-out/fan-in)
+2. **P3-GPU-BENCH-1**: GPU benchmark infrastructure
+3. **P1-AI-2D-SPARSECTRL**: SparseCtrl temporal consistency (SUBSTANTIALLY-CLOSED)
+4. **P1-INDUSTRIAL-34C**: Industrial compliance
+5. **P1-ARCH-5**: OpenUSD-compatible scene interchange
+6. **P1-B1-1**: Cape/hair ribbon rendering from Jakobsen chain
 
-| File | Why it matters |
-|---|---|
-| `mathart/core/backend_registry.py` | Registry singleton — `unregister()`, `reload()`, RLock, module map |
-| `mathart/core/backend_file_watcher.py` | Daemon watcher — debounce, targeted reload, context manager |
-| `tests/test_backend_hot_reload.py` | 29 E2E tests — the contract specification for hot-reload |
-| `research_notes_session090.md` | Research notes: Erlang/OTP, OSGi, Unity, Python importlib |
-| `mathart/core/pipeline_bridge.py` | Pipeline bridge — consumers of registry entries |
-| `mathart/core/microkernel_orchestrator.py` | Orchestrator — cached registry reference, evolution loop |
+### Files Changed This Session
 
-## SESSION-089 Archive (Previous Handoff)
+```
+NEW:  mathart/core/motion_adaptive_keyframe_backend.py  (530+ lines)
+NEW:  mathart/core/safe_point_execution.py              (180+ lines)
+NEW:  tests/test_motion_adaptive_keyframe.py            (750+ lines)
+NEW:  research_notes_session091.md                      (200+ lines)
+MOD:  mathart/core/backend_types.py                     (+5 lines)
+MOD:  mathart/core/artifact_schema.py                   (+8 lines)
+MOD:  mathart/core/microkernel_orchestrator.py           (+80 lines)
+MOD:  mathart/comfy_client/comfyui_ws_client.py          (+90 lines)
+MOD:  mathart/core/__init__.py                           (+6 lines)
+MOD:  PROJECT_BRAIN.json                                 (v0.82.0)
+MOD:  SESSION_HANDOFF.md                                 (this file)
+```
 
-**SESSION-089** delivered the **Dead Cells-style 3D->2D Orthographic Pixel Render Pipeline**, closing P1-INDUSTRIAL-34C. `OrthographicPixelRenderBackend` self-registers via `@register_backend`, pure NumPy software rasterizer with edge-function triangle rasterization and Z-buffer, multi-pass Albedo/Normal/Depth extraction, hard-stepped cel-shading kernel, nearest-neighbor downscale. 22 E2E tests enforce anti-perspective, anti-bilinear, and anti-GUI red lines.
+## Context for Next AI Agent
 
-## References
+If you are the next AI agent reading this handoff:
 
-[1]: https://www.erlang.org/doc/design_principles/release_handling "Erlang/OTP Release Handling — Hot Code Replacement"
-[2]: https://docs.osgi.org/specification/osgi.core/8.0.0/framework.module.html "OSGi Core Release 8 — Module Layer Specification"
-[3]: https://docs.unity3d.com/Manual/DomainReloading.html "Unity Manual — Domain Reloading"
-[4]: https://docs.unrealengine.com/5.0/en-US/live-coding-in-unreal-engine/ "Unreal Engine 5 — Live Coding"
-[5]: https://docs.python.org/3/library/importlib.html "Python importlib — The implementation of import"
-[6]: https://python-watchdog.readthedocs.io/ "watchdog — Filesystem Events Monitoring"
+1. **Read `PROJECT_BRAIN.json`** first — it contains the full gap inventory and priority ordering.
+2. **Read `research_notes_session091.md`** for the academic/industrial references that guided this session.
+3. **The Registry Pattern is LAW** — never add if/else to trunk code. New backends self-register via `@register_backend`.
+4. **The SafePointExecutionLock is deployed** — use `execution_fence()` for any batch render, `reload_gate()` for any hot-reload.
+5. **The Orchestrator has hot-reload coordination** — call `on_backend_reload()` after any `registry.reload()`.
+6. **80/80 tests pass** — run `python3 -m pytest tests/ -v` to verify before any changes.

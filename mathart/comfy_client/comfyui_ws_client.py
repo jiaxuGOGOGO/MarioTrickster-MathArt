@@ -124,6 +124,80 @@ class ComfyUIClient:
         else:
             self.output_root = Path(output_root)
 
+        # SESSION-091 (P1-AI-2E): Workflow cache and reload resilience.
+        # Cached workflow payloads are invalidated when a backend is reloaded
+        # to prevent stale SparseCtrl parameters from persisting.
+        self._workflow_cache: dict[str, dict[str, Any]] = {}
+        self._safe_point_lock: Any = None  # Lazy-loaded to avoid circular import
+
+    # ------------------------------------------------------------------
+    # SESSION-091 (P1-AI-2E): Hot-Reload Resilience
+    # ------------------------------------------------------------------
+
+    def on_backend_reload(self, backend_name: str) -> None:
+        """Callback for backend hot-reload — invalidate cached workflows.
+
+        SESSION-091 (P1-AI-2E): When a backend is reloaded (e.g.,
+        MotionAdaptiveKeyframeBackend with new SparseCtrl parameters),
+        any cached workflow payloads that reference that backend must be
+        purged.  This prevents the Stale Cache Leak anti-pattern.
+        """
+        # Purge all workflow caches that reference this backend
+        keys_to_purge = [
+            k for k in self._workflow_cache
+            if backend_name in k
+        ]
+        for k in keys_to_purge:
+            del self._workflow_cache[k]
+
+        # Also purge any generic cached workflows
+        if backend_name in self._workflow_cache:
+            del self._workflow_cache[backend_name]
+
+        logger.info(
+            "[ComfyUIClient] on_backend_reload: purged %d cached workflows "
+            "for backend '%s'",
+            len(keys_to_purge),
+            backend_name,
+        )
+
+    def cache_workflow(self, key: str, payload: dict[str, Any]) -> None:
+        """Cache a workflow payload for reuse."""
+        self._workflow_cache[key] = payload
+
+    def get_cached_workflow(self, key: str) -> dict[str, Any] | None:
+        """Retrieve a cached workflow payload, or None if invalidated."""
+        return self._workflow_cache.get(key)
+
+    def set_safe_point_lock(self, lock: Any) -> None:
+        """Inject the SafePointExecutionLock for frame-boundary gating.
+
+        Called by the Orchestrator during initialization to wire up
+        the execution fence.
+        """
+        self._safe_point_lock = lock
+
+    def execute_workflow_safe(
+        self,
+        payload: dict[str, Any],
+        *,
+        backend_name: str = "comfyui",
+        run_label: str = "mathart",
+    ) -> "ExecutionResult":
+        """Execute a workflow with SafePoint frame-boundary gating.
+
+        SESSION-091 (P1-AI-2E): Wraps ``execute_workflow()`` inside
+        a ``SafePointExecutionLock.execution_fence()`` to prevent
+        the Mid-Frame Reload Trap.
+
+        If no SafePointExecutionLock is configured, falls back to
+        direct execution.
+        """
+        if self._safe_point_lock is not None:
+            with self._safe_point_lock.execution_fence(backend_name):
+                return self.execute_workflow(payload, run_label=run_label)
+        return self.execute_workflow(payload, run_label=run_label)
+
     # ------------------------------------------------------------------
     # Health check
     # ------------------------------------------------------------------
