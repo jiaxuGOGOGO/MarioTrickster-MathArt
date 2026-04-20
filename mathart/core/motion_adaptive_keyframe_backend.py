@@ -10,7 +10,7 @@ This backend consumes UMR motion clips and produces a strongly-typed
 
 1. Per-frame **nonlinearity scores** derived from three physical signals:
    - Root acceleration magnitude (Clavet GDC 2016 feature vector)
-   - Angular velocity jerk (rotational abruptness)
+   - Angular acceleration magnitude (rotational abruptness)
    - Contact event transitions (Guilty Gear Xrd hitstop safe points)
 
 2. **Adaptive keyframe indices** selected via score-driven sampling with
@@ -72,7 +72,7 @@ class KeyframePlannerConfig:
 
     # --- Nonlinearity weights (Clavet feature vector weighting) ---
     weight_acceleration: float = 0.4
-    weight_angular_jerk: float = 0.3
+    weight_angular_acceleration: float = 0.3
     weight_contact_event: float = 0.3
 
     # --- Keyframe selection constraints ---
@@ -90,7 +90,7 @@ class KeyframePlannerConfig:
     def validate(self) -> list[str]:
         """Validate configuration, return list of error messages."""
         errors: list[str] = []
-        total_w = self.weight_acceleration + self.weight_angular_jerk + self.weight_contact_event
+        total_w = self.weight_acceleration + self.weight_angular_acceleration + self.weight_contact_event
         if abs(total_w) < 1e-9:
             errors.append("Nonlinearity weights sum to zero.")
         if self.min_gap < 1:
@@ -119,7 +119,8 @@ def compute_nonlinearity_scores(
     fps: int = 12,
     *,
     weight_acc: float = 0.4,
-    weight_ang: float = 0.3,
+    weight_ang_accel: float = 0.3,
+    weight_ang: float | None = None,
     weight_contact: float = 0.3,
 ) -> np.ndarray:
     """Compute per-frame nonlinearity scores from UMR motion signals.
@@ -136,14 +137,18 @@ def compute_nonlinearity_scores(
         Boolean contact arrays per frame (from MotionContactState).
     fps : int
         Frames per second for temporal scaling.
-    weight_acc, weight_ang, weight_contact : float
-        Weighting factors for the three signal channels.
+    weight_acc, weight_ang_accel, weight_contact : float
+        Weighting factors for the three signal channels. ``weight_ang`` is
+        accepted as a legacy alias for backward compatibility.
 
     Returns
     -------
     np.ndarray
         Per-frame nonlinearity scores in [0, 1].
     """
+    if weight_ang is not None:
+        weight_ang_accel = weight_ang
+
     n = len(velocities_x)
     if n < 2:
         return np.zeros(n, dtype=np.float64)
@@ -156,9 +161,9 @@ def compute_nonlinearity_scores(
     # Pad first frame with zero (no prior frame)
     acc_mag = np.concatenate([[0.0], acc_mag])
 
-    # --- Channel 2: Angular velocity jerk ---
-    daw = np.abs(np.diff(angular_velocities)) * fps
-    daw = np.concatenate([[0.0], daw])
+    # --- Channel 2: Angular acceleration magnitude ---
+    angular_accel_magnitude = np.abs(np.diff(angular_velocities)) * fps
+    angular_accel_magnitude = np.concatenate([[0.0], angular_accel_magnitude])
 
     # --- Channel 3: Contact event transitions ---
     # Any boolean flip in left or right foot contact = contact event
@@ -176,17 +181,17 @@ def compute_nonlinearity_scores(
         return (arr - vmin) / (vmax - vmin)
 
     acc_norm = _safe_normalize(acc_mag)
-    ang_norm = _safe_normalize(daw)
+    ang_norm = _safe_normalize(angular_accel_magnitude)
     # Contact events are already binary [0, 1], no normalization needed
 
     # --- Weighted fusion ---
-    total_w = weight_acc + weight_ang + weight_contact
+    total_w = weight_acc + weight_ang_accel + weight_contact
     if total_w < 1e-12:
         return np.zeros(n, dtype=np.float64)
 
     raw_score = (
         weight_acc * acc_norm
-        + weight_ang * ang_norm
+        + weight_ang_accel * ang_norm
         + weight_contact * contact_events
     ) / total_w
 
@@ -211,12 +216,12 @@ def select_adaptive_keyframes(
     This function NEVER uses ``frame_idx % step == 0`` static sampling.
     Instead, it:
     1. Force-captures first and last frame (boundary anchors).
-    2. Force-captures all contact event frames (Guilty Gear Xrd discipline).
-    3. Force-captures local maxima above ``extrema_threshold``.
-    4. Enforces ``min_gap`` by keeping only the highest-scored frame
-       when two mandatory keyframes are too close.
-    5. Fills gaps exceeding ``max_gap`` with the highest-scored frame
-       within each gap.
+    2. Force-captures all contact event frames into the final pool with
+       absolute override semantics.
+    3. Adds non-contact extrema only when they do not violate the protected
+       contact anchors.
+    4. Fills gaps exceeding ``max_gap`` with the highest-scored legal frame
+       while preserving contact immunity.
 
     Parameters
     ----------
@@ -225,7 +230,7 @@ def select_adaptive_keyframes(
     contact_events : np.ndarray
         Per-frame contact event indicators (0 or 1).
     min_gap : int
-        Minimum frames between consecutive keyframes.
+        Minimum frames between consecutive non-contact keyframes.
     max_gap : int
         Maximum frames between consecutive keyframes.
     extrema_threshold : float
@@ -242,90 +247,76 @@ def select_adaptive_keyframes(
     if n == 1:
         return [0]
 
-    # --- Step 1: Collect mandatory keyframe candidates ---
-    candidates: set[int] = set()
-
-    # Boundary anchors
-    candidates.add(0)
-    candidates.add(n - 1)
-
-    # Contact events (Guilty Gear Xrd hitstop safe points)
+    locked_frames: set[int] = {0, n - 1}
     contact_indices = np.where(contact_events > 0.5)[0]
-    candidates.update(contact_indices.tolist())
+    locked_frames.update(contact_indices.tolist())
+    selected: set[int] = set(locked_frames)
 
-    # Local maxima above threshold
+    def _conflicts(candidate: int, indices: set[int]) -> list[int]:
+        return sorted(idx for idx in indices if idx != candidate and abs(candidate - idx) < min_gap)
+
+    def _try_add_non_contact(candidate: int) -> bool:
+        if candidate in selected:
+            return False
+        conflicts = _conflicts(candidate, selected)
+        if any(idx in locked_frames for idx in conflicts):
+            return False
+        if not conflicts:
+            selected.add(candidate)
+            return True
+        best_existing = max(conflicts, key=lambda idx: float(scores[idx]))
+        if float(scores[candidate]) > float(scores[best_existing]):
+            for idx in conflicts:
+                if idx in locked_frames:
+                    return False
+            for idx in conflicts:
+                selected.discard(idx)
+            selected.add(candidate)
+            return True
+        return False
+
+    peak_candidates: set[int] = set()
     for i in range(1, n - 1):
-        if (scores[i] >= extrema_threshold
-                and scores[i] >= scores[i - 1]
-                and scores[i] >= scores[i + 1]):
-            candidates.add(i)
+        if (
+            scores[i] >= extrema_threshold
+            and scores[i] >= scores[i - 1]
+            and scores[i] >= scores[i + 1]
+        ):
+            peak_candidates.add(i)
 
-    # Also capture global maximum if above threshold
     global_max_idx = int(np.argmax(scores))
     if scores[global_max_idx] >= extrema_threshold:
-        candidates.add(global_max_idx)
+        peak_candidates.add(global_max_idx)
 
-    # --- Step 2: Sort and enforce min_gap (keep higher-scored) ---
-    sorted_candidates = sorted(candidates)
-    filtered: list[int] = []
-    for idx in sorted_candidates:
-        if not filtered or (idx - filtered[-1]) >= min_gap:
-            filtered.append(idx)
-        else:
-            # Keep the higher-scored one
-            if scores[idx] > scores[filtered[-1]]:
-                filtered[-1] = idx
+    for idx in sorted(peak_candidates, key=lambda i: (-float(scores[i]), i)):
+        if idx in locked_frames:
+            continue
+        _try_add_non_contact(idx)
 
-    # --- Step 3: Fill gaps exceeding max_gap ---
-    final: list[int] = []
-    for i, kf in enumerate(filtered):
-        final.append(kf)
-        if i < len(filtered) - 1:
-            next_kf = filtered[i + 1]
-            gap = next_kf - kf
-            if gap > max_gap:
-                # Insert keyframes at highest-scored positions within gap
-                search_start = kf + min_gap
-                search_end = next_kf - min_gap + 1
-                if search_start < search_end:
-                    gap_scores = scores[search_start:search_end]
-                    while True:
-                        # Find the current maximum gap
-                        current_kfs = sorted([f for f in final if kf <= f <= next_kf])
-                        max_current_gap = 0
-                        gap_start = kf
-                        for j in range(len(current_kfs) - 1):
-                            g = current_kfs[j + 1] - current_kfs[j]
-                            if g > max_current_gap:
-                                max_current_gap = g
-                                gap_start = current_kfs[j]
-                        if max_current_gap <= max_gap:
-                            break
-                        # Insert at highest score within the largest gap
-                        ins_start = gap_start + min_gap
-                        ins_end = gap_start + max_current_gap - min_gap + 1
-                        if ins_start >= ins_end or ins_start >= n:
-                            break
-                        ins_end = min(ins_end, n)
-                        segment = scores[ins_start:ins_end]
-                        if len(segment) == 0:
-                            break
-                        best_in_gap = ins_start + int(np.argmax(segment))
-                        if best_in_gap in final:
-                            break
-                        final.append(best_in_gap)
-                        final.sort()
+    while True:
+        ordered = sorted(selected)
+        max_current_gap = 0
+        gap_pair: tuple[int, int] | None = None
+        for left, right in zip(ordered[:-1], ordered[1:]):
+            gap = right - left
+            if gap > max_current_gap:
+                max_current_gap = gap
+                gap_pair = (left, right)
+        if gap_pair is None or max_current_gap <= max_gap:
+            break
 
-    # Ensure sorted and unique
-    final = sorted(set(final))
+        left, right = gap_pair
+        candidate_indices = [
+            idx
+            for idx in range(left + 1, right)
+            if idx not in selected and not _conflicts(idx, selected)
+        ]
+        if not candidate_indices:
+            break
+        best_idx = max(candidate_indices, key=lambda idx: float(scores[idx]))
+        selected.add(best_idx)
 
-    # Ensure first and last are always present
-    if final[0] != 0:
-        final.insert(0, 0)
-    if final[-1] != n - 1:
-        final.append(n - 1)
-
-    return final
+    return sorted(selected)
 
 
 # ---------------------------------------------------------------------------
@@ -485,7 +476,7 @@ class KeyframeEvolutionBridge:
                 "fitness": round(overall, 4),
                 "config": {
                     "weight_acceleration": config.weight_acceleration,
-                    "weight_angular_jerk": config.weight_angular_jerk,
+                    "weight_angular_acceleration": config.weight_angular_acceleration,
                     "weight_contact_event": config.weight_contact_event,
                     "min_gap": config.min_gap,
                     "max_gap": config.max_gap,
@@ -550,7 +541,9 @@ class MotionAdaptiveKeyframeBackend:
         overrides = context.get("config_overrides", {})
         config = KeyframePlannerConfig(
             weight_acceleration=float(overrides.get("weight_acceleration", 0.4)),
-            weight_angular_jerk=float(overrides.get("weight_angular_jerk", 0.3)),
+            weight_angular_acceleration=float(
+                overrides.get("weight_angular_acceleration", overrides.get("weight_angular_jerk", 0.3))
+            ),
             weight_contact_event=float(overrides.get("weight_contact_event", 0.3)),
             min_gap=int(overrides.get("min_gap", 2)),
             max_gap=int(overrides.get("max_gap", 12)),
@@ -596,7 +589,7 @@ class MotionAdaptiveKeyframeBackend:
             vx, vy, aw, cl, cr,
             fps=config.fps,
             weight_acc=config.weight_acceleration,
-            weight_ang=config.weight_angular_jerk,
+            weight_ang_accel=config.weight_angular_acceleration,
             weight_contact=config.weight_contact_event,
         )
 
@@ -647,7 +640,7 @@ class MotionAdaptiveKeyframeBackend:
             "max_actual_gap": max(gaps) if gaps else 0,
             "config": {
                 "weight_acceleration": config.weight_acceleration,
-                "weight_angular_jerk": config.weight_angular_jerk,
+                "weight_angular_acceleration": config.weight_angular_acceleration,
                 "weight_contact_event": config.weight_contact_event,
                 "extrema_threshold": config.extrema_threshold,
                 "base_end_percent": config.base_end_percent,

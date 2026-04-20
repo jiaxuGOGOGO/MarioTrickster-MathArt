@@ -18,7 +18,9 @@ Anti-Pattern Guards (Red Line Assertions):
 """
 from __future__ import annotations
 
+import importlib
 import math
+import sys
 import tempfile
 import threading
 import time
@@ -304,6 +306,26 @@ class TestAdaptiveKeyframeSelection:
                 f"Contact event at frame {ce_frame} not captured! "
                 f"Keyframes: {keyframes}"
             )
+
+    def test_contact_absolute_override_on_min_gap_conflict(self):
+        """Contact 帧必须在 min_gap 冲突中绝对存活。"""
+        from mathart.core.motion_adaptive_keyframe_backend import (
+            select_adaptive_keyframes,
+        )
+
+        scores = np.array([0.0, 0.2, 0.9, 0.1, 0.0], dtype=np.float64)
+        contact_events = np.array([0.0, 1.0, 0.0, 0.0, 0.0], dtype=np.float64)
+
+        keyframes = select_adaptive_keyframes(
+            scores,
+            contact_events,
+            min_gap=2,
+            max_gap=12,
+            extrema_threshold=0.5,
+        )
+
+        assert 1 in keyframes, f"Contact frame 1 was dropped: {keyframes}"
+        assert 2 not in keyframes, f"Non-contact peak 2 should lose to contact frame: {keyframes}"
 
     def test_max_gap_constraint_no_void(self):
         """🚫 ANTI-PATTERN: No gap between keyframes may exceed max_gap.
@@ -712,7 +734,8 @@ class TestSafePointExecutionLock:
     def test_mid_frame_reload_blocked(self):
         """🚫 ANTI-PATTERN: Mid-Frame Reload Trap.
 
-        Reload must wait for execution to complete.
+        Manual reload must wait for the current frame-sized execution section
+        to complete before entering.
         """
         from mathart.core.safe_point_execution import SafePointExecutionLock
 
@@ -720,27 +743,22 @@ class TestSafePointExecutionLock:
         execution_started = threading.Event()
         reload_entered = threading.Event()
         execution_done = threading.Event()
-        reload_waited = threading.Event()
 
         errors: list[str] = []
 
         def executor():
-            with lock.execution_fence("test_backend"):
+            with lock.frame_execution("test_backend"):
                 execution_started.set()
-                # Hold the fence for a bit
                 time.sleep(0.5)
             execution_done.set()
 
         def reloader():
             execution_started.wait(timeout=2.0)
-            # Small delay to ensure execution is in progress
             time.sleep(0.1)
             with lock.reload_gate("test_backend"):
                 reload_entered.set()
-                # At this point, execution should be done
                 if not execution_done.is_set():
-                    errors.append("Reload entered while execution still running!")
-            reload_waited.set()
+                    errors.append("Reload entered while a frame was still executing!")
 
         t1 = threading.Thread(target=executor, daemon=True)
         t2 = threading.Thread(target=reloader, daemon=True)
@@ -752,6 +770,148 @@ class TestSafePointExecutionLock:
         assert not errors, f"Mid-Frame Reload Trap: {errors}"
         assert execution_done.is_set()
         assert reload_entered.is_set()
+
+    def test_watcher_reload_occurs_at_frame_boundary(self):
+        """Watcher 请求必须在两帧间隙由主渲染线程消费。"""
+        from mathart.core.backend_file_watcher import BackendFileWatcher
+        from mathart.core.backend_registry import BackendRegistry
+        from mathart.core.safe_point_execution import SafePointExecutionLock
+
+        BackendRegistry.reset()
+        BackendRegistry._builtins_loaded = False
+        BackendRegistry._backend_module_map = {}
+
+        with tempfile.TemporaryDirectory(prefix="safe_point_watch_") as tmpdir:
+            tmp_path = Path(tmpdir)
+            pkg_dir = tmp_path / "dynamic_backends"
+            pkg_dir.mkdir()
+            (pkg_dir / "__init__.py").write_text("", encoding="utf-8")
+            backend_file = pkg_dir / "dummy_hot_backend.py"
+            backend_file.write_text(
+                """
+from mathart.core.backend_registry import BackendMeta, register_backend
+
+@register_backend(
+    \"dummy_hot_backend\",
+    display_name=\"Dummy Hot Backend v1\",
+    version=\"1.0.0\",
+    artifact_families=(\"test_hot_output\",),
+    session_origin=\"SESSION-092\",
+)
+class DummyHotBackend:
+    HOT_RELOAD_VERSION = \"v1_result\"
+
+    @property
+    def meta(self) -> BackendMeta:
+        return self._backend_meta
+
+    def execute(self, context: dict) -> dict:
+        return {\"status\": \"ok\", \"version\": \"v1_result\"}
+""".strip(),
+                encoding="utf-8",
+            )
+
+            sys.path.insert(0, str(tmp_path))
+            try:
+                importlib.import_module("dynamic_backends.dummy_hot_backend")
+                reg = BackendRegistry()
+                _, v1_class = reg.get_or_raise("dummy_hot_backend")
+                assert v1_class.HOT_RELOAD_VERSION == "v1_result"
+
+                lock = SafePointExecutionLock(reload_timeout=5.0)
+                watcher = BackendFileWatcher(
+                    reg,
+                    extra_watch_paths=[str(pkg_dir)],
+                    debounce_seconds=0.2,
+                    safe_point_lock=lock,
+                )
+                watcher.start()
+
+                frame_log: list[tuple[str, int, float]] = []
+                reload_records: list[dict[str, Any]] = []
+                frame_one_started = threading.Event()
+
+                def render_loop() -> None:
+                    for frame_idx in range(4):
+                        with lock.frame_execution("dummy_hot_backend"):
+                            frame_log.append(("start", frame_idx, time.time()))
+                            if frame_idx == 1:
+                                frame_one_started.set()
+                            time.sleep(0.20)
+                            frame_log.append(("end", frame_idx, time.time()))
+                        reload_records.extend(
+                            watcher.process_pending_reloads(
+                                backend_name="dummy_hot_backend",
+                                frame_index=frame_idx,
+                            )
+                        )
+                        time.sleep(0.05)
+
+                render_thread = threading.Thread(target=render_loop, daemon=True)
+                render_thread.start()
+
+                assert frame_one_started.wait(timeout=3.0), "Render loop never reached frame 1"
+                backend_file.write_text(
+                    """
+from mathart.core.backend_registry import BackendMeta, register_backend
+
+@register_backend(
+    \"dummy_hot_backend\",
+    display_name=\"Dummy Hot Backend v2\",
+    version=\"2.0.0\",
+    artifact_families=(\"test_hot_output\",),
+    session_origin=\"SESSION-092\",
+)
+class DummyHotBackend:
+    HOT_RELOAD_VERSION = \"v2_result\"
+
+    @property
+    def meta(self) -> BackendMeta:
+        return self._backend_meta
+
+    def execute(self, context: dict) -> dict:
+        return {\"status\": \"ok\", \"version\": \"v2_result\"}
+""".strip(),
+                    encoding="utf-8",
+                )
+
+                assert watcher.reload_requested_event.wait(timeout=5.0), (
+                    "Watcher never queued a reload request"
+                )
+
+                _, still_v1_class = reg.get_or_raise("dummy_hot_backend")
+                assert still_v1_class.HOT_RELOAD_VERSION == "v1_result", (
+                    "Backend reloaded before frame-boundary handoff"
+                )
+
+                render_thread.join(timeout=8.0)
+                assert not render_thread.is_alive(), "Render loop deadlocked"
+                assert reload_records, "No reload was consumed at any frame boundary"
+
+                reload_record = reload_records[0]
+                assert reload_record["success"] is True
+                boundary_frame = int(reload_record["frame_boundary_after"])
+                assert boundary_frame >= 1
+
+                frame_end = next(t for tag, idx, t in frame_log if tag == "end" and idx == boundary_frame)
+                frame_next_start = next(
+                    t for tag, idx, t in frame_log if tag == "start" and idx == boundary_frame + 1
+                )
+                assert frame_end <= reload_record["timestamp"] <= frame_next_start, (
+                    f"Reload did not occur inside frame boundary gap: {reload_record}, frame_log={frame_log}"
+                )
+
+                _, v2_class = reg.get_or_raise("dummy_hot_backend")
+                assert v2_class.HOT_RELOAD_VERSION == "v2_result"
+            finally:
+                if 'watcher' in locals():
+                    watcher.stop()
+                for mod_name in [m for m in list(sys.modules) if m.startswith("dynamic_backends")]:
+                    del sys.modules[mod_name]
+                if str(tmp_path) in sys.path:
+                    sys.path.remove(str(tmp_path))
+                import mathart.core.motion_adaptive_keyframe_backend as motion_backend_module
+                importlib.reload(motion_backend_module)
 
     def test_concurrent_executions_allowed(self):
         """Multiple concurrent executions of the same backend are OK."""
@@ -798,10 +958,11 @@ class TestSafePointExecutionLock:
         from mathart.core.safe_point_execution import SafePointExecutionLock
 
         lock = SafePointExecutionLock()
-        with lock.execution_fence("test"):
+        with lock.frame_execution("test"):
             status = lock.status()
-            assert status["test"]["executing"] == 1
+            assert status["test"]["active_frames"] == 1
             assert status["test"]["reloading"] is False
+            assert status["test"]["reload_requested"] is False
 
     def test_singleton_access(self):
         """get_safe_point_lock returns consistent singleton."""
@@ -893,7 +1054,7 @@ class TestKeyframePlannerConfig:
         from mathart.core.motion_adaptive_keyframe_backend import KeyframePlannerConfig
         config = KeyframePlannerConfig(
             weight_acceleration=0.0,
-            weight_angular_jerk=0.0,
+            weight_angular_acceleration=0.0,
             weight_contact_event=0.0,
         )
         errors = config.validate()

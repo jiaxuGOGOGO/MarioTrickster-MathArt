@@ -1,214 +1,139 @@
-# SESSION HANDOFF — SESSION-091
-
 ## Session Identity
 
 | Field | Value |
 |---|---|
-| Session ID | SESSION-091 |
-| Previous Session | SESSION-090 |
+| Session ID | SESSION-092 |
+| Previous Session | SESSION-091 |
 | Date | 2026-04-20 |
 | Commit | *(to be filled after push)* |
 | PROJECT_BRAIN.json version | v0.82.0 |
 
-## Mission Accomplished
+## Session Outcome
 
-**P1-AI-2E: CLOSED** — Motion-Adaptive Keyframe Planning for High-Nonlinearity Action Segments.
+**SESSION-092** was executed as a targeted hotfix session rather than a feature expansion session. The scope was intentionally constrained to three red-line defects that blocked safe progression toward **P1-ARCH-4**: the coarse-grained Safe Point implementation, the failure to guarantee Contact-frame survival under `min_gap` conflicts, and the inaccurate physical naming of the angular signal.
 
-### Deliverables
-
-| Module | File | Lines | Status |
-|---|---|---|---|
-| **MotionAdaptiveKeyframeBackend** | `mathart/core/motion_adaptive_keyframe_backend.py` | 530+ | NEW |
-| **SafePointExecutionLock** | `mathart/core/safe_point_execution.py` | 180+ | NEW |
-| **Orchestrator Hot-Reload Coordination** | `mathart/core/microkernel_orchestrator.py` | +80 | MODIFIED |
-| **ComfyUI Client Resilience** | `mathart/comfy_client/comfyui_ws_client.py` | +90 | MODIFIED |
-| **BackendType Enum** | `mathart/core/backend_types.py` | +5 | MODIFIED |
-| **ArtifactFamily Enum** | `mathart/core/artifact_schema.py` | +8 | MODIFIED |
-| **Package Exports** | `mathart/core/__init__.py` | +6 | MODIFIED |
-| **E2E Test Suite** | `tests/test_motion_adaptive_keyframe.py` | 750+ | NEW |
-| **Research Notes** | `research_notes_session091.md` | 200+ | NEW |
-
-### Test Results
-
-| Suite | Tests | Status |
+| Hotfix Axis | Status | Result |
 |---|---|---|
-| `test_motion_adaptive_keyframe.py` (SESSION-091) | 51/51 | ALL PASS |
-| `test_backend_hot_reload.py` (SESSION-090 regression) | 29/29 | ALL PASS |
-| **Total** | **80/80** | **ZERO FAILURES** |
+| Safe Point lock granularity | Fixed | Safe Point moved to **frame-boundary coordination** rather than batch-wide outer locking |
+| File watcher hot-reload chain | Fixed | Watcher now emits **reload requests** and waits for main-thread boundary consumption |
+| Contact-frame absolute retention | Fixed | Contact frames are now **protected anchors** that ordinary peaks cannot evict |
+| Angular signal naming | Fixed | `jerk` wording replaced with **angular acceleration** semantics |
+| Regression validation | Fixed | `82/82` targeted tests passed with **zero FAIL** and **zero SKIP** |
 
-## Architecture Decisions
+## Architecture State After SESSION-092
 
-### 1. MotionAdaptiveKeyframeBackend — Core Algorithm
+The repository now reflects a stricter interpretation of Safe Point semantics. A long-running batch render is no longer wrapped by a coarse outer execution fence. Instead, execution ownership is entered and exited at the **per-frame boundary**, and reload is only consumed in the narrow interval after frame `N` completes and before frame `N+1` starts. This closes the deadlock class that would otherwise stall reload for the full batch duration.
 
-The backend implements a three-stage pipeline grounded in industrial references:
+At the same time, the keyframe planner now treats **Contact frames as hard anchors** rather than ordinary candidates inside a score contest. This means the planner may still use score-driven extrema selection for non-contact frames, but it is no longer allowed to sacrifice a Contact frame merely because a neighboring non-contact peak has a higher score.
 
-**Stage 1: Nonlinearity Score Computation** (Clavet GDC 2016 / Ubisoft Motion Matching)
-
-Computes per-frame nonlinearity scores from UMR physical features:
-- Root acceleration magnitude (finite differences of velocity)
-- Angular velocity jerk (second derivative of angular velocity)
-- Contact event transitions (foot contact state changes)
-
-Scores are weighted-summed and normalized to [0, 1].
-
-**Stage 2: Adaptive Keyframe Selection** (Guilty Gear Xrd / Motomura GDC 2015)
-
-Selects keyframes using a priority-queue algorithm with three constraints:
-- **Contact Safe Points**: All contact events (hitstop, landing, foot-strike) are forced keyframes — the Guilty Gear Xrd discipline.
-- **min_gap**: Prevents cluster packing near extrema (anti-Cluster Trap).
-- **max_gap**: Prevents starvation in smooth segments (anti-Void Trap).
-- **Extrema Capture**: Local maxima above threshold are prioritized.
-
-This is NOT `frame_idx % step == 0`. Gaps are non-uniform by design.
-
-**Stage 3: SparseCtrl end_percent Mapping** (Guo et al., ECCV 2024)
-
-Maps nonlinearity scores to SparseCtrl `end_percent` values:
-- High-nonlinearity keyframes get high end_percent (stronger guidance)
-- Low-nonlinearity keyframes get base end_percent (lighter guidance)
-- Linear interpolation: `base + score * (max - base)`
-
-### 2. SafePointExecutionLock — Frame-Boundary Gating
-
-Per-backend reader-writer lock inspired by Unity Domain Reloading:
-- `execution_fence(backend_name)`: Multiple concurrent executions allowed (readers).
-- `reload_gate(backend_name)`: Exclusive access, waits for all executions to complete (writer).
-- Different backends are fully independent — no cross-backend blocking.
-
-### 3. Orchestrator Hot-Reload Coordination
-
-`on_backend_reload(backend_name)` implements targeted cache invalidation:
-- Purges `_result_cache[backend_name]` (stale KEYFRAME_PLAN discarded)
-- Resets `_iteration_counters[backend_name]` (evolution restarts from scratch)
-- Fires registered reload callbacks (ComfyUI Client, etc.)
-- **Never** calls `clear()` on the entire cache (anti-State-Wipeout).
-
-### 4. ComfyUI Client Resilience
-
-- `on_backend_reload()`: Purges cached workflow payloads referencing the reloaded backend.
-- `execute_workflow_safe()`: Wraps execution in SafePointExecutionLock fence.
-- `set_safe_point_lock()`: Dependency injection from Orchestrator.
-
-## Anti-Pattern Guards Verified
-
-| Anti-Pattern | Guard | Tests |
+| Component | File | SESSION-092 Change |
 |---|---|---|
-| **Stale Cache Leak Trap** | `on_backend_reload()` targeted invalidation | 4 tests |
-| **Extrema Omission & Void Trap** | `min_gap` / `max_gap` constraints + contact forced capture | 6 tests |
-| **Mid-Frame Reload Trap** | `SafePointExecutionLock` reader-writer fence | 5 tests |
+| Safe Point coordinator | `mathart/core/safe_point_execution.py` | Added explicit reload-request signaling and boundary-time consumption primitives |
+| File watcher | `mathart/core/backend_file_watcher.py` | Replaced direct watcher-thread reload with queued `reload_requested` + boundary processing |
+| ComfyUI client | `mathart/comfy_client/comfyui_ws_client.py` | Removed the incorrect batch-wide outer Safe Point wrapper from `execute_workflow_safe()` |
+| Keyframe backend | `mathart/core/motion_adaptive_keyframe_backend.py` | Enforced Contact absolute override and corrected angular-acceleration naming |
+| Motion/keyframe tests | `tests/test_motion_adaptive_keyframe.py` | Added Contact conflict regression and watcher/boundary coordination test |
+| Hot-reload regression tests | `tests/test_backend_hot_reload.py` | Updated watcher tests to the new queued-reload semantics |
 
-## Academic & Industrial References Aligned
+## SESSION-092 HOTFIX REPORT
 
-| Reference | How Applied |
+### 1. Safe Point was rebuilt as a frame-boundary mechanism
+
+The previous defect was architectural, not cosmetic. The old approach allowed a Safe Point context to wrap an entire multi-frame render task, which meant hot-reload could be delayed for the full length of the batch. In practice, that pattern risks apparent deadlock and makes the watcher thread useless during long renders.
+
+The fix was to preserve mutual exclusion semantics while changing the **time of coordination**. The Safe Point layer now supports a request/consume model: a background watcher can mark that a backend reload is requested, but only the render thread is allowed to consume that request, and only at a frame boundary. The render loop therefore owns the moment of reload, not the watcher daemon.
+
+| Old behavior | New behavior |
 |---|---|
-| SparseCtrl (Guo et al., ECCV 2024) | end_percent dynamic mapping based on nonlinearity scores |
-| Ubisoft Motion Matching (Clavet GDC 2016) | Root acceleration + angular jerk as nonlinearity features |
-| Guilty Gear Xrd (Motomura GDC 2015) | Contact events forced as safe-point keyframes |
-| Erlang/OTP Hot Code Swapping | SafePointExecutionLock — code swap only at safe boundaries |
-| Unity Domain Reloading | Reader-writer lock pattern for execution/reload mutual exclusion |
-| Eclipse OSGi | Targeted unregister then re-register lifecycle (not global clear) |
+| Watcher thread could call `registry.reload()` directly | Watcher thread only queues a reload request |
+| Outer fence could cover the whole batch | `frame_execution()` covers only the current frame-sized section |
+| Reload timing depended on watcher thread scheduling | Reload timing is explicit and deterministic at the main-thread frame boundary |
+| Long render could stall hot-reload for minutes | Reload is consumed at the next reachable frame boundary |
 
-## Next Session Preparation: P1-ARCH-4 (PDG v2 Runtime Semantics)
+This hotfix also keeps backend isolation intact. Different backends still coordinate independently, but the contract is now honest: **the batch loop must poll and consume reload requests between frames** rather than relying on a giant outer lock.
 
-### What P1-ARCH-4 Requires
+### 2. BackendFileWatcher now closes the handoff loop correctly
 
-P1-ARCH-4 targets **PDG v2 runtime semantics**: cache key management, partition/collect, fan-out/fan-in orchestration, and reusable work-item attributes for the lightweight DAG runtime.
+The previous chain was broken because the watcher observed file changes yet bypassed the render pipeline by reloading immediately on the daemon thread. That contradicted the Safe Point design intent.
 
-### Current Architecture Readiness
+The watcher has now been converted into a two-stage pipeline. First, filesystem debounce resolves the changed module and stores a `reload_requested` record. Second, the render owner calls `process_pending_reloads()` at a frame boundary, which consumes the queued request through the Safe Point coordinator and only then executes `registry.reload()`.
 
-The microkernel and scheduler architecture is well-positioned for P1-ARCH-4. The following micro-adjustments are recommended:
+| Watcher event stage | SESSION-092 behavior |
+|---|---|
+| File modified | Debounce scheduler coalesces events |
+| Module resolved to backend | Watcher records `reload_requested` history |
+| Main render loop reaches boundary | `process_pending_reloads()` attempts reload |
+| Reload completes | `reload_event` and optional callback fire with final success/failure |
 
-**1. Work-Item Abstraction Layer**
+This design explicitly prevents the watcher from re-entering the registry during an active frame. It also gives tests and orchestration code separate visibility into **request queued** versus **request consumed**.
 
-The current Orchestrator operates on backends directly. P1-ARCH-4 needs a `WorkItem` abstraction that wraps backend execution with:
-- Cache key computation (hash of inputs + config + backend version)
-- Partition assignment (which shard of a fan-out this item belongs to)
-- Dependency tracking (which upstream work-items must complete first)
+### 3. Contact frames are now absolute protected anchors
 
-**Recommended**: Create `mathart/core/work_item.py` with a `WorkItem` dataclass that references a backend name, input hash, and partition ID.
+The second red-line defect was in keyframe filtering semantics. The previous approach could gather Contact frames and non-contact extrema into one common candidate pool and then resolve `min_gap` conflicts by score. That made Contact frames vulnerable to eviction by nearby higher-scoring ordinary peaks.
 
-**2. Cache Key Manager**
+The hotfix separates **protected anchors** from **ordinary optional peaks**. Boundary anchors and Contact frames are inserted into a locked set first. Later non-contact extrema are considered only if they do not violate those protected anchors. If a non-contact peak conflicts with a Contact frame inside `min_gap`, the non-contact peak is discarded unconditionally.
 
-The current `_result_cache` in Orchestrator uses backend names as keys. P1-ARCH-4 needs content-addressable caching:
-- Key = `hash(backend_name + input_data_hash + config_hash + backend_version)`
-- This enables cache reuse across iterations when only some inputs change.
+| Candidate type | Conflict rule after SESSION-092 |
+|---|---|
+| Boundary anchor | Always retained |
+| Contact frame | Always retained |
+| Ordinary extrema | May be inserted only if they do not evict a protected anchor |
+| Gap filler frame | May be inserted only if legal under current protected selection |
 
-**Recommended**: Create `mathart/core/cache_key_manager.py` with a `CacheKeyManager` class. The existing `_result_cache` dict becomes the storage backend; the key manager computes keys.
+A dedicated regression now verifies the precise failure mode reported in review: with `scores=[0.0, 0.2, 0.9, 0.1, 0.0]`, Contact at index `1`, and `min_gap=2`, the planner **must** retain frame `1` and **must** reject frame `2` even though frame `2` has the higher scalar score.
 
-**3. Fan-Out / Fan-In Scheduler**
+### 4. Physical naming now matches the actual quantity being computed
 
-The current Orchestrator runs backends sequentially. P1-ARCH-4 needs:
-- Fan-out: Split a batch of frames into N partitions, each processed by a separate backend instance.
-- Fan-in: Collect results from all partitions and merge.
-- The `SafePointExecutionLock` already supports concurrent executions of the same backend — this is the foundation for fan-out.
+The implementation computes the first discrete difference of angular velocity magnitude scaled by FPS. That corresponds to **angular acceleration magnitude**, not angular jerk. The codebase has therefore been renamed to use `angular_acceleration` / `angular_accel_magnitude` semantics in comments, configuration fields, and metadata emission.
 
-**Recommended**: Extend `MicrokernelOrchestrator` with `run_fan_out(backend_name, partitions)` and `run_fan_in(results)` methods. Use `concurrent.futures.ThreadPoolExecutor` for parallel partition execution.
+For compatibility with earlier config payloads, the computation function still accepts the legacy keyword `weight_ang` and the planner still tolerates a legacy override key when present. However, the canonical naming in code and emitted metadata is now the corrected angular-acceleration form.
 
-**4. Partition / Collect Primitives**
+## Validation Summary
 
-Frame-level partitioning for the keyframe planner:
-- Partition by time segments (e.g., 0-2s, 2-4s, 4-6s)
-- Partition by nonlinearity regions (high-NL segments get finer partitions)
-- Collect: merge keyframe plans from all partitions, resolving boundary overlaps.
+The hotfix was accepted only after the targeted regression suites passed without FAIL or SKIP.
 
-**Recommended**: Add `partition()` and `collect()` methods to `MotionAdaptiveKeyframeBackend` as a reference implementation.
+| Test Suite | Result |
+|---|---|
+| `tests/test_motion_adaptive_keyframe.py` | `53/53` passed |
+| `tests/test_backend_hot_reload.py` | `29/29` passed |
+| **Total** | **`82/82` passed** |
 
-**5. Hot-Reload Integration**
+The new coverage explicitly includes a watcher-driven frame-boundary reload test and a `min_gap=2` Contact-protection conflict test. The watcher test verifies that reload is queued during rendering and consumed only in a true frame-boundary gap. The Contact test verifies that a higher-scoring non-contact peak cannot evict a Contact frame.
 
-The SafePointExecutionLock and on_backend_reload() infrastructure from SESSION-091 directly supports P1-ARCH-4:
-- Cache invalidation on reload already works per-backend.
-- The lock prevents mid-execution reload during fan-out partitions.
-- **No additional changes needed** for hot-reload support.
+## Current Guidance for the Next Agent
 
-### Minimal Code Changes Required
+The system is now in a safer state for concurrency-oriented orchestration work, but the following operational rules are mandatory.
 
-| Component | Change | Effort |
+| Rule | Guidance |
+|---|---|
+| Safe Point usage | Do **not** wrap an entire batch render with a coarse outer lock |
+| Render loop contract | Call boundary-time reload consumption between frames |
+| Watcher contract | Treat watcher output as a **reload request**, not immediate permission to reload |
+| Keyframe filtering | Treat Contact frames as **absolute protected anchors** |
+| Physics terminology | Use **angular acceleration** wording, not jerk, for this signal |
+
+## Updated TODO Status
+
+| Priority | Item | State |
 |---|---|---|
-| `mathart/core/work_item.py` | NEW: WorkItem dataclass | Small |
-| `mathart/core/cache_key_manager.py` | NEW: Content-addressable cache keys | Small |
-| `microkernel_orchestrator.py` | ADD: `run_fan_out()`, `run_fan_in()` | Medium |
-| `motion_adaptive_keyframe_backend.py` | ADD: `partition()`, `collect()` | Small |
-| `tests/test_pdg_v2_runtime.py` | NEW: Full E2E test suite | Medium |
+| P1-AI-2E | Motion-Adaptive Keyframe Planning | Closed, then hotfixed in SESSION-092 |
+| P1-MIGRATE-4 | Backend Hot-Reload Ecosystem | Closed, with SESSION-092 safety correction |
+| P1-ARCH-4 | PDG v2 runtime semantics | **Unblocked after SESSION-092 hotfix** |
+| P3-GPU-BENCH-1 | GPU benchmark infrastructure | Pending |
+| P1-AI-2D-SPARSECTRL | SparseCtrl temporal consistency | Pending follow-up |
 
-## Updated TODO List
+## Files Touched in SESSION-092
 
-### Closed This Session
-
-- [x] **P1-AI-2E**: Motion-Adaptive Keyframe Planning (SESSION-091)
-- [x] **P1-MIGRATE-4**: Backend Hot-Reload Ecosystem (SESSION-090)
-
-### Next Priorities
-
-1. **P1-ARCH-4**: PDG v2 runtime semantics (cache keys, partition, fan-out/fan-in)
-2. **P3-GPU-BENCH-1**: GPU benchmark infrastructure
-3. **P1-AI-2D-SPARSECTRL**: SparseCtrl temporal consistency (SUBSTANTIALLY-CLOSED)
-4. **P1-INDUSTRIAL-34C**: Industrial compliance
-5. **P1-ARCH-5**: OpenUSD-compatible scene interchange
-6. **P1-B1-1**: Cape/hair ribbon rendering from Jakobsen chain
-
-### Files Changed This Session
-
-```
-NEW:  mathart/core/motion_adaptive_keyframe_backend.py  (530+ lines)
-NEW:  mathart/core/safe_point_execution.py              (180+ lines)
-NEW:  tests/test_motion_adaptive_keyframe.py            (750+ lines)
-NEW:  research_notes_session091.md                      (200+ lines)
-MOD:  mathart/core/backend_types.py                     (+5 lines)
-MOD:  mathart/core/artifact_schema.py                   (+8 lines)
-MOD:  mathart/core/microkernel_orchestrator.py           (+80 lines)
-MOD:  mathart/comfy_client/comfyui_ws_client.py          (+90 lines)
-MOD:  mathart/core/__init__.py                           (+6 lines)
-MOD:  PROJECT_BRAIN.json                                 (v0.82.0)
-MOD:  SESSION_HANDOFF.md                                 (this file)
+```text
+MOD: mathart/core/safe_point_execution.py
+MOD: mathart/core/backend_file_watcher.py
+MOD: mathart/comfy_client/comfyui_ws_client.py
+MOD: mathart/core/motion_adaptive_keyframe_backend.py
+MOD: tests/test_motion_adaptive_keyframe.py
+MOD: tests/test_backend_hot_reload.py
+MOD: SESSION_HANDOFF.md
 ```
 
-## Context for Next AI Agent
+## Handoff Note
 
-If you are the next AI agent reading this handoff:
-
-1. **Read `PROJECT_BRAIN.json`** first — it contains the full gap inventory and priority ordering.
-2. **Read `research_notes_session091.md`** for the academic/industrial references that guided this session.
-3. **The Registry Pattern is LAW** — never add if/else to trunk code. New backends self-register via `@register_backend`.
-4. **The SafePointExecutionLock is deployed** — use `execution_fence()` for any batch render, `reload_gate()` for any hot-reload.
-5. **The Orchestrator has hot-reload coordination** — call `on_backend_reload()` after any `registry.reload()`.
-6. **80/80 tests pass** — run `python3 -m pytest tests/ -v` to verify before any changes.
+If the next session begins work on **P1-ARCH-4**, start from the current frame-boundary contract rather than the SESSION-091 coarse-lock model. The watcher and Safe Point systems now assume a cooperative render loop that explicitly polls for pending reloads between frames. Reverting to a batch-wide outer fence would reopen the exact red-line failure that SESSION-092 was created to eliminate.

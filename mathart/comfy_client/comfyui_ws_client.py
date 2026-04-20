@@ -170,10 +170,12 @@ class ComfyUIClient:
         return self._workflow_cache.get(key)
 
     def set_safe_point_lock(self, lock: Any) -> None:
-        """Inject the SafePointExecutionLock for frame-boundary gating.
+        """Inject the SafePointExecutionLock for frame-boundary coordination.
 
-        Called by the Orchestrator during initialization to wire up
-        the execution fence.
+        SESSION-092 removed the incorrect batch-wide outer fence from this
+        client.  The lock is still injectable for callers that need shared
+        observability, but frame-boundary polling must happen in the actual
+        multi-frame render loop instead of around ``execute_workflow()``.
         """
         self._safe_point_lock = lock
 
@@ -184,18 +186,13 @@ class ComfyUIClient:
         backend_name: str = "comfyui",
         run_label: str = "mathart",
     ) -> "ExecutionResult":
-        """Execute a workflow with SafePoint frame-boundary gating.
+        """Execute a workflow without reintroducing a batch-wide coarse lock.
 
-        SESSION-091 (P1-AI-2E): Wraps ``execute_workflow()`` inside
-        a ``SafePointExecutionLock.execution_fence()`` to prevent
-        the Mid-Frame Reload Trap.
-
-        If no SafePointExecutionLock is configured, falls back to
-        direct execution.
+        SESSION-092 hotfix: frame-boundary Safe Point checks must live inside
+        the caller's per-frame loop.  Wrapping the entire workflow call in a
+        single outer fence would recreate the original lock-granularity bug.
         """
-        if self._safe_point_lock is not None:
-            with self._safe_point_lock.execution_fence(backend_name):
-                return self.execute_workflow(payload, run_label=run_label)
+        _ = backend_name  # kept for backward-compatible call signatures
         return self.execute_workflow(payload, run_label=run_label)
 
     # ------------------------------------------------------------------

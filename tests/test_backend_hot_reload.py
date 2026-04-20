@@ -426,51 +426,61 @@ class TestBackendFileWatcher:
             watcher.stop()
 
     def test_watcher_hot_reloads_modified_backend(self, tmp_backend_dir: Path):
-        """Full E2E: write v1 → import → modify to v2 → watcher triggers reload → verify v2."""
+        """Full E2E: watcher queues request, main thread consumes it at a safe point."""
         from mathart.core.backend_file_watcher import BackendFileWatcher
+        from mathart.core.safe_point_execution import SafePointExecutionLock
 
         reg = BackendRegistry()
 
         # Step 1: Write and import v1
         backend_file = tmp_backend_dir / "dummy_hot_backend.py"
         backend_file.write_text(_generate_backend_source("1.0.0", "v1_result"))
-        mod = importlib.import_module("dynamic_backends.dummy_hot_backend")
+        importlib.import_module("dynamic_backends.dummy_hot_backend")
 
         _, v1_class = reg.get_or_raise("dummy_hot_backend")
         v1_id = id(v1_class)
         assert v1_class.HOT_RELOAD_VERSION == "v1_result"
 
-        # Step 2: Start watcher
+        lock = SafePointExecutionLock(reload_timeout=5.0)
         watcher = BackendFileWatcher(
             reg,
             extra_watch_paths=[str(tmp_backend_dir)],
             debounce_seconds=0.2,
+            safe_point_lock=lock,
         )
         watcher.start()
 
         try:
-            # Step 3: Overwrite with v2
+            watcher.reload_requested_event.clear()
             watcher.reload_event.clear()
             backend_file.write_text(_generate_backend_source("2.0.0", "v2_result"))
 
-            # Step 4: Wait for watcher to trigger reload
-            triggered = watcher.reload_event.wait(timeout=5.0)
-            time.sleep(0.3)  # Extra settling time
+            assert watcher.reload_requested_event.wait(timeout=5.0), (
+                "Watcher never queued a reload request"
+            )
 
-            # Step 5: Verify v2
+            # Still v1 until the main thread explicitly consumes the boundary request.
+            _, pending_class = reg.get_or_raise("dummy_hot_backend")
+            assert pending_class.HOT_RELOAD_VERSION == "v1_result"
+
+            records = watcher.process_pending_reloads(
+                backend_name="dummy_hot_backend",
+                frame_index=7,
+            )
+            assert records and records[0]["success"] is True
+
             entry = reg.get("dummy_hot_backend")
             assert entry is not None, "Backend disappeared after hot-reload!"
             _, v2_class = entry
             v2_id = id(v2_class)
 
-            # 🚫 ZOMBIE CHECK
             assert v2_id != v1_id, (
                 f"Zombie Reference Trap in watcher E2E: "
                 f"class id() unchanged! old={v1_id}, new={v2_id}"
             )
             assert v2_class.HOT_RELOAD_VERSION == "v2_result"
+            assert records[0]["frame_boundary_after"] == 7
 
-            # Verify execution returns v2
             instance = v2_class()
             result = instance.execute({})
             assert result["version"] == "v2_result"
@@ -709,8 +719,9 @@ class TestReloadCallback:
     """Tests for the on_reload callback in BackendFileWatcher."""
 
     def test_on_reload_callback_fires(self, tmp_backend_dir: Path):
-        """on_reload callback is invoked after successful reload."""
+        """on_reload callback is invoked after queued reload is consumed."""
         from mathart.core.backend_file_watcher import BackendFileWatcher
+        from mathart.core.safe_point_execution import SafePointExecutionLock
 
         reg = BackendRegistry()
         callback_log: list[tuple[str, bool]] = []
@@ -718,31 +729,38 @@ class TestReloadCallback:
         def on_reload(name: str, success: bool) -> None:
             callback_log.append((name, success))
 
-        # Write and import v1
         backend_file = tmp_backend_dir / "dummy_hot_backend.py"
         backend_file.write_text(_generate_backend_source("1.0.0", "v1_result"))
         importlib.import_module("dynamic_backends.dummy_hot_backend")
 
+        lock = SafePointExecutionLock(reload_timeout=5.0)
         watcher = BackendFileWatcher(
             reg,
             extra_watch_paths=[str(tmp_backend_dir)],
             debounce_seconds=0.2,
             on_reload=on_reload,
+            safe_point_lock=lock,
         )
         watcher.start()
 
         try:
-            # Modify to v2
+            watcher.reload_requested_event.clear()
             watcher.reload_event.clear()
             backend_file.write_text(_generate_backend_source("2.0.0", "v2_result"))
 
-            # Wait for reload
+            assert watcher.reload_requested_event.wait(timeout=5.0), (
+                "Watcher never queued a reload request"
+            )
+            watcher.process_pending_reloads(
+                backend_name="dummy_hot_backend",
+                frame_index=3,
+            )
             watcher.reload_event.wait(timeout=5.0)
-            time.sleep(0.3)
+            time.sleep(0.1)
 
-            # Callback should have been invoked
             assert len(callback_log) >= 1, f"Callback not fired. Log: {callback_log}"
-            assert callback_log[-1][1] is True  # success=True
+            assert callback_log[-1][0] == "dummy_hot_backend"
+            assert callback_log[-1][1] is True
         finally:
             watcher.stop()
 

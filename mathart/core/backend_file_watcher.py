@@ -72,6 +72,8 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
+from mathart.core.safe_point_execution import get_safe_point_lock
+
 try:
     from watchdog.observers import Observer
     from watchdog.events import FileSystemEventHandler, FileModifiedEvent, FileCreatedEvent
@@ -195,8 +197,10 @@ class _BackendFileEventHandler(FileSystemEventHandler if _WATCHDOG_AVAILABLE els
 class BackendFileWatcher:
     """Non-blocking daemon file watcher for backend hot-reload.
 
-    Monitors the filesystem directories where backend ``.py`` files live
-    and triggers ``BackendRegistry.reload()`` when changes are detected.
+    SESSION-092 corrects the hot-reload chain so the watcher **never** calls
+    ``BackendRegistry.reload()`` directly for existing backends.  Instead it
+    queues a ``reload_requested`` signal, and the main render loop consumes that
+    request at a frame-boundary safe point.
 
     Parameters
     ----------
@@ -224,6 +228,7 @@ class BackendFileWatcher:
         debounce_seconds: float = 0.4,
         extra_watch_paths: Optional[list[str]] = None,
         on_reload: Optional[Callable[[str, bool], None]] = None,
+        safe_point_lock: Any | None = None,
     ) -> None:
         if not _WATCHDOG_AVAILABLE:
             raise ImportError(
@@ -234,6 +239,7 @@ class BackendFileWatcher:
         self._debounce_seconds = debounce_seconds
         self._extra_watch_paths = extra_watch_paths or []
         self._on_reload = on_reload
+        self._safe_point_lock = safe_point_lock or get_safe_point_lock()
         self._observer: Optional[Observer] = None
         self._scheduler = _DebouncedReloadScheduler(
             callback=self._on_file_changed,
@@ -243,6 +249,9 @@ class BackendFileWatcher:
         # Reload history for introspection / testing
         self._reload_history: list[dict[str, Any]] = []
         self._reload_event = threading.Event()
+        self._reload_requested_event = threading.Event()
+        self._pending_lock = threading.Lock()
+        self._pending_reload_requests: dict[str, dict[str, Any]] = {}
 
     def start(self) -> None:
         """Start the daemon file watcher.
@@ -305,30 +314,110 @@ class BackendFileWatcher:
 
     @property
     def reload_event(self) -> threading.Event:
-        """Threading event set after each reload (for test synchronization)."""
+        """Threading event set after a queued reload is actually processed."""
         return self._reload_event
 
-    def _on_file_changed(self, file_path: str) -> None:
-        """Debounce callback — resolve file to backend and trigger reload.
+    @property
+    def reload_requested_event(self) -> threading.Event:
+        """Threading event set once the watcher has queued a reload request."""
+        return self._reload_requested_event
 
-        This method runs on the debounce timer thread (daemon).  It:
-        1. Derives the Python module name from the filesystem path.
-        2. Looks up which backend that module registered.
-        3. Calls ``registry.reload(backend_name)``.
-        4. Records the result in ``_reload_history``.
-        """
+    def _queue_reload_request(
+        self,
+        *,
+        file_path: str,
+        module_name: str,
+        backend_name: str,
+    ) -> None:
+        """Queue a backend reload request instead of reloading on watcher thread."""
+        record = {
+            "file": file_path,
+            "module": module_name,
+            "backend": backend_name,
+            "action": "reload_requested",
+            "success": None,
+            "timestamp": time.time(),
+        }
+        with self._pending_lock:
+            self._pending_reload_requests[backend_name] = record
+        self._reload_history.append(record)
+        self._safe_point_lock.request_reload(backend_name)
+        self._reload_requested_event.set()
+        logger.info(
+            "Queued hot-reload request for backend %r (module=%s, file=%s)",
+            backend_name, module_name, file_path,
+        )
+
+    def process_pending_reloads(
+        self,
+        *,
+        backend_name: str | None = None,
+        frame_index: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Consume queued reload requests at a main-thread frame boundary."""
+        if backend_name is None:
+            with self._pending_lock:
+                pending_names = sorted(self._pending_reload_requests.keys())
+        else:
+            pending_names = [backend_name]
+
+        results: list[dict[str, Any]] = []
+        for pending_name in pending_names:
+            with self._pending_lock:
+                request = self._pending_reload_requests.get(pending_name)
+            if request is None:
+                continue
+
+            success = False
+            error_msg = None
+            try:
+                consumed = self._safe_point_lock.process_reload_if_requested(
+                    pending_name,
+                    reload_callback=lambda name=pending_name: self._registry.reload(name),
+                    frame_index=frame_index,
+                )
+                success = bool(consumed)
+            except Exception as exc:
+                error_msg = str(exc)
+                logger.error("Hot-reload FAILED for %s: %s", pending_name, exc)
+
+            if success:
+                with self._pending_lock:
+                    self._pending_reload_requests.pop(pending_name, None)
+                    if not self._pending_reload_requests:
+                        self._reload_requested_event.clear()
+
+            record = {
+                "file": request["file"],
+                "module": request["module"],
+                "backend": pending_name,
+                "action": "reload",
+                "success": success,
+                "error": error_msg,
+                "frame_boundary_after": frame_index,
+                "timestamp": time.time(),
+            }
+            self._reload_history.append(record)
+            results.append(record)
+
+            if self._on_reload:
+                self._on_reload(pending_name, success)
+            self._reload_event.set()
+
+        return results
+
+    def _on_file_changed(self, file_path: str) -> None:
+        """Debounce callback — resolve file to backend and queue reload request."""
         module_name = self._file_path_to_module(file_path)
         if module_name is None:
             logger.debug(
-                "Cannot derive module name from %s — skipping reload.",
+                "Cannot derive module name from %s — skipping reload request.",
                 file_path,
             )
             return
 
         backend_name = self._registry.module_to_backend_name(module_name)
 
-        # If no existing backend maps to this module, it might be a NEW
-        # backend file.  Try importing it to trigger @register_backend.
         if backend_name is None:
             logger.info(
                 "New backend module detected: %s — attempting import.",
@@ -365,38 +454,11 @@ class BackendFileWatcher:
                 self._reload_event.set()
             return
 
-        # Existing backend — perform targeted hot-reload
-        logger.info(
-            "Hot-reloading backend %r (module=%s, file=%s)",
-            backend_name, module_name, file_path,
+        self._queue_reload_request(
+            file_path=file_path,
+            module_name=module_name,
+            backend_name=backend_name,
         )
-        success = False
-        error_msg = None
-        try:
-            self._registry.reload(backend_name)
-            success = True
-        except Exception as exc:
-            error_msg = str(exc)
-            logger.error(
-                "Hot-reload FAILED for %s: %s", backend_name, exc,
-            )
-
-        record = {
-            "file": file_path,
-            "module": module_name,
-            "backend": backend_name,
-            "action": "reload",
-            "success": success,
-            "error": error_msg,
-            "timestamp": time.time(),
-        }
-        self._reload_history.append(record)
-
-        if self._on_reload:
-            self._on_reload(backend_name, success)
-
-        # Signal any waiting test threads
-        self._reload_event.set()
 
     @staticmethod
     def _file_path_to_module(file_path: str) -> Optional[str]:
