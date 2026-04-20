@@ -172,14 +172,25 @@ class SkillEncoder:
 
         return z_mean, z_log_var
 
-    def sample(self, trajectory: np.ndarray) -> np.ndarray:
+    def sample(
+        self,
+        trajectory: np.ndarray,
+        rng: np.random.Generator | None = None,
+    ) -> np.ndarray:
         """Sample a skill latent vector from the encoded distribution.
 
         Uses the reparameterization trick: z = μ + σ * ε, ε ~ N(0, I)
+
+        Parameters
+        ----------
+        rng : np.random.Generator, optional
+            External generator for sampling noise (NEP-19).
         """
+        if rng is None:
+            rng = np.random.default_rng()
         z_mean, z_log_var = self.encode(trajectory)
         std = np.exp(0.5 * z_log_var)
-        eps = np.random.randn(self.skill_dim).astype(np.float32)
+        eps = rng.standard_normal(self.skill_dim).astype(np.float32)
         return z_mean + std * eps
 
     def log_prob(self, z: np.ndarray, trajectory: np.ndarray) -> float:
@@ -198,17 +209,27 @@ class SkillEncoder:
     # ── MLP helpers ──────────────────────────────────────────────────────────
 
     @staticmethod
-    def _init_mlp(input_dim, output_dim, hidden_sizes):
+    def _init_mlp(input_dim, output_dim, hidden_sizes, rng=None):
+        """Initialize MLP weights with Xavier initialization.
+
+        Parameters
+        ----------
+        rng : np.random.Generator, optional
+            External generator for weight init (NEP-19).
+            If None, a fresh default_rng() is used.
+        """
+        if rng is None:
+            rng = np.random.default_rng()
         layers = []
         prev = input_dim
         for h in hidden_sizes:
             scale = math.sqrt(2.0 / (prev + h))
-            w = np.random.randn(prev, h).astype(np.float32) * scale
+            w = rng.standard_normal((prev, h)).astype(np.float32) * scale
             b = np.zeros(h, dtype=np.float32)
             layers.append((w, b))
             prev = h
         scale = math.sqrt(2.0 / (prev + output_dim))
-        w = np.random.randn(prev, output_dim).astype(np.float32) * scale
+        w = rng.standard_normal((prev, output_dim)).astype(np.float32) * scale
         b = np.zeros(output_dim, dtype=np.float32)
         layers.append((w, b))
         return layers
@@ -372,6 +393,7 @@ class MotionDiscriminator:
         real_transitions: list[tuple[np.ndarray, np.ndarray]],
         fake_transitions: list[tuple[np.ndarray, np.ndarray]],
         learning_rate: float = 1e-4,
+        rng: np.random.Generator | None = None,
     ) -> dict[str, float]:
         """SESSION-035: One discriminator training step with LSGAN + GP.
 
@@ -428,14 +450,16 @@ class MotionDiscriminator:
 
         # Approximate weight update via finite differences
         # (In production, use autograd; here we use perturbation-based update)
+        if rng is None:
+            rng = np.random.default_rng()
         eps = learning_rate * 0.01
         for layer_idx in range(len(self._weights)):
             w, b = self._weights[layer_idx]
             # Perturb weights in direction that reduces loss
-            grad_w = np.random.randn(*w.shape).astype(np.float32) * eps
+            grad_w = rng.standard_normal(w.shape).astype(np.float32) * eps
             self._weights[layer_idx] = (
                 w - learning_rate * grad_w * total_loss,
-                b - learning_rate * np.random.randn(*b.shape).astype(np.float32) * eps * total_loss,
+                b - learning_rate * rng.standard_normal(b.shape).astype(np.float32) * eps * total_loss,
             )
 
         # Update stats
@@ -456,14 +480,22 @@ class MotionDiscriminator:
         real_next: np.ndarray,
         fake_state: np.ndarray,
         fake_next: np.ndarray,
+        rng: np.random.Generator | None = None,
     ) -> float:
         """Compute gradient penalty for WGAN-GP / AMP style training.
 
         Interpolate between real and fake, compute gradient norm.
         The gradient penalty is the MOST vital component for stable
         AMP training (confirmed by ablation in the paper).
+
+        Parameters
+        ----------
+        rng : np.random.Generator, optional
+            External generator for interpolation alpha (NEP-19).
         """
-        alpha = np.random.rand()
+        if rng is None:
+            rng = np.random.default_rng()
+        alpha = rng.random()
         interp_s = alpha * real_state + (1 - alpha) * fake_state
         interp_ns = alpha * real_next + (1 - alpha) * fake_next
 
@@ -546,6 +578,7 @@ class LowLevelController:
         obs: np.ndarray,
         skill_latent: np.ndarray,
         deterministic: bool = False,
+        rng: np.random.Generator | None = None,
     ) -> np.ndarray:
         """Select action given observation and skill latent.
 
@@ -557,6 +590,8 @@ class LowLevelController:
             Skill latent vector z.
         deterministic : bool
             If True, return mean action.
+        rng : np.random.Generator, optional
+            External generator for action noise (NEP-19).
 
         Returns
         -------
@@ -569,8 +604,10 @@ class LowLevelController:
         if deterministic:
             return np.clip(mean, -math.pi, math.pi)
 
+        if rng is None:
+            rng = np.random.default_rng()
         std = np.exp(self._log_std)
-        action = mean + std * np.random.randn(self.act_dim).astype(np.float32)
+        action = mean + std * rng.standard_normal(self.act_dim).astype(np.float32)
         return np.clip(action, -math.pi, math.pi)
 
     def value(self, obs: np.ndarray, skill_latent: np.ndarray) -> float:
@@ -630,6 +667,7 @@ class HighLevelController:
         obs: np.ndarray,
         goal: np.ndarray,
         deterministic: bool = False,
+        rng: np.random.Generator | None = None,
     ) -> np.ndarray:
         """Select a skill latent vector for the current state and goal.
 
@@ -641,6 +679,8 @@ class HighLevelController:
             Task goal vector.
         deterministic : bool
             If True, return mean skill.
+        rng : np.random.Generator, optional
+            External generator for exploration noise (NEP-19).
 
         Returns
         -------
@@ -653,8 +693,10 @@ class HighLevelController:
         if deterministic:
             return z_mean
 
-        # Add exploration noise
-        noise = np.random.randn(self.skill_dim).astype(np.float32) * 0.1
+        # Add exploration noise (NEP-19: explicit generator)
+        if rng is None:
+            rng = np.random.default_rng()
+        noise = rng.standard_normal(self.skill_dim).astype(np.float32) * 0.1
         return z_mean + noise
 
 
@@ -783,6 +825,8 @@ class SkillLibrary:
         """Register default skills with random latent vectors.
 
         These will be replaced with learned latents after training.
+        Uses per-skill deterministic seeds derived from name hashes
+        via local Generator instances (NEP-19 compliant).
         """
         defaults = [
             (SkillType.WALK, "walk", "walk"),
@@ -795,8 +839,8 @@ class SkillLibrary:
         for skill_type, name, ref_motion in defaults:
             # Initialize with structured random latent
             # (different skills should be far apart in latent space)
-            np.random.seed(hash(name) % 2**31)
-            latent = np.random.randn(32).astype(np.float32) * 0.5
+            skill_rng = np.random.default_rng(hash(name) % 2**31)
+            latent = skill_rng.standard_normal(32).astype(np.float32) * 0.5
             self.register(SkillEntry(
                 name=name,
                 skill_type=skill_type,
@@ -858,6 +902,7 @@ class ASEFramework:
         w_style: float = 0.5,
         w_encoding: float = 0.5,
         verbose: bool = True,
+        rng: np.random.Generator | None = None,
     ) -> dict:
         """Pre-train the Low-Level Controller with style + encoding rewards.
 
@@ -891,9 +936,12 @@ class ASEFramework:
         episode_style_rewards = []
         episode_encoding_rewards = []
 
+        if rng is None:
+            rng = np.random.default_rng()
+
         for step in range(n_steps):
-            # Sample random skill
-            z = np.random.randn(self.skill_dim).astype(np.float32)
+            # Sample random skill (NEP-19: explicit generator)
+            z = rng.standard_normal(self.skill_dim).astype(np.float32)
 
             # Get action from LLC
             action = self.llc.act(obs, z)

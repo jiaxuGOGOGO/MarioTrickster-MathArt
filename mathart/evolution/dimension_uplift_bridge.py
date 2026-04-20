@@ -341,7 +341,7 @@ class DimensionUpliftEvolutionBridge:
 
             # Measure cache accuracy
             test_errors = []
-            rng = np.random.RandomState(42)
+            rng = np.random.default_rng(42)
             for _ in range(100):
                 tp = rng.uniform(-1.0, 1.0, size=3)
                 cached_val = cache.query(*tp)

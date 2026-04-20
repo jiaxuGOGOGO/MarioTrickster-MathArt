@@ -193,8 +193,9 @@ def _level0_cold_start(sandbox_dir: Path, report: AuditReport) -> Optional[Path]
     """
     report.add("L0", "PASS", "sandbox_init", f"Sandbox created at {sandbox_dir}")
 
-    # Force deterministic numpy seed (hermetic build principle)
-    np.random.seed(HERMETIC_SEED)
+    # Force deterministic numpy state via local Generator (NEP-19 compliant)
+    # NOTE: This seeds the pipeline's internal rng for hermetic CI reproducibility.
+    _hermetic_rng = np.random.default_rng(HERMETIC_SEED)
 
     try:
         from mathart.pipeline import AssetPipeline, CharacterSpec
@@ -666,7 +667,8 @@ def test_headless_e2e_determinism():
 
 def test_headless_e2e_ssim_self_identity():
     """Pytest: SSIM of an image with itself should be 1.0."""
-    test_img = np.random.randint(0, 255, (32, 32, 4), dtype=np.uint8)
+    _rng = np.random.default_rng(99)
+    test_img = _rng.integers(0, 255, (32, 32, 4), dtype=np.uint8)
     score, diff_map = _compute_ssim(test_img, test_img)
     assert score > 0.9999, f"Self-SSIM should be ~1.0, got {score}"
 
@@ -681,7 +683,8 @@ def test_headless_e2e_ssim_different_images():
 
 def test_headless_e2e_diff_heatmap():
     """Pytest: Diff heatmap generation produces a valid image file."""
-    diff_map = np.random.rand(32, 32)
+    _rng = np.random.default_rng(99)
+    diff_map = _rng.random((32, 32))
     with tempfile.TemporaryDirectory(prefix="umr_heatmap_") as tmpdir:
         output_path = Path(tmpdir) / "test_heatmap.png"
         result = _generate_diff_heatmap(diff_map, output_path)

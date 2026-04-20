@@ -126,8 +126,9 @@ class Session065Status:
 class ResearchModuleEvaluator:
     """Layer 1: Evaluates research module quality and correctness."""
 
-    def __init__(self):
+    def __init__(self, rng: Optional[np.random.Generator] = None):
         self._results: Dict[str, ResearchModuleMetrics] = {}
+        self._rng = rng if rng is not None else np.random.default_rng()
 
     def evaluate_qem_simplifier(self) -> ResearchModuleMetrics:
         """Evaluate QEM Simplifier module."""
@@ -323,7 +324,7 @@ class ResearchModuleEvaluator:
 
             # Motion vector encoding
             conditioner = MotionVectorConditioner()
-            mv = np.random.randn(32, 32, 2).astype(np.float32)
+            mv = self._rng.standard_normal((32, 32, 2)).astype(np.float32)
             encoded = conditioner.encode_motion_vectors([mv])
             assert encoded[0].shape == (32, 32, 3)
             metrics.tests_passed += 1
@@ -355,23 +356,23 @@ class ResearchModuleEvaluator:
 
             metrics.tests_passed += 1  # Import OK
 
-            # Database creation
-            np.random.seed(42)
+            # Database creation (NEP-19: use instance-level rng)
+            eval_rng = np.random.default_rng(42)
             db = KDTreeMotionDatabase()
-            db.add_clip("walk", np.random.randn(30, 16).astype(np.float32))
-            db.add_clip("run", np.random.randn(20, 16).astype(np.float32))
+            db.add_clip("walk", eval_rng.standard_normal((30, 16)).astype(np.float32))
+            db.add_clip("run", eval_rng.standard_normal((20, 16)).astype(np.float32))
             db.build_index()
             assert db.total_frames == 50
             metrics.tests_passed += 1
 
             # Query
-            results = db.query(np.random.randn(16).astype(np.float32), k=3)
+            results = db.query(eval_rng.standard_normal(16).astype(np.float32), k=3)
             assert len(results) == 3
             metrics.tests_passed += 1
 
             # Controller
             controller = MotionMatchingController(db)
-            cmd = controller.update(np.random.randn(16).astype(np.float32))
+            cmd = controller.update(eval_rng.standard_normal(16).astype(np.float32))
             assert cmd.target_clip != ""
             metrics.tests_passed += 1
 
@@ -561,8 +562,9 @@ class ResearchKnowledgeDistiller:
 class ResearchIntegrationTester:
     """Layer 3: End-to-end integration testing of research pipelines."""
 
-    def __init__(self):
+    def __init__(self, rng: Optional[np.random.Generator] = None):
         self._test_results: Dict[str, bool] = {}
+        self._rng = rng if rng is not None else np.random.default_rng()
 
     def test_dimension_uplift_pipeline(self) -> bool:
         """Test: SDF → DC → QEM LOD → Vertex Normal → Cel Shade."""
@@ -645,15 +647,15 @@ class ResearchIntegrationTester:
             blended = PhaseBlender.blend(walk_phases[0], run_phases[0], 0.5)
             assert blended.amplitude >= 0
 
-            # Step 4: Motion matching with KD-Tree
-            np.random.seed(42)
+            # Step 4: Motion matching with KD-Tree (NEP-19: local generator)
+            mm_rng = np.random.default_rng(42)
             db = KDTreeMotionDatabase()
-            db.add_clip("walk", np.random.randn(30, 16).astype(np.float32))
-            db.add_clip("run", np.random.randn(20, 16).astype(np.float32))
+            db.add_clip("walk", mm_rng.standard_normal((30, 16)).astype(np.float32))
+            db.add_clip("run", mm_rng.standard_normal((20, 16)).astype(np.float32))
             db.build_index()
 
             controller = MotionMatchingController(db)
-            cmd = controller.update(np.random.randn(16).astype(np.float32))
+            cmd = controller.update(mm_rng.standard_normal(16).astype(np.float32))
             assert cmd.target_clip in ("walk", "run")
 
             self._test_results["motion_phase_pipeline"] = True
@@ -698,9 +700,10 @@ class ResearchIntegrationTester:
             filled = bridge.interpolate_missing_conditions(cond_list, mask)
             assert len(filled) == 15
 
-            # Step 4: Motion vector conditioning
+            # Step 4: Motion vector conditioning (NEP-19: local generator)
             conditioner = MotionVectorConditioner()
-            mvs = [np.random.randn(32, 32, 2).astype(np.float32) for _ in range(15)]
+            af_rng = np.random.default_rng(42)
+            mvs = [af_rng.standard_normal((32, 32, 2)).astype(np.float32) for _ in range(15)]
             keyframes = conditioner.adaptive_keyframe_selection(mvs)
             assert 0 in keyframes
 

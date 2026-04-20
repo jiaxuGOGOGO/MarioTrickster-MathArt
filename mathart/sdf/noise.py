@@ -34,8 +34,11 @@ from PIL import Image
 # ── Permutation table ─────────────────────────────────────────────────────────
 
 def _build_permutation(seed: int = 0) -> np.ndarray:
-    """Build a 512-element permutation table for noise hashing."""
-    rng = np.random.RandomState(seed)
+    """Build a 512-element permutation table for noise hashing.
+
+    Uses np.random.default_rng (NEP-19) instead of legacy RandomState.
+    """
+    rng = np.random.default_rng(seed)
     p = np.arange(256, dtype=np.int32)
     rng.shuffle(p)
     return np.concatenate([p, p])  # Double for overflow-free indexing

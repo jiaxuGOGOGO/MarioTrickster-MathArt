@@ -413,6 +413,11 @@ class VPoserDistilledPrior:
     # (VPoser uses 32D for full SMPL; we use 8D for 16-joint 2D skeleton)
     LATENT_DIM = 8
 
+    # Projection matrix seed — used to generate a fixed pseudo-PCA basis.
+    # This is NOT a training seed; it defines the deterministic projection
+    # matrix shared between encode and decode. Never change this value.
+    _PROJECTION_SEED = 42
+
     # Joint ordering for encode/decode (must be consistent)
     _ENCODE_JOINTS = (
         "hip", "spine", "chest", "neck", "head",
@@ -421,6 +426,20 @@ class VPoserDistilledPrior:
         "l_hip", "l_knee", "l_foot",
         "r_hip", "r_knee", "r_foot",
     )
+
+    def _get_projection_matrix(self) -> np.ndarray:
+        """Return the deterministic projection matrix (cached on first call).
+
+        Uses a local Generator seeded with _PROJECTION_SEED to avoid
+        polluting global numpy random state (NEP-19 compliance).
+        """
+        if not hasattr(self, "_proj_matrix_cache"):
+            n_joints = len(self._ENCODE_JOINTS)
+            rng = np.random.default_rng(self._PROJECTION_SEED)
+            proj = rng.standard_normal((n_joints, self.LATENT_DIM)).astype(np.float64)
+            proj /= np.linalg.norm(proj, axis=0, keepdims=True) + 1e-8
+            self._proj_matrix_cache = proj
+        return self._proj_matrix_cache
 
     def encode_to_latent(self, pose: Mapping[str, float]) -> np.ndarray:
         """Encode a pose into the VPoser-inspired latent space.
@@ -446,10 +465,7 @@ class VPoserDistilledPrior:
 
         # Simple linear projection (distilled from PCA of motion data)
         # In production, this would be a trained VAE encoder
-        n_joints = len(self._ENCODE_JOINTS)
-        np.random.seed(42)  # Deterministic projection matrix
-        proj = np.random.randn(n_joints, self.LATENT_DIM).astype(np.float64)
-        proj /= np.linalg.norm(proj, axis=0, keepdims=True) + 1e-8
+        proj = self._get_projection_matrix()
 
         z = angles @ proj
         return z
@@ -478,11 +494,8 @@ class VPoserDistilledPrior:
         if skeleton is None:
             skeleton = self._default_skeleton()
 
-        # Inverse projection
-        n_joints = len(self._ENCODE_JOINTS)
-        np.random.seed(42)  # Same deterministic projection
-        proj = np.random.randn(n_joints, self.LATENT_DIM).astype(np.float64)
-        proj /= np.linalg.norm(proj, axis=0, keepdims=True) + 1e-8
+        # Inverse projection (uses same deterministic matrix as encode)
+        proj = self._get_projection_matrix()
 
         # Pseudo-inverse decode
         angles = z @ np.linalg.pinv(proj)

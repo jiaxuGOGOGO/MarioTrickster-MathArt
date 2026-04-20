@@ -517,7 +517,8 @@ def compute_visual_fitness(
 
 def test_laplacian_sharpness_basic():
     """Laplacian variance is positive for non-flat images."""
-    img = np.random.randint(0, 255, (32, 32), dtype=np.uint8)
+    _rng = np.random.default_rng(77)
+    img = _rng.integers(0, 255, (32, 32), dtype=np.uint8)
     var = compute_laplacian_sharpness(img)
     assert var > 0, f"Expected positive variance, got {var}"
 
@@ -541,7 +542,8 @@ def test_laplacian_quality_sweet_spot():
 
 def test_frame_ssim_identical():
     """SSIM of identical frames should be ~1.0."""
-    frame = np.random.randint(0, 255, (32, 32, 4), dtype=np.uint8)
+    _rng = np.random.default_rng(77)
+    frame = _rng.integers(0, 255, (32, 32, 4), dtype=np.uint8)
     score = compute_frame_ssim(frame, frame)
     assert score > 0.99, f"Self-SSIM should be ~1.0, got {score}"
 
@@ -556,8 +558,9 @@ def test_frame_ssim_different():
 
 def test_temporal_consistency():
     """Temporal consistency of similar frames should be high."""
-    base = np.random.randint(50, 200, (32, 32, 3), dtype=np.uint8)
-    frames = [base + np.random.randint(-5, 5, base.shape).astype(np.uint8)
+    _rng = np.random.default_rng(77)
+    base = _rng.integers(50, 200, (32, 32, 3), dtype=np.uint8)
+    frames = [base + _rng.integers(-5, 5, base.shape).astype(np.uint8)
               for _ in range(5)]
     score = compute_temporal_consistency(frames)
     assert score > 0.8, f"Similar frames should have high consistency, got {score}"
@@ -587,9 +590,10 @@ def test_depth_smoothness():
 
 def test_visual_fitness_combined():
     """Combined visual fitness produces a valid score."""
-    frames = [np.random.randint(50, 200, (32, 32, 4), dtype=np.uint8)
+    _rng = np.random.default_rng(77)
+    frames = [_rng.integers(50, 200, (32, 32, 4), dtype=np.uint8)
               for _ in range(5)]
-    normals = [np.random.randint(0, 255, (32, 32, 3), dtype=np.uint8)
+    normals = [_rng.integers(0, 255, (32, 32, 3), dtype=np.uint8)
                for _ in range(5)]
     depths = [np.tile(np.linspace(0, 255, 32), (32, 1)).astype(np.uint8)
               for _ in range(5)]
@@ -615,10 +619,10 @@ def test_visual_fitness_no_inputs():
 def test_visual_fitness_acceptance():
     """Visual fitness acceptance gate works correctly."""
     # Good inputs: similar consecutive frames (small perturbation)
-    rng = np.random.RandomState(42)
-    base = rng.randint(50, 200, (32, 32, 4)).astype(np.uint8)
+    rng = np.random.default_rng(42)
+    base = rng.integers(50, 200, (32, 32, 4), dtype=np.uint8)
     frames = [
-        np.clip(base.astype(np.int16) + rng.randint(-3, 4, base.shape), 0, 255).astype(np.uint8)
+        np.clip(base.astype(np.int16) + rng.integers(-3, 4, base.shape), 0, 255).astype(np.uint8)
         for _ in range(5)
     ]
     # Create smooth normal maps (gradient-based, not random noise)
@@ -628,7 +632,7 @@ def test_visual_fitness_acceptance():
     flat_z = np.full((32, 32), 200, dtype=np.uint8)
     normal_base = np.stack([gx, gy, flat_z], axis=-1)
     normals = [
-        np.clip(normal_base.astype(np.int16) + rng.randint(-5, 6, normal_base.shape), 0, 255).astype(np.uint8)
+        np.clip(normal_base.astype(np.int16) + rng.integers(-5, 6, normal_base.shape), 0, 255).astype(np.uint8)
         for _ in range(5)
     ]
     result = compute_visual_fitness(

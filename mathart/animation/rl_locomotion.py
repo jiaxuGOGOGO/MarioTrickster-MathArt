@@ -478,10 +478,18 @@ class LocomotionEnv:
     def reset(self, seed: Optional[int] = None) -> np.ndarray:
         """Reset the environment to initial state.
 
+        Parameters
+        ----------
+        seed : int, optional
+            If provided, creates a local Generator for this episode's
+            stochastic initialization (NEP-19 compliant).
+
         Returns the initial observation vector.
         """
         if seed is not None:
-            np.random.seed(seed)
+            self._rng = np.random.default_rng(seed)
+        elif not hasattr(self, '_rng'):
+            self._rng = np.random.default_rng()
 
         # Reset physics
         self._physics_world.reset()
@@ -735,7 +743,12 @@ class LocomotionPolicy:
         self._obs_var = np.ones(obs_dim, dtype=np.float32)
         self._obs_count = 0
 
-    def act(self, obs: np.ndarray, deterministic: bool = False) -> np.ndarray:
+    def act(
+        self,
+        obs: np.ndarray,
+        deterministic: bool = False,
+        rng: np.random.Generator | None = None,
+    ) -> np.ndarray:
         """Select an action given an observation.
 
         Parameters
@@ -744,6 +757,9 @@ class LocomotionPolicy:
             Observation vector.
         deterministic : bool
             If True, return mean action (no noise).
+        rng : np.random.Generator, optional
+            External generator for action noise sampling (NEP-19).
+            If None and not deterministic, uses an internal default.
 
         Returns
         -------
@@ -759,14 +775,22 @@ class LocomotionPolicy:
         if deterministic:
             return mean
 
-        # Sample from Gaussian
+        # Sample from Gaussian (NEP-19: explicit generator, no global state)
+        if rng is None:
+            rng = self._get_rng()
         std = np.exp(self._log_std)
-        action = mean + std * np.random.randn(self.act_dim).astype(np.float32)
+        action = mean + std * rng.standard_normal(self.act_dim).astype(np.float32)
 
         # Clip to reasonable range
         action = np.clip(action, -math.pi, math.pi)
 
         return action
+
+    def _get_rng(self) -> np.random.Generator:
+        """Lazy-init internal RNG for backward compatibility."""
+        if not hasattr(self, '_rng'):
+            self._rng = np.random.default_rng()
+        return self._rng
 
     def value(self, obs: np.ndarray) -> float:
         """Estimate the value of an observation.
@@ -815,20 +839,32 @@ class LocomotionPolicy:
 
     @staticmethod
     def _init_mlp(
-        input_dim: int, output_dim: int, hidden_sizes: list[int]
+        input_dim: int,
+        output_dim: int,
+        hidden_sizes: list[int],
+        rng: np.random.Generator | None = None,
     ) -> list[tuple[np.ndarray, np.ndarray]]:
-        """Initialize MLP weights with Xavier initialization."""
+        """Initialize MLP weights with Xavier initialization.
+
+        Parameters
+        ----------
+        rng : np.random.Generator, optional
+            External generator for weight initialization (NEP-19).
+            If None, a fresh default_rng() is used.
+        """
+        if rng is None:
+            rng = np.random.default_rng()
         layers = []
         prev_dim = input_dim
         for h in hidden_sizes:
             scale = math.sqrt(2.0 / (prev_dim + h))
-            w = np.random.randn(prev_dim, h).astype(np.float32) * scale
+            w = rng.standard_normal((prev_dim, h)).astype(np.float32) * scale
             b = np.zeros(h, dtype=np.float32)
             layers.append((w, b))
             prev_dim = h
         # Output layer
         scale = math.sqrt(2.0 / (prev_dim + output_dim))
-        w = np.random.randn(prev_dim, output_dim).astype(np.float32) * scale
+        w = rng.standard_normal((prev_dim, output_dim)).astype(np.float32) * scale
         b = np.zeros(output_dim, dtype=np.float32)
         layers.append((w, b))
         return layers

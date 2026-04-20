@@ -723,7 +723,7 @@ class MorphologyFactory:
     """
 
     def __init__(self, seed: Optional[int] = None):
-        self.rng = np.random.RandomState(seed)
+        self.rng = np.random.default_rng(seed)
 
     def generate_random(self, archetype: str = "monster_basic"
                         ) -> MorphologyGenotype:
@@ -761,7 +761,7 @@ class MorphologyFactory:
         parts.append(head)
 
         # 3. Limbs
-        n_limbs = self.rng.randint(plan["min_limbs"], plan["max_limbs"] + 1)
+        n_limbs = self.rng.integers(plan["min_limbs"], plan["max_limbs"] + 1)
         for i in range(n_limbs):
             # Upper limb
             side = 1.0 if i % 2 == 0 else -1.0
@@ -801,7 +801,7 @@ class MorphologyFactory:
 
         # 4. Appendages (tail, wings, horns)
         if plan["can_have_appendages"] and self.rng.random() > 0.3:
-            n_appendages = self.rng.randint(1, 4)
+            n_appendages = self.rng.integers(1, 4)
             for _ in range(n_appendages):
                 app = MorphologyPartGene(
                     part_type=PartType.APPENDAGE.value,
@@ -814,7 +814,7 @@ class MorphologyFactory:
                     param_c=self._rand_range(0.01, 0.04),
                     blend_k=self._rand_range(0.02, 0.08),
                     material_index=2,
-                    parent_index=self.rng.randint(0, max(1, len(parts))),
+                    parent_index=self.rng.integers(0, max(1, len(parts))),
                 )
                 parts.append(app)
 
@@ -831,7 +831,7 @@ class MorphologyFactory:
                 param_c=self._rand_range(0.01, 0.03),
                 blend_k=self._rand_range(0.01, 0.05),
                 material_index=3,
-                parent_index=self.rng.randint(0, max(1, len(parts))),
+                parent_index=self.rng.integers(0, max(1, len(parts))),
             )
             parts.append(weapon)
 
@@ -895,14 +895,14 @@ class MorphologyFactory:
                 param_b=self._rand_range(0.02, 0.08),
                 param_c=self._rand_range(0.01, 0.04),
                 blend_k=self._rand_range(0.02, 0.10),
-                material_index=self.rng.randint(0, 5),
-                parent_index=self.rng.randint(0, len(g.parts)),
+                material_index=self.rng.integers(0, 5),
+                parent_index=self.rng.integers(0, len(g.parts)),
             )
             g.parts.append(new_part)
 
         # Structural mutation: remove part (5% chance, keep at least 2)
         if self.rng.random() < mutation_rate * 0.3 and len(g.parts) > 2:
-            idx = self.rng.randint(1, len(g.parts))  # Never remove root
+            idx = self.rng.integers(1, len(g.parts))  # Never remove root
             # Reparent children
             for part in g.parts:
                 if part.parent_index == idx:
@@ -936,7 +936,7 @@ class MorphologyFactory:
 
         # Part-level crossover: take some parts from parent_b
         if len(parent_b.parts) > 1:
-            n_swap = self.rng.randint(1, max(2, len(parent_b.parts) // 2))
+            n_swap = self.rng.integers(1, max(2, len(parent_b.parts) // 2))
             swap_indices = self.rng.choice(
                 len(parent_b.parts), size=min(n_swap, len(parent_b.parts)),
                 replace=False,
@@ -949,7 +949,7 @@ class MorphologyFactory:
                     child.parts[idx] = donor
                 else:
                     donor = copy.deepcopy(parent_b.parts[idx])
-                    donor.parent_index = self.rng.randint(0, len(child.parts))
+                    donor.parent_index = self.rng.integers(0, len(child.parts))
                     child.parts.append(donor)
 
         # Blend palette from both parents
