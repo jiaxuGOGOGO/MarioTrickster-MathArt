@@ -141,6 +141,116 @@ BODY_TEMPLATES: dict[str, BodyTemplate] = {
 }
 
 
+@dataclass(frozen=True)
+class BoundInterval:
+    """Closed interval bound for a continuous genotype coordinate."""
+
+    minimum: float
+    maximum: float
+
+    def clamp(self, value: float) -> float:
+        return float(np.clip(value, self.minimum, self.maximum))
+
+
+DEFAULT_PROPORTION_MODIFIERS: dict[str, float] = {
+    "head_radius_mod": 0.0,
+    "torso_width_mod": 0.0,
+    "torso_height_mod": 0.0,
+    "arm_thickness_mod": 0.0,
+    "leg_thickness_mod": 0.0,
+    "hand_radius_mod": 0.0,
+    "foot_width_mod": 0.0,
+    "foot_height_mod": 0.0,
+}
+
+PROPORTION_MODIFIER_BOUNDS: dict[str, BoundInterval] = {
+    key: BoundInterval(-0.12, 0.12)
+    for key in DEFAULT_PROPORTION_MODIFIERS
+}
+
+STYLE_PARAMETER_BOUNDS: dict[str, BoundInterval] = {
+    "head_radius": BoundInterval(0.26, 0.52),
+    "torso_width": BoundInterval(0.16, 0.36),
+    "torso_height": BoundInterval(0.12, 0.30),
+    "arm_thickness": BoundInterval(0.04, 0.12),
+    "leg_thickness": BoundInterval(0.05, 0.14),
+    "hand_radius": BoundInterval(0.03, 0.09),
+    "foot_width": BoundInterval(0.05, 0.16),
+    "foot_height": BoundInterval(0.025, 0.09),
+    "outline_width": BoundInterval(0.02, 0.07),
+    "light_angle": BoundInterval(-1.5, 1.5),
+}
+
+SCALAR_GENE_BOUNDS: dict[str, BoundInterval] = {
+    "outline_width": STYLE_PARAMETER_BOUNDS["outline_width"],
+    "light_angle": STYLE_PARAMETER_BOUNDS["light_angle"],
+}
+
+DEFAULT_PALETTE_GENES: list[float] = [
+    0.72, 0.04, 0.06,
+    0.50, 0.15, 0.05,
+    0.50, 0.15, 0.05,
+    0.45, -0.02, -0.10,
+    0.35, 0.03, 0.02,
+    0.18, 0.00, 0.00,
+]
+
+PALETTE_GENE_NAMES: tuple[str, ...] = (
+    "skin_l", "skin_a", "skin_b",
+    "accent_primary_l", "accent_primary_a", "accent_primary_b",
+    "accent_secondary_l", "accent_secondary_a", "accent_secondary_b",
+    "pants_l", "pants_a", "pants_b",
+    "shoes_l", "shoes_a", "shoes_b",
+    "outline_l", "outline_a", "outline_b",
+)
+
+PALETTE_GENE_BOUNDS: tuple[BoundInterval, ...] = (
+    BoundInterval(0.55, 0.88), BoundInterval(-0.25, 0.25), BoundInterval(-0.25, 0.25),
+    BoundInterval(0.10, 0.92), BoundInterval(-0.25, 0.25), BoundInterval(-0.25, 0.25),
+    BoundInterval(0.10, 0.92), BoundInterval(-0.25, 0.25), BoundInterval(-0.25, 0.25),
+    BoundInterval(0.10, 0.92), BoundInterval(-0.25, 0.25), BoundInterval(-0.25, 0.25),
+    BoundInterval(0.10, 0.92), BoundInterval(-0.25, 0.25), BoundInterval(-0.25, 0.25),
+    BoundInterval(0.10, 0.22), BoundInterval(-0.1875, 0.1875), BoundInterval(-0.1875, 0.1875),
+)
+
+_GENERIC_PALETTE_CHANNEL_BOUNDS: tuple[BoundInterval, BoundInterval, BoundInterval] = (
+    BoundInterval(0.10, 0.92),
+    BoundInterval(-0.25, 0.25),
+    BoundInterval(-0.25, 0.25),
+)
+
+
+def _clamp_style_value(value: float, field_name: str) -> float:
+    return STYLE_PARAMETER_BOUNDS[field_name].clamp(float(value))
+
+
+def get_genotype_mutation_contract(genotype: CharacterGenotype | None = None) -> dict[str, Any]:
+    """Return the declared continuous-domain contract for genotype mutation."""
+
+    proportion_keys = list(DEFAULT_PROPORTION_MODIFIERS.keys())
+    if genotype is not None:
+        for key in genotype.proportion_modifiers:
+            if key not in PROPORTION_MODIFIER_BOUNDS:
+                proportion_keys.append(key)
+
+    proportion_contract = {
+        key: PROPORTION_MODIFIER_BOUNDS.get(key, BoundInterval(-0.12, 0.12))
+        for key in proportion_keys
+    }
+
+    palette_contract = list(PALETTE_GENE_BOUNDS)
+    if genotype is not None and len(genotype.palette_genes) > len(palette_contract):
+        for extra_index in range(len(genotype.palette_genes) - len(palette_contract)):
+            channel_index = (len(PALETTE_GENE_BOUNDS) + extra_index) % 3
+            palette_contract.append(_GENERIC_PALETTE_CHANNEL_BOUNDS[channel_index])
+
+    return {
+        "proportion_modifiers": proportion_contract,
+        "scalar_genes": dict(SCALAR_GENE_BOUNDS),
+        "palette_genes": tuple(palette_contract),
+    }
+
+
 # ── Part Definitions ──────────────────────────────────────────────────────────
 
 
@@ -291,30 +401,18 @@ class CharacterGenotype:
     slots: dict[str, PartSlotInstance] = field(default_factory=dict)
 
     # ── Continuous proportion modifiers (applied on top of body template) ──
-    proportion_modifiers: dict[str, float] = field(default_factory=lambda: {
-        "head_radius_mod": 0.0,
-        "torso_width_mod": 0.0,
-        "torso_height_mod": 0.0,
-        "arm_thickness_mod": 0.0,
-        "leg_thickness_mod": 0.0,
-        "hand_radius_mod": 0.0,
-        "foot_width_mod": 0.0,
-        "foot_height_mod": 0.0,
-    })
+    proportion_modifiers: dict[str, float] = field(
+        default_factory=lambda: dict(DEFAULT_PROPORTION_MODIFIERS)
+    )
 
     # ── Style genes (continuous) ──
     outline_width: float = 0.04
     light_angle: float = -0.7
 
     # ── Palette genes (6 colors × 3 channels = 18 floats in OKLAB) ──
-    palette_genes: list[float] = field(default_factory=lambda: [
-        0.72, 0.04, 0.06,   # skin
-        0.50, 0.15, 0.05,   # hair/hat
-        0.50, 0.15, 0.05,   # shirt
-        0.45, -0.02, -0.10, # pants
-        0.35, 0.03, 0.02,   # shoes
-        0.18, 0.00, 0.00,   # outline
-    ])
+    palette_genes: list[float] = field(
+        default_factory=lambda: list(DEFAULT_PALETTE_GENES)
+    )
 
     def __post_init__(self):
         """Initialize default slots if empty."""
@@ -348,40 +446,40 @@ class CharacterGenotype:
         mods = self.proportion_modifiers
 
         style = CharacterStyle(
-            head_radius=float(np.clip(
+            head_radius=_clamp_style_value(
                 template.head_radius + mods.get("head_radius_mod", 0.0),
-                0.26, 0.52,
-            )),
-            torso_width=float(np.clip(
+                "head_radius",
+            ),
+            torso_width=_clamp_style_value(
                 template.torso_width + mods.get("torso_width_mod", 0.0),
-                0.16, 0.36,
-            )),
-            torso_height=float(np.clip(
+                "torso_width",
+            ),
+            torso_height=_clamp_style_value(
                 template.torso_height + mods.get("torso_height_mod", 0.0),
-                0.12, 0.30,
-            )),
-            arm_thickness=float(np.clip(
+                "torso_height",
+            ),
+            arm_thickness=_clamp_style_value(
                 template.arm_thickness + mods.get("arm_thickness_mod", 0.0),
-                0.04, 0.12,
-            )),
-            leg_thickness=float(np.clip(
+                "arm_thickness",
+            ),
+            leg_thickness=_clamp_style_value(
                 template.leg_thickness + mods.get("leg_thickness_mod", 0.0),
-                0.05, 0.14,
-            )),
-            hand_radius=float(np.clip(
+                "leg_thickness",
+            ),
+            hand_radius=_clamp_style_value(
                 template.hand_radius + mods.get("hand_radius_mod", 0.0),
-                0.03, 0.09,
-            )),
-            foot_width=float(np.clip(
+                "hand_radius",
+            ),
+            foot_width=_clamp_style_value(
                 template.foot_width + mods.get("foot_width_mod", 0.0),
-                0.05, 0.16,
-            )),
-            foot_height=float(np.clip(
+                "foot_width",
+            ),
+            foot_height=_clamp_style_value(
                 template.foot_height + mods.get("foot_height_mod", 0.0),
-                0.025, 0.09,
-            )),
-            outline_width=float(np.clip(self.outline_width, 0.02, 0.07)),
-            light_angle=float(np.clip(self.light_angle, -1.5, 1.5)),
+                "foot_height",
+            ),
+            outline_width=_clamp_style_value(self.outline_width, "outline_width"),
+            light_angle=_clamp_style_value(self.light_angle, "light_angle"),
             # Defaults that will be overridden by slot parts
             has_hat=False,
             hat_style="cap",
@@ -444,10 +542,13 @@ class CharacterGenotype:
             archetype=data.get("archetype", Archetype.HERO.value),
             body_template=data.get("body_template", BodyTemplateName.HUMANOID_STANDARD.value),
             slots=slots,
-            proportion_modifiers=data.get("proportion_modifiers", {}),
+            proportion_modifiers={
+                **DEFAULT_PROPORTION_MODIFIERS,
+                **data.get("proportion_modifiers", {}),
+            },
             outline_width=data.get("outline_width", 0.04),
             light_angle=data.get("light_angle", -0.7),
-            palette_genes=data.get("palette_genes", []),
+            palette_genes=data.get("palette_genes", list(DEFAULT_PALETTE_GENES)),
         )
 
 
@@ -666,6 +767,32 @@ GENOTYPE_PRESETS: dict[str, callable] = {
 # ── Semantic Mutation Operators ───────────────────────────────────────────────
 
 
+def enforce_genotype_bounds(genotype: CharacterGenotype) -> CharacterGenotype:
+    """Project every continuous genotype coordinate back into its legal bounds."""
+
+    contract = get_genotype_mutation_contract(genotype)
+
+    for key, bounds in contract["proportion_modifiers"].items():
+        default_value = DEFAULT_PROPORTION_MODIFIERS.get(key, 0.0)
+        raw_value = float(genotype.proportion_modifiers.get(key, default_value))
+        genotype.proportion_modifiers[key] = bounds.clamp(raw_value)
+
+    for attr_name, bounds in contract["scalar_genes"].items():
+        raw_value = float(getattr(genotype, attr_name))
+        setattr(genotype, attr_name, bounds.clamp(raw_value))
+
+    if len(genotype.palette_genes) < len(contract["palette_genes"]):
+        genotype.palette_genes = list(genotype.palette_genes) + list(
+            DEFAULT_PALETTE_GENES[len(genotype.palette_genes): len(contract["palette_genes"])]
+        )
+
+    for idx, bounds in enumerate(contract["palette_genes"]):
+        raw_value = float(genotype.palette_genes[idx])
+        genotype.palette_genes[idx] = bounds.clamp(raw_value)
+
+    return genotype
+
+
 def mutate_genotype(
     genotype: CharacterGenotype,
     rng: np.random.Generator,
@@ -682,12 +809,13 @@ def mutate_genotype(
     Higher strength = more likely to make structural changes.
     """
     g = copy.deepcopy(genotype)
-    effective_strength = max(strength, 0.05)
+    mutation_strength = max(abs(float(strength)), 0.05)
+    structural_strength = min(mutation_strength, 1.0)
 
     # ── Layer 1: Structural mutations (rare but impactful) ──
 
     # Archetype mutation (very rare — changes character identity)
-    if rng.random() < 0.08 * effective_strength:
+    if rng.random() < 0.08 * structural_strength:
         archetypes = list(Archetype)
         g.archetype = str(rng.choice([a.value for a in archetypes]))
         # When archetype changes, ensure body template is compatible
@@ -698,14 +826,14 @@ def mutate_genotype(
         _reinitialize_slots(g, rng)
 
     # Body template mutation (rare — changes proportions significantly)
-    elif rng.random() < 0.12 * effective_strength:
+    elif rng.random() < 0.12 * structural_strength:
         compatible = ARCHETYPE_TEMPLATES.get(g.archetype, list(BODY_TEMPLATES.keys()))
         if compatible:
             g.body_template = str(rng.choice(compatible))
 
     # Part slot mutation (moderate — swaps equipment)
     for slot_key, slot_inst in list(g.slots.items()):
-        if rng.random() < 0.20 * effective_strength:
+        if rng.random() < 0.20 * structural_strength:
             available = get_parts_for_slot(slot_inst.slot_type, g.archetype)
             if available:
                 new_part = rng.choice(available)
@@ -716,48 +844,34 @@ def mutate_genotype(
     for key in g.proportion_modifiers:
         if rng.random() < 0.70:
             current = g.proportion_modifiers[key]
-            noise = float(rng.normal(0.0, 0.03 * effective_strength))
-            g.proportion_modifiers[key] = float(np.clip(current + noise, -0.12, 0.12))
+            noise = float(rng.normal(0.0, 0.03 * mutation_strength))
+            g.proportion_modifiers[key] = current + noise
 
     # Outline and light
-    g.outline_width = float(np.clip(
-        g.outline_width + rng.normal(0.0, 0.015 * effective_strength),
-        0.02, 0.07,
-    ))
-    g.light_angle = float(np.clip(
-        g.light_angle + rng.normal(0.0, 0.30 * effective_strength),
-        -1.5, 1.5,
-    ))
+    g.outline_width = float(
+        g.outline_width + rng.normal(0.0, 0.015 * mutation_strength)
+    )
+    g.light_angle = float(
+        g.light_angle + rng.normal(0.0, 0.30 * mutation_strength)
+    )
 
     # ── Layer 3: Palette mutations (common) ──
 
     if len(g.palette_genes) >= 18:
         for i in range(0, len(g.palette_genes), 3):
             # L channel
-            g.palette_genes[i] = float(np.clip(
-                g.palette_genes[i] + rng.normal(0.0, 0.035 * effective_strength),
-                0.10, 0.92,
-            ))
+            g.palette_genes[i] = float(
+                g.palette_genes[i] + rng.normal(0.0, 0.035 * mutation_strength)
+            )
             # a, b channels
-            g.palette_genes[i + 1] = float(np.clip(
-                g.palette_genes[i + 1] + rng.normal(0.0, 0.025 * effective_strength),
-                -0.25, 0.25,
-            ))
-            g.palette_genes[i + 2] = float(np.clip(
-                g.palette_genes[i + 2] + rng.normal(0.0, 0.025 * effective_strength),
-                -0.25, 0.25,
-            ))
+            g.palette_genes[i + 1] = float(
+                g.palette_genes[i + 1] + rng.normal(0.0, 0.025 * mutation_strength)
+            )
+            g.palette_genes[i + 2] = float(
+                g.palette_genes[i + 2] + rng.normal(0.0, 0.025 * mutation_strength)
+            )
 
-        # Enforce outline darkness
-        if len(g.palette_genes) >= 18:
-            g.palette_genes[15] = min(g.palette_genes[15], 0.22)
-            g.palette_genes[16] *= 0.75
-            g.palette_genes[17] *= 0.75
-
-        # Enforce skin lightness
-        g.palette_genes[0] = float(np.clip(g.palette_genes[0], 0.55, 0.88))
-
-    return g
+    return enforce_genotype_bounds(g)
 
 
 def _reinitialize_slots(genotype: CharacterGenotype, rng: np.random.Generator) -> None:

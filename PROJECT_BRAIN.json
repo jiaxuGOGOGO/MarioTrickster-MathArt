@@ -1,7 +1,7 @@
 {
-  "version": "v0.84.0",
-  "last_session_id": "SESSION-094",
-  "last_updated": "2026-04-20T06:38:34Z",
+  "version": "v0.85.0",
+  "last_session_id": "SESSION-095",
+  "last_updated": "2026-04-20T07:18:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -21,7 +21,7 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
-      "HIGH-2.3-WFC-BOUNDARY-VALIDATION",
+      "HIGH-2.4-PHASE-DRIVEN-ILLEGAL-TRANSITIONS",
       "P1-ARCH-4",
       "P3-GPU-BENCH-1",
       "P1-AI-2D-SPARSECTRL",
@@ -29,17 +29,17 @@
       "P1-ARCH-5",
       "P1-B1-1"
     ],
-    "closed_archived": 53
+    "closed_archived": 54
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-094 CRITICAL-2.2 CLOSED: WFC locked-tile absolute survival override. Base propagation refactored into queue-driven domain restriction with read-only locked cells, explicit WFCConstraintConflictError on overwrite attempts, and outward propagation from locked seeds. Added deterministic dead-end tests plus exporter regression coverage. Cumulative: 46 PASS (36 WFC core + 10 tilemap exporter), 0 FAIL.",
-  "total_iterations": 683,
+  "validation_pass_rate": "SESSION-095 HIGH-2.3 CLOSED: genotype mutation now routes through a unified hard-clipping boundary interceptor backed by declared continuous-domain bounds. Extreme deterministic stress tests validate every continuous gene under ±1e6 mutation pressure, and genotype AssetPipeline E2E regressions remain green. Cumulative: 50 PASS (46 genotype core + 4 genotype E2E), 0 FAIL.",
+  "total_iterations": 684,
   "total_code_lines": 132767,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
-  "knowledge_rule_count": 164,
-  "math_model_count": 38,
+  "knowledge_rule_count": 167,
+  "math_model_count": 39,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
@@ -946,13 +946,13 @@
       "estimated_effort": "low"
     },
     {
-      "id": "HIGH-2.3-WFC-BOUNDARY-VALIDATION",
+      "id": "HIGH-2.4-PHASE-DRIVEN-ILLEGAL-TRANSITIONS",
       "priority": "P1",
-      "title": "Gene Mutation: extreme pressure-testing and purge of unvalidated WFC boundary constraints",
+      "title": "Phase Driven: intercept and reverse-test silent illegal state transitions",
       "status": "TODO",
       "estimated_effort": "high",
-      "description": "SESSION-094 follow-up. Build boundary/frontier verification for locked and newly collapsed cells, adversarial fuzz cases for edges/narrow corridors/fan-in-fan-out seams, reproducible contradiction seed corpus minimization, and exporter-side topology assertions so CRITICAL-2.2 lock immunity extends to boundary semantics without silent seam drift.",
-      "added_in": "SESSION-094"
+      "description": "SESSION-095 follow-up. Build an explicit legal transition contract for mathart/animation/phase_driven.py, intercept illegal cyclic/transient state changes before frame generation, add reverse/negative tests for forbidden transitions, and expose guard-failure provenance so state-machine violations cannot pass silently.",
+      "added_in": "SESSION-095"
     }
   ],
   "completed_tasks": [
@@ -1998,6 +1998,12 @@
       "title": "WFC locked-tile absolute survival and explicit conflict closure",
       "completed_in": "SESSION-094",
       "result": "Refactored the base WFC propagation kernel into queue-driven domain restriction with read-only locked cells (`is_locked`). `_force_bottom_ground()` now locks cells through `_lock_cell()`, locked seeds propagate constraints outward from initialization via `_propagate_locked_cells()`, and any propagation that would shrink a locked domain raises `WFCConstraintConflictError` instead of silently overwriting ground truth. `ConstraintAwareWFC.generate()` now records `conflict_count` / `last_error` and re-raises the last contradiction instead of degrading to the old unconstrained fallback. Added deterministic adversarial tests for outward lock radiation, non-locked-to-locked overwrite conflict, and incompatible locked-tile dead-end with value-level state preservation. 46/46 targeted WFC + tilemap exporter regressions PASS."
+    },
+    {
+      "id": "HIGH-2.3-GENOTYPE-BOUNDARY-VALIDATION",
+      "title": "Genotype mutation hard-clipping boundary interceptor and extreme-pressure verification",
+      "completed_in": "SESSION-095",
+      "result": "Unified contract-driven hard clipping for genotype mutation plus deterministic extreme stress verification."
     }
   ],
   "capability_gaps": [
@@ -2149,6 +2155,12 @@
       "completed_in": "SESSION-080",
       "title": "UMR→RL Reference Motion Asset Closed Loop",
       "summary": "Built the full UMR→RL imitation learning pipeline: (1) Triple-runtime consumption via MicrokernelPipelineBridge with physics_gait/cognitive_motion/transient_motion namespaces; (2) Isaac Gym-style SoA pre-baked buffers with O(1) phase lookup; (3) DeepMimic 4-channel orthogonal imitation reward; (4) 30 E2E tests with mathematical proofs of reward sensitivity."
+    },
+    {
+      "id": "HIGH-2.3-GENOTYPE-BOUNDARY-VALIDATION",
+      "completed_in": "SESSION-095",
+      "title": "Genotype mutation hard-clipping boundary interceptor and extreme-pressure verification",
+      "summary": "Refactored mathart/animation/genotype.py around declared continuous-domain bounds for proportion modifiers, scalar style genes, and palette coordinates. mutate_genotype() now accumulates perturbations first and then passes through enforce_genotype_bounds() as a single post-mutation hard-clipping projector. Negative strengths are interpreted by magnitude, enabling deterministic ±1e6 stress tests. tests/test_genotype.py now performs value-level assertions across every constrained continuous gene and genotype E2E regressions remain green."
     }
   ],
   "session_summaries": [
@@ -2290,13 +2302,13 @@
     "session085_research_notes": "research/session085_sparse_cloth_benchmark_research.md documents Taichi sparse SNode layouts, Google Benchmark warm-up/sampling discipline, NASA-STD-7009B verification/validation credibility, and XPBD GPU race condition mitigation via parity-based constraint coloring."
   },
   "recent_focus_snapshot": {
-    "session": "SESSION-094",
-    "focus": "CRITICAL-2.2: WFC locked-tile absolute survival, explicit contradiction closure, and anti-overwrite propagation refactor",
+    "session": "SESSION-095",
+    "focus": "HIGH-2.3: genotype hard-clipping boundary interceptor, deterministic mutation reproducibility, and extreme stress closure",
     "closed": [
-      "CRITICAL-2.2-WFC-LOCK-IMMUNITY (CLOSED — locked cells are read-only, radiate constraints outward, and trigger explicit conflict errors on overwrite attempts)"
+      "HIGH-2.3-GENOTYPE-BOUNDARY-VALIDATION (CLOSED — mutate_genotype now routes through a single post-perturbation hard-clipping projector and extreme ±1e6 tests assert every continuous gene remains inside bounds)"
     ],
     "next": [
-      "HIGH-2.3-WFC-BOUNDARY-VALIDATION: extreme pressure-test edge/frontier constraints and seam-heavy micro-topologies",
+      "HIGH-2.4-PHASE-DRIVEN-ILLEGAL-TRANSITIONS: intercept forbidden state changes and add reverse/negative guard-path tests",
       "P1-ARCH-4: continue PDG v2 runtime semantics closure",
       "P3-GPU-BENCH-1: finish production-scale sparse-cloth CUDA evidence"
     ]
@@ -2450,6 +2462,13 @@
       "date": "2026-04-20",
       "title": "WFC Locked-Tile Absolute Survival & Explicit Conflict Closure",
       "summary": "Closed CRITICAL-2.2 by refactoring WFC propagation into a queue-based lock-immunity kernel with explicit contradiction signaling, removing silent fallback on lock conflicts, and adding deterministic dead-end tests plus tilemap-exporter regressions."
+    },
+    {
+      "id": "SESSION-095",
+      "version": "0.85.0",
+      "date": "2026-04-20",
+      "title": "Genotype Hard-Clipping Boundary Closure & Extreme Mutation Stress Validation",
+      "summary": "Closed HIGH-2.3 by refactoring mathart/animation/genotype.py around a declared continuous-domain contract, a unified enforce_genotype_bounds() hard-clipping pass, and deterministic extreme-strength mutation tests that assert every continuous gene remains inside bounds under ±1e6 mutation pressure. Verified downstream AssetPipeline genotype E2E regressions."
     }
   ],
   "closed_tasks_archive": [
@@ -2746,6 +2765,12 @@
       "title": "3D-to-2D mesh rendering path (Dead Cells full workflow)",
       "completed_in": "SESSION-089",
       "priority": "P1"
+    },
+    {
+      "id": "HIGH-2.3-GENOTYPE-BOUNDARY-VALIDATION",
+      "completed_in": "SESSION-095",
+      "title": "Genotype mutation hard-clipping boundary interceptor and extreme-pressure verification",
+      "summary": "Refactored mathart/animation/genotype.py around declared continuous-domain bounds for proportion modifiers, scalar style genes, and palette coordinates. mutate_genotype() now accumulates perturbations first and then passes through enforce_genotype_bounds() as a single post-mutation hard-clipping projector. Negative strengths are interpreted by magnitude, enabling deterministic ±1e6 stress tests. tests/test_genotype.py now performs value-level assertions across every constrained continuous gene and genotype E2E regressions remain green."
     }
   ],
   "legacy_session_changes_consolidated": {
@@ -2869,6 +2894,23 @@
         "PROJECT_BRAIN.json"
       ],
       "tests": "46 PASS, 0 FAIL"
+    },
+    {
+      "session_id": "SESSION-095",
+      "summary": "CLOSED HIGH-2.3 genotype boundary validation. Introduced a declared continuous-domain contract in mathart/animation/genotype.py, centralized post-mutation hard clipping with enforce_genotype_bounds(), interpreted negative mutation strength by magnitude for adversarial pressure tests, strengthened tests/test_genotype.py with exhaustive value-level assertions, and verified test_genotype_e2e.py downstream stability.",
+      "files_changed": [
+        "mathart/animation/genotype.py",
+        "tests/test_genotype.py",
+        "research/session095_genotype_boundary_research_notes.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "tests": "50 PASS, 0 FAIL",
+      "status": "COMPLETE"
     }
+  ],
+  "resolved_issues": [
+    "RESOLVED-S095: Genotype mutation boundary constraints were scattered and weakly tested -> unified enforce_genotype_bounds() hard-clipping contract plus deterministic ±1e6 value-level stress assertions across all continuous genes",
+    "REMAINING-S095: Phase-driven animation still lacks explicit illegal-transition interception and reverse guard tests -> HIGH-2.4-PHASE-DRIVEN-ILLEGAL-TRANSITIONS"
   ]
 }

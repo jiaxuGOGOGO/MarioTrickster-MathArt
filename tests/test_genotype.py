@@ -17,22 +17,72 @@ import numpy as np
 import pytest
 
 from mathart.animation.genotype import (
-    CharacterGenotype,
-    PartSlotInstance,
-    PartDefinition,
-    BodyTemplate,
-    Archetype,
-    BodyTemplateName,
-    SlotType,
-    BODY_TEMPLATES,
-    PART_REGISTRY,
     ARCHETYPE_TEMPLATES,
+    BODY_TEMPLATES,
+    DEFAULT_PROPORTION_MODIFIERS,
     GENOTYPE_PRESETS,
-    mutate_genotype,
+    PALETTE_GENE_BOUNDS,
+    PALETTE_GENE_NAMES,
+    PART_REGISTRY,
+    Archetype,
+    BodyTemplate,
+    BodyTemplateName,
+    CharacterGenotype,
+    PartDefinition,
+    PartSlotInstance,
+    SlotType,
     crossover_genotypes,
+    enforce_genotype_bounds,
+    get_genotype_mutation_contract,
     get_parts_for_slot,
+    mutate_genotype,
 )
 from mathart.animation.parts import CharacterStyle, hat_sdf, assemble_character
+
+
+GENOTYPE_TEST_SEED = 42
+
+
+def make_rng(seed: int = GENOTYPE_TEST_SEED) -> np.random.Generator:
+    return np.random.default_rng(seed)
+
+
+def assert_all_continuous_genes_within_contract(
+    genotype: CharacterGenotype,
+) -> list[str]:
+    contract = get_genotype_mutation_contract(genotype)
+    edge_hits: list[str] = []
+
+    for key, bounds in contract["proportion_modifiers"].items():
+        value = genotype.proportion_modifiers[key]
+        assert bounds.minimum <= value <= bounds.maximum, (
+            f"{key} escaped bounds: {value} not in [{bounds.minimum}, {bounds.maximum}]"
+        )
+        if np.isclose(value, bounds.minimum) or np.isclose(value, bounds.maximum):
+            edge_hits.append(key)
+
+    for attr_name, bounds in contract["scalar_genes"].items():
+        value = getattr(genotype, attr_name)
+        assert bounds.minimum <= value <= bounds.maximum, (
+            f"{attr_name} escaped bounds: {value} not in [{bounds.minimum}, {bounds.maximum}]"
+        )
+        if np.isclose(value, bounds.minimum) or np.isclose(value, bounds.maximum):
+            edge_hits.append(attr_name)
+
+    for idx, bounds in enumerate(contract["palette_genes"]):
+        value = genotype.palette_genes[idx]
+        gene_name = (
+            PALETTE_GENE_NAMES[idx]
+            if idx < len(PALETTE_GENE_NAMES)
+            else f"palette_extra_{idx}"
+        )
+        assert bounds.minimum <= value <= bounds.maximum, (
+            f"{gene_name} escaped bounds: {value} not in [{bounds.minimum}, {bounds.maximum}]"
+        )
+        if np.isclose(value, bounds.minimum) or np.isclose(value, bounds.maximum):
+            edge_hits.append(gene_name)
+
+    return edge_hits
 
 
 # ── 1. Data Structure Tests ──────────────────────────────────────────────────
@@ -202,58 +252,65 @@ class TestGenotypeDecode:
 class TestMutation:
     """Test semantic mutation operators."""
 
-    def test_mutation_produces_different_genotype(self):
-        rng = np.random.default_rng(42)
+    def test_mutation_is_reproducible_with_fixed_seed(self):
         g = GENOTYPE_PRESETS["mario"]()
-        mutated = mutate_genotype(g, rng, strength=0.3)
-        # At least some proportion modifiers should differ
-        diffs = sum(
-            1 for k in g.proportion_modifiers
-            if abs(g.proportion_modifiers[k] - mutated.proportion_modifiers[k]) > 1e-6
-        )
-        assert diffs > 0
+        mutated_a = mutate_genotype(g, make_rng(), strength=0.3)
+        mutated_b = mutate_genotype(g, make_rng(), strength=0.3)
+        assert mutated_a.to_dict() == mutated_b.to_dict()
 
-    def test_mutation_preserves_structure(self):
-        rng = np.random.default_rng(42)
+    def test_mutation_preserves_structure_and_contract_shape(self):
         g = CharacterGenotype()
-        mutated = mutate_genotype(g, rng, strength=0.2)
+        mutated = mutate_genotype(g, make_rng(), strength=0.2)
         assert isinstance(mutated, CharacterGenotype)
         assert len(mutated.palette_genes) >= 18
         assert mutated.archetype in [a.value for a in Archetype]
 
-    def test_mutation_respects_palette_constraints(self):
-        rng = np.random.default_rng(42)
-        g = CharacterGenotype()
-        for _ in range(20):
-            g = mutate_genotype(g, rng, strength=0.5)
-        # Outline should stay dark
-        assert g.palette_genes[15] <= 0.22
-        # Skin should stay in range
-        assert 0.55 <= g.palette_genes[0] <= 0.88
+        contract = get_genotype_mutation_contract(mutated)
+        assert len(contract["proportion_modifiers"]) == len(DEFAULT_PROPORTION_MODIFIERS)
+        assert len(contract["scalar_genes"]) == 2
+        assert len(contract["palette_genes"]) >= len(PALETTE_GENE_BOUNDS)
+
+    def test_enforce_genotype_bounds_projects_manual_out_of_range_values(self):
+        g = GENOTYPE_PRESETS["mario"]()
+
+        for idx, key in enumerate(DEFAULT_PROPORTION_MODIFIERS):
+            g.proportion_modifiers[key] = 1e6 if idx % 2 == 0 else -1e6
+
+        g.outline_width = -1e6
+        g.light_angle = 1e6
+        g.palette_genes = [1e6 if idx % 2 == 0 else -1e6 for idx in range(18)]
+
+        projected = enforce_genotype_bounds(g)
+        edge_hits = assert_all_continuous_genes_within_contract(projected)
+        assert len(edge_hits) >= 28
+
+    def test_mutation_hard_clips_all_continuous_genes_under_positive_nuclear_strength(self):
+        g = GENOTYPE_PRESETS["mario"]()
+        mutated = mutate_genotype(g, make_rng(), strength=1e6)
+        edge_hits = assert_all_continuous_genes_within_contract(mutated)
+        assert len(edge_hits) >= 8
+
+    def test_mutation_hard_clips_all_continuous_genes_under_negative_nuclear_strength(self):
+        g = GENOTYPE_PRESETS["mario"]()
+        positive = mutate_genotype(g, make_rng(), strength=1e6)
+        negative = mutate_genotype(g, make_rng(), strength=-1e6)
+        assert negative.to_dict() == positive.to_dict()
+        edge_hits = assert_all_continuous_genes_within_contract(negative)
+        assert len(edge_hits) >= 8
 
     def test_high_strength_can_change_archetype(self):
-        rng = np.random.default_rng(1)
+        rng = make_rng()
         g = GENOTYPE_PRESETS["mario"]()
         archetypes_seen = {g.archetype}
         for _ in range(100):
             mutated = mutate_genotype(g, rng, strength=1.0)
             archetypes_seen.add(mutated.archetype)
-        # With high strength over many trials, we should see at least 2 archetypes
         assert len(archetypes_seen) >= 2
 
-    def test_low_strength_preserves_archetype(self):
-        rng = np.random.default_rng(42)
-        g = GENOTYPE_PRESETS["mario"]()
-        for _ in range(20):
-            mutated = mutate_genotype(g, rng, strength=0.05)
-            # Very low strength should rarely change archetype
-            # (not guaranteed, but very likely)
-
     def test_mutation_does_not_modify_original(self):
-        rng = np.random.default_rng(42)
         g = GENOTYPE_PRESETS["mario"]()
         original_dict = g.to_dict()
-        _ = mutate_genotype(g, rng, strength=0.5)
+        _ = mutate_genotype(g, make_rng(), strength=0.5)
         assert g.to_dict() == original_dict
 
 
