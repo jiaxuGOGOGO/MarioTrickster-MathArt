@@ -1130,9 +1130,13 @@ class AntiFlickerRenderBackend:
         payload_dir.mkdir(parents=True, exist_ok=True)
         report_dir.mkdir(parents=True, exist_ok=True)
 
+        # ComfyUI's EmptyLatentImage rejects either dimension below 16px.
+        # The normal/depth/RGB guide sequences therefore must be padded to at
+        # least a 16px lattice before the workflow payload is assembled.
+        sequence_alignment = 16
         sequence_exporter = FrameSequenceExporter(
             FrameSequenceExportConfig(
-                align_to=8,
+                align_to=sequence_alignment,
                 fps=fps,
                 session_id=str(validated.get("session_id", "SESSION-108")),
             )
@@ -1185,7 +1189,7 @@ class AntiFlickerRenderBackend:
                 output_dir=chunk_root,
                 sequence_name=f"{stem}_{chunk_label}",
                 fps=fps,
-                align_to=8,
+                align_to=sequence_alignment,
                 session_id=str(validated.get("session_id", "SESSION-108")),
             )
 

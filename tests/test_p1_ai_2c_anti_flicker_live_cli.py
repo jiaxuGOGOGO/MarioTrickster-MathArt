@@ -200,6 +200,72 @@ def test_live_backend_chunks_large_sequences_and_materializes_outputs(tmp_path: 
     assert Path(manifest.outputs["frame_directory"]).exists()
 
 
+def test_live_backend_pads_small_sequences_to_comfyui_minimum(tmp_path: Path, monkeypatch) -> None:
+    _install_gymnasium_stub(monkeypatch)
+    from mathart.comfy_client import comfyui_ws_client
+    from mathart.animation import headless_comfy_ebsynth
+
+    backend = AntiFlickerRenderBackend()
+    observed_latent_sizes: list[tuple[int, int]] = []
+
+    monkeypatch.setattr(comfyui_ws_client.ComfyUIClient, "is_server_online", lambda self: True)
+
+    def _fake_bake_auxiliary_maps(self, skeleton, animation_func, style, frames, width, height):
+        small_size = (18, 7)
+        source_frames = [_make_rgba_frame(small_size) for _ in range(frames)]
+        normal_maps = [_make_normal_frame(small_size) for _ in range(frames)]
+        depth_maps = [_make_depth_frame(small_size) for _ in range(frames)]
+        mask_maps = [Image.new("L", small_size, 255) for _ in range(frames)]
+        mv_sequence = SimpleNamespace(fields=[], total_motion_energy=0.0)
+        return source_frames, normal_maps, depth_maps, mask_maps, mv_sequence
+
+    def _fake_plan_keyframes(self, source_frames, mask_maps, mv_sequence):
+        return DummyKeyframePlan([0])
+
+    def _fake_execute_workflow(self, payload, run_label="mathart", progress_callback=None):
+        prompt = payload["prompt"]
+        latent_nodes = [
+            node for node in prompt.values()
+            if isinstance(node, dict) and node.get("class_type") == "EmptyLatentImage"
+        ]
+        assert latent_nodes, "Expected EmptyLatentImage node in ComfyUI payload"
+        latent_inputs = latent_nodes[0]["inputs"]
+        observed_latent_sizes.append((int(latent_inputs["width"]), int(latent_inputs["height"])))
+
+        frame_count = int(payload["mathart_lock_manifest"]["temporal_config"]["frame_count"])
+        output_images: list[str] = []
+        chunk_dir = tmp_path / "fake_small_outputs" / run_label
+        chunk_dir.mkdir(parents=True, exist_ok=True)
+        for index in range(frame_count):
+            image_path = chunk_dir / f"render_{index:05d}.png"
+            _make_rgba_frame((32, 16)).save(image_path)
+            output_images.append(str(image_path))
+        return FakeExecutionResult(output_images=output_images, prompt_id=run_label)
+
+    monkeypatch.setattr(headless_comfy_ebsynth.HeadlessNeuralRenderPipeline, "bake_auxiliary_maps", _fake_bake_auxiliary_maps)
+    monkeypatch.setattr(headless_comfy_ebsynth.HeadlessNeuralRenderPipeline, "plan_keyframes", _fake_plan_keyframes)
+    monkeypatch.setattr(comfyui_ws_client.ComfyUIClient, "execute_workflow", _fake_execute_workflow)
+
+    manifest = backend.execute(
+        {
+            "output_dir": str(tmp_path),
+            "name": "small_runtime",
+            "session_id": "TEST-108",
+            "temporal": {"frame_count": 4, "chunk_size": 4, "fps": 12},
+            "comfyui": {
+                "live_execution": True,
+                "fail_fast_on_offline": True,
+                "url": "http://127.0.0.1:8188",
+                "context_window": 4,
+            },
+        }
+    )
+
+    assert observed_latent_sizes == [(32, 16)]
+    assert manifest.metadata["execution_mode"] == "live_comfyui_chunked"
+    assert Path(manifest.outputs["frame_directory"]).exists()
+
+
 def test_cli_anti_flicker_render_keeps_stdout_json_and_progress_on_stderr(tmp_path: Path, monkeypatch, capsys) -> None:
     fake_pipeline_module = types.ModuleType("mathart.pipeline")
 
