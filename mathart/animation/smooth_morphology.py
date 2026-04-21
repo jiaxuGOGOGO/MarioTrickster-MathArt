@@ -76,7 +76,7 @@ import copy
 import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, Mapping, Optional, Tuple
 
 import numpy as np
 
@@ -85,6 +85,61 @@ import numpy as np
 
 SDFFunc2D = Callable[[np.ndarray, np.ndarray], np.ndarray]
 SDFWithMix = Callable[[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray]]
+ParameterContext = Mapping[str, Any]
+
+
+def _resolve_contextual_scalar(
+    raw_value: Any,
+    *,
+    context: Optional[ParameterContext],
+    keys: tuple[str, ...],
+    minimum: Optional[float] = None,
+    maximum: Optional[float] = None,
+) -> float:
+    """Resolve a possibly dynamic scalar from an optional parameter context."""
+    value = raw_value
+    if context is not None:
+        for key in keys:
+            if key in context:
+                value = context[key]
+                break
+    if callable(value):
+        try:
+            value = value(context or {})
+        except TypeError:
+            value = value()
+    arr = np.asarray(value, dtype=np.float64)
+    if arr.ndim > 0:
+        if arr.size != 1:
+            raise ValueError(
+                f"Context keys {keys!r} must resolve to a scalar, got shape {arr.shape}"
+            )
+        value_f = float(arr.reshape(-1)[0])
+    else:
+        value_f = float(arr)
+    lo = -np.inf if minimum is None else minimum
+    hi = np.inf if maximum is None else maximum
+    return float(np.clip(value_f, lo, hi))
+
+
+def _resolve_contextual_bool(
+    raw_value: Any,
+    *,
+    context: Optional[ParameterContext],
+    keys: tuple[str, ...],
+) -> bool:
+    value = raw_value
+    if context is not None:
+        for key in keys:
+            if key in context:
+                value = context[key]
+                break
+    if callable(value):
+        try:
+            value = value(context or {})
+        except TypeError:
+            value = value()
+    return bool(value)
 
 
 # ── Smooth CSG Operators (Inigo Quilez) ──────────────────────────────────────
@@ -428,10 +483,104 @@ class MorphologyPartGene:
     # Connectivity
     parent_index: int = -1   # -1 = root part
 
-    def build_sdf(self) -> SDFFunc2D:
-        """Build the SDF function for this part."""
+    def resolve_parameters(
+        self,
+        parameter_context: Optional[ParameterContext] = None,
+        *,
+        context_prefix: str = "",
+    ) -> dict[str, float]:
+        """Resolve static or dynamic parameters for this part.
+
+        The dynamic layer is additive and backward-compatible: if a parameter is
+        absent from ``parameter_context`` the serialized gene value is used.
+        """
+        scoped = lambda name: (f"{context_prefix}{name}", name)
+        return {
+            "offset_x": _resolve_contextual_scalar(
+                self.offset_x,
+                context=parameter_context,
+                keys=scoped("offset_x"),
+                minimum=-4.0,
+                maximum=4.0,
+            ),
+            "offset_y": _resolve_contextual_scalar(
+                self.offset_y,
+                context=parameter_context,
+                keys=scoped("offset_y"),
+                minimum=-4.0,
+                maximum=4.0,
+            ),
+            "rotation": _resolve_contextual_scalar(
+                self.rotation,
+                context=parameter_context,
+                keys=scoped("rotation"),
+                minimum=-math.tau,
+                maximum=math.tau,
+            ),
+            "scale_x": _resolve_contextual_scalar(
+                self.scale_x,
+                context=parameter_context,
+                keys=scoped("scale_x"),
+                minimum=0.05,
+                maximum=4.0,
+            ),
+            "scale_y": _resolve_contextual_scalar(
+                self.scale_y,
+                context=parameter_context,
+                keys=scoped("scale_y"),
+                minimum=0.05,
+                maximum=4.0,
+            ),
+            "param_a": _resolve_contextual_scalar(
+                self.param_a,
+                context=parameter_context,
+                keys=scoped("param_a"),
+                minimum=0.005,
+                maximum=4.0,
+            ),
+            "param_b": _resolve_contextual_scalar(
+                self.param_b,
+                context=parameter_context,
+                keys=scoped("param_b"),
+                minimum=0.005,
+                maximum=4.0,
+            ),
+            "param_c": _resolve_contextual_scalar(
+                self.param_c,
+                context=parameter_context,
+                keys=scoped("param_c"),
+                minimum=0.001,
+                maximum=4.0,
+            ),
+            "blend_k": _resolve_contextual_scalar(
+                self.blend_k,
+                context=parameter_context,
+                keys=scoped("blend_k"),
+                minimum=0.0,
+                maximum=0.5,
+            ),
+        }
+
+    def build_sdf(
+        self,
+        parameter_context: Optional[ParameterContext] = None,
+        *,
+        context_prefix: str = "",
+    ) -> SDFFunc2D:
+        """Build the SDF function for this part.
+
+        ``parameter_context`` may override serialized scalar fields at runtime,
+        enabling time-varying parameter animation without mutating the trunk
+        genotype representation.
+        """
         prim = PrimitiveType(self.primitive)
-        a, b, c = self.param_a, self.param_b, self.param_c
+        params = self.resolve_parameters(
+            parameter_context=parameter_context,
+            context_prefix=context_prefix,
+        )
+        a = params["param_a"]
+        b = params["param_b"]
+        c = params["param_c"]
 
         if prim == PrimitiveType.CIRCLE:
             base = lambda x, y: MorphologyPrimitive.circle(x, y, a)
@@ -452,12 +601,12 @@ class MorphologyPartGene:
 
         # Apply transforms
         sdf = base
-        if abs(self.scale_x - 1.0) > 1e-6 or abs(self.scale_y - 1.0) > 1e-6:
-            sdf = _scale(sdf, max(self.scale_x, 0.1), max(self.scale_y, 0.1))
-        if abs(self.rotation) > 1e-6:
-            sdf = _rotate(sdf, self.rotation)
-        if abs(self.offset_x) > 1e-6 or abs(self.offset_y) > 1e-6:
-            sdf = _translate(sdf, self.offset_x, self.offset_y)
+        if abs(params["scale_x"] - 1.0) > 1e-6 or abs(params["scale_y"] - 1.0) > 1e-6:
+            sdf = _scale(sdf, params["scale_x"], params["scale_y"])
+        if abs(params["rotation"]) > 1e-6:
+            sdf = _rotate(sdf, params["rotation"])
+        if abs(params["offset_x"]) > 1e-6 or abs(params["offset_y"]) > 1e-6:
+            sdf = _translate(sdf, params["offset_x"], params["offset_y"])
 
         return sdf
 
@@ -517,7 +666,10 @@ class MorphologyGenotype:
         [0.80, 0.00, 0.00],   # Highlight
     ])
 
-    def decode_to_sdf(self) -> SDFFunc2D:
+    def decode_to_sdf(
+        self,
+        parameter_context: Optional[ParameterContext] = None,
+    ) -> SDFFunc2D:
         """Decode genotype into a composite SDF function.
 
         Builds the SDF tree by:
@@ -533,8 +685,15 @@ class MorphologyGenotype:
             # Default: single circle
             return lambda x, y: MorphologyPrimitive.circle(x, y, 0.15)
 
-        # Build individual part SDFs
-        part_sdfs = [part.build_sdf() for part in self.parts]
+        # Build individual part SDFs. Runtime overrides are scoped per part so
+        # the static serialized genotype remains the source of truth.
+        part_sdfs = [
+            part.build_sdf(
+                parameter_context=parameter_context,
+                context_prefix=f"parts.{idx}.",
+            )
+            for idx, part in enumerate(self.parts)
+        ]
 
         # Composite by blending children into parents (bottom-up)
         # First pass: identify root and children
@@ -562,7 +721,11 @@ class MorphologyGenotype:
             for ci in child_indices:
                 child_sdf = _build_subtree(ci)
                 child_part = self.parts[ci]
-                k = max(child_part.blend_k, 0.001)
+                child_params = child_part.resolve_parameters(
+                    parameter_context=parameter_context,
+                    context_prefix=f"parts.{ci}.",
+                )
+                k = max(child_params["blend_k"], 0.001)
                 blend_type = child_part.blend_type
 
                 # Capture current composite and child for closure
@@ -608,15 +771,27 @@ class MorphologyGenotype:
                 creature_sdf = _merged
 
         # Apply bilateral symmetry
-        if self.bilateral_symmetry:
+        bilateral_symmetry = _resolve_contextual_bool(
+            self.bilateral_symmetry,
+            context=parameter_context,
+            keys=("bilateral_symmetry",),
+        )
+        if bilateral_symmetry:
             sym_sdf = creature_sdf
             def _symmetric(x, y, _f=sym_sdf):
                 return _f(np.abs(x), y)
             creature_sdf = _symmetric
 
         # Apply global scale
-        if abs(self.global_scale - 1.0) > 1e-6:
-            s = max(self.global_scale, 0.1)
+        global_scale = _resolve_contextual_scalar(
+            self.global_scale,
+            context=parameter_context,
+            keys=("global_scale",),
+            minimum=0.05,
+            maximum=4.0,
+        )
+        if abs(global_scale - 1.0) > 1e-6:
+            s = global_scale
             unscaled = creature_sdf
             def _scaled(x, y, _f=unscaled, _s=s):
                 return _f(x / _s, y / _s) * _s

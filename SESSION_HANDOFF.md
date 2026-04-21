@@ -1,47 +1,70 @@
-# SESSION-121 Handoff: P1-NEW-9C Character Evolution 3.0 — Multi-Slot Equipment Library & Tensorized Bone-Socket Mounter
+# SESSION-122 Handoff — P1-2 Per-frame SDF Parameter Animation
 
 ## Goal & Status
-**Objective**: Implement P1-NEW-9C — extend `CharacterGenotype` with three new equipment families (torso overlay, hand item, foot accessory) implemented as parametric SDF-derived `Mesh3D` primitives, and ship a vectorised `TensorSocketMounter` that mounts those primitives onto the existing 2-D `Skeleton` via UE5-style sockets.
-**Status**: `CLOSED`.
+**Objective**: close **P1-2 — Per-frame SDF parameter animation** by introducing a runtime-safe dynamic parameter layer for `smooth_morphology.py`, while preserving the static genotype trunk and grounding all animated-parameter decisions in external research.
+
+**Status**: **CLOSED**.
+
+The landed implementation adds a new tensorized parameter-track subsystem in `mathart/animation/parameter_track.py`, extends `MorphologyPartGene.build_sdf()` and `MorphologyGenotype.decode_to_sdf()` with an optional `parameter_context` override channel, and validates dynamic 4D SDF behavior through white-box tests that exercise dense track sampling, runtime shape evolution, OpenUSD-style `TimeSamples` export, and volume-preserving dynamic mesh continuity.[1] [2] [3] [4] [5]
 
 ## Research Alignment Audit
-The implementation was guided by three industry/academic references; full notes live in `docs/research/P1_NEW_9C_research_alignment.md`.
+The implementation was intentionally constrained by five external references, and the raw working notes were saved to `research/session122_external_reference_notes.md`.
 
-- **Unreal Engine 5 — Skeletal Mesh Sockets**: Adopted UE5's "named attach point parented to a bone with local SRT offsets" model verbatim. Our `SocketSpec` mirrors `USkeletalMeshSocket` (parent_bone + local_translation + local_rotation_deg + local_scale), and `build_socket_world_matrix` mirrors `GetSocketTransform` chained with the bone's component-space transform.
-- **Inigo Quilez — Signed Distance Functions**: Adopted three SDF operator families and translated them to vertex space so we never have to march distance fields at runtime:
-  - `opRound(box, r)` → vertex-normal dilation for breastplate / vest / boots / greaves;
-  - `opOnion(d, t)` → twin-shell extrusion for the wizard robe;
-  - `opElongate(p, h)` → half-extent stretching for the long sword and the mage staff.
-- **Pixar OpenUSD — Reference Composition Arc**: Reused the already-shipped `compose_character_with_attachments` (in `mathart/core/physical_ribbon_backend.py`) which builds a `COMPOSITE` manifest referencing the base character + every attachment manifest. The new 3D equipment meshes plug straight into this contract as additional attachment manifests.
+| Reference pillar | Practical rule adopted in code | Why it matters here |
+|---|---|---|
+| Inigo Quilez — Smooth minimum | Animate primitive parameters and blend radii, not post-hoc mesh vertices; keep smooth-union `k` bounded and continuous.[1] | This preserves the original SDF modeling logic and avoids breaking the static morphology trunk. |
+| OpenUSD — TimeCodes / TimeSamples | Separate sparse authored keyframes from dense sampled values, and keep a serializable `time -> value` mapping.[2] | This shaped `ParameterTrack.to_time_samples()` and the sparse→dense contract used by `ParameterTrackBundle`. |
+| OpenUSD spline animation proposal | Treat spline/keyframe data as the authoritative sparse source and dense samples as a runtime realization.[4] | This informed the choice to add a wrapper-layer animation system instead of hard-coding exporter concerns into the morphology core. |
+| Catmull-Rom / cubic Hermite interpolation | Use an interpolating, local-control, **C1-continuous** cubic scheme for animated parameter tracks.[5] | This prevents visible derivative jumps in breathing / pulsation / morph envelopes. |
+| Disney-style squash & stretch volume preservation | When one axis expands, linked orthogonal axes should contract so gross volume remains approximately stable.[3] | This drove `volume_preserving_axis_link()` and the dynamic mesh-bbox continuity regression. |
+
+> “Splines and time samples are not competing ideas in animation interchange; sparse authoring and dense evaluation should coexist.” This was the key interoperability lesson extracted from the OpenUSD references and carried into the new parameter-track layer.[2] [4]
 
 ## Architecture Decisions Locked
-1. **`SlotType.FOOT_ACCESSORY` is a first-class slot** — added to the canonical `SlotType` enum so foot equipment lives in `genotype.slots` rather than as ad-hoc style flags. Default `humanoid_standard` template now lists six available slots: `hat`, `face_accessory`, `torso_overlay`, `back_accessory`, `hand_item`, `foot_accessory`.
-2. **3D equipment lives in a sibling module `mathart/animation/parts3d.py`**, not in `parts.py`. The 2-D SDF morphology library remains the authoritative consumer of `assemble_character(style)`; the new module owns Mesh3D primitives and the socket mounter so the 2D path stays untouched (zero risk of regression).
-3. **Each part factory returns a typed `PartShape3D` carrier** (part_id + primitive label + Mesh3D + inflate_radius + half_extents). This metadata travels with the geometry so the renderer / Z-buffer combiner can later branch on primitive family without re-inspecting the mesh.
-4. **`TensorSocketMounter.mount` is the hot path** and is implemented as a single `np.einsum` matmul broadcast over the (N, 4) homogeneous vertex batch — no Python per-vertex loops. Verified at < 1 ms per 3-attachment loadout (warm cache).
-5. **Anti Z-fighting is a mathematical guarantee, not a numeric prayer**: every shell-style part has `inflate_radius > 0`, and the regression test `test_breastplate_vertex_norms_exceed_base` proves every inflated vertex sits strictly outside the underlying base box.
-6. **Backward-compatible (de)serialisation**: legacy JSON archives that pre-date SESSION-121 (no torso/hand/foot equipment slots) round-trip through `CharacterGenotype.from_dict → to_dict` with byte-identical slot semantics. We do **not** auto-inject the new slots — this is an evolutionary-lineage safety guarantee.
+The most important architectural decision is that **dynamic parameter animation now lives in a sibling wrapper layer, not as a destructive rewrite of the static morphology genotype**. `ParameterTrack`, `ParameterTrackBundle`, `SampledParameterMatrix`, and `TimeAwareMorphologyEvaluator` live in `mathart/animation/parameter_track.py`, while `smooth_morphology.py` remains the authoritative static SDF trunk.
+
+The second locked decision is that **runtime animation enters the SDF trunk only through an optional `parameter_context` dictionary**. This means every pre-existing caller of `MorphologyPartGene.build_sdf()` and `MorphologyGenotype.decode_to_sdf()` still behaves exactly as before when no context is supplied, but animated callers can override `param_a`, `param_b`, `param_c`, `scale_x`, `scale_y`, `offset_x`, `offset_y`, `rotation`, `blend_k`, `global_scale`, and `bilateral_symmetry` on a frame-by-frame basis.
+
+The third locked decision is that **the hot path is vectorized over the entire time tensor**. The dense interpolation kernel in `ParameterTrack.sample()` uses `np.searchsorted`, batched Hermite basis evaluation, and gathered knot/tangent tensors. There is no Python `for t in frames` loop in the sampling hot path, and the white-box test explicitly audits the function source for that red line while also benchmarking a 10,000-frame sample run.
+
+The fourth locked decision is that **4D SDF use remains streamed rather than cached**. `TimeAwareMorphologyEvaluator` samples dense parameter tensors once, then resolves a single frame context at a time for decoding. This deliberately avoids materializing a full `[x, y, z, t]` distance cache, which would be the wrong memory trade-off for the current CPU-first repository lane.
 
 ## Code Change Table
 | File | Action | Details |
 |---|---|---|
-| `mathart/animation/genotype.py` | Modified | Added `SlotType.FOOT_ACCESSORY`; appended six humanoid templates with full slot tuple; added 11 new `PART_REGISTRY` entries (3 torso overlays + none, 3 hand items + none, 3 foot accessories + none). |
-| `mathart/animation/parts3d.py` | Added | New module: `PartShape3D`, `SocketSpec`, `MountedAttachment`, `TensorSocketMounter`, `DEFAULT_SOCKETS`, `PART_FACTORIES_3D`, plus 9 parametric primitive factories and `build_attachments_from_genotype`. |
-| `tests/test_character_parts.py` | Added | 32 white-box tests across 6 sections (registry expansion, JSON backward compat, SDF-offset envelope, socket transform correctness, mounter end-to-end, genotype-driven pipeline). |
-| `docs/research/P1_NEW_9C_research_alignment.md` | Added | Distilled notes for the three reference pillars. |
+| `mathart/animation/parameter_track.py` | Added | New tensorized dynamic-parameter lane: `ParameterTrack`, `ParameterTrackBundle`, `SampledParameterMatrix`, `TimeAwareMorphologyEvaluator`, and `volume_preserving_axis_link()`. |
+| `mathart/animation/smooth_morphology.py` | Modified | Added scalar/bool context resolvers, per-part `resolve_parameters()`, optional `parameter_context` support in `build_sdf()` and `decode_to_sdf()`, and bounded runtime override guards. |
+| `tests/test_sdf_animation.py` | Added | Six new white-box tests covering dense parameter-matrix upsampling, 10k-frame vectorized sampling, `TimeSamples` export, runtime shape evolution, streamed evaluator use, and dynamic mesh-bbox continuity. |
+| `research/session122_external_reference_notes.md` | Added | Working research notes for IQ smooth min, OpenUSD time samples, OpenUSD spline animation, Catmull-Rom continuity, and squash/stretch volume preservation. |
+| `PROJECT_BRAIN.json` | Updated | Marked **P1-2 CLOSED**, recorded SESSION-122 validation, and documented the new OpenUSD-compatible parameter-track groundwork. |
+| `SESSION_HANDOFF.md` | Updated | Replaced prior handoff with the current session closure summary and next-step guidance. |
 
 ## White-Box Validation Closure
-- **32/32** targeted tests in `tests/test_character_parts.py` PASS.
-- Full repo regression: **2128 PASS / 8 SKIP / 20 FAIL**. The 20 failures **pre-exist on the baseline commit `0c9a84e` and are unrelated** to P1-NEW-9C — verified by `git stash && pytest` against the same set, which produced an identical failure list (high-precision VAT environment requirements, anti-flicker live-HTTP gates, SparseCtrl client polling). **Zero new regressions.**
-- Microsecond hot-path budget: `TensorSocketMounter.mount` warm-cache cost < 1 ms per 3-attachment loadout (assertion enforced in `test_microsecond_class_hot_path`).
+Local touched-lane validation is complete.
 
-## P1-AI-1 Multi-Pass Z-Buffer Hand-off
-Each `MountedAttachment` carries world-space vertices whose `z` coordinate is the depth source the P1-AI-1 multi-pass orthographic renderer (in `mathart/animation/orthographic_pixel_render.py`) will sample. The contract is:
-- **Source of truth**: `MountedAttachment.mesh.vertices[:, 2]` after `TensorSocketMounter.transform_mesh` applies the socket's world matrix.
-- **Layering rule**: a part with a strictly larger `inflate_radius` than the underlying base mesh is guaranteed to occupy a deeper-back / nearer-front shell, so the multi-pass Z-buffer can sort attachments by `(parent_bone, primitive, inflate_radius)` and emit the canonical depth gradient that ControlNet downstream-of-P1-AI-1 consumes.
-- **Composite manifest plumbing**: wrap each mounted mesh in an `ArtifactManifest` (BackendType `MESH_OBJ`) and pass the list to `compose_character_with_attachments(...)`. The COMPOSITE manifest is what the renderer driver reads to schedule passes.
+| Validation command / scope | Result |
+|---|---|
+| `python3.11 -m pytest -q tests/test_smooth_morphology.py tests/test_sdf_animation.py` | **52/52 PASS** |
+| Legacy smooth morphology regression | **46/46 PASS** |
+| New SESSION-122 dynamic animation suite | **6/6 PASS** |
 
-## Handoff / Next Steps (P1-NEW-9D suggested)
-With the equipment library and socket mounter shipped, the next logical step is **P1-NEW-9D — Multi-pass character composition**: drive the P1-AI-1 orthographic renderer with the COMPOSITE manifest produced from `build_attachments_from_genotype`, including the depth-sorted sequencing required for ControlNet depth conditioning.
-- **Current State**: equipment is geometrically correct and socket-mounted, but the renderer driver still consumes only the base character mesh.
-- **Action Required**: extend the orthographic render scheduler to iterate `MountedAttachment` lists, accumulate per-primitive depth into the multi-pass Z-buffer, and serialise the result as a multi-channel sprite (albedo + depth + normal).
+The new validation suite closes three red lines simultaneously. First, it proves that sparse keyframes can be upsampled to a dense `[frames, params]` tensor without scalar frame loops. Second, it proves that `decode_to_sdf(parameter_context=...)` actually changes the decoded field in a mathematically meaningful way. Third, it proves that a breathing-style animated field, after extrusion and Dual Contouring extraction, evolves with a smoothly changing bounding-box volume instead of discontinuous jumps.
+
+## OpenUSD / P1-ARCH-5 Hand-off Implication
+SESSION-122 does **not** finish `P1-ARCH-5`, but it removes a meaningful blocker for that task. The repository now has a clean distinction between **sparse authored keyframes** and **dense sampled animated values**, and those dense values can already be serialized as `track_name -> {time: value}` dictionaries mirroring `TimeSamples` semantics.[2] [4]
+
+The practical next step for `P1-ARCH-5` is therefore no longer “invent animated parameter storage,” but rather “map the already-existing parameter-track contract onto stable prim paths, attribute schemas, and exporter-owned usd/usda serialization.” In other words, the runtime math lane is now ready; the remaining work is scene-graph and file-format ownership.
+
+## Recommended Next Steps
+The most valuable immediate follow-up is **P1-ARCH-5**. The new parameter tracks should be promoted into a prim-style animated attribute layer with stable identities such as `</Character/Morphology/Part_0.radius>` and adapter-owned export logic. That would convert the current internal `TimeSamples`-compatible representation into true interchange output without pulling file-format concerns back into the SDF runtime.
+
+The second follow-up is **P2-DIM-UPLIFT-13**. The dynamic SDF lane is now functionally correct, but animated mesh extraction still runs on the CPU. If animated morphology is going to drive production-scale preview renders or benchmark suites, the next leverage point is GPU-accelerated dense sampling and mesh extraction.
+
+The third follow-up is **P1-AI-1**. Downstream neural-render and control pipelines should start consuming the new animated parameter tracks directly, rather than treating SDF morphology as a static single-frame source.
+
+## References
+[1]: https://iquilezles.org/articles/smin/ "Inigo Quilez — smooth minimum"
+[2]: https://docs.nvidia.com/learn-openusd/latest/stage-setting/timecodes-timesamples.html "NVIDIA Learn OpenUSD — TimeCodes and TimeSamples"
+[3]: https://adammadej.com/posts/202403-squashstretch/ "Adam Madej — Squash & Stretch and volume preservation"
+[4]: https://github.com/PixarAnimationStudios/OpenUSD-proposals/blob/main/proposals/spline-animation/README.md "Pixar OpenUSD proposal — Spline Animation"
+[5]: https://graphics.cs.cmu.edu/nsp/course/15-462/Fall04/assts/catmullRom.pdf "Christopher Twigg — Catmull-Rom splines"

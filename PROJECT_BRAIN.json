@@ -1,7 +1,7 @@
 {
-  "version": "v0.95.2",
-  "last_session_id": "SESSION-120",
-  "last_updated": "2026-04-21T09:00:00Z",
+  "version": "v0.95.3",
+  "last_session_id": "SESSION-122",
+  "last_updated": "2026-04-21T09:45:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -32,8 +32,8 @@
     "closed_archived": 53
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-111 P1-B3-5 Strangler-Fig CLOSED: 75/75 targeted tests PASS (test_unified_gait_blender 68 + test_locomotion_cns 7); full regression 1834 PASS, 5 pre-existing FAIL (unrelated, baseline-confirmed), 8 SKIP.",
-  "total_iterations": 687,
+  "validation_pass_rate": "SESSION-122 P1-2 CLOSED: 52/52 targeted tests PASS (test_smooth_morphology 46 + test_sdf_animation 6). Dynamic parameter tracks, time-aware decode_to_sdf overrides, TimeSamples-compatible export, and volume-preserving dynamic mesh continuity all validated locally with zero new regressions in the touched SDF lane.",
+  "total_iterations": 688,
   "total_code_lines": 136607,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
@@ -78,9 +78,10 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "P1-HUMAN-31C / Pseudo-3D Paper-Doll Mesh-Shell Backend (DQS Volume Skinning) — Implemented tensorized dual quaternion skinning engine (Kavan et al. SIGGRAPH 2007) with antipodal correction, normalization guard, and zero-scalar-loop tensor ops. Registry-native Pseudo3DShellBackend self-registers via @register_backend, consumes UMR bone animation + base mesh, drives DQS deformation, outputs strongly-typed MESH_OBJ ArtifactManifest. 45/45 strict white-box tests PASS.",
+  "current_focus": "P1-2 / Per-frame SDF parameter animation — CLOSED in SESSION-122. Landed tensorized ParameterTrack + ParameterTrackBundle, TimeAwareMorphologyEvaluator wrapper, runtime parameter_context support in smooth_morphology.decode_to_sdf(), OpenUSD TimeSamples-compatible export maps, and volume-preserving dynamic 4D SDF verification via Dual Contouring mesh extraction. 52/52 targeted tests PASS.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "research/session122_external_reference_notes.md",
     "research_notes_session091.md",
     "research_notes_session090.md",
     "tests/test_motion_adaptive_keyframe.py",
@@ -223,9 +224,11 @@
       "id": "P1-2",
       "priority": "P1",
       "title": "Per-frame SDF parameter animation",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "Add keyframed SDF parameter tracks and true shape evolution over time."
+      "description": "SESSION-122 CLOSED. Added tensorized ParameterTrack / ParameterTrackBundle with vectorized Catmull-Rom/Hermite dense sampling, TimeAwareMorphologyEvaluator wrapper for streamed frame contexts, runtime parameter_context overrides in MorphologyPartGene.build_sdf() and MorphologyGenotype.decode_to_sdf(), OpenUSD TimeSamples-compatible export dictionaries, and volume-preserving squash/stretch linkage verified against Dual Contouring mesh bbox continuity. 52/52 targeted tests PASS.",
+      "completed_in": "SESSION-122",
+      "updated_in": "SESSION-122"
     },
     {
       "id": "P1-AI-1",
@@ -296,8 +299,8 @@
       "title": "OpenUSD-compatible scene interchange",
       "status": "TODO",
       "estimated_effort": "high",
-      "description": "Extend the lightweight scene description into layered composition and export/import compatible serialization. SESSION-106 introduced CompositeManifestBuilder and attachment composition. SESSION-107 normalized single-frame and image-sequence artifacts with explicit lineage. SESSION-108 further hardened the driving-adapter layer by making anti_flicker_render emit stdout-safe JSON manifests while routing runtime progress strictly to stderr, and by centralizing chunk plans / sequence payloads as explicit machine-readable metadata. The next OpenUSD step can now focus on stable prim paths, relationship arcs, variant-set semantics, asset identifiers, and adapter-owned usd/usda exporters without reworking CLI/runtime boundaries.",
-      "updated_in": "SESSION-108",
+      "description": "Extend the lightweight scene description into layered composition and export/import compatible serialization. SESSION-106 introduced CompositeManifestBuilder and attachment composition. SESSION-107 normalized single-frame and image-sequence artifacts with explicit lineage. SESSION-108 further hardened the driving-adapter layer by making anti_flicker_render emit stdout-safe JSON manifests while routing runtime progress strictly to stderr, and by centralizing chunk plans / sequence payloads as explicit machine-readable metadata. SESSION-122 adds a TimeSamples-compatible sparse-keyframe/dense-sample parameter-track contract for animated SDF morphology, which materially de-risks future OpenUSD export around animated prim attributes without forcing exporter logic into runtime SDF code. The next OpenUSD step can now focus on stable prim paths, relationship arcs, variant-set semantics, asset identifiers, and adapter-owned usd/usda exporters without reworking CLI/runtime boundaries.",
+      "updated_in": "SESSION-122",
       "notes": "Recommended micro-adjustments before implementation: (1) promote artifact outputs to canonical prim-style paths, (2) split logical scene composition from file-format serialization, (3) assign stable asset identifiers for frame sequences and material channels, (4) define transform/material/guide prim schemas, (5) preserve adapter-only export so render cores remain disk-agnostic, and (6) keep CLI stdout as pure scene/manifest IPC while human-readable runtime telemetry stays on stderr."
     },
     {
@@ -2164,7 +2167,7 @@
     "RESOLVED-S093: Ground constraint hard-coded position clamp -> Constraint-bus-compliant kinematic anchor injection through ConstraintKind.CONTACT",
     "RESOLVED-S092: Contact-frame min_gap eviction vulnerability -> Two-phase immune pool architecture with absolute survival override",
     "REMAINING: No production benchmark asset suite",
-    "REMAINING: No per-frame SDF parameter animation",
+    "RESOLVED-S122: No per-frame SDF parameter animation -> tensorized ParameterTrack + ParameterTrackBundle, TimeAwareMorphologyEvaluator streaming wrapper, runtime parameter_context overrides in smooth_morphology, OpenUSD TimeSamples-compatible export, and 52/52 targeted tests PASS.",
     "REMAINING: No reaction-diffusion textures",
     "REMAINING: Visual quality still tech-demo level (SDF primitives vs hand-drawn/AI)",
     "REMAINING-RESEARCH: No metabolic fatigue model (ATP/lactate → torque reduction + body temperature for ControlNet) — P1-RESEARCH-30A",
@@ -2636,12 +2639,32 @@
     "session111_p1_b3_5_strangler_fig": "SESSION-111 executed the final Strangler-Fig takeover for P1-B3-5. `mathart/animation/gait_blend.py` and `mathart/animation/transition_synthesizer.py` are physically deleted. Seven source files were rewritten to import from `mathart.animation.unified_gait_blender` directly; the public `mathart.animation` package now also re-exports `UnifiedGaitBlender`. `tests/test_gait_blend.py` renamed to `tests/test_unified_gait_blender.py` and extended with three red-line test classes: TestRetiredShimExtermination (Anti-Zombie-Reference), TestQuinticInertializationDecay / TestInertializeTransitionAPI (Anti-C0/C1-Regression at joint seam, tolerance 1e-5 C0 + bounded C1), TestUnifiedGaitBlenderDeterminism (Anti-PRNG-Bleed). Root-level `test_session039.py` removed — its 12 transition-synth assertions were migrated verbatim. Bridge module `evolution/gait_blend_bridge.py` now tracks `unified_gait_blender.py` as the canonical module. Full regression: 1834 PASS / 5 pre-existing FAIL / 8 SKIP (baseline-confirmed)."
   },
   "recent_focus_snapshot": {
-    "session_id": "SESSION-121",
-    "focus": "P1-NEW-9C Character Evolution 3.0 multi-slot equipment + tensor socket mounter",
+    "session_id": "SESSION-122",
+    "focus": "P1-2 Per-frame SDF parameter animation + OpenUSD TimeSamples groundwork",
     "status": "CLOSED",
     "updated_at": "2026-04-21"
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-122",
+      "focus": "P1-2 Per-frame SDF parameter animation, tensorized parameter tracks, and 4D SDF verification",
+      "status": "COMPLETE",
+      "date": "2026-04-21",
+      "summary": "Closed P1-2 by adding a new mathart/animation/parameter_track.py module with vectorized sparse-keyframe→dense-tensor sampling, TimeAwareMorphologyEvaluator for streamed per-frame context decoding, runtime parameter_context support in smooth_morphology.py, OpenUSD TimeSamples-compatible export maps, and 6 new white-box tests in tests/test_sdf_animation.py. Existing smooth morphology coverage remained green (46 legacy tests), bringing touched-lane validation to 52/52 PASS. External research alignment covered IQ smooth-min constraints, OpenUSD time codes/time samples, OpenUSD spline animation, Catmull-Rom C1 interpolation, and Disney-style volume preservation.",
+      "files_touched": [
+        "mathart/animation/parameter_track.py",
+        "mathart/animation/smooth_morphology.py",
+        "tests/test_sdf_animation.py",
+        "research/session122_external_reference_notes.md",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
+      ],
+      "next_gaps": [
+        "P1-ARCH-5: promote the new TimeSamples-compatible parameter contract into stable prim-path animated scene interchange",
+        "P2-DIM-UPLIFT-13: move animated SDF sampling / mesh extraction hot paths onto GPU",
+        "P1-AI-1: consume animated SDF parameter tracks in downstream render/control pipelines"
+      ]
+    },
     {
       "session_id": "SESSION-121",
       "focus": "P1-NEW-9C Character Evolution 3.0: multi-slot equipment library + tensorized bone-socket mounter",
@@ -3356,6 +3379,26 @@
   ],
   "session_log": [
     {
+      "session_id": "SESSION-122",
+      "summary": "Closed P1-2 by introducing tensorized sparse-keyframe parameter tracks, a streamed TimeAwareMorphologyEvaluator wrapper, and runtime parameter_context overrides inside smooth_morphology so per-frame SDF shape evolution can be decoded without mutating the static genotype trunk or caching full 4D distance volumes. Added OpenUSD TimeSamples-compatible export maps and a 6-test dynamic SDF regression suite, while preserving all 46 legacy smooth morphology tests for a total touched-lane validation result of 52/52 PASS.",
+      "files_changed": [
+        "NEW mathart/animation/parameter_track.py — tensorized ParameterTrack, ParameterTrackBundle, TimeAwareMorphologyEvaluator, SampledParameterMatrix, and volume_preserving_axis_link",
+        "UPD mathart/animation/smooth_morphology.py — optional parameter_context overrides in MorphologyPartGene.build_sdf() / MorphologyGenotype.decode_to_sdf() with strict scalar clipping guards",
+        "NEW tests/test_sdf_animation.py — 6 white-box tests covering dense matrix upsampling, 10k-frame vectorized hot path, TimeSamples export, dynamic decode_to_sdf behavior, and dynamic mesh bbox continuity",
+        "NEW research/session122_external_reference_notes.md — external research notes covering IQ smooth min, OpenUSD time samples, OpenUSD spline animation, Catmull-Rom continuity, and squash/stretch volume preservation",
+        "UPD PROJECT_BRAIN.json — P1-2 closure metadata, SESSION-122 snapshot, and OpenUSD groundwork notes",
+        "UPD SESSION_HANDOFF.md — SESSION-122 closure summary and next-step guidance"
+      ],
+      "files_touched": [
+        "mathart/animation/parameter_track.py",
+        "mathart/animation/smooth_morphology.py",
+        "tests/test_sdf_animation.py",
+        "research/session122_external_reference_notes.md",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
+      ]
+    },
+    {
       "session_id": "SESSION-121",
       "summary": "Closed P1-NEW-9C by extending CharacterGenotype with three new equipment slots (torso_overlay / hand_item / foot_accessory) backed by 11 new PART_REGISTRY entries, shipping a new 3D primitive library in mathart/animation/parts3d.py (SDF-derived rounded-box / elongated-capsule / disc factories), a tensorized TensorSocketMounter (UE5-aligned SocketSpec, np.einsum 4x4 broadcast, sub-millisecond warm-cache), and 32 new white-box regression tests in tests/test_character_parts.py. Anti Z-fighting is enforced by strictly positive inflate_radius on every shell. Backward-compatible JSON deserialisation verified on legacy archives. Full repo regression: 2128 PASS / 8 SKIP / 20 FAIL — all 20 failures pre-exist on the baseline commit 0c9a84e and are unrelated to this work (verified via git stash). Zero new regressions.",
       "files_changed": [
@@ -3707,6 +3750,9 @@
     }
   ],
   "resolved_issues": [
+    "RESOLVED-S122: smooth_morphology trunk lacked a runtime-safe dynamic parameter layer -> added tensorized ParameterTrack/Bundle + TimeAwareMorphologyEvaluator wrapper and optional parameter_context overrides without breaking legacy static decoding",
+    "RESOLVED-S122: no OpenUSD-friendly animated SDF parameter contract -> sparse keyframes and dense sampled values now serialize as TimeSamples-compatible dictionaries for later usd/usda exporter work",
+    "RESOLVED-S122: no rigorous continuity guard for dynamic SDF breathing fields -> added Dual Contouring-backed bbox continuity regression over a volume-preserving animated field",
     "RESOLVED-S095: Genotype mutation boundary constraints were scattered and weakly tested -> unified enforce_genotype_bounds() hard-clipping contract plus deterministic ±1e6 value-level stress assertions across all continuous genes",
     "RESOLVED-S096: Phase-driven semantic control could silently accept illegal state jumps -> explicit adjacency-map guard, typed IllegalStateTransitionError / False-path rejection, and value-level preservation tests for forbidden transitions",
     "RESOLVED-S097: Audited global regression hotspots still relied on legacy bare NumPy randomness and order-dependent registry teardown -> isolated Generator fixtures, deterministic value-level baselines, and builtin-backend restoration after SafePoint hot-reload resets",
