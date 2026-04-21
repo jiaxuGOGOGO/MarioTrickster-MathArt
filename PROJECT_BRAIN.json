@@ -1,7 +1,7 @@
 {
   "version": "v0.94.0",
-  "last_session_id": "SESSION-112",
-  "last_updated": "2026-04-21T01:07:53Z",
+  "last_session_id": "SESSION-117",
+  "last_updated": "2026-04-21T03:15:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -78,7 +78,7 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "P1-B3-5 / Strangler-Fig Closure of Legacy Gait Blender Shims \u2014 physically retired gait_blend.py + transition_synthesizer.py compatibility re-export modules; every import across mathart/**, tests/**, and evolution/** now flows through the single-source unified_gait_blender.py motion core. 75/75 targeted regressions PASS (test_unified_gait_blender 68 + test_locomotion_cns 7), full-suite 1834 PASS (only 5 pre-existing environment-failures unrelated to this refactor: ComfyUI WS progress_callback signature, keyframe_count metric missing, watcher reload race). Three red lines audited: Anti-Zombie-Reference (grep-wall clean + ModuleNotFoundError pytest guard), Anti-C0/C1-Regression (joint-seam continuity assertion at 10^-5), Anti-PRNG-Bleed (static source inspection + determinism test confirming stateless WorkItem dispatch readiness for PDG v2).",
+  "current_focus": "P1-HUMAN-31A / SMPL-like Shape Latent Integration \u2014 added 8-dimensional continuous shape_latents to CharacterGenotype, bridging the gap between ECS structural genes and DistilledSMPLBodyModel. The pipeline now supports 'skin-bone unification', dynamically deforming the physics skeleton (joint positions, bone lengths, head_units) based on shape latents before rendering and physics projection. Backward compatibility is maintained via graceful fallback to neutral body. 65/65 genotype tests PASS, full-suite regressions PASS.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research_notes_session091.md",

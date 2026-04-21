@@ -238,6 +238,10 @@ class CharacterSpec:
     use_genotype: bool = False
     genotype: Optional[CharacterGenotype] = None
     evolution_crossover_rate: float = 0.25
+    # SESSION-117: SMPL-like shape latent knob (8-dim, [-1, 1] each).
+    # When use_genotype is True and this is set, it overrides the genotype's
+    # shape_latents before phenotype decoding and skeleton construction.
+    shape_latents: Optional[list[float]] = None
     # SESSION-029: Biomechanics engine
     enable_biomechanics: bool = True
     biomechanics_zmp: bool = True
@@ -1725,6 +1729,7 @@ class AssetPipeline:
 
         # SESSION-027: If use_genotype is enabled, initialize from genotype
         genotype_used: Optional[CharacterGenotype] = None
+        _shaped_skeleton: Optional[Skeleton] = None
         if char_spec.use_genotype:
             if char_spec.genotype is not None:
                 genotype_used = char_spec.genotype
@@ -1732,14 +1737,23 @@ class AssetPipeline:
                 genotype_used = GENOTYPE_PRESETS[char_spec.preset]()
             else:
                 genotype_used = CharacterGenotype()
+            # SESSION-117: Apply pipeline-level shape_latents override if provided.
+            if char_spec.shape_latents is not None:
+                from .animation.genotype import SHAPE_LATENT_DIM
+                padded = list(char_spec.shape_latents)[:SHAPE_LATENT_DIM]
+                padded += [0.0] * (SHAPE_LATENT_DIM - len(padded))
+                genotype_used.shape_latents = padded
             # Override style and palette from genotype
             style = genotype_used.decode_to_style()
             palette = self._genotype_to_palette(genotype_used)
-            char_spec = replace(char_spec, head_units=genotype_used.get_head_units())
+            # SESSION-117: Build shape-adapted skeleton (skin-bone unification).
+            _shaped_skeleton = genotype_used.build_shaped_skeleton()
+            char_spec = replace(char_spec, head_units=_shaped_skeleton.head_units)
             self._log(
                 f"Using genotype mode: archetype={genotype_used.archetype}, "
                 f"template={genotype_used.body_template}, "
-                f"slots={list(genotype_used.slots.keys())}"
+                f"slots={list(genotype_used.slots.keys())}, "
+                f"shape_latents={[round(v, 3) for v in genotype_used.shape_latents]}"
             )
 
         output_paths: list[str] = []
@@ -1822,6 +1836,11 @@ class AssetPipeline:
                     ],
                 },
                 "genotype": genotype_used.to_dict() if genotype_used is not None else None,
+                "shape_latents": (
+                    [float(v) for v in genotype_used.shape_latents]
+                    if genotype_used is not None
+                    else None
+                ),
             },
             "evolution": evolution_meta or {
                 "enabled": False,
@@ -1883,7 +1902,12 @@ class AssetPipeline:
         # SESSION-028: Initialize physics projector if enabled
         # SESSION-028-SUPP: Pass skeleton_ref for PhysDiff-inspired foot locking
         # SESSION-035: Now uses compliant_pd mode with convergence bridge params
-        _physics_skeleton = Skeleton.create_humanoid(head_units=char_spec.head_units)
+        # SESSION-117: Use shape-adapted skeleton when available (skin-bone unification).
+        _physics_skeleton = (
+            _shaped_skeleton
+            if _shaped_skeleton is not None
+            else Skeleton.create_humanoid(head_units=char_spec.head_units)
+        )
         _physics_projector = None
         if char_spec.enable_physics:
             _cognitive_cfg = CognitiveMotionConfig(
@@ -1900,6 +1924,7 @@ class AssetPipeline:
             )
 
         # SESSION-047: Initialize lightweight Jakobsen secondary chains if enabled
+        # SESSION-117: Use shape-adapted skeleton when available.
         _secondary_chain_projector = None
         if char_spec.enable_secondary_chains:
             _secondary_chain_configs = [
@@ -1908,17 +1933,25 @@ class AssetPipeline:
                 if cfg.name in set(char_spec.secondary_chain_presets)
             ]
             if _secondary_chain_configs:
+                _sc_skel_ref = (
+                    _shaped_skeleton
+                    if _shaped_skeleton is not None
+                    else Skeleton.create_humanoid(head_units=char_spec.head_units)
+                )
                 _secondary_chain_projector = SecondaryChainProjector(
                     configs=_secondary_chain_configs,
-                    skeleton_ref=Skeleton.create_humanoid(head_units=char_spec.head_units),
+                    skeleton_ref=_sc_skel_ref,
                     head_units=char_spec.head_units,
                 )
 
         # SESSION-029: Initialize biomechanics projector if enabled
+        # SESSION-117: Use shape-adapted skeleton when available.
         _biomechanics_projector = None
         if char_spec.enable_biomechanics:
-            _biomechanics_skeleton = Skeleton.create_humanoid(
-                head_units=char_spec.head_units
+            _biomechanics_skeleton = (
+                _shaped_skeleton
+                if _shaped_skeleton is not None
+                else Skeleton.create_humanoid(head_units=char_spec.head_units)
             )
             _biomechanics_projector = BiomechanicsProjector(
                 skeleton=_biomechanics_skeleton,
@@ -2014,7 +2047,13 @@ class AssetPipeline:
             frame_scores: list[float] = []
             for motion_frame in motion_clip.frames:
                 pose = dict(motion_frame.joint_local_rotations)
-                skeleton = Skeleton.create_humanoid(head_units=char_spec.head_units)
+                # SESSION-117: Use shape-adapted skeleton for rendering when available,
+                # ensuring visual mesh and physics skeleton stay aligned.
+                if _shaped_skeleton is not None:
+                    import copy as _copy
+                    skeleton = _copy.deepcopy(_shaped_skeleton)
+                else:
+                    skeleton = Skeleton.create_humanoid(head_units=char_spec.head_units)
                 frame = render_character_frame(
                     skeleton,
                     pose,

@@ -186,6 +186,15 @@ SCALAR_GENE_BOUNDS: dict[str, BoundInterval] = {
     "light_angle": STYLE_PARAMETER_BOUNDS["light_angle"],
 }
 
+# ── SESSION-117: SMPL-like Shape Latent Constants ────────────────────────────
+# 8-dimensional interpretable body-shape latent aligned with SMPLShapeLatent
+# in human_math.py.  Each axis is bounded to [-1, 1] (hard clamp contract
+# inherited from SESSION-095 boundary enforcement).
+
+SHAPE_LATENT_DIM: int = 8
+SHAPE_LATENT_BOUNDS: BoundInterval = BoundInterval(-1.0, 1.0)
+DEFAULT_SHAPE_LATENTS: tuple[float, ...] = tuple(0.0 for _ in range(SHAPE_LATENT_DIM))
+
 DEFAULT_PALETTE_GENES: list[float] = [
     0.72, 0.04, 0.06,
     0.50, 0.15, 0.05,
@@ -248,6 +257,9 @@ def get_genotype_mutation_contract(genotype: CharacterGenotype | None = None) ->
         "proportion_modifiers": proportion_contract,
         "scalar_genes": dict(SCALAR_GENE_BOUNDS),
         "palette_genes": tuple(palette_contract),
+        "shape_latents": tuple(
+            SHAPE_LATENT_BOUNDS for _ in range(SHAPE_LATENT_DIM)
+        ),
     }
 
 
@@ -414,6 +426,13 @@ class CharacterGenotype:
         default_factory=lambda: list(DEFAULT_PALETTE_GENES)
     )
 
+    # ── SESSION-117: SMPL-like shape latents (8-dim continuous, bounded [-1, 1]) ──
+    # Maps to SMPLShapeLatent in human_math.py for phenotype decoding and
+    # adaptive skeleton construction.  Default is neutral body (all zeros).
+    shape_latents: list[float] = field(
+        default_factory=lambda: list(DEFAULT_SHAPE_LATENTS)
+    )
+
     def __post_init__(self):
         """Initialize default slots if empty."""
         if not self.slots:
@@ -436,14 +455,26 @@ class CharacterGenotype:
 
         This is the genotype-to-phenotype mapping. It:
         1. Starts from the body template's base proportions
-        2. Applies proportion modifiers
-        3. Applies part slot overrides (hat, mustache, eye style, etc.)
+        2. Applies SMPL-like shape latent → proportion modifier overlay (SESSION-117)
+        3. Applies proportion modifiers
+        4. Applies part slot overrides (hat, mustache, eye style, etc.)
+
+        Shape latents are decoded *before* proportion modifiers so that the
+        explicit per-axis modifiers can fine-tune the SMPL-derived offsets,
+        matching the SMPL convention: shape → pose → skinning.
         """
         template = BODY_TEMPLATES.get(self.body_template)
         if template is None:
             template = BODY_TEMPLATES[BodyTemplateName.HUMANOID_STANDARD.value]
 
-        mods = self.proportion_modifiers
+        # SESSION-117: Overlay SMPL-derived proportion offsets.
+        mods = dict(self.proportion_modifiers)
+        if any(v != 0.0 for v in self.shape_latents):
+            from .human_math import DistilledSMPLBodyModel, SMPLShapeLatent
+            shape = SMPLShapeLatent.from_vector(self.shape_latents)
+            smpl_mods = DistilledSMPLBodyModel.shape_to_proportion_modifiers(shape)
+            for key, offset in smpl_mods.items():
+                mods[key] = mods.get(key, 0.0) + offset
 
         style = CharacterStyle(
             head_radius=_clamp_style_value(
@@ -500,6 +531,26 @@ class CharacterGenotype:
 
         return style
 
+    def build_shaped_skeleton(self) -> "Skeleton":
+        """Build a Skeleton with SMPL-like shape deformation applied.
+
+        SESSION-117: This is the critical "skin-bone unification" bridge.
+        If shape_latents are non-zero, the base humanoid skeleton is deformed
+        via DistilledSMPLBodyModel.apply_shape_to_skeleton(), ensuring that
+        joint positions, bone lengths, and head_units all reflect the body
+        shape — preventing the "skin-bone disconnect" anti-pattern.
+
+        Returns a fresh Skeleton instance (never mutates shared state).
+        """
+        from .skeleton import Skeleton
+        base_skel = Skeleton.create_humanoid(head_units=self.get_head_units())
+        if any(v != 0.0 for v in self.shape_latents):
+            from .human_math import DistilledSMPLBodyModel, SMPLShapeLatent
+            shape = SMPLShapeLatent.from_vector(self.shape_latents)
+            body_model = DistilledSMPLBodyModel()
+            base_skel = body_model.apply_shape_to_skeleton(base_skel, shape)
+        return base_skel
+
     def get_head_units(self) -> float:
         """Get head_units from the body template."""
         template = BODY_TEMPLATES.get(self.body_template)
@@ -525,6 +576,7 @@ class CharacterGenotype:
             "outline_width": self.outline_width,
             "light_angle": self.light_angle,
             "palette_genes": list(self.palette_genes),
+            "shape_latents": [float(v) for v in self.shape_latents],
         }
 
     @classmethod
@@ -538,6 +590,18 @@ class CharacterGenotype:
                 enabled=v.get("enabled", True),
                 local_params=v.get("local_params", {}),
             )
+        # SESSION-117: Graceful fallback for shape_latents — old archives that
+        # lack this key silently degrade to neutral body (all-zero vector).
+        raw_latents = data.get("shape_latents", None)
+        if raw_latents is None or not isinstance(raw_latents, (list, tuple)):
+            safe_latents = list(DEFAULT_SHAPE_LATENTS)
+        else:
+            # Pad or truncate to canonical dimensionality.
+            safe_latents = [
+                float(raw_latents[i]) if i < len(raw_latents) else 0.0
+                for i in range(SHAPE_LATENT_DIM)
+            ]
+
         return cls(
             archetype=data.get("archetype", Archetype.HERO.value),
             body_template=data.get("body_template", BodyTemplateName.HUMANOID_STANDARD.value),
@@ -549,6 +613,7 @@ class CharacterGenotype:
             outline_width=data.get("outline_width", 0.04),
             light_angle=data.get("light_angle", -0.7),
             palette_genes=data.get("palette_genes", list(DEFAULT_PALETTE_GENES)),
+            shape_latents=safe_latents,
         )
 
 
@@ -790,6 +855,17 @@ def enforce_genotype_bounds(genotype: CharacterGenotype) -> CharacterGenotype:
         raw_value = float(genotype.palette_genes[idx])
         genotype.palette_genes[idx] = bounds.clamp(raw_value)
 
+    # SESSION-117: Enforce shape latent bounds [-1, 1] (hard clamp).
+    if len(genotype.shape_latents) < SHAPE_LATENT_DIM:
+        genotype.shape_latents = list(genotype.shape_latents) + [
+            0.0
+        ] * (SHAPE_LATENT_DIM - len(genotype.shape_latents))
+    for idx, bounds in enumerate(contract["shape_latents"]):
+        if idx < len(genotype.shape_latents):
+            genotype.shape_latents[idx] = bounds.clamp(
+                float(genotype.shape_latents[idx])
+            )
+
     return genotype
 
 
@@ -854,6 +930,16 @@ def mutate_genotype(
     g.light_angle = float(
         g.light_angle + rng.normal(0.0, 0.30 * mutation_strength)
     )
+
+    # ── Layer 2.5: Shape latent mutations (SESSION-117) ──
+    # Truncated normal mutation with hard clamp to [-1, 1], reusing the
+    # SESSION-095 boundary enforcement contract.
+    for i in range(min(len(g.shape_latents), SHAPE_LATENT_DIM)):
+        if rng.random() < 0.60:
+            noise = float(rng.normal(0.0, 0.12 * mutation_strength))
+            g.shape_latents[i] = float(
+                np.clip(g.shape_latents[i] + noise, -1.0, 1.0)
+            )
 
     # ── Layer 3: Palette mutations (common) ──
 
@@ -933,5 +1019,10 @@ def crossover_genotypes(
                 child.palette_genes[i] = parent_b.palette_genes[i]
                 child.palette_genes[i + 1] = parent_b.palette_genes[i + 1]
                 child.palette_genes[i + 2] = parent_b.palette_genes[i + 2]
+
+    # SESSION-117: Shape latent crossover (per-axis uniform)
+    for i in range(min(len(child.shape_latents), len(parent_b.shape_latents))):
+        if rng.random() < 0.5:
+            child.shape_latents[i] = parent_b.shape_latents[i]
 
     return child
