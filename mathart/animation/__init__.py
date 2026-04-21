@@ -379,6 +379,10 @@ from .terrain_sensor import (
     create_step_terrain,
     create_sine_terrain,
     create_platform_terrain,
+    # SESSION-112 / P1-B2-1 — high-order terrain primitives
+    create_convex_hull_terrain,
+    create_bezier_terrain,
+    create_heightmap_terrain,
 )
 
 __all__ = [
@@ -535,6 +539,10 @@ __all__ = [
     "create_step_terrain",
     "create_sine_terrain",
     "create_platform_terrain",
+    # SESSION-112 / P1-B2-1 — high-order terrain primitives
+    "create_convex_hull_terrain",
+    "create_bezier_terrain",
+    "create_heightmap_terrain",
     # SESSION-049: Phase-Preserving Gait Transition Blending (Gap B3)
     "SyncMarker", "GaitSyncProfile", "GaitBlendLayer",
     "GaitBlender", "UnifiedGaitBlender", "StrideWheel",
