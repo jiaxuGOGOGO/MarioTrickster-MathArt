@@ -2233,7 +2233,8 @@
     "RESOLVED-S096: Phase-driven semantic control could silently accept illegal state jumps -> explicit adjacency-map guard, typed IllegalStateTransitionError / False-path rejection, and value-level preservation tests for forbidden transitions",
     "REMAINING-S096: Global regression coverage still contains dispersed RNG setup and unseeded random masking risk -> HIGH-2.5-CI-RANDOM-MASKING-DETERMINISM",
     "RESOLVED-S098: Full-suite CI failed on optional dependency drift (Taichi/watchdog), registry bootstrap pollution after reset(), manifest schema non-compliance, and stale bridge key names -> session-scoped conftest.py registry safety net, importorskip/skipif gating, orthographic_pixel manifest fix, and evolution_ bridge key alignment",
-    "REMAINING-S098: Production code (mathart/) still contains 39 bare np.random calls without dependency injection -> HIGH-2.7-PRODUCTION-CODE-RNG-DEPENDENCY-INJECTION"
+    "REMAINING-S098: Production code (mathart/) still contains 39 bare np.random calls without dependency injection -> HIGH-2.7-PRODUCTION-CODE-RNG-DEPENDENCY-INJECTION",
+    "RESOLVED-S121: CharacterGenotype lacked first-class torso/hand/foot equipment slots and a tensorized 3D socket mounter -> implemented parts3d.py + SocketSpec + TensorSocketMounter aligned with UE5 / IQ SDF / OpenUSD references, with 32 regression tests guaranteeing legacy JSON compatibility and Z-fighting-free SDF offsets."
   ],
   "recent_audit": {
     "session": "SESSION-036",
@@ -2635,12 +2636,32 @@
     "session111_p1_b3_5_strangler_fig": "SESSION-111 executed the final Strangler-Fig takeover for P1-B3-5. `mathart/animation/gait_blend.py` and `mathart/animation/transition_synthesizer.py` are physically deleted. Seven source files were rewritten to import from `mathart.animation.unified_gait_blender` directly; the public `mathart.animation` package now also re-exports `UnifiedGaitBlender`. `tests/test_gait_blend.py` renamed to `tests/test_unified_gait_blender.py` and extended with three red-line test classes: TestRetiredShimExtermination (Anti-Zombie-Reference), TestQuinticInertializationDecay / TestInertializeTransitionAPI (Anti-C0/C1-Regression at joint seam, tolerance 1e-5 C0 + bounded C1), TestUnifiedGaitBlenderDeterminism (Anti-PRNG-Bleed). Root-level `test_session039.py` removed — its 12 transition-synth assertions were migrated verbatim. Bridge module `evolution/gait_blend_bridge.py` now tracks `unified_gait_blender.py` as the canonical module. Full regression: 1834 PASS / 5 pre-existing FAIL / 8 SKIP (baseline-confirmed)."
   },
   "recent_focus_snapshot": {
-    "session_id": "SESSION-105",
-    "focus": "P3-GPU-BENCH-1 production integration: PDG GPU semaphore scheduling, strict CUDA lane semantics, and Taichi VRAM cleanup",
-    "status": "COMPLETE",
-    "updated_at": "2026-04-21T01:15:00+08:00"
+    "session_id": "SESSION-121",
+    "focus": "P1-NEW-9C Character Evolution 3.0 multi-slot equipment + tensor socket mounter",
+    "status": "CLOSED",
+    "updated_at": "2026-04-21"
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-121",
+      "focus": "P1-NEW-9C Character Evolution 3.0: multi-slot equipment library + tensorized bone-socket mounter",
+      "status": "COMPLETE",
+      "date": "2026-04-21",
+      "summary": "Closed P1-NEW-9C by extending CharacterGenotype with three new equipment slots (torso_overlay / hand_item / foot_accessory) backed by 11 new PART_REGISTRY entries, shipping a new 3D primitive library in mathart/animation/parts3d.py (SDF-derived rounded-box / elongated-capsule / disc factories), a tensorized TensorSocketMounter (UE5-aligned SocketSpec, np.einsum 4x4 broadcast, sub-millisecond warm-cache), and 32 new white-box regression tests in tests/test_character_parts.py. Anti Z-fighting is enforced by strictly positive inflate_radius on every shell. Backward-compatible JSON deserialisation verified on legacy archives. Full repo regression: 2128 PASS / 8 SKIP / 20 FAIL — all 20 failures pre-exist on the baseline commit 0c9a84e and are unrelated to this work (verified via git stash). Zero new regressions.",
+      "files_touched": [
+        "mathart/animation/genotype.py",
+        "mathart/animation/parts3d.py",
+        "tests/test_character_parts.py",
+        "docs/research/P1_NEW_9C_research_alignment.md",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
+      ],
+      "next_priorities": [
+        "P1-NEW-9D: Multi-pass character composition driver consuming MountedAttachment lists",
+        "P1-AI-1: Wire mounted attachment z-coords into the orthographic Z-buffer ControlNet pipeline",
+        "P1-NEW-10: Telemetry aggregation for pruning_report and fitness_penalty"
+      ]
+    },
     {
       "session_id": "SESSION-105",
       "focus": "P3-GPU-BENCH-1 production integration: PDG GPU semaphore scheduling, strict CUDA lane semantics, and Taichi VRAM cleanup",
@@ -3325,9 +3346,29 @@
       "session": "SESSION-118",
       "task": "P1-HUMAN-31C",
       "landing": "Tensorized DQS engine + Pseudo3DShellBackend (45/45 tests PASS)"
+    },
+    {
+      "id": "P1-NEW-9C",
+      "completed_in": "SESSION-121",
+      "title": "Character Evolution 3.0 multi-slot equipment library and tensorized bone-socket mounter",
+      "summary": "Added FOOT_ACCESSORY slot, three equipment families (torso/hand/foot, 11 PART_REGISTRY entries), parts3d.py with SDF-derived Mesh3D primitives (opRound / opOnion / opElongate vertex-space translations), TensorSocketMounter aligned with UE5 socket semantics, OpenUSD-style composition via the existing compose_character_with_attachments contract, and 32 white-box tests. Hot path < 1ms per loadout."
     }
   ],
   "session_log": [
+    {
+      "session_id": "SESSION-121",
+      "summary": "Closed P1-NEW-9C by extending CharacterGenotype with three new equipment slots (torso_overlay / hand_item / foot_accessory) backed by 11 new PART_REGISTRY entries, shipping a new 3D primitive library in mathart/animation/parts3d.py (SDF-derived rounded-box / elongated-capsule / disc factories), a tensorized TensorSocketMounter (UE5-aligned SocketSpec, np.einsum 4x4 broadcast, sub-millisecond warm-cache), and 32 new white-box regression tests in tests/test_character_parts.py. Anti Z-fighting is enforced by strictly positive inflate_radius on every shell. Backward-compatible JSON deserialisation verified on legacy archives. Full repo regression: 2128 PASS / 8 SKIP / 20 FAIL — all 20 failures pre-exist on the baseline commit 0c9a84e and are unrelated to this work (verified via git stash). Zero new regressions.",
+      "files_changed": [
+        "mathart/animation/genotype.py",
+        "mathart/animation/parts3d.py",
+        "tests/test_character_parts.py",
+        "docs/research/P1_NEW_9C_research_alignment.md",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
+      ],
+      "tests": "32 new tests added (all PASS); 2128 total PASS / 8 SKIP / 20 pre-existing FAIL.",
+      "status": "COMPLETE"
+    },
     {
       "session_id": "SESSION-088",
       "summary": "Fix placeholder frame generator: replace flat solid-color images with meaningful Normal (sphere normal map), Depth (sphere depth + ground plane), and RGB (pixel-art character with idle bounce) guide frames. This gives ControlNet actual spatial information, fixing the pure-blue output issue.",
@@ -3717,7 +3758,8 @@
       "resolved_at": "2026-04-21T12:00:00+08:00",
       "resolution": "PhysicalRibbonExtractor converts Jakobsen/XPBD secondary chain snapshots into real 3D Ribbon Mesh geometry via 6-stage pipeline (Catmull-Rom, TBN frame, width extrusion, triangle strip, GGXrd normal injection, UV generation). PhysicalRibbonBackend self-registers via @register_backend, produces NPZ mesh + JSON report. compose_character_with_attachments() implements Pixar OpenUSD Composition Arcs pattern. 45/45 white-box tests. Zero regression on existing 1729+ tests.",
       "validation_test_file": "tests/test_physical_ribbon.py"
-    }
+    },
+    "RESOLVED-S121: Equipment was style-flag-driven (has_hat) which broke evolutionary lineage when new categories arrived -> migrated to typed PART_REGISTRY slot entries with backward-compatible (de)serialisation verified by tests/test_character_parts.py."
   ],
   "backlog": [],
   "notes": {
@@ -3730,6 +3772,11 @@
     "session104_pdg_status": "P1-ARCH-4 remains CLOSED, now with bounded local scheduler semantics. mathart/level/pdg.py keeps immutable WorkItem contracts and hermetic disk caching, but mapped fan-out now executes through a max_workers-bounded ThreadPoolExecutor path with ordered main-thread trace aggregation.",
     "session104_gpu_prep": "For P3-GPU-BENCH-1 on the local RTX 4070, the PDG substrate is now ready for scenario-level fan-out. Remaining micro-adjustments: promote benchmark scenarios into explicit WorkItem payloads, include device/driver/CUDA/Taichi/precision/snode fingerprints in cache lineage, keep large numeric traces file-backed instead of JSON-inline payloads, and define a collect-node reduction schema for warmup-trimmed median, P95, worst frame, parity drift, and report paths.",
     "session107_validation": "Targeted local validation completed with python3.11 -m pytest -q tests/test_p1_ai_1_controlnet_bridge.py -> 5 PASS / 0 SKIP / 0 FAIL. Additional smoke validation confirmed semantic payload assembly for both sparsectrl_animatediff and normal_depth_dual_controlnet presets.",
-    "session107_openusd_prep": "Before P1-ARCH-5, promote current ArtifactManifest lineage into canonical prim-style identities: stable prim paths, transform/material/guide schema boundaries, sequence relationship arcs, and adapter-only usd/usda serializers. Keep render engines pure in-memory producers while exporters own file-format realization."
+    "session107_openusd_prep": "Before P1-ARCH-5, promote current ArtifactManifest lineage into canonical prim-style identities: stable prim paths, transform/material/guide schema boundaries, sequence relationship arcs, and adapter-only usd/usda serializers. Keep render engines pure in-memory producers while exporters own file-format realization.",
+    "session121_p1_new_9c_status": {
+      "decision": "Equipment 3D meshes live in mathart/animation/parts3d.py (sibling of parts.py), are typed via PartShape3D, mounted via TensorSocketMounter aligned with UE5 USkeletalMeshSocket, and composed via the existing compose_character_with_attachments USD-Reference arc.",
+      "math_contract": "Anti Z-fighting is mathematical: every shell-style part has inflate_radius > 0 and the regression test verifies vertex norms exceed the underlying base-box diagonal length plus the inflate radius.",
+      "perf_contract": "TensorSocketMounter.mount uses np.einsum 4x4 matmul broadcast and runs in < 1 ms per 3-attachment loadout warm-cache."
+    }
   }
 }

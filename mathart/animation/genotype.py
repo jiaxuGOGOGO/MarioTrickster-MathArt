@@ -64,12 +64,23 @@ class BodyTemplateName(str, Enum):
 
 
 class SlotType(str, Enum):
-    """Types of equipment/accessory slots."""
+    """Types of equipment/accessory slots.
+
+    SESSION-121 (P1-NEW-9C) extends the canonical slot set with
+    ``FOOT_ACCESSORY`` so the part registry can host boots / greaves /
+    sandals as first-class genotype residents (rather than through ad-hoc
+    style flags).  All four of HAT / FACE_ACCESSORY / TORSO_OVERLAY /
+    HAND_ITEM / FOOT_ACCESSORY are now available on every humanoid body
+    template by default; legacy creature templates retain their narrower
+    slot tuples to preserve existing evolution lineage behaviour.
+    """
     HAT = "hat"
     FACE_ACCESSORY = "face_accessory"
     TORSO_OVERLAY = "torso_overlay"
     BACK_ACCESSORY = "back_accessory"
     HAND_ITEM = "hand_item"
+    # SESSION-121 (P1-NEW-9C): Foot accessories (boots, greaves, sandals).
+    FOOT_ACCESSORY = "foot_accessory"
 
 
 # ── Body Templates ────────────────────────────────────────────────────────────
@@ -97,6 +108,7 @@ class BodyTemplate:
         SlotType.TORSO_OVERLAY,
         SlotType.BACK_ACCESSORY,
         SlotType.HAND_ITEM,
+        SlotType.FOOT_ACCESSORY,
     )
 
 
@@ -363,6 +375,130 @@ PART_REGISTRY: dict[str, PartDefinition] = {
         display_name="Wide Eyes",
         style_overrides={"eye_style": "wide"},
         compatible_archetypes=("monster_basic", "monster_flying", "monster_heavy"),
+    ),
+
+    # ── SESSION-121 (P1-NEW-9C): Torso overlays ────────────────────────────
+    # Each torso_overlay rides on the chest joint via a 3D socket and is
+    # rendered as an SDF-offset Mesh3D shell (see mathart/animation/parts3d.py).
+    # The style_overrides carry a discriminator (`torso_overlay_style`) plus a
+    # boolean flag (`has_torso_overlay`) so 2D presets can stay agnostic and
+    # the 3D pipeline can pick the correct primitive factory.
+    "torso_none": PartDefinition(
+        part_id="torso_none",
+        slot_type=SlotType.TORSO_OVERLAY,
+        display_name="No Torso Overlay",
+        style_overrides={"has_torso_overlay": False, "torso_overlay_style": "none"},
+    ),
+    "torso_breastplate": PartDefinition(
+        part_id="torso_breastplate",
+        slot_type=SlotType.TORSO_OVERLAY,
+        display_name="Plate Breastplate (SDF inflate)",
+        style_overrides={
+            "has_torso_overlay": True,
+            "torso_overlay_style": "breastplate",
+        },
+        compatible_archetypes=("hero", "villain", "monster_heavy"),
+    ),
+    "torso_robe": PartDefinition(
+        part_id="torso_robe",
+        slot_type=SlotType.TORSO_OVERLAY,
+        display_name="Wizard Robe (SDF onion shell)",
+        style_overrides={
+            "has_torso_overlay": True,
+            "torso_overlay_style": "robe",
+        },
+        compatible_archetypes=("hero", "villain", "npc_merchant"),
+    ),
+    "torso_vest": PartDefinition(
+        part_id="torso_vest",
+        slot_type=SlotType.TORSO_OVERLAY,
+        display_name="Leather Vest",
+        style_overrides={
+            "has_torso_overlay": True,
+            "torso_overlay_style": "vest",
+        },
+        compatible_archetypes=("hero", "npc_worker", "npc_merchant"),
+    ),
+
+    # ── SESSION-121 (P1-NEW-9C): Hand items ────────────────────────────────
+    # Each hand_item rides on the r_hand socket by default (mirrored variants
+    # can be added later).  All meshes are SDF-elongated primitives so the
+    # parameterization remains math-driven (Inigo Quilez opElongate).
+    "hand_none": PartDefinition(
+        part_id="hand_none",
+        slot_type=SlotType.HAND_ITEM,
+        display_name="Empty Hand",
+        style_overrides={"has_hand_item": False, "hand_item_style": "none"},
+    ),
+    "hand_sword": PartDefinition(
+        part_id="hand_sword",
+        slot_type=SlotType.HAND_ITEM,
+        display_name="Long Sword (SDF elongated)",
+        style_overrides={
+            "has_hand_item": True,
+            "hand_item_style": "sword",
+        },
+        compatible_archetypes=("hero", "villain"),
+    ),
+    "hand_staff": PartDefinition(
+        part_id="hand_staff",
+        slot_type=SlotType.HAND_ITEM,
+        display_name="Mage Staff",
+        style_overrides={
+            "has_hand_item": True,
+            "hand_item_style": "staff",
+        },
+        compatible_archetypes=("hero", "villain", "npc_merchant"),
+    ),
+    "hand_shield": PartDefinition(
+        part_id="hand_shield",
+        slot_type=SlotType.HAND_ITEM,
+        display_name="Round Shield",
+        style_overrides={
+            "has_hand_item": True,
+            "hand_item_style": "shield",
+        },
+        compatible_archetypes=("hero", "villain"),
+    ),
+
+    # ── SESSION-121 (P1-NEW-9C): Foot accessories ──────────────────────────
+    # Boots are SDF-rounded box shells that ride on the l_foot / r_foot
+    # sockets simultaneously (the mounter handles bilateral mirroring).
+    "foot_none": PartDefinition(
+        part_id="foot_none",
+        slot_type=SlotType.FOOT_ACCESSORY,
+        display_name="Bare Feet",
+        style_overrides={"has_foot_accessory": False, "foot_accessory_style": "none"},
+    ),
+    "foot_boots": PartDefinition(
+        part_id="foot_boots",
+        slot_type=SlotType.FOOT_ACCESSORY,
+        display_name="Heavy Boots (SDF inflate)",
+        style_overrides={
+            "has_foot_accessory": True,
+            "foot_accessory_style": "boots",
+        },
+        compatible_archetypes=("hero", "villain", "monster_heavy"),
+    ),
+    "foot_sandals": PartDefinition(
+        part_id="foot_sandals",
+        slot_type=SlotType.FOOT_ACCESSORY,
+        display_name="Sandals",
+        style_overrides={
+            "has_foot_accessory": True,
+            "foot_accessory_style": "sandals",
+        },
+        compatible_archetypes=("hero", "npc_worker", "npc_merchant"),
+    ),
+    "foot_greaves": PartDefinition(
+        part_id="foot_greaves",
+        slot_type=SlotType.FOOT_ACCESSORY,
+        display_name="Steel Greaves",
+        style_overrides={
+            "has_foot_accessory": True,
+            "foot_accessory_style": "greaves",
+        },
+        compatible_archetypes=("hero", "villain", "monster_heavy"),
     ),
 }
 
