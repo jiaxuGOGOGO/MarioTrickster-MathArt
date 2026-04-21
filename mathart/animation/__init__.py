@@ -172,6 +172,10 @@ from .fluid_vfx import (
     FluidVFXConfig, FluidGrid2D, FluidDrivenVFXSystem,
     resize_mask_to_grid, default_character_obstacle_mask,
 )
+# SESSION-114 / P1-VFX-1A: Dynamic Mask Projection & Boundary-Aware Solver
+from .fluid_vfx import (
+    MaskProjectionConfig, FluidMaskProjector, DynamicObstacleContext,
+)
 # SESSION-047: Jakobsen-style secondary chains (Gap B1 — lightweight rigid-soft coupling)
 from .jakobsen_chain import (
     BodyCollisionCircle,
@@ -521,6 +525,8 @@ __all__ = [
     "FluidGridConfig", "FluidImpulse", "FluidFrameDiagnostics", "FluidParticle",
     "FluidVFXConfig", "FluidGrid2D", "FluidDrivenVFXSystem",
     "resize_mask_to_grid", "default_character_obstacle_mask",
+    # SESSION-114 / P1-VFX-1A: Dynamic Mask Projection & Boundary-Aware Solver
+    "MaskProjectionConfig", "FluidMaskProjector", "DynamicObstacleContext",
     # SESSION-047: Jakobsen-style secondary chains
     "BodyCollisionCircle",
     "SecondaryChainConfig",

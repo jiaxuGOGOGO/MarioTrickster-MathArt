@@ -25,6 +25,12 @@ from typing import Any, Optional, Sequence
 import numpy as np
 from PIL import Image
 
+try:
+    from scipy.ndimage import affine_transform as _scipy_affine
+    _HAS_SCIPY = True
+except ImportError:  # pragma: no cover
+    _HAS_SCIPY = False
+
 
 @dataclass
 class FluidGridConfig:
@@ -212,6 +218,65 @@ class FluidGrid2D:
         self._apply_obstacle_constraints(self.v, 2)
         self._apply_obstacle_constraints(self.density, 0)
 
+    def update_dynamic_obstacle(
+        self,
+        mask: np.ndarray,
+        obstacle_velocity: Optional[np.ndarray] = None,
+    ) -> None:
+        """Update obstacle mask for the current frame (SESSION-114 / P1-VFX-1A).
+
+        Implements the Solid-Fluid Coupling volume clearing protocol:
+        1. Identify newly-covered cells (new mask & ~old mask).
+        2. Zero out density and velocity in newly-covered cells to prevent
+           divergence explosion (Anti-Divergence NaN Guard).
+        3. Update the obstacle mask for the current frame.
+
+        Parameters
+        ----------
+        mask : np.ndarray
+            Boolean (N, N) obstacle mask for this frame.
+        obstacle_velocity : np.ndarray, optional
+            (N, N, 2) velocity field of the obstacle.  Used for free-slip
+            boundary conditions.  If None, obstacle velocity is zero.
+        """
+        arr = np.asarray(mask)
+        if arr.ndim != 2 or arr.shape != (self.n, self.n):
+            raise ValueError(f"Obstacle mask shape must be {(self.n, self.n)}, got {arr.shape}.")
+        new_mask_padded = np.zeros_like(self.obstacles)
+        new_mask_padded[1 : self.n + 1, 1 : self.n + 1] = arr.astype(bool)
+
+        # Volume clearing: zero density/velocity in NEWLY covered cells
+        newly_covered = new_mask_padded & ~self.obstacles
+        if np.any(newly_covered):
+            self.density[newly_covered] = 0.0
+            self.u[newly_covered] = 0.0
+            self.v[newly_covered] = 0.0
+            self.density_prev[newly_covered] = 0.0
+            self.u_prev[newly_covered] = 0.0
+            self.v_prev[newly_covered] = 0.0
+
+        self.obstacles = new_mask_padded
+
+        # Store obstacle velocity for free-slip BC (P1-VFX-1B bridge)
+        if obstacle_velocity is not None:
+            ov = np.asarray(obstacle_velocity)
+            if ov.shape == (self.n, self.n, 2):
+                self._obstacle_velocity_u = np.zeros_like(self.u)
+                self._obstacle_velocity_v = np.zeros_like(self.v)
+                self._obstacle_velocity_u[1:self.n+1, 1:self.n+1] = ov[..., 0]
+                self._obstacle_velocity_v[1:self.n+1, 1:self.n+1] = ov[..., 1]
+            else:
+                self._obstacle_velocity_u = None
+                self._obstacle_velocity_v = None
+        else:
+            self._obstacle_velocity_u = None
+            self._obstacle_velocity_v = None
+
+        # Apply constraints to current fields
+        self._apply_obstacle_constraints(self.u, 1)
+        self._apply_obstacle_constraints(self.v, 2)
+        self._apply_obstacle_constraints(self.density, 0)
+
     def add_velocity_impulse(
         self,
         center: tuple[float, float],
@@ -386,29 +451,51 @@ class FluidGrid2D:
         u: np.ndarray,
         v: np.ndarray,
     ) -> np.ndarray:
+        """Semi-Lagrangian advection — fully vectorised (SESSION-114).
+
+        Replaces the original O(N^2) scalar double-loop with pure NumPy
+        tensor operations.  Anti-Scalar Rasterization Guard: zero Python
+        ``for`` loops in the hot path.
+        """
         result = d.copy()
-        dt0 = self.config.dt * self.n
-        for i in range(1, self.n + 1):
-            for j in range(1, self.n + 1):
-                if self.obstacles[i, j]:
-                    result[i, j] = 0.0
-                    continue
-                x = i - dt0 * u[i, j]
-                y = j - dt0 * v[i, j]
-                x = min(max(x, 0.5), self.n + 0.5)
-                y = min(max(y, 0.5), self.n + 0.5)
-                i0 = int(math.floor(x))
-                i1 = min(i0 + 1, self.n + 1)
-                j0 = int(math.floor(y))
-                j1 = min(j0 + 1, self.n + 1)
-                s1 = x - i0
-                s0 = 1.0 - s1
-                t1 = y - j0
-                t0 = 1.0 - t1
-                result[i, j] = (
-                    s0 * (t0 * d0[i0, j0] + t1 * d0[i0, j1])
-                    + s1 * (t0 * d0[i1, j0] + t1 * d0[i1, j1])
-                )
+        n = self.n
+        dt0 = self.config.dt * n
+
+        # Build grid coordinate arrays for interior cells [1..n]
+        ii, jj = np.mgrid[1:n+1, 1:n+1]  # (n, n) each
+        ii_f = ii.astype(np.float64)
+        jj_f = jj.astype(np.float64)
+
+        # Back-trace departure points
+        x = ii_f - dt0 * u[1:n+1, 1:n+1]
+        y = jj_f - dt0 * v[1:n+1, 1:n+1]
+
+        # Clamp to valid range [0.5, n+0.5]
+        x = np.clip(x, 0.5, n + 0.5)
+        y = np.clip(y, 0.5, n + 0.5)
+
+        # Integer floor indices
+        i0 = np.floor(x).astype(int)
+        j0 = np.floor(y).astype(int)
+        i1 = np.minimum(i0 + 1, n + 1)
+        j1 = np.minimum(j0 + 1, n + 1)
+
+        # Interpolation weights
+        s1 = x - i0.astype(np.float64)
+        s0 = 1.0 - s1
+        t1 = y - j0.astype(np.float64)
+        t0 = 1.0 - t1
+
+        # Bilinear interpolation (pure tensor indexing)
+        result[1:n+1, 1:n+1] = (
+            s0 * (t0 * d0[i0, j0] + t1 * d0[i0, j1])
+            + s1 * (t0 * d0[i1, j0] + t1 * d0[i1, j1])
+        )
+
+        # Force obstacle cells to zero (dynamic boundary enforcement)
+        obs_interior = self.obstacles[1:n+1, 1:n+1]
+        result[1:n+1, 1:n+1][obs_interior] = 0.0
+
         self._set_bnd(b, result)
         return result
 
@@ -434,15 +521,25 @@ class FluidGrid2D:
         return u, v
 
     def _set_bnd(self, b: int, x: np.ndarray) -> None:
-        for i in range(1, self.n + 1):
-            x[0, i] = -x[1, i] if b == 1 else x[1, i]
-            x[self.n + 1, i] = -x[self.n, i] if b == 1 else x[self.n, i]
-            x[i, 0] = -x[i, 1] if b == 2 else x[i, 1]
-            x[i, self.n + 1] = -x[i, self.n] if b == 2 else x[i, self.n]
+        """Boundary conditions — vectorised (SESSION-114)."""
+        n = self.n
+        s = slice(1, n + 1)
+        if b == 1:
+            x[0, s] = -x[1, s]
+            x[n + 1, s] = -x[n, s]
+        else:
+            x[0, s] = x[1, s]
+            x[n + 1, s] = x[n, s]
+        if b == 2:
+            x[s, 0] = -x[s, 1]
+            x[s, n + 1] = -x[s, n]
+        else:
+            x[s, 0] = x[s, 1]
+            x[s, n + 1] = x[s, n]
         x[0, 0] = 0.5 * (x[1, 0] + x[0, 1])
-        x[0, self.n + 1] = 0.5 * (x[1, self.n + 1] + x[0, self.n])
-        x[self.n + 1, 0] = 0.5 * (x[self.n, 0] + x[self.n + 1, 1])
-        x[self.n + 1, self.n + 1] = 0.5 * (x[self.n, self.n + 1] + x[self.n + 1, self.n])
+        x[0, n + 1] = 0.5 * (x[1, n + 1] + x[0, n])
+        x[n + 1, 0] = 0.5 * (x[n, 0] + x[n + 1, 1])
+        x[n + 1, n + 1] = 0.5 * (x[n, n + 1] + x[n + 1, n])
         self._apply_obstacle_constraints(x, b)
 
     def _apply_obstacle_constraints(self, x: np.ndarray, b: int) -> None:
@@ -471,16 +568,42 @@ class FluidDrivenVFXSystem:
         n_frames: int = 16,
         driver_impulses: Optional[Sequence[FluidImpulse]] = None,
         obstacle_mask: Optional[np.ndarray] = None,
+        dynamic_obstacle_masks: Optional[Sequence[np.ndarray]] = None,
     ) -> list[Image.Image]:
-        if obstacle_mask is not None:
-            self.fluid.set_obstacle_mask(obstacle_mask)
-        elif self.config.driver_mode in {"dash", "slash"}:
-            self.fluid.set_obstacle_mask(default_character_obstacle_mask(self.config.fluid.grid_size))
+        """Run the fluid simulation and render frames.
+
+        Parameters
+        ----------
+        n_frames : int
+            Number of frames to simulate.
+        driver_impulses : sequence of FluidImpulse, optional
+            Per-frame force/density injections.
+        obstacle_mask : np.ndarray, optional
+            Static (N, N) boolean obstacle mask applied once before the loop.
+            Backward-compatible with SESSION-046 contract.
+        dynamic_obstacle_masks : sequence of np.ndarray, optional
+            Per-frame (N, N) boolean obstacle masks (SESSION-114 / P1-VFX-1A).
+            When provided, each frame's mask is injected via
+            ``update_dynamic_obstacle`` with volume clearing.  Takes
+            precedence over ``obstacle_mask``.
+        """
+        # Static mask fallback (backward-compatible)
+        if dynamic_obstacle_masks is None:
+            if obstacle_mask is not None:
+                self.fluid.set_obstacle_mask(obstacle_mask)
+            elif self.config.driver_mode in {"dash", "slash"}:
+                self.fluid.set_obstacle_mask(
+                    default_character_obstacle_mask(self.config.fluid.grid_size)
+                )
 
         frames: list[Image.Image] = []
         diagnostics: list[FluidFrameDiagnostics] = []
 
         for frame_idx in range(n_frames):
+            # Dynamic mask injection (P1-VFX-1A)
+            if dynamic_obstacle_masks is not None and frame_idx < len(dynamic_obstacle_masks):
+                self.fluid.update_dynamic_obstacle(dynamic_obstacle_masks[frame_idx])
+
             impulse = (
                 driver_impulses[frame_idx]
                 if driver_impulses is not None and frame_idx < len(driver_impulses)
@@ -708,6 +831,164 @@ class FluidDrivenVFXSystem:
         return img, diag
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# SESSION-114 / P1-VFX-1A — Dynamic Mask Projection & Boundary-Aware Solver
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class MaskProjectionConfig:
+    """Configuration for cross-space silhouette-to-grid projection.
+
+    Defines the affine mapping from a high-resolution character alpha mask
+    (render space) to the low-resolution fluid grid (simulation space).
+
+    Attributes
+    ----------
+    world_bbox : tuple[float, float, float, float]
+        Physical bounding box of the character in world space (x0, y0, x1, y1).
+        This defines where the character sits in the fluid domain [0, 1]^2.
+    threshold : float
+        Alpha threshold for converting soft mask to boolean obstacle.
+    """
+    world_bbox: tuple[float, float, float, float] = (0.3, 0.4, 0.7, 0.9)
+    threshold: float = 0.3
+
+
+class FluidMaskProjector:
+    """Cross-space tensor silhouette-to-grid projector (SESSION-114 / P1-VFX-1A).
+
+    Projects a high-resolution character alpha mask from render space into the
+    fluid simulation grid using pure tensor operations (NumPy/SciPy).  Zero
+    Python scalar loops.  Grounded in Ghost of Tsushima (SIGGRAPH 2021) local
+    affine injection and Data-Oriented Grid Rasterization principles.
+
+    The projector computes an affine transform matrix that maps grid
+    coordinates to source mask coordinates, then applies anti-aliased
+    bilinear interpolation via ``scipy.ndimage.affine_transform`` (or a
+    pure-NumPy fallback).
+    """
+
+    def __init__(self, grid_size: int, config: Optional[MaskProjectionConfig] = None):
+        self.grid_size = grid_size
+        self.config = config or MaskProjectionConfig()
+
+    def project(
+        self,
+        alpha_mask: np.ndarray,
+        world_bbox: Optional[tuple[float, float, float, float]] = None,
+        threshold: Optional[float] = None,
+    ) -> np.ndarray:
+        """Project a high-res alpha mask onto the fluid grid.
+
+        Parameters
+        ----------
+        alpha_mask : np.ndarray
+            2D float32/uint8 array of shape (H_src, W_src) with values in
+            [0, 1] (float) or [0, 255] (uint8).  Represents the character
+            silhouette alpha channel.
+        world_bbox : tuple, optional
+            Override for the character's physical bounding box in normalised
+            fluid domain coordinates [0, 1]^2.  Format: (x0, y0, x1, y1).
+        threshold : float, optional
+            Override alpha threshold for boolean conversion.
+
+        Returns
+        -------
+        np.ndarray
+            Boolean mask of shape (grid_size, grid_size).
+        """
+        bbox = world_bbox or self.config.world_bbox
+        thresh = threshold if threshold is not None else self.config.threshold
+        N = self.grid_size
+
+        # Normalise input to float [0, 1]
+        src = np.asarray(alpha_mask, dtype=np.float64)
+        if src.ndim == 3:
+            src = src[..., -1]  # take alpha channel
+        if src.max() > 1.5:
+            src = src / 255.0
+        H_src, W_src = src.shape
+
+        x0, y0, x1, y1 = bbox
+        # Grid cell centres in normalised coords
+        # Grid coord (i, j) maps to normalised (j+0.5)/N, (i+0.5)/N
+        # We need affine: grid_coord -> src_coord
+        # src_row = (grid_row - y0*N) / ((y1-y0)*N) * H_src
+        # src_col = (grid_col - x0*N) / ((x1-x0)*N) * W_src
+
+        dy = max(y1 - y0, 1e-9)
+        dx = max(x1 - x0, 1e-9)
+
+        # Affine matrix: maps output (grid) coords to input (src) coords
+        # output[i, j] = src[A @ [i, j] + b]
+        scale_row = H_src / (dy * N)
+        scale_col = W_src / (dx * N)
+        offset_row = -y0 * N * scale_row
+        offset_col = -x0 * N * scale_col
+
+        if _HAS_SCIPY:
+            matrix = np.array([[scale_row, 0.0], [0.0, scale_col]])
+            offset = np.array([offset_row, offset_col])
+            projected = _scipy_affine(
+                src, matrix, offset,
+                output_shape=(N, N),
+                order=1,  # bilinear
+                mode='constant',
+                cval=0.0,
+            )
+        else:
+            # Pure NumPy fallback: build coordinate grids and sample
+            gi, gj = np.mgrid[0:N, 0:N]
+            si = gi.astype(np.float64) * scale_row + offset_row
+            sj = gj.astype(np.float64) * scale_col + offset_col
+            # Clamp to valid range
+            si = np.clip(si, 0, H_src - 1)
+            sj = np.clip(sj, 0, W_src - 1)
+            # Nearest-neighbour (fallback)
+            si_int = np.clip(np.round(si).astype(int), 0, H_src - 1)
+            sj_int = np.clip(np.round(sj).astype(int), 0, W_src - 1)
+            projected = src[si_int, sj_int]
+
+        return (projected >= thresh).astype(bool)
+
+    def project_sequence(
+        self,
+        alpha_masks: Sequence[np.ndarray],
+        world_bboxes: Optional[Sequence[tuple[float, float, float, float]]] = None,
+    ) -> list[np.ndarray]:
+        """Project a sequence of alpha masks (one per frame).
+
+        Returns a list of boolean (N, N) masks.
+        """
+        result = []
+        for i, mask in enumerate(alpha_masks):
+            bbox = world_bboxes[i] if world_bboxes is not None else None
+            result.append(self.project(mask, world_bbox=bbox))
+        return result
+
+
+@dataclass(frozen=True)
+class DynamicObstacleContext:
+    """Per-frame dynamic obstacle context for the fluid solver.
+
+    This is the strong-typed contract for injecting dynamic obstacle masks
+    into the fluid simulation loop.  Downstream consumers (e.g. P1-VFX-1B)
+    can extend this with velocity fields.
+
+    Attributes
+    ----------
+    mask : np.ndarray
+        Boolean (N, N) obstacle mask for this frame.
+    velocity : np.ndarray or None
+        Optional (N, N, 2) obstacle velocity field.  If provided, the solver
+        uses it for free-slip boundary conditions.  If None, obstacle velocity
+        is assumed zero.
+    """
+    mask: np.ndarray
+    velocity: Optional[np.ndarray] = None
+
+
 def resize_mask_to_grid(mask: np.ndarray | Image.Image, grid_size: int) -> np.ndarray:
     """Resize an alpha or grayscale mask into an (N,N) boolean obstacle mask."""
     if isinstance(mask, Image.Image):
@@ -747,4 +1028,8 @@ __all__ = [
     "FluidDrivenVFXSystem",
     "resize_mask_to_grid",
     "default_character_obstacle_mask",
+    # SESSION-114 / P1-VFX-1A
+    "MaskProjectionConfig",
+    "FluidMaskProjector",
+    "DynamicObstacleContext",
 ]

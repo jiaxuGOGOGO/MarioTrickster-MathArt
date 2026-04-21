@@ -649,10 +649,12 @@
       "id": "P1-VFX-1A",
       "priority": "P1",
       "title": "Bind real character silhouette masks into fluid VFX presets",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "medium",
       "description": "Project true character alpha/SDF masks into the fluid grid so combat smoke wraps around the exact current body silhouette instead of the fallback demo obstacle.",
-      "added_in": "SESSION-046"
+      "added_in": "SESSION-046",
+      "closed_in": "SESSION-114",
+      "closure_summary": "Implemented FluidMaskProjector (affine tensor projection via scipy.ndimage.affine_transform), DynamicObstacleContext (strong-typed per-frame mask contract), update_dynamic_obstacle with volume clearing protocol, vectorised _advect/_set_bnd (zero scalar loops), and dynamic_obstacle_masks sequence support in simulate_and_render. 27 white-box tests covering Anti-Scalar-Rasterization, Anti-Coordinate-Mismatch, and Anti-Divergence-NaN guards."
     },
     {
       "id": "P1-VFX-1B",

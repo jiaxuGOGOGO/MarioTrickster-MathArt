@@ -1,93 +1,85 @@
 # Session Handoff
+
 | Key | Value |
 |---|---|
-| Session | `SESSION-113` |
-| Focus | `P1-B2-2` Extend TTC prediction to multi-bounce scenarios and moving platforms |
+| Session | `SESSION-114` |
+| Focus | `P1-VFX-1A` Dynamic Real Character Silhouette Fluid Boundary Projection & Interaction |
 | Status | `COMPLETE` |
 | Working Branch | `main` |
-| Validation | `22 PASS / 0 FAIL`（`pytest tests/test_terrain_sensor.py -k "DynamicTerrainSDF or AdvancedTTCPredictor or PlatformMotionFactory or PublicAPIExports_P1B2_2"`，覆盖三道红线：Anti-Tunnelling CFL Guard / Anti-Ghost-Momentum / Anti-Zeno's-Paradox） |
-| Full Regression | `96 PASS`（核心动力学/地形/运动学/SDF/XPBD/高阶原语交叉测试全绿，证明新系统未破坏任何下游消费者） |
-| Additional Audit | 已完成三道红线审计：**Anti-Tunnelling CFL Guard**（验证 Conservative Advancement 步进包含重力补偿，SDF 距离 D 在接触时 ≤ contact_threshold，绝无穿透）/ **Anti-Ghost-Momentum**（验证反射在相对速度空间计算，平台速度正确加回，升降梯场景动量守恒）/ **Anti-Zeno's-Paradox**（验证 max_bounces + min_bounce_velocity 双重护栏，高恢复系数场景 < 5s 完成，绝不死循环） |
-| Primary Files | `mathart/animation/terrain_sensor.py`, `mathart/animation/__init__.py`, `tests/test_terrain_sensor.py` |
+| Validation | `33 PASS / 0 FAIL` (`pytest tests/test_fluid_vfx.py`), covering three red-line guards: Anti-Scalar-Rasterization / Anti-Coordinate-Mismatch / Anti-Divergence-NaN |
+| Full Regression | `84 PASS` (fluid_vfx + session101_math_blind_spots + fluid_sequence_exporter cross-tests all green, proving new dynamic boundary system did not break any downstream consumer) |
+| Primary Files | `mathart/animation/fluid_vfx.py`, `mathart/animation/__init__.py`, `tests/test_fluid_vfx.py`, `PROJECT_BRAIN.json` |
 
 ## Executive Summary
 
-本轮的工程目标是完成 **P1-B2-2（TTC 动态平台感知与多段弹跳时空预测闭环）** 的落地。这是继 P1-B2-1（高阶地形 SDF 原语）之后的自然延伸，将 TerrainSDF 从静态空间域升维到时空域（4D SDF），并实现了工业级的多段弹跳轨迹预测。
+This session closes **P1-VFX-1A** — the critical gap between the SESSION-046 Stable Fluids VFX system (which only supported static fallback obstacle masks) and production-grade dynamic character silhouette fluid interaction. The implementation is grounded in four academic/industrial references: Jos Stam's Stable Fluids (SIGGRAPH 1999) dynamic internal boundaries, Solid-Fluid Coupling volume clearing, Ghost of Tsushima (SIGGRAPH 2021) local affine mask injection, and Data-Oriented Grid Rasterization tensor operations.
 
-### 核心交付物
+Three major subsystems were delivered:
 
-1. **DynamicTerrainSDF（4D SDF 动态地形包装器）** — 通过 Decorator 模式包装任意静态 `TerrainSDF`，结合 `PlatformMotion` 运动描述符，在查询时对世界坐标应用逆刚体变换 $T^{-1}(t)$ 后查询静态 SDF 本地场。支持平移 + 旋转的完整刚体运动，并精确计算接触点的表面速度张量（含切向角速度分量）。
+1. **FluidMaskProjector** — A cross-space tensor silhouette-to-grid projector that maps high-resolution character alpha masks (e.g. 512x512 render output) into the low-resolution fluid grid (e.g. 32x32) via `scipy.ndimage.affine_transform` with bilinear interpolation. Zero Python scalar loops. Supports per-frame projection sequences with per-frame bounding box overrides.
 
-2. **AdvancedTTCPredictor（时空接触预测器）** — 基于 Mirtich (1996/2000) Conservative Advancement 算法的时空接触预测器。核心 CFL 守卫公式包含重力补偿：求解 $0.5|g|\Delta t^2 + |V_{rel}|\Delta t - D = 0$ 的正根作为安全步长上界，并附加 $0.8D/|V_{rel}|$ 的额外安全帽，确保在任意速度场下零穿透。
+2. **Dynamic Boundary-Aware Solver Upgrade** — The `FluidGrid2D` solver now supports per-frame dynamic obstacle injection via `update_dynamic_obstacle()`, implementing the Solid-Fluid Coupling volume clearing protocol: newly-covered cells have their density, velocity, and source fields zeroed before the pressure solve, preventing divergence explosion. The `_advect` and `_set_bnd` methods were fully vectorised (replacing O(N^2) scalar double-loops with pure NumPy tensor operations).
 
-3. **MultiBounceTrajectory（多段弹跳轨迹）** — `frozen dataclass` 强类型契约，包含有序的 `BounceEvent` 元组，每个事件记录：碰撞时间、绝对坐标、表面法线、碰撞前后速度、平台表面速度、法向相对冲击速度、是否进入静息状态。终止原因标记为 `max_bounces | resting | escaped | max_time`。
-
-4. **PlatformMotion + create_sine_platform_motion** — 运动描述符数据类与简谐振荡预设工厂。支持任意 `t → position/velocity/angle/angular_velocity` 可调用注入。
+3. **Dynamic Mask Sequence in FluidDrivenVFXSystem** — `simulate_and_render()` now accepts an optional `dynamic_obstacle_masks` sequence parameter. When provided, each frame's mask is injected via `update_dynamic_obstacle` with volume clearing. The old static `obstacle_mask` parameter remains fully backward-compatible.
 
 ## Research Alignment Audit
 
-| Reference | Requested Principle | SESSION-113 Concrete Closure |
+| Reference | Requested Principle | SESSION-114 Concrete Closure |
 |---|---|---|
-| Mirtich (1996/2000) Conservative Advancement | 安全时间步长 Δt = D / V_rel_max，保证零穿透 | 实现了 CFL guard with gravity compensation：求解二次方程 0.5\|g\|Δt² + \|V_rel\|Δt - D = 0，并附加 0.8D/\|V_rel\| 安全帽。白盒测试 `test_zero_penetration_at_contact` 验证接触时 SDF ≤ threshold。 |
-| Time-Dependent SDF (4D SDF) | SDF(x, t) 通过逆刚体变换实现，返回平台表面速度 | `DynamicTerrainSDF._inverse_transform` 实现 T⁻¹(t)·x，`surface_velocity` 返回含平移 + 旋转切向分量的 (N,2) 速度张量。白盒测试验证 t=0 匹配静态、t>0 正确偏移。 |
-| Rigid Body Restitution & Zeno's Paradox | 冲量反射 V_new = V_rel − (1+e)(V_rel·N)N，Zeno 护栏 | 反射严格在相对速度空间计算，平台速度加回。`test_reflection_law_normal_component` 验证 \|vn_after\| ≈ e·\|vn_before\|。Anti-Zeno 双护栏：max_bounces=5 + min_bounce_velocity 阈值。 |
-| Data-Oriented Vectorisation | 多射线并发必须张量化 | `predict_batch` 支持 (N,2) 批量输入。`test_batch_performance_numpy` 验证 50 条射线 < 10s 完成。内部 SDF 查询全部通过 `eval_sdf`/`eval_gradient` 的 (N,2) 张量接口。 |
+| Jos Stam Stable Fluids (1999) — Dynamic Internal Boundaries | Neumann BC on pressure (nabla p dot n = 0), force density=0 inside obstacles, never advect into obstacle interior | `_apply_obstacle_constraints` zeros density/velocity in obstacle cells after every sub-step; vectorised `_advect` forces obstacle cells to zero after bilinear interpolation |
+| Solid-Fluid Coupling — Volume Clearing | When moving solid covers cells previously occupied by fluid, zero density/velocity in newly-covered cells BEFORE pressure solve | `update_dynamic_obstacle` identifies newly-covered cells via `new_mask & ~old_mask` and clears all six field arrays (density, u, v, density_prev, u_prev, v_prev) |
+| Ghost of Tsushima (SIGGRAPH 2021) — Local Affine Injection | High-precision affine transform to inject character's local mask into fluid boundary field; never do full-screen undifferentiated solve | `FluidMaskProjector.project()` computes affine matrix mapping grid coords to source coords, applies `scipy.ndimage.affine_transform` with bilinear interpolation |
+| Data-Oriented Grid Rasterization — Tensor Operations | Pure NumPy/SciPy tensor ops for mask downsampling; absolutely no scalar for-loops | All projection and advection code uses NumPy mgrid, clip, floor, boolean masking; white-box tests verify zero `for ... in` patterns in source code |
 
 ## What Changed in Code
 
-| File | Change | Effect |
+| File | Change | Lines |
 |---|---|---|
-| `mathart/animation/terrain_sensor.py` | **ADDED** ~470 lines | 新增 `PlatformMotion`, `create_sine_platform_motion`, `DynamicTerrainSDF`, `BounceEvent`, `MultiBounceTrajectory`, `AdvancedTTCPredictor` 六个公共符号。 |
-| `mathart/animation/__init__.py` | **UPDATED** | 在 import 和 `__all__` 中暴露六个新符号。 |
-| `tests/test_terrain_sensor.py` | **ADDED** ~300 lines | 追加 22 个白盒测试，覆盖 8 个测试类。 |
+| `mathart/animation/fluid_vfx.py` | **ADDED** `MaskProjectionConfig`, `FluidMaskProjector`, `DynamicObstacleContext` | +170 |
+| `mathart/animation/fluid_vfx.py` | **ADDED** `FluidGrid2D.update_dynamic_obstacle()` with volume clearing | +60 |
+| `mathart/animation/fluid_vfx.py` | **UPGRADED** `_advect` — fully vectorised (replaced scalar double-loop) | +30 / -20 |
+| `mathart/animation/fluid_vfx.py` | **UPGRADED** `_set_bnd` — fully vectorised (replaced scalar for-loop) | +12 / -8 |
+| `mathart/animation/fluid_vfx.py` | **UPGRADED** `simulate_and_render` — added `dynamic_obstacle_masks` parameter | +25 / -8 |
+| `mathart/animation/__init__.py` | **UPDATED** exports for `MaskProjectionConfig`, `FluidMaskProjector`, `DynamicObstacleContext` | +5 |
+| `tests/test_fluid_vfx.py` | **ADDED** 27 white-box tests across 8 test classes | +400 |
+| `PROJECT_BRAIN.json` | **UPDATED** P1-VFX-1A status to CLOSED | +3 |
 
 ## White-Box Validation Closure
 
 | Assertion | Evidence |
 |---|---|
-| 22/22 新增白盒测试全绿 | `pytest tests/test_terrain_sensor.py -k "P1B2_2 or DynamicTerrainSDF or AdvancedTTCPredictor or PlatformMotionFactory"` → `22 passed` |
-| Anti-Tunnelling CFL Guard | `test_zero_penetration_at_contact` 验证接触时 SDF 距离 ≤ 2×contact_threshold，Conservative Advancement 步进包含重力补偿二次方程求解。 |
-| Anti-Ghost-Momentum Guard | `test_elevator_momentum_conservation` 验证角色从上升平台弹起后速度包含平台动量贡献，`test_reflection_law_normal_component` 验证恢复系数精度 < 15% 相对误差。 |
-| Anti-Zeno's-Paradox Guard | `test_max_bounces_terminates` 验证高恢复系数 (e=0.99) 场景 < 5s 完成且 bounces ≤ max_bounces；`test_resting_contact_terminates` 验证低速阈值触发 resting 终止。 |
-| Multi-Bounce ≥ 3 | `test_at_least_3_bounces_in_pit` 在箱形坑中验证 ≥ 3 次弹跳，`test_kinetic_energy_decreasing` 验证每次弹跳动能递减。 |
-| Backward Compatibility | `test_original_ttc_predictor_unchanged` 验证原始 `TTCPredictor` 接口完全不变。 |
-| Full Regression Zero-Break | 96 个测试全绿（74 原有 + 22 新增），证明新系统未破坏任何下游消费者。 |
+| 27/27 new white-box tests all green | `pytest tests/test_fluid_vfx.py` -> `33 passed` (6 original + 27 new) |
+| Anti-Scalar-Rasterization Guard | `test_no_for_loop_in_project_source`, `test_advect_no_for_loop_in_source`, `test_set_bnd_no_for_loop_in_source` — regex inspection of source code confirms zero `for ... in` patterns; `test_projection_performance_large_mask` — 10x 1024->128 projections in < 1s |
+| Anti-Coordinate-Mismatch Guard | `test_centred_character_maps_to_grid_centre`, `test_corner_character_maps_to_grid_corner`, `test_asymmetric_bbox_preserves_aspect` — affine transform correctness verified with geometric assertions |
+| Anti-Divergence-NaN Guard | `test_no_nan_after_rapid_mask_movement` (20 frames of rapid mask sweeping), `test_no_nan_with_large_obstacle_coverage` (60% grid coverage), `test_obstacle_density_strictly_zero_after_step` — all fields remain finite, obstacle density exactly zero |
+| Volume Clearing Protocol | `test_newly_covered_cells_are_cleared`, `test_moving_mask_clears_new_cells_preserves_old`, `test_velocity_cleared_in_newly_covered_cells` — density and velocity zeroed in newly-covered cells |
+| Backward Compatibility | `test_backward_compat_static_mask_still_works` — old static `obstacle_mask` parameter still functions; all 6 original tests unchanged and passing |
 
 ## Architecture Discipline Check
 
 | Red Line | Result |
 |---|---|
-| 🔴 严禁越权修改主干 | ✅ 已合规。`AdvancedTTCPredictor` 是独立的纯数学无状态工具类，通过组合（非继承）使用 `DynamicTerrainSDF`。原有 `TTCPredictor`、`TerrainSDF`、`TerrainRaySensor` 零修改。 |
-| 🔴 独立封装挂载 | ✅ 已合规。`DynamicTerrainSDF` 通过 Decorator 模式包装静态 `TerrainSDF`，`PlatformMotion` 通过 frozen dataclass 注入运动描述。所有新类均通过工厂或直接构造挂载，不触碰 AssetPipeline / Orchestrator 热路径。 |
-| 🔴 强类型契约 | ✅ 已合规。`MultiBounceTrajectory` 和 `BounceEvent` 均为 `frozen dataclass`，包含碰撞时间、绝对坐标、法线、速度、平台速度、相对冲击速度等完整元数据。`test_frozen_dataclass_contract` 验证不可变性。 |
-| 🔴 DOD 张量化契约 | ✅ 已合规。`DynamicTerrainSDF.eval_sdf`/`eval_gradient`/`surface_velocity` 全部接受 (N,2) 张量输入。`predict_batch` 支持批量射线。 |
-| 🔴 Anti-Tunnelling CFL Guard | ✅ 已合规。步进公式求解 0.5\|g\|Δt² + \|V_rel\|Δt - D = 0 + 0.8D/\|V_rel\| 安全帽。 |
-| 🔴 Anti-Ghost-Momentum | ✅ 已合规。反射在相对速度空间 V_rel = V_obj - V_surface(t_impact) 中计算，反射后加回 V_surface。 |
-| 🔴 Anti-Zeno's-Paradox | ✅ 已合规。max_bounces (默认 5) + min_bounce_velocity (默认 0.05) 双重护栏。 |
+| No modification to core orchestrator | Compliant. No changes to `AssetPipeline`, `Orchestrator`, or any `if/else` routing. New functionality is encapsulated in `FluidMaskProjector` and `DynamicObstacleContext`. |
+| Independent encapsulation | Compliant. `FluidMaskProjector` is a standalone computation tool. `DynamicObstacleContext` is a frozen dataclass contract. Neither modifies the `FluidDrivenVFXSystem` interface beyond adding an optional parameter. |
+| Strong-typed contract | Compliant. `DynamicObstacleContext` is a frozen dataclass with typed `mask` (np.ndarray) and optional `velocity` (np.ndarray) fields. `simulate_and_render` accepts `Sequence[np.ndarray]` for dynamic masks. |
+| SESSION-046 FluidDrivenVFXSystem contract preserved | Compliant. All original public methods unchanged. `simulate_and_render` signature is backward-compatible (new parameter is optional with default `None`). |
 
-## Handoff Notes — P1-VFX-1B 元数据桥接准备
+## P1-VFX-1B Bridge Analysis — Required Velocity Field Interfaces
 
-打通 P1-B2-2 的高阶时空物理闭环后，若要无缝接入 **P1-VFX-1B**（依据多次碰撞的精确点位、时间与相对冲量，自动化驱动流体特效与连环扬尘 VFX），当前返回的 `MultiBounceTrajectory` 数据还需要做以下元数据桥接准备：
+For seamless integration with **P1-VFX-1B** (Drive fluid VFX directly from UMR root velocity / weapon trajectories), the dynamic boundary system built in this session needs to expose the following high-frequency input interfaces:
 
-### 已就绪的数据（可直接消费）
+1. **`DynamicObstacleContext.velocity`** — Already scaffolded as an optional `(N, N, 2)` velocity field. P1-VFX-1B should populate this with the character's per-cell surface velocity derived from UMR root transform deltas. The solver's `update_dynamic_obstacle` already stores this in `_obstacle_velocity_u` / `_obstacle_velocity_v` for future free-slip BC enforcement.
 
-| 字段 | 用途 |
-|---|---|
-| `BounceEvent.time` | VFX 粒子发射的精确时间戳 |
-| `BounceEvent.position` | 粒子发射器的世界坐标锚点 |
-| `BounceEvent.normal` | 扬尘/碎片的主扩散方向（法线反方向） |
-| `BounceEvent.relative_speed` | 冲量强度 → 映射为粒子数量/初速/扩散半径 |
-| `BounceEvent.surface_velocity` | 平台运动方向 → 粒子的附加漂移速度 |
-| `MultiBounceTrajectory.kinetic_energy_ratio` | 全局能量衰减 → 控制后续弹跳的 VFX 强度递减曲线 |
+2. **Obstacle-Boundary Velocity Injection in `_project`** — The current `_project` method uses zero velocity for obstacle neighbors in divergence computation. P1-VFX-1B should upgrade this to use the stored `_obstacle_velocity_u/v` when computing divergence at solid-fluid boundaries, implementing the full free-slip BC: `u_fluid dot n = u_obstacle dot n`.
 
-### 需要补充的桥接元数据
+3. **Impulse Source from Root Velocity** — The `FluidImpulse` contract already supports `velocity_x/y` and `center_x/y`. P1-VFX-1B should construct impulses from UMR root velocity (dash -> horizontal impulse) and weapon slash tangent vectors (slash -> arc impulse), injecting them as `driver_impulses` alongside the dynamic mask sequence.
 
-1. **材质标签 (Material Tag)**：当前 `BounceEvent` 不携带碰撞表面的材质信息（石头/泥土/金属/水面）。P1-VFX-1B 需要根据材质选择不同的粒子预设（扬尘 vs 水花 vs 火花）。建议在 `TerrainSDF` 或 `DynamicTerrainSDF` 上附加可选的 `material_tag: str` 属性，并在 `BounceEvent` 中透传。
+4. **Temporal Mask Velocity Estimation** — If per-frame obstacle velocity is not directly available from the physics engine, it can be estimated from consecutive mask frames: `v_obstacle = (centroid[t] - centroid[t-1]) / dt`. This should be computed in the `FluidMaskProjector` or a dedicated velocity estimator.
 
-2. **接触面积估计 (Contact Patch Size)**：当前只有点接触。对于扬尘 VFX，需要估计接触面积以决定粒子扩散范围。可通过在碰撞点附近采样 SDF 曲率（Hessian 矩阵的特征值）来估算局部曲率半径。
+## Handoff Notes
 
-3. **弹跳间弧线轨迹 (Inter-Bounce Arc)**：当前只记录了离散的碰撞事件。P1-VFX-1B 的拖尾特效（trail）需要弹跳间的连续抛物线轨迹。建议在 `MultiBounceTrajectory` 中增加 `arcs: list[ParabolicArc]`，每段弧记录起点、终点、初速、重力、时间跨度。
-
-4. **角动量 / 旋转状态 (Spin State)**：如果角色在弹跳中有旋转（如翻滚），VFX 需要旋转轴和角速度来驱动运动模糊和旋转粒子。当前系统是质点模型，未来可扩展为刚体模型。
-
-5. **VFX 事件总线接口 (VFX Event Bus)**：建议定义一个 `VFXImpactEvent` 数据类，作为 `BounceEvent` 到 VFX 系统的标准化桥接契约，包含上述所有字段加上 LOD 级别和优先级标记。
+- P1-VFX-1A is substantively closed. The fluid VFX system now supports dynamic character silhouette masks with full volume clearing, vectorised advection, and anti-aliased affine projection.
+- The `FluidMaskProjector` is ready for integration with any upstream renderer that produces alpha masks or SDF projections.
+- The `DynamicObstacleContext` contract is designed to be extended by P1-VFX-1B with velocity fields for momentum-driven fluid interaction.
+- The vectorised `_advect` and `_set_bnd` provide a significant performance improvement over the original scalar loops, enabling larger grid sizes (64x64, 128x128) for production use.
+- Downstream `FluidSequenceExporter` still uses static mask semantics; P1-VFX-1B should extend it to accept dynamic mask sequences when ready.
