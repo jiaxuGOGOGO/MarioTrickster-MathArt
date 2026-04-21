@@ -1,7 +1,7 @@
 {
-  "version": "v0.95.4",
-  "last_session_id": "SESSION-123",
-  "last_updated": "2026-04-21T10:30:00Z",
+  "version": "v0.96.0",
+  "last_session_id": "SESSION-124",
+  "last_updated": "2026-04-21T16:30:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -32,9 +32,9 @@
     "closed_archived": 53
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-123 PDG RNG determinism follow-through: 69/69 targeted tests PASS (tests/test_level_pdg.py 10 + tests/test_level.py 23 + tests/test_constraint_wfc.py 36). SeedSequence-derived per-work-item streams, ctx['_pdg']['rng'] injection, and WFC/ConstraintAwareWFC NumPy Generator compatibility all validated locally with byte-identical 1-thread vs 16-thread outputs.",
-  "total_iterations": 689,
-  "total_code_lines": 136607,
+  "validation_pass_rate": "SESSION-124 Unity 2D native animation format zero-dependency direct export: 43/43 targeted tests PASS (tests/test_unity_2d_anim.py). TensorSpaceConverter coordinate transform + Euler unwrap, UnityYAMLEmitter high-throughput string assembly, deterministic GUID generation, end-to-end Clip2D→.anim/.controller/.meta export, backend registry integration, and performance throughput all validated.",
+  "total_iterations": 732,
+  "total_code_lines": 138200,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
@@ -3432,6 +3432,35 @@
       "validation": "69/69 targeted PASS across tests/test_level_pdg.py, tests/test_level.py, and tests/test_constraint_wfc.py."
     },
     {
+      "session_id": "SESSION-124",
+      "summary": "Closed P2-UNITY-2DANIM-1 by implementing a complete Unity 2D native animation format zero-dependency direct export pipeline. TensorSpaceConverter performs vectorized coordinate transformation (right-hand→left-hand negation, np.unwrap Euler continuity, Catmull-Rom tangent derivation). UnityYAMLEmitter produces .anim files via pure io.StringIO f-string assembly (zero PyYAML dependency). emit_meta_file generates deterministic md5-based GUIDs. emit_animator_controller produces .controller state machines. Unity2DAnimBackend self-registers via @register_backend with BackendType.UNITY_2D_ANIM and ArtifactFamily.UNITY_NATIVE_ANIM. Full alias resolution (unity_native_anim, unity_2d_animation, unity_anim_export, anim_exporter). 43/43 white-box regression tests covering tensor conversion, Euler unwrap, tangent computation, YAML structure compliance, GUID determinism, end-to-end export, registry integration, and performance throughput.",
+      "files_changed": [
+        "NEW mathart/animation/unity_2d_anim.py — TensorSpaceConverter, UnityYAMLEmitter, emit_meta_file, emit_animator_controller, generate_deterministic_guid, Unity2DAnimExporter",
+        "NEW mathart/core/unity_2d_anim_backend.py — Unity2DAnimBackend registry plugin with validate_config and execute",
+        "NEW tests/test_unity_2d_anim.py — 43 white-box tests across 6 categories",
+        "NEW research/session124_unity_2d_anim_research.md — external research notes covering Unity YAML serialization, .anim/.controller format, coordinate systems, Euler unwrap",
+        "UPD mathart/core/backend_types.py — add UNITY_2D_ANIM enum + 4 aliases",
+        "UPD mathart/core/artifact_schema.py — add UNITY_NATIVE_ANIM family + required metadata keys",
+        "UPD mathart/core/backend_registry.py — add unity_2d_anim_backend to get_registry() auto-load",
+        "UPD tests/conftest.py — add unity_2d_anim_backend to _BUILTIN_BACKEND_MODULES",
+        "UPD PROJECT_BRAIN.json — SESSION-124 closure metadata",
+        "UPD SESSION_HANDOFF.md — SESSION-124 closure summary and next-step guidance"
+      ],
+      "files_touched": [
+        "mathart/animation/unity_2d_anim.py",
+        "mathart/core/unity_2d_anim_backend.py",
+        "tests/test_unity_2d_anim.py",
+        "research/session124_unity_2d_anim_research.md",
+        "mathart/core/backend_types.py",
+        "mathart/core/artifact_schema.py",
+        "mathart/core/backend_registry.py",
+        "tests/conftest.py",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
+      ],
+      "validation": "43/43 targeted PASS (tests/test_unity_2d_anim.py). TensorSpaceConverter 6 tests + TangentComputation 4 tests + UnityYAMLEmitter 9 tests + GUIDAndMeta 8 tests + EndToEndExport 7 tests + BackendRegistryIntegration 7 tests + Performance 2 tests."
+    },
+    {
       "session_id": "SESSION-122",
       "summary": "Closed P1-2 by introducing tensorized sparse-keyframe parameter tracks, a streamed TimeAwareMorphologyEvaluator wrapper, and runtime parameter_context overrides inside smooth_morphology so per-frame SDF shape evolution can be decoded without mutating the static genotype trunk or caching full 4D distance volumes. Added OpenUSD TimeSamples-compatible export maps and a 6-test dynamic SDF regression suite, while preserving all 46 legacy smooth morphology tests for a total touched-lane validation result of 52/52 PASS.",
       "files_changed": [
@@ -3858,7 +3887,14 @@
       "resolution": "PhysicalRibbonExtractor converts Jakobsen/XPBD secondary chain snapshots into real 3D Ribbon Mesh geometry via 6-stage pipeline (Catmull-Rom, TBN frame, width extrusion, triangle strip, GGXrd normal injection, UV generation). PhysicalRibbonBackend self-registers via @register_backend, produces NPZ mesh + JSON report. compose_character_with_attachments() implements Pixar OpenUSD Composition Arcs pattern. 45/45 white-box tests. Zero regression on existing 1729+ tests.",
       "validation_test_file": "tests/test_physical_ribbon.py"
     },
-    "RESOLVED-S121: Equipment was style-flag-driven (has_hat) which broke evolutionary lineage when new categories arrived -> migrated to typed PART_REGISTRY slot entries with backward-compatible (de)serialisation verified by tests/test_character_parts.py."
+    "RESOLVED-S121: Equipment was style-flag-driven (has_hat) which broke evolutionary lineage when new categories arrived -> migrated to typed PART_REGISTRY slot entries with backward-compatible (de)serialisation verified by tests/test_character_parts.py.",
+    {
+      "issue_id": "P2-UNITY-2DANIM-1",
+      "session_id": "SESSION-124",
+      "resolved_at": "2026-04-21T16:30:00+08:00",
+      "resolution": "Complete Unity 2D native animation format zero-dependency direct export pipeline: TensorSpaceConverter (vectorized coordinate transform + np.unwrap Euler continuity + Catmull-Rom tangent derivation), UnityYAMLEmitter (pure io.StringIO f-string assembly, zero PyYAML), deterministic md5 GUID generation, AnimatorController state machine emission, Unity2DAnimBackend registry plugin with ArtifactFamily.UNITY_NATIVE_ANIM. 43/43 white-box tests.",
+      "validation_test_file": "tests/test_unity_2d_anim.py"
+    }
   ],
   "backlog": [],
   "notes": {
@@ -3872,6 +3908,16 @@
     "session104_gpu_prep": "For P3-GPU-BENCH-1 on the local RTX 4070, the PDG substrate is now ready for scenario-level fan-out. Remaining micro-adjustments: promote benchmark scenarios into explicit WorkItem payloads, include device/driver/CUDA/Taichi/precision/snode fingerprints in cache lineage, keep large numeric traces file-backed instead of JSON-inline payloads, and define a collect-node reduction schema for warmup-trimmed median, P95, worst frame, parity drift, and report paths.",
     "session107_validation": "Targeted local validation completed with python3.11 -m pytest -q tests/test_p1_ai_1_controlnet_bridge.py -> 5 PASS / 0 SKIP / 0 FAIL. Additional smoke validation confirmed semantic payload assembly for both sparsectrl_animatediff and normal_depth_dual_controlnet presets.",
     "session107_openusd_prep": "Before P1-ARCH-5, promote current ArtifactManifest lineage into canonical prim-style identities: stable prim paths, transform/material/guide schema boundaries, sequence relationship arcs, and adapter-only usd/usda serializers. Keep render engines pure in-memory producers while exporters own file-format realization.",
+    "session124_unity_2d_anim_status": {
+      "decision": "Unity 2D native animation export lives in mathart/animation/unity_2d_anim.py (pure algorithm) + mathart/core/unity_2d_anim_backend.py (registry plugin). Follows exact same Ports-and-Adapters discipline as LevelTopologyBackend.",
+      "math_contract": "Anti-Euler-Flip is mathematical: np.unwrap(radians) along time axis guarantees C0 continuity. Tangent derivation uses Catmull-Rom central differences with boundary clamping.",
+      "perf_contract": "io.StringIO f-string assembly avoids PyYAML overhead. 20-bone x 120-frame export completes in < 5 seconds.",
+      "red_lines": [
+        "Anti-PyYAML-Overhead: import yaml is NEVER used in unity_2d_anim.py",
+        "Anti-Euler-Flip: np.unwrap is mandatory before tangent baking",
+        "Anti-GUID-Collision: hashlib.md5(name.encode()).hexdigest() only"
+      ]
+    },
     "session121_p1_new_9c_status": {
       "decision": "Equipment 3D meshes live in mathart/animation/parts3d.py (sibling of parts.py), are typed via PartShape3D, mounted via TensorSocketMounter aligned with UE5 USkeletalMeshSocket, and composed via the existing compose_character_with_attachments USD-Reference arc.",
       "math_contract": "Anti Z-fighting is mathematical: every shell-style part has inflate_radius > 0 and the regression test verifies vertex norms exceed the underlying base-box diagonal length plus the inflate radius.",

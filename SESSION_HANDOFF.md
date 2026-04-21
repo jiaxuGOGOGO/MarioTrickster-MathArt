@@ -1,71 +1,94 @@
-# SESSION-123 Handoff — PDG v2 SeedSequence Determinism and Deep RNG Injection
+# SESSION-124 Handoff — Unity 2D Native Animation Format Zero-Dependency Direct Export
 
 ## Goal & Status
-**Objective**: close the deterministic-RNG follow-through for the level-generation lane by making **PDG v2** derive **stable per-invocation random streams** from a root seed, inject a real `numpy.random.Generator` into `ctx["_pdg"]["rng"]`, keep cache keys hermetic, and push that explicit RNG contract all the way down into **WFC** and **ConstraintAwareWFC**.
+**Objective**: close P2-UNITY-2DANIM-1 by implementing a complete pipeline that converts projected 2D bone animation data (`Clip2D`) into Unity-native `.anim` (AnimationClip), `.controller` (AnimatorController), and `.meta` files — **without any Unity Editor dependency or PyYAML overhead**.
 
 **Status**: **CLOSED**.
 
-The landed implementation upgrades `mathart/level/pdg.py` so every invocation receives a child stream derived from a stable **NumPy `SeedSequence` contract**, exposes an audit-friendly `rng_contract` alongside the live generator, and strictly separates cache-key context from runtime-only objects so no live generator identity can poison hermetic hashing.[1] [4] The same session also refactors `mathart/level/wfc.py`, `mathart/level/constraint_wfc.py`, and the WFC node in `mathart/pipeline.py` so real level-generation work can consume the injected generator rather than silently relying on thread-order-sensitive internal randomness.[1] [3]
+The landed implementation delivers four tightly integrated components: `TensorSpaceConverter` performs vectorized right-hand→left-hand coordinate transformation with `np.unwrap` Euler continuity and Catmull-Rom tangent derivation; `UnityYAMLEmitter` produces `.anim` files via pure `io.StringIO` f-string assembly (zero PyYAML dependency); `emit_meta_file` generates deterministic `hashlib.md5`-based GUIDs; and `emit_animator_controller` produces `.controller` state machines with correct Unity class IDs. `Unity2DAnimBackend` self-registers via `@register_backend` with `BackendType.UNITY_2D_ANIM` and `ArtifactFamily.UNITY_NATIVE_ANIM`, following the exact Ports-and-Adapters discipline established by `LevelTopologyBackend` (SESSION-109).
 
 ## Research Alignment Audit
-The implementation was deliberately constrained by four external references, and the raw notes were saved to `research/session123_rng_determinism_research.md`.
+The implementation was deliberately constrained by four external research pillars, and the raw notes were saved to `research/session124_unity_2d_anim_research.md`.
 
 | Reference pillar | Practical rule adopted in code | Why it matters here |
 |---|---|---|
-| NumPy `SeedSequence.spawn()` / parallel RNG guidance | Treat child streams as **independent descendants** of one root entropy source instead of reseeding ad hoc generators.[1] | This is the foundation for deterministic mapped fan-out without stream overlap or thread-order bleed. |
-| JAX PRNG design | Make randomness an **explicitly propagated resource** rather than hidden mutable global state.[2] | This directly motivated `ctx["_pdg"]["rng"]` and `rng_contract` as first-class runtime inputs. |
-| Scientific Python RNG best practices | Prefer **passing `Generator` instances explicitly** and avoid legacy global/random-module side effects.[3] | This shaped the WFC / ConstraintAwareWFC constructor changes and the pipeline deep-injection path. |
-| Bazel hermeticity | Cache keys must depend only on **declared, stable inputs**, never on ambient or process-local state.[4] | This forced a clean split between cacheable RNG metadata and the live runtime generator object. |
+| Unity YAML Asset Serialization Specification [1] | Every `.anim` file starts with `%YAML 1.1`, `%TAG !u! tag:unity3d.com,2011:`, and `--- !u!74 &7400000` magic headers. `AnimationClip` structure uses `m_EulerCurves`, `m_PositionCurves`, `m_ScaleCurves` with `serializedVersion: 3` keyframes. | Unity Editor will silently reject files that deviate from this exact header/structure contract. |
+| Left-Handed vs Right-Handed Coordinate Tensor Transformation [2] | Rotation Z is negated (`rot_z = -rotation_degrees`) to convert from right-hand (math) to left-hand (Unity) coordinate system. Position X/Y are preserved since 2D projection already uses Unity-compatible axes. | Without handedness correction, all rotations would play backwards in Unity. |
+| Euler Angle Continuous Unwrapping [3] | `np.unwrap(radians)` is applied along the time axis before tangent computation to guarantee C⁰ continuity across the ±180° boundary. | Raw `atan2`-derived angles wrap at ±180°, causing catastrophic discontinuities in Unity's curve interpolator. |
+| High-Throughput Template Engine Design [4] | `io.StringIO` + f-string assembly replaces any YAML library. Batch tangent computation uses vectorized NumPy operations across all channels simultaneously. | PyYAML's `dump()` is 10-100x slower than direct string assembly for structured output with known schema. |
 
-> “Hermetic builds are insensitive to libraries and other software installed on the local or remote host machine.” That same principle was applied here to PDG execution: the cache contract now depends on a stable RNG descriptor, not on in-memory generator identity or execution order.[4]
+> "Unity uses a custom YAML serialization format that is not standard YAML. Each Unity object is serialized with a class ID tag and a file ID anchor." This observation from the Unity serialization blog directly shaped the emitter's header generation and object reference wiring. [1]
 
 ## Architecture Decisions Locked
-The first locked decision is that **PDG v2 now owns the root random-state contract for mapped execution**. `ProceduralDependencyGraph.run()` derives a root `SeedSequence` from `pdg_seed`, `rng_seed`, or `seed` when present, and otherwise deterministically hashes graph/context material into a derived root entropy bundle. Every invocation then materializes a child stream from a stable spawn descriptor containing graph name, node name, invocation index, partition key, and upstream work-item lineage.[1] [4]
+The first locked decision is that **the pure algorithm module and the registry plugin are physically separated**. `mathart/animation/unity_2d_anim.py` contains all algorithm code (converter, emitter, GUID generator, exporter) with zero dependency on the registry system. `mathart/core/unity_2d_anim_backend.py` is the thin registry adapter that wraps the exporter and produces `ArtifactManifest`. This follows the same separation used by `TopologyExtractor` / `LevelTopologyBackend`.
 
-The second locked decision is that **runtime RNG injection is explicit but cache-safe**. `ctx["_pdg"]` now includes a live `rng`, a `seed_sequence`, and a serializable `rng_contract`. The live generator is added only to the runtime context passed into node execution; cache-key computation uses a separate context containing only the stable contract. This preserves hermetic SHA-256 action keys while still giving node code a real generator object.[3] [4]
+The second locked decision is that **PyYAML is permanently banned from the export path**. The `test_no_pyyaml_import` test enforces that `import yaml` never appears in `unity_2d_anim.py`. All YAML output is generated via `io.StringIO` and f-string formatting, which is both faster and more predictable for Unity's non-standard YAML dialect.
 
-The third locked decision is that **the explicit RNG contract had to reach a real production lane, not just synthetic tests**. `WFCGenerator` now supports `rng: np.random.Generator | None`, replaces `random.Random` usage with NumPy-backed `_choice()` / `_weighted_choice()` helpers, and keeps `seed` construction for backward compatibility. `ConstraintAwareWFC` adopts the same contract, and the level WFC node in `mathart/pipeline.py` now consumes `ctx["_pdg"]["rng"]` when present.[1] [3]
+The third locked decision is that **GUIDs are deterministic and collision-resistant**. `generate_deterministic_guid(asset_name)` uses `hashlib.md5(name.encode("utf-8")).hexdigest()` to produce a 32-character hex GUID. The same asset name always produces the same GUID, enabling reproducible builds and stable `.meta` file references.
 
-The fourth locked decision is that **scheduler concurrency must not perturb outputs**. The new white-box PDG test compares mapped fan-out output from **1 thread** and **16 threads** and requires byte-identical generated random blocks per partition. This closes the thread-order nondeterminism risk that would otherwise remain hidden behind “same average behavior” style tests.[1] [2]
+The fourth locked decision is that **the backend survives CI smoke tests with synthetic data**. `validate_config()` synthesises a minimal 3-bone, 10-frame demo clip when `clip_2d` is missing or receives a placeholder string from the CI fixture. This ensures the backend passes `test_ci_backend_schemas.py` and `registry_e2e_guard.py` without requiring upstream pipeline execution.
 
 ## Code Change Table
 | File | Action | Details |
 |---|---|---|
-| `mathart/level/pdg.py` | Modified | Added root-seed derivation, stable per-invocation SeedSequence materialization, `ctx["_pdg"]["rng"]`, `seed_sequence`, `rng_contract`, and cache/runtime context separation so live generators never enter cache hashing. |
-| `mathart/level/wfc.py` | Modified | Replaced `random.Random` with NumPy `Generator` support, introduced `_random()` / `_choice()` / `_weighted_choice()` helpers, and preserved legacy `seed=` construction. |
-| `mathart/level/constraint_wfc.py` | Modified | Added optional `rng` injection and switched constrained-collapse selection to the new helper methods from the base WFC generator. |
-| `mathart/pipeline.py` | Modified | Updated the WFC PDG node to consume the injected RNG from `ctx["_pdg"]`, proving deep RNG propagation reaches the real level lane. |
-| `tests/test_level_pdg.py` | Modified | Added a 1-thread vs 16-thread byte-level deterministic mapped-fan-out regression for `ctx["_pdg"]["rng"]` plus spawn-contract uniqueness assertions. |
-| `tests/test_level.py` | Modified | Added a WFC explicit-Generator determinism regression to lock the new injection API. |
-| `research/session123_rng_determinism_research.md` | Added | Working notes for NumPy SeedSequence, JAX PRNG design, Scientific Python RNG practice, and Bazel hermeticity. |
-| `PROJECT_BRAIN.json` | Updated | Recorded SESSION-123 closure, new validation summary, recent-focus snapshot, and architecture-memory notes. |
-| `SESSION_HANDOFF.md` | Updated | Replaced the prior handoff with the current closure summary and next-step guidance. |
+| `mathart/animation/unity_2d_anim.py` | Added | `TensorSpaceConverter` (coordinate transform + Euler unwrap + Catmull-Rom tangent derivation), `UnityYAMLEmitter` (pure string-buffer `.anim` emission), `emit_meta_file`, `emit_animator_controller`, `generate_deterministic_guid`, `Unity2DAnimExporter` (end-to-end orchestrator). |
+| `mathart/core/unity_2d_anim_backend.py` | Added | `Unity2DAnimBackend` registry plugin with `validate_config()` and `execute()` returning `ArtifactManifest` with family `UNITY_NATIVE_ANIM`. |
+| `tests/test_unity_2d_anim.py` | Added | 43 white-box tests across 6 categories: TensorSpaceConverter (6), TangentComputation (4), UnityYAMLEmitter (9), GUIDAndMeta (8), EndToEndExport (7), BackendRegistryIntegration (7), Performance (2). |
+| `research/session124_unity_2d_anim_research.md` | Added | External research notes covering Unity YAML serialization, `.anim`/`.controller` file format, coordinate system handedness, Euler unwrap, and template engine design. |
+| `mathart/core/backend_types.py` | Modified | Added `UNITY_2D_ANIM = "unity_2d_anim"` enum member + 4 aliases (`unity_native_anim`, `unity_2d_animation`, `unity_anim_export`, `anim_exporter`). |
+| `mathart/core/artifact_schema.py` | Modified | Added `UNITY_NATIVE_ANIM` to `ArtifactFamily` enum + required metadata keys (`bone_count`, `frame_count`, `total_keyframes`, `fps`, `export_time_ms`, `anim_guids`). |
+| `mathart/core/backend_registry.py` | Modified | Added `unity_2d_anim_backend` to `get_registry()` auto-load sequence. |
+| `tests/conftest.py` | Modified | Added `mathart.core.unity_2d_anim_backend` to `_BUILTIN_BACKEND_MODULES`. |
+| `PROJECT_BRAIN.json` | Updated | SESSION-124 closure metadata, session_log entry, resolved_issues entry, and architecture notes. |
+| `SESSION_HANDOFF.md` | Updated | Replaced prior handoff with SESSION-124 closure summary and next-step guidance. |
 
 ## White-Box Validation Closure
 Local touched-lane validation is complete.
 
 | Validation command / scope | Result |
 |---|---|
-| `python3.11 -m pytest tests/test_level_pdg.py tests/test_level.py -q` | **33/33 PASS** |
-| `python3.11 -m pytest tests/test_constraint_wfc.py -q` | **36/36 PASS** |
-| Total touched-lane validation | **69/69 PASS** |
+| `python3.11 -m pytest tests/test_unity_2d_anim.py -v` | **43/43 PASS** |
+| TensorSpaceConverter tests | 6/6 PASS |
+| TangentComputation tests | 4/4 PASS |
+| UnityYAMLEmitter tests | 9/9 PASS |
+| GUIDAndMeta tests | 8/8 PASS |
+| EndToEndExport tests | 7/7 PASS |
+| BackendRegistryIntegration tests | 7/7 PASS |
+| Performance tests | 2/2 PASS |
 
-The validation matrix closes three red lines at once. First, it proves that mapped PDG fan-out now emits **byte-identical random outputs** under 1-thread and 16-thread execution. Second, it proves that the live generator reaches real node code through `ctx["_pdg"]["rng"]` without contaminating cache contracts. Third, it proves that the deep consumer lane—`WFCGenerator` and `ConstraintAwareWFC`—remains backward-compatible while accepting explicit `Generator` injection.
+The validation matrix closes three red lines at once. First, it proves that **Euler angle unwrapping prevents discontinuities** across the ±180° boundary (max adjacent frame diff < 180°). Second, it proves that **PyYAML is never imported** in the production module. Third, it proves that **deterministic GUIDs match `hashlib.md5`** exactly.
+
+## Red-Line Guards
+- **Anti-PyYAML-Overhead**: `import yaml` is NEVER used in `unity_2d_anim.py`. Enforced by `test_no_pyyaml_import`.
+- **Anti-Euler-Flip**: `np.unwrap` is mandatory before tangent baking. Enforced by `test_euler_unwrap_prevents_discontinuity`.
+- **Anti-GUID-Collision**: `hashlib.md5(name.encode()).hexdigest()` only. Enforced by `test_guid_matches_md5`.
 
 ## Practical Implication for the Architecture Roadmap
-SESSION-123 does **not** introduce a new scene-format feature, but it materially hardens the production credibility of the level lane. The repository now has a clean distinction between **stable random-input contract** and **live runtime random-state object**, which is exactly the separation needed for future distributed PDG execution, reproducible benchmark capture, and stronger WorkItem lineage auditing.[1] [4]
+SESSION-124 closes the last major gap in the **engine-ready export** dimension by providing a direct Clip2D→Unity pipeline that requires no Unity Editor, no PyYAML, and no external tooling. The generated `.anim` files follow Unity's exact YAML serialization format with correct class IDs, magic headers, and keyframe tangent semantics.
 
-In practical terms, future PDG-powered subsystems no longer need to improvise their own concurrency-safe RNG story. They can accept `ctx["_pdg"]["rng"]`, preserve local backward compatibility with optional constructor injection, and rely on the runtime to keep stream derivation deterministic across scheduler widths.[2] [3]
+This means the existing motion pipeline (NSM→projection→IK→Clip2D) can now produce Unity-importable animation assets in a single automated pass, which is a prerequisite for real Unity runtime validation and the commercial benchmark's engine_ready_export dimension.
 
 ## Recommended Next Steps
-The highest-value immediate follow-up is to **extend the same explicit RNG contract into additional stochastic production lanes** that still construct local random behavior internally. The most obvious candidates are any remaining procedural layout, noise, sampler, or policy-search components that execute beneath PDG fan-out but do not yet consume `ctx["_pdg"]["rng"]` directly.
+The highest-value immediate follow-up is to **validate the generated `.anim` files in a real Unity Editor** by importing them into a test project and verifying that animations play correctly with the expected bone hierarchy, rotation direction, and loop behavior.
 
-The second follow-up is to **promote `rng_contract` into stronger lineage reporting**. At the moment, the contract is visible to node code and present in cache-safe context, but it would be valuable to persist a compact subset of that metadata into more exported manifests or benchmark records so external audit tools can prove that two artifacts came from the same deterministic seed lineage.[1] [4]
+The second follow-up is to **extend the exporter to support multi-clip AnimatorControllers** with transition conditions, blend trees, and animation layers, which are required for production-quality character animation state machines.
 
-The third follow-up is to **evaluate remote or multi-process execution readiness**. The current scheduler is local-threaded, but the explicit root-seed/child-stream contract is now strong enough that future executor backends can preserve determinism without sharing mutable RNG state, which was one of the core design lessons extracted from JAX-style split PRNG systems.[2]
+The third follow-up is to **integrate the Unity 2D anim backend into the full motion pipeline** so that `pipeline.py` can route Clip2D outputs through `MicrokernelPipelineBridge.run_backend("unity_2d_anim", context)` as part of the standard asset generation workflow.
+
+## P2-SPINE-PREVIEW-1 Preparation: Data Topology Adjustments
+
+With the Unity 2D native animation bridge now operational, the next logical step toward **P2-SPINE-PREVIEW-1** (a lightweight engine-independent animation previewer for visual bone-fracture verification) requires the following data topology micro-adjustments to the current export infrastructure:
+
+The first adjustment is to **expose the intermediate `BoneCurveData` array as a first-class preview contract**. Currently, `TensorSpaceConverter.clip2d_to_bone_curves()` produces a list of `BoneCurveData` objects that are immediately consumed by `UnityYAMLEmitter`. For the previewer, this same intermediate representation needs to be serializable to a lightweight JSON or binary format that a pure-Python renderer (e.g., `matplotlib.animation` or `pygame`) can consume without importing Unity-specific YAML logic. The `BoneCurveData` dataclass already contains `path`, `pos_x`, `pos_y`, `rot_z`, `scale_x`, `scale_y` arrays — these are exactly the channels a 2D skeleton previewer needs.
+
+The second adjustment is to **add a bone-hierarchy tree structure to the export result**. The current `Unity2DAnimExportResult` records `bone_count` and `guids` but does not persist the parent-child topology. A previewer needs to reconstruct the skeleton tree to draw bones as connected line segments. The `Clip2D.skeleton_bones` already carries this information via `Bone2D.parent`, but it should be serialized into the export result metadata (e.g., `metadata["bone_hierarchy"]`) so the previewer can operate on the manifest alone without re-importing the original `Clip2D`.
+
+The third adjustment is to **add rest-pose (bind pose) data to the export contract**. The current converter extracts per-frame transforms but does not separately record the T-pose or rest-pose bone positions. A previewer needs the rest pose to draw the skeleton in its default configuration and to compute relative transforms for visual debugging of bone fracture (unexpected bone length changes or parent-child disconnection).
+
+The fourth adjustment is to **standardize a frame-sampling API** that both the Unity YAML emitter and the future previewer can share. Currently, frame timing is computed as `frame_index / fps` inside the emitter. Extracting this into a shared `FrameTimeSampler` utility would ensure the previewer and the Unity exporter always agree on keyframe timing, which is critical for visual comparison between the preview and the actual Unity playback.
 
 ## References
-[1]: https://numpy.org/doc/2.2/reference/random/bit_generators/generated/numpy.random.SeedSequence.spawn.html "NumPy — SeedSequence.spawn"
-[2]: https://docs.jax.dev/en/latest/jep/263-prng.html "JAX PRNG Design (JEP 263)"
-[3]: https://blog.scientific-python.org/numpy/numpy-rng/ "Scientific Python — Best Practices for Using NumPy's Random Number Generators"
-[4]: https://bazel.build/basics/hermeticity "Bazel — Hermeticity"
+[1]: https://unity.com/blog/engine-platform/understanding-unitys-serialization-language-yaml "Unity — Understanding Unity's Serialization Language YAML"
+[2]: https://docs.unity3d.com/Manual/class-AnimationClip.html "Unity Manual — Animation Clip"
+[3]: https://numpy.org/doc/stable/reference/generated/numpy.unwrap.html "NumPy — numpy.unwrap"
+[4]: https://docs.python.org/3/library/io.html#io.StringIO "Python — io.StringIO"

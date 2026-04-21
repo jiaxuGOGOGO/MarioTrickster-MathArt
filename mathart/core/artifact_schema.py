@@ -127,6 +127,10 @@ class ArtifactFamily(Enum):
     # from a logical tile-id grid using SciPy convolutional pattern
     # matching and connected-component labelling.
     LEVEL_TOPOLOGY = "level_topology"
+    # SESSION-124 (P2-UNITY-2DANIM-1): Unity 2D native animation artifact
+    # family.  Carries .anim, .controller, and .meta file paths plus
+    # export metrics (bone_count, frame_count, total_keyframes, GUIDs).
+    UNITY_NATIVE_ANIM = "unity_native_anim"
 
     @classmethod
     def required_metadata_keys(cls, family_value: str) -> frozenset[str]:
@@ -214,6 +218,18 @@ class ArtifactFamily(Enum):
                 "connected_component_count",
                 "extraction_wall_ms",
                 "solid_tile_ids",
+            }),
+            # SESSION-124 (P2-UNITY-2DANIM-1): Mandatory metadata for
+            # Unity 2D native animation artifacts so downstream Unity
+            # import pipelines can validate the export without opening
+            # the .anim files.
+            cls.UNITY_NATIVE_ANIM.value: frozenset({
+                "bone_count",
+                "frame_count",
+                "total_keyframes",
+                "fps",
+                "export_time_ms",
+                "anim_guids",
             }),
         }
         return _FAMILY_REQUIRED_METADATA.get(family_value, frozenset())

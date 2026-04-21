@@ -737,6 +737,13 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.reaction_diffusion_backend")
         except Exception as e:
             logger.debug("Failed to auto-load reaction diffusion backend: %s", e)
+        # SESSION-124 (P2-UNITY-2DANIM-1): Unity 2D native animation format
+        # zero-dependency direct export backend.  Self-registers via
+        # @register_backend and emits UNITY_NATIVE_ANIM artifacts.
+        try:
+            importlib.import_module("mathart.core.unity_2d_anim_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load Unity 2D anim backend: %s", e)
     return registry
 
 

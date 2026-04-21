@@ -89,6 +89,12 @@ class BackendType(str, Enum):
     # organic texture backend (Karl Sims / Pearson xmorphia).  Produces
     # MATERIAL_BUNDLE artifacts with albedo/normal/height/mask channels.
     REACTION_DIFFUSION = "reaction_diffusion"
+    # SESSION-124 (P2-UNITY-2DANIM-1): Unity 2D native animation format
+    # zero-dependency direct export backend.  Produces .anim, .controller,
+    # and .meta files from projected Clip2D data using tensorized coordinate
+    # transformation, Euler angle unwrapping, and high-throughput string
+    # template assembly (no PyYAML dependency).
+    UNITY_2D_ANIM = "unity_2d_anim"
 
 
 _BACKEND_ALIASES: dict[str, str] = {
@@ -210,6 +216,12 @@ _BACKEND_ALIASES: dict[str, str] = {
     "reaction_diffusion_texture": BackendType.REACTION_DIFFUSION.value,
     "organic_texture": BackendType.REACTION_DIFFUSION.value,
     "turing_pattern": BackendType.REACTION_DIFFUSION.value,
+    # SESSION-124 (P2-UNITY-2DANIM-1): Unity 2D native animation backend aliases
+    BackendType.UNITY_2D_ANIM.value: BackendType.UNITY_2D_ANIM.value,
+    "unity_native_anim": BackendType.UNITY_2D_ANIM.value,
+    "unity_2d_animation": BackendType.UNITY_2D_ANIM.value,
+    "unity_anim_export": BackendType.UNITY_2D_ANIM.value,
+    "anim_exporter": BackendType.UNITY_2D_ANIM.value,
 }
 
 
