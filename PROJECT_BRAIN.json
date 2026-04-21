@@ -1,7 +1,7 @@
 {
   "version": "v0.96.1",
-  "last_session_id": "SESSION-125",
-  "last_updated": "2026-04-21T13:16:21Z",
+  "last_session_id": "SESSION-126",
+  "last_updated": "2026-04-21T13:43:20Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -25,14 +25,13 @@
     "top_priorities_ordered": [
       "P1-ARCH-5",
       "P1-AI-1",
-      "P1-NEW-10",
       "P1-INDUSTRIAL-34A",
       "P1-B2-1"
     ],
     "closed_archived": 53
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-125 Spine JSON headless preview: 6/6 targeted tests PASS (tests/test_spine_preview.py) plus CI metadata coverage PASS and MicrokernelPipelineBridge end-to-end backend execution PASS. Tensorized FK world-matrix propagation, MP4/GIF export, registry integration, synthetic CI self-healing, and touched-lane subsecond preview throughput all validated.",
+  "validation_pass_rate": "SESSION-126 mass production factory: 2/2 dedicated dry-run regression tests PASS (tests/test_mass_production.py). PDG v2 fan-out scheduling, requires_gpu semaphore gating, artifact archiving, and CLI mass-produce entrypoint all validated under --skip-ai-render.",
   "total_iterations": 733,
   "total_code_lines": 160304,
   "distill_session_id": "DISTILL-012",
@@ -504,15 +503,6 @@
       "description": "SESSION-090 CLOSES P1-MIGRATE-4: Full Erlang/OTP-inspired Backend Hot-Reload Ecosystem. (1) BackendRegistry gains atomic unregister(name) and reload(name) primitives with RLock-protected thread safety, targeted sys.modules eviction + __pycache__ purge + importlib.invalidate_caches() for genuine class replacement (anti-zombie-reference), and atomic rollback on SyntaxError/ImportError. (2) BackendFileWatcher daemon thread monitors backend source directories via watchdog with 400ms debounce (anti-IDE-burst), auto-detects new backend files, and triggers targeted hot-reload without clearing the global registry (anti-state-wipeout). (3) 29/29 E2E tests validate: unregister/reload primitives, zombie reference id() assertions, state wipeout guards, atomic rollback, debounce coalescing, daemon thread lifecycle, full v1→v2→v3 sequential reload lifecycle, concurrent thread safety, and reload callback integration.",
       "added_in": "SESSION-064",
       "closed_in": "SESSION-090"
-    },
-    {
-      "id": "P1-NEW-10",
-      "priority": "P1",
-      "title": "Production benchmark asset suite",
-      "status": "SUBSTANTIALLY-ADVANCED",
-      "estimated_effort": "high",
-      "description": "SESSION-055 adds AssetFactory with commercial quality gates (visual fitness > 0.45, Laplacian > 0.20, 100% export success), tileset benchmark specs, auto-rejection with detailed reasons, persistent state tracking, and quality trend analysis. Remaining: expand preset coverage, add VFX benchmark specs, integrate with engine-specific export templates.",
-      "updated_in": "SESSION-055"
     },
     {
       "id": "P1-NEW-2",
@@ -1030,6 +1020,13 @@
     }
   ],
   "completed_tasks": [
+    {
+      "id": "P1-NEW-10",
+      "title": "Production benchmark asset suite",
+      "completed_in": "SESSION-126",
+      "priority": "P1",
+      "result": "SESSION-126 closes P1-NEW-10 by landing an industrial PDG-v2 mass production factory: tools/run_mass_production_factory.py fans out deterministic equipped CharacterGenotype work items, executes unified_motion -> pseudo_3d_shell -> physical_ribbon CPU lanes in parallel, marks orthographic_pixel_render and anti_flicker_render as requires_gpu for gpu_slots-governed VRAM safety, then packages unity_2d_anim + spine_preview deliverables into outputs/mass_production_batch_<timestamp>/ by character id. mathart/cli.py now exposes the factory as mass-produce, and tests/test_mass_production.py validates dry-run topology liveness with --skip-ai-render."
+    },
     {
       "id": "HIGH-2.7-FOLLOWUP-PDG-SEEDSEQUENCE-RNG",
       "title": "Extend deterministic RNG injection into PDG v2 work-item execution and WFC level lane",
@@ -2255,7 +2252,6 @@
       "End-to-end trunk reproducibility validation with UMR artifact assertions (P1-BENCH-35A)",
       "Propagate UMR contract to CLI, exporters, and distillation bus (P1-UMR-36A)",
       "Runtime motion matching query with UMR-native transition synthesis (P1-INDUSTRIAL-34B)",
-      "Production benchmark asset suite (P1-NEW-10)",
       "Industrial renderer not yet wired into AssetPipeline (P1-INDUSTRIAL-34A)",
       "3D-to-2D mesh rendering path (P1-INDUSTRIAL-34C)",
       "Gait transition blending walk/run/sneak (P1-PHASE-33A)",
@@ -3863,6 +3859,35 @@
         "PROJECT_BRAIN.json"
       ],
       "test_results": "6 PASS / 0 SKIP / 0 FAIL (python3.11 -m pytest -q tests/test_spine_preview.py); 1 PASS selected / 0 FAIL (python3.11 -m pytest -q tests/test_spine_preview.py tests/test_ci_backend_schemas.py -k 'test_required_metadata_keys_coverage'); bridge smoke PASS (python3.11 tmp_validate_spine_preview_backend.py)"
+    },
+    {
+      "session_id": "SESSION-126",
+      "date": "2026-04-21",
+      "focus": "P1-NEW-10 / Production benchmark asset suite mass production closure",
+      "status": "COMPLETE",
+      "summary": "Closed P1-NEW-10 by wiring a PDG v2 industrial mass production factory that fans out deterministic equipped character orders, runs CPU-heavy motion/shell/ribbon lanes concurrently, gates orthographic + anti-flicker GPU stages through requires_gpu/gpu_slots, and archives unity_2d_anim plus spine_preview deliverables per character under a batch root.",
+      "changes": [
+        "NEW tools/run_mass_production_factory.py — PDG-v2 batch factory, deterministic fan-out, GPU-throttled render nodes, per-character archive packaging, and CLI-ready main() entrypoint",
+        "UPD mathart/cli.py — add mass-produce subcommand with batch-size / pdg-workers / gpu-slots / skip-ai-render / comfyui-url controls",
+        "NEW tests/test_mass_production.py — dry-run topology liveness, GPU-node tagging, artifact packaging, and CLI smoke validation",
+        "UPD PROJECT_BRAIN.json — mark P1-NEW-10 CLOSED and append SESSION-126 state / resolution metadata",
+        "UPD SESSION_HANDOFF.md — document local RTX 4070 production command lines and ComfyUI preparation steps for live batch runs"
+      ],
+      "files_touched": [
+        "tools/run_mass_production_factory.py",
+        "mathart/cli.py",
+        "tests/test_mass_production.py",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
+      ],
+      "validation": [
+        "python3.11 -m pytest -q tests/test_mass_production.py -> 2/2 PASS",
+        "Validated PDG v2 mapped fan-out, requires_gpu trace annotations, gpu_slots throttling <= 1 in dry-run, per-character archive assembly, and CLI mass-produce exit code 0 under --skip-ai-render"
+      ],
+      "next_steps": [
+        "Run a live local batch with ComfyUI online and --skip-ai-render disabled to exercise the anti_flicker_render lane end-to-end on RTX 4070 hardware",
+        "Optionally widen batch presets and motion-state coverage once new equipment archetypes or VFX SKUs are added"
+      ]
     }
   ],
   "resolved_issues": [
@@ -3935,6 +3960,13 @@
       "resolved_at": "2026-04-21T13:16:21Z",
       "resolution": "Added an engine-independent Spine JSON preview lane with tensorized FK world-matrix solving, headless MP4/GIF export, typed ANIMATION_PREVIEW manifests, CI-safe synthetic demo fallback, and registry-native backend discovery.",
       "validation_test_file": "tests/test_spine_preview.py + tests/test_ci_backend_schemas.py"
+    },
+    {
+      "issue_id": "P1-NEW-10",
+      "session_id": "SESSION-126",
+      "resolved_at": "2026-04-21T13:43:20Z",
+      "resolution": "Added a PDG-v2 mass production factory with deterministic batch fan-out, GPU-throttled orthographic/anti-flicker lanes, per-character batch archiving, and a public CLI mass-produce entrypoint.",
+      "validation_test_file": "tests/test_mass_production.py"
     }
   ],
   "backlog": [],
@@ -3975,5 +4007,13 @@
       "math_contract": "Anti Z-fighting is mathematical: every shell-style part has inflate_radius > 0 and the regression test verifies vertex norms exceed the underlying base-box diagonal length plus the inflate radius.",
       "perf_contract": "TensorSocketMounter.mount uses np.einsum 4x4 matmul broadcast and runs in < 1 ms per 3-attachment loadout warm-cache."
     }
-  }
+  },
+  "architecture_notes": [
+    {
+      "session_id": "SESSION-126",
+      "topic": "industrial_mass_production_factory",
+      "decision": "Large commercial batch generation must route through PDG v2 fan-out and mark orthographic_pixel_render / anti_flicker_render as requires_gpu so gpu_slots remains the sole authority for VRAM admission control.",
+      "implication": "CPU-heavy genotype, motion, shell, and ribbon lanes can scale to 16 worker threads, while 12GB-class GPUs remain protected from batch-induced OOM during orthographic guide baking or ComfyUI sequence rendering."
+    }
+  ]
 }

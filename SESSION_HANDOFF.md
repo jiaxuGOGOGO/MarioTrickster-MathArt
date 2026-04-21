@@ -1,98 +1,89 @@
-## Goal & Status
+# SESSION-126 Handoff — P1-NEW-10 Mass Production Factory Closure
 
-**Objective**: close **P2-SPINE-PREVIEW-1** by landing a complete, engine-independent preview pipeline that reads exported **Spine JSON**, solves hierarchical bone transforms through a tensorized FK path, renders the skeleton headlessly, and emits `.mp4` / `.gif` verification assets suitable for fracture / topology debugging.
+**Objective**：关闭 **P1-NEW-10 / Production benchmark asset suite**，将项目现有的高维数学后端、注册表插件与 **PDG v2** 调度内核整合为一条可批量落地的工业级量产总线。
 
-**Status**: **CLOSED**.
+**Status**：**CLOSED**。
 
-The landed implementation introduces two physically separated layers. `mathart/animation/spine_preview.py` is the pure algorithm module: it parses Spine JSON from disk, samples translate / rotate / scale timelines, builds `local_matrices[F, B, 3, 3]`, propagates `world_matrices[F, B, 3, 3]` depth-by-depth using broadcast `np.matmul`, and converts solved bone segments into headless preview media. `mathart/core/spine_preview_backend.py` is the thin registry adapter that normalizes context, synthesizes a demo Spine clip when CI supplies a placeholder path, and returns a strongly typed `ArtifactManifest` with family `ANIMATION_PREVIEW`.
+本次落地把量产逻辑收束为一个公开入口：`tools/run_mass_production_factory.py`。该入口不再是松散脚本堆叠，而是一个由 **ProceduralDependencyGraph (PDG v2)** 驱动的批处理装配线。它将订单先扇出为多个独立 `WorkItem`，再在 CPU 侧并发执行 `CharacterGenotype` 变体生成、3D 装备挂载、`unified_motion`、`pseudo_3d_shell`、`physical_ribbon` 等数学与几何阶段，最后把 `orthographic_pixel_render` 与 `anti_flicker_render` 严格标记为 **requires_gpu**，将显存准入权完全交给 `gpu_slots` 信号量控制。最终交付阶段则统一调用 `unity_2d_anim` 与 `spine_preview`，并把结果按角色维度整齐归档到 `outputs/mass_production_batch_<timestamp>/` 下。
 
-## Research Alignment Audit
+## What Landed
 
-The implementation is deliberately constrained by the external research captured in `research/session125_spine_preview_research_notes.md`. The following table records the exact rule each source imposed on the code path.
+本次闭环的核心不是单个新算法，而是**生产级编排**。`mathart/cli.py` 现已新增 `mass-produce` 子命令，因此主理人不需要手工编写 Python 驱动脚本，就可以直接从命令行触发批量生产。对应的 `tests/test_mass_production.py` 则提供了 `--skip-ai-render` 的空跑白盒验证，用于确认拓扑不会锁死、GPU 节点的调度标签正确、批次目录结构完整，且 CLI 对外入口可正常退出。
 
-| Reference pillar | Practical rule adopted in code | Why it matters here |
+| 落地文件 | 作用 | 关键价值 |
 |---|---|---|
-| Spine runtime skeleton hierarchy [1] | Bone transforms are treated as parent-relative data, and preview rendering is based on world transforms rather than raw local channels. | Without hierarchical accumulation, the preview would draw disconnected or physically wrong poses. |
-| Formal FK composition from CSE169 [2] | The solver is split into local-matrix construction and world-matrix concatenation. | This separation makes the FK path debuggable, testable, and easy to tensorize. |
-| NumPy stacked-matrix semantics [3] | World propagation is executed with broadcast `np.matmul` over `[..., 3, 3]` matrices rather than per-frame scalar loops. | This is the key performance lever that keeps the FK hot path vectorized. |
-| OpenCV headless video writing [4] | Preview export writes files via `cv2.VideoWriter`; no display surface is involved. | CI, remote workers, and server-side jobs cannot depend on a local GUI. |
-| Matplotlib non-interactive backend guidance [5] | The preview path is explicitly headless-only, and GUI calls are forbidden by design. | This locks the implementation away from blocking window APIs and keeps it production-safe. |
+| `tools/run_mass_production_factory.py` | 新增量产总线入口 | 用 PDG v2 统一编排 fan-out、CPU 并发、GPU 限流、最终归档 |
+| `mathart/cli.py` | 新增 `mass-produce` 子命令 | 将量产能力暴露为工业级 CLI，而不是隐藏内部脚本 |
+| `tests/test_mass_production.py` | 新增 dry-run 回归测试 | 验证拓扑活性、GPU 节点标记、产物归档与 CLI 可用性 |
+| `PROJECT_BRAIN.json` | 更新任务状态 | 将 **P1-NEW-10** 标记为 **CLOSED**，记录 SESSION-126 闭环元数据 |
+| `SESSION_HANDOFF.md` | 当前文档 | 作为本地量产执行与交接的单一事实来源 |
 
-> “A skeleton has a hierarchy of bones. Bone transforms are applied relative to the parent bone and combined to produce world transforms used for rendering.” This Spine runtime principle directly determined the world-matrix propagation contract in the new solver. [1]
+## Locked Architecture Decisions
 
-## Architecture Decisions Locked
+第一条锁定决策是：**大规模量产必须经由 PDG v2 fan-out 进入系统**。订单不再直接在外层 `for` 循环中串行驱动后端，而是统一转为带确定性 RNG 合约的 `WorkItem`。这意味着每个角色批次都有稳定的随机源拆分规则，后续复现实验、错误回放与缓存策略都可以围绕同一套调度语义展开。
 
-The first locked decision is that **the math module and the backend plugin remain physically separated**. `mathart/animation/spine_preview.py` contains the portable algorithm core only; it knows nothing about the registry, manifests, or orchestration layer. `mathart/core/spine_preview_backend.py` owns all plugin concerns such as context normalization, synthetic demo self-healing, and artifact packaging. This mirrors the architectural split previously used by `LevelTopologyBackend` and `Unity2DAnimBackend`.
+第二条锁定决策是：**GPU 节点必须显式声明，而不能靠“约定俗成”限流**。本次已经把 `orthographic_pixel_render` 与 `anti_flicker_render` 作为 GPU 受控阶段固化进图结构，任何未来扩展只要继续遵守 `requires_gpu=True` 与 `gpu_slots` 信号量，即可在 12GB 显存等级机器上保持批量运行安全边界。
 
-The second locked decision is that **the FK hot path is tensorized across frames**. Metadata preparation is still allowed to iterate over bones while parsing channels, but world-matrix propagation never performs a nested `for frame in ... / for bone in ...` scalar solve. Instead, the backend precomputes `parent_indices` and depth levels, and each depth layer is resolved by batched `np.matmul`, which matches NumPy’s stacked-matrix semantics [3].
+第三条锁定决策是：**最终交付必须回到强类型 ArtifactManifest 语义**。量产工厂不会绕开现有微内核插件，而是继续调用 `unity_2d_anim` 与 `spine_preview` 正式后端，并以各自 manifest 暴露的路径进行归档。因此，量产目录结构虽然是面向生产的批处理视角，但其资产来源仍然保持可追踪、可审计、可复跑。
 
-The third locked decision is that **the preview path is permanently headless**. `cv2.imshow()` and `cv2.waitKey()` are banned from the production preview module. Video is written via `VideoWriter`, GIF is written via Pillow, and the renderer projects all coordinates into image space with an explicit Y-axis inversion so the skeleton remains visually upright.
+## Local Production Commands for RTX 4070
 
-The fourth locked decision is that **the backend survives CI smoke tests with synthetic input**. When `spine_json_path` is absent or contains the CI placeholder string, `validate_config()` generates a deterministic demo Spine JSON clip on disk and uses it as the preview source. This guarantees that the backend remains executable through the registry bridge even when no upstream motion pipeline has run.
+如果主理人的本地环境为 **i5-12600KF（16 线程）+ 32GB RAM + RTX 4070 12GB**，建议优先采用如下执行方式。
 
-## Code Change Table
-
-| File | Action | Details |
+| 场景 | 推荐命令 | 说明 |
 |---|---|---|
-| `mathart/animation/spine_preview.py` | Added | `SpineJSONTensorSolver`, `HeadlessSpineRenderer`, `SpinePreviewClip`, `SpinePreviewRenderResult`, and `create_demo_spine_json()`; implements Spine JSON parsing, timeline interpolation, tensorized FK, Y-flipped screen projection, and MP4 / GIF export. |
-| `mathart/core/spine_preview_backend.py` | Added | `SpinePreviewBackend` registry plugin with synthetic-demo self-healing, typed manifest emission, and preview diagnostics packaging. |
-| `tests/test_spine_preview.py` | Added | 6 targeted regression tests covering FK tensor shape integrity, media export, backend manifest validity, registry discovery, non-GUI headless path, and subsecond multi-frame preview performance. |
-| `research/session125_spine_preview_research_notes.md` | Added | Finalized external-alignment memo covering Spine hierarchy rules, FK composition, NumPy batch matmul, and headless render constraints. |
-| `mathart/core/backend_types.py` | Modified | Added `SPINE_PREVIEW = "spine_preview"` plus aliases (`animation_preview`, `spine_json_preview`, `spine_preview_backend`, `spine_headless_preview`). |
-| `mathart/core/artifact_schema.py` | Modified | Added `ANIMATION_PREVIEW` artifact family and required metadata keys (`bone_count`, `frame_count`, `fps`, `canvas_size`, `render_time_ms`, `animation_name`). |
-| `mathart/core/backend_registry.py` | Modified | Added `spine_preview_backend` to the builtin auto-load sequence so the microkernel discovers it without trunk branching. |
-| `tests/conftest.py` | Modified | Added `mathart.core.spine_preview_backend` to `_BUILTIN_BACKEND_MODULES` for bootstrap-safe registry restoration. |
-| `tests/test_ci_backend_schemas.py` | Modified | Extended required-metadata coverage assertions to include the new `ANIMATION_PREVIEW` family. |
-| `PROJECT_BRAIN.json` | Updated | SESSION-125 state, validation, and resolved-issue metadata appended. |
-| `SESSION_HANDOFF.md` | Updated | Replaced prior handoff with the present SESSION-125 closure summary and next-step guidance. |
+| 纯 CPU / 拓扑空跑 | `python3.11 -m mathart.cli mass-produce --output-dir outputs --batch-size 20 --pdg-workers 16 --gpu-slots 1 --skip-ai-render --seed 20260421` | 不触发 ComfyUI，仅验证 fan-out、CPU 计算、正交渲染前的批量装配与最终归档结构。 |
+| 标准本地量产 | `python3.11 -m mathart.cli mass-produce --output-dir outputs --batch-size 20 --pdg-workers 16 --gpu-slots 1 --seed 20260421 --comfyui-url http://127.0.0.1:8188` | 启用 AI 渲染，适合 RTX 4070 12GB 的默认安全配置。 |
+| 更保守的显存防线 | `python3.11 -m mathart.cli mass-produce --output-dir outputs --batch-size 12 --pdg-workers 16 --gpu-slots 1 --seed 20260421 --comfyui-url http://127.0.0.1:8188` | 当 ComfyUI 工作流较重或本地模型更大时，可先缩小 batch 数量，但仍保持 GPU 并发为 1。 |
+| 直接使用脚本入口 | `python3.11 tools/run_mass_production_factory.py --output-root outputs --batch-size 20 --pdg-workers 16 --gpu-slots 1 --seed 20260421 --comfyui-url http://127.0.0.1:8188` | 与 CLI 子命令等价，适合直接调试脚本入口。 |
+
+在这台机器上，**推荐保持 `--gpu-slots 1` 不变**。CPU 侧 16 线程已经足够把数学装配阶段打满，而 GPU 侧真正危险的是正交辅助图烘焙与 ComfyUI 时序渲染的叠加显存占用。当前总线设计已经把 GPU admission control 独立出来，因此不要试图通过提升 `gpu_slots` 去换取吞吐，除非先在本地完成显存监控与工作流实际峰值测量。
+
+## ComfyUI Preparation Checklist
+
+开启实时 AI 渲染之前，主理人需要先准备好本地 ComfyUI。当前总线假定 `anti_flicker_render` 通过 WebSocket / HTTP 连接到一个可用的 ComfyUI 实例，并在需要时提交序列工作流。
+
+| 准备项 | 要求 | 备注 |
+|---|---|---|
+| ComfyUI 服务地址 | 默认 `http://127.0.0.1:8188` | 如端口不同，使用 `--comfyui-url` 覆盖。 |
+| 服务状态 | 必须能被本地访问 | 建议先在浏览器打开 ComfyUI，确认页面可正常响应。 |
+| 关键模型 | SD 主模型、AnimateDiff、Normal ControlNet、Depth ControlNet、SparseCtrl（若工作流使用） | 与 `anti_flicker_render` 既有后端默认字段保持一致。 |
+| WebSocket / API | 必须启用 | 量产总线会把 AI 阶段视为生产工作流，而不是离线占位符。 |
+| 显存策略 | 保持单 GPU 槽位 | RTX 4070 12GB 下，默认使用 `gpu_slots=1` 防止并发 OOM。 |
+
+建议的本地准备顺序如下。首先，先以 `--skip-ai-render` 完成一次纯 CPU 空跑，确认批次目录、角色归档、`unity_2d_anim` 与 `spine_preview` 正常生成。其次，单独确认 ComfyUI 本地工作流能够接受 normal / depth / RGB 条件输入，并完成一次人工小样试跑。最后，再去掉 `--skip-ai-render` 触发正式量产，这样一旦 AI 链路失败，排障范围就被局限在 ComfyUI 与 `anti_flicker_render` 之间，而不会误判为 PDG 总线或 CPU 数学阶段故障。
+
+## Output Contract
+
+量产完成后，资产会被归档到 `outputs/mass_production_batch_<timestamp>/`。目录下的每个角色子目录都是独立订单单元，包含准备报告、阶段 manifest、最终交付与归档索引。
+
+| 目录层级 | 内容 |
+|---|---|
+| `character_<id>/prep/` | genotype、装备挂载、预处理报告 |
+| `character_<id>/unified_motion/` | UMR 运动片段与 manifest |
+| `character_<id>/pseudo3d_shell/` | DQS 壳层网格与 manifest |
+| `character_<id>/physical_ribbon/` | 二级动画 ribbon 网格与 manifest |
+| `character_<id>/orthographic_pixel_render/` | 正交辅助图输出与 manifest |
+| `character_<id>/unity_2d_anim/` | Unity `.anim` 及 manifest |
+| `character_<id>/spine_preview/` | `preview.mp4` / `preview.gif` 等预览资产 |
+| `character_<id>/archive/` | 面向交付的集中归档副本 |
+| `batch_summary.json` | 全批次汇总索引 |
+| `pdg_runtime_trace.json` | 调度执行轨迹与 GPU 限流痕迹 |
 
 ## White-Box Validation Closure
 
-Local touched-lane validation is complete.
+本次触碰面验证聚焦在**量产总线是否可运行、是否可控、是否可归档**。验证结果如下。
 
-| Validation command / scope | Result |
+| 验证命令 / 范围 | 结果 |
 |---|---|
-| `python3.11 -m pytest -q tests/test_spine_preview.py` | **6/6 PASS** |
-| `python3.11 -m pytest -q tests/test_spine_preview.py tests/test_ci_backend_schemas.py -k 'test_required_metadata_keys_coverage'` | **1/1 selected PASS** |
-| `python3.11 tmp_validate_spine_preview_backend.py` | **PASS** — `MicrokernelPipelineBridge.run_backend("spine_preview", ctx)` returned a valid `ANIMATION_PREVIEW` manifest and materialized `.mp4`, `.gif`, diagnostics JSON, and the synthesized Spine JSON input. |
+| `python3.11 -m pytest -q tests/test_mass_production.py` | **2/2 PASS** |
+| `test_mass_production_factory_dry_run_skip_ai_render` | **PASS** — 验证 PDG fan-out、GPU 节点标记、归档索引、summary / trace 文件、批次目录生成 |
+| `test_cli_mass_produce_dry_run_skip_ai_render` | **PASS** — 验证 `mathart.cli mass-produce` 入口在 dry-run 模式可正常退出 |
 
-The validation matrix closes four practical red lines simultaneously. First, it proves that the solver produces the expected `world_matrices[F, B, 3, 3]` and world-space bone endpoints. Second, it proves that the renderer exports media without any GUI dependency. Third, it proves that the backend self-heals under CI placeholder input. Fourth, it proves that a 180-frame preview workload remains subsecond in the touched performance lane.
+这一轮验证已经确认三件关键事实。第一，**拓扑不会在 collect 收口前锁死**。第二，**GPU 受控阶段在 trace 中保持了 `requires_gpu=True` 语义，并受到 `gpu_slots` 的节流约束**。第三，**最终交付目录的主产物能够按角色维度落到批次根目录之下，而不是散落在各后端默认输出路径中**。
 
-## Red-Line Guards
+## Immediate Operator Guidance
 
-| Guard | Enforcement |
-|---|---|
-| **Anti-GUI-Blocking** | Production preview code never depends on `cv2.imshow()` / `cv2.waitKey()`; tests pin the headless writer path. |
-| **Anti-Scalar-Frame-Loop** | FK world propagation is executed with batched `np.matmul` over matrix stacks rather than nested Python frame/bone scalar solves. |
-| **Anti-Coordinate-Inversion** | Screen projection explicitly flips Y so skeletons do not render upside-down in image coordinates. |
-| **Anti-CI-Placeholder-Failure** | Backend `validate_config()` synthesizes a minimal Spine JSON demo clip when upstream data is missing. |
+如果主理人下一步要在本地正式开跑，建议顺序为：先执行一次 `--skip-ai-render` 空跑，检查 `batch_summary.json` 是否完整；再启动 ComfyUI，确认模型与工作流可用；最后运行不带 `--skip-ai-render` 的正式命令。如果正式运行中出现问题，优先查看 `pdg_runtime_trace.json` 与各角色目录下的 manifest，再判断故障是出在 CPU 数学阶段、GPU 正交烘焙阶段，还是 ComfyUI 实时渲染阶段。
 
-## Practical Implication for the Architecture Roadmap
-
-SESSION-125 closes the missing **engine-independent animation verification** layer between the existing Spine JSON exporter and downstream engine-native importers. The project can now export motion to Spine JSON and immediately produce a visual proof artifact without requiring Spine Editor, Unity, or any browser-based runtime. This materially reduces the debugging distance when validating parent-child topology, bone lengths, or unexpected discontinuities in 2D projection output.
-
-This also improves the broader architecture closure path. Because the previewer consumes a disk-backed Spine JSON file and returns a typed `ArtifactManifest`, it obeys the repository’s Context-in / Manifest-out microkernel discipline. As a result, future pipelines can insert `spine_preview` as a pure plugin stage after `motion_2d` export or any later Spine-compatible serializer without touching trunk orchestration code.
-
-## Recommended Next Steps
-
-The highest-value immediate follow-up is to **wire `spine_preview` behind the existing motion export flow**, so a standard motion generation job can optionally emit both Spine JSON and its preview media in one pass.
-
-The second follow-up is to **extend the preview diagnostics from skeleton-only line rendering to slot / attachment overlays**. The current solver is already world-transform complete; the next increment is to project slot rectangles, attachment pivots, and draw-order layers so visual verification can catch not only bone fracture but also attachment drift.
-
-The third follow-up is to **formalize a real-time transport contract for P2-REALTIME-COMM-1**. The current previewer already computes stable world-space packetizable data (`origin_xy`, `tip_xy`, `rotation_deg`, `parent_index`). The natural next step is to define a compact per-frame serialization schema and ship that over WebSocket / shared memory for live remote preview instead of re-encoding full video frames.
-
-## P2-REALTIME-COMM-1 Preparation: Serialization Interface
-
-With the headless preview lane now stable, the next architectural extension toward **P2-REALTIME-COMM-1** should avoid sending rasterized frames whenever low latency matters. Instead, the backend should expose a structured frame packet stream with one record per bone and frame. The minimal packet contract should include `frame_index`, `time_s`, `bone_index`, `bone_name`, `parent_index`, `origin_x`, `origin_y`, `tip_x`, `tip_y`, and `rotation_deg`. This packet shape is sufficient for a thin remote viewer to reconstruct the same skeleton visualization while using a fraction of the bandwidth required by MP4 or GIF transport.
-
-A second preparation step is to **version the packet schema explicitly**. The current `ANIMATION_PREVIEW` manifest proves that the project already benefits from strong typing; the same discipline should be carried into real-time transport by adding fields such as `packet_schema_version`, `coordinate_space`, and `fps`. That will let future viewers evolve independently without silently misinterpreting packet layouts.
-
-A third preparation step is to **separate solver cadence from transport cadence**. The tensor solver works naturally at the animation sample rate, while a live viewer may want frame-dropping or interpolation under network jitter. Therefore, the real-time bridge should treat the solved world-transform tensor as the authoritative source and let the transport layer choose whether to send every frame, every Nth frame, or delta-compressed packets.
-
-## References
-
-[1]: http://esotericsoftware.com/spine-runtime-skeletons "Esoteric Software — Spine Runtimes Guide: Skeletons"
-[2]: https://cseweb.ucsd.edu/classes/sp16/cse169-a/readings/2-Skeleton.html "UCSD CSE169 — Chapter 2: Skeletons"
-[3]: https://numpy.org/doc/2.2/reference/generated/numpy.matmul.html "NumPy — numpy.matmul"
-[4]: https://docs.opencv.org/4.x/dd/d9e/classcv_1_1VideoWriter.html "OpenCV — cv::VideoWriter"
-[5]: https://matplotlib.org/stable/users/explain/figure/backends.html "Matplotlib — Backends"
+从项目路线图看，P1-NEW-10 已经闭环，后续更高价值的增量将不再是“有没有批量入口”，而是“如何进一步提升批次 SKU 丰富度与 AI 渲染质量稳定性”。因此，后续演进最值得优先推进的方向有两个：其一，是扩展 genotype 预设与装备 SKU 覆盖，让量产工厂能直接对应更多商业角色组合；其二，是继续收紧 `anti_flicker_render` 的工作流模板和模型版本，使 ComfyUI 链路从“可调用”迈向“稳定可复现”。

@@ -13,6 +13,8 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
+from tools.run_mass_production_factory import run_mass_production_factory
+
 from mathart.pipeline import AssetPipeline
 from mathart.core.artifact_schema import ArtifactManifest
 from mathart.core.backend_registry import BackendMeta, get_registry
@@ -188,6 +190,20 @@ def build_parser() -> argparse.ArgumentParser:
     af_parser.add_argument("--name", default=None, help="Optional artifact stem/name.")
     af_parser.add_argument("--session-id", default="CLI-108", help="Session id injected into context.")
 
+    mass_parser = subparsers.add_parser(
+        "mass-produce",
+        aliases=["mass_produce"],
+        help="Run the PDG-v2 industrial mass production asset factory.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mass_parser.add_argument("--output-dir", required=True, help="Root directory under which the batch folder is created.")
+    mass_parser.add_argument("--batch-size", type=int, default=20, help="Number of character work items to fan out.")
+    mass_parser.add_argument("--pdg-workers", type=int, default=16, help="PDG mapped fan-out worker count.")
+    mass_parser.add_argument("--gpu-slots", type=int, default=1, help="GPU concurrency budget for requires_gpu PDG work items.")
+    mass_parser.add_argument("--seed", type=int, default=20260421, help="Deterministic root seed for SeedSequence splitting.")
+    mass_parser.add_argument("--skip-ai-render", action="store_true", help="Skip the anti_flicker_render GPU lane for CPU-only dry runs.")
+    mass_parser.add_argument("--comfyui-url", default="http://localhost:8188", help="ComfyUI server URL used when AI rendering is enabled.")
+
     return parser
 
 
@@ -293,6 +309,20 @@ def _command_anti_flicker_render(args: argparse.Namespace) -> int:
     return _run_backend_and_emit("anti_flicker_render", context, output_dir)
 
 
+def _command_mass_produce(args: argparse.Namespace) -> int:
+    payload = run_mass_production_factory(
+        output_root=Path(args.output_dir).resolve(),
+        batch_size=args.batch_size,
+        pdg_workers=args.pdg_workers,
+        gpu_slots=args.gpu_slots,
+        seed=args.seed,
+        skip_ai_render=args.skip_ai_render,
+        comfyui_url=args.comfyui_url,
+    )
+    _emit_json(payload)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -308,6 +338,8 @@ def main(argv: list[str] | None = None) -> int:
             return _command_run(args)
         if args.command in {"anti-flicker-render", "anti_flicker_render"}:
             return _command_anti_flicker_render(args)
+        if args.command in {"mass-produce", "mass_produce"}:
+            return _command_mass_produce(args)
         raise ValueError(f"Unsupported command: {args.command!r}")
     except Exception as exc:
         LOGGER.exception("CLI execution failed")
