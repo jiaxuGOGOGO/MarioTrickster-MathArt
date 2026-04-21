@@ -660,10 +660,11 @@
       "id": "P1-VFX-1B",
       "priority": "P1",
       "title": "Drive fluid VFX directly from UMR root velocity and weapon trajectories",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "Convert runtime root transform velocity, slash tangents, and motion-vector-derived impulses into automated driver_impulses for slash/dash smoke presets.",
-      "added_in": "SESSION-046"
+      "description": "SESSION-115 CLOSES P1-VFX-1B: Full UMR-driven fluid momentum injection pipeline. (1) UMRKinematicImpulseAdapter — reads UnifiedMotionClip, extracts root velocity via native UMR fields or central finite difference, tracks weapon_tip end-effector positions/velocities from frame metadata, emits strongly-typed VectorFieldImpulse contracts with start/end segment, velocity_vector, Gaussian radius, and density. (2) LineSegmentSplatter — pure-tensor (np.meshgrid + broadcasting) continuous line-segment distance field computation; Gaussian-weighted velocity splatting exp(-d²/r²) produces smooth crescent-shaped momentum bands with zero Python for-loops (Anti-Dotted-Line Guard, Anti-Scalar-Grid-Loop Guard). (3) CFL Soft Tanh Velocity Clamping — soft_tanh_clamp() limits injection magnitude to CFL-safe v_max = cfl_factor * dx / dt, preventing advection blow-up and NaN propagation (Anti-Energy-Explosion Guard). (4) FluidMomentumController — closed-loop orchestrator wiring UMR extraction → tensor splatting → direct grid field injection (u_prev/v_prev/density_prev) with obstacle constraint enforcement; auto-selects VFX config from clip state; supports dynamic obstacle masks (P1-VFX-1A compatibility). (5) MomentumVFXMetrics + evaluate_momentum_simulation — three-layer evolution bridge with NaN detection, field continuity scoring, and injection efficiency tracking. (6) 35/35 white-box regression tests across 9 test groups covering anti-dotted-line, anti-scalar-loop, CFL guard, UMR extraction, splatter geometry, closed-loop controller, evolution metrics, backward compatibility, and stress conditions. Research grounded in GPU Gems 3 Ch. 30 (Crane/Llamas/Tariq — Gaussian velocity splatting, free-slip BC), Continuous Trajectory Splatting (line-segment distance field), Naughty Dog/Sucker Punch animation-driven VFX (root/effector kinetic energy inheritance), and CFL stability condition (Courant-Friedrichs-Lewy).",
+      "added_in": "SESSION-046",
+      "closed_in": "SESSION-115"
     },
     {
       "id": "P2-1",
