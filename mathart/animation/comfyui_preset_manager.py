@@ -47,6 +47,7 @@ from typing import Any, Iterable
 
 _DEFAULT_PRESET_NAME = "dual_controlnet_ipadapter"
 _SPARSECTRL_PRESET_NAME = "sparsectrl_animatediff"
+_NORMAL_DEPTH_SEQUENCE_PRESET_NAME = "normal_depth_dual_controlnet"
 
 
 @dataclass(frozen=True)
@@ -133,6 +134,54 @@ _SPARSECTRL_SELECTORS: tuple[NodeSelector, ...] = (
     # --- Frame save output ---
     NodeSelector("save_frame_output", "SaveImage", "save frame output", "filename_prefix"),
 )
+
+
+# ---------------------------------------------------------------------------
+# Selectors for the normal_depth_dual_controlnet preset (SESSION-107)
+# ---------------------------------------------------------------------------
+_NORMAL_DEPTH_SEQUENCE_SELECTORS: tuple[NodeSelector, ...] = (
+    NodeSelector("checkpoint", "CheckpointLoaderSimple", "load checkpoint", "ckpt_name"),
+    NodeSelector("positive_prompt", "CLIPTextEncode", "positive prompt", "text"),
+    NodeSelector("negative_prompt", "CLIPTextEncode", "negative prompt", "text"),
+    NodeSelector("normal_sequence_dir", "VHS_LoadImagesPath", "load normal sequence", "directory"),
+    NodeSelector("depth_sequence_dir", "VHS_LoadImagesPath", "load depth sequence", "directory"),
+    NodeSelector("normal_controlnet", "ControlNetLoader", "normal controlnet", "control_net_name"),
+    NodeSelector("depth_controlnet", "ControlNetLoader", "depth controlnet", "control_net_name"),
+    NodeSelector("normal_apply", "ControlNetApplyAdvanced", "apply normal controlnet", "strength"),
+    NodeSelector("depth_apply", "ControlNetApplyAdvanced", "apply depth controlnet", "strength"),
+    NodeSelector("latent_batch_size", "EmptyLatentImage", "empty latent batch", "batch_size"),
+    NodeSelector("latent_width", "EmptyLatentImage", "empty latent batch", "width"),
+    NodeSelector("latent_height", "EmptyLatentImage", "empty latent batch", "height"),
+    NodeSelector("ksampler_seed", "KSampler", "ksampler", "seed"),
+    NodeSelector("ksampler_steps", "KSampler", "ksampler", "steps"),
+    NodeSelector("ksampler_cfg", "KSampler", "ksampler", "cfg"),
+    NodeSelector("ksampler_denoise", "KSampler", "ksampler", "denoise"),
+    NodeSelector("video_frame_rate", "VHS_VideoCombine", "video combine output", "frame_rate"),
+    NodeSelector("video_filename", "VHS_VideoCombine", "video combine output", "filename_prefix"),
+    NodeSelector("save_frame_output", "SaveImage", "save frame output", "filename_prefix"),
+)
+
+
+def _normalize_sequence_source(source: str | Path | None) -> str:
+    if source is None:
+        return ""
+    text = str(source).strip()
+    if not text:
+        return ""
+    if "://" in text:
+        return text
+    return str(Path(text).resolve())
+
+
+def _sequence_selectors_for_preset(preset_name: str) -> tuple[NodeSelector, ...]:
+    if preset_name == _SPARSECTRL_PRESET_NAME:
+        return _SPARSECTRL_SELECTORS
+    if preset_name == _NORMAL_DEPTH_SEQUENCE_PRESET_NAME:
+        return _NORMAL_DEPTH_SEQUENCE_SELECTORS
+    raise PresetBindingError(
+        f"Unsupported sequence preset {preset_name!r}. Expected one of "
+        f"{sorted([_SPARSECTRL_PRESET_NAME, _NORMAL_DEPTH_SEQUENCE_PRESET_NAME])}"
+    )
 
 
 class PresetBindingError(ValueError):
@@ -380,7 +429,7 @@ class ComfyUIPresetManager:
         preset_name: str = _SPARSECTRL_PRESET_NAME,
         normal_sequence_dir: str | Path,
         depth_sequence_dir: str | Path,
-        rgb_sequence_dir: str | Path,
+        rgb_sequence_dir: str | Path | None = None,
         prompt: str,
         negative_prompt: str = "",
         normal_controlnet_name: str = "control_v11p_sd15_normalbae.pth",
@@ -406,89 +455,67 @@ class ComfyUIPresetManager:
         client_id: str | None = None,
         filename_prefix: str = "mathart_sparsectrl",
     ) -> dict[str, Any]:
-        """Assemble a sequence-aware ComfyUI payload for SparseCtrl + AnimateDiff.
+        """Assemble a sequence-aware ComfyUI payload using semantic selectors only.
 
-        Unlike ``assemble_payload()`` which injects single image paths,
-        this method injects **directory paths** for VHS_LoadImagesPath nodes,
-        synchronizes the ``batch_size`` with ``frame_count``, and configures
-        AnimateDiff context options and SparseCtrl model parameters.
+        This method now supports two topology families:
 
-        All node wiring is defined in the external JSON preset asset.
-        This method ONLY injects scalar values and path strings.
+        1. ``sparsectrl_animatediff`` — Normal + Depth + RGB SparseCtrl guides
+        2. ``normal_depth_dual_controlnet`` — pure Normal + Depth dual ControlNet
 
-        Parameters
-        ----------
-        normal_sequence_dir : str | Path
-            Directory containing the normal map frame sequence.
-        depth_sequence_dir : str | Path
-            Directory containing the depth map frame sequence.
-        rgb_sequence_dir : str | Path
-            Directory containing the RGB reference frame sequence
-            (sparse keyframes for SparseCtrl conditioning).
-        frame_count : int
-            Total number of frames to generate.  Injected into
-            ``EmptyLatentImage.batch_size`` to synchronize with AnimateDiff.
-        context_length : int
-            AnimateDiff temporal attention window size (default 16).
-        frame_rate : int
-            Output video frame rate for VHS_VideoCombine.
+        Sequence sources may be local directories or already-resolved URI-like
+        strings.  No hardcoded node ids are used; all injection is semantic.
         """
-        workflow = copy.deepcopy(
-            self.load_preset(preset_name, selectors=_SPARSECTRL_SELECTORS)
-        )
+        selectors = _sequence_selectors_for_preset(preset_name)
+        workflow = copy.deepcopy(self.load_preset(preset_name, selectors=selectors))
         bindings: dict[str, dict[str, Any]] = {}
 
         if seed < 0:
             seed = int(time.time_ns() % (2**31))
 
-        normal_dir = str(Path(normal_sequence_dir).resolve())
-        depth_dir = str(Path(depth_sequence_dir).resolve())
-        rgb_dir = str(Path(rgb_sequence_dir).resolve())
-        selector_map = {s.role: s for s in _SPARSECTRL_SELECTORS}
+        normal_dir = _normalize_sequence_source(normal_sequence_dir)
+        depth_dir = _normalize_sequence_source(depth_sequence_dir)
+        rgb_dir = _normalize_sequence_source(rgb_sequence_dir)
+        selector_map = {s.role: s for s in selectors}
 
-        # --- Core injections (all scalar values or path strings) ---
         injections: dict[str, Any] = {
-            # Model
             "checkpoint": model_checkpoint,
-            # Text
             "positive_prompt": prompt,
             "negative_prompt": negative_prompt,
-            # AnimateDiff
-            "animatediff_model": animatediff_model_name,
-            "animatediff_beta": animatediff_beta_schedule,
-            # Context options
-            "context_length": int(context_length),
-            "context_overlap": int(context_overlap),
-            # VHS directory paths (SEQUENCE, not single image!)
             "normal_sequence_dir": normal_dir,
             "depth_sequence_dir": depth_dir,
-            "rgb_sequence_dir": rgb_dir,
-            # ControlNet models
             "normal_controlnet": normal_controlnet_name,
             "depth_controlnet": depth_controlnet_name,
-            # ControlNet strengths
             "normal_apply": float(normal_weight),
             "depth_apply": float(depth_weight),
-            # SparseCtrl
-            "sparsectrl_model": sparsectrl_model_name,
-            "sparsectrl_strength": float(sparsectrl_strength),
-            "sparsectrl_apply": float(sparsectrl_strength),
-            "sparsectrl_end_percent": float(sparsectrl_end_percent),
-            # Latent batch (frame_count → batch_size synchronization)
             "latent_batch_size": int(frame_count),
             "latent_width": int(width),
             "latent_height": int(height),
-            # KSampler
             "ksampler_seed": int(seed),
             "ksampler_steps": int(steps),
             "ksampler_cfg": float(cfg_scale),
             "ksampler_denoise": float(denoising_strength),
-            # Video output
             "video_frame_rate": int(frame_rate),
             "video_filename": filename_prefix,
-            # Frame save
             "save_frame_output": f"{filename_prefix}_frames",
         }
+
+        uses_sparsectrl = "rgb_sequence_dir" in selector_map
+        if uses_sparsectrl:
+            if not rgb_dir:
+                raise ValueError(
+                    "rgb_sequence_dir is required when preset_name='sparsectrl_animatediff'"
+                )
+            injections.update({
+                "animatediff_model": animatediff_model_name,
+                "animatediff_beta": animatediff_beta_schedule,
+                "context_length": int(context_length),
+                "context_overlap": int(context_overlap),
+                "rgb_sequence_dir": rgb_dir,
+                "sparsectrl_model": sparsectrl_model_name,
+                "sparsectrl_strength": float(sparsectrl_strength),
+                "sparsectrl_apply": float(sparsectrl_strength),
+                "sparsectrl_end_percent": float(sparsectrl_end_percent),
+            })
 
         for role, value in injections.items():
             if role in selector_map:
@@ -499,7 +526,9 @@ class ComfyUIPresetManager:
                     bindings=bindings,
                 )
 
-        guides_locked = ["normal", "depth", "sparsectrl_rgb"]
+        guides_locked = ["normal", "depth"]
+        if uses_sparsectrl:
+            guides_locked.append("sparsectrl_rgb")
         guides_requested = list(guides_locked)
 
         preset_path = self.resolve_preset_path(preset_name)
@@ -519,17 +548,18 @@ class ComfyUIPresetManager:
                 "context_length": int(context_length),
                 "context_overlap": int(context_overlap),
                 "frame_rate": int(frame_rate),
-                "animatediff_model": animatediff_model_name,
-                "animatediff_beta_schedule": animatediff_beta_schedule,
-                "sparsectrl_model": sparsectrl_model_name,
-                "sparsectrl_strength": float(sparsectrl_strength),
-                "sparsectrl_end_percent": float(sparsectrl_end_percent),
+                "animatediff_model": animatediff_model_name if uses_sparsectrl else "",
+                "animatediff_beta_schedule": animatediff_beta_schedule if uses_sparsectrl else "",
+                "sparsectrl_model": sparsectrl_model_name if uses_sparsectrl else "",
+                "sparsectrl_strength": float(sparsectrl_strength) if uses_sparsectrl else 0.0,
+                "sparsectrl_end_percent": float(sparsectrl_end_percent) if uses_sparsectrl else 0.0,
                 "batch_size_synced": True,
+                "uses_sparsectrl": uses_sparsectrl,
             },
             "sequence_directories": {
                 "normal": normal_dir,
                 "depth": depth_dir,
-                "rgb": rgb_dir,
+                **({"rgb": rgb_dir} if uses_sparsectrl else {}),
             },
             "workflow_contract": {
                 "format": "workflow_api_json",
@@ -537,6 +567,7 @@ class ComfyUIPresetManager:
                 "selector_fields": ["class_type", "_meta.title"],
                 "sequence_aware": True,
                 "vhs_directory_injection": True,
+                "preset_family": "normal_depth_sparsectrl" if uses_sparsectrl else "normal_depth_dual_controlnet",
             },
         }
 
@@ -554,4 +585,6 @@ __all__ = [
     "_PRESET_SELECTORS",
     "_SPARSECTRL_SELECTORS",
     "_SPARSECTRL_PRESET_NAME",
+    "_NORMAL_DEPTH_SEQUENCE_SELECTORS",
+    "_NORMAL_DEPTH_SEQUENCE_PRESET_NAME",
 ]

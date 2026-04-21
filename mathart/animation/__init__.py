@@ -238,6 +238,21 @@ from .headless_comfy_ebsynth import (
     ComfyUIHeadlessClient, EbSynthPropagationEngine,
     HeadlessNeuralRenderPipeline,
 )
+# SESSION-107: Math-to-AI ControlNet bridge exporters
+from .controlnet_bridge_exporters import (
+    PaddingInfo,
+    ExportResult,
+    NormalMapExportConfig,
+    NormalMapExporter,
+    DepthMapExportConfig,
+    DepthMapExporter,
+    encode_controlnet_normal_rgb,
+)
+from .frame_sequence_exporter import (
+    FrameSequenceExportConfig,
+    FrameSequenceExporter,
+    FrameSequenceExportResult,
+)
 # SESSION-056: Engine Import Plugin (Bénard Dead Cells 2D Deferred Lighting)
 from .engine_import_plugin import (
     MathArtBundle, EngineImportPluginGenerator,
@@ -544,6 +559,13 @@ __all__ = [
     "NeuralRenderConfig", "NeuralRenderResult",
     "ComfyUIHeadlessClient", "EbSynthPropagationEngine",
     "HeadlessNeuralRenderPipeline",
+    # SESSION-107: Math-to-AI ControlNet bridge exporters
+    "PaddingInfo", "ExportResult",
+    "NormalMapExportConfig", "NormalMapExporter",
+    "DepthMapExportConfig", "DepthMapExporter",
+    "encode_controlnet_normal_rgb",
+    "FrameSequenceExportConfig", "FrameSequenceExporter",
+    "FrameSequenceExportResult",
     # SESSION-056: Engine Import Plugin (Godot 4 + Unity URP)
     "MathArtBundle", "EngineImportPluginGenerator",
     "extract_sdf_contour", "generate_mathart_bundle",

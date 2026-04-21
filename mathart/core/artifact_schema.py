@@ -80,6 +80,7 @@ class ArtifactFamily(Enum):
     """
     SPRITE_SHEET = "sprite_sheet"
     SPRITE_SINGLE = "sprite_single"
+    IMAGE_SEQUENCE = "image_sequence"
     MESH_OBJ = "mesh_obj"
     MESH_FBX = "mesh_fbx"
     VAT_BUNDLE = "vat_bundle"
@@ -415,6 +416,16 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     ArtifactFamily.SPRITE_SHEET.value: {
         "required_outputs": ["spritesheet"],
         "required_metadata": ["frame_count", "frame_width", "frame_height"],
+        "required_quality": [],
+    },
+    ArtifactFamily.SPRITE_SINGLE.value: {
+        "required_outputs": ["image"],
+        "required_metadata": ["width", "height", "channels"],
+        "required_quality": [],
+    },
+    ArtifactFamily.IMAGE_SEQUENCE.value: {
+        "required_outputs": ["sequence_dir", "metadata_json"],
+        "required_metadata": ["frame_count", "frame_width", "frame_height", "fps"],
         "required_quality": [],
     },
     ArtifactFamily.VAT_BUNDLE.value: {

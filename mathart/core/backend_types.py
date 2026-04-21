@@ -73,6 +73,10 @@ class BackendType(str, Enum):
     # Produces 3D ribbon meshes from secondary animation chain snapshots
     # (cape, hair, cloth) for orthographic pixel rendering.
     PHYSICAL_RIBBON = "physical_ribbon"
+    # SESSION-107 (P1-AI-1): Math-to-AI bridge exporters.
+    CONTROLNET_NORMAL_EXPORT = "controlnet_normal_export"
+    CONTROLNET_DEPTH_EXPORT = "controlnet_depth_export"
+    FRAME_SEQUENCE_EXPORT = "frame_sequence_export"
 
 
 _BACKEND_ALIASES: dict[str, str] = {
@@ -167,6 +171,15 @@ _BACKEND_ALIASES: dict[str, str] = {
     "cape_mesh": BackendType.PHYSICAL_RIBBON.value,
     "hair_mesh": BackendType.PHYSICAL_RIBBON.value,
     "secondary_chain_mesh": BackendType.PHYSICAL_RIBBON.value,
+    # SESSION-107 (P1-AI-1): Math-to-AI bridge exporter aliases
+    BackendType.CONTROLNET_NORMAL_EXPORT.value: BackendType.CONTROLNET_NORMAL_EXPORT.value,
+    BackendType.CONTROLNET_DEPTH_EXPORT.value: BackendType.CONTROLNET_DEPTH_EXPORT.value,
+    BackendType.FRAME_SEQUENCE_EXPORT.value: BackendType.FRAME_SEQUENCE_EXPORT.value,
+    "normal_map_exporter": BackendType.CONTROLNET_NORMAL_EXPORT.value,
+    "depth_map_exporter": BackendType.CONTROLNET_DEPTH_EXPORT.value,
+    "controlnet_normal": BackendType.CONTROLNET_NORMAL_EXPORT.value,
+    "controlnet_depth": BackendType.CONTROLNET_DEPTH_EXPORT.value,
+    "vhs_sequence_exporter": BackendType.FRAME_SEQUENCE_EXPORT.value,
 }
 
 

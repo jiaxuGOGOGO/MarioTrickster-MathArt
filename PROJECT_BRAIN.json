@@ -231,10 +231,11 @@
       "id": "P1-AI-1",
       "priority": "P1",
       "title": "Math-to-AI Pipeline Prototype",
-      "status": "IN-PROGRESS",
+      "status": "SUBSTANTIALLY-CLOSED",
       "estimated_effort": "medium",
-      "description": "Export skeleton/pose data as ControlNet inputs for external AI diffusion models. SESSION-106 closes P1-B1-1 prerequisite: Albedo/Normal/Depth rendering from physical ribbon meshes is now available. Remaining sub-tasks: P1-AI-1A (NormalMapExporter float64->uint8 ControlNet format), P1-AI-1B (FrameSequenceExporter VHS directory format), P1-AI-1C (normal_depth_dual_controlnet.json ComfyUI preset), P1-AI-1D (extend assemble_sequence_payload for dual Normal/Depth channels), P1-AI-1E (RTX 4070 end-to-end validation).",
-      "updated_in": "SESSION-106"
+      "description": "SESSION-107 substantially closes the Math-to-AI pipeline prototype. The project now has strongly-typed NormalMapExporter and DepthMapExporter adapters that convert float64 orthographic render buffers into ControlNet-compatible 8-bit PNG guides using explicit normal remapping `(N*0.5+0.5)*255`, polarity-aware depth normalization, and strict 8-pixel alignment. FrameSequenceExporter emits VHS-compliant `frame_%05d.png` directories plus `sequence_metadata.json`, while ComfyUIPresetManager now supports both `sparsectrl_animatediff` and the new `normal_depth_dual_controlnet` preset via semantic selectors only. Targeted local validation passed (5/5 session-specific tests). Remaining work is P1-AI-1E: maintainer RTX 4070 end-to-end execution with real ComfyUI/ControlNet weights and runtime evidence capture.",
+      "updated_in": "SESSION-107",
+      "notes": "P1-AI-1A/B/C/D are now landed in SESSION-107. Remaining closure item is real GPU runtime validation, artifact capture, and operational benchmarking on the maintainer workstation."
     },
     {
       "id": "P1-AI-2C",
@@ -295,7 +296,9 @@
       "title": "OpenUSD-compatible scene interchange",
       "status": "TODO",
       "estimated_effort": "high",
-      "description": "Extend the lightweight scene description into layered composition and export/import compatible serialization."
+      "description": "Extend the lightweight scene description into layered composition and export/import compatible serialization. SESSION-106 introduced CompositeManifestBuilder and attachment composition. SESSION-107 prepared the next step by normalizing image/sequence artifacts into typed single-frame and image-sequence manifests with explicit lineage, which can now be lifted into an OpenUSD-compatible scene graph by adding stable prim paths, relationship arcs, variant-set semantics, and adapter-owned usd/usda exporters.",
+      "updated_in": "SESSION-107",
+      "notes": "Recommended micro-adjustments before implementation: (1) promote artifact outputs to canonical prim-style paths, (2) split logical scene composition from file-format serialization, (3) assign stable asset identifiers for frame sequences and material channels, (4) define transform/material/guide prim schemas, and (5) preserve adapter-only export so render cores remain disk-agnostic."
     },
     {
       "id": "P1-ARCH-6",
@@ -3468,6 +3471,40 @@
         "PROJECT_BRAIN.json"
       ],
       "test_results": "1743 PASS / 8 SKIP / 1 FAIL (pre-existing watchdog dep) (python3.11 -m pytest tests/ -p no:cov)"
+    },
+    {
+      "session_id": "SESSION-107",
+      "version": "v0.93.1",
+      "date": "2026-04-21",
+      "focus": "P1-AI-1 substantial closure (Math-to-AI bridge exporters + VHS sequence + dual ControlNet preset)",
+      "status": "COMPLETE",
+      "summary": "Substantially closed P1-AI-1 by landing ControlNet bridge exporters, VHS-compliant frame sequence export, and a semantic-selector-driven dual ControlNet sequence preset. Added typed SPRITE_SINGLE / IMAGE_SEQUENCE manifest schemas, backend aliases, value-level normal-map assertions, depth polarity support, and targeted offline-safe regression tests. Remaining closure item is RTX 4070 real-runtime validation with actual ComfyUI/ControlNet weights.",
+      "changes": [
+        "NEW mathart/animation/controlnet_bridge_exporters.py — NormalMapExporter / DepthMapExporter adapters with explicit `(N*0.5+0.5)*255` remap, depth polarity control, sidecar metadata, strict 8-pixel alignment, and typed ArtifactManifest output",
+        "NEW mathart/animation/frame_sequence_exporter.py — FrameSequenceExporter builds VHS-compliant `frame_%05d.png` directories plus `sequence_metadata.json` from single-frame exporters",
+        "NEW mathart/assets/comfyui_presets/normal_depth_dual_controlnet.json — pure Normal+Depth dual ControlNet sequence topology with VHS loaders and semantic titles",
+        "UPD mathart/animation/comfyui_preset_manager.py — add normal_depth_dual_controlnet selector set, generic sequence-source normalization, and dual-preset sequence payload assembly without hardcoded node ids",
+        "UPD mathart/core/artifact_schema.py — add IMAGE_SEQUENCE schema and SPRITE_SINGLE required outputs/metadata",
+        "UPD mathart/core/backend_types.py — add CONTROLNET_NORMAL_EXPORT / CONTROLNET_DEPTH_EXPORT / FRAME_SEQUENCE_EXPORT backend types and aliases",
+        "UPD mathart/animation/__init__.py — export ControlNet bridge and FrameSequence adapters",
+        "NEW tests/test_p1_ai_1_controlnet_bridge.py — 5 targeted tests covering value-level normal encoding, depth polarity, VHS sequence continuity, manifest validation, and dual preset injection",
+        "UPD PROJECT_BRAIN.json — P1-AI-1 -> SUBSTANTIALLY-CLOSED, SESSION-107 metadata, P1-ARCH-5 prep notes",
+        "UPD SESSION_HANDOFF.md — SESSION-107 closure summary, validation, and OpenUSD preparation guidance"
+      ],
+      "files_touched": [
+        "mathart/animation/controlnet_bridge_exporters.py",
+        "mathart/animation/frame_sequence_exporter.py",
+        "mathart/animation/comfyui_preset_manager.py",
+        "mathart/assets/comfyui_presets/normal_depth_dual_controlnet.json",
+        "mathart/core/artifact_schema.py",
+        "mathart/core/backend_types.py",
+        "mathart/animation/__init__.py",
+        "tests/test_p1_ai_1_controlnet_bridge.py",
+        "research/session107_p1_ai1_external_notes.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "test_results": "5 PASS / 0 SKIP / 0 FAIL (python3.11 -m pytest -q tests/test_p1_ai_1_controlnet_bridge.py)"
     }
   ],
   "resolved_issues": [
@@ -3533,6 +3570,8 @@
     "session103_gpu_prep": "For P3-GPU-BENCH-1, benchmark scenarios should next be promoted into explicit WorkItems with hardware/environment fingerprints (device_name, driver_version, taichi_version, arch, snode_layout, precision_mode) so PDG v2 cache keys distinguish real CUDA evidence from CPU/reference runs.",
     "session104_validation": "Local validation completed with python3.11 -m pytest tests/ -p no:cov -> 1726 PASS / 7 SKIP / 0 FAIL. Sandbox required dev extras plus watchdog for complete suite execution.",
     "session104_pdg_status": "P1-ARCH-4 remains CLOSED, now with bounded local scheduler semantics. mathart/level/pdg.py keeps immutable WorkItem contracts and hermetic disk caching, but mapped fan-out now executes through a max_workers-bounded ThreadPoolExecutor path with ordered main-thread trace aggregation.",
-    "session104_gpu_prep": "For P3-GPU-BENCH-1 on the local RTX 4070, the PDG substrate is now ready for scenario-level fan-out. Remaining micro-adjustments: promote benchmark scenarios into explicit WorkItem payloads, include device/driver/CUDA/Taichi/precision/snode fingerprints in cache lineage, keep large numeric traces file-backed instead of JSON-inline payloads, and define a collect-node reduction schema for warmup-trimmed median, P95, worst frame, parity drift, and report paths."
+    "session104_gpu_prep": "For P3-GPU-BENCH-1 on the local RTX 4070, the PDG substrate is now ready for scenario-level fan-out. Remaining micro-adjustments: promote benchmark scenarios into explicit WorkItem payloads, include device/driver/CUDA/Taichi/precision/snode fingerprints in cache lineage, keep large numeric traces file-backed instead of JSON-inline payloads, and define a collect-node reduction schema for warmup-trimmed median, P95, worst frame, parity drift, and report paths.",
+    "session107_validation": "Targeted local validation completed with python3.11 -m pytest -q tests/test_p1_ai_1_controlnet_bridge.py -> 5 PASS / 0 SKIP / 0 FAIL. Additional smoke validation confirmed semantic payload assembly for both sparsectrl_animatediff and normal_depth_dual_controlnet presets.",
+    "session107_openusd_prep": "Before P1-ARCH-5, promote current ArtifactManifest lineage into canonical prim-style identities: stable prim paths, transform/material/guide schema boundaries, sequence relationship arcs, and adapter-only usd/usda serializers. Keep render engines pure in-memory producers while exporters own file-format realization."
   }
 }
