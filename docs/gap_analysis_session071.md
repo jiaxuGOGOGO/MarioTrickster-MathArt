@@ -134,7 +134,7 @@
 | 27 | P1-ARCH-5 | TODO | OpenUSD-compatible scene interchange |
 | 28 | P1-ARCH-6 | TODO | Rich topology-aware level semantics |
 | 29 | P1-B1-1 | TODO | Render cape/hair ribbons or meshes directly from Jakobsen chain snapshots |
-| 30 | P1-B2-1 | TODO | Add more terrain primitives (convex hull, Bézier curve, heightmap import) |
+| 30 | P1-B2-1 | CLOSED (SESSION-112) | Add more terrain primitives (convex hull, Bézier curve, heightmap import) |
 | 31 | P1-B2-2 | TODO | Extend TTC prediction to multi-bounce scenarios and moving platforms |
 | 32 | P1-B3-2 | TODO | Add GaitBlender reference motions to RL environment |
 | 33 | P1-HUMAN-31A | TODO | Integrate SMPL-like shape latents into CharacterGenotype and rendering pipeline |
