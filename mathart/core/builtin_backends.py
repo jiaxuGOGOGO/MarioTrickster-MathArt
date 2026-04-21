@@ -1329,6 +1329,10 @@ class AntiFlickerRenderBackend:
         if preset_name == "sparsectrl_animatediff":
             guides_locked.append("sparsectrl_rgb")
 
+        temporal_stability_score = float(
+            sum(float(entry.get("temporal_coherence_score", 0.0)) for entry in frame_sequence)
+            / max(len(frame_sequence), 1)
+        )
         temporal_report = {
             "preset_name": preset_name,
             "preset_asset_path": str(preset_asset_path.resolve()),
@@ -1343,6 +1347,8 @@ class AntiFlickerRenderBackend:
             "chunk_size": chunk_size,
             "chunk_reports": chunk_report_paths,
             "execution_mode": "live_comfyui_chunked",
+            "temporal_stability_score": temporal_stability_score,
+            "keyframe_count": len(keyframe_indices),
         }
         temporal_report_path.write_text(json.dumps(temporal_report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
@@ -1418,7 +1424,9 @@ class AntiFlickerRenderBackend:
                 },
             },
             quality_metrics={
+                "temporal_stability_score": temporal_stability_score,
                 "frame_count": float(len(frame_sequence)),
+                "keyframe_count": float(len(keyframe_indices)),
                 "chunk_count": float(len(chunk_plan)),
                 "chunk_size": float(chunk_size),
             },

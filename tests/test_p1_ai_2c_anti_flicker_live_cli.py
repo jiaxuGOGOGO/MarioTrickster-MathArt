@@ -264,6 +264,9 @@ def test_live_backend_pads_small_sequences_to_comfyui_minimum(tmp_path: Path, mo
     assert observed_latent_sizes == [(32, 16)]
     assert manifest.metadata["execution_mode"] == "live_comfyui_chunked"
     assert Path(manifest.outputs["frame_directory"]).exists()
+    assert manifest.quality_metrics["temporal_stability_score"] == 1.0
+    assert manifest.quality_metrics["frame_count"] == 4.0
+    assert manifest.quality_metrics["keyframe_count"] == 1.0
 
 
 def test_cli_anti_flicker_render_keeps_stdout_json_and_progress_on_stderr(tmp_path: Path, monkeypatch, capsys) -> None:
