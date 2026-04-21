@@ -640,10 +640,11 @@
       "id": "P1-VAT-PRECISION-1",
       "priority": "P1",
       "title": "Add higher-precision VAT encodings and Unity material presets",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "Extend SESSION-059 VAT baking with half/float encodings, larger-cloth safety bounds, and ready-made Unity presets for higher fidelity playback.",
-      "added_in": "SESSION-059"
+      "description": "SESSION-116 CLOSED. Implemented industrial-grade high-precision Float VAT baking pipeline grounded in SideFX Houdini VAT 3.0 specification, Global Bounding Box Quantization, and Unity Texture Importer Discipline. Deliverables: (1) GlobalBoundsNormalizer — tensor-level O(N) global min/max across ALL frames and vertices via np.min(axis=(0,1)), preventing catastrophic per-frame scale pumping; (2) Triple export strategy: raw float32 .npy (zero precision loss), Radiance .hdr via cv2 (visual inspection), Hi-Lo 16-bit packed PNG pair (Unity compatible, 1/65535 ≈ 1.5e-5 precision); (3) Unity URP HLSL Shader (HighPrecisionVATLit) with Hi-Lo decode + global bounds denormalize + LOD-0 Point-filtered sampling; (4) Unity Material Preset JSON enforcing sRGB=False, Filter=Point, Compression=None, MipMaps=False; (5) Strong-typed HighPrecisionVATManifest with bounds_min/max/extent and research provenance; (6) Three-layer evolution bridge (VATEvolutionMetrics + evaluate_vat_precision). Anti-red-line guards: zero np.uint8 in float path, global-only bounds, no C++ dependencies (cv2+numpy only). 43 white-box tests covering GlobalBoundsNormalizer, Hi-Lo round-trip RMSE < 1e-4, NPY zero-loss, HDR float32 dtype, full pipeline E2E, anti-precision-loss source audit, anti-local-bounds trap, Unity preset validation, evolution bridge, edge cases (single frame/vertex, degenerate, large displacement, negative positions), and shader content validation. Research: SideFX Houdini VAT 3.0 HDR specification, Houdini Split Positions Two Textures approach, Unity URP Texture Importer discipline.",
+      "added_in": "SESSION-059",
+      "closed_in": "SESSION-116"
     },
     {
       "id": "P1-VFX-1A",
