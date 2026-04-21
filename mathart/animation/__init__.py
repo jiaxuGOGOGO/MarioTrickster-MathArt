@@ -338,6 +338,25 @@ from .umr_rl_adapter import (
     flatten_umr_to_rl_state, interpolate_reference,
     compute_imitation_reward, generate_umr_reference_clips,
 )
+# SESSION-110: P1-PHASE-33B — Terrain-Adaptive Phase Modulation System
+from .terrain_phase_types import (
+    TerrainGaitConfig,
+    TrajectoryTerrainSample,
+    TerrainPhaseModulationResult,
+    SurfaceTypeEntry,
+    KNOWN_SURFACE_TYPES,
+    resolve_terrain_gait_config,
+)
+from .terrain_trajectory_forecaster import (
+    TrajectoryTerrainForecaster,
+)
+from .terrain_phase_modulator import (
+    TerrainPhaseModulator,
+)
+from .terrain_adaptive_gait_bridge import (
+    TerrainAdaptiveGaitBridge,
+    TerrainAdaptiveGaitSample,
+)
 # SESSION-048: Scene-Aware Distance Sensor (Gap B2 — SDF Terrain + TTC)
 from .terrain_sensor import (
     TerrainSDF,
@@ -611,4 +630,15 @@ __all__ = [
     "compute_tangent_frames",
     "extrude_ribbon_mesh",
     "merge_meshes",
+    # SESSION-110: P1-PHASE-33B — Terrain-Adaptive Phase Modulation System
+    "TerrainGaitConfig",
+    "TrajectoryTerrainSample",
+    "TerrainPhaseModulationResult",
+    "SurfaceTypeEntry",
+    "KNOWN_SURFACE_TYPES",
+    "resolve_terrain_gait_config",
+    "TrajectoryTerrainForecaster",
+    "TerrainPhaseModulator",
+    "TerrainAdaptiveGaitBridge",
+    "TerrainAdaptiveGaitSample",
 ]

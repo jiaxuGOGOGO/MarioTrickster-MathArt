@@ -1,6 +1,6 @@
 {
   "version": "v0.93.0",
-  "last_session_id": "SESSION-108",
+  "last_session_id": "SESSION-110",
   "last_updated": "2026-04-21",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -32,7 +32,7 @@
     "closed_archived": 52
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-106 CLOSES P1-B1-1: PhysicalRibbonExtractor converts Jakobsen/XPBD secondary chain snapshots into real 3D Ribbon Mesh geometry (vertices, normals, depth, UVs) via UE5-Niagara-inspired Tangent-Binormal frame construction + Catmull-Rom C1 interpolation + Guilty Gear Xrd capsule-normal injection. PhysicalRibbonBackend self-registers via @register_backend, produces NPZ mesh + JSON report, and compose_character_with_attachments() implements Pixar OpenUSD Composition Arcs pattern for non-destructive scene assembly. 45 new white-box tests + full regression. Validation: 1743 PASS / 8 SKIP / 1 FAIL (pre-existing watchdog dep).",
+  "validation_pass_rate": "SESSION-110 CLOSES P1-PHASE-33B: Terrain-Adaptive Phase Modulation System — PFNN-inspired vectorized trajectory terrain forecasting + biomechanics-grounded continuous slope-to-stride/freq mapping + EMA-smoothed C1-continuous phase velocity modulation + closed-loop bridge to UnifiedGaitBlender. 54 new white-box tests (6 categories: contracts, forecaster, mapping, EMA smoothing, bridge integration, red-line compliance + biomechanics). Full regression: 1818 PASS / 35 FAIL (all pre-existing) / 3 SKIP.",
   "total_iterations": 686,
   "total_code_lines": 135507,
   "distill_session_id": "DISTILL-012",
@@ -78,7 +78,7 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "P1-ARCH-6 / Tensor-based level topology substrate (LevelTopologyBackend + TopologyExtractor): SciPy convolutional pattern matching lifts WFC tile grids into typed SemanticAnchor / TraversalLane / TopologyTensors artifacts under the LEVEL_TOPOLOGY family.",
+  "current_focus": "P1-PHASE-33B / Terrain-Adaptive Phase Modulation System: PFNN-inspired vectorized trajectory terrain forecasting + biomechanics-grounded continuous slope-to-stride/freq mapping + EMA-smoothed C1-continuous phase velocity modulation + closed-loop bridge to UnifiedGaitBlender via TerrainAdaptiveGaitBridge.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research_notes_session091.md",
@@ -542,10 +542,21 @@
       "id": "P1-PHASE-33B",
       "priority": "P1",
       "title": "Terrain-adaptive phase modulation",
-      "status": "PARTIAL",
+      "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "Partially addressed by SESSION-048 scene_aware_distance_phase() and slope compensation. Remaining: cyclic gait phase modulation on slopes and surface-type-driven stride adjustment.",
-      "added_in": "SESSION-033"
+      "description": "SESSION-110 CLOSES P1-PHASE-33B: Full terrain-adaptive phase modulation system grounded in PFNN (Holden SIGGRAPH 2017), incline-walking biomechanics, and Ubisoft Motion Matching trajectory forecasting (Clavet GDC 2016). Four new modules: (1) terrain_phase_types.py — TerrainGaitConfig frozen dataclass with RuntimeDistillationBus resolution, SurfaceTypeEntry vocabulary (6 materials), TrajectoryTerrainSample/TerrainPhaseModulationResult strong contracts. (2) terrain_trajectory_forecaster.py — vectorized N-point future trajectory SDF batch query with Gaussian distance-decay weighting, zero Python for-loops in hot path. (3) terrain_phase_modulator.py — continuous smoothstep+cos slope-to-stride/freq mapping (uphill: shorter stride + higher freq; downhill: longer stride + lower freq), surface viscosity attenuation, EMA low-pass filter for C1-continuous phase velocity transitions (anti-phase-pop). (4) terrain_adaptive_gait_bridge.py — closed-loop integration producing UnifiedMotionFrame with full modulation metadata. 54/54 white-box tests covering 6 categories: frozen contracts, vectorized forecaster, continuous mapping functions, EMA smoothing/convergence, end-to-end bridge integration, and 3 red-line compliance audits + biomechanics validation. Full regression: 1818 PASS / 35 FAIL (all pre-existing) / 3 SKIP.",
+      "added_in": "SESSION-033",
+      "updated_in": "SESSION-110",
+      "completed_in": "SESSION-110",
+      "primary_files": [
+        "mathart/animation/terrain_phase_types.py",
+        "mathart/animation/terrain_trajectory_forecaster.py",
+        "mathart/animation/terrain_phase_modulator.py",
+        "mathart/animation/terrain_adaptive_gait_bridge.py",
+        "tests/test_terrain_phase_modulation.py",
+        "research_notes_p1_phase_33b.md"
+      ],
+      "validation": "54 PASS / 0 FAIL via pytest tests/test_terrain_phase_modulation.py. Full regression: 1818 PASS / 35 FAIL (all pre-existing) / 3 SKIP."
     },
     {
       "id": "P1-PHASE-33C",
