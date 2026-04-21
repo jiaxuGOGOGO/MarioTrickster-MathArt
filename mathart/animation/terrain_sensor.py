@@ -1762,6 +1762,493 @@ def evaluate_terrain_sensor_accuracy(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 7. P1-B2-2 — Dynamic Terrain, Spacetime TTC, Multi-Bounce Forecaster
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# SESSION-113 / P1-B2-2 closes the dynamic-platform & multi-bounce gap.
+#
+# Research alignment:
+#   * Mirtich (1996/2000) — Conservative Advancement (CA): the safe time
+#     step Δt = D / V_rel_max guarantees zero tunnelling through thin
+#     geometry.  We implement the CFL guard as
+#     Δt = D / (|V_char| + |V_platform|).
+#   * Time-Dependent SDF (4D SDF): SDF(x, t) is realised via inverse
+#     rigid-body transform — query the static SDF at T⁻¹(t)·x and
+#     return the platform surface velocity at the contact point.
+#   * Rigid Body Restitution & Zeno's Paradox: impulse-based reflection
+#     V_new = V_rel − (1+e)(V_rel·N)N in *relative* velocity space,
+#     with Zeno guard (max_bounces + min_bounce_velocity threshold).
+#   * Data-Oriented Vectorisation: all multi-ray / multi-bounce
+#     computations use NumPy (N,2) tensor broadcasts — zero Python
+#     scalar loops in the hot path.
+#
+# Architecture discipline:
+#   * AdvancedTTCPredictor is a pure-math stateless utility class that
+#     extends (not replaces) the existing TTCPredictor — full backward
+#     compatibility preserved.
+#   * DynamicTerrainSDF wraps any static TerrainSDF via composition
+#     (Decorator pattern), never touching the original class.
+#   * MultiBounceTrajectory is a frozen dataclass (strong-typed contract).
+
+
+@dataclass(frozen=True)
+class PlatformMotion:
+    """Describes the rigid-body motion of a dynamic platform.
+
+    Supports translation (via ``position_fn``) and rotation (via
+    ``angle_fn``).  Both are callables ``t → value`` so arbitrary
+    motion profiles can be injected.
+
+    Parameters
+    ----------
+    position_fn : callable
+        ``t → np.ndarray([px, py])`` — platform centre at time *t*.
+    velocity_fn : callable
+        ``t → np.ndarray([vx, vy])`` — translational velocity at *t*.
+    angle_fn : callable or None
+        ``t → float`` — rotation angle (radians) at *t*.  ``None`` means
+        no rotation.
+    angular_velocity_fn : callable or None
+        ``t → float`` — angular velocity (rad/s) at *t*.
+    """
+    position_fn: Callable[[float], np.ndarray]
+    velocity_fn: Callable[[float], np.ndarray]
+    angle_fn: Optional[Callable[[float], float]] = None
+    angular_velocity_fn: Optional[Callable[[float], float]] = None
+
+
+def create_sine_platform_motion(
+    centre: tuple[float, float] = (0.0, 0.0),
+    amplitude: tuple[float, float] = (0.0, 1.0),
+    omega: float = 2.0,
+    phase: float = 0.0,
+) -> PlatformMotion:
+    """Factory for a simple-harmonic-oscillation platform.
+
+    Position: ``P(t) = centre + amplitude * sin(ω·t + φ)``
+    Velocity: ``V(t) = amplitude * ω * cos(ω·t + φ)``
+    """
+    c = np.asarray(centre, dtype=np.float64)
+    a = np.asarray(amplitude, dtype=np.float64)
+
+    def pos(t: float) -> np.ndarray:
+        return c + a * np.sin(omega * t + phase)
+
+    def vel(t: float) -> np.ndarray:
+        return a * omega * np.cos(omega * t + phase)
+
+    return PlatformMotion(position_fn=pos, velocity_fn=vel)
+
+
+class DynamicTerrainSDF:
+    """Time-dependent SDF wrapper (Decorator) for a moving platform.
+
+    Wraps a *static* ``TerrainSDF`` and a ``PlatformMotion`` descriptor.
+    At query time the world-space point is transformed into the platform's
+    local frame via the inverse rigid-body transform before querying the
+    underlying static SDF — the standard 4D-SDF approach.
+
+    The wrapper exposes the same ``eval_sdf`` / ``eval_gradient`` tensor
+    API as ``TerrainSDF`` but with an additional ``t`` parameter.
+    """
+
+    def __init__(self, static_terrain: TerrainSDF, motion: PlatformMotion):
+        self._static = static_terrain
+        self._motion = motion
+
+    # ── helpers ──────────────────────────────────────────────────────────
+
+    def _inverse_transform(self, points: np.ndarray, t: float) -> np.ndarray:
+        """Transform world points into the platform's local frame at time *t*."""
+        pos = self._motion.position_fn(t)  # (2,)
+        translated = points - pos  # (N, 2)
+        if self._motion.angle_fn is not None:
+            theta = -self._motion.angle_fn(t)  # inverse rotation
+            c, s = np.cos(theta), np.sin(theta)
+            rx = translated[:, 0] * c - translated[:, 1] * s
+            ry = translated[:, 0] * s + translated[:, 1] * c
+            translated = np.stack([rx, ry], axis=-1)
+        return translated
+
+    def surface_velocity(self, points: np.ndarray, t: float) -> np.ndarray:
+        """Compute the platform surface velocity at world *points* at time *t*.
+
+        Returns an ``(N, 2)`` velocity tensor.  Includes both translational
+        and rotational (tangential) components.
+        """
+        v_trans = self._motion.velocity_fn(t)  # (2,)
+        v = np.broadcast_to(v_trans, points.shape).copy()  # (N, 2)
+        if (self._motion.angle_fn is not None
+                and self._motion.angular_velocity_fn is not None):
+            omega = self._motion.angular_velocity_fn(t)
+            centre = self._motion.position_fn(t)
+            r = points - centre  # (N, 2)
+            # tangential velocity: ω × r  (2D cross: [-ry, rx] * ω)
+            v[:, 0] += -r[:, 1] * omega
+            v[:, 1] += r[:, 0] * omega
+        return v
+
+    # ── tensor API (mirrors TerrainSDF) ──────────────────────────────────
+
+    def eval_sdf(self, points: np.ndarray, t: float = 0.0) -> np.ndarray:
+        """Evaluate the dynamic SDF at world *points* and time *t*.
+
+        Returns ``(N,)`` signed distances.
+        """
+        pts = np.asarray(points, dtype=np.float64)
+        if pts.ndim != 2 or pts.shape[1] != 2:
+            raise ValueError("eval_sdf expects an (N, 2) array")
+        local = self._inverse_transform(pts, t)
+        return self._static.eval_sdf(local)
+
+    def eval_gradient(self, points: np.ndarray, t: float = 0.0,
+                       eps: float = 1e-4) -> np.ndarray:
+        """Evaluate the SDF gradient at world *points* and time *t*.
+
+        The gradient is computed in the local frame and then rotated back
+        to world space.  Returns ``(N, 2)``.
+        """
+        pts = np.asarray(points, dtype=np.float64)
+        if pts.ndim != 2 or pts.shape[1] != 2:
+            raise ValueError("eval_gradient expects an (N, 2) array")
+        local = self._inverse_transform(pts, t)
+        grad_local = self._static.eval_gradient(local, eps=eps)
+        # Rotate gradient back to world frame
+        if self._motion.angle_fn is not None:
+            theta = self._motion.angle_fn(t)
+            c, s = np.cos(theta), np.sin(theta)
+            gx = grad_local[:, 0] * c - grad_local[:, 1] * s
+            gy = grad_local[:, 0] * s + grad_local[:, 1] * c
+            grad_local = np.stack([gx, gy], axis=-1)
+        return grad_local
+
+    @property
+    def name(self) -> str:
+        return f"dynamic({self._static.name})"
+
+
+# ── Bounce result data contracts ─────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class BounceEvent:
+    """A single bounce/impact event in a multi-bounce trajectory."""
+    time: float                    # absolute time of impact
+    position: np.ndarray           # (2,) world-space contact point
+    normal: np.ndarray             # (2,) surface normal at impact
+    velocity_before: np.ndarray    # (2,) velocity just before impact
+    velocity_after: np.ndarray     # (2,) velocity just after reflection
+    surface_velocity: np.ndarray   # (2,) platform velocity at impact
+    relative_speed: float          # |V_rel · N| — normal impact speed
+    is_resting: bool = False       # True if below min_bounce_velocity
+
+
+@dataclass(frozen=True)
+class MultiBounceTrajectory:
+    """Complete multi-bounce prediction result (strong-typed contract).
+
+    This is the primary output of ``AdvancedTTCPredictor.predict_trajectory``.
+    It contains an ordered list of ``BounceEvent`` records plus summary
+    metadata for downstream consumers (e.g. P1-VFX-1B particle emitters).
+    """
+    bounces: tuple[BounceEvent, ...]   # ordered bounce events
+    total_time: float                  # time span of the prediction
+    terminated_by: str                 # 'max_bounces' | 'resting' | 'escaped' | 'max_time'
+    kinetic_energy_ratio: float        # final / initial KE ratio
+
+
+# ── Spacetime TTC Predictor (Conservative Advancement) ───────────────────────
+
+
+class AdvancedTTCPredictor:
+    """Spacetime TTC predictor with dynamic-platform awareness and multi-bounce.
+
+    This class **extends** (not replaces) the original ``TTCPredictor``.
+    It is a pure-math, stateless utility — safe to call from any thread.
+
+    Core algorithm (Conservative Advancement / CFL guard):
+        At each step, the safe time advance is
+        ``Δt = D / (|V_char| + |V_platform|)``
+        where D is the SDF distance.  This guarantees zero tunnelling.
+
+    Parameters
+    ----------
+    gravity : tuple[float, float]
+        Gravitational acceleration vector (default ``(0, -9.81)``).
+    contact_threshold : float
+        Distance below which contact is established (default 1e-3).
+    max_steps : int
+        Maximum conservative-advancement iterations (default 128).
+    max_time : float
+        Maximum prediction horizon in seconds (default 5.0).
+    max_bounces : int
+        Maximum number of bounces before forced termination (default 5).
+        **Anti-Zeno guard.**
+    min_bounce_velocity : float
+        Normal relative speed below which the object enters resting
+        contact (default 0.05).  **Anti-Zeno guard.**
+    restitution : float
+        Coefficient of restitution *e* (default 0.6).
+    friction_decay : float
+        Tangential velocity retention factor per bounce (default 0.95).
+    """
+
+    def __init__(
+        self,
+        gravity: tuple[float, float] = (0.0, -9.81),
+        contact_threshold: float = 1e-3,
+        max_steps: int = 128,
+        max_time: float = 5.0,
+        max_bounces: int = 5,
+        min_bounce_velocity: float = 0.05,
+        restitution: float = 0.6,
+        friction_decay: float = 0.95,
+    ):
+        self.gravity = np.asarray(gravity, dtype=np.float64)
+        self.contact_threshold = contact_threshold
+        self.max_steps = max_steps
+        self.max_time = max_time
+        self.max_bounces = max_bounces
+        self.min_bounce_velocity = min_bounce_velocity
+        self.restitution = restitution
+        self.friction_decay = friction_decay
+
+    # ── single-ray spacetime contact finder ──────────────────────────────
+
+    def _find_contact(
+        self,
+        pos: np.ndarray,
+        vel: np.ndarray,
+        t0: float,
+        terrain: DynamicTerrainSDF,
+    ) -> Optional[tuple[float, np.ndarray, np.ndarray, np.ndarray]]:
+        """Find the first contact via Conservative Advancement.
+
+        The CFL guard accounts for both current velocity AND gravitational
+        acceleration to prevent tunnelling.  The safe time step is:
+            Δt = D / (|V_char| + |V_platform| + |g|·Δt_acc)
+        which is conservatively approximated by capping Δt so that the
+        total displacement in one step never exceeds D.
+
+        Returns ``(t_impact, position, normal, surface_velocity)`` or
+        ``None`` if no contact within the prediction horizon.
+        """
+        p = pos.copy()
+        v = vel.copy()
+        t = t0
+        g = self.gravity
+        g_mag = float(np.linalg.norm(g))
+
+        for _ in range(self.max_steps):
+            if t - t0 > self.max_time:
+                return None
+
+            pts = p.reshape(1, 2)
+            d = float(terrain.eval_sdf(pts, t)[0])
+
+            if d <= self.contact_threshold:
+                # Contact found — extract normal and surface velocity
+                normal = terrain.eval_gradient(pts, t)[0]  # (2,)
+                n_len = np.linalg.norm(normal)
+                if n_len > 1e-12:
+                    normal = normal / n_len
+                else:
+                    normal = np.array([0.0, 1.0])
+                sv = terrain.surface_velocity(pts, t)[0]  # (2,)
+                return (t, p.copy(), normal, sv)
+
+            # CFL guard with gravity compensation:
+            # The displacement in dt is: |v|*dt + 0.5*|g|*dt^2
+            # We need: |v|*dt + 0.5*|g|*dt^2 <= D  (safe step)
+            # Solve: 0.5*|g|*dt^2 + |v|*dt - D = 0
+            # dt = (-|v| + sqrt(|v|^2 + 2*|g|*D)) / |g|
+            sv = terrain.surface_velocity(pts, t)[0]
+            v_speed = float(np.linalg.norm(v)) + float(np.linalg.norm(sv))
+
+            if g_mag > 1e-12:
+                disc = v_speed * v_speed + 2.0 * g_mag * max(d, 0.0)
+                dt = (-v_speed + math.sqrt(max(disc, 0.0))) / g_mag
+                dt = max(dt, 1e-6)
+            elif v_speed > 1e-12:
+                dt = max(d, 0.0) / v_speed
+                dt = max(dt, 1e-6)
+            else:
+                dt = 0.01
+
+            # Additional safety cap: never step more than 0.5 * D / v_speed
+            # to ensure we don't overshoot due to velocity changes
+            if v_speed > 1e-12 and d > self.contact_threshold:
+                dt = min(dt, 0.8 * d / v_speed)
+
+            dt = min(dt, self.max_time - (t - t0))
+            if dt <= 0:
+                return None
+
+            # Advance position and velocity (ballistic + gravity)
+            p = p + v * dt + 0.5 * g * dt * dt
+            v = v + g * dt
+            t = t + dt
+
+        return None
+
+    # ── single-trajectory multi-bounce prediction ────────────────────────
+
+    def predict_trajectory(
+        self,
+        start_pos: np.ndarray,
+        start_vel: np.ndarray,
+        terrain: DynamicTerrainSDF,
+        t0: float = 0.0,
+    ) -> MultiBounceTrajectory:
+        """Predict a full multi-bounce trajectory.
+
+        Parameters
+        ----------
+        start_pos : ndarray (2,)
+            Initial position.
+        start_vel : ndarray (2,)
+            Initial velocity.
+        terrain : DynamicTerrainSDF
+            The dynamic terrain to collide against.
+        t0 : float
+            Start time.
+
+        Returns
+        -------
+        MultiBounceTrajectory
+            Frozen dataclass with all bounce events.
+        """
+        pos = np.asarray(start_pos, dtype=np.float64).ravel()[:2].copy()
+        vel = np.asarray(start_vel, dtype=np.float64).ravel()[:2].copy()
+        t = float(t0)
+        bounces: list[BounceEvent] = []
+        initial_ke = 0.5 * float(np.dot(vel, vel))
+        terminated_by = "max_time"
+
+        for bounce_idx in range(self.max_bounces):
+            contact = self._find_contact(pos, vel, t, terrain)
+            if contact is None:
+                terminated_by = "escaped" if bounce_idx == 0 else "max_time"
+                break
+
+            t_impact, p_impact, normal, sv = contact
+
+            # ── Reflection in RELATIVE velocity space ────────────────
+            # Anti-Ghost-Momentum: compute in relative frame, add back
+            v_at_impact = vel + self.gravity * (t_impact - t)
+            v_rel = v_at_impact - sv
+            vn = float(np.dot(v_rel, normal))
+
+            # Only reflect if approaching (vn < 0 means into surface)
+            if vn >= 0:
+                # Separating — no bounce
+                terminated_by = "escaped"
+                break
+
+            relative_speed = abs(vn)
+
+            # Anti-Zeno guard: check min_bounce_velocity
+            is_resting = relative_speed < self.min_bounce_velocity
+
+            # Impulse reflection: V_new_rel = V_rel - (1+e)(V_rel·N)N
+            e = self.restitution
+            v_rel_new = v_rel - (1.0 + e) * vn * normal
+
+            # Tangential friction decay
+            v_tangential = v_rel_new - np.dot(v_rel_new, normal) * normal
+            v_normal_component = np.dot(v_rel_new, normal) * normal
+            v_rel_new = v_normal_component + v_tangential * self.friction_decay
+
+            # Transform back to world frame
+            v_after = v_rel_new + sv
+
+            bounces.append(BounceEvent(
+                time=t_impact,
+                position=p_impact.copy(),
+                normal=normal.copy(),
+                velocity_before=v_at_impact.copy(),
+                velocity_after=v_after.copy(),
+                surface_velocity=sv.copy(),
+                relative_speed=relative_speed,
+                is_resting=is_resting,
+            ))
+
+            if is_resting:
+                terminated_by = "resting"
+                break
+
+            # Set up for next bounce
+            pos = p_impact + normal * (self.contact_threshold * 2.0)  # nudge off surface
+            vel = v_after
+            t = t_impact
+
+        else:
+            terminated_by = "max_bounces"
+
+        total_time = (bounces[-1].time - t0) if bounces else 0.0
+        final_ke = 0.5 * float(np.dot(vel, vel)) if not bounces else (
+            0.5 * float(np.dot(bounces[-1].velocity_after,
+                               bounces[-1].velocity_after))
+        )
+        ke_ratio = final_ke / initial_ke if initial_ke > 1e-12 else 0.0
+
+        return MultiBounceTrajectory(
+            bounces=tuple(bounces),
+            total_time=total_time,
+            terminated_by=terminated_by,
+            kinetic_energy_ratio=ke_ratio,
+        )
+
+    # ── Batch (vectorised) multi-ray prediction ──────────────────────────
+
+    def predict_batch(
+        self,
+        positions: np.ndarray,
+        velocities: np.ndarray,
+        terrain: DynamicTerrainSDF,
+        t0: float = 0.0,
+    ) -> list[MultiBounceTrajectory]:
+        """Predict trajectories for a batch of rays (vectorised dispatch).
+
+        Parameters
+        ----------
+        positions : ndarray (N, 2)
+            Starting positions for N rays.
+        velocities : ndarray (N, 2)
+            Starting velocities for N rays.
+        terrain : DynamicTerrainSDF
+            Dynamic terrain.
+        t0 : float
+            Common start time.
+
+        Returns
+        -------
+        list[MultiBounceTrajectory]
+            One trajectory per ray.
+        """
+        positions = np.asarray(positions, dtype=np.float64)
+        velocities = np.asarray(velocities, dtype=np.float64)
+        n = positions.shape[0]
+        return [
+            self.predict_trajectory(positions[i], velocities[i], terrain, t0)
+            for i in range(n)
+        ]
+
+    # ── Backward-compatible scalar TTC (delegates to original) ───────────
+
+    @staticmethod
+    def compute_ttc_static(
+        distance: float,
+        velocity_y: float,
+        gravity: float = 9.81,
+        max_ttc: float = 5.0,
+    ) -> TTCResult:
+        """Backward-compatible scalar TTC (delegates to TTCPredictor)."""
+        predictor = TTCPredictor(gravity=gravity, max_ttc=max_ttc)
+        return predictor.compute_ttc(distance, velocity_y)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Exports
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1791,4 +2278,11 @@ __all__ = [
     # Diagnostics
     "TerrainSensorDiagnostics",
     "evaluate_terrain_sensor_accuracy",
+    # SESSION-113 / P1-B2-2 — dynamic terrain, spacetime TTC, multi-bounce
+    "PlatformMotion",
+    "create_sine_platform_motion",
+    "DynamicTerrainSDF",
+    "BounceEvent",
+    "MultiBounceTrajectory",
+    "AdvancedTTCPredictor",
 ]

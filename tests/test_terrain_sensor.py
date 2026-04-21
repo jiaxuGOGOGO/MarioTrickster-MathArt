@@ -952,5 +952,463 @@ class TestPublicAPIExports_P1B2_1:
         )
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# SESSION-113 / P1-B2-2 — Dynamic Terrain, Spacetime TTC, Multi-Bounce Tests
+# ══════════════════════════════════════════════════════════════════════════════
+
+from mathart.animation.terrain_sensor import (
+    PlatformMotion,
+    create_sine_platform_motion,
+    DynamicTerrainSDF,
+    BounceEvent,
+    MultiBounceTrajectory,
+    AdvancedTTCPredictor,
+)
+
+
+class TestDynamicTerrainSDF:
+    """White-box tests for the 4D SDF / DynamicTerrainSDF wrapper."""
+
+    def _make_moving_flat(self, amplitude=(0.0, 1.0), omega=2.0):
+        """Helper: flat platform oscillating vertically."""
+        static = create_flat_terrain(0.0)
+        motion = create_sine_platform_motion(
+            centre=(0.0, 0.0), amplitude=amplitude, omega=omega, phase=0.0,
+        )
+        return DynamicTerrainSDF(static, motion)
+
+    def test_eval_sdf_at_t0_matches_static(self):
+        """At t=0 with zero-phase sine, platform is at origin → matches static."""
+        dyn = self._make_moving_flat()
+        pts = np.array([[0.0, 0.5], [0.0, -0.3], [1.0, 0.0]])
+        static = create_flat_terrain(0.0)
+        np.testing.assert_allclose(
+            dyn.eval_sdf(pts, t=0.0),
+            static.eval_sdf(pts),
+            atol=1e-6,
+        )
+
+    def test_eval_sdf_shifts_with_time(self):
+        """Platform moves up → SDF at a fixed point should decrease."""
+        dyn = self._make_moving_flat(amplitude=(0.0, 2.0), omega=np.pi)
+        pt = np.array([[0.0, 1.0]])
+        d_t0 = float(dyn.eval_sdf(pt, t=0.0)[0])
+        # At t=0.5, sin(pi*0.5)=1 → platform is at y=2 → point at y=1 is BELOW
+        d_t05 = float(dyn.eval_sdf(pt, t=0.5)[0])
+        assert d_t0 > 0, "Point should be above static platform at t=0"
+        assert d_t05 < 0, "Point should be below raised platform at t=0.5"
+
+    def test_surface_velocity_translational(self):
+        """Surface velocity should match analytical derivative."""
+        amp = (0.0, 1.5)
+        omega = 3.0
+        dyn = self._make_moving_flat(amplitude=amp, omega=omega)
+        pts = np.array([[0.0, 0.0], [1.0, 2.0]])
+        sv = dyn.surface_velocity(pts, t=0.0)
+        # At t=0, V = amp * omega * cos(0) = amp * omega
+        expected_vy = amp[1] * omega
+        np.testing.assert_allclose(sv[:, 1], expected_vy, atol=1e-9)
+        np.testing.assert_allclose(sv[:, 0], 0.0, atol=1e-9)
+
+    def test_gradient_world_frame(self):
+        """Gradient should point upward for a flat platform even when moved."""
+        dyn = self._make_moving_flat()
+        pts = np.array([[0.0, 2.0], [1.0, 3.0]])
+        grad = dyn.eval_gradient(pts, t=0.25)
+        # Flat terrain → gradient should be (0, 1) in world frame
+        np.testing.assert_allclose(grad[:, 0], 0.0, atol=1e-2)
+        assert np.all(grad[:, 1] > 0.5), "Y-gradient should be positive (upward)"
+
+    def test_name_property(self):
+        dyn = self._make_moving_flat()
+        assert "dynamic" in dyn.name
+
+
+class TestAdvancedTTCPredictor_ContactDetection:
+    """(a) Character jumps onto an approaching platform — contact detection."""
+
+    def test_approaching_platform_shortens_ttc(self):
+        """Platform moving UP toward a falling character should yield
+        shorter contact time than a static platform at the same position."""
+        static_terrain = create_flat_terrain(0.0)
+
+        # Static case: platform stays at y=0
+        static_motion = PlatformMotion(
+            position_fn=lambda t: np.array([0.0, 0.0]),
+            velocity_fn=lambda t: np.array([0.0, 0.0]),
+        )
+        dyn_static = DynamicTerrainSDF(static_terrain, static_motion)
+
+        # Moving case: platform rises at 5 m/s
+        moving_motion = PlatformMotion(
+            position_fn=lambda t: np.array([0.0, 5.0 * t]),
+            velocity_fn=lambda t: np.array([0.0, 5.0]),
+        )
+        dyn_moving = DynamicTerrainSDF(static_terrain, moving_motion)
+
+        predictor = AdvancedTTCPredictor(
+            gravity=(0.0, -9.81), max_bounces=1, restitution=0.0,
+        )
+        start_pos = np.array([0.0, 3.0])
+        start_vel = np.array([0.0, -2.0])  # falling
+
+        traj_static = predictor.predict_trajectory(start_pos, start_vel, dyn_static)
+        traj_moving = predictor.predict_trajectory(start_pos, start_vel, dyn_moving)
+
+        assert len(traj_static.bounces) >= 1, "Should detect contact on static"
+        assert len(traj_moving.bounces) >= 1, "Should detect contact on moving"
+        # Moving platform approaches → contact time should be shorter
+        assert traj_moving.bounces[0].time < traj_static.bounces[0].time, \
+            "Approaching platform must shorten contact time"
+
+    def test_zero_penetration_at_contact(self):
+        """At the moment of contact, SDF distance must be ≤ contact_threshold."""
+        static_terrain = create_flat_terrain(0.0)
+        motion = create_sine_platform_motion(
+            centre=(0.0, -1.0), amplitude=(0.0, 2.0), omega=2.0,
+        )
+        dyn = DynamicTerrainSDF(static_terrain, motion)
+        predictor = AdvancedTTCPredictor(
+            gravity=(0.0, -9.81), max_bounces=1, contact_threshold=1e-3,
+        )
+        traj = predictor.predict_trajectory(
+            np.array([0.0, 5.0]), np.array([0.0, -1.0]), dyn,
+        )
+        if traj.bounces:
+            b = traj.bounces[0]
+            d_at_impact = float(dyn.eval_sdf(
+                b.position.reshape(1, 2), b.time,
+            )[0])
+            assert d_at_impact <= predictor.contact_threshold * 2, \
+                f"SDF at contact = {d_at_impact}, must be near zero (no penetration)"
+
+
+class TestAdvancedTTCPredictor_MultiBounce:
+    """(b) Multi-bounce trajectory with ≥ 3 bounces, reflection law, energy decay."""
+
+    def _make_pit_terrain(self):
+        """Create a box-shaped pit using platforms for multi-bounce testing.
+
+        Layout: floor at y=0, left wall at x=-2, right wall at x=2.
+        A ball dropped from above with horizontal velocity will bounce
+        between the floor and walls.
+        """
+        floor = create_platform_terrain([
+            (-3.0, 3.0, 0.0, 0.5),   # wide floor
+            (-3.0, -2.0, 5.0, 0.5),  # left wall (tall vertical platform)
+            (2.0, 3.0, 5.0, 0.5),    # right wall (tall vertical platform)
+        ])
+        return floor
+
+    def test_at_least_3_bounces_in_pit(self):
+        """A ball dropped into a pit should bounce at least 3 times."""
+        pit = self._make_pit_terrain()
+        motion = PlatformMotion(
+            position_fn=lambda t: np.array([0.0, 0.0]),
+            velocity_fn=lambda t: np.array([0.0, 0.0]),
+        )
+        dyn = DynamicTerrainSDF(pit, motion)
+        predictor = AdvancedTTCPredictor(
+            gravity=(0.0, -9.81),
+            max_bounces=5,
+            restitution=0.7,
+            min_bounce_velocity=0.01,
+            contact_threshold=1e-3,
+        )
+        traj = predictor.predict_trajectory(
+            np.array([0.0, 2.0]),
+            np.array([1.0, -3.0]),
+            dyn,
+        )
+        assert len(traj.bounces) >= 3, \
+            f"Expected ≥ 3 bounces in pit, got {len(traj.bounces)}"
+
+    def test_kinetic_energy_decreasing(self):
+        """Kinetic energy must decrease with each bounce (e < 1)."""
+        static = create_flat_terrain(0.0)
+        motion = PlatformMotion(
+            position_fn=lambda t: np.array([0.0, 0.0]),
+            velocity_fn=lambda t: np.array([0.0, 0.0]),
+        )
+        dyn = DynamicTerrainSDF(static, motion)
+        predictor = AdvancedTTCPredictor(
+            gravity=(0.0, -9.81),
+            max_bounces=5,
+            restitution=0.5,
+            min_bounce_velocity=0.01,
+        )
+        traj = predictor.predict_trajectory(
+            np.array([0.0, 5.0]),
+            np.array([2.0, 0.0]),
+            dyn,
+        )
+        # Check that relative_speed decreases across bounces
+        speeds = [b.relative_speed for b in traj.bounces]
+        for i in range(1, len(speeds)):
+            assert speeds[i] <= speeds[i - 1] + 1e-6, \
+                f"Bounce {i}: speed {speeds[i]} > prev {speeds[i-1]} (energy should decay)"
+
+    def test_reflection_law_normal_component(self):
+        """After reflection, the normal component of relative velocity should
+        flip sign and scale by restitution coefficient."""
+        static = create_flat_terrain(0.0)
+        motion = PlatformMotion(
+            position_fn=lambda t: np.array([0.0, 0.0]),
+            velocity_fn=lambda t: np.array([0.0, 0.0]),
+        )
+        dyn = DynamicTerrainSDF(static, motion)
+        e = 0.6
+        predictor = AdvancedTTCPredictor(
+            gravity=(0.0, -9.81),
+            max_bounces=1,
+            restitution=e,
+            friction_decay=1.0,  # no tangential loss
+        )
+        traj = predictor.predict_trajectory(
+            np.array([0.0, 3.0]),
+            np.array([0.0, -5.0]),
+            dyn,
+        )
+        assert len(traj.bounces) >= 1
+        b = traj.bounces[0]
+        # For flat terrain, normal = (0, 1)
+        vn_before = np.dot(b.velocity_before - b.surface_velocity, b.normal)
+        vn_after = np.dot(b.velocity_after - b.surface_velocity, b.normal)
+        # vn_before < 0 (approaching), vn_after > 0 (departing)
+        assert vn_before < 0, "Should be approaching before bounce"
+        assert vn_after > 0, "Should be departing after bounce"
+        # |vn_after| ≈ e * |vn_before|
+        np.testing.assert_allclose(
+            abs(vn_after), e * abs(vn_before), rtol=0.15,
+            err_msg="Restitution coefficient not respected",
+        )
+
+    def test_frozen_dataclass_contract(self):
+        """MultiBounceTrajectory and BounceEvent must be frozen dataclasses."""
+        static = create_flat_terrain(0.0)
+        motion = PlatformMotion(
+            position_fn=lambda t: np.array([0.0, 0.0]),
+            velocity_fn=lambda t: np.array([0.0, 0.0]),
+        )
+        dyn = DynamicTerrainSDF(static, motion)
+        predictor = AdvancedTTCPredictor(max_bounces=1)
+        traj = predictor.predict_trajectory(
+            np.array([0.0, 2.0]), np.array([0.0, -3.0]), dyn,
+        )
+        # MultiBounceTrajectory is frozen
+        with pytest.raises(AttributeError):
+            traj.total_time = 999.0  # type: ignore
+        # BounceEvent is frozen
+        if traj.bounces:
+            with pytest.raises(AttributeError):
+                traj.bounces[0].time = 999.0  # type: ignore
+
+
+class TestAdvancedTTCPredictor_AntiZeno:
+    """Anti-Zeno's-Paradox guard: no infinite loops."""
+
+    def test_max_bounces_terminates(self):
+        """Must terminate within max_bounces even with high restitution."""
+        static = create_flat_terrain(0.0)
+        motion = PlatformMotion(
+            position_fn=lambda t: np.array([0.0, 0.0]),
+            velocity_fn=lambda t: np.array([0.0, 0.0]),
+        )
+        dyn = DynamicTerrainSDF(static, motion)
+        predictor = AdvancedTTCPredictor(
+            gravity=(0.0, -9.81),
+            max_bounces=3,
+            restitution=0.99,
+            min_bounce_velocity=0.001,
+        )
+        import time
+        t_start = time.monotonic()
+        traj = predictor.predict_trajectory(
+            np.array([0.0, 1.0]), np.array([0.0, -0.5]), dyn,
+        )
+        elapsed = time.monotonic() - t_start
+        assert elapsed < 5.0, f"Took {elapsed:.2f}s — possible infinite loop"
+        assert len(traj.bounces) <= 3
+        assert traj.terminated_by in ("max_bounces", "resting", "escaped", "max_time")
+
+    def test_resting_contact_terminates(self):
+        """Very low velocity should trigger resting contact, not infinite micro-bounces."""
+        static = create_flat_terrain(0.0)
+        motion = PlatformMotion(
+            position_fn=lambda t: np.array([0.0, 0.0]),
+            velocity_fn=lambda t: np.array([0.0, 0.0]),
+        )
+        dyn = DynamicTerrainSDF(static, motion)
+        predictor = AdvancedTTCPredictor(
+            gravity=(0.0, -9.81),
+            max_bounces=10,
+            restitution=0.3,
+            min_bounce_velocity=0.5,
+        )
+        traj = predictor.predict_trajectory(
+            np.array([0.0, 0.5]), np.array([0.0, -1.0]), dyn,
+        )
+        # With e=0.3 and min_bounce_velocity=0.5, should enter resting quickly
+        assert traj.terminated_by == "resting" or len(traj.bounces) <= 2
+
+
+class TestAdvancedTTCPredictor_AntiGhostMomentum:
+    """Anti-Ghost-Momentum: reflection must use relative velocity space."""
+
+    def test_elevator_momentum_conservation(self):
+        """On a rising platform, the character should gain platform velocity
+        after bounce, not lose it."""
+        static = create_flat_terrain(0.0)
+        platform_speed = 5.0
+        motion = PlatformMotion(
+            position_fn=lambda t: np.array([0.0, platform_speed * t]),
+            velocity_fn=lambda t: np.array([0.0, platform_speed]),
+        )
+        dyn = DynamicTerrainSDF(static, motion)
+        predictor = AdvancedTTCPredictor(
+            gravity=(0.0, -9.81),
+            max_bounces=1,
+            restitution=0.5,
+        )
+        traj = predictor.predict_trajectory(
+            np.array([0.0, 8.0]), np.array([0.0, -3.0]), dyn,
+        )
+        if traj.bounces:
+            b = traj.bounces[0]
+            # After bouncing off a rising platform, character should move upward
+            # faster than if the platform were static
+            assert b.velocity_after[1] > 0, \
+                "Character should bounce upward off rising platform"
+            # The velocity_after should include platform contribution
+            assert b.velocity_after[1] > platform_speed * 0.3, \
+                "Bounce off rising platform should carry platform momentum"
+
+
+class TestAdvancedTTCPredictor_BatchPrediction:
+    """(c) Batch / vectorised multi-ray prediction under pure NumPy."""
+
+    def test_batch_prediction_consistency(self):
+        """Batch prediction should match individual predictions."""
+        static = create_flat_terrain(0.0)
+        motion = PlatformMotion(
+            position_fn=lambda t: np.array([0.0, 0.0]),
+            velocity_fn=lambda t: np.array([0.0, 0.0]),
+        )
+        dyn = DynamicTerrainSDF(static, motion)
+        predictor = AdvancedTTCPredictor(
+            gravity=(0.0, -9.81), max_bounces=2, restitution=0.5,
+        )
+        positions = np.array([[0.0, 3.0], [1.0, 4.0], [2.0, 5.0]])
+        velocities = np.array([[0.0, -2.0], [0.5, -3.0], [-0.5, -1.0]])
+
+        batch_results = predictor.predict_batch(positions, velocities, dyn)
+        assert len(batch_results) == 3
+
+        for i in range(3):
+            single = predictor.predict_trajectory(
+                positions[i], velocities[i], dyn,
+            )
+            assert len(batch_results[i].bounces) == len(single.bounces)
+            if single.bounces:
+                np.testing.assert_allclose(
+                    batch_results[i].bounces[0].time,
+                    single.bounces[0].time,
+                    atol=1e-6,
+                )
+
+    def test_batch_performance_numpy(self):
+        """Multi-ray batch should complete in reasonable time (pure NumPy)."""
+        static = create_flat_terrain(0.0)
+        motion = PlatformMotion(
+            position_fn=lambda t: np.array([0.0, 0.0]),
+            velocity_fn=lambda t: np.array([0.0, 0.0]),
+        )
+        dyn = DynamicTerrainSDF(static, motion)
+        predictor = AdvancedTTCPredictor(
+            gravity=(0.0, -9.81), max_bounces=3, restitution=0.5,
+        )
+        n_rays = 50
+        positions = np.column_stack([
+            np.random.uniform(-5, 5, n_rays),
+            np.random.uniform(2, 10, n_rays),
+        ])
+        velocities = np.column_stack([
+            np.random.uniform(-2, 2, n_rays),
+            np.random.uniform(-5, -1, n_rays),
+        ])
+        import time
+        t0 = time.monotonic()
+        results = predictor.predict_batch(positions, velocities, dyn)
+        elapsed = time.monotonic() - t0
+        assert elapsed < 10.0, f"Batch of {n_rays} rays took {elapsed:.2f}s"
+        assert len(results) == n_rays
+
+
+class TestAdvancedTTCPredictor_BackwardCompat:
+    """Ensure original TTCPredictor is untouched."""
+
+    def test_original_ttc_predictor_unchanged(self):
+        """Original TTCPredictor should still work identically."""
+        predictor = TTCPredictor(gravity=9.81, max_ttc=5.0)
+        result = predictor.compute_ttc(2.0, -3.0)
+        assert isinstance(result, TTCResult)
+        assert result.ttc > 0
+        assert result.is_approaching is True
+
+    def test_advanced_static_delegate(self):
+        """AdvancedTTCPredictor.compute_ttc_static should delegate correctly."""
+        result = AdvancedTTCPredictor.compute_ttc_static(2.0, -3.0)
+        assert isinstance(result, TTCResult)
+        assert result.ttc > 0
+
+
+class TestPlatformMotionFactory:
+    """Test the sine platform motion factory."""
+
+    def test_sine_platform_position_at_t0(self):
+        motion = create_sine_platform_motion(
+            centre=(1.0, 2.0), amplitude=(0.0, 3.0), omega=1.0, phase=0.0,
+        )
+        pos = motion.position_fn(0.0)
+        np.testing.assert_allclose(pos, [1.0, 2.0], atol=1e-9)
+
+    def test_sine_platform_velocity_at_t0(self):
+        motion = create_sine_platform_motion(
+            centre=(0.0, 0.0), amplitude=(0.0, 2.0), omega=3.0, phase=0.0,
+        )
+        vel = motion.velocity_fn(0.0)
+        # V(0) = amplitude * omega * cos(0) = (0, 6)
+        np.testing.assert_allclose(vel, [0.0, 6.0], atol=1e-9)
+
+    def test_sine_platform_half_period(self):
+        omega = np.pi
+        motion = create_sine_platform_motion(
+            centre=(0.0, 0.0), amplitude=(0.0, 1.0), omega=omega, phase=0.0,
+        )
+        # At t=0.5, sin(pi*0.5) = 1 → position = (0, 1)
+        pos = motion.position_fn(0.5)
+        np.testing.assert_allclose(pos, [0.0, 1.0], atol=1e-6)
+
+
+class TestPublicAPIExports_P1B2_2:
+    """Confirm P1-B2-2 symbols are exported from the animation package."""
+
+    def test_all_p1b22_exports(self):
+        from mathart.animation import (
+            PlatformMotion,
+            create_sine_platform_motion,
+            DynamicTerrainSDF,
+            BounceEvent,
+            MultiBounceTrajectory,
+            AdvancedTTCPredictor,
+        )
+        assert callable(create_sine_platform_motion)
+        assert PlatformMotion is not None
+        assert DynamicTerrainSDF is not None
+        assert BounceEvent is not None
+        assert MultiBounceTrajectory is not None
+        assert AdvancedTTCPredictor is not None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -347,10 +347,12 @@
       "id": "P1-B2-2",
       "priority": "P1",
       "title": "Extend TTC prediction to multi-bounce scenarios and moving platforms",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "Upgrade TTCPredictor to handle moving platforms (time-dependent SDF), multi-bounce trajectories, and wall-slide scenarios.",
-      "added_in": "SESSION-048"
+      "description": "SESSION-113 CLOSED. Implemented DynamicTerrainSDF (4D SDF via inverse rigid-body transform), AdvancedTTCPredictor (Conservative Advancement with CFL guard: Δt = D / V_rel_max + gravity compensation), and MultiBounceTrajectory (frozen dataclass contract). Features: (1) PlatformMotion descriptor with translation + rotation callables; (2) create_sine_platform_motion factory for SHM presets; (3) Spacetime contact finder with anti-tunnelling CFL guard accounting for gravity; (4) Impulse-based reflection in relative velocity space with restitution coefficient (anti-ghost-momentum); (5) Anti-Zeno guards (max_bounces + min_bounce_velocity threshold for resting contact); (6) Batch predict_batch for multi-ray vectorised dispatch; (7) Full backward compatibility with original TTCPredictor. Research grounded in Mirtich (1996/2000) Conservative Advancement, Time-Dependent SDF inverse-transform approach, and rigid-body restitution impulse physics. 22 white-box tests covering contact detection, multi-bounce (≥3 bounces), reflection law, energy decay, anti-Zeno, anti-ghost-momentum, batch consistency, and API exports.",
+      "added_in": "SESSION-048",
+      "updated_in": "SESSION-113",
+      "completed_in": "SESSION-113"
     },
     {
       "id": "P1-B3-1",

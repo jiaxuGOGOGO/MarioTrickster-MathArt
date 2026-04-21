@@ -383,6 +383,13 @@ from .terrain_sensor import (
     create_convex_hull_terrain,
     create_bezier_terrain,
     create_heightmap_terrain,
+    # SESSION-113 / P1-B2-2 — dynamic terrain, spacetime TTC, multi-bounce
+    PlatformMotion,
+    create_sine_platform_motion,
+    DynamicTerrainSDF,
+    BounceEvent,
+    MultiBounceTrajectory,
+    AdvancedTTCPredictor,
 )
 
 __all__ = [
@@ -543,6 +550,13 @@ __all__ = [
     "create_convex_hull_terrain",
     "create_bezier_terrain",
     "create_heightmap_terrain",
+    # SESSION-113 / P1-B2-2 — dynamic terrain, spacetime TTC, multi-bounce
+    "PlatformMotion",
+    "create_sine_platform_motion",
+    "DynamicTerrainSDF",
+    "BounceEvent",
+    "MultiBounceTrajectory",
+    "AdvancedTTCPredictor",
     # SESSION-049: Phase-Preserving Gait Transition Blending (Gap B3)
     "SyncMarker", "GaitSyncProfile", "GaitBlendLayer",
     "GaitBlender", "UnifiedGaitBlender", "StrideWheel",
