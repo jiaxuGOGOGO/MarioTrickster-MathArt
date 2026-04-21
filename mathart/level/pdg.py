@@ -29,6 +29,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Callable, Optional
 
+import numpy as np
+
 
 class PDGError(RuntimeError):
     """Raised when the graph is invalid or execution fails."""
@@ -368,6 +370,73 @@ def _legacy_context_value(items: list[WorkItem]) -> Any:
     return payloads[0] if len(payloads) == 1 else payloads
 
 
+def _sha256_words(value: Any, *, words: int = 4) -> list[int]:
+    digest = hashlib.sha256(
+        _json_dumps_stable(_stable_hash_serialize(value)).encode("utf-8")
+    ).digest()
+    return [
+        int.from_bytes(digest[index * 4:(index + 1) * 4], "big", signed=False)
+        for index in range(words)
+    ]
+
+
+def _extract_seed_words(value: Any) -> Optional[list[int]]:
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int):
+        integer = int(value)
+        if integer < 0:
+            integer &= (1 << 128) - 1
+        if integer == 0:
+            return [0, 0, 0, 0]
+        words: list[int] = []
+        while integer:
+            words.append(integer & 0xFFFFFFFF)
+            integer >>= 32
+        return list(reversed(words[-4:])) or [0, 0, 0, 0]
+    if isinstance(value, (list, tuple)) and value and all(
+        isinstance(item, int) and not isinstance(item, bool) for item in value
+    ):
+        normalized = [int(item) & 0xFFFFFFFF for item in value]
+        return normalized[-8:] or [0, 0, 0, 0]
+    return None
+
+
+def _root_seed_sequence(
+    graph_name: str,
+    initial_context: dict[str, Any],
+) -> tuple[np.random.SeedSequence, dict[str, Any]]:
+    for key in ("pdg_seed", "rng_seed", "seed"):
+        if key in initial_context:
+            words = _extract_seed_words(initial_context.get(key))
+            if words is not None:
+                return (
+                    np.random.SeedSequence(words),
+                    {
+                        "seed_source": key,
+                        "entropy_words": list(words),
+                        "entropy_digest": _sha256_from_data(words),
+                        "derived": False,
+                    },
+                )
+    derived_material = {
+        "graph_name": graph_name,
+        "initial_context": {
+            key: value for key, value in initial_context.items() if key != "_pdg"
+        },
+    }
+    derived_words = _sha256_words(derived_material, words=4)
+    return (
+        np.random.SeedSequence(derived_words),
+        {
+            "seed_source": "derived_from_graph_context",
+            "entropy_words": list(derived_words),
+            "entropy_digest": _sha256_from_data(derived_words),
+            "derived": True,
+        },
+    )
+
+
 class _PDGDiskCache:
     """Bazel-style Action Cache + CAS using JSON-serializable payloads."""
 
@@ -448,6 +517,13 @@ class _Invocation:
 
 
 @dataclass(frozen=True)
+class _RNGMaterialization:
+    generator: np.random.Generator
+    seed_sequence: np.random.SeedSequence
+    contract: dict[str, Any]
+
+
+@dataclass(frozen=True)
 class _InvocationResult:
     items: list[WorkItem]
     trace: PDGTraceEntry
@@ -470,6 +546,10 @@ class _PDGv2RuntimeFacade:
         self._gpu_state_lock = threading.Lock()
         self._gpu_inflight = 0
         self._gpu_max_inflight = 0
+        self._root_seed_sequence, self._root_seed_contract = _root_seed_sequence(
+            graph.name,
+            {},
+        )
         # SESSION-120 (P1-NEW-8): structured branch-pruning ledger.
         self._node_states: dict[str, str] = {}
         self._rejections: list[dict[str, Any]] = []
@@ -484,6 +564,10 @@ class _PDGv2RuntimeFacade:
         self._trace = []
         self._results = {}
         self._context = dict(initial_context or {})
+        self._root_seed_sequence, self._root_seed_contract = _root_seed_sequence(
+            self.graph.name,
+            self._context,
+        )
         self._cache_hits = 0
         self._cache_misses = 0
 
@@ -552,6 +636,8 @@ class _PDGv2RuntimeFacade:
                 "bounded_submission": True,
                 "gpu_slots": self.graph.gpu_slots,
                 "gpu_max_inflight_observed": self._gpu_max_inflight,
+                "rng_mode": "numpy_seedsequence_split",
+                "rng_root": dict(self._root_seed_contract),
             },
             "topology_summary": {
                 name: {
@@ -999,6 +1085,46 @@ class _PDGv2RuntimeFacade:
             invocations.append(_Invocation(partition_key=str(partition_key), dependencies=deps_for_key))
         return invocations
 
+    def _materialize_invocation_rng(
+        self,
+        *,
+        node: PDGNode,
+        invocation: _Invocation,
+        invocation_index: int,
+    ) -> _RNGMaterialization:
+        spawn_descriptor = {
+            "graph_name": self.graph.name,
+            "node_name": node.name,
+            "topology": node.topology,
+            "partition_key": invocation.partition_key,
+            "invocation_index": invocation_index,
+            "dependency_item_ids": {
+                dep_name: item.item_id for dep_name, item in invocation.dependencies.items()
+            },
+            "upstream_item_ids": list(invocation.upstream_item_ids),
+        }
+        spawn_key = _sha256_words(spawn_descriptor, words=8)
+        child_sequence = np.random.SeedSequence(
+            self._root_seed_contract["entropy_words"],
+            spawn_key=tuple(spawn_key),
+        )
+        contract = {
+            "engine": "numpy.default_rng",
+            "seed_source": self._root_seed_contract["seed_source"],
+            "root_entropy_digest": self._root_seed_contract["entropy_digest"],
+            "derived_root_seed": self._root_seed_contract["derived"],
+            "spawn_key": list(spawn_key),
+            "spawn_key_digest": _sha256_from_data(spawn_key),
+            "node_name": node.name,
+            "partition_key": invocation.partition_key,
+            "invocation_index": invocation_index,
+        }
+        return _RNGMaterialization(
+            generator=np.random.default_rng(child_sequence),
+            seed_sequence=child_sequence,
+            contract=contract,
+        )
+
     def _execute_invocation(
         self,
         node: PDGNode,
@@ -1006,9 +1132,13 @@ class _PDGv2RuntimeFacade:
         *,
         invocation_index: int,
     ) -> _InvocationResult:
-        invocation_context = dict(self._context)
         deps_payload = {dep_name: item.payload_dict() for dep_name, item in invocation.dependencies.items()}
-        invocation_context["_pdg"] = {
+        rng_material = self._materialize_invocation_rng(
+            node=node,
+            invocation=invocation,
+            invocation_index=invocation_index,
+        )
+        pdg_contract = {
             "graph_name": self.graph.name,
             "node_name": node.name,
             "topology": node.topology,
@@ -1017,12 +1147,17 @@ class _PDGv2RuntimeFacade:
             "dependency_work_items": dict(invocation.dependencies),
             "requires_gpu": node.requires_gpu,
             "gpu_slots": self.graph.gpu_slots,
+            "rng_contract": dict(rng_material.contract),
+        }
+        cache_context = dict(self._context)
+        cache_context["_pdg"] = {
+            key: value for key, value in pdg_contract.items() if key != "dependency_work_items"
         }
         execution_cache_key = self._build_execution_cache_key(
             node=node,
             partition_key=invocation.partition_key,
             deps_contract={dep: item.contract_dict() for dep, item in invocation.dependencies.items()},
-            context_snapshot=invocation_context,
+            context_snapshot=cache_context,
         )
         cached = self._load_cached_items(node, execution_cache_key)
         if cached is not None:
@@ -1046,9 +1181,15 @@ class _PDGv2RuntimeFacade:
                 ),
             )
 
+        runtime_context = dict(self._context)
+        runtime_context["_pdg"] = {
+            **pdg_contract,
+            "rng": rng_material.generator,
+            "seed_sequence": rng_material.seed_sequence,
+        }
         output, duration_ms, resource_wait_ms = self._execute_operation(
             node,
-            invocation_context,
+            runtime_context,
             deps_payload,
         )
         items = self._normalize_operation_output(

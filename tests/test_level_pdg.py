@@ -3,6 +3,8 @@ import threading
 import time
 from pathlib import Path
 
+import numpy as np
+
 from mathart.level import (
     LevelSpec,
     LevelTheme,
@@ -243,6 +245,61 @@ def test_pdg_v2_requires_gpu_nodes_are_serialized_by_gpu_slots(tmp_path: Path):
     assert all(entry["requires_gpu"] is True for entry in trace)
     assert all(entry["resource_wait_ms"] >= 0.0 for entry in trace)
 
+
+
+def test_pdg_v2_seedsequence_rng_streams_match_between_single_and_sixteen_threads(tmp_path: Path):
+    def run_graph(max_workers: int, cache_dir: Path) -> dict:
+        graph = ProceduralDependencyGraph(
+            name="rng_demo_seedsequence",
+            cache_dir=cache_dir,
+            max_workers=max_workers,
+        )
+        graph.add_node(PDGNode(name="seed", operation=lambda _ctx, _deps: {"values": list(range(16))}))
+
+        def fan_out(_ctx: dict, deps: dict) -> PDGFanOutResult:
+            values = deps["seed"]["values"]
+            return PDGFanOutResult.from_payloads(
+                [{"branch": value} for value in values],
+                partition_keys=[f"p{index:02d}" for index in range(len(values))],
+                labels=[f"branch_{index:02d}" for index in range(len(values))],
+            )
+
+        def sample(ctx: dict, deps: dict) -> dict:
+            rng = ctx["_pdg"]["rng"]
+            rng_contract = ctx["_pdg"]["rng_contract"]
+            draws = rng.integers(0, 2**32, size=64, dtype=np.uint32)
+            return {
+                "branch": deps["fan_out"]["branch"],
+                "partition": ctx["_pdg"]["partition_key"],
+                "spawn_key_digest": rng_contract["spawn_key_digest"],
+                "draws_hex": draws.tobytes().hex(),
+            }
+
+        def collect(_ctx: dict, deps: dict) -> dict:
+            items = sorted(deps["sample"], key=lambda item: item["partition"])
+            return {
+                "partitions": [item["partition"] for item in items],
+                "draws_hex": [item["draws_hex"] for item in items],
+                "spawn_key_digest": [item["spawn_key_digest"] for item in items],
+            }
+
+        graph.add_node(PDGNode(name="fan_out", dependencies=["seed"], operation=fan_out, cache_enabled=False))
+        graph.add_node(PDGNode(name="sample", dependencies=["fan_out"], operation=sample, cache_enabled=False))
+        graph.add_node(PDGNode(name="collect", dependencies=["sample"], operation=collect, topology="collect", cache_enabled=False))
+        return graph.run(["collect"], initial_context={"seed": 20260421, "mode": "rng_determinism"})
+
+    single = run_graph(1, tmp_path / "single")
+    parallel = run_graph(16, tmp_path / "parallel")
+
+    single_out = single["target_outputs"]["collect"]
+    parallel_out = parallel["target_outputs"]["collect"]
+    assert single_out["partitions"] == parallel_out["partitions"]
+    assert single_out["draws_hex"] == parallel_out["draws_hex"]
+    assert single_out["spawn_key_digest"] == parallel_out["spawn_key_digest"]
+    assert len(set(single_out["spawn_key_digest"])) == 16
+    assert single["scheduler"]["rng_mode"] == "numpy_seedsequence_split"
+    sample_trace = [entry for entry in parallel["trace"] if entry["node_name"] == "sample"]
+    assert len(sample_trace) == 16
 
 
 def test_work_item_contract_is_frozen_and_dict_roundtrips() -> None:

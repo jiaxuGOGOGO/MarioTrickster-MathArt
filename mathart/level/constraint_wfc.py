@@ -80,10 +80,11 @@ Usage::
 from __future__ import annotations
 
 import math
-import random
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional
+
+import numpy as np
 
 from .templates import (
     CLASSIC_FRAGMENTS,
@@ -603,8 +604,10 @@ class ConstraintAwareWFC(WFCGenerator):
         seed: Optional[int] = None,
         difficulty_target: float = 0.5,
         veto_threshold: float = 0.15,
+        *,
+        rng: Optional[np.random.Generator] = None,
     ):
-        super().__init__(seed=seed)
+        super().__init__(seed=seed, rng=rng)
         self.physics = physics or PhysicsConstraint.mario_default()
         self.validator = ReachabilityValidator(self.physics)
         self.difficulty_target = difficulty_target
@@ -771,18 +774,16 @@ class ConstraintAwareWFC(WFCGenerator):
             # Prefer air or platform tiles that don't create gaps
             safe_tiles = [t for t in options if t in {AIR_CHAR} | PLATFORM_CHARS]
             if safe_tiles:
-                chosen = self.rng.choice(safe_tiles)
+                chosen = self._choice(safe_tiles)
             else:
                 # Last resort: use any option
-                chosen = self.rng.choice(options)
+                chosen = self._choice(options)
             self._generation_stats["veto_count"] = (
                 self._generation_stats.get("veto_count", 0) + 1
             )
         else:
             tiles, weights = zip(*viable)
-            total = sum(weights)
-            probs = [w / total for w in weights]
-            chosen = self.rng.choices(list(tiles), weights=probs, k=1)[0]
+            chosen = self._weighted_choice(list(tiles), weights)
 
         cell.tile = chosen
         cell.collapsed = True

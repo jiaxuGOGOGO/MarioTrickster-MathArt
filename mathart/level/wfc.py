@@ -15,10 +15,11 @@ Algorithm overview:
 from __future__ import annotations
 
 import math
-import random
 from collections import Counter, defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
+
+import numpy as np
 
 from .templates import (
     CLASSIC_FRAGMENTS,
@@ -126,9 +127,15 @@ class WFCGenerator:
         print(ascii_level)
     """
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(
+        self,
+        seed: Optional[int] = None,
+        *,
+        rng: Optional[np.random.Generator] = None,
+    ):
         self.rules = AdjacencyRules()
-        self.rng = random.Random(seed)
+        self.seed = seed
+        self.rng = rng if rng is not None else np.random.default_rng(seed)
         self._grid: list[list[_Cell]] = []
         self._rows = 0
         self._cols = 0
@@ -283,6 +290,26 @@ class WFCGenerator:
         if locked_seeds:
             self._propagate_queue(locked_seeds)
 
+    def _random(self) -> float:
+        return float(self.rng.random())
+
+    def _choice(self, population: list[Any] | tuple[Any, ...]) -> Any:
+        if not population:
+            raise IndexError("Cannot choose from an empty population")
+        index = int(self.rng.integers(0, len(population)))
+        return population[index]
+
+    def _weighted_choice(self, population: list[str], weights: list[float]) -> str:
+        if not population:
+            raise IndexError("Cannot choose from an empty population")
+        weight_array = np.asarray(weights, dtype=np.float64)
+        total = float(weight_array.sum())
+        if total <= 0.0:
+            return str(self._choice(population))
+        probs = weight_array / total
+        index = int(self.rng.choice(len(population), p=probs))
+        return str(population[index])
+
     def _find_min_entropy(self) -> Optional[tuple[int, int]]:
         """Find the uncollapsed cell with the lowest entropy."""
         min_entropy = float("inf")
@@ -294,7 +321,7 @@ class WFCGenerator:
                     continue
                 if len(cell.options) == 0:
                     raise _Contradiction(f"Cell ({r},{c}) has no options")
-                e = cell.entropy + self.rng.random() * 0.001  # tie-breaking
+                e = cell.entropy + self._random() * 0.001  # tie-breaking
                 if e < min_entropy:
                     min_entropy = e
                     candidates = [(r, c)]
@@ -302,16 +329,14 @@ class WFCGenerator:
                     candidates.append((r, c))
         if not candidates:
             return None
-        return self.rng.choice(candidates)
+        return self._choice(candidates)
 
     def _collapse(self, r: int, c: int) -> None:
         """Collapse a cell to a single tile, weighted by global frequency."""
         cell = self._grid[r][c]
         options = list(cell.options)
         weights = [max(self.rules.tile_weights.get(t, 1), 1) for t in options]
-        total = sum(weights)
-        probs = [w / total for w in weights]
-        chosen = self.rng.choices(options, weights=probs, k=1)[0]
+        chosen = self._weighted_choice(options, weights)
         cell.tile = chosen
         cell.collapsed = True
         cell.options = {chosen}
@@ -427,7 +452,7 @@ class WFCGenerator:
         candidates.sort(key=sort_key)
         # Pick from top candidates with some randomness
         pick_range = min(5, len(candidates))
-        r, c = self.rng.choice(candidates[:pick_range])
+        r, c = self._choice(candidates[:pick_range])
         grid[r][c] = char
 
 

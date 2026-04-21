@@ -1,7 +1,7 @@
 {
-  "version": "v0.95.3",
-  "last_session_id": "SESSION-122",
-  "last_updated": "2026-04-21T09:45:00Z",
+  "version": "v0.95.4",
+  "last_session_id": "SESSION-123",
+  "last_updated": "2026-04-21T10:30:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -32,8 +32,8 @@
     "closed_archived": 53
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-122 P1-2 CLOSED: 52/52 targeted tests PASS (test_smooth_morphology 46 + test_sdf_animation 6). Dynamic parameter tracks, time-aware decode_to_sdf overrides, TimeSamples-compatible export, and volume-preserving dynamic mesh continuity all validated locally with zero new regressions in the touched SDF lane.",
-  "total_iterations": 688,
+  "validation_pass_rate": "SESSION-123 PDG RNG determinism follow-through: 69/69 targeted tests PASS (tests/test_level_pdg.py 10 + tests/test_level.py 23 + tests/test_constraint_wfc.py 36). SeedSequence-derived per-work-item streams, ctx['_pdg']['rng'] injection, and WFC/ConstraintAwareWFC NumPy Generator compatibility all validated locally with byte-identical 1-thread vs 16-thread outputs.",
+  "total_iterations": 689,
   "total_code_lines": 136607,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
@@ -78,9 +78,10 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "P1-2 / Per-frame SDF parameter animation — CLOSED in SESSION-122. Landed tensorized ParameterTrack + ParameterTrackBundle, TimeAwareMorphologyEvaluator wrapper, runtime parameter_context support in smooth_morphology.decode_to_sdf(), OpenUSD TimeSamples-compatible export maps, and volume-preserving dynamic 4D SDF verification via Dual Contouring mesh extraction. 52/52 targeted tests PASS.",
+  "current_focus": "HIGH-2.7 follow-through / PDG v2 deterministic RNG streams — CLOSED in SESSION-123. mathart/level/pdg.py now derives per-invocation NumPy Generator instances from a stable SeedSequence contract, exposes ctx['_pdg']['rng'] plus rng_contract metadata, keeps cache keys free of live Generator objects, and pushes the explicit RNG path into WFC / ConstraintAwareWFC and the level pipeline. 69/69 targeted tests PASS.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "research/session123_rng_determinism_research.md",
     "research/session122_external_reference_notes.md",
     "research_notes_session091.md",
     "research_notes_session090.md",
@@ -1029,6 +1030,13 @@
     }
   ],
   "completed_tasks": [
+    {
+      "id": "HIGH-2.7-FOLLOWUP-PDG-SEEDSEQUENCE-RNG",
+      "title": "Extend deterministic RNG injection into PDG v2 work-item execution and WFC level lane",
+      "completed_in": "SESSION-123",
+      "priority": "P1",
+      "result": "Closed the PDG v2 deterministic-RNG follow-through by adding SeedSequence-based per-invocation stream derivation, explicit ctx['_pdg']['rng'] injection, hermetic rng_contract metadata for cache-safe work-item execution, and deep WFC lane alignment so level generation can consume injected NumPy Generators instead of thread-order-sensitive implicit randomness. Targeted validation reached 69/69 PASS across test_level_pdg, test_level, and test_constraint_wfc."
+    },
     {
       "id": "HIGH-2.7-PRODUCTION-CODE-RNG-DEPENDENCY-INJECTION",
       "title": "Refactor production code bare np.random to injectable Generator parameters",
@@ -2639,12 +2647,30 @@
     "session111_p1_b3_5_strangler_fig": "SESSION-111 executed the final Strangler-Fig takeover for P1-B3-5. `mathart/animation/gait_blend.py` and `mathart/animation/transition_synthesizer.py` are physically deleted. Seven source files were rewritten to import from `mathart.animation.unified_gait_blender` directly; the public `mathart.animation` package now also re-exports `UnifiedGaitBlender`. `tests/test_gait_blend.py` renamed to `tests/test_unified_gait_blender.py` and extended with three red-line test classes: TestRetiredShimExtermination (Anti-Zombie-Reference), TestQuinticInertializationDecay / TestInertializeTransitionAPI (Anti-C0/C1-Regression at joint seam, tolerance 1e-5 C0 + bounded C1), TestUnifiedGaitBlenderDeterminism (Anti-PRNG-Bleed). Root-level `test_session039.py` removed — its 12 transition-synth assertions were migrated verbatim. Bridge module `evolution/gait_blend_bridge.py` now tracks `unified_gait_blender.py` as the canonical module. Full regression: 1834 PASS / 5 pre-existing FAIL / 8 SKIP (baseline-confirmed)."
   },
   "recent_focus_snapshot": {
-    "session_id": "SESSION-122",
-    "focus": "P1-2 Per-frame SDF parameter animation + OpenUSD TimeSamples groundwork",
+    "session_id": "SESSION-123",
+    "focus": "PDG v2 SeedSequence fan-out determinism and deep RNG injection into WFC lane",
     "status": "CLOSED",
     "updated_at": "2026-04-21"
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-123",
+      "focus": "PDG v2 SeedSequence fan-out determinism and WFC RNG injection",
+      "status": "COMPLETE",
+      "date": "2026-04-21",
+      "summary": "Closed the PDG v2 deterministic-RNG follow-through by adding SeedSequence-based per-invocation stream derivation, explicit ctx['_pdg']['rng'] injection, hermetic rng_contract metadata for cache-safe work-item execution, and deep WFC lane alignment so level generation can consume injected NumPy Generators instead of thread-order-sensitive implicit randomness. Targeted validation reached 69/69 PASS across test_level_pdg, test_level, and test_constraint_wfc.",
+      "files_touched": [
+        "mathart/level/pdg.py",
+        "mathart/level/wfc.py",
+        "mathart/level/constraint_wfc.py",
+        "mathart/pipeline.py",
+        "tests/test_level.py",
+        "tests/test_level_pdg.py",
+        "research/session123_rng_determinism_research.md",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
+      ]
+    },
     {
       "session_id": "SESSION-122",
       "focus": "P1-2 Per-frame SDF parameter animation, tensorized parameter tracks, and 4D SDF verification",
@@ -3378,6 +3404,33 @@
     }
   ],
   "session_log": [
+    {
+      "session_id": "SESSION-123",
+      "summary": "Closed the PDG v2 deterministic-RNG follow-through by adding SeedSequence-based per-invocation stream derivation, explicit ctx['_pdg']['rng'] injection, hermetic rng_contract metadata for cache-safe work-item execution, and deep WFC lane alignment so level generation can consume injected NumPy Generators instead of thread-order-sensitive implicit randomness. Targeted validation reached 69/69 PASS across test_level_pdg, test_level, and test_constraint_wfc.",
+      "files_changed": [
+        "UPD mathart/level/pdg.py — add stable root-seed derivation, per-invocation SeedSequence spawn keys, ctx['_pdg']['rng']/rng_contract injection, and cache-safe runtime/cache context separation",
+        "UPD mathart/level/wfc.py — replace internal random.Random path with NumPy Generator-compatible choice helpers while preserving seed-based construction",
+        "UPD mathart/level/constraint_wfc.py — accept optional rng: np.random.Generator and reuse the new WFC helper methods for vetoed collapse decisions",
+        "UPD mathart/pipeline.py — make the level WFC node consume PDG-injected rng when present so the explicit random-state contract reaches a real production lane",
+        "UPD tests/test_level_pdg.py — add 1-thread vs 16-thread byte-level deterministic stream test for mapped fan-out ctx['_pdg']['rng'] injection",
+        "UPD tests/test_level.py — add WFC explicit-Generator determinism regression",
+        "NEW research/session123_rng_determinism_research.md — external research notes covering NumPy SeedSequence spawning, JAX PRNG split semantics, Scientific Python NEP-19 practices, and Bazel hermeticity",
+        "UPD PROJECT_BRAIN.json — record SESSION-123 closure, validation, and architecture-memory notes",
+        "UPD SESSION_HANDOFF.md — replace prior handoff with SESSION-123 closure summary and next-step guidance"
+      ],
+      "files_touched": [
+        "mathart/level/pdg.py",
+        "mathart/level/wfc.py",
+        "mathart/level/constraint_wfc.py",
+        "mathart/pipeline.py",
+        "tests/test_level.py",
+        "tests/test_level_pdg.py",
+        "research/session123_rng_determinism_research.md",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
+      ],
+      "validation": "69/69 targeted PASS across tests/test_level_pdg.py, tests/test_level.py, and tests/test_constraint_wfc.py."
+    },
     {
       "session_id": "SESSION-122",
       "summary": "Closed P1-2 by introducing tensorized sparse-keyframe parameter tracks, a streamed TimeAwareMorphologyEvaluator wrapper, and runtime parameter_context overrides inside smooth_morphology so per-frame SDF shape evolution can be decoded without mutating the static genotype trunk or caching full 4D distance volumes. Added OpenUSD TimeSamples-compatible export maps and a 6-test dynamic SDF regression suite, while preserving all 46 legacy smooth morphology tests for a total touched-lane validation result of 52/52 PASS.",

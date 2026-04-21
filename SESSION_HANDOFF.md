@@ -1,70 +1,71 @@
-# SESSION-122 Handoff — P1-2 Per-frame SDF Parameter Animation
+# SESSION-123 Handoff — PDG v2 SeedSequence Determinism and Deep RNG Injection
 
 ## Goal & Status
-**Objective**: close **P1-2 — Per-frame SDF parameter animation** by introducing a runtime-safe dynamic parameter layer for `smooth_morphology.py`, while preserving the static genotype trunk and grounding all animated-parameter decisions in external research.
+**Objective**: close the deterministic-RNG follow-through for the level-generation lane by making **PDG v2** derive **stable per-invocation random streams** from a root seed, inject a real `numpy.random.Generator` into `ctx["_pdg"]["rng"]`, keep cache keys hermetic, and push that explicit RNG contract all the way down into **WFC** and **ConstraintAwareWFC**.
 
 **Status**: **CLOSED**.
 
-The landed implementation adds a new tensorized parameter-track subsystem in `mathart/animation/parameter_track.py`, extends `MorphologyPartGene.build_sdf()` and `MorphologyGenotype.decode_to_sdf()` with an optional `parameter_context` override channel, and validates dynamic 4D SDF behavior through white-box tests that exercise dense track sampling, runtime shape evolution, OpenUSD-style `TimeSamples` export, and volume-preserving dynamic mesh continuity.[1] [2] [3] [4] [5]
+The landed implementation upgrades `mathart/level/pdg.py` so every invocation receives a child stream derived from a stable **NumPy `SeedSequence` contract**, exposes an audit-friendly `rng_contract` alongside the live generator, and strictly separates cache-key context from runtime-only objects so no live generator identity can poison hermetic hashing.[1] [4] The same session also refactors `mathart/level/wfc.py`, `mathart/level/constraint_wfc.py`, and the WFC node in `mathart/pipeline.py` so real level-generation work can consume the injected generator rather than silently relying on thread-order-sensitive internal randomness.[1] [3]
 
 ## Research Alignment Audit
-The implementation was intentionally constrained by five external references, and the raw working notes were saved to `research/session122_external_reference_notes.md`.
+The implementation was deliberately constrained by four external references, and the raw notes were saved to `research/session123_rng_determinism_research.md`.
 
 | Reference pillar | Practical rule adopted in code | Why it matters here |
 |---|---|---|
-| Inigo Quilez — Smooth minimum | Animate primitive parameters and blend radii, not post-hoc mesh vertices; keep smooth-union `k` bounded and continuous.[1] | This preserves the original SDF modeling logic and avoids breaking the static morphology trunk. |
-| OpenUSD — TimeCodes / TimeSamples | Separate sparse authored keyframes from dense sampled values, and keep a serializable `time -> value` mapping.[2] | This shaped `ParameterTrack.to_time_samples()` and the sparse→dense contract used by `ParameterTrackBundle`. |
-| OpenUSD spline animation proposal | Treat spline/keyframe data as the authoritative sparse source and dense samples as a runtime realization.[4] | This informed the choice to add a wrapper-layer animation system instead of hard-coding exporter concerns into the morphology core. |
-| Catmull-Rom / cubic Hermite interpolation | Use an interpolating, local-control, **C1-continuous** cubic scheme for animated parameter tracks.[5] | This prevents visible derivative jumps in breathing / pulsation / morph envelopes. |
-| Disney-style squash & stretch volume preservation | When one axis expands, linked orthogonal axes should contract so gross volume remains approximately stable.[3] | This drove `volume_preserving_axis_link()` and the dynamic mesh-bbox continuity regression. |
+| NumPy `SeedSequence.spawn()` / parallel RNG guidance | Treat child streams as **independent descendants** of one root entropy source instead of reseeding ad hoc generators.[1] | This is the foundation for deterministic mapped fan-out without stream overlap or thread-order bleed. |
+| JAX PRNG design | Make randomness an **explicitly propagated resource** rather than hidden mutable global state.[2] | This directly motivated `ctx["_pdg"]["rng"]` and `rng_contract` as first-class runtime inputs. |
+| Scientific Python RNG best practices | Prefer **passing `Generator` instances explicitly** and avoid legacy global/random-module side effects.[3] | This shaped the WFC / ConstraintAwareWFC constructor changes and the pipeline deep-injection path. |
+| Bazel hermeticity | Cache keys must depend only on **declared, stable inputs**, never on ambient or process-local state.[4] | This forced a clean split between cacheable RNG metadata and the live runtime generator object. |
 
-> “Splines and time samples are not competing ideas in animation interchange; sparse authoring and dense evaluation should coexist.” This was the key interoperability lesson extracted from the OpenUSD references and carried into the new parameter-track layer.[2] [4]
+> “Hermetic builds are insensitive to libraries and other software installed on the local or remote host machine.” That same principle was applied here to PDG execution: the cache contract now depends on a stable RNG descriptor, not on in-memory generator identity or execution order.[4]
 
 ## Architecture Decisions Locked
-The most important architectural decision is that **dynamic parameter animation now lives in a sibling wrapper layer, not as a destructive rewrite of the static morphology genotype**. `ParameterTrack`, `ParameterTrackBundle`, `SampledParameterMatrix`, and `TimeAwareMorphologyEvaluator` live in `mathart/animation/parameter_track.py`, while `smooth_morphology.py` remains the authoritative static SDF trunk.
+The first locked decision is that **PDG v2 now owns the root random-state contract for mapped execution**. `ProceduralDependencyGraph.run()` derives a root `SeedSequence` from `pdg_seed`, `rng_seed`, or `seed` when present, and otherwise deterministically hashes graph/context material into a derived root entropy bundle. Every invocation then materializes a child stream from a stable spawn descriptor containing graph name, node name, invocation index, partition key, and upstream work-item lineage.[1] [4]
 
-The second locked decision is that **runtime animation enters the SDF trunk only through an optional `parameter_context` dictionary**. This means every pre-existing caller of `MorphologyPartGene.build_sdf()` and `MorphologyGenotype.decode_to_sdf()` still behaves exactly as before when no context is supplied, but animated callers can override `param_a`, `param_b`, `param_c`, `scale_x`, `scale_y`, `offset_x`, `offset_y`, `rotation`, `blend_k`, `global_scale`, and `bilateral_symmetry` on a frame-by-frame basis.
+The second locked decision is that **runtime RNG injection is explicit but cache-safe**. `ctx["_pdg"]` now includes a live `rng`, a `seed_sequence`, and a serializable `rng_contract`. The live generator is added only to the runtime context passed into node execution; cache-key computation uses a separate context containing only the stable contract. This preserves hermetic SHA-256 action keys while still giving node code a real generator object.[3] [4]
 
-The third locked decision is that **the hot path is vectorized over the entire time tensor**. The dense interpolation kernel in `ParameterTrack.sample()` uses `np.searchsorted`, batched Hermite basis evaluation, and gathered knot/tangent tensors. There is no Python `for t in frames` loop in the sampling hot path, and the white-box test explicitly audits the function source for that red line while also benchmarking a 10,000-frame sample run.
+The third locked decision is that **the explicit RNG contract had to reach a real production lane, not just synthetic tests**. `WFCGenerator` now supports `rng: np.random.Generator | None`, replaces `random.Random` usage with NumPy-backed `_choice()` / `_weighted_choice()` helpers, and keeps `seed` construction for backward compatibility. `ConstraintAwareWFC` adopts the same contract, and the level WFC node in `mathart/pipeline.py` now consumes `ctx["_pdg"]["rng"]` when present.[1] [3]
 
-The fourth locked decision is that **4D SDF use remains streamed rather than cached**. `TimeAwareMorphologyEvaluator` samples dense parameter tensors once, then resolves a single frame context at a time for decoding. This deliberately avoids materializing a full `[x, y, z, t]` distance cache, which would be the wrong memory trade-off for the current CPU-first repository lane.
+The fourth locked decision is that **scheduler concurrency must not perturb outputs**. The new white-box PDG test compares mapped fan-out output from **1 thread** and **16 threads** and requires byte-identical generated random blocks per partition. This closes the thread-order nondeterminism risk that would otherwise remain hidden behind “same average behavior” style tests.[1] [2]
 
 ## Code Change Table
 | File | Action | Details |
 |---|---|---|
-| `mathart/animation/parameter_track.py` | Added | New tensorized dynamic-parameter lane: `ParameterTrack`, `ParameterTrackBundle`, `SampledParameterMatrix`, `TimeAwareMorphologyEvaluator`, and `volume_preserving_axis_link()`. |
-| `mathart/animation/smooth_morphology.py` | Modified | Added scalar/bool context resolvers, per-part `resolve_parameters()`, optional `parameter_context` support in `build_sdf()` and `decode_to_sdf()`, and bounded runtime override guards. |
-| `tests/test_sdf_animation.py` | Added | Six new white-box tests covering dense parameter-matrix upsampling, 10k-frame vectorized sampling, `TimeSamples` export, runtime shape evolution, streamed evaluator use, and dynamic mesh-bbox continuity. |
-| `research/session122_external_reference_notes.md` | Added | Working research notes for IQ smooth min, OpenUSD time samples, OpenUSD spline animation, Catmull-Rom continuity, and squash/stretch volume preservation. |
-| `PROJECT_BRAIN.json` | Updated | Marked **P1-2 CLOSED**, recorded SESSION-122 validation, and documented the new OpenUSD-compatible parameter-track groundwork. |
-| `SESSION_HANDOFF.md` | Updated | Replaced prior handoff with the current session closure summary and next-step guidance. |
+| `mathart/level/pdg.py` | Modified | Added root-seed derivation, stable per-invocation SeedSequence materialization, `ctx["_pdg"]["rng"]`, `seed_sequence`, `rng_contract`, and cache/runtime context separation so live generators never enter cache hashing. |
+| `mathart/level/wfc.py` | Modified | Replaced `random.Random` with NumPy `Generator` support, introduced `_random()` / `_choice()` / `_weighted_choice()` helpers, and preserved legacy `seed=` construction. |
+| `mathart/level/constraint_wfc.py` | Modified | Added optional `rng` injection and switched constrained-collapse selection to the new helper methods from the base WFC generator. |
+| `mathart/pipeline.py` | Modified | Updated the WFC PDG node to consume the injected RNG from `ctx["_pdg"]`, proving deep RNG propagation reaches the real level lane. |
+| `tests/test_level_pdg.py` | Modified | Added a 1-thread vs 16-thread byte-level deterministic mapped-fan-out regression for `ctx["_pdg"]["rng"]` plus spawn-contract uniqueness assertions. |
+| `tests/test_level.py` | Modified | Added a WFC explicit-Generator determinism regression to lock the new injection API. |
+| `research/session123_rng_determinism_research.md` | Added | Working notes for NumPy SeedSequence, JAX PRNG design, Scientific Python RNG practice, and Bazel hermeticity. |
+| `PROJECT_BRAIN.json` | Updated | Recorded SESSION-123 closure, new validation summary, recent-focus snapshot, and architecture-memory notes. |
+| `SESSION_HANDOFF.md` | Updated | Replaced the prior handoff with the current closure summary and next-step guidance. |
 
 ## White-Box Validation Closure
 Local touched-lane validation is complete.
 
 | Validation command / scope | Result |
 |---|---|
-| `python3.11 -m pytest -q tests/test_smooth_morphology.py tests/test_sdf_animation.py` | **52/52 PASS** |
-| Legacy smooth morphology regression | **46/46 PASS** |
-| New SESSION-122 dynamic animation suite | **6/6 PASS** |
+| `python3.11 -m pytest tests/test_level_pdg.py tests/test_level.py -q` | **33/33 PASS** |
+| `python3.11 -m pytest tests/test_constraint_wfc.py -q` | **36/36 PASS** |
+| Total touched-lane validation | **69/69 PASS** |
 
-The new validation suite closes three red lines simultaneously. First, it proves that sparse keyframes can be upsampled to a dense `[frames, params]` tensor without scalar frame loops. Second, it proves that `decode_to_sdf(parameter_context=...)` actually changes the decoded field in a mathematically meaningful way. Third, it proves that a breathing-style animated field, after extrusion and Dual Contouring extraction, evolves with a smoothly changing bounding-box volume instead of discontinuous jumps.
+The validation matrix closes three red lines at once. First, it proves that mapped PDG fan-out now emits **byte-identical random outputs** under 1-thread and 16-thread execution. Second, it proves that the live generator reaches real node code through `ctx["_pdg"]["rng"]` without contaminating cache contracts. Third, it proves that the deep consumer lane—`WFCGenerator` and `ConstraintAwareWFC`—remains backward-compatible while accepting explicit `Generator` injection.
 
-## OpenUSD / P1-ARCH-5 Hand-off Implication
-SESSION-122 does **not** finish `P1-ARCH-5`, but it removes a meaningful blocker for that task. The repository now has a clean distinction between **sparse authored keyframes** and **dense sampled animated values**, and those dense values can already be serialized as `track_name -> {time: value}` dictionaries mirroring `TimeSamples` semantics.[2] [4]
+## Practical Implication for the Architecture Roadmap
+SESSION-123 does **not** introduce a new scene-format feature, but it materially hardens the production credibility of the level lane. The repository now has a clean distinction between **stable random-input contract** and **live runtime random-state object**, which is exactly the separation needed for future distributed PDG execution, reproducible benchmark capture, and stronger WorkItem lineage auditing.[1] [4]
 
-The practical next step for `P1-ARCH-5` is therefore no longer “invent animated parameter storage,” but rather “map the already-existing parameter-track contract onto stable prim paths, attribute schemas, and exporter-owned usd/usda serialization.” In other words, the runtime math lane is now ready; the remaining work is scene-graph and file-format ownership.
+In practical terms, future PDG-powered subsystems no longer need to improvise their own concurrency-safe RNG story. They can accept `ctx["_pdg"]["rng"]`, preserve local backward compatibility with optional constructor injection, and rely on the runtime to keep stream derivation deterministic across scheduler widths.[2] [3]
 
 ## Recommended Next Steps
-The most valuable immediate follow-up is **P1-ARCH-5**. The new parameter tracks should be promoted into a prim-style animated attribute layer with stable identities such as `</Character/Morphology/Part_0.radius>` and adapter-owned export logic. That would convert the current internal `TimeSamples`-compatible representation into true interchange output without pulling file-format concerns back into the SDF runtime.
+The highest-value immediate follow-up is to **extend the same explicit RNG contract into additional stochastic production lanes** that still construct local random behavior internally. The most obvious candidates are any remaining procedural layout, noise, sampler, or policy-search components that execute beneath PDG fan-out but do not yet consume `ctx["_pdg"]["rng"]` directly.
 
-The second follow-up is **P2-DIM-UPLIFT-13**. The dynamic SDF lane is now functionally correct, but animated mesh extraction still runs on the CPU. If animated morphology is going to drive production-scale preview renders or benchmark suites, the next leverage point is GPU-accelerated dense sampling and mesh extraction.
+The second follow-up is to **promote `rng_contract` into stronger lineage reporting**. At the moment, the contract is visible to node code and present in cache-safe context, but it would be valuable to persist a compact subset of that metadata into more exported manifests or benchmark records so external audit tools can prove that two artifacts came from the same deterministic seed lineage.[1] [4]
 
-The third follow-up is **P1-AI-1**. Downstream neural-render and control pipelines should start consuming the new animated parameter tracks directly, rather than treating SDF morphology as a static single-frame source.
+The third follow-up is to **evaluate remote or multi-process execution readiness**. The current scheduler is local-threaded, but the explicit root-seed/child-stream contract is now strong enough that future executor backends can preserve determinism without sharing mutable RNG state, which was one of the core design lessons extracted from JAX-style split PRNG systems.[2]
 
 ## References
-[1]: https://iquilezles.org/articles/smin/ "Inigo Quilez — smooth minimum"
-[2]: https://docs.nvidia.com/learn-openusd/latest/stage-setting/timecodes-timesamples.html "NVIDIA Learn OpenUSD — TimeCodes and TimeSamples"
-[3]: https://adammadej.com/posts/202403-squashstretch/ "Adam Madej — Squash & Stretch and volume preservation"
-[4]: https://github.com/PixarAnimationStudios/OpenUSD-proposals/blob/main/proposals/spline-animation/README.md "Pixar OpenUSD proposal — Spline Animation"
-[5]: https://graphics.cs.cmu.edu/nsp/course/15-462/Fall04/assts/catmullRom.pdf "Christopher Twigg — Catmull-Rom splines"
+[1]: https://numpy.org/doc/2.2/reference/random/bit_generators/generated/numpy.random.SeedSequence.spawn.html "NumPy — SeedSequence.spawn"
+[2]: https://docs.jax.dev/en/latest/jep/263-prng.html "JAX PRNG Design (JEP 263)"
+[3]: https://blog.scientific-python.org/numpy/numpy-rng/ "Scientific Python — Best Practices for Using NumPy's Random Number Generators"
+[4]: https://bazel.build/basics/hermeticity "Bazel — Hermeticity"

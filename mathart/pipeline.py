@@ -2391,8 +2391,9 @@ class AssetPipeline:
             cache_dir=level_dir / ".pdg_cache",
         )
 
-        def _node_wfc(_: dict[str, Any], __: dict[str, Any]) -> dict[str, Any]:
-            generator = WFCGenerator(seed=run_seed)
+        def _node_wfc(ctx: dict[str, Any], __: dict[str, Any]) -> dict[str, Any]:
+            pdg_rng = ctx.get("_pdg", {}).get("rng")
+            generator = WFCGenerator(seed=run_seed, rng=pdg_rng)
             generator.learn()
             ascii_level = generator.generate(
                 level_spec.width,
@@ -2407,6 +2408,7 @@ class AssetPipeline:
                 "ascii_level": ascii_level,
                 "ascii_path": str(ascii_path),
                 "seed": run_seed,
+                "rng_injected": pdg_rng is not None,
             }
 
         def _node_scene(_: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]:

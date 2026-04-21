@@ -1,6 +1,7 @@
 """Tests for the WFC level generation module."""
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from mathart.level.templates import (
@@ -180,6 +181,19 @@ class TestWFCGenerator:
         r1 = gen1.generate(22, 7)
         r2 = gen2.generate(22, 7)
         assert r1 != r2, "Different seeds produced identical levels"
+
+    @pytest.mark.unit
+    def test_generate_with_injected_numpy_generator_is_deterministic(self):
+        """Explicit Generator injection should preserve deterministic output."""
+        rng_a = np.random.default_rng(123456)
+        rng_b = np.random.default_rng(123456)
+        gen_a = WFCGenerator(rng=rng_a)
+        gen_b = WFCGenerator(rng=rng_b)
+        gen_a.learn()
+        gen_b.learn()
+        level_a = gen_a.generate(22, 7)
+        level_b = gen_b.generate(22, 7)
+        assert level_a == level_b
 
     @pytest.mark.unit
     def test_generate_batch(self, generator):
