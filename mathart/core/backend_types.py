@@ -82,6 +82,9 @@ class BackendType(str, Enum):
     # WFC_TILEMAP) and emits a strongly-typed LEVEL_TOPOLOGY artifact
     # carrying SemanticAnchors, TraversalLanes and TopologyTensors.
     LEVEL_TOPOLOGY = "level_topology"
+    # SESSION-118 (P1-HUMAN-31C): Pseudo-3D paper-doll / mesh-shell
+    # deformation backend using tensorized dual quaternion skinning.
+    PSEUDO_3D_SHELL = "pseudo_3d_shell"
 
 
 _BACKEND_ALIASES: dict[str, str] = {
@@ -191,6 +194,12 @@ _BACKEND_ALIASES: dict[str, str] = {
     "level_topology_extractor": BackendType.LEVEL_TOPOLOGY.value,
     "recast_topology": BackendType.LEVEL_TOPOLOGY.value,
     "dual_grid_topology": BackendType.LEVEL_TOPOLOGY.value,
+    # SESSION-118 (P1-HUMAN-31C): Pseudo-3D shell backend aliases
+    BackendType.PSEUDO_3D_SHELL.value: BackendType.PSEUDO_3D_SHELL.value,
+    "pseudo3d_shell": BackendType.PSEUDO_3D_SHELL.value,
+    "paper_doll_shell": BackendType.PSEUDO_3D_SHELL.value,
+    "dqs_mesh_shell": BackendType.PSEUDO_3D_SHELL.value,
+    "mesh_shell_dqs": BackendType.PSEUDO_3D_SHELL.value,
 }
 
 

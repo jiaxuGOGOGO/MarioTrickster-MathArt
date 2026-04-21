@@ -121,6 +121,16 @@ from .industrial_renderer import (
     render_character_frame_industrial, render_character_maps_industrial,
     render_character_sheet_industrial,
 )
+# SESSION-118 (P1-HUMAN-31C): Tensorized Dual Quaternion Skinning Engine
+from .dqs_engine import (
+    quat_mul_batch, quat_conj_batch, quat_normalize_batch,
+    quat_rotate_points_batch, quat_from_axis_angle_batch,
+    dq_from_rotation_translation, dq_from_axis_angle_translation,
+    dq_identity, dq_extract_translation,
+    DQSSkinningResult, tensorized_dqs_skin,
+    create_cylinder_mesh, compute_cylinder_skin_weights,
+    compute_cross_section_area,
+)
 # SESSION-044: Analytical SDF auxiliary-map baking
 from .sdf_aux_maps import (
     SDFSamplingGrid, SDFBakeConfig, SDFAuxiliaryMaps,
@@ -490,6 +500,14 @@ __all__ = [
     "GuiltyGearFrameScheduler", "IndustrialRenderAuxiliaryResult",
     "render_character_frame_industrial", "render_character_maps_industrial",
     "render_character_sheet_industrial",
+    # SESSION-118 (P1-HUMAN-31C): Tensorized DQS Engine
+    "quat_mul_batch", "quat_conj_batch", "quat_normalize_batch",
+    "quat_rotate_points_batch", "quat_from_axis_angle_batch",
+    "dq_from_rotation_translation", "dq_from_axis_angle_translation",
+    "dq_identity", "dq_extract_translation",
+    "DQSSkinningResult", "tensorized_dqs_skin",
+    "create_cylinder_mesh", "compute_cylinder_skin_weights",
+    "compute_cross_section_area",
     # SESSION-044: Analytical SDF auxiliary-map baking
     "SDFSamplingGrid", "SDFBakeConfig", "SDFAuxiliaryMaps",
     "sample_sdf_grid", "compute_sdf_gradients", "compute_depth_map",

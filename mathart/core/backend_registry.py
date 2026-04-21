@@ -723,6 +723,13 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.level_topology_backend")
         except Exception as e:
             logger.debug("Failed to auto-load level topology backend: %s", e)
+
+        # SESSION-118 (P1-HUMAN-31C): Pseudo-3D paper-doll / mesh-shell
+        # deformation backend using tensorized dual quaternion skinning.
+        try:
+            importlib.import_module("mathart.core.pseudo3d_shell_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load pseudo 3D shell backend: %s", e)
     return registry
 
 
