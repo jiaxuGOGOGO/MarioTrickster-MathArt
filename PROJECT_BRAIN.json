@@ -1,7 +1,7 @@
 {
-  "version": "v0.96.0",
-  "last_session_id": "SESSION-124",
-  "last_updated": "2026-04-21T16:30:00Z",
+  "version": "v0.96.1",
+  "last_session_id": "SESSION-125",
+  "last_updated": "2026-04-21T13:16:21Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -32,14 +32,14 @@
     "closed_archived": 53
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-124 Unity 2D native animation format zero-dependency direct export: 43/43 targeted tests PASS (tests/test_unity_2d_anim.py). TensorSpaceConverter coordinate transform + Euler unwrap, UnityYAMLEmitter high-throughput string assembly, deterministic GUID generation, end-to-end Clip2D→.anim/.controller/.meta export, backend registry integration, and performance throughput all validated.",
-  "total_iterations": 732,
-  "total_code_lines": 138200,
+  "validation_pass_rate": "SESSION-125 Spine JSON headless preview: 6/6 targeted tests PASS (tests/test_spine_preview.py) plus CI metadata coverage PASS and MicrokernelPipelineBridge end-to-end backend execution PASS. Tensorized FK world-matrix propagation, MP4/GIF export, registry integration, synthetic CI self-healing, and touched-lane subsecond preview throughput all validated.",
+  "total_iterations": 733,
+  "total_code_lines": 160304,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
   "knowledge_rule_count": 167,
-  "math_model_count": 40,
+  "math_model_count": 41,
   "project_health_score": 10.0,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
@@ -3829,6 +3829,40 @@
       "task": "P1-HUMAN-31C",
       "outcome": "COMPLETE",
       "tests": "45/45 PASS"
+    },
+    {
+      "session_id": "SESSION-125",
+      "date": "2026-04-21",
+      "focus": "P2-SPINE-PREVIEW-1 / Spine JSON tensorized FK preview closure",
+      "status": "COMPLETE",
+      "summary": "Closed P2-SPINE-PREVIEW-1 by landing a pure Spine JSON tensor solver and headless preview renderer. Added batched [F,B,3,3] local/world matrix solving, CI-safe synthetic demo generation, MP4/GIF preview export, ANIMATION_PREVIEW manifest schema, backend registry wiring, and targeted white-box tests including subsecond multi-frame render validation.",
+      "changes": [
+        "NEW mathart/animation/spine_preview.py — SpineJSONTensorSolver, HeadlessSpineRenderer, demo Spine JSON synthesis, tensorized FK world propagation, headless MP4/GIF export",
+        "NEW mathart/core/spine_preview_backend.py — SpinePreviewBackend registry plugin with validate_config() self-healing and ANIMATION_PREVIEW manifest emission",
+        "NEW tests/test_spine_preview.py — targeted solver/render/backend/registry/performance regressions",
+        "UPD mathart/core/backend_types.py — add SPINE_PREVIEW backend type and aliases",
+        "UPD mathart/core/artifact_schema.py — add ANIMATION_PREVIEW artifact family and required metadata keys",
+        "UPD mathart/core/backend_registry.py — auto-load spine_preview_backend",
+        "UPD tests/conftest.py — restore builtin spine_preview backend after registry resets",
+        "UPD tests/test_ci_backend_schemas.py — extend required_metadata_keys coverage to ANIMATION_PREVIEW",
+        "NEW research/session125_spine_preview_research_notes.md — external research alignment for Spine hierarchy, FK composition, NumPy matmul, and headless rendering",
+        "UPD SESSION_HANDOFF.md — SESSION-125 closure summary, validation, and realtime transport preparation",
+        "UPD PROJECT_BRAIN.json — session metadata, validation summary, and resolved issue log"
+      ],
+      "files_touched": [
+        "mathart/animation/spine_preview.py",
+        "mathart/core/spine_preview_backend.py",
+        "mathart/core/backend_types.py",
+        "mathart/core/artifact_schema.py",
+        "mathart/core/backend_registry.py",
+        "tests/conftest.py",
+        "tests/test_ci_backend_schemas.py",
+        "tests/test_spine_preview.py",
+        "research/session125_spine_preview_research_notes.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "test_results": "6 PASS / 0 SKIP / 0 FAIL (python3.11 -m pytest -q tests/test_spine_preview.py); 1 PASS selected / 0 FAIL (python3.11 -m pytest -q tests/test_spine_preview.py tests/test_ci_backend_schemas.py -k 'test_required_metadata_keys_coverage'); bridge smoke PASS (python3.11 tmp_validate_spine_preview_backend.py)"
     }
   ],
   "resolved_issues": [
@@ -3894,6 +3928,13 @@
       "resolved_at": "2026-04-21T16:30:00+08:00",
       "resolution": "Complete Unity 2D native animation format zero-dependency direct export pipeline: TensorSpaceConverter (vectorized coordinate transform + np.unwrap Euler continuity + Catmull-Rom tangent derivation), UnityYAMLEmitter (pure io.StringIO f-string assembly, zero PyYAML), deterministic md5 GUID generation, AnimatorController state machine emission, Unity2DAnimBackend registry plugin with ArtifactFamily.UNITY_NATIVE_ANIM. 43/43 white-box tests.",
       "validation_test_file": "tests/test_unity_2d_anim.py"
+    },
+    {
+      "issue_id": "P2-SPINE-PREVIEW-1",
+      "session_id": "SESSION-125",
+      "resolved_at": "2026-04-21T13:16:21Z",
+      "resolution": "Added an engine-independent Spine JSON preview lane with tensorized FK world-matrix solving, headless MP4/GIF export, typed ANIMATION_PREVIEW manifests, CI-safe synthetic demo fallback, and registry-native backend discovery.",
+      "validation_test_file": "tests/test_spine_preview.py + tests/test_ci_backend_schemas.py"
     }
   ],
   "backlog": [],
@@ -3917,6 +3958,17 @@
         "Anti-Euler-Flip: np.unwrap is mandatory before tangent baking",
         "Anti-GUID-Collision: hashlib.md5(name.encode()).hexdigest() only"
       ]
+    },
+    "session125_spine_preview_status": {
+      "decision": "Spine preview lives in mathart/animation/spine_preview.py (pure solver/renderer) + mathart/core/spine_preview_backend.py (registry plugin). Input contract is a Spine JSON file path, never an editor runtime object.",
+      "math_contract": "FK is split into local matrix construction and depth-layer world propagation. World matrices are solved as [F,B,3,3] tensors using broadcast np.matmul instead of nested frame/bone scalar loops.",
+      "perf_contract": "Touched-lane validation confirms a 180-frame headless preview stays subsecond while exporting both MP4 and GIF artifacts.",
+      "red_lines": [
+        "Anti-GUI-Blocking: cv2.imshow() and cv2.waitKey() are forbidden in the production preview lane",
+        "Anti-Scalar-Frame-Loop: FK hot path must stay tensorized across frames",
+        "Anti-Coordinate-Inversion: image-space rendering must explicitly flip Y"
+      ],
+      "realtime_prep": "For P2-REALTIME-COMM-1, ship frame packets containing frame_index, time_s, bone_index, bone_name, parent_index, origin_xy, tip_xy, and rotation_deg rather than raster video whenever low latency matters."
     },
     "session121_p1_new_9c_status": {
       "decision": "Equipment 3D meshes live in mathart/animation/parts3d.py (sibling of parts.py), are typed via PartShape3D, mounted via TensorSocketMounter aligned with UE5 USkeletalMeshSocket, and composed via the existing compose_character_with_attachments USD-Reference arc.",

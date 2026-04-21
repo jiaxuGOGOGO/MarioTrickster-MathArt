@@ -131,6 +131,10 @@ class ArtifactFamily(Enum):
     # family.  Carries .anim, .controller, and .meta file paths plus
     # export metrics (bone_count, frame_count, total_keyframes, GUIDs).
     UNITY_NATIVE_ANIM = "unity_native_anim"
+    # SESSION-125 (P2-SPINE-PREVIEW-1): Headless Spine JSON preview artifact
+    # family. Carries preview media paths plus render diagnostics for the
+    # tensorized FK visual verification lane.
+    ANIMATION_PREVIEW = "animation_preview"
 
     @classmethod
     def required_metadata_keys(cls, family_value: str) -> frozenset[str]:
@@ -230,6 +234,18 @@ class ArtifactFamily(Enum):
                 "fps",
                 "export_time_ms",
                 "anim_guids",
+            }),
+            # SESSION-125 (P2-SPINE-PREVIEW-1): Mandatory metadata for the
+            # headless Spine preview lane so downstream CI / audit tooling can
+            # reason about render scale and animation identity without reading
+            # the media files.
+            cls.ANIMATION_PREVIEW.value: frozenset({
+                "bone_count",
+                "frame_count",
+                "fps",
+                "canvas_size",
+                "render_time_ms",
+                "animation_name",
             }),
         }
         return _FAMILY_REQUIRED_METADATA.get(family_value, frozenset())

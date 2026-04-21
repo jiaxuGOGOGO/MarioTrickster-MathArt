@@ -1,94 +1,98 @@
-# SESSION-124 Handoff — Unity 2D Native Animation Format Zero-Dependency Direct Export
-
 ## Goal & Status
-**Objective**: close P2-UNITY-2DANIM-1 by implementing a complete pipeline that converts projected 2D bone animation data (`Clip2D`) into Unity-native `.anim` (AnimationClip), `.controller` (AnimatorController), and `.meta` files — **without any Unity Editor dependency or PyYAML overhead**.
+
+**Objective**: close **P2-SPINE-PREVIEW-1** by landing a complete, engine-independent preview pipeline that reads exported **Spine JSON**, solves hierarchical bone transforms through a tensorized FK path, renders the skeleton headlessly, and emits `.mp4` / `.gif` verification assets suitable for fracture / topology debugging.
 
 **Status**: **CLOSED**.
 
-The landed implementation delivers four tightly integrated components: `TensorSpaceConverter` performs vectorized right-hand→left-hand coordinate transformation with `np.unwrap` Euler continuity and Catmull-Rom tangent derivation; `UnityYAMLEmitter` produces `.anim` files via pure `io.StringIO` f-string assembly (zero PyYAML dependency); `emit_meta_file` generates deterministic `hashlib.md5`-based GUIDs; and `emit_animator_controller` produces `.controller` state machines with correct Unity class IDs. `Unity2DAnimBackend` self-registers via `@register_backend` with `BackendType.UNITY_2D_ANIM` and `ArtifactFamily.UNITY_NATIVE_ANIM`, following the exact Ports-and-Adapters discipline established by `LevelTopologyBackend` (SESSION-109).
+The landed implementation introduces two physically separated layers. `mathart/animation/spine_preview.py` is the pure algorithm module: it parses Spine JSON from disk, samples translate / rotate / scale timelines, builds `local_matrices[F, B, 3, 3]`, propagates `world_matrices[F, B, 3, 3]` depth-by-depth using broadcast `np.matmul`, and converts solved bone segments into headless preview media. `mathart/core/spine_preview_backend.py` is the thin registry adapter that normalizes context, synthesizes a demo Spine clip when CI supplies a placeholder path, and returns a strongly typed `ArtifactManifest` with family `ANIMATION_PREVIEW`.
 
 ## Research Alignment Audit
-The implementation was deliberately constrained by four external research pillars, and the raw notes were saved to `research/session124_unity_2d_anim_research.md`.
+
+The implementation is deliberately constrained by the external research captured in `research/session125_spine_preview_research_notes.md`. The following table records the exact rule each source imposed on the code path.
 
 | Reference pillar | Practical rule adopted in code | Why it matters here |
 |---|---|---|
-| Unity YAML Asset Serialization Specification [1] | Every `.anim` file starts with `%YAML 1.1`, `%TAG !u! tag:unity3d.com,2011:`, and `--- !u!74 &7400000` magic headers. `AnimationClip` structure uses `m_EulerCurves`, `m_PositionCurves`, `m_ScaleCurves` with `serializedVersion: 3` keyframes. | Unity Editor will silently reject files that deviate from this exact header/structure contract. |
-| Left-Handed vs Right-Handed Coordinate Tensor Transformation [2] | Rotation Z is negated (`rot_z = -rotation_degrees`) to convert from right-hand (math) to left-hand (Unity) coordinate system. Position X/Y are preserved since 2D projection already uses Unity-compatible axes. | Without handedness correction, all rotations would play backwards in Unity. |
-| Euler Angle Continuous Unwrapping [3] | `np.unwrap(radians)` is applied along the time axis before tangent computation to guarantee C⁰ continuity across the ±180° boundary. | Raw `atan2`-derived angles wrap at ±180°, causing catastrophic discontinuities in Unity's curve interpolator. |
-| High-Throughput Template Engine Design [4] | `io.StringIO` + f-string assembly replaces any YAML library. Batch tangent computation uses vectorized NumPy operations across all channels simultaneously. | PyYAML's `dump()` is 10-100x slower than direct string assembly for structured output with known schema. |
+| Spine runtime skeleton hierarchy [1] | Bone transforms are treated as parent-relative data, and preview rendering is based on world transforms rather than raw local channels. | Without hierarchical accumulation, the preview would draw disconnected or physically wrong poses. |
+| Formal FK composition from CSE169 [2] | The solver is split into local-matrix construction and world-matrix concatenation. | This separation makes the FK path debuggable, testable, and easy to tensorize. |
+| NumPy stacked-matrix semantics [3] | World propagation is executed with broadcast `np.matmul` over `[..., 3, 3]` matrices rather than per-frame scalar loops. | This is the key performance lever that keeps the FK hot path vectorized. |
+| OpenCV headless video writing [4] | Preview export writes files via `cv2.VideoWriter`; no display surface is involved. | CI, remote workers, and server-side jobs cannot depend on a local GUI. |
+| Matplotlib non-interactive backend guidance [5] | The preview path is explicitly headless-only, and GUI calls are forbidden by design. | This locks the implementation away from blocking window APIs and keeps it production-safe. |
 
-> "Unity uses a custom YAML serialization format that is not standard YAML. Each Unity object is serialized with a class ID tag and a file ID anchor." This observation from the Unity serialization blog directly shaped the emitter's header generation and object reference wiring. [1]
+> “A skeleton has a hierarchy of bones. Bone transforms are applied relative to the parent bone and combined to produce world transforms used for rendering.” This Spine runtime principle directly determined the world-matrix propagation contract in the new solver. [1]
 
 ## Architecture Decisions Locked
-The first locked decision is that **the pure algorithm module and the registry plugin are physically separated**. `mathart/animation/unity_2d_anim.py` contains all algorithm code (converter, emitter, GUID generator, exporter) with zero dependency on the registry system. `mathart/core/unity_2d_anim_backend.py` is the thin registry adapter that wraps the exporter and produces `ArtifactManifest`. This follows the same separation used by `TopologyExtractor` / `LevelTopologyBackend`.
 
-The second locked decision is that **PyYAML is permanently banned from the export path**. The `test_no_pyyaml_import` test enforces that `import yaml` never appears in `unity_2d_anim.py`. All YAML output is generated via `io.StringIO` and f-string formatting, which is both faster and more predictable for Unity's non-standard YAML dialect.
+The first locked decision is that **the math module and the backend plugin remain physically separated**. `mathart/animation/spine_preview.py` contains the portable algorithm core only; it knows nothing about the registry, manifests, or orchestration layer. `mathart/core/spine_preview_backend.py` owns all plugin concerns such as context normalization, synthetic demo self-healing, and artifact packaging. This mirrors the architectural split previously used by `LevelTopologyBackend` and `Unity2DAnimBackend`.
 
-The third locked decision is that **GUIDs are deterministic and collision-resistant**. `generate_deterministic_guid(asset_name)` uses `hashlib.md5(name.encode("utf-8")).hexdigest()` to produce a 32-character hex GUID. The same asset name always produces the same GUID, enabling reproducible builds and stable `.meta` file references.
+The second locked decision is that **the FK hot path is tensorized across frames**. Metadata preparation is still allowed to iterate over bones while parsing channels, but world-matrix propagation never performs a nested `for frame in ... / for bone in ...` scalar solve. Instead, the backend precomputes `parent_indices` and depth levels, and each depth layer is resolved by batched `np.matmul`, which matches NumPy’s stacked-matrix semantics [3].
 
-The fourth locked decision is that **the backend survives CI smoke tests with synthetic data**. `validate_config()` synthesises a minimal 3-bone, 10-frame demo clip when `clip_2d` is missing or receives a placeholder string from the CI fixture. This ensures the backend passes `test_ci_backend_schemas.py` and `registry_e2e_guard.py` without requiring upstream pipeline execution.
+The third locked decision is that **the preview path is permanently headless**. `cv2.imshow()` and `cv2.waitKey()` are banned from the production preview module. Video is written via `VideoWriter`, GIF is written via Pillow, and the renderer projects all coordinates into image space with an explicit Y-axis inversion so the skeleton remains visually upright.
+
+The fourth locked decision is that **the backend survives CI smoke tests with synthetic input**. When `spine_json_path` is absent or contains the CI placeholder string, `validate_config()` generates a deterministic demo Spine JSON clip on disk and uses it as the preview source. This guarantees that the backend remains executable through the registry bridge even when no upstream motion pipeline has run.
 
 ## Code Change Table
+
 | File | Action | Details |
 |---|---|---|
-| `mathart/animation/unity_2d_anim.py` | Added | `TensorSpaceConverter` (coordinate transform + Euler unwrap + Catmull-Rom tangent derivation), `UnityYAMLEmitter` (pure string-buffer `.anim` emission), `emit_meta_file`, `emit_animator_controller`, `generate_deterministic_guid`, `Unity2DAnimExporter` (end-to-end orchestrator). |
-| `mathart/core/unity_2d_anim_backend.py` | Added | `Unity2DAnimBackend` registry plugin with `validate_config()` and `execute()` returning `ArtifactManifest` with family `UNITY_NATIVE_ANIM`. |
-| `tests/test_unity_2d_anim.py` | Added | 43 white-box tests across 6 categories: TensorSpaceConverter (6), TangentComputation (4), UnityYAMLEmitter (9), GUIDAndMeta (8), EndToEndExport (7), BackendRegistryIntegration (7), Performance (2). |
-| `research/session124_unity_2d_anim_research.md` | Added | External research notes covering Unity YAML serialization, `.anim`/`.controller` file format, coordinate system handedness, Euler unwrap, and template engine design. |
-| `mathart/core/backend_types.py` | Modified | Added `UNITY_2D_ANIM = "unity_2d_anim"` enum member + 4 aliases (`unity_native_anim`, `unity_2d_animation`, `unity_anim_export`, `anim_exporter`). |
-| `mathart/core/artifact_schema.py` | Modified | Added `UNITY_NATIVE_ANIM` to `ArtifactFamily` enum + required metadata keys (`bone_count`, `frame_count`, `total_keyframes`, `fps`, `export_time_ms`, `anim_guids`). |
-| `mathart/core/backend_registry.py` | Modified | Added `unity_2d_anim_backend` to `get_registry()` auto-load sequence. |
-| `tests/conftest.py` | Modified | Added `mathart.core.unity_2d_anim_backend` to `_BUILTIN_BACKEND_MODULES`. |
-| `PROJECT_BRAIN.json` | Updated | SESSION-124 closure metadata, session_log entry, resolved_issues entry, and architecture notes. |
-| `SESSION_HANDOFF.md` | Updated | Replaced prior handoff with SESSION-124 closure summary and next-step guidance. |
+| `mathart/animation/spine_preview.py` | Added | `SpineJSONTensorSolver`, `HeadlessSpineRenderer`, `SpinePreviewClip`, `SpinePreviewRenderResult`, and `create_demo_spine_json()`; implements Spine JSON parsing, timeline interpolation, tensorized FK, Y-flipped screen projection, and MP4 / GIF export. |
+| `mathart/core/spine_preview_backend.py` | Added | `SpinePreviewBackend` registry plugin with synthetic-demo self-healing, typed manifest emission, and preview diagnostics packaging. |
+| `tests/test_spine_preview.py` | Added | 6 targeted regression tests covering FK tensor shape integrity, media export, backend manifest validity, registry discovery, non-GUI headless path, and subsecond multi-frame preview performance. |
+| `research/session125_spine_preview_research_notes.md` | Added | Finalized external-alignment memo covering Spine hierarchy rules, FK composition, NumPy batch matmul, and headless render constraints. |
+| `mathart/core/backend_types.py` | Modified | Added `SPINE_PREVIEW = "spine_preview"` plus aliases (`animation_preview`, `spine_json_preview`, `spine_preview_backend`, `spine_headless_preview`). |
+| `mathart/core/artifact_schema.py` | Modified | Added `ANIMATION_PREVIEW` artifact family and required metadata keys (`bone_count`, `frame_count`, `fps`, `canvas_size`, `render_time_ms`, `animation_name`). |
+| `mathart/core/backend_registry.py` | Modified | Added `spine_preview_backend` to the builtin auto-load sequence so the microkernel discovers it without trunk branching. |
+| `tests/conftest.py` | Modified | Added `mathart.core.spine_preview_backend` to `_BUILTIN_BACKEND_MODULES` for bootstrap-safe registry restoration. |
+| `tests/test_ci_backend_schemas.py` | Modified | Extended required-metadata coverage assertions to include the new `ANIMATION_PREVIEW` family. |
+| `PROJECT_BRAIN.json` | Updated | SESSION-125 state, validation, and resolved-issue metadata appended. |
+| `SESSION_HANDOFF.md` | Updated | Replaced prior handoff with the present SESSION-125 closure summary and next-step guidance. |
 
 ## White-Box Validation Closure
+
 Local touched-lane validation is complete.
 
 | Validation command / scope | Result |
 |---|---|
-| `python3.11 -m pytest tests/test_unity_2d_anim.py -v` | **43/43 PASS** |
-| TensorSpaceConverter tests | 6/6 PASS |
-| TangentComputation tests | 4/4 PASS |
-| UnityYAMLEmitter tests | 9/9 PASS |
-| GUIDAndMeta tests | 8/8 PASS |
-| EndToEndExport tests | 7/7 PASS |
-| BackendRegistryIntegration tests | 7/7 PASS |
-| Performance tests | 2/2 PASS |
+| `python3.11 -m pytest -q tests/test_spine_preview.py` | **6/6 PASS** |
+| `python3.11 -m pytest -q tests/test_spine_preview.py tests/test_ci_backend_schemas.py -k 'test_required_metadata_keys_coverage'` | **1/1 selected PASS** |
+| `python3.11 tmp_validate_spine_preview_backend.py` | **PASS** — `MicrokernelPipelineBridge.run_backend("spine_preview", ctx)` returned a valid `ANIMATION_PREVIEW` manifest and materialized `.mp4`, `.gif`, diagnostics JSON, and the synthesized Spine JSON input. |
 
-The validation matrix closes three red lines at once. First, it proves that **Euler angle unwrapping prevents discontinuities** across the ±180° boundary (max adjacent frame diff < 180°). Second, it proves that **PyYAML is never imported** in the production module. Third, it proves that **deterministic GUIDs match `hashlib.md5`** exactly.
+The validation matrix closes four practical red lines simultaneously. First, it proves that the solver produces the expected `world_matrices[F, B, 3, 3]` and world-space bone endpoints. Second, it proves that the renderer exports media without any GUI dependency. Third, it proves that the backend self-heals under CI placeholder input. Fourth, it proves that a 180-frame preview workload remains subsecond in the touched performance lane.
 
 ## Red-Line Guards
-- **Anti-PyYAML-Overhead**: `import yaml` is NEVER used in `unity_2d_anim.py`. Enforced by `test_no_pyyaml_import`.
-- **Anti-Euler-Flip**: `np.unwrap` is mandatory before tangent baking. Enforced by `test_euler_unwrap_prevents_discontinuity`.
-- **Anti-GUID-Collision**: `hashlib.md5(name.encode()).hexdigest()` only. Enforced by `test_guid_matches_md5`.
+
+| Guard | Enforcement |
+|---|---|
+| **Anti-GUI-Blocking** | Production preview code never depends on `cv2.imshow()` / `cv2.waitKey()`; tests pin the headless writer path. |
+| **Anti-Scalar-Frame-Loop** | FK world propagation is executed with batched `np.matmul` over matrix stacks rather than nested Python frame/bone scalar solves. |
+| **Anti-Coordinate-Inversion** | Screen projection explicitly flips Y so skeletons do not render upside-down in image coordinates. |
+| **Anti-CI-Placeholder-Failure** | Backend `validate_config()` synthesizes a minimal Spine JSON demo clip when upstream data is missing. |
 
 ## Practical Implication for the Architecture Roadmap
-SESSION-124 closes the last major gap in the **engine-ready export** dimension by providing a direct Clip2D→Unity pipeline that requires no Unity Editor, no PyYAML, and no external tooling. The generated `.anim` files follow Unity's exact YAML serialization format with correct class IDs, magic headers, and keyframe tangent semantics.
 
-This means the existing motion pipeline (NSM→projection→IK→Clip2D) can now produce Unity-importable animation assets in a single automated pass, which is a prerequisite for real Unity runtime validation and the commercial benchmark's engine_ready_export dimension.
+SESSION-125 closes the missing **engine-independent animation verification** layer between the existing Spine JSON exporter and downstream engine-native importers. The project can now export motion to Spine JSON and immediately produce a visual proof artifact without requiring Spine Editor, Unity, or any browser-based runtime. This materially reduces the debugging distance when validating parent-child topology, bone lengths, or unexpected discontinuities in 2D projection output.
+
+This also improves the broader architecture closure path. Because the previewer consumes a disk-backed Spine JSON file and returns a typed `ArtifactManifest`, it obeys the repository’s Context-in / Manifest-out microkernel discipline. As a result, future pipelines can insert `spine_preview` as a pure plugin stage after `motion_2d` export or any later Spine-compatible serializer without touching trunk orchestration code.
 
 ## Recommended Next Steps
-The highest-value immediate follow-up is to **validate the generated `.anim` files in a real Unity Editor** by importing them into a test project and verifying that animations play correctly with the expected bone hierarchy, rotation direction, and loop behavior.
 
-The second follow-up is to **extend the exporter to support multi-clip AnimatorControllers** with transition conditions, blend trees, and animation layers, which are required for production-quality character animation state machines.
+The highest-value immediate follow-up is to **wire `spine_preview` behind the existing motion export flow**, so a standard motion generation job can optionally emit both Spine JSON and its preview media in one pass.
 
-The third follow-up is to **integrate the Unity 2D anim backend into the full motion pipeline** so that `pipeline.py` can route Clip2D outputs through `MicrokernelPipelineBridge.run_backend("unity_2d_anim", context)` as part of the standard asset generation workflow.
+The second follow-up is to **extend the preview diagnostics from skeleton-only line rendering to slot / attachment overlays**. The current solver is already world-transform complete; the next increment is to project slot rectangles, attachment pivots, and draw-order layers so visual verification can catch not only bone fracture but also attachment drift.
 
-## P2-SPINE-PREVIEW-1 Preparation: Data Topology Adjustments
+The third follow-up is to **formalize a real-time transport contract for P2-REALTIME-COMM-1**. The current previewer already computes stable world-space packetizable data (`origin_xy`, `tip_xy`, `rotation_deg`, `parent_index`). The natural next step is to define a compact per-frame serialization schema and ship that over WebSocket / shared memory for live remote preview instead of re-encoding full video frames.
 
-With the Unity 2D native animation bridge now operational, the next logical step toward **P2-SPINE-PREVIEW-1** (a lightweight engine-independent animation previewer for visual bone-fracture verification) requires the following data topology micro-adjustments to the current export infrastructure:
+## P2-REALTIME-COMM-1 Preparation: Serialization Interface
 
-The first adjustment is to **expose the intermediate `BoneCurveData` array as a first-class preview contract**. Currently, `TensorSpaceConverter.clip2d_to_bone_curves()` produces a list of `BoneCurveData` objects that are immediately consumed by `UnityYAMLEmitter`. For the previewer, this same intermediate representation needs to be serializable to a lightweight JSON or binary format that a pure-Python renderer (e.g., `matplotlib.animation` or `pygame`) can consume without importing Unity-specific YAML logic. The `BoneCurveData` dataclass already contains `path`, `pos_x`, `pos_y`, `rot_z`, `scale_x`, `scale_y` arrays — these are exactly the channels a 2D skeleton previewer needs.
+With the headless preview lane now stable, the next architectural extension toward **P2-REALTIME-COMM-1** should avoid sending rasterized frames whenever low latency matters. Instead, the backend should expose a structured frame packet stream with one record per bone and frame. The minimal packet contract should include `frame_index`, `time_s`, `bone_index`, `bone_name`, `parent_index`, `origin_x`, `origin_y`, `tip_x`, `tip_y`, and `rotation_deg`. This packet shape is sufficient for a thin remote viewer to reconstruct the same skeleton visualization while using a fraction of the bandwidth required by MP4 or GIF transport.
 
-The second adjustment is to **add a bone-hierarchy tree structure to the export result**. The current `Unity2DAnimExportResult` records `bone_count` and `guids` but does not persist the parent-child topology. A previewer needs to reconstruct the skeleton tree to draw bones as connected line segments. The `Clip2D.skeleton_bones` already carries this information via `Bone2D.parent`, but it should be serialized into the export result metadata (e.g., `metadata["bone_hierarchy"]`) so the previewer can operate on the manifest alone without re-importing the original `Clip2D`.
+A second preparation step is to **version the packet schema explicitly**. The current `ANIMATION_PREVIEW` manifest proves that the project already benefits from strong typing; the same discipline should be carried into real-time transport by adding fields such as `packet_schema_version`, `coordinate_space`, and `fps`. That will let future viewers evolve independently without silently misinterpreting packet layouts.
 
-The third adjustment is to **add rest-pose (bind pose) data to the export contract**. The current converter extracts per-frame transforms but does not separately record the T-pose or rest-pose bone positions. A previewer needs the rest pose to draw the skeleton in its default configuration and to compute relative transforms for visual debugging of bone fracture (unexpected bone length changes or parent-child disconnection).
-
-The fourth adjustment is to **standardize a frame-sampling API** that both the Unity YAML emitter and the future previewer can share. Currently, frame timing is computed as `frame_index / fps` inside the emitter. Extracting this into a shared `FrameTimeSampler` utility would ensure the previewer and the Unity exporter always agree on keyframe timing, which is critical for visual comparison between the preview and the actual Unity playback.
+A third preparation step is to **separate solver cadence from transport cadence**. The tensor solver works naturally at the animation sample rate, while a live viewer may want frame-dropping or interpolation under network jitter. Therefore, the real-time bridge should treat the solved world-transform tensor as the authoritative source and let the transport layer choose whether to send every frame, every Nth frame, or delta-compressed packets.
 
 ## References
-[1]: https://unity.com/blog/engine-platform/understanding-unitys-serialization-language-yaml "Unity — Understanding Unity's Serialization Language YAML"
-[2]: https://docs.unity3d.com/Manual/class-AnimationClip.html "Unity Manual — Animation Clip"
-[3]: https://numpy.org/doc/stable/reference/generated/numpy.unwrap.html "NumPy — numpy.unwrap"
-[4]: https://docs.python.org/3/library/io.html#io.StringIO "Python — io.StringIO"
+
+[1]: http://esotericsoftware.com/spine-runtime-skeletons "Esoteric Software — Spine Runtimes Guide: Skeletons"
+[2]: https://cseweb.ucsd.edu/classes/sp16/cse169-a/readings/2-Skeleton.html "UCSD CSE169 — Chapter 2: Skeletons"
+[3]: https://numpy.org/doc/2.2/reference/generated/numpy.matmul.html "NumPy — numpy.matmul"
+[4]: https://docs.opencv.org/4.x/dd/d9e/classcv_1_1VideoWriter.html "OpenCV — cv::VideoWriter"
+[5]: https://matplotlib.org/stable/users/explain/figure/backends.html "Matplotlib — Backends"

@@ -744,6 +744,13 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.unity_2d_anim_backend")
         except Exception as e:
             logger.debug("Failed to auto-load Unity 2D anim backend: %s", e)
+        # SESSION-125 (P2-SPINE-PREVIEW-1): Spine JSON tensorized FK preview
+        # backend. Self-registers via @register_backend and emits
+        # ANIMATION_PREVIEW artifacts for headless visual verification.
+        try:
+            importlib.import_module("mathart.core.spine_preview_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load Spine preview backend: %s", e)
     return registry
 
 

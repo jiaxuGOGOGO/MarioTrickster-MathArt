@@ -258,6 +258,16 @@ class TestCIBackendSchemas:
         assert "mean_reward" in training_keys
         assert "episode_length" in training_keys
         assert "episodes_run" in training_keys
+
+        preview_keys = ArtifactFamily.required_metadata_keys(
+            ArtifactFamily.ANIMATION_PREVIEW.value,
+        )
+        assert "bone_count" in preview_keys
+        assert "frame_count" in preview_keys
+        assert "fps" in preview_keys
+        assert "canvas_size" in preview_keys
+        assert "render_time_ms" in preview_keys
+        assert "animation_name" in preview_keys
         assert "trainer_mode" in training_keys
 
         anti_flicker_keys = ArtifactFamily.required_metadata_keys(

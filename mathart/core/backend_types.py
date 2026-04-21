@@ -95,6 +95,10 @@ class BackendType(str, Enum):
     # transformation, Euler angle unwrapping, and high-throughput string
     # template assembly (no PyYAML dependency).
     UNITY_2D_ANIM = "unity_2d_anim"
+    # SESSION-125 (P2-SPINE-PREVIEW-1): Spine JSON tensorized FK preview
+    # backend. Reads exported Spine JSON, solves world transforms in batch,
+    # and emits headless MP4 / GIF diagnostics without any GUI dependency.
+    SPINE_PREVIEW = "spine_preview"
 
 
 _BACKEND_ALIASES: dict[str, str] = {
@@ -222,6 +226,12 @@ _BACKEND_ALIASES: dict[str, str] = {
     "unity_2d_animation": BackendType.UNITY_2D_ANIM.value,
     "unity_anim_export": BackendType.UNITY_2D_ANIM.value,
     "anim_exporter": BackendType.UNITY_2D_ANIM.value,
+    # SESSION-125 (P2-SPINE-PREVIEW-1): Spine preview backend aliases
+    BackendType.SPINE_PREVIEW.value: BackendType.SPINE_PREVIEW.value,
+    "animation_preview": BackendType.SPINE_PREVIEW.value,
+    "spine_json_preview": BackendType.SPINE_PREVIEW.value,
+    "spine_preview_backend": BackendType.SPINE_PREVIEW.value,
+    "spine_headless_preview": BackendType.SPINE_PREVIEW.value,
 }
 
 
