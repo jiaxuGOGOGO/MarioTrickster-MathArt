@@ -19,12 +19,12 @@
       "PARTIAL": 4,
       "SUBSTANTIALLY-ADVANCED": 2,
       "SUBSTANTIALLY-CLOSED": 6,
-      "TODO": 54
+      "TODO": 53
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
-      "P1-AI-1",
       "P1-ARCH-5",
+      "P1-AI-1",
       "P1-NEW-10",
       "P1-INDUSTRIAL-34A",
       "P1-B2-1"
@@ -78,7 +78,7 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "P1-AI-2C / anti_flicker_render live runtime closure: 16-frame chunking, fast-fail ComfyUI probe, and stdout-safe CLI adapter",
+  "current_focus": "P1-ARCH-6 / Tensor-based level topology substrate (LevelTopologyBackend + TopologyExtractor): SciPy convolutional pattern matching lifts WFC tile grids into typed SemanticAnchor / TraversalLane / TopologyTensors artifacts under the LEVEL_TOPOLOGY family.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research_notes_session091.md",
@@ -304,9 +304,22 @@
       "id": "P1-ARCH-6",
       "priority": "P1",
       "title": "Rich topology-aware level semantics",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "Promote scene prims beyond ASCII counts into surfaces, adjacency, traversal lanes, and decoration anchors."
+      "description": "SESSION-109 CLOSES P1-ARCH-6 by landing a tensor-based topology substrate that lifts WFC tile grids into strongly-typed scene prims. New module mathart/level/topology_extractor.py implements a 5-stage pipeline (data-oriented mask building, SciPy 2D convolutional kernel pattern matching for floor/ceiling/wall/convex/concave/slope detection, vectorized surface-normal field, scipy.ndimage connected-component labelling for traversal lanes, and frozen-dataclass aggregation). New module mathart/level/topology_types.py pins the LEVEL_TOPOLOGY contract via three frozen dataclasses (SemanticAnchor, TraversalLane, TopologyTensors) plus a closed vocabulary of anchor types (floor_top/ceiling/wall_left/wall_right/corner_convex/corner_concave/slope) and surface kinds (floor/platform/slope) that reject any rogue strings at construction time. New plugin mathart/core/level_topology_backend.py self-registers via @register_backend(BackendType.LEVEL_TOPOLOGY), accepts the grid via inline ndarray, upstream WFC ArtifactManifest, or a tilemap_json path, and emits a typed ArtifactManifest of family LEVEL_TOPOLOGY with two outputs (topology_json + tensors_npz) and seven CI-required metadata keys. ArtifactFamily.LEVEL_TOPOLOGY + matching FAMILY_SCHEMAS / required_metadata_keys entries pin the schema in artifact_schema.py, and BackendType.LEVEL_TOPOLOGY (with aliases topology_extractor / level_topology_extractor / recast_topology / dual_grid_topology) closes the registry-side contract. 17/17 dedicated tests pass: 5 frozen-contract immutability/vocabulary tests, 7 algorithmic tests (room walls, free-standing convex corners, platform lanes, 256x256 wall-time budget, empty/all-solid degeneracy, unit-or-zero normals), 4 backend integration tests via MicrokernelPipelineBridge, and a 16-thread/32-batch/200x200 ThreadPoolExecutor pressure test that defends the anti-OOM red line by holding wall-time well under the 30s budget. Red lines respected: anti-OOM (no Python row/col loop over the grid; all heavy lifting is SciPy convolve2d / ndimage labelling), anti-hardcoded-tiles (data-oriented is_solid / is_empty masks driven by override-able tile-id sets, never tile names), anti-data-silo (frozen dataclasses + ArtifactManifest schema validation as the only cross-stage interface).",
+      "updated_in": "SESSION-109",
+      "completed_in": "SESSION-109",
+      "primary_files": [
+        "mathart/level/topology_types.py",
+        "mathart/level/topology_extractor.py",
+        "mathart/core/level_topology_backend.py",
+        "mathart/core/backend_types.py",
+        "mathart/core/artifact_schema.py",
+        "mathart/core/backend_registry.py",
+        "tests/test_level_topology.py",
+        "P1-ARCH-6_TOPOLOGY_DESIGN.md"
+      ],
+      "validation": "17 PASS / 0 FAIL via pytest tests/test_level_topology.py (incl. 16-thread parallel pressure test) + level_topology backend passes the project-wide CI guard tests/test_ci_backend_schemas.py without any new failures."
     },
     {
       "id": "P1-B1-1",

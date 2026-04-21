@@ -122,6 +122,11 @@ class ArtifactFamily(Enum):
     # Produced by MotionAdaptiveKeyframeBackend: per-frame nonlinearity
     # scores, selected keyframe indices, and SparseCtrl end_percent mapping.
     KEYFRAME_PLAN = "keyframe_plan"
+    # SESSION-109 (P1-ARCH-6): Tensor-based level topology artifact family.
+    # Carries SemanticAnchors, TraversalLanes and TopologyTensors derived
+    # from a logical tile-id grid using SciPy convolutional pattern
+    # matching and connected-component labelling.
+    LEVEL_TOPOLOGY = "level_topology"
 
     @classmethod
     def required_metadata_keys(cls, family_value: str) -> frozenset[str]:
@@ -196,6 +201,19 @@ class ArtifactFamily(Enum):
                 "max_gap",
                 "mean_nonlinearity",
                 "contact_events_captured",
+            }),
+            # SESSION-109 (P1-ARCH-6): Mandatory metadata for level
+            # topology artifacts so downstream consumers (USD scene
+            # exporter, AI navigation graph, decoration instancer) can
+            # validate the manifest without inspecting tensor payloads.
+            cls.LEVEL_TOPOLOGY.value: frozenset({
+                "grid_rows",
+                "grid_cols",
+                "anchor_count",
+                "lane_count",
+                "connected_component_count",
+                "extraction_wall_ms",
+                "solid_tile_ids",
             }),
         }
         return _FAMILY_REQUIRED_METADATA.get(family_value, frozenset())
@@ -547,6 +565,20 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     ArtifactFamily.EVOLUTION_REPORT.value: {
         "required_outputs": ["report_file"],
         "required_metadata": ["cycle_count", "best_fitness", "knowledge_rules_distilled"],
+        "required_quality": [],
+    },
+    # SESSION-109 (P1-ARCH-6): Tensor-based level topology schema.
+    ArtifactFamily.LEVEL_TOPOLOGY.value: {
+        "required_outputs": ["topology_json", "tensors_npz"],
+        "required_metadata": [
+            "grid_rows",
+            "grid_cols",
+            "anchor_count",
+            "lane_count",
+            "connected_component_count",
+            "extraction_wall_ms",
+            "solid_tile_ids",
+        ],
         "required_quality": [],
     },
     # SESSION-083 (P1-B4-1): RL training / rollout report schema.

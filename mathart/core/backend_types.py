@@ -77,6 +77,11 @@ class BackendType(str, Enum):
     CONTROLNET_NORMAL_EXPORT = "controlnet_normal_export"
     CONTROLNET_DEPTH_EXPORT = "controlnet_depth_export"
     FRAME_SEQUENCE_EXPORT = "frame_sequence_export"
+    # SESSION-109 (P1-ARCH-6): Tensor-based level topology extractor backend.
+    # Consumes a logical tile-id grid (typically produced upstream by
+    # WFC_TILEMAP) and emits a strongly-typed LEVEL_TOPOLOGY artifact
+    # carrying SemanticAnchors, TraversalLanes and TopologyTensors.
+    LEVEL_TOPOLOGY = "level_topology"
 
 
 _BACKEND_ALIASES: dict[str, str] = {
@@ -180,6 +185,12 @@ _BACKEND_ALIASES: dict[str, str] = {
     "controlnet_normal": BackendType.CONTROLNET_NORMAL_EXPORT.value,
     "controlnet_depth": BackendType.CONTROLNET_DEPTH_EXPORT.value,
     "vhs_sequence_exporter": BackendType.FRAME_SEQUENCE_EXPORT.value,
+    # SESSION-109 (P1-ARCH-6): Level topology extractor backend aliases
+    BackendType.LEVEL_TOPOLOGY.value: BackendType.LEVEL_TOPOLOGY.value,
+    "topology_extractor": BackendType.LEVEL_TOPOLOGY.value,
+    "level_topology_extractor": BackendType.LEVEL_TOPOLOGY.value,
+    "recast_topology": BackendType.LEVEL_TOPOLOGY.value,
+    "dual_grid_topology": BackendType.LEVEL_TOPOLOGY.value,
 }
 
 

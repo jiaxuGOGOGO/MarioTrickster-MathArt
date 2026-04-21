@@ -713,6 +713,16 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.orthographic_pixel_backend")
         except Exception as e:
             logger.debug("Failed to auto-load orthographic pixel backend: %s", e)
+        # SESSION-109 (P1-ARCH-6): auto-register the tensor-based level
+        # topology extractor backend so the microkernel can discover the
+        # rich-topology lane / anchor extractor without any trunk
+        # modification.  The backend is a pure plugin — it consumes a
+        # logical tile-id grid via context (or upstream WFC manifest)
+        # and emits a strongly-typed LEVEL_TOPOLOGY ArtifactManifest.
+        try:
+            importlib.import_module("mathart.core.level_topology_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load level topology backend: %s", e)
     return registry
 
 

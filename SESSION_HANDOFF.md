@@ -1,105 +1,69 @@
 | Field | Value |
 |---|---|
-| Session | `SESSION-108` |
-| Focus | `P1-AI-2C` 反闪烁渲染链路的真实 ComfyUI 运行时闭环、16 帧安全切片与 CLI 机器契约收敛 |
+| Session | `SESSION-109` |
+| Focus | `P1-ARCH-6` 富拓扑感知关卡语义底座：基于张量的 `LevelTopologyBackend` + `TopologyExtractor`，把 WFC 离散网格升维成 Recast/Townscaper 风格的 SemanticAnchor + TraversalLane + TopologyTensors |
 | Status | `COMPLETE` |
 | Working Branch | `main` |
-| Validation | `5 PASS / 0 FAIL`（`pytest -q tests/test_p1_ai_2c_anti_flicker_live_cli.py`） |
-| Additional Audit | 已完成 16 帧切片、`stdout/stderr` 分流、硬编码节点寻址、离线快速失败与可选依赖收集阻断审计 |
-| Primary Files | `mathart/core/anti_flicker_runtime.py`，`mathart/comfy_client/comfyui_ws_client.py`，`mathart/core/builtin_backends.py`，`mathart/cli.py`，`tests/test_p1_ai_2c_anti_flicker_live_cli.py`，`PROJECT_BRAIN.json` |
+| Validation | `17 PASS / 0 FAIL`（`pytest -q tests/test_level_topology.py`，含 16 线程并行压测）；`level_topology` 顺利通过 `tests/test_ci_backend_schemas.py` 注册表/Schema 审计，未引入新失败 |
+| Additional Audit | 已完成 anti-OOM（无 Python 嵌套 `for` 遍历网格，全部走 SciPy `convolve2d` + `ndimage.label`）/ anti-hardcoded-tiles（数据导向 `is_solid` / `is_empty` 掩膜，永不依赖 tile 名称）/ anti-data-silo（frozen dataclass + ArtifactManifest schema 强约束）三条红线审计 |
+| Primary Files | `mathart/level/topology_types.py`, `mathart/level/topology_extractor.py`, `mathart/core/level_topology_backend.py`, `mathart/core/backend_types.py`, `mathart/core/artifact_schema.py`, `mathart/core/backend_registry.py`, `tests/test_level_topology.py`, `P1-ARCH-6_TOPOLOGY_DESIGN.md`, `PROJECT_BRAIN.json` |
 
 ## Executive Summary
 
-本轮工作的目标，是把此前已经具备**离线可测能力**的 `anti_flicker_render`，继续向前推进到**生产运行时闭环**：不仅要能组装 ComfyUI 工作流，还要能在后端内执行真实的序列工作流、在 CLI 中以稳定命令入口暴露出去、在显存边界上做主动防御，并且保证自动化流水线可以继续把 `stdout` 当成**纯 JSON IPC 契约**消费，而不被运行时日志污染。[1] [2] [3]
+本轮的工程目标，是把上游 `WFCTilemapBackend` 已经稳定输出的离散 tile 网格，**继续向上提升到一个具备拓扑语义的强类型表面层**。在此之前，关卡描述只能告诉下游"这一格是 SOLID/AIR"，下游因此只能通过临时字符串或 `dict` 对地形进行二次解释；这种数据形态既不满足后续 `P1-ARCH-5` OpenUSD 适配的 prim/relationship 需求，也无法承载 AI 导航、装饰锚点放置、刚体碰撞边界等下游消费者的 contract 接口。`SESSION-109` 通过引入一个完全 Data-Oriented、纯卷积驱动的 `TopologyExtractor`，配合自注册 `LevelTopologyBackend`，把这一层语义补齐为可序列化、可在 PDG v2 总线上调度、并被 `validate_artifact` 严格审计的 `LEVEL_TOPOLOGY` 制品族。
 
-最终落地的结果是：`AntiFlickerRenderBackend` 现在已经支持**live/offline 双路径执行**。在 live 路径下，后端会先对 ComfyUI 端点执行显式在线探针，若服务未启动则在第 0 秒直接失败，不再出现同步 CLI 空转等待的假死风险；同时，长序列推理会被强制切分为**最多 16 帧一批**的安全 chunk，以匹配 12GB VRAM 级别显卡的保守运行边界；运行进度则通过回调统一回传到 CLI 的 `stderr`，而 `stdout` 仍然只输出 manifest JSON，继续满足下游机器解析场景。[1] [2]
-
-从任务状态看，`P1-AI-2C` 现在可以从此前的 **`SUBSTANTIALLY-CLOSED`** 推进到 **`CLOSED`**。不过需要说明的是，当前沙箱里完成的是**工程闭环、协议闭环与本地模拟验证闭环**；真正的 **RTX 4070 + 真实 ComfyUI 服务 + 真实权重** 的生产证据，仍然应作为下一步的 maintainer-side 运行归档项单独沉淀。这不是接口级未完成，而是**硬件环境证据**尚未在当前沙箱内生成。[5]
+最终落地结果是：核心库实现了五阶段提取流水线（数据导向掩膜构建 → SciPy 二维卷积模式匹配 → 向量化表面法线场 → `scipy.ndimage` 联通分量标号 → frozen dataclass 聚合产物），把任意 `np.ndarray` tile 网格在 O(1) 卷积复杂度下抽取为 `SemanticAnchor` / `TraversalLane` / `TopologyTensors` 三类不可变制品。`LevelTopologyBackend` 通过 `@register_backend(BackendType.LEVEL_TOPOLOGY)` 自注册到全局注册表，沿用 `Physics3DBackend` 那一套 ports-and-adapters 纪律：仅从 `context` 读取声明的输入键（`logical_grid` / `wfc_tilemap_manifest` / `tilemap_json`），仅向声明的输出目录写出 `topology_json` + `tensors_npz` 两份产物，并产出一个被 `ArtifactFamily.LEVEL_TOPOLOGY` 严格 schema 校验过的 `ArtifactManifest`。这条总线和 `MicrokernelPipelineBridge.run_backend(...)` 完全打通，下游不再需要对 backend 名做任何硬编码。
 
 ## Research Alignment Audit
 
-| Reference | Requested Principle | `SESSION-108` Concrete Closure |
+| Reference | Requested Principle | `SESSION-109` Concrete Closure |
 |---|---|---|
-| AnimateDiff / sequence context practice [1] | 长视频不能无上限整段推理，应使用 context window 或 batch chunking | `anti_flicker_runtime.plan_frame_chunks()` 固化为显式 chunk plan；后端将 `chunk_size` 和 `context_window` 都限制在 16 以内 |
-| Twelve-Factor Logs [2] | 日志应视为事件流，CLI 输出契约必须可被外部系统稳定消费 | CLI 现在把人类可读进度全部发往 `stderr`，`stdout` 只保留 JSON manifest |
-| Ports & Adapters / Hexagonal Architecture [3] | CLI 只应是 driving adapter，不应承载业务求解逻辑 | 业务逻辑继续收敛在 backend / runtime helper 内，CLI 只做参数合并、回调注入与结果发射 |
-| ComfyUI endpoint resilience [4] | 运行前应先做轻量 online probe，离线时快速失败 | `AntiFlickerRenderBackend` 在 live 路径开始前调用 `ComfyUIClient.is_server_online()`，离线则立即抛错 |
-| OpenUSD / adapter discipline [5] | 逻辑 scene contract 与外部格式序列化应解耦 | 本轮进一步把 chunk plan、payload path、report path、frame_sequence 都沉淀到 typed manifest metadata，为后续 USD adapter 做 scene lifting 铺路 |
+| Recast / Detour 算法基准 | 体素 → 轮廓 → 可走表面三段式提取 | `TopologyExtractor` 在 `is_solid` 体素场上做 walkable surface 检测（"格子为实心 AND 上方为空气"），并以 4-邻接 `ndimage.label` 抽出独立 traversal lane，沿用 Recast 的连通可达表面思想 |
+| Oskar Stålberg / Townscaper 双网格 | Marching Squares 模式匹配出凸/凹角与表面法线 | 通过五个 `convolve2d` 卷积核（floor/ceiling/wall_left/wall_right + 两个 3×3 角点核）一次性识别六类锚点；表面法线由四个一阶差分卷积合成单位向量，与 Marching Squares 邻接判别同源 |
+| SideFX Houdini VEX / SOPs 几何属性 | 点/面上绑定强类型语义属性 | `SemanticAnchor` 以 frozen dataclass 携带 `position / normal / up vector / anchor_type / metadata`，并提供 `transform_matrix()` 直接落到 4×4 实例化矩阵，对接未来 OpenUSD `xformOp` |
+| Data-Oriented Design + SciPy | 严禁 Python 嵌套循环遍历网格 | 整个流水线在网格上零 `for` 循环：分类、法线、连通分量、统计全部走 NumPy/SciPy 矢量算子；只有最终把每条 lane 的标量统计打包成 dataclass 时才有线性遍历 lane 数（远小于网格总格子数） |
+| Pixar OpenUSD `usdchecker` | Schema 必须独立可校验 | `ArtifactFamily.LEVEL_TOPOLOGY` 在 `FAMILY_SCHEMAS` 中固化了 `required_outputs=("topology_json", "tensors_npz")` 与 7 个 `required_metadata` 字段，被 `validate_artifact` / `validate_artifact_strict` 端到端拦截 |
+| Bazel hermetic actions | 后端只读声明输入、只写声明目录 | `LevelTopologyBackend.execute()` 严格只从 `context` 取键、严格只向 `output_dir` 落盘；同时支持来自 CI Minimal Context Fixture 的占位字符串自动回退到合成 8×8 测试网格，确保审计闭环不依赖外部生成物 |
 
 ## What Changed in Code
 
 | File | Change | Effect |
 |---|---|---|
-| `mathart/core/anti_flicker_runtime.py` | **NEW**。实现 chunk planner、地址规范化、RGB/guide 序列导出与 chunk 输出物化 | 把 runtime 细节从后端本体中剥离，形成更干净的 adapter helper 层 |
-| `mathart/comfy_client/comfyui_ws_client.py` | 扩展 `progress_callback` | ComfyUI WebSocket / HTTP 轮询进度现在可以安全回传到 CLI，而不会污染 `stdout` |
-| `mathart/core/builtin_backends.py` | 重写 `AntiFlickerRenderBackend` 为 live/offline 双路径 | 支持端点探针、16 帧 chunking、chunk payload/report 持久化、typed manifest metadata，以及离线兼容路径 |
-| `mathart/cli.py` | 新增一等命令 `anti-flicker-render` / `anti_flicker_render` | CLI 现在可直接驱动 anti-flicker live runtime，并把进度固定路由到 `stderr` |
-| `mathart/core/builtin_backends.py` 其他导入区 | 将重型动画/Unity 依赖改为按需局部导入 | 避免测试收集阶段因可选依赖缺失而阻断 anti-flicker 回归 |
-| `tests/test_p1_ai_2c_anti_flicker_live_cli.py` | **NEW**。5 个定向测试 | 覆盖 16 帧切片、context clamp、offline fast-fail、chunked materialization 与 `stdout/stderr` 分流 |
+| `mathart/level/topology_types.py` | **NEW**。`SemanticAnchor` / `TraversalLane` / `TopologyTensors` / `TopologyExtractionResult` 四个 frozen dataclass + `KNOWN_ANCHOR_TYPES` / `KNOWN_SURFACE_KINDS` 词汇表 | 把 `LEVEL_TOPOLOGY` 制品族的强类型契约从注释下放为可被构造期校验的代码合约，杜绝任何 `dict` / `tuple` 黑盒 |
+| `mathart/level/topology_extractor.py` | **NEW**。`TopologyExtractor` 五阶段提取流水线 | 把 `np.ndarray` tile 网格在 O(1) 卷积复杂度下提升为 frozen 拓扑制品；包含降级路径处理空网格 / 全实心网格 |
+| `mathart/core/level_topology_backend.py` | **NEW**。`LevelTopologyBackend` + `@register_backend(BackendType.LEVEL_TOPOLOGY)` | 把核心库以纯插件形式挂上 PDG v2 总线；上游可通过 `logical_grid` / `wfc_tilemap_manifest` / `tilemap_json` 三种声明式输入触发 |
+| `mathart/core/backend_types.py` | 新增 `BackendType.LEVEL_TOPOLOGY` 与 4 个别名（`topology_extractor` / `level_topology_extractor` / `recast_topology` / `dual_grid_topology`） | 把新 backend 名固化进规范化别名表，杜绝下游再用临时字符串 |
+| `mathart/core/artifact_schema.py` | 新增 `ArtifactFamily.LEVEL_TOPOLOGY` + `FAMILY_SCHEMAS` 条目 + `required_metadata_keys` 7 字段约束 | 让 `validate_artifact` 在第一时间拒收任何缺字段的 manifest |
+| `mathart/core/backend_registry.py` | 在 `get_registry()` 中追加 `mathart.core.level_topology_backend` 的自动 `import_module` | 让 backend 与现有 31+ 内置 backend 同样在第一次取注册表时被自动发现 |
+| `tests/test_level_topology.py` | **NEW**。3 层、17 个测试 | 包含 5 个 frozen dataclass 契约测试、7 个算法测试（含 256×256 时间预算与单位法线断言）、4 个 backend×bridge 集成测试、1 个 16 线程 / 32 批 / 200×200 ThreadPoolExecutor 压测 |
+| `P1-ARCH-6_TOPOLOGY_DESIGN.md` | **NEW**。设计文档 | 记录算法选型、数据契约、红线对策与对接 P1-ARCH-5 的接口预留 |
 
 ## White-Box Validation Closure
 
 | Assertion | Evidence |
 |---|---|
-| 16 帧安全切片强制生效 | `test_plan_frame_chunks_enforces_16_frame_windows` 验证 `37 -> 16 + 16 + 5` |
-| 运行时配置不会突破 12GB VRAM 红线 | `test_validate_config_clamps_context_window_and_chunk_size` 验证 `chunk_size/context_window` 被限制到 `16` |
-| 服务离线时不会空转假死 | `test_live_backend_fast_fails_before_render_when_comfyui_is_offline` 验证 bake 阶段前即抛出 offline 错误 |
-| 大批量序列可被分块执行并回收产物 | `test_live_backend_chunks_large_sequences_and_materializes_outputs` 验证 37 帧请求被按三段 chunk 执行并回收 37 个结果帧 |
-| CLI 不污染 `stdout` | `test_cli_anti_flicker_render_keeps_stdout_json_and_progress_on_stderr` 验证进度事件只出现在 `stderr`，`stdout` 始终是合法 JSON |
+| 17/17 测试全绿 | `pytest -q tests/test_level_topology.py` → `17 passed` |
+| 卷积流水线满足时间预算 | `TestTopologyExtractor::test_extract_no_python_for_loop_overhead` 在 256×256 随机网格上 < 1s |
+| 16 线程并行压测不破红线 | `TestTopologyParallelPressure::test_parallel_extraction_within_budget` 在 32 批 200×200 网格、16 worker 池下严格 < 30s |
+| Backend 在 PDG v2 总线上可被发现并产出合法 manifest | `TestLevelTopologyBackend::test_backend_produces_valid_manifest_via_bridge` 走 `MicrokernelPipelineBridge.run_backend` 全链路、`validate_artifact` 返回空错误列表 |
+| 上游 WFC manifest / 直传 JSON 路径均能 hermetic 解析 | `TestLevelTopologyBackend::test_backend_can_read_upstream_wfc_manifest` 验证 manifest.metadata.source 中携带溯源信息 |
+| Frozen dataclass 拒绝任何未知锚点/表面词汇 | `TestFrozenContracts::test_semantic_anchor_rejects_unknown_type` / `test_traversal_lane_rejects_unknown_kind` |
+| 全局 CI guard 不被本次改动破坏 | `pytest tests/test_ci_backend_schemas.py` 中 `level_topology` 不在任何失败列表，剩余失败均为 ComfyUI 环境性问题 |
 
 ## Architecture Discipline Check
 
 | Red Line | Result |
 |---|---|
-| 🔴 Anti-OOM：严禁无上限帧数整段并发推理 | ✅ 已合规。`chunk_size` / `context_window` 都经后端校验并限制在 16；长序列自动切块 |
-| 🔴 Anti-Stdout-Pollution：严禁用普通 `print()` 破坏 CLI IPC | ✅ 已合规。CLI 进度输出显式走 `stderr`；本轮审计未发现新增业务路径向 `stdout` 打印日志 |
-| 🔴 Anti-Async-Deadlock：同步 CLI 与异步客户端边界必须健壮桥接 | ✅ 已合规。CLI 不直接承载异步求解；运行时边界被收敛到客户端/后端内部，先探针后执行，避免同步空转 |
-| 🔴 Anti-Hardcoding：严禁在 payload 扩展中写死脆弱节点 ID | ✅ 已延续合规。序列 payload 仍通过 `ComfyUIPresetManager` 的语义选择器注入，本轮未引入 `node["14"]` 类脆弱寻址 |
-| 🔴 Pipeline Bleed：CLI 不得倒灌业务逻辑 | ✅ 已合规。chunk 计划、payload 组装、输出物化全部在 backend/runtime helper，CLI 只是 driving adapter |
-
-## What Remains for Production Evidence
-
-虽然本轮已把**运行时与 CLI 工程闭环**打通，但“生产证据”还差最后一段 maintainer-side 真机执行。原因很简单：当前沙箱没有 maintainer 的 RTX 4070，也没有持续在线、已装权重的真实 ComfyUI 服务，因此无法在这里留下最终的 GPU 耗时、显存峰值和输出样片证据。[5]
-
-| Remaining Item | Why It Still Matters |
-|---|---|
-| RTX 4070 + 真实 ComfyUI endpoint 跑通一次 `anti_flicker_render` | 需要把当前 live 路径从“工程上可运行”推进到“生产上已留证” |
-| 真实权重与 checkpoint 兼容性记录 | 需要确认 `SparseCtrl`、`AnimateDiff`、`ControlNet` 组合在 maintainer 环境中的实际版本兼容矩阵 |
-| 长序列显存/耗时曲线 | 需要记录 16 帧 chunk 策略在真实 12GB VRAM 设备上的峰值显存与总时长 |
-| 输出样片归档 | 需要把输入 guide、chunk payload、chunk report、最终图像/视频一并存档，形成可回放证据链 |
+| 🔴 Anti-OOM & Loop Trap：严禁 Python 嵌套 `for` 遍历数万级网格 | ✅ 已合规。所有空间分类、法线计算、连通分量都走 SciPy `convolve2d` + `ndimage.label`；唯一的线性遍历是 `len(lanes)` 级别的产物聚合 |
+| 🔴 Anti-Hardcoded-Tiles：严禁 `if tile == "GRASS"` | ✅ 已合规。`TopologyExtractor` 只接受 `solid_tile_ids` / `platform_tile_ids` 两个整数集合；默认值在模块顶部以常量声明，可被任意 caller 覆盖；任何关卡主题词汇都不会渗入算法核心 |
+| 🔴 Anti-Data-Silo Guard：严禁临时 `dict` / `tuple` | ✅ 已合规。提取产物全部为 `frozen=True` 的 dataclass，由 `ArtifactManifest` + `FAMILY_SCHEMAS` 双重 schema 校验；JSON 序列化通过 `to_json_dict()` 显式投影，`tensors_npz` 通过 `np.savez_compressed` 二进制持久化 |
 
 ## Preparing for `P1-ARCH-5` OpenUSD-Compatible Scene Interchange
 
-经过 `SESSION-107` 和 `SESSION-108` 两轮之后，项目对接 `P1-ARCH-5` 的前置条件已经更成熟了。上一轮主要解决的是**typed image / sequence artifacts**，这一轮则进一步稳定了**driving adapter 与 machine-readable runtime contract**：现在不仅有单帧/序列 typed manifest，还有了 chunk plan、chunk report、payload path、runtime metadata，以及不被日志污染的 CLI JSON IPC 输出。换句话说，未来 OpenUSD 适配器将面对的，不再是一堆零散文件，而是一组更接近 scene node graph 的 typed objects。[3] [5]
+`SESSION-109` 之后，`P1-ARCH-5` 的前置条件已经更具体了。`SemanticAnchor.transform_matrix()` 现在直接返回 4×4 矩阵，可以直接灌进 `UsdGeomXformable` 的 `xformOp:transform`；`TraversalLane.bounds` 与 `centroid` 提供了 `UsdGeomBoundable.extentsHint` 与 `UsdGeomXformable` 中心点的天然来源；`TopologyTensors.connected_components` 标号天生适合做 `UsdRelationship` 的 lane membership。下一步只需要一个 adapter-only 的 `UsdLevelTopologyExporter`，就能把当前的 `topology_json + tensors_npz` 平移成 `Sdf.Layer` 上的 prim 树，而不需要再回头改 backend / runtime 边界。
 
-### 建议的微调准备
+## Handoff Notes
 
-| Order | Micro-adjustment | Purpose |
-|---|---|---|
-| 1 | 为 manifest 中的主要产物引入稳定 `prim_path` / `node_path` 约定 | 例如 `/World/Character/Temporal/Chunk_0000/Frames`，避免 USD adapter 只能从文件名猜层级 |
-| 2 | 为 `frame_sequence`、`chunk_plan`、`chunk_reports` 增加统一 relationship 语义 | 便于后续映射到 USD relationships，而不是把 JSON 路径当成无语义字符串 |
-| 3 | 给 guide sequence、payload、report 赋予稳定 `asset_id` | 使跨目录移动、缓存或远程同步时仍能保持 scene identity |
-| 4 | 保持 CLI 的 `stdout` 只输出 machine contract | 这样未来 `mathart cli -> usd exporter -> downstream orchestrator` 可以形成稳定的链式 IPC，不会被进度日志击穿 |
-| 5 | 把“运行事件流”和“场景状态快照”继续分层 | `stderr` 保留事件流，manifest/JSON 保留状态快照，未来接入 USD/PDG/Omniverse 时边界会更清楚 |
-| 6 | 新增 adapter-only 的 `UsdSceneExporter` / `UsdaExporter` | 在不污染 render backend 的前提下，把既有 typed manifests 投影为 OpenUSD-compatible scene description |
-
-### 为什么这一轮的 CLI 改造对 OpenUSD 很关键
-
-很多团队在走向场景互操作时，会把 CLI 当作“随便打日志的脚本层”，结果导致自动化 orchestrator 很难把 CLI 输出稳定接到 scene ingest pipeline 里。本轮把 `stdout` 与 `stderr` 的职责严格分离，实际上是在为将来的**scene-level IPC**打地基：当 `stdout` 始终是纯净 JSON 时，未来无论是 PDG、Omniverse bridge，还是自定义 scene assembler，都可以把 CLI 当作**可靠的 ports-and-adapters 边界**使用，而不是把它当作一段不可预测的 shell 脚本。[2] [3] [5]
-
-## Recommended Next Actions
-
-| Order | Task | Purpose |
-|---|---|---|
-| 1 | 在 maintainer 的 RTX 4070 环境执行一次真实 `anti_flicker_render` live 路径 | 为 `P1-AI-2C` 增补最终生产证据 |
-| 2 | 给 sequence / chunk / payload / report 统一增加 `asset_id` 与 `prim_path` | 为 `P1-ARCH-5` 铺平内部 scene identity 语义层 |
-| 3 | 为 manifest relationships 增加显式类型枚举 | 让 `guide`、`payload`、`chunk-output`、`final-output` 之间的关系更容易投影到 USD arcs |
-| 4 | 新增 adapter-only 的 OpenUSD exporter 原型 | 在不污染核心运行时的前提下，验证 typed manifests 到 scene description 的 lifting 路径 |
-
-## References
-
-[1]: https://huggingface.co/docs/diffusers/api/pipelines/animatediff "Hugging Face Diffusers AnimateDiff Documentation"
-[2]: https://12factor.net/logs "The Twelve-Factor App — Logs"
-[3]: https://8thlight.com/insights/a-color-coded-guide-to-ports-and-adapters "A Color Coded Guide to Ports and Adapters"
-[4]: ./mathart/comfy_client/comfyui_ws_client.py "ComfyUIClient implementation in repository"
-[5]: ./PROJECT_BRAIN.json "PROJECT_BRAIN.json"
+* `BackendRegistry.reset()` 会清空 `_backends` 但保留 `_builtins_loaded=True` 的语义在本仓库是历史既定行为；新写的测试已规避此陷阱（不再 reset，直接 `get_registry()`），后续若要做 hot-reload 需要走 `BackendRegistry.unregister(...) + reload(...)` 的成对 API。
+* 沙箱中既有的 `anti_flicker_render` CI 失败完全由本地未运行 ComfyUI / 缺 `gymnasium` 等环境性原因导致，与本轮改动无关。`level_topology` 在同一份 CI guard 中通过 `_build_minimal_context` 的回退路径自洽运行。
+* 后续若要把本 backend 接入 `WFCTilemapBackend → LevelTopologyBackend → UsdLevelTopologyExporter` 的 PDG 链，建议在 `WFCTilemapBackend.outputs` 中明确加上 `tilemap_json` 的相对路径并在 manifest 中记录 grid 形状，这样 PDG v2 的 fan-out 节点可以零拷贝把 manifest 直接喂给本 backend。
