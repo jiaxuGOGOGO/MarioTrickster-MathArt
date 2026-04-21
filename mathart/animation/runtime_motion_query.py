@@ -720,7 +720,7 @@ class MotionMatchingRuntime:
         decay_halflife: float = 0.05,
         transition_cost_threshold: float = 5.0,
     ):
-        from .transition_synthesizer import (
+        from .unified_gait_blender import (
             TransitionSynthesizer,
             TransitionStrategy,
         )

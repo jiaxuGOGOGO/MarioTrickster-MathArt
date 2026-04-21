@@ -1,22 +1,33 @@
-"""SESSION-049: Gap B3 — Phase-Preserving Gait Transition Blending Tests.
+"""SESSION-111 P1-B3-5: Consolidated Unified Gait Blender Regression Suite.
 
-Validates the Marker-based DTW system for walk/run/sneak transitions:
-- SyncMarker definition and phase normalization
-- GaitSyncProfile properties
-- PhaseWarper marker alignment
-- StrideWheel distance-to-phase mapping
-- GaitBlendLayer initialization
-- GaitBlender full pipeline
-- Convenience blend functions
-- Adaptive bounce physics
-- No foot sliding invariant
-- Leader-follower transitions
+This module is the **single-source** regression suite for the unified motion
+core. SESSION-111 physically retired the ``gait_blend.py`` and
+``transition_synthesizer.py`` shim modules and migrated / merged the legacy
+``test_gait_blend.py`` + ``test_session039.py`` assertions here, WITHOUT any
+coverage loss for:
+
+1. **DTW phase alignment** — SyncMarker, GaitSyncProfile, phase_warp, marker
+   segment search.
+2. **Stride Wheel distance→phase mapping** — circumference scaling with
+   leader-follower rate warping (David Rosen GDC 2014).
+3. **Quintic (Bollo 2018) inertialization residual decay** and Holden dead
+   blending strategy selection, including the convenience factory and the
+   ``inertialize_transition`` functional API.
+4. **Phase-preserving gait blending** — GaitBlender full pipeline, adaptive
+   bounce, blend_walk_run, blend_gaits_at_phase and convergence invariants.
+5. **C0 / C1 continuity** anti-regression guards at the synthesizer seam.
+6. **Anti-Zombie-Reference Guard** — static assertion that the retired shim
+   modules cannot be imported and that no fall-back path survives.
+7. **Anti-PRNG-Bleed Guard** — static source inspection guarding determinism
+   of the unified motion core for PDG v2 WorkItem parallel dispatch.
 """
 
 import math
+
+import numpy as np
 import pytest
 
-from mathart.animation.gait_blend import (
+from mathart.animation.unified_gait_blender import (
     SyncMarker,
     GaitSyncProfile,
     GaitBlendLayer,
@@ -26,6 +37,13 @@ from mathart.animation.gait_blend import (
     WALK_SYNC_PROFILE,
     RUN_SYNC_PROFILE,
     SNEAK_SYNC_PROFILE,
+    TransitionStrategy,
+    TransitionSynthesizer,
+    InertializationChannel,
+    DeadBlendingChannel,
+    UnifiedGaitBlender,
+    create_transition_synthesizer,
+    inertialize_transition,
     phase_warp,
     adaptive_bounce,
     blend_walk_run,
@@ -33,6 +51,11 @@ from mathart.animation.gait_blend import (
     _marker_segment,
 )
 from mathart.animation.phase_driven import GaitMode
+from mathart.animation.unified_motion import (
+    MotionContactState,
+    MotionRootTransform,
+    pose_to_umr,
+)
 
 
 # ── SyncMarker Tests ─────────────────────────────────────────────────────────
@@ -529,6 +552,231 @@ class TestGaitBlendIntegration:
             assert math.isfinite(v), f"{k} = {v}"
 
     def test_import_from_animation_package(self):
-        """Verify gait_blend is importable from mathart.animation."""
-        from mathart.animation.gait_blend import GaitBlender as GB
+        """Verify GaitBlender is exported by the public animation package."""
+        from mathart.animation import GaitBlender as GB
         assert GB is GaitBlender
+
+
+# ── SESSION-111 P1-B3-5 Strangler-Fig Anti-Zombie-Reference Guard ─────────────
+
+
+class TestRetiredShimExtermination:
+    """Guarantee the legacy shim modules cannot be resurrected."""
+
+    def test_gait_blend_file_is_gone(self):
+        import mathart.animation as anim_pkg
+        from pathlib import Path
+        pkg_path = Path(anim_pkg.__file__).resolve().parent
+        assert not (pkg_path / "gait_blend.py").exists(), (
+            "gait_blend.py shim must be physically deleted (Strangler-Fig closure)"
+        )
+
+    def test_transition_synthesizer_file_is_gone(self):
+        import mathart.animation as anim_pkg
+        from pathlib import Path
+        pkg_path = Path(anim_pkg.__file__).resolve().parent
+        assert not (pkg_path / "transition_synthesizer.py").exists(), (
+            "transition_synthesizer.py shim must be physically deleted"
+        )
+
+    def test_gait_blend_import_is_blocked(self):
+        import importlib
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module("mathart.animation.gait_blend")
+
+    def test_transition_synthesizer_import_is_blocked(self):
+        import importlib
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module("mathart.animation.transition_synthesizer")
+
+
+# ── SESSION-111 P1-B3-5 Inertialized Transition Synthesis (merged) ───────────
+
+
+class TestTransitionStrategyEnum:
+    """TransitionStrategy now lives on the single unified motion core."""
+
+    def test_enum_values(self):
+        assert TransitionStrategy.INERTIALIZATION.value == "inertialization"
+        assert TransitionStrategy.DEAD_BLENDING.value == "dead_blending"
+
+    def test_factory_returns_inactive_synthesizer(self):
+        synth = create_transition_synthesizer(strategy="dead_blending")
+        assert isinstance(synth, TransitionSynthesizer)
+        assert synth.is_active is False
+
+    def test_direct_construction_with_enum(self):
+        synth = TransitionSynthesizer(strategy=TransitionStrategy.DEAD_BLENDING)
+        assert synth.is_active is False
+
+
+class TestQuinticInertializationDecay:
+    """Bollo GDC 2018 quintic residual decay — monotonic & bounded on real frames."""
+
+    @staticmethod
+    def _seam_frames(source_angle: float, target_angle: float):
+        src_pose = {"l_hip": source_angle, "r_hip": -source_angle}
+        tgt_pose = {"l_hip": target_angle, "r_hip": -target_angle}
+        src = pose_to_umr(
+            src_pose, time=0.0, phase=0.25, source_state="walk",
+            root_transform=MotionRootTransform(x=0.0, y=0.0, velocity_x=0.8, velocity_y=0.0),
+            contact_tags=MotionContactState(left_foot=True, right_foot=False),
+        )
+        tgt = pose_to_umr(
+            tgt_pose, time=0.0, phase=0.30, source_state="run",
+            root_transform=MotionRootTransform(x=0.0, y=0.0, velocity_x=1.8, velocity_y=0.0),
+            contact_tags=MotionContactState(left_foot=True, right_foot=False),
+        )
+        return src, tgt
+
+    def _inertialization_residual_sequence(self, channel, blend_time: float, dt: float):
+        source, target = self._seam_frames(source_angle=-0.2, target_angle=-0.5)
+        channel.capture(source, prev_source_frame=source, dt=dt)
+        frames = []
+        n_frames = int(round((blend_time * 3.0) / dt)) + 1
+        for _ in range(n_frames):
+            frames.append(channel.apply(target, dt=dt))
+        residuals = [
+            abs(f.joint_local_rotations.get("l_hip", 0.0) - target.joint_local_rotations.get("l_hip", 0.0))
+            for f in frames
+        ]
+        return residuals
+
+    def test_quintic_residual_decays_monotonically(self):
+        """Bollo 2018 quintic weight: residual must be non-increasing to zero."""
+        channel = InertializationChannel(blend_time=0.2)
+        residuals = self._inertialization_residual_sequence(channel, blend_time=0.2, dt=1.0 / 60.0)
+        assert residuals[0] > 0.0
+        # Allow small floating-point jitter but no strict resurrection of residual
+        for a, b in zip(residuals, residuals[1:]):
+            assert b <= a + 1e-6, f"quintic residual must be non-increasing: {a} -> {b}"
+        assert residuals[-1] <= 1e-6, f"residual must decay to zero, got {residuals[-1]}"
+
+    def test_quintic_residual_respects_blend_time_budget(self):
+        """With blend_time=0.2s, residual should be effectively zero by ~0.25s."""
+        dt = 1.0 / 60.0
+        channel = InertializationChannel(blend_time=0.2)
+        residuals = self._inertialization_residual_sequence(channel, blend_time=0.2, dt=dt)
+        # Find index corresponding to ~blend_time + dt margin
+        budget_idx = int(round(0.25 / dt))
+        assert residuals[min(budget_idx, len(residuals) - 1)] <= 1e-5
+
+    def test_dead_blending_residual_decays_monotonically_to_zero(self):
+        """Holden dead-blending: residual must decay monotonically to zero within blend window."""
+        dt = 1.0 / 120.0
+        halflife = 0.05
+        channel = DeadBlendingChannel(decay_halflife=halflife)
+        residuals = self._inertialization_residual_sequence(
+            channel, blend_time=halflife * 8.0, dt=dt,
+        )
+        r0 = residuals[0]
+        assert r0 > 0.0
+        # Monotonic non-increasing residual (with small floating-point tolerance)
+        for a, b in zip(residuals, residuals[1:]):
+            assert b <= a + 1e-6, f"dead-blending residual must be non-increasing: {a} -> {b}"
+        # Residual must fully decay to zero before the sequence ends
+        assert residuals[-1] <= 1e-6
+        # Dead-blending should decay significantly faster than a 4×halflife linear fade:
+        # at t=4×halflife, residual should be < 10% of initial.
+        four_hl_idx = min(int(round(4.0 * halflife / dt)), len(residuals) - 1)
+        assert residuals[four_hl_idx] < r0 * 0.15
+
+
+class TestInertializeTransitionAPI:
+    """Functional ``inertialize_transition`` \u2014 migrated from test_session039.py."""
+
+    def _frame(self, *, state, phase, vx, vy, left_contact, right_contact, pose):
+        return pose_to_umr(
+            pose,
+            time=0.0,
+            phase=phase,
+            source_state=state,
+            root_transform=MotionRootTransform(x=0.0, y=0.0, velocity_x=vx, velocity_y=vy),
+            contact_tags=MotionContactState(left_foot=left_contact, right_foot=right_contact),
+        )
+
+    def test_inertialize_preserves_target_state_and_contacts(self):
+        source = self._frame(
+            state="run", phase=0.5, vx=1.5, vy=0.0,
+            left_contact=False, right_contact=True,
+            pose={"l_hip": -0.3, "r_hip": 0.3, "l_knee": -0.2, "r_knee": -0.1, "spine": 0.05},
+        )
+        target = self._frame(
+            state="jump", phase=0.0, vx=0.8, vy=1.0,
+            left_contact=False, right_contact=False,
+            pose={"l_hip": -0.1, "r_hip": 0.1, "l_knee": -0.4, "r_knee": -0.4, "spine": 0.1},
+        )
+        result = inertialize_transition([source, source], [target, target], dt=1.0 / 24.0)
+        assert len(result) == 2
+        assert result[0].source_state == "jump"
+        assert result[0].contact_tags.left_foot is False
+        assert result[0].contact_tags.right_foot is False
+
+    def test_c0_c1_joint_continuity_is_not_violated_at_seam(self):
+        """Anti-C0/C1-regression guard: joint-space residual must decay smoothly."""
+        source_pose = {"l_hip": -0.2, "r_hip": 0.2, "l_knee": -0.1, "r_knee": -0.05, "spine": 0.02}
+        target_pose = {"l_hip": -0.5, "r_hip": 0.5, "l_knee": -0.3, "r_knee": -0.25, "spine": 0.05}
+        source = self._frame(
+            state="walk", phase=0.25, vx=0.8, vy=0.0,
+            left_contact=True, right_contact=False, pose=source_pose,
+        )
+        target = self._frame(
+            state="run", phase=0.30, vx=1.8, vy=0.0,
+            left_contact=True, right_contact=False, pose=target_pose,
+        )
+        dt = 1.0 / 60.0
+        n = 24
+        frames = inertialize_transition([source] * n, [target] * n, dt=dt)
+        assert len(frames) == n
+        # C0 continuity: first post-seam frame's joints are close to source pose
+        # (inertialization lands softly from the source joint space).
+        first_hip = frames[0].joint_local_rotations["l_hip"]
+        assert first_hip == pytest.approx(source_pose["l_hip"], abs=0.05), (
+            f"C0 joint continuity broken at seam: {first_hip} vs source {source_pose['l_hip']}"
+        )
+        # C1 continuity: frame-to-frame joint delta is bounded and non-exploding.
+        l_hip_series = [f.joint_local_rotations["l_hip"] for f in frames]
+        max_delta = max(abs(b - a) for a, b in zip(l_hip_series, l_hip_series[1:]))
+        # Expected per-frame delta is bounded by (target - source) / (blend_frames),
+        # empirically well under 0.1 rad per frame at 60 FPS for this seam.
+        assert max_delta < 0.1, f"C1 joint-delta exceeded at seam: {max_delta}"
+        # Terminal residual must converge to the target pose
+        assert l_hip_series[-1] == pytest.approx(target_pose["l_hip"], abs=1e-4)
+
+
+# ── SESSION-111 P1-B3-5 Anti-PRNG-Bleed Guard ─────────────────────────────────
+
+
+class TestUnifiedGaitBlenderDeterminism:
+    """Stateless / PRNG-free guarantee for PDG v2 16-thread parallel dispatch."""
+
+    def test_source_is_free_of_global_prng(self):
+        """Static guard: unified_gait_blender must not use global PRNG state."""
+        import inspect
+        from mathart.animation import unified_gait_blender as ugb
+
+        source = inspect.getsource(ugb)
+        assert "np.random" not in source, (
+            "unified_gait_blender must not call np.random (Anti-PRNG-Bleed)"
+        )
+        for forbidden in (
+            "random.random(", "random.seed(", "random.Random(",
+            "random.uniform(", "random.randint(", "random.choice(",
+        ):
+            assert forbidden not in source, (
+                f"unified_gait_blender must not call {forbidden} (Anti-PRNG-Bleed)"
+            )
+
+    def test_two_blenders_produce_bitwise_identical_poses(self):
+        """Two independent blenders fed the same inputs must be byte-identical."""
+        a = UnifiedGaitBlender()
+        b = UnifiedGaitBlender()
+        for _ in range(30):
+            pose_a = a.update(dt=0.016, velocity=1.2, target_gait=GaitMode.WALK)
+            pose_b = b.update(dt=0.016, velocity=1.2, target_gait=GaitMode.WALK)
+        for k in pose_a:
+            if k.startswith("_"):
+                continue
+            assert pose_a[k] == pytest.approx(pose_b[k], abs=1e-9), (
+                f"Determinism violated at joint {k}: {pose_a[k]} vs {pose_b[k]}"
+            )

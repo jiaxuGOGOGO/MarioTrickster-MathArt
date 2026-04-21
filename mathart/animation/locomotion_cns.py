@@ -3,8 +3,10 @@
 This module fuses three previously separate capabilities into one runtime-ready
 locomotion stack:
 
-1. **Phase-aligned gait sampling** from ``gait_blend.py``
-2. **Inertialized transition landing** from ``transition_synthesizer.py``
+1. **Phase-aligned gait sampling** from ``unified_gait_blender.py`` (SESSION-111
+   P1-B3-5 retired the historical ``gait_blend.py`` shim)
+2. **Inertialized transition landing** from ``unified_gait_blender.py`` (replaces
+   the retired ``transition_synthesizer.py``)
 3. **Dense runtime rule evaluation** through ``RuntimeDistillationBus``
 
 The goal is explicit: do not crossfade locomotion states in pose space.

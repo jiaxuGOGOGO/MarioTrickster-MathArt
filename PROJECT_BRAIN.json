@@ -1,6 +1,6 @@
 {
-  "version": "v0.93.0",
-  "last_session_id": "SESSION-110",
+  "version": "v0.94.0",
+  "last_session_id": "SESSION-111",
   "last_updated": "2026-04-21",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -32,7 +32,7 @@
     "closed_archived": 52
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-110 CLOSES P1-PHASE-33B: Terrain-Adaptive Phase Modulation System — PFNN-inspired vectorized trajectory terrain forecasting + biomechanics-grounded continuous slope-to-stride/freq mapping + EMA-smoothed C1-continuous phase velocity modulation + closed-loop bridge to UnifiedGaitBlender. 54 new white-box tests (6 categories: contracts, forecaster, mapping, EMA smoothing, bridge integration, red-line compliance + biomechanics). Full regression: 1818 PASS / 35 FAIL (all pre-existing) / 3 SKIP.",
+  "validation_pass_rate": "SESSION-111 P1-B3-5 Strangler-Fig CLOSED: 75/75 targeted tests PASS (test_unified_gait_blender 68 + test_locomotion_cns 7); full regression 1834 PASS, 5 pre-existing FAIL (unrelated, baseline-confirmed), 8 SKIP.",
   "total_iterations": 686,
   "total_code_lines": 135507,
   "distill_session_id": "DISTILL-012",
@@ -78,7 +78,7 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "P1-PHASE-33B / Terrain-Adaptive Phase Modulation System: PFNN-inspired vectorized trajectory terrain forecasting + biomechanics-grounded continuous slope-to-stride/freq mapping + EMA-smoothed C1-continuous phase velocity modulation + closed-loop bridge to UnifiedGaitBlender via TerrainAdaptiveGaitBridge.",
+  "current_focus": "P1-B3-5 / Strangler-Fig Closure of Legacy Gait Blender Shims — physically retired gait_blend.py + transition_synthesizer.py compatibility re-export modules; every import across mathart/**, tests/**, and evolution/** now flows through the single-source unified_gait_blender.py motion core. 75/75 targeted regressions PASS (test_unified_gait_blender 68 + test_locomotion_cns 7), full-suite 1834 PASS (only 5 pre-existing environment-failures unrelated to this refactor: ComfyUI WS progress_callback signature, keyframe_count metric missing, watcher reload race). Three red lines audited: Anti-Zombie-Reference (grep-wall clean + ModuleNotFoundError pytest guard), Anti-C0/C1-Regression (joint-seam continuity assertion at 10^-5), Anti-PRNG-Bleed (static source inspection + determinism test confirming stateless WorkItem dispatch readiness for PDG v2).",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research_notes_session091.md",
@@ -365,12 +365,12 @@
       "id": "P1-B3-5",
       "priority": "P1",
       "title": "Unify transition_synthesizer.py with gait_blend.py",
-      "status": "SUBSTANTIALLY-CLOSED",
+      "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "SUBSTANTIALLY CLOSED in SESSION-069. `unified_gait_blender.py` fuses gait blending, sync-marker phase alignment, DeepPhase FFT phase anchoring, and inertialized/dead-blended transition residual decay into one numerical trunk. `gait_blend.py` and `transition_synthesizer.py` are now compatibility re-export layers, `locomotion_cns.py` delegates transition synthesis to the unified core, and `pipeline.py` routes motion clips through `MotionStateLaneRegistry` instead of hard-coded per-state branches. 68/68 targeted regressions PASS, including C0/C1 root continuity checks. Remaining work: promote the motion lane registry into the global microkernel backend/orchestrator path.",
+      "description": "CLOSED in SESSION-111 via Strangler-Fig Pattern final takeover. unified_gait_blender.py is the single source of truth; the legacy gait_blend.py and transition_synthesizer.py re-export shims have been PHYSICALLY REMOVED (git rm) — not merely emptied. Every runtime import path (mathart/animation/__init__.py, locomotion_cns.py, runtime_motion_query.py, physics_genotype.py, motion_matching_kdtree.py, evolution/layer3_closed_loop.py, evolution/gait_blend_bridge.py) now points to the unified core. Legacy tests (tests/test_gait_blend.py, root-level test_session039.py) have been merged into tests/test_unified_gait_blender.py without coverage loss for Bollo-2018 quintic decay, Holden dead-blending, inertialize_transition C0/C1 guards, SyncMarker DTW alignment, StrideWheel circumference scaling, and GaitBlender pipeline. Added anti-zombie-reference pytest guards that explicitly raise ModuleNotFoundError on the retired dotted paths, plus a static PRNG-bleed source inspection to guarantee stateless PDG v2 WorkItem readiness. 75/75 targeted regressions PASS.",
       "added_in": "SESSION-049",
-      "updated_in": "SESSION-069",
-      "completed_in": "SESSION-069"
+      "updated_in": "SESSION-111",
+      "completed_in": "SESSION-111"
     },
     {
       "id": "P1-DISTILL-1B",
@@ -2568,7 +2568,8 @@
     "session103_research_notes": "research_notes_p1_arch4_session103.md distills SideFX PDG/TOPs, Bazel remote caching, and Airflow dynamic task mapping into concrete repository runtime rules.",
     "session105_gpu_bench_status": "P3-GPU-BENCH-1 remains SUBSTANTIALLY-CLOSED, now with production PDG integration. PDG v2 supports requires_gpu nodes with gpu_slots semaphore scheduling and trace-level resource_wait_ms evidence; TaichiXPBDBackend v2.1.0 consumes PDG WorkItems directly, emits hardware_fingerprint + lineage metadata, executes strict GPU mode without silent fallback, and performs per-sample sync+reset cleanup to defend 12 GB VRAM budgets.",
     "session105_validation": "Local validation completed with python3.11 -m pytest tests/ -p no:cov -> 1729 PASS / 7 SKIP / 0 FAIL. Supplementary targeted validation: 20 PASS / 2 SKIP on tests/test_level_pdg.py + tests/test_taichi_benchmark_backend.py. Local sandbox benchmark run executed tools/run_session085_gpu_benchmark.py in cpu_fallback mode because CUDA/Taichi hardware was unavailable.",
-    "session105_render_prep": "For P1-B1-1 after SESSION-105, the render pipeline should accept file-backed mesh/frame artifacts from the physics lane instead of JSON-inline arrays, standardize cloth ribbon/mesh topology metadata (vertex order, UV seams, normals/tangents, material slots), add a collect reduction for keyframe bundles + preview frames, and keep GPU render jobs under the same requires_gpu semaphore discipline used by the Taichi solve lane."
+    "session105_render_prep": "For P1-B1-1 after SESSION-105, the render pipeline should accept file-backed mesh/frame artifacts from the physics lane instead of JSON-inline arrays, standardize cloth ribbon/mesh topology metadata (vertex order, UV seams, normals/tangents, material slots), add a collect reduction for keyframe bundles + preview frames, and keep GPU render jobs under the same requires_gpu semaphore discipline used by the Taichi solve lane.",
+    "session111_p1_b3_5_strangler_fig": "SESSION-111 executed the final Strangler-Fig takeover for P1-B3-5. `mathart/animation/gait_blend.py` and `mathart/animation/transition_synthesizer.py` are physically deleted. Seven source files were rewritten to import from `mathart.animation.unified_gait_blender` directly; the public `mathart.animation` package now also re-exports `UnifiedGaitBlender`. `tests/test_gait_blend.py` renamed to `tests/test_unified_gait_blender.py` and extended with three red-line test classes: TestRetiredShimExtermination (Anti-Zombie-Reference), TestQuinticInertializationDecay / TestInertializeTransitionAPI (Anti-C0/C1-Regression at joint seam, tolerance 1e-5 C0 + bounded C1), TestUnifiedGaitBlenderDeterminism (Anti-PRNG-Bleed). Root-level `test_session039.py` removed — its 12 transition-synth assertions were migrated verbatim. Bridge module `evolution/gait_blend_bridge.py` now tracks `unified_gait_blender.py` as the canonical module. Full regression: 1834 PASS / 5 pre-existing FAIL / 8 SKIP (baseline-confirmed)."
   },
   "recent_focus_snapshot": {
     "session_id": "SESSION-105",

@@ -54,8 +54,8 @@ Architecture:
 Integration with existing modules:
     - RuntimeMotionDatabase (runtime_motion_query.py): KDTreeMotionDatabase
       is a drop-in acceleration layer
-    - TransitionSynthesizer (transition_synthesizer.py): Inertialization
-      blending on transitions
+    - TransitionSynthesizer (unified_gait_blender.py): Inertialization
+      blending on transitions (SESSION-111 retired the transition_synthesizer shim)
     - DeepPhaseAnalyzer (deepphase_fft.py): Phase features improve matching
 """
 from __future__ import annotations

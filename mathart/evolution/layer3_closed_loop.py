@@ -38,7 +38,7 @@ from ..animation.runtime_motion_query import (
     RuntimeMotionDatabase,
     RuntimeMotionQuery,
 )
-from ..animation.transition_synthesizer import (
+from ..animation.unified_gait_blender import (
     TransitionStrategy,
     TransitionSynthesizer,
 )

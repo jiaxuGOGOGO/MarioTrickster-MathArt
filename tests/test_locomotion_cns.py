@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from mathart.animation.gait_blend import GaitMode
+from mathart.animation.unified_gait_blender import GaitMode
 from mathart.animation.locomotion_cns import (
     GaitTransitionRequest,
     build_phase_aligned_transition_clip,

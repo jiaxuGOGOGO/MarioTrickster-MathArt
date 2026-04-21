@@ -27,7 +27,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from ..animation.gait_blend import (
+# SESSION-111 P1-B3-5: The legacy ``gait_blend`` shim has been physically
+# retired; the bridge now consumes the single-source ``unified_gait_blender``
+# motion core. See Research Alignment — Strangler Fig Pattern closure.
+from ..animation.unified_gait_blender import (
     GaitBlender,
     GaitMode,
     WALK_SYNC_PROFILE,
@@ -142,12 +145,17 @@ class GaitBlendStatus:
 
 
 def collect_gait_blend_status(project_root: str | Path) -> GaitBlendStatus:
-    """Collect repository integration status for Gap B3."""
+    """Collect repository integration status for Gap B3.
+
+    SESSION-111 P1-B3-5 retired the historical ``gait_blend.py`` shim. The
+    canonical module is now ``unified_gait_blender.py``; the consolidated
+    regression suite lives in ``tests/test_unified_gait_blender.py``.
+    """
     root = Path(project_root)
-    module_path = root / "mathart/animation/gait_blend.py"
+    module_path = root / "mathart/animation/unified_gait_blender.py"
     bridge_path = root / "mathart/evolution/gait_blend_bridge.py"
     api_module = root / "mathart/animation/__init__.py"
-    test_path = root / "tests/test_gait_blend.py"
+    test_path = root / "tests/test_unified_gait_blender.py"
     notes_path = root / "docs/research/GAP_B3_GAIT_TRANSITION_PHASE_BLEND.md"
     state_path = root / ".gait_blend_state.json"
 

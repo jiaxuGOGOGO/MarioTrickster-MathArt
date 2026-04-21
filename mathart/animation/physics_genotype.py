@@ -740,7 +740,7 @@ def evaluate_physics_fitness(
             RuntimeMotionDatabase,
             RuntimeMotionQuery,
         )
-        from .transition_synthesizer import TransitionSynthesizer, TransitionStrategy
+        from .unified_gait_blender import TransitionSynthesizer, TransitionStrategy
         from ..evolution.layer3_closed_loop import load_distilled_transition_params
 
         tuned = load_distilled_transition_params(transition_key="run->jump")

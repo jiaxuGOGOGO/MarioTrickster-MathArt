@@ -128,8 +128,10 @@ from .sdf_aux_maps import (
     compute_normal_vectors, encode_normal_map, encode_depth_map,
     encode_mask, bake_sdf_auxiliary_maps,
 )
-# SESSION-039: Inertialized Transition Synthesis (Bollo GDC 2018 / Holden Dead Blending)
-from .transition_synthesizer import (
+# SESSION-039 / SESSION-111 P1-B3-5: Inertialized Transition Synthesis is now
+# sourced directly from the unified motion core (Bollo GDC 2018 / Holden Dead
+# Blending). The legacy ``transition_synthesizer`` shim was physically removed.
+from .unified_gait_blender import (
     TransitionStrategy,
     InertializationChannel, DeadBlendingChannel,
     TransitionQualityMetrics, TransitionSynthesizer,
@@ -292,10 +294,12 @@ from .principles_quantifier import (
 from .motion_2d_pipeline import (
     PipelineConfig, PipelineResult, Motion2DPipeline,
 )
-# SESSION-049: Phase-Preserving Gait Transition Blending (Gap B3 — Marker-based DTW)
-from .gait_blend import (
+# SESSION-049 / SESSION-111 P1-B3-5: Phase-Preserving Gait Transition Blending
+# is now sourced directly from ``unified_gait_blender`` (Gap B3 — Marker-based
+# DTW). The legacy ``gait_blend`` shim was physically removed.
+from .unified_gait_blender import (
     SyncMarker, GaitSyncProfile, GaitBlendLayer,
-    GaitBlender, StrideWheel,
+    GaitBlender, UnifiedGaitBlender, StrideWheel,
     BIPEDAL_SYNC_MARKERS, WALK_SYNC_PROFILE, RUN_SYNC_PROFILE, SNEAK_SYNC_PROFILE,
     phase_warp, adaptive_bounce,
     blend_walk_run, blend_gaits_at_phase,
@@ -533,7 +537,7 @@ __all__ = [
     "create_platform_terrain",
     # SESSION-049: Phase-Preserving Gait Transition Blending (Gap B3)
     "SyncMarker", "GaitSyncProfile", "GaitBlendLayer",
-    "GaitBlender", "StrideWheel",
+    "GaitBlender", "UnifiedGaitBlender", "StrideWheel",
     "BIPEDAL_SYNC_MARKERS", "WALK_SYNC_PROFILE", "RUN_SYNC_PROFILE", "SNEAK_SYNC_PROFILE",
     "phase_warp", "adaptive_bounce",
     "blend_walk_run", "blend_gaits_at_phase",
