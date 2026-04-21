@@ -1,7 +1,7 @@
 {
   "version": "v0.96.1",
-  "last_session_id": "SESSION-126",
-  "last_updated": "2026-04-21T13:43:20Z",
+  "last_session_id": "SESSION-127",
+  "last_updated": "2026-04-21T13:59:29Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -31,9 +31,9 @@
     "closed_archived": 53
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-126 mass production factory: 2/2 dedicated dry-run regression tests PASS (tests/test_mass_production.py). PDG v2 fan-out scheduling, requires_gpu semaphore gating, artifact archiving, and CLI mass-produce entrypoint all validated under --skip-ai-render.",
-  "total_iterations": 733,
-  "total_code_lines": 160304,
+  "validation_pass_rate": "SESSION-127 audit: 2/2 dedicated dry-run regression tests PASS (tests/test_mass_production.py). The P1-NEW-10 factory now proves that orthographic_pixel_render consumes the composed Mesh3D instead of the backend fallback sphere, archives orthographic/anti-flicker delivery artifacts under each character, and records per-stage SeedSequence-derived RNG digests alongside requires_gpu/gpu_slots scheduling evidence.",
+  "total_iterations": 734,
+  "total_code_lines": 163090,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
@@ -1025,7 +1025,7 @@
       "title": "Production benchmark asset suite",
       "completed_in": "SESSION-126",
       "priority": "P1",
-      "result": "SESSION-126 closes P1-NEW-10 by landing an industrial PDG-v2 mass production factory: tools/run_mass_production_factory.py fans out deterministic equipped CharacterGenotype work items, executes unified_motion -> pseudo_3d_shell -> physical_ribbon CPU lanes in parallel, marks orthographic_pixel_render and anti_flicker_render as requires_gpu for gpu_slots-governed VRAM safety, then packages unity_2d_anim + spine_preview deliverables into outputs/mass_production_batch_<timestamp>/ by character id. mathart/cli.py now exposes the factory as mass-produce, and tests/test_mass_production.py validates dry-run topology liveness with --skip-ai-render."
+      "result": "SESSION-126 closed P1-NEW-10 by landing an industrial PDG-v2 mass production factory: tools/run_mass_production_factory.py fans out deterministic equipped CharacterGenotype work items, executes unified_motion -> pseudo_3d_shell -> physical_ribbon CPU lanes in parallel, marks orthographic_pixel_render and anti_flicker_render as requires_gpu for gpu_slots-governed VRAM safety, then packages unity_2d_anim + spine_preview deliverables into outputs/mass_production_batch_<timestamp>/ by character id. SESSION-127 audited and corrected the closure by passing the composed Mesh3D into orthographic rendering, archiving orthographic and skipped-AI outputs under each character archive, and extending white-box tests to assert real-mesh rendering plus per-stage SeedSequence RNG digests."
     },
     {
       "id": "HIGH-2.7-FOLLOWUP-PDG-SEEDSEQUENCE-RNG",
@@ -3888,6 +3888,32 @@
         "Run a live local batch with ComfyUI online and --skip-ai-render disabled to exercise the anti_flicker_render lane end-to-end on RTX 4070 hardware",
         "Optionally widen batch presets and motion-state coverage once new equipment archetypes or VFX SKUs are added"
       ]
+    },
+    {
+      "session_id": "SESSION-127",
+      "date": "2026-04-21",
+      "focus": "P1-NEW-10 audit hardening / mass production factory compliance pass",
+      "status": "COMPLETE",
+      "summary": "Audited the P1-NEW-10 mass production closure against the original brief and fixed the remaining compliance gaps: orthographic rendering now consumes the assembled character Mesh3D instead of the fallback sphere, orthographic and skipped-AI artifacts are archived under each character, and the dry-run suite now proves per-stage SeedSequence RNG splitting as well as archive integrity.",
+      "changes": [
+        "UPD tools/run_mass_production_factory.py — pass Mesh3D into orthographic_pixel_render, archive orthographic and skipped anti_flicker outputs, and expose per-stage rng_spawn_digest metadata in batch summaries",
+        "UPD tests/test_mass_production.py — assert real composed-mesh rendering, nested archive delivery completeness, and per-stage SeedSequence RNG digests in dry-run mode",
+        "UPD PROJECT_BRAIN.json — record SESSION-127 audit hardening and refresh validation snapshot",
+        "UPD SESSION_HANDOFF.md — document the audit corrections and tighten local operator guidance around archive inspection and mesh-backed orthographic rendering"
+      ],
+      "files_touched": [
+        "tools/run_mass_production_factory.py",
+        "tests/test_mass_production.py",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
+      ],
+      "validation": {
+        "commands": [
+          "python3.11 -m pytest -q tests/test_mass_production.py"
+        ],
+        "result": "PASS",
+        "notes": "2/2 tests PASS after the audit fixes; regression coverage now includes real composed-mesh rendering, archive integrity, GPU tagging, and per-stage deterministic RNG digests."
+      }
     }
   ],
   "resolved_issues": [
@@ -3967,6 +3993,13 @@
       "resolved_at": "2026-04-21T13:43:20Z",
       "resolution": "Added a PDG-v2 mass production factory with deterministic batch fan-out, GPU-throttled orthographic/anti-flicker lanes, per-character batch archiving, and a public CLI mass-produce entrypoint.",
       "validation_test_file": "tests/test_mass_production.py"
+    },
+    {
+      "issue_id": "P1-NEW-10-AUDIT",
+      "session_id": "SESSION-127",
+      "resolved_at": "2026-04-21T13:59:29Z",
+      "resolution": "The mass production audit found that orthographic_pixel_render was still receiving a raw mesh_data dict and falling back to the backend demo sphere. The factory now passes a real Mesh3D, archives orthographic and skipped anti-flicker outputs under each character, and emits per-stage rng_spawn_digest metadata so deterministic PDG execution is observable in batch summaries.",
+      "validation_test_file": "tests/test_mass_production.py"
     }
   ],
   "backlog": [],
@@ -4014,6 +4047,12 @@
       "topic": "industrial_mass_production_factory",
       "decision": "Large commercial batch generation must route through PDG v2 fan-out and mark orthographic_pixel_render / anti_flicker_render as requires_gpu so gpu_slots remains the sole authority for VRAM admission control.",
       "implication": "CPU-heavy genotype, motion, shell, and ribbon lanes can scale to 16 worker threads, while 12GB-class GPUs remain protected from batch-induced OOM during orthographic guide baking or ComfyUI sequence rendering."
+    },
+    {
+      "session_id": "SESSION-127",
+      "topic": "mass_production_factory_audit_hardening",
+      "decision": "The PDG-v2 mass factory must pass a concrete Mesh3D object into orthographic_pixel_render and must treat archive copying as part of the batch contract rather than an optional convenience.",
+      "implication": "Future batch-audit work can verify that orthographic guide maps were baked from the assembled character+equipment mesh, while operators can inspect a single per-character archive tree for Unity, Spine preview, orthographic guides, and skipped/live anti-flicker evidence without hunting through backend-private directories."
     }
   ]
 }

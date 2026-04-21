@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from mathart.cli import main as cli_main
+from mathart.core.artifact_schema import ArtifactManifest
 from tools.run_mass_production_factory import run_mass_production_factory
 
 
@@ -50,6 +51,7 @@ def test_mass_production_factory_dry_run_skip_ai_render(tmp_path: Path) -> None:
     assert gpu_trace
     assert all(entry["requires_gpu"] is True for entry in gpu_trace)
 
+    observed_seed_digests = set()
     for record in summary["records"]:
         character_dir = Path(record["character_dir"])
         assert character_dir.exists()
@@ -61,9 +63,43 @@ def test_mass_production_factory_dry_run_skip_ai_render(tmp_path: Path) -> None:
         assert Path(record["manifests"]["spine_preview"]).exists()
         assert record["manifests"]["anti_flicker_render"] is None
         assert Path(record["final_outputs"]["spine_json"]).exists()
+
+        stage_rng = record["stage_rng_spawn_digests"]
+        assert set(stage_rng) == {
+            "prepare_character",
+            "unified_motion_stage",
+            "pseudo3d_shell_stage",
+            "physical_ribbon_stage",
+            "orthographic_render_stage",
+            "motion2d_export_stage",
+            "final_delivery_stage",
+            "ai_render_stage",
+        }
+        assert all(stage_rng[key] for key in stage_rng)
+        assert len(set(stage_rng.values())) == len(stage_rng)
+        observed_seed_digests.add(record["seed_spawn_digest"])
+
+        orthographic_manifest = ArtifactManifest.load(record["manifests"]["orthographic_pixel_render"])
+        render_report = json.loads(Path(orthographic_manifest.outputs["render_report"]).read_text(encoding="utf-8"))
+        composition_report = json.loads(
+            next((character_dir / "composed_mesh").glob("*_composition_report.json")).read_text(encoding="utf-8")
+        )
+        assert render_report["mesh_stats"]["vertex_count"] == composition_report["vertex_count"]
+        assert render_report["mesh_stats"]["triangle_count"] == composition_report["triangle_count"]
+
+        delivery_archive = record["final_outputs"]["delivery_archive"]
+        orthographic_archive = record["final_outputs"]["orthographic_archive"]
+        assert any(path.endswith(".anim") for path in delivery_archive["unity_2d_anim"].values())
+        assert any(path.endswith(".mp4") for path in delivery_archive["spine_preview"].values())
+        assert any(name.endswith("_render_report.json") for name in orthographic_archive)
+        assert any(path.endswith(".png") for path in orthographic_archive.values())
+
         ai_render = record["final_outputs"]["ai_render"]
         assert ai_render["skipped"] is True
         assert Path(ai_render["report_path"]).exists()
+        assert any(path.endswith("anti_flicker_render_skipped.json") for path in ai_render["archived"].values())
+
+    assert len(observed_seed_digests) == 2
 
 
 def test_cli_mass_produce_dry_run_skip_ai_render(tmp_path: Path) -> None:

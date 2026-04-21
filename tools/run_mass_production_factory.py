@@ -115,6 +115,24 @@ def _mesh_dict_from_npz(path: str | Path) -> dict[str, np.ndarray]:
         }
 
 
+def _mesh3d_from_dict(mesh: dict[str, np.ndarray]):
+    from mathart.animation.orthographic_pixel_render import Mesh3D
+
+    return Mesh3D(
+        vertices=np.asarray(mesh["vertices"], dtype=np.float64),
+        normals=np.asarray(mesh["normals"], dtype=np.float64),
+        triangles=np.asarray(mesh["triangles"], dtype=np.int32),
+        colors=np.asarray(mesh["colors"], dtype=np.uint8),
+    )
+
+
+def _current_rng_digest(ctx: dict[str, Any]) -> str | None:
+    pdg = ctx.get("_pdg") or {}
+    contract = pdg.get("rng_contract") or {}
+    digest = contract.get("spawn_key_digest")
+    return str(digest) if digest is not None else None
+
+
 def _save_mesh_npz(path: str | Path, mesh: dict[str, np.ndarray]) -> Path:
     path = Path(path).resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -471,6 +489,7 @@ def _node_unified_motion(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str,
         "state": prepared["motion_state"],
         "frame_count": prepared["frame_count"],
         "fps": prepared["fps"],
+        "rng_spawn_digest": _current_rng_digest(ctx),
     }
 
 
@@ -499,6 +518,7 @@ def _node_pseudo3d_shell(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str,
         "mesh_path": manifest.outputs.get("mesh"),
         "metadata_path": manifest.outputs.get("metadata"),
         "frame_count": int(manifest.metadata.get("frame_count", prepared["frame_count"])),
+        "rng_spawn_digest": _current_rng_digest(ctx),
     }
 
 
@@ -525,6 +545,7 @@ def _node_physical_ribbon(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str
         "manifest_path": str(manifest_path),
         "mesh_path": manifest.outputs.get("mesh"),
         "report_path": manifest.outputs.get("report"),
+        "rng_spawn_digest": _current_rng_digest(ctx),
     }
 
 
@@ -566,6 +587,7 @@ def _node_compose_mesh(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
         "character_dir": prepared["character_dir"],
         "mesh_path": str(composed_path),
         "report_path": str(report_path),
+        "rng_spawn_digest": _current_rng_digest(ctx),
     }
 
 
@@ -574,6 +596,7 @@ def _node_orthographic_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict
     composed = deps["compose_mesh_stage"]
     character_dir = Path(prepared["character_dir"])
     stage_dir = _ensure_dir(character_dir / "orthographic_pixel_render")
+    archive_dir = _ensure_dir(character_dir / "archive")
     mesh = _mesh_dict_from_npz(composed["mesh_path"])
     pipeline = AssetPipeline(output_dir=str(stage_dir), verbose=False)
     manifest = pipeline.run_backend(
@@ -581,6 +604,7 @@ def _node_orthographic_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict
         {
             "output_dir": str(stage_dir),
             "name": prepared["character_id"],
+            "mesh": _mesh3d_from_dict(mesh),
             "mesh_data": mesh,
             "render": {
                 "render_width": 384,
@@ -593,6 +617,7 @@ def _node_orthographic_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict
         },
     )
     manifest_path = _save_manifest(manifest, stage_dir / "orthographic_pixel_render_artifact_manifest.json")
+    archived = _archive_manifest_outputs(manifest, archive_dir, "orthographic_pixel_render")
     return {
         "character_id": prepared["character_id"],
         "character_dir": prepared["character_dir"],
@@ -601,6 +626,8 @@ def _node_orthographic_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict
         "normal": manifest.outputs.get("normal"),
         "depth": manifest.outputs.get("depth"),
         "report": manifest.outputs.get("render_report"),
+        "archived": archived,
+        "rng_spawn_digest": _current_rng_digest(ctx),
     }
 
 
@@ -635,6 +662,7 @@ def _node_motion2d_export(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str
         "report_path": str(report_path.resolve()),
         "fps": int(getattr(result.clip_2d, "fps", prepared["fps"])),
         "frame_count": int(result.total_frames),
+        "rng_spawn_digest": _current_rng_digest(ctx),
     }
 
 
@@ -682,6 +710,7 @@ def _node_final_delivery(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str,
         "preview_manifest_path": str(preview_manifest_path),
         "archived": archived,
         "spine_json_path": motion2d["spine_json_path"],
+        "rng_spawn_digest": _current_rng_digest(ctx),
     }
 
 
@@ -700,12 +729,18 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
                 "reason": "skip_ai_render flag enabled",
             },
         )
+        archived_skip = archive_dir / "anti_flicker_render"
+        archived_skip.mkdir(parents=True, exist_ok=True)
+        archived_skip_report = archived_skip / skipped_report.name
+        shutil.copy2(skipped_report, archived_skip_report)
         return {
             "character_id": prepared["character_id"],
             "character_dir": prepared["character_dir"],
             "skipped": True,
             "report_path": str(skipped_report),
             "manifest_path": None,
+            "archived": {archived_skip_report.name: str(archived_skip_report.resolve())},
+            "rng_spawn_digest": _current_rng_digest(ctx),
         }
 
     render_manifest = _load_manifest(Path(render["manifest_path"]))
@@ -748,6 +783,7 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
         "skipped": False,
         "manifest_path": str(manifest_path),
         "archived": archived,
+        "rng_spawn_digest": _current_rng_digest(ctx),
     }
 
 
@@ -757,6 +793,7 @@ def _node_collect_batch(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, 
     shell_items = {item["character_id"]: item for item in deps["pseudo3d_shell_stage"]}
     ribbon_items = {item["character_id"]: item for item in deps["physical_ribbon_stage"]}
     render_items = {item["character_id"]: item for item in deps["orthographic_render_stage"]}
+    motion2d_items = {item["character_id"]: item for item in deps["motion2d_export_stage"]}
     delivery_items = {item["character_id"]: item for item in deps["final_delivery_stage"]}
     ai_items = {item["character_id"]: item for item in deps["ai_render_stage"]}
 
@@ -770,6 +807,16 @@ def _node_collect_batch(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, 
             "motion_state": prepared["motion_state"],
             "motion_gait": prepared["motion_gait"],
             "seed_spawn_digest": prepared.get("seed_spawn_digest"),
+            "stage_rng_spawn_digests": {
+                "prepare_character": prepared.get("seed_spawn_digest"),
+                "unified_motion_stage": unified_items[cid].get("rng_spawn_digest"),
+                "pseudo3d_shell_stage": shell_items[cid].get("rng_spawn_digest"),
+                "physical_ribbon_stage": ribbon_items[cid].get("rng_spawn_digest"),
+                "orthographic_render_stage": render_items[cid].get("rng_spawn_digest"),
+                "motion2d_export_stage": motion2d_items[cid].get("rng_spawn_digest"),
+                "final_delivery_stage": delivery_items[cid].get("rng_spawn_digest"),
+                "ai_render_stage": ai_items[cid].get("rng_spawn_digest"),
+            },
             "manifests": {
                 "unified_motion": unified_items[cid]["manifest_path"],
                 "pseudo_3d_shell": shell_items[cid]["manifest_path"],
@@ -781,7 +828,8 @@ def _node_collect_batch(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, 
             },
             "final_outputs": {
                 "spine_json": delivery_items[cid]["spine_json_path"],
-                "preview_archive": delivery_items[cid]["archived"],
+                "delivery_archive": delivery_items[cid]["archived"],
+                "orthographic_archive": render_items[cid].get("archived", {}),
                 "ai_render": ai_items[cid],
             },
         }
@@ -911,6 +959,7 @@ def build_mass_production_graph(*, cache_dir: str | Path, max_workers: int, gpu_
                 "pseudo3d_shell_stage",
                 "physical_ribbon_stage",
                 "orthographic_render_stage",
+                "motion2d_export_stage",
                 "final_delivery_stage",
                 "ai_render_stage",
             ],
