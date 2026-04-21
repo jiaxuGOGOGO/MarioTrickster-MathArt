@@ -1,4 +1,4 @@
-"""Dynamic first-class CLI facade for the MarioTrickster-MathArt registry bus.
+"""Command-line interface for the MathArt registry-backed pipeline.
 
 The CLI is intentionally thin: it discovers registered backends from the
 registry at runtime, builds help text from backend metadata, and delegates the
@@ -11,7 +11,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from mathart.pipeline import AssetPipeline
 from mathart.core.artifact_schema import ArtifactManifest
@@ -170,6 +170,24 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--name", default=None, help="Optional artifact stem/name.")
     run_parser.add_argument("--session-id", default="CLI-067", help="Session id injected into context.")
 
+    af_parser = subparsers.add_parser(
+        "anti-flicker-render",
+        aliases=["anti_flicker_render"],
+        help="Run the anti_flicker_render backend in live ComfyUI mode with stderr progress and stdout JSON manifest.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    af_parser.add_argument("--output-dir", required=True, help="Directory for generated artifacts.")
+    af_parser.add_argument("--config", default=None, help="Path to JSON config object.")
+    af_parser.add_argument(
+        "--set",
+        dest="set_values",
+        action="append",
+        default=[],
+        help="Dynamic parameter override in key=value form; dotted keys supported.",
+    )
+    af_parser.add_argument("--name", default=None, help="Optional artifact stem/name.")
+    af_parser.add_argument("--session-id", default="CLI-108", help="Session id injected into context.")
+
     return parser
 
 
@@ -203,23 +221,76 @@ def _command_registry_show(backend_name: str) -> int:
     return 0
 
 
-def _command_run(args: argparse.Namespace) -> int:
-    context = _merge_context(args)
-    output_dir = Path(args.output_dir).resolve()
-    output_dir.mkdir(parents=True, exist_ok=True)
+def _build_stderr_progress_callback(backend_name: str) -> Callable[[dict[str, Any]], None]:
+    def _callback(event: dict[str, Any]) -> None:
+        event_type = str(event.get("event_type", "progress"))
+        if event_type == "progress":
+            node = event.get("node", "?")
+            value = event.get("value", 0)
+            maximum = event.get("max", 0)
+            message = f"[{backend_name}] progress chunk={event.get('chunk_index', '?')}/{event.get('chunk_count', '?')} node={node} {value}/{maximum}"
+        elif event_type in {"chunk_start", "chunk_complete"}:
+            message = (
+                f"[{backend_name}] {event_type} chunk={event.get('chunk_index', '?')}/{event.get('chunk_count', '?')} "
+                f"frames={event.get('start_frame', '?')}..{event.get('end_frame', '?')}"
+            )
+        elif event_type == "prepare":
+            message = f"[{backend_name}] prepare server={event.get('server_address', '?')}"
+        elif event_type in {"offline", "timeout", "execution_error", "client_error"}:
+            message = f"[{backend_name}] {event_type}: {event.get('message', '')}"
+        else:
+            message = f"[{backend_name}] {event_type}: {json.dumps(event, ensure_ascii=False)}"
+        sys.stderr.write(message + "\n")
+        sys.stderr.flush()
 
+    return _callback
+
+
+def _resolved_backend_name(backend_name: str) -> str:
+    registry = get_registry()
+    meta, _ = registry.get_or_raise(backend_name)
+    return meta.name
+
+
+def _inject_runtime_callbacks(backend_name: str, context: dict[str, Any]) -> dict[str, Any]:
+    resolved_name = _resolved_backend_name(backend_name)
+    if resolved_name == "anti_flicker_render" and bool(context.get("comfyui", {}).get("live_execution", False)):
+        context["_progress_callback"] = _build_stderr_progress_callback(resolved_name)
+    return context
+
+
+def _run_backend_and_emit(backend_name: str, context: dict[str, Any], output_dir: Path) -> int:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    runtime_context = _inject_runtime_callbacks(backend_name, dict(context))
     pipeline = AssetPipeline(output_dir=str(output_dir), verbose=False)
-    manifest = pipeline.run_backend(args.backend, context)
-    manifest.session_id = context.get("session_id", manifest.session_id)
-    manifest_path = _manifest_path_for(manifest, str(output_dir), args.backend)
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+    manifest.session_id = runtime_context.get("session_id", manifest.session_id)
+    manifest_path = _manifest_path_for(manifest, str(output_dir), backend_name)
     manifest.save(manifest_path)
     _emit_json(
         manifest.to_ipc_payload(
             manifest_path=manifest_path,
-            requested_backend=args.backend,
+            requested_backend=backend_name,
         )
     )
     return 0
+
+
+def _command_run(args: argparse.Namespace) -> int:
+    context = _merge_context(args)
+    output_dir = Path(args.output_dir).resolve()
+    return _run_backend_and_emit(args.backend, context, output_dir)
+
+
+def _command_anti_flicker_render(args: argparse.Namespace) -> int:
+    context = _merge_context(args)
+    comfyui = context.setdefault("comfyui", {})
+    if not isinstance(comfyui, dict):
+        raise ValueError("comfyui config must be an object for anti_flicker_render")
+    comfyui.setdefault("live_execution", True)
+    comfyui.setdefault("fail_fast_on_offline", True)
+    output_dir = Path(args.output_dir).resolve()
+    return _run_backend_and_emit("anti_flicker_render", context, output_dir)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -235,6 +306,8 @@ def main(argv: list[str] | None = None) -> int:
                 return _command_registry_show(args.backend)
         if args.command == "run":
             return _command_run(args)
+        if args.command in {"anti-flicker-render", "anti_flicker_render"}:
+            return _command_anti_flicker_render(args)
         raise ValueError(f"Unsupported command: {args.command!r}")
     except Exception as exc:
         LOGGER.exception("CLI execution failed")

@@ -1,111 +1,105 @@
-## Session Metadata
-
 | Field | Value |
 |---|---|
-| Session | `SESSION-107` |
-| Focus | `P1-AI-1` 数学渲染缓冲到 ControlNet / ComfyUI 序列资产的工程闭环 |
+| Session | `SESSION-108` |
+| Focus | `P1-AI-2C` 反闪烁渲染链路的真实 ComfyUI 运行时闭环、16 帧安全切片与 CLI 机器契约收敛 |
 | Status | `COMPLETE` |
 | Working Branch | `main` |
-| Base Head Before Commit | `d4dd6c7` |
-| Validation | `5 PASS / 0 SKIP / 0 FAIL`（`python3.11 -m pytest -q tests/test_p1_ai_1_controlnet_bridge.py`） |
-| Additional Smoke Check | `normal_depth_dual_controlnet` 与 `sparsectrl_animatediff` 两套序列 payload 语义注入均通过本地验证 |
-| Primary Files | `mathart/animation/controlnet_bridge_exporters.py`，`mathart/animation/frame_sequence_exporter.py`，`mathart/animation/comfyui_preset_manager.py`，`mathart/assets/comfyui_presets/normal_depth_dual_controlnet.json`，`tests/test_p1_ai_1_controlnet_bridge.py`，`PROJECT_BRAIN.json` |
+| Validation | `5 PASS / 0 FAIL`（`pytest -q tests/test_p1_ai_2c_anti_flicker_live_cli.py`） |
+| Additional Audit | 已完成 16 帧切片、`stdout/stderr` 分流、硬编码节点寻址、离线快速失败与可选依赖收集阻断审计 |
+| Primary Files | `mathart/core/anti_flicker_runtime.py`，`mathart/comfy_client/comfyui_ws_client.py`，`mathart/core/builtin_backends.py`，`mathart/cli.py`，`tests/test_p1_ai_2c_anti_flicker_live_cli.py`，`PROJECT_BRAIN.json` |
 
 ## Executive Summary
 
-本轮工作的目标，是把上一轮已经打通的**正交像素渲染实体产物**，正式桥接为可被 ComfyUI / ControlNet 工业工作流直接消费的条件资产。换句话说，项目现在不再停留在“数学引擎可以产出 Albedo / Normal / Depth”的阶段，而是进一步完成了**导出层协议收敛**：法线图被显式映射到 ControlNet NormalBae 所需的 8-bit RGB 视觉协议，深度图被归一化为可配置极性的灰度导引图，动画批次被整理为 VHS 兼容的连续编号帧目录，并且双 ControlNet 序列工作流也已经以**外置 preset + 语义选择器注入**的形式落地。[1] [2] [3]
+本轮工作的目标，是把此前已经具备**离线可测能力**的 `anti_flicker_render`，继续向前推进到**生产运行时闭环**：不仅要能组装 ComfyUI 工作流，还要能在后端内执行真实的序列工作流、在 CLI 中以稳定命令入口暴露出去、在显存边界上做主动防御，并且保证自动化流水线可以继续把 `stdout` 当成**纯 JSON IPC 契约**消费，而不被运行时日志污染。[1] [2] [3]
 
-这次闭环最关键的价值，不在于“多写了几个导出函数”，而在于**把核心数学渲染器与导出/量化/写盘行为物理隔离开来**。这一点与 Pixar RenderMan 的 ports-and-adapters 思路一致：核心渲染端负责产生高精度中间结果，导出器负责执行面向外部系统的格式降维与资产打包，二者通过强类型 manifest 对接，而不是让渲染器直接污染磁盘 I/O。[4]
+最终落地的结果是：`AntiFlickerRenderBackend` 现在已经支持**live/offline 双路径执行**。在 live 路径下，后端会先对 ComfyUI 端点执行显式在线探针，若服务未启动则在第 0 秒直接失败，不再出现同步 CLI 空转等待的假死风险；同时，长序列推理会被强制切分为**最多 16 帧一批**的安全 chunk，以匹配 12GB VRAM 级别显卡的保守运行边界；运行进度则通过回调统一回传到 CLI 的 `stderr`，而 `stdout` 仍然只输出 manifest JSON，继续满足下游机器解析场景。[1] [2]
 
-从项目阶段角度看，`P1-AI-1` 已经从 “IN-PROGRESS” 推进到 **“SUBSTANTIALLY-CLOSED”**。`P1-AI-1A` 到 `P1-AI-1D` 已全部落地；唯一尚未闭环的是 `P1-AI-1E`，也就是在 maintainer 的 RTX 4070 工作站上，挂载真实 ComfyUI / ControlNet 权重并执行一次端到端真机推理，沉淀真实运行时证据、耗时与视觉结果。[5]
+从任务状态看，`P1-AI-2C` 现在可以从此前的 **`SUBSTANTIALLY-CLOSED`** 推进到 **`CLOSED`**。不过需要说明的是，当前沙箱里完成的是**工程闭环、协议闭环与本地模拟验证闭环**；真正的 **RTX 4070 + 真实 ComfyUI 服务 + 真实权重** 的生产证据，仍然应作为下一步的 maintainer-side 运行归档项单独沉淀。这不是接口级未完成，而是**硬件环境证据**尚未在当前沙箱内生成。[5]
 
 ## Research Alignment Audit
 
-| Reference | Requested Principle | `SESSION-107` Concrete Closure |
+| Reference | Requested Principle | `SESSION-108` Concrete Closure |
 |---|---|---|
-| ControlNet 1.1 / NormalBae [1] | 法线条件图应为真实法线视觉编码，R=X，G=Y，B=Z，8-bit RGB | `NormalMapExporter` 采用显式 `(N*0.5+0.5)*255` 映射，禁止对原始法线矩阵直接暴切；并加入值级断言，锁定 `[0,0,1] -> [127,127,255]` |
-| MiDaS / Zoe Depth 常规实践 [1] | 深度导引图需做稳定归一化，并允许极性切换以适配不同控制模型 | `DepthMapExporter` 提供线性归一化、覆盖掩码外填充值与 `invert_polarity` 选项 |
-| ComfyUI VideoHelperSuite [2] | 帧序列必须使用连续编号目录，目录注入优先，建议带批次元数据 sidecar | `FrameSequenceExporter` 输出 `frame_%05d.png` 连续编号目录，并伴随 `sequence_metadata.json` |
-| Stable Diffusion / Diffusers VAE 缩放约束 [3] | 输入宽高应满足 8 的整数倍，以避免潜空间对齐问题 | 单帧与序列导出均统一经过 8-pixel alignment padding，metadata 中显式记录原始尺寸与 padding 信息 |
-| Pixar RenderMan / OpenUSD Adapter 思路 [4] | 核心渲染与外部格式导出分层，资产关系通过 typed manifest / composition 表达 | 本轮新增 `SPRITE_SINGLE` / `IMAGE_SEQUENCE` 强类型 schema，并保持导出器为 adapter 层、渲染核心不写盘 |
+| AnimateDiff / sequence context practice [1] | 长视频不能无上限整段推理，应使用 context window 或 batch chunking | `anti_flicker_runtime.plan_frame_chunks()` 固化为显式 chunk plan；后端将 `chunk_size` 和 `context_window` 都限制在 16 以内 |
+| Twelve-Factor Logs [2] | 日志应视为事件流，CLI 输出契约必须可被外部系统稳定消费 | CLI 现在把人类可读进度全部发往 `stderr`，`stdout` 只保留 JSON manifest |
+| Ports & Adapters / Hexagonal Architecture [3] | CLI 只应是 driving adapter，不应承载业务求解逻辑 | 业务逻辑继续收敛在 backend / runtime helper 内，CLI 只做参数合并、回调注入与结果发射 |
+| ComfyUI endpoint resilience [4] | 运行前应先做轻量 online probe，离线时快速失败 | `AntiFlickerRenderBackend` 在 live 路径开始前调用 `ComfyUIClient.is_server_online()`，离线则立即抛错 |
+| OpenUSD / adapter discipline [5] | 逻辑 scene contract 与外部格式序列化应解耦 | 本轮进一步把 chunk plan、payload path、report path、frame_sequence 都沉淀到 typed manifest metadata，为后续 USD adapter 做 scene lifting 铺路 |
 
 ## What Changed in Code
 
 | File | Change | Effect |
 |---|---|---|
-| `mathart/animation/controlnet_bridge_exporters.py` | **NEW**。实现 `NormalMapExporter`、`DepthMapExporter`、`PaddingInfo`、`ExportResult` | 将 float64 法线/深度缓冲安全转换为 ControlNet 兼容 PNG + JSON sidecar + typed manifest |
-| `mathart/animation/frame_sequence_exporter.py` | **NEW**。实现 `FrameSequenceExporter` | 将多帧导引图导出为 VHS 连续编号序列目录，并生成 `sequence_metadata.json` |
-| `mathart/assets/comfyui_presets/normal_depth_dual_controlnet.json` | **NEW**。外置 dual-ControlNet 序列预设 | 提供纯 Normal + Depth 双条件序列工作流，不依赖硬编码 node id |
-| `mathart/animation/comfyui_preset_manager.py` | 扩展序列 preset 选择器体系与 payload 组装 | 同一套 API 现在同时支持 `sparsectrl_animatediff` 与 `normal_depth_dual_controlnet` |
-| `mathart/core/artifact_schema.py` | 新增 `IMAGE_SEQUENCE` schema，并补全 `SPRITE_SINGLE` required outputs/metadata | 导出产物不再是松散文件列表，而是可校验的强类型 manifest |
-| `mathart/core/backend_types.py` | 新增 `CONTROLNET_NORMAL_EXPORT`、`CONTROLNET_DEPTH_EXPORT`、`FRAME_SEQUENCE_EXPORT` | Math-to-AI 导出器成为 registry 语义上的一等后端类型 |
-| `mathart/animation/__init__.py` | 导出新桥接模块 | 使外部代码可从稳定公共命名空间访问桥接导出器 |
-| `tests/test_p1_ai_1_controlnet_bridge.py` | **NEW**。5 个定向白盒测试 | 锁定法线值映射、深度极性、VHS 连号、manifest 合规与双控 preset 注入语义 |
+| `mathart/core/anti_flicker_runtime.py` | **NEW**。实现 chunk planner、地址规范化、RGB/guide 序列导出与 chunk 输出物化 | 把 runtime 细节从后端本体中剥离，形成更干净的 adapter helper 层 |
+| `mathart/comfy_client/comfyui_ws_client.py` | 扩展 `progress_callback` | ComfyUI WebSocket / HTTP 轮询进度现在可以安全回传到 CLI，而不会污染 `stdout` |
+| `mathart/core/builtin_backends.py` | 重写 `AntiFlickerRenderBackend` 为 live/offline 双路径 | 支持端点探针、16 帧 chunking、chunk payload/report 持久化、typed manifest metadata，以及离线兼容路径 |
+| `mathart/cli.py` | 新增一等命令 `anti-flicker-render` / `anti_flicker_render` | CLI 现在可直接驱动 anti-flicker live runtime，并把进度固定路由到 `stderr` |
+| `mathart/core/builtin_backends.py` 其他导入区 | 将重型动画/Unity 依赖改为按需局部导入 | 避免测试收集阶段因可选依赖缺失而阻断 anti-flicker 回归 |
+| `tests/test_p1_ai_2c_anti_flicker_live_cli.py` | **NEW**。5 个定向测试 | 覆盖 16 帧切片、context clamp、offline fast-fail、chunked materialization 与 `stdout/stderr` 分流 |
 
 ## White-Box Validation Closure
 
 | Assertion | Evidence |
 |---|---|
-| 法线值级映射不偏色 | `test_encode_normal_rgb_maps_z_axis_basis_vector_exactly` 断言 `[0,0,1]` 精确映射为 `[127,127,255]` |
-| 8 像素对齐强制生效 | `test_normal_map_exporter_pads_to_8_and_validates_manifest` 验证 `10x14 -> 16x16` |
-| 深度极性可配置 | `test_depth_map_exporter_supports_polarity_switch` 验证 near/far 像素值可随 `invert_polarity` 翻转 |
-| VHS 序列规范落地 | `test_frame_sequence_exporter_writes_vhs_contiguous_frames_and_metadata` 验证 `frame_00000.png` 连续编号与 metadata 一致性 |
-| 双 ControlNet 序列 preset 可用 | `test_dual_controlnet_sequence_payload_injects_only_normal_and_depth` 验证 dual preset 只注入 `normal` / `depth`，不混入 `rgb` |
-| 主干兼容性未被破坏 | 额外 smoke check 证明 `sparsectrl_animatediff` 仍可组装 payload，说明新增逻辑未破坏既有 SparseCtrl 路径 |
+| 16 帧安全切片强制生效 | `test_plan_frame_chunks_enforces_16_frame_windows` 验证 `37 -> 16 + 16 + 5` |
+| 运行时配置不会突破 12GB VRAM 红线 | `test_validate_config_clamps_context_window_and_chunk_size` 验证 `chunk_size/context_window` 被限制到 `16` |
+| 服务离线时不会空转假死 | `test_live_backend_fast_fails_before_render_when_comfyui_is_offline` 验证 bake 阶段前即抛出 offline 错误 |
+| 大批量序列可被分块执行并回收产物 | `test_live_backend_chunks_large_sequences_and_materializes_outputs` 验证 37 帧请求被按三段 chunk 执行并回收 37 个结果帧 |
+| CLI 不污染 `stdout` | `test_cli_anti_flicker_render_keeps_stdout_json_and_progress_on_stderr` 验证进度事件只出现在 `stderr`，`stdout` 始终是合法 JSON |
 
 ## Architecture Discipline Check
 
 | Red Line | Result |
 |---|---|
-| 🔴 Anti-Format-Corruption：严禁对原始法线矩阵直接 `.astype(np.uint8)` | ✅ 已合规。法线导出走显式 `(N*0.5+0.5)*255` 映射，并由值级测试锁定基准向量输出 |
-| 🔴 Anti-Pipeline-Bleed：核心渲染器内严禁写盘 | ✅ 已合规。PNG/JSON/manifest 写盘全部位于 exporter adapter；渲染核心未引入 `os.makedirs` / `cv2.imwrite` |
-| 🔴 Anti-Hardcoding：严禁 `node["14"]` 一类脆弱寻址 | ✅ 已合规。ComfyUI payload 注入统一走 `class_type + _meta.title` 语义选择器 |
-| 🔴 OOM / latent 对齐风险 | ✅ 已合规。所有导出图像均经过 8-pixel alignment，并把 padding 结果写入 metadata |
-| 🔴 拓扑污染 | ✅ 已合规。新增 dual-control preset 作为外部 JSON 资产落地，注入器不增删节点，只改输入值 |
+| 🔴 Anti-OOM：严禁无上限帧数整段并发推理 | ✅ 已合规。`chunk_size` / `context_window` 都经后端校验并限制在 16；长序列自动切块 |
+| 🔴 Anti-Stdout-Pollution：严禁用普通 `print()` 破坏 CLI IPC | ✅ 已合规。CLI 进度输出显式走 `stderr`；本轮审计未发现新增业务路径向 `stdout` 打印日志 |
+| 🔴 Anti-Async-Deadlock：同步 CLI 与异步客户端边界必须健壮桥接 | ✅ 已合规。CLI 不直接承载异步求解；运行时边界被收敛到客户端/后端内部，先探针后执行，避免同步空转 |
+| 🔴 Anti-Hardcoding：严禁在 payload 扩展中写死脆弱节点 ID | ✅ 已延续合规。序列 payload 仍通过 `ComfyUIPresetManager` 的语义选择器注入，本轮未引入 `node["14"]` 类脆弱寻址 |
+| 🔴 Pipeline Bleed：CLI 不得倒灌业务逻辑 | ✅ 已合规。chunk 计划、payload 组装、输出物化全部在 backend/runtime helper，CLI 只是 driving adapter |
 
-## What Remains for Full Closure
+## What Remains for Production Evidence
 
-`P1-AI-1` 还剩最后一步，即 `P1-AI-1E`：在 maintainer 的 RTX 4070 工作站上做一次真实端到端验证。当前仓库已经具备离线可测的协议闭环，但还没有沉淀**真实权重、真实 ComfyUI runtime、真实显卡、真实输出样片**的运行证据。因此，严格来说，本轮关闭的是**工程接口与导出协议层**，而不是最终生产运行证据层。[5]
+虽然本轮已把**运行时与 CLI 工程闭环**打通，但“生产证据”还差最后一段 maintainer-side 真机执行。原因很简单：当前沙箱没有 maintainer 的 RTX 4070，也没有持续在线、已装权重的真实 ComfyUI 服务，因此无法在这里留下最终的 GPU 耗时、显存峰值和输出样片证据。[5]
 
 | Remaining Item | Why It Still Matters |
 |---|---|
-| 真机 ComfyUI 权重校验 | 需要确认 `control_v11p_sd15_normalbae.pth` 与 `control_v11f1p_sd15_depth.pth` 的实际运行兼容性 |
-| 实际生成画质检查 | 需要观察 Normal / Depth 双导引在本项目像素风格资产上的稳定性与边缘保真 |
-| RTX 4070 性能证据 | 需要记录 batch size、显存占用、单批时长、失败样例与推荐参数 |
-| 真实 artifact 存档 | 需要把输入导引图、工作流 payload、输出样片、运行报告统一存档，形成可回放证据链 |
+| RTX 4070 + 真实 ComfyUI endpoint 跑通一次 `anti_flicker_render` | 需要把当前 live 路径从“工程上可运行”推进到“生产上已留证” |
+| 真实权重与 checkpoint 兼容性记录 | 需要确认 `SparseCtrl`、`AnimateDiff`、`ControlNet` 组合在 maintainer 环境中的实际版本兼容矩阵 |
+| 长序列显存/耗时曲线 | 需要记录 16 帧 chunk 策略在真实 12GB VRAM 设备上的峰值显存与总时长 |
+| 输出样片归档 | 需要把输入 guide、chunk payload、chunk report、最终图像/视频一并存档，形成可回放证据链 |
 
 ## Preparing for `P1-ARCH-5` OpenUSD-Compatible Scene Interchange
 
-现在如果要无缝接入 `P1-ARCH-5`，当前架构**不需要大改**，但需要做几处“先小幅归一化、后再上 USD 序列化”的微调。这些准备工作的核心思想是：先把仓库内部的逻辑 scene contract 稳定为**prim-like typed graph**，再让 USD / USDA / USDC 导出器作为独立 adapter 落在最外层，而不是反过来让业务代码直接长出 USD 专属细节。[4] [5]
+经过 `SESSION-107` 和 `SESSION-108` 两轮之后，项目对接 `P1-ARCH-5` 的前置条件已经更成熟了。上一轮主要解决的是**typed image / sequence artifacts**，这一轮则进一步稳定了**driving adapter 与 machine-readable runtime contract**：现在不仅有单帧/序列 typed manifest，还有了 chunk plan、chunk report、payload path、runtime metadata，以及不被日志污染的 CLI JSON IPC 输出。换句话说，未来 OpenUSD 适配器将面对的，不再是一堆零散文件，而是一组更接近 scene node graph 的 typed objects。[3] [5]
 
 ### 建议的微调准备
 
 | Order | Micro-adjustment | Purpose |
 |---|---|---|
-| 1 | 为 `ArtifactManifest` / `CompositeManifestBuilder` 引入**稳定 prim path 约定** | 例如 `/World/Character/BaseMesh`、`/World/Character/Guides/NormalSequence`，避免后续 USD exporter 只能从文件名反推层级 |
-| 2 | 把“逻辑组合关系”和“具体文件格式序列化”彻底拆开 | 先保持仓库内部是 typed scene graph，随后再新增 `UsdSceneExporter` / `UsdaExporter` 之类的 adapter |
-| 3 | 为单帧图像、帧序列、材质通道建立统一的 relationship 语义 | 例如 `material:normalGuide`、`material:depthGuide`、`sequence:frames`，便于后续映射到 USD relationships / asset paths |
-| 4 | 给序列资产加入稳定 asset identifier | 除磁盘路径外，再给 sequence/bundle 分配逻辑 `asset_id`，让跨目录搬迁不破坏 scene 引用 |
-| 5 | 提前定义 transform / material / guide 三类 schema 边界 | 这样 OpenUSD 导出时可以清楚映射到 `Xform`、`Material`、自定义 guide prim 或 relationship layer |
-| 6 | 保持 adapter-only export 原则 | 渲染器、求解器、导出器仍然各司其职，避免为了 OpenUSD 支持再次把写盘逻辑倒灌回核心引擎 |
+| 1 | 为 manifest 中的主要产物引入稳定 `prim_path` / `node_path` 约定 | 例如 `/World/Character/Temporal/Chunk_0000/Frames`，避免 USD adapter 只能从文件名猜层级 |
+| 2 | 为 `frame_sequence`、`chunk_plan`、`chunk_reports` 增加统一 relationship 语义 | 便于后续映射到 USD relationships，而不是把 JSON 路径当成无语义字符串 |
+| 3 | 给 guide sequence、payload、report 赋予稳定 `asset_id` | 使跨目录移动、缓存或远程同步时仍能保持 scene identity |
+| 4 | 保持 CLI 的 `stdout` 只输出 machine contract | 这样未来 `mathart cli -> usd exporter -> downstream orchestrator` 可以形成稳定的链式 IPC，不会被进度日志击穿 |
+| 5 | 把“运行事件流”和“场景状态快照”继续分层 | `stderr` 保留事件流，manifest/JSON 保留状态快照，未来接入 USD/PDG/Omniverse 时边界会更清楚 |
+| 6 | 新增 adapter-only 的 `UsdSceneExporter` / `UsdaExporter` | 在不污染 render backend 的前提下，把既有 typed manifests 投影为 OpenUSD-compatible scene description |
 
-### 为什么这组微调足够关键
+### 为什么这一轮的 CLI 改造对 OpenUSD 很关键
 
-一旦上述 6 点完成，`P1-ARCH-5` 的实现将会从“重构式改造”下降为“新增序列化 adapter”。届时，无论是基础角色、Ribbon Mesh、Normal/Depth Guide、还是 VHS 图像序列，都可以被统一看作**具备稳定 prim identity、typed outputs、relationship arcs 与 lineage metadata 的场景节点**。这样一来，OpenUSD 兼容层只需要负责把这些节点映射到标准化场景描述，而不是重新发明上游业务对象模型。[4] [5]
+很多团队在走向场景互操作时，会把 CLI 当作“随便打日志的脚本层”，结果导致自动化 orchestrator 很难把 CLI 输出稳定接到 scene ingest pipeline 里。本轮把 `stdout` 与 `stderr` 的职责严格分离，实际上是在为将来的**scene-level IPC**打地基：当 `stdout` 始终是纯净 JSON 时，未来无论是 PDG、Omniverse bridge，还是自定义 scene assembler，都可以把 CLI 当作**可靠的 ports-and-adapters 边界**使用，而不是把它当作一段不可预测的 shell 脚本。[2] [3] [5]
 
 ## Recommended Next Actions
 
 | Order | Task | Purpose |
 |---|---|---|
-| 1 | 执行 `P1-AI-1E` 真机闭环验证 | 在 RTX 4070 上完成真实 ComfyUI / ControlNet 运行，并归档样片与运行证据 |
-| 2 | 为 sequence / material / guide 资产增加稳定 `asset_id` 与 prim path | 给 `P1-ARCH-5` 铺平内部语义层 |
-| 3 | 为 `CompositeManifestBuilder` 增加关系类型枚举 | 让 base mesh、attachment mesh、guide sequence 的组合语义更接近 USD relationship arcs |
-| 4 | 新增 adapter-only 的 OpenUSD exporter 原型 | 在不污染核心渲染器的前提下，把现有 typed manifests 投影到 USD-compatible scene description |
+| 1 | 在 maintainer 的 RTX 4070 环境执行一次真实 `anti_flicker_render` live 路径 | 为 `P1-AI-2C` 增补最终生产证据 |
+| 2 | 给 sequence / chunk / payload / report 统一增加 `asset_id` 与 `prim_path` | 为 `P1-ARCH-5` 铺平内部 scene identity 语义层 |
+| 3 | 为 manifest relationships 增加显式类型枚举 | 让 `guide`、`payload`、`chunk-output`、`final-output` 之间的关系更容易投影到 USD arcs |
+| 4 | 新增 adapter-only 的 OpenUSD exporter 原型 | 在不污染核心运行时的前提下，验证 typed manifests 到 scene description 的 lifting 路径 |
 
 ## References
 
-[1]: https://github.com/lllyasviel/ControlNet-v1-1-nightly/blob/main/README.md "ControlNet 1.1 README"
-[2]: https://github.com/kosinkadink/ComfyUI-VideoHelperSuite "ComfyUI VideoHelperSuite"
-[3]: https://github.com/huggingface/diffusers/blob/main/src/diffusers/image_processor.py "Diffusers image_processor.py"
-[4]: https://rmanwiki-26.pixar.com/space/REN26/19661867 "Pixar RenderMan Output Driver / Display Pipeline Documentation"
+[1]: https://huggingface.co/docs/diffusers/api/pipelines/animatediff "Hugging Face Diffusers AnimateDiff Documentation"
+[2]: https://12factor.net/logs "The Twelve-Factor App — Logs"
+[3]: https://8thlight.com/insights/a-color-coded-guide-to-ports-and-adapters "A Color Coded Guide to Ports and Adapters"
+[4]: ./mathart/comfy_client/comfyui_ws_client.py "ComfyUIClient implementation in repository"
 [5]: ./PROJECT_BRAIN.json "PROJECT_BRAIN.json"

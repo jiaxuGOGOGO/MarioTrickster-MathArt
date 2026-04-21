@@ -41,6 +41,19 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+
+ProgressCallback = Any
+
+
+def _emit_progress(progress_callback: ProgressCallback | None, event: dict[str, Any]) -> None:
+    """Safely emit a progress event to an optional observer callback."""
+    if progress_callback is None:
+        return
+    try:
+        progress_callback(dict(event))
+    except Exception as exc:
+        logger.warning("[ComfyUIClient] Progress callback failed: %s", exc)
+
 logger = logging.getLogger(__name__)
 
 
@@ -185,6 +198,7 @@ class ComfyUIClient:
         *,
         backend_name: str = "comfyui",
         run_label: str = "mathart",
+        progress_callback: ProgressCallback | None = None,
     ) -> "ExecutionResult":
         """Execute a workflow without reintroducing a batch-wide coarse lock.
 
@@ -193,7 +207,11 @@ class ComfyUIClient:
         signature but delegates directly to single-workflow execution.
         """
         _ = backend_name  # kept for backward-compatible call signatures
-        return self.execute_workflow(payload, run_label=run_label)
+        return self.execute_workflow(
+            payload,
+            run_label=run_label,
+            progress_callback=progress_callback,
+        )
 
     def execute_workflow_batch(
         self,
@@ -202,6 +220,7 @@ class ComfyUIClient:
         backend_name: str = "comfyui",
         run_label: str = "mathart",
         poll_safe_point: Any | None = None,
+        progress_callback: ProgressCallback | None = None,
     ) -> list["ExecutionResult"]:
         """Execute a batch of workflows with frame-boundary safe-point polling.
 
@@ -217,6 +236,7 @@ class ComfyUIClient:
                     payload,
                     backend_name=backend_name,
                     run_label=f"{run_label}_{index:04d}",
+                    progress_callback=progress_callback,
                 )
             )
             if poll_safe_point is not None:
@@ -259,6 +279,7 @@ class ComfyUIClient:
         payload: dict[str, Any],
         *,
         run_label: str = "mathart",
+        progress_callback: ProgressCallback | None = None,
     ) -> ExecutionResult:
         """Execute a ComfyUI workflow end-to-end with WebSocket monitoring.
 
@@ -285,6 +306,10 @@ class ComfyUIClient:
         client_id = payload.get("client_id", str(uuid.uuid4()))
 
         if workflow is None:
+            _emit_progress(progress_callback, {
+                "event_type": "client_error",
+                "message": "Payload missing 'prompt' key",
+            })
             return ExecutionResult(
                 success=False,
                 error_message="Payload missing 'prompt' key",
@@ -298,6 +323,11 @@ class ComfyUIClient:
                 "Returning degraded result.",
                 self.server_address,
             )
+            _emit_progress(progress_callback, {
+                "event_type": "offline",
+                "server_address": self.server_address,
+                "message": f"ComfyUI server at {self.server_address} is offline",
+            })
             return ExecutionResult(
                 success=False,
                 degraded=True,
@@ -321,7 +351,11 @@ class ComfyUIClient:
         )
 
         # --- Step 2: WebSocket listen for completion ---
-        ws_result = self._ws_listen_until_complete(client_id, prompt_id)
+        ws_result = self._ws_listen_until_complete(
+            client_id,
+            prompt_id,
+            progress_callback=progress_callback,
+        )
         if ws_result.get("error"):
             return ExecutionResult(
                 success=False,
@@ -430,6 +464,8 @@ class ComfyUIClient:
         self,
         client_id: str,
         prompt_id: str,
+        *,
+        progress_callback: ProgressCallback | None = None,
     ) -> dict[str, Any]:
         """Connect to WebSocket and listen until execution completes.
 
@@ -449,7 +485,12 @@ class ComfyUIClient:
                 "[ComfyUIClient] 'websocket-client' not installed. "
                 "Falling back to HTTP polling."
             )
-            return self._http_poll_until_complete(prompt_id)
+            _emit_progress(progress_callback, {
+                "event_type": "websocket_fallback",
+                "prompt_id": prompt_id,
+                "message": "Falling back to HTTP polling",
+            })
+            return self._http_poll_until_complete(prompt_id, progress_callback=progress_callback)
 
         ws_url = f"ws://{self.server_address}/ws?clientId={client_id}"
         progress_data: dict[str, Any] = {}
@@ -498,6 +539,11 @@ class ComfyUIClient:
                     logger.info(
                         "[ComfyUIClient] Queue remaining: %s", queue_remaining
                     )
+                    _emit_progress(progress_callback, {
+                        "event_type": "status",
+                        "prompt_id": prompt_id,
+                        "queue_remaining": queue_remaining,
+                    })
 
                 elif event_type == "executing":
                     node = data.get("node")
@@ -509,12 +555,21 @@ class ComfyUIClient:
                             "[ComfyUIClient] Execution complete for prompt %s",
                             prompt_id,
                         )
+                        _emit_progress(progress_callback, {
+                            "event_type": "complete",
+                            "prompt_id": prompt_id,
+                        })
                         ws.close()
                         return {"error": None, "progress": progress_data}
                     elif node is not None:
                         logger.info(
                             "[ComfyUIClient] Executing node: %s", node
                         )
+                        _emit_progress(progress_callback, {
+                            "event_type": "executing",
+                            "prompt_id": prompt_id,
+                            "node": node,
+                        })
 
                 elif event_type == "executed":
                     node = data.get("node", "")
@@ -525,6 +580,12 @@ class ComfyUIClient:
                         node,
                         list(output.keys()),
                     )
+                    _emit_progress(progress_callback, {
+                        "event_type": "executed",
+                        "prompt_id": prompt_id,
+                        "node": node,
+                        "output_keys": list(output.keys()),
+                    })
 
                 elif event_type == "progress":
                     value = data.get("value", 0)
@@ -536,6 +597,18 @@ class ComfyUIClient:
                         max_val,
                         node,
                     )
+                    progress_data[f"progress_{node}"] = {
+                        "value": value,
+                        "max": max_val,
+                        "node": node,
+                    }
+                    _emit_progress(progress_callback, {
+                        "event_type": "progress",
+                        "prompt_id": prompt_id,
+                        "node": node,
+                        "value": value,
+                        "max": max_val,
+                    })
 
                 elif event_type == "execution_error":
                     error_msg = data.get("exception_message", "Unknown error")
@@ -545,12 +618,23 @@ class ComfyUIClient:
                         error_node,
                         error_msg,
                     )
+                    _emit_progress(progress_callback, {
+                        "event_type": "execution_error",
+                        "prompt_id": prompt_id,
+                        "node": error_node,
+                        "message": error_msg,
+                    })
                     ws.close()
                     return {
                         "error": f"Execution error in node {error_node}: {error_msg}"
                     }
 
             # Deadline exceeded
+            _emit_progress(progress_callback, {
+                "event_type": "timeout",
+                "prompt_id": prompt_id,
+                "message": f"Execution timed out after {self.max_execution_time}s",
+            })
             ws.close()
             return {"error": f"Execution timed out after {self.max_execution_time}s"}
 
@@ -565,12 +649,19 @@ class ComfyUIClient:
                 "Falling back to HTTP polling.",
                 e,
             )
-            return self._http_poll_until_complete(prompt_id)
+            _emit_progress(progress_callback, {
+                "event_type": "websocket_fallback",
+                "prompt_id": prompt_id,
+                "message": "Falling back to HTTP polling",
+            })
+            return self._http_poll_until_complete(prompt_id, progress_callback=progress_callback)
 
     def _http_poll_until_complete(
         self,
         prompt_id: str,
         poll_interval: float = 2.0,
+        *,
+        progress_callback: ProgressCallback | None = None,
     ) -> dict[str, Any]:
         """Fallback: poll GET /history/{prompt_id} until execution completes.
 
@@ -593,7 +684,17 @@ class ComfyUIClient:
                         )
                         if status in ("success", "error"):
                             if status == "error":
+                                _emit_progress(progress_callback, {
+                                    "event_type": "execution_error",
+                                    "prompt_id": prompt_id,
+                                    "message": "Execution failed (from history poll)",
+                                })
                                 return {"error": "Execution failed (from history poll)"}
+                            _emit_progress(progress_callback, {
+                                "event_type": "complete",
+                                "prompt_id": prompt_id,
+                                "mode": "http_poll",
+                            })
                             return {"error": None, "progress": {}}
             except (
                 ConnectionRefusedError,
@@ -605,6 +706,11 @@ class ComfyUIClient:
 
             time.sleep(poll_interval)
 
+        _emit_progress(progress_callback, {
+            "event_type": "timeout",
+            "prompt_id": prompt_id,
+            "message": f"HTTP polling timed out after {self.max_execution_time}s",
+        })
         return {"error": f"HTTP polling timed out after {self.max_execution_time}s"}
 
     # ------------------------------------------------------------------

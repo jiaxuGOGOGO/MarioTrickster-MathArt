@@ -37,12 +37,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-from mathart.animation.motion_2d_pipeline import Motion2DPipeline
-from mathart.animation.unity_urp_native import (
-    UnityURP2DNativePipelineGenerator,
-    XPBDVATBakeConfig,
-    bake_cloth_vat,
-)
 from mathart.core.backend_registry import (
     BackendCapability,
     BackendMeta,
@@ -86,12 +80,14 @@ class Motion2DBackend:
         return self._backend_meta
 
     def execute(self, context: dict[str, Any]) -> ArtifactManifest:
-        output_dir = Path(context.get("output_dir", "output")).resolve()
+        output_dir = Path(context.get("output_dir", ".")).resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
         stem = context.get("name", "motion_2d")
         gait = str(context.get("gait", "biped_walk"))
         frame_count = int(context.get("frame_count", context.get("n_frames", 24)))
         speed = float(context.get("speed", 1.0))
+
+        from mathart.animation.motion_2d_pipeline import Motion2DPipeline
 
         pipeline = Motion2DPipeline()
         if gait == "quadruped_trot":
@@ -481,6 +477,12 @@ class URP2DBundleBackend:
         return self._backend_meta
 
     def execute(self, context: dict[str, Any]) -> ArtifactManifest:
+        from mathart.animation.unity_urp_native import (
+            UnityURP2DNativePipelineGenerator,
+            XPBDVATBakeConfig,
+            bake_cloth_vat,
+        )
+
         output_dir = Path(context.get("output_dir", "output")).resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
         stem = context.get("name", "urp2d_bundle")
@@ -597,7 +599,7 @@ class DimensionUpliftMeshBackend:
 @register_backend(
     BackendType.ANTI_FLICKER_RENDER,
     display_name="Anti-Flicker Render",
-    version="4.0.0",
+    version="5.0.0",
     artifact_families=(
         ArtifactFamily.ANTI_FLICKER_REPORT.value,
         ArtifactFamily.VFX_FLIPBOOK.value,
@@ -608,17 +610,25 @@ class DimensionUpliftMeshBackend:
     ),
     input_requirements=("source_frames", "guide_channels"),
     dependencies=(BackendType.INDUSTRIAL_SPRITE,),
-    session_origin="SESSION-084",
+    session_origin="SESSION-108",
 )
 class AntiFlickerRenderBackend:
-    """Real anti-flicker temporal rendering backend.
+    """Production anti-flicker backend with optional live ComfyUI execution.
 
-    SESSION-068 upgrades from placeholder to real execution:
-    1. Invokes ``HeadlessNeuralRenderPipeline.run()`` for bake→stylize→propagate.
-    2. Implements ``validate_config()`` for ComfyUI presets and temporal params.
-    3. Emits a ``frame_sequence`` time-series manifest payload inspired by
-       OpenTimelineIO (OTIO) / VFX Reference Platform conventions.
+    SESSION-108 upgrades the backend so that the anti-flicker lane can:
+
+    1. keep the historical offline-safe pipeline for tests and fallback work;
+    2. execute real ComfyUI sequence payloads through ``ComfyUIClient``;
+    3. protect 12GB VRAM machines with explicit chunking when frame counts exceed 16;
+    4. surface progress events upward without polluting stdout.
     """
+
+    MAX_SAFE_CONTEXT_WINDOW = 16
+    DEFAULT_LIVE_PRESET = "sparsectrl_animatediff"
+    SUPPORTED_LIVE_SEQUENCE_PRESETS = {
+        "sparsectrl_animatediff",
+        "normal_depth_dual_controlnet",
+    }
 
     @property
     def name(self) -> str:
@@ -629,20 +639,10 @@ class AntiFlickerRenderBackend:
         return self._backend_meta
 
     def validate_config(self, config: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
-        """Validate and normalize anti-flicker rendering configuration.
-
-        Parses ComfyUI presets, temporal parameters, and identity-lock settings.
-        The CLI bus passes the raw config dict without any inspection.
-
-        Returns
-        -------
-        tuple[dict, list[str]]
-            (validated_config, warnings)
-        """
+        """Validate and normalize anti-flicker rendering configuration."""
         warnings: list[str] = []
         validated = dict(config)
 
-        # --- Temporal namespace ---
         temporal = validated.get("temporal", {})
         if not isinstance(temporal, dict):
             temporal = {}
@@ -659,19 +659,28 @@ class AntiFlickerRenderBackend:
 
         window = int(temporal.get("window", 0))
         temporal["window"] = max(0, window)
+
+        requested_chunk_size = int(temporal.get("chunk_size", self.MAX_SAFE_CONTEXT_WINDOW))
+        if requested_chunk_size < 1:
+            warnings.append("temporal.chunk_size must be >= 1; setting to 1")
+            requested_chunk_size = 1
+        if requested_chunk_size > self.MAX_SAFE_CONTEXT_WINDOW:
+            warnings.append(
+                f"temporal.chunk_size={requested_chunk_size} exceeds 12GB safe limit; clamping to {self.MAX_SAFE_CONTEXT_WINDOW}"
+            )
+            requested_chunk_size = self.MAX_SAFE_CONTEXT_WINDOW
+        temporal["chunk_size"] = requested_chunk_size
+        temporal["chunking_enabled"] = bool(frame_count > requested_chunk_size)
         validated["temporal"] = temporal
 
-        # --- Guides namespace ---
         guides = validated.get("guides", {})
         if not isinstance(guides, dict):
             guides = {}
             warnings.append("guides config must be a dict; using defaults")
-
         for guide_key in ("normal", "depth", "mask", "motion_vector"):
             guides.setdefault(guide_key, True)
         validated["guides"] = guides
 
-        # --- Identity lock namespace ---
         identity_lock = validated.get("identity_lock", {})
         if not isinstance(identity_lock, dict):
             identity_lock = {}
@@ -685,7 +694,6 @@ class AntiFlickerRenderBackend:
         identity_lock.setdefault("enabled", True)
         validated["identity_lock"] = identity_lock
 
-        # --- ComfyUI namespace ---
         comfyui = validated.get("comfyui", {})
         if not isinstance(comfyui, dict):
             comfyui = {}
@@ -696,6 +704,25 @@ class AntiFlickerRenderBackend:
         comfyui.setdefault("negative_prompt", "blurry, low quality, distorted, deformed")
         comfyui.setdefault("controlnet_normal_weight", 1.0)
         comfyui.setdefault("controlnet_depth_weight", 1.0)
+        comfyui.setdefault("denoising_strength", 0.65)
+        comfyui.setdefault("steps", 20)
+        comfyui.setdefault("cfg_scale", 7.5)
+        comfyui.setdefault("keyframe_interval", 4)
+        comfyui.setdefault("normal_controlnet_model", "control_v11p_sd15_normalbae.pth")
+        comfyui.setdefault("depth_controlnet_model", "control_v11f1p_sd15_depth.pth")
+        comfyui.setdefault("sparsectrl_model", "v3_sd15_sparsectrl_rgb.ckpt")
+        comfyui.setdefault("animatediff_model", "v3_sd15_mm.ckpt")
+        comfyui.setdefault("animatediff_beta_schedule", "autoselect")
+        comfyui.setdefault("context_window", min(frame_count, self.MAX_SAFE_CONTEXT_WINDOW))
+        comfyui.setdefault("context_overlap", 4)
+        comfyui.setdefault("sparsectrl_strength", 1.0)
+        comfyui.setdefault("sparsectrl_end_percent", 0.5)
+        comfyui.setdefault("model_checkpoint", "v1-5-pruned-emaonly.safetensors")
+        comfyui.setdefault("live_execution", False)
+        comfyui.setdefault("fail_fast_on_offline", bool(comfyui.get("live_execution", False)))
+        comfyui.setdefault("connect_timeout", 5.0)
+        comfyui.setdefault("ws_timeout", 600.0)
+        comfyui.setdefault("max_execution_time", 1800.0)
 
         cn_normal_w = float(comfyui["controlnet_normal_weight"])
         if cn_normal_w < 0.5:
@@ -708,30 +735,42 @@ class AntiFlickerRenderBackend:
                 f"comfyui.controlnet_depth_weight={cn_depth_w} < 0.5: silhouette may drift"
             )
 
-        comfyui.setdefault("denoising_strength", 0.65)
-        comfyui.setdefault("steps", 20)
-        comfyui.setdefault("cfg_scale", 7.5)
-
         keyframe_interval = int(comfyui.get("keyframe_interval", 4))
         if keyframe_interval < 1:
             warnings.append("comfyui.keyframe_interval must be >= 1; setting to 1")
             keyframe_interval = 1
         comfyui["keyframe_interval"] = keyframe_interval
-        comfyui.setdefault("normal_controlnet_model", "control_v11p_sd15_normalbae.pth")
-        comfyui.setdefault("depth_controlnet_model", "control_v11f1p_sd15_depth.pth")
+
+        context_window = int(comfyui.get("context_window", self.MAX_SAFE_CONTEXT_WINDOW))
+        if context_window < 1:
+            warnings.append("comfyui.context_window must be >= 1; setting to 1")
+            context_window = 1
+        if context_window > self.MAX_SAFE_CONTEXT_WINDOW:
+            warnings.append(
+                f"comfyui.context_window={context_window} exceeds 12GB safe limit; clamping to {self.MAX_SAFE_CONTEXT_WINDOW}"
+            )
+            context_window = self.MAX_SAFE_CONTEXT_WINDOW
+        comfyui["context_window"] = min(context_window, requested_chunk_size)
+
+        overlap = int(comfyui.get("context_overlap", 4))
+        comfyui["context_overlap"] = max(0, min(overlap, max(0, comfyui["context_window"] - 1)))
         validated["comfyui"] = comfyui
 
-        # --- Preset namespace ---
         preset = validated.get("preset", {})
         if not isinstance(preset, dict):
             preset = {}
             warnings.append("preset config must be a dict; using defaults")
-        preset.setdefault("name", comfyui.get("workflow_preset_name", "dual_controlnet_ipadapter"))
+        preset.setdefault(
+            "name",
+            comfyui.get(
+                "workflow_preset_name",
+                self.DEFAULT_LIVE_PRESET if comfyui.get("live_execution", False) else "dual_controlnet_ipadapter",
+            ),
+        )
         preset.setdefault("root", None)
         comfyui["workflow_preset_name"] = preset["name"]
         validated["preset"] = preset
 
-        # --- EbSynth namespace ---
         ebsynth = validated.get("ebsynth", {})
         if not isinstance(ebsynth, dict):
             ebsynth = {}
@@ -743,7 +782,6 @@ class AntiFlickerRenderBackend:
         ebsynth["patch_size"] = patch_size
         validated["ebsynth"] = ebsynth
 
-        # --- Render dimensions ---
         render_width = int(validated.get("width", 64))
         render_height = int(validated.get("height", 64))
         if render_width < 8:
@@ -757,42 +795,17 @@ class AntiFlickerRenderBackend:
 
         return validated, warnings
 
-    def execute(self, context: dict[str, Any]) -> ArtifactManifest:
-        from mathart.animation.skeleton import Skeleton
-        from mathart.animation.parts import CharacterStyle
-        from mathart.animation.presets import idle_animation
-        from mathart.animation.comfyui_preset_manager import ComfyUIPresetManager
-        from mathart.animation.headless_comfy_ebsynth import (
-            HeadlessNeuralRenderPipeline,
-            NeuralRenderConfig,
-        )
+    def _build_neural_config(self, validated: dict[str, Any], output_dir: Path, stem: str) -> Any:
+        from mathart.animation.headless_comfy_ebsynth import NeuralRenderConfig
 
-        validated, warnings = self.validate_config(context)
-        for w in warnings:
-            logger.warning("[anti_flicker_render] config warning: %s", w)
-
-        output_dir = Path(validated.get("output_dir", "output")).resolve()
-        output_dir.mkdir(parents=True, exist_ok=True)
-        stem = validated.get("name", "anti_flicker")
-
-        temporal = validated.get("temporal", {})
-        frame_count = int(temporal.get("frame_count", 8))
-        fps = int(temporal.get("fps", 12))
         comfyui_cfg = validated.get("comfyui", {})
         ebsynth_cfg = validated.get("ebsynth", {})
         identity_cfg = validated.get("identity_lock", {})
         preset_cfg = validated.get("preset", {})
-        render_width = int(validated.get("width", 64))
-        render_height = int(validated.get("height", 64))
-
-        preset_manager = ComfyUIPresetManager(preset_cfg.get("root"))
-        preset_name = str(preset_cfg.get("name", "dual_controlnet_ipadapter"))
-        preset_path = preset_manager.resolve_preset_path(preset_name)
-
-        neural_config = NeuralRenderConfig(
-            comfyui_url=comfyui_cfg.get("url", "http://localhost:8188"),
-            style_prompt=comfyui_cfg.get("style_prompt", "high quality pixel art, detailed shading, game sprite"),
-            negative_prompt=comfyui_cfg.get("negative_prompt", "blurry, low quality, distorted, deformed"),
+        return NeuralRenderConfig(
+            comfyui_url=str(comfyui_cfg.get("url", "http://localhost:8188")),
+            style_prompt=str(comfyui_cfg.get("style_prompt", "high quality pixel art, detailed shading, game sprite")),
+            negative_prompt=str(comfyui_cfg.get("negative_prompt", "blurry, low quality, distorted, deformed")),
             controlnet_normal_weight=float(comfyui_cfg.get("controlnet_normal_weight", 1.0)),
             controlnet_depth_weight=float(comfyui_cfg.get("controlnet_depth_weight", 1.0)),
             use_ip_adapter_identity=bool(identity_cfg.get("enabled", True)),
@@ -803,10 +816,35 @@ class AntiFlickerRenderBackend:
             sd_denoising_strength=float(comfyui_cfg.get("denoising_strength", 0.65)),
             sd_steps=int(comfyui_cfg.get("steps", 20)),
             sd_cfg_scale=float(comfyui_cfg.get("cfg_scale", 7.5)),
-            workflow_preset_name=preset_name,
+            workflow_preset_name=str(preset_cfg.get("name", self.DEFAULT_LIVE_PRESET)),
             output_dir=str(output_dir / stem),
         )
 
+    def _execute_offline_pipeline(self, validated: dict[str, Any]) -> ArtifactManifest:
+        from mathart.animation.skeleton import Skeleton
+        from mathart.animation.parts import CharacterStyle
+        from mathart.animation.presets import idle_animation
+        from mathart.animation.comfyui_preset_manager import ComfyUIPresetManager
+        from mathart.animation.headless_comfy_ebsynth import HeadlessNeuralRenderPipeline
+
+        output_dir = Path(validated.get("output_dir", "output")).resolve()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        stem = validated.get("name", "anti_flicker")
+
+        temporal = validated.get("temporal", {})
+        frame_count = int(temporal.get("frame_count", 8))
+        fps = int(temporal.get("fps", 12))
+        comfyui_cfg = validated.get("comfyui", {})
+        identity_cfg = validated.get("identity_lock", {})
+        preset_cfg = validated.get("preset", {})
+        render_width = int(validated.get("width", 64))
+        render_height = int(validated.get("height", 64))
+
+        preset_manager = ComfyUIPresetManager(preset_cfg.get("root"))
+        preset_name = str(preset_cfg.get("name", "dual_controlnet_ipadapter"))
+        preset_path = preset_manager.resolve_preset_path(preset_name)
+
+        neural_config = self._build_neural_config(validated, output_dir, stem)
         skeleton = Skeleton.create_humanoid()
         style = CharacterStyle()
         pipeline = HeadlessNeuralRenderPipeline(neural_config)
@@ -922,6 +960,7 @@ class AntiFlickerRenderBackend:
             "keyframe_indices": result.keyframe_indices,
             "elapsed_seconds": result.elapsed_seconds,
             "pipeline_metadata": result.to_metadata(),
+            "execution_mode": "offline_pipeline",
         }
         temporal_report_path.write_text(
             json.dumps(temporal_report, ensure_ascii=False, indent=2) + "\n",
@@ -943,11 +982,12 @@ class AntiFlickerRenderBackend:
         return ArtifactManifest(
             artifact_family=ArtifactFamily.ANTI_FLICKER_REPORT.value,
             backend_type=BackendType.ANTI_FLICKER_RENDER,
-            version="4.0.0",
-            session_id=validated.get("session_id", "SESSION-084"),
+            version="5.0.0",
+            session_id=validated.get("session_id", "SESSION-108"),
             outputs=outputs,
             metadata={
                 "strategy": "data_driven_comfyui_preset_injection",
+                "execution_mode": "offline_pipeline",
                 "preset_name": preset_name,
                 "frame_count": len(frame_sequence),
                 "fps": fps,
@@ -979,36 +1019,417 @@ class AntiFlickerRenderBackend:
                 },
             },
             quality_metrics={
-                "temporal_stability_score": float(
-                    result.temporal_metrics.get("temporal_stability_score", 0.0)
-                ),
-                "mean_warp_error": float(
-                    result.temporal_metrics.get("mean_warp_error", 0.0)
-                ),
+                "temporal_stability_score": float(result.temporal_metrics.get("temporal_stability_score", 0.0)),
+                "mean_warp_error": float(result.temporal_metrics.get("mean_warp_error", 0.0)),
                 "frame_count": float(len(frame_sequence)),
-                "keyframe_count": float(len(result.keyframe_indices)),
             },
-            tags=["anti_flicker", "temporal", "comfyui", "preset_factory", "session-084"],
+            references=[
+                str(workflow_path.resolve()),
+                str(workflow_payload_path.resolve()),
+                str(keyframe_plan_path.resolve()),
+                str(temporal_report_path.resolve()),
+            ],
+            tags=["anti_flicker", "comfyui", "ebsynth", preset_name, "offline"],
         )
 
+    def _execute_live_pipeline(self, validated: dict[str, Any]) -> ArtifactManifest:
+        from mathart.animation.frame_sequence_exporter import (
+            FrameSequenceExportConfig,
+            FrameSequenceExporter,
+        )
+        from mathart.animation.headless_comfy_ebsynth import HeadlessNeuralRenderPipeline
+        from mathart.animation.parts import CharacterStyle
+        from mathart.animation.presets import idle_animation
+        from mathart.animation.comfyui_preset_manager import ComfyUIPresetManager
+        from mathart.animation.skeleton import Skeleton
+        from mathart.comfy_client.comfyui_ws_client import ComfyUIClient
+        from mathart.core.anti_flicker_runtime import (
+            export_rgb_sequence,
+            materialize_chunk_outputs,
+            normalize_server_address,
+            pil_sequence_to_alpha_masks,
+            pil_sequence_to_depth_arrays,
+            pil_sequence_to_normal_arrays,
+            plan_frame_chunks,
+        )
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  Remaining backends (unchanged from SESSION-066/067)
-# ═══════════════════════════════════════════════════════════════════════════
+        output_dir = Path(validated.get("output_dir", "output")).resolve()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        stem = str(validated.get("name", "anti_flicker"))
+        temporal = validated.get("temporal", {})
+        comfyui_cfg = validated.get("comfyui", {})
+        preset_cfg = validated.get("preset", {})
+        identity_cfg = validated.get("identity_lock", {})
 
+        frame_count = int(temporal.get("frame_count", 8))
+        fps = int(temporal.get("fps", 12))
+        chunk_size = int(temporal.get("chunk_size", self.MAX_SAFE_CONTEXT_WINDOW))
+        render_width = int(validated.get("width", 64))
+        render_height = int(validated.get("height", 64))
+        progress_callback = validated.get("_progress_callback")
 
-@register_backend(
-    BackendType.WFC_TILEMAP,
-    display_name="WFC Tilemap Generator",
-    version="1.0.0",
-    artifact_families=(
-        ArtifactFamily.LEVEL_TILEMAP.value,
-        ArtifactFamily.LEVEL_WFC.value,
-    ),
-    capabilities=(BackendCapability.LEVEL_EXPORT,),
-    input_requirements=("tile_rules", "level_params"),
-    session_origin="SESSION-064",
-)
+        def emit_backend_progress(event: dict[str, Any]) -> None:
+            if callable(progress_callback):
+                try:
+                    progress_callback(dict(event))
+                except Exception as exc:
+                    logger.warning("[anti_flicker_render] progress callback failed: %s", exc)
+
+        preset_name = str(preset_cfg.get("name", self.DEFAULT_LIVE_PRESET))
+        if preset_name not in self.SUPPORTED_LIVE_SEQUENCE_PRESETS:
+            logger.warning(
+                "[anti_flicker_render] preset '%s' is not sequence-aware; switching to '%s'",
+                preset_name,
+                self.DEFAULT_LIVE_PRESET,
+            )
+            preset_name = self.DEFAULT_LIVE_PRESET
+
+        preset_manager = ComfyUIPresetManager(preset_cfg.get("root"))
+        preset_path = preset_manager.resolve_preset_path(preset_name)
+        server_address = normalize_server_address(str(comfyui_cfg.get("url", "http://localhost:8188")))
+        client = ComfyUIClient(
+            server_address=server_address,
+            output_root=output_dir / f"{stem}_comfyui_downloads",
+            connect_timeout=float(comfyui_cfg.get("connect_timeout", 5.0)),
+            ws_timeout=float(comfyui_cfg.get("ws_timeout", 600.0)),
+            max_execution_time=float(comfyui_cfg.get("max_execution_time", 1800.0)),
+        )
+
+        if bool(comfyui_cfg.get("fail_fast_on_offline", True)) and not client.is_server_online():
+            raise RuntimeError(
+                f"ComfyUI server at {server_address} is offline; live anti-flicker execution aborted before rendering"
+            )
+
+        emit_backend_progress({
+            "event_type": "prepare",
+            "message": "Baking source, normal, depth, mask, and motion guides",
+            "server_address": server_address,
+        })
+
+        neural_config = self._build_neural_config(validated, output_dir, stem)
+        skeleton = Skeleton.create_humanoid()
+        style = CharacterStyle()
+        pipeline = HeadlessNeuralRenderPipeline(neural_config)
+        source_frames, normal_maps, depth_maps, mask_maps, mv_sequence = pipeline.bake_auxiliary_maps(
+            skeleton=skeleton,
+            animation_func=idle_animation,
+            style=style,
+            frames=frame_count,
+            width=render_width,
+            height=render_height,
+        )
+        keyframe_plan = pipeline.plan_keyframes(source_frames, mask_maps, mv_sequence)
+        keyframe_indices = list(getattr(keyframe_plan, "indices", []))
+
+        guide_output_dir = output_dir / f"{stem}_guides"
+        guide_output_dir.mkdir(parents=True, exist_ok=True)
+        frame_output_dir = output_dir / f"{stem}_frames"
+        runtime_dir = output_dir / f"{stem}_runtime"
+        payload_dir = runtime_dir / "payloads"
+        report_dir = runtime_dir / "chunk_reports"
+        payload_dir.mkdir(parents=True, exist_ok=True)
+        report_dir.mkdir(parents=True, exist_ok=True)
+
+        sequence_exporter = FrameSequenceExporter(
+            FrameSequenceExportConfig(
+                align_to=8,
+                fps=fps,
+                session_id=str(validated.get("session_id", "SESSION-108")),
+            )
+        )
+
+        coverage_masks = pil_sequence_to_alpha_masks(source_frames)
+        normal_arrays = pil_sequence_to_normal_arrays(normal_maps)
+        depth_arrays = pil_sequence_to_depth_arrays(depth_maps)
+        chunk_plan = plan_frame_chunks(frame_count, chunk_size)
+        chunk_payload_paths: list[str] = []
+        chunk_report_paths: list[str] = []
+        final_frame_paths: list[str] = []
+        final_video_paths: list[str] = []
+        total_elapsed = 0.0
+
+        for chunk in chunk_plan:
+            emit_backend_progress({
+                "event_type": "chunk_start",
+                **chunk.to_dict(),
+                "chunk_count": len(chunk_plan),
+            })
+            chunk_label = f"chunk_{chunk.chunk_index:04d}"
+            chunk_root = guide_output_dir / chunk_label
+            chunk_root.mkdir(parents=True, exist_ok=True)
+            subset_slice = slice(chunk.start_frame, chunk.end_frame + 1)
+
+            normal_result = sequence_exporter.export_normal_sequence(
+                normal_arrays[subset_slice],
+                output_dir=chunk_root,
+                sequence_name=f"{stem}_{chunk_label}",
+                coverage_masks=coverage_masks[subset_slice],
+                lineage={
+                    "backend": self.name,
+                    "chunk": chunk.to_dict(),
+                },
+            )
+            depth_result = sequence_exporter.export_depth_sequence(
+                depth_arrays[subset_slice],
+                output_dir=chunk_root,
+                sequence_name=f"{stem}_{chunk_label}",
+                coverage_masks=coverage_masks[subset_slice],
+                invert_polarity=True,
+                lineage={
+                    "backend": self.name,
+                    "chunk": chunk.to_dict(),
+                },
+            )
+            rgb_result = export_rgb_sequence(
+                source_frames[subset_slice],
+                output_dir=chunk_root,
+                sequence_name=f"{stem}_{chunk_label}",
+                fps=fps,
+                align_to=8,
+                session_id=str(validated.get("session_id", "SESSION-108")),
+            )
+
+            payload = preset_manager.assemble_sequence_payload(
+                preset_name=preset_name,
+                normal_sequence_dir=normal_result.sequence_dir,
+                depth_sequence_dir=depth_result.sequence_dir,
+                rgb_sequence_dir=rgb_result.sequence_dir if preset_name == "sparsectrl_animatediff" else None,
+                prompt=str(comfyui_cfg.get("style_prompt", "high quality pixel art, detailed shading, game sprite")),
+                negative_prompt=str(comfyui_cfg.get("negative_prompt", "blurry, low quality, distorted, deformed")),
+                normal_controlnet_name=str(comfyui_cfg.get("normal_controlnet_model", "control_v11p_sd15_normalbae.pth")),
+                depth_controlnet_name=str(comfyui_cfg.get("depth_controlnet_model", "control_v11f1p_sd15_depth.pth")),
+                sparsectrl_model_name=str(comfyui_cfg.get("sparsectrl_model", "v3_sd15_sparsectrl_rgb.ckpt")),
+                sparsectrl_strength=float(comfyui_cfg.get("sparsectrl_strength", 1.0)),
+                sparsectrl_end_percent=float(comfyui_cfg.get("sparsectrl_end_percent", 0.5)),
+                animatediff_model_name=str(comfyui_cfg.get("animatediff_model", "v3_sd15_mm.ckpt")),
+                animatediff_beta_schedule=str(comfyui_cfg.get("animatediff_beta_schedule", "autoselect")),
+                model_checkpoint=str(comfyui_cfg.get("model_checkpoint", "v1-5-pruned-emaonly.safetensors")),
+                frame_count=chunk.frame_count,
+                context_length=min(int(comfyui_cfg.get("context_window", self.MAX_SAFE_CONTEXT_WINDOW)), chunk.frame_count),
+                context_overlap=min(int(comfyui_cfg.get("context_overlap", 4)), max(0, chunk.frame_count - 1)),
+                frame_rate=fps,
+                width=rgb_result.padded_width,
+                height=rgb_result.padded_height,
+                steps=int(comfyui_cfg.get("steps", 20)),
+                cfg_scale=float(comfyui_cfg.get("cfg_scale", 7.5)),
+                denoising_strength=float(comfyui_cfg.get("denoising_strength", 1.0)),
+                normal_weight=float(comfyui_cfg.get("controlnet_normal_weight", 1.0)),
+                depth_weight=float(comfyui_cfg.get("controlnet_depth_weight", 1.0)),
+                filename_prefix=f"{stem}_{chunk_label}",
+            )
+            payload_path = payload_dir / f"{chunk_label}_workflow_payload.json"
+            payload_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            chunk_payload_paths.append(str(payload_path.resolve()))
+
+            def chunk_progress(event: dict[str, Any], *, _chunk=chunk) -> None:
+                emit_backend_progress({
+                    **event,
+                    **_chunk.to_dict(),
+                    "chunk_count": len(chunk_plan),
+                })
+
+            execution_result = client.execute_workflow(
+                payload,
+                run_label=f"{stem}_{chunk_label}",
+                progress_callback=chunk_progress,
+            )
+            total_elapsed += float(execution_result.elapsed_seconds)
+            if not execution_result.success:
+                message = execution_result.error_message or execution_result.degraded_reason or "Unknown ComfyUI execution failure"
+                raise RuntimeError(f"Chunk {chunk.chunk_index} failed: {message}")
+
+            materialized = materialize_chunk_outputs(
+                image_paths=execution_result.output_images,
+                video_paths=execution_result.output_videos,
+                output_dir=frame_output_dir,
+                start_index=len(final_frame_paths),
+            )
+            final_frame_paths.extend(str(path.resolve()) for path in materialized.frame_paths)
+            final_video_paths.extend(str(path.resolve()) for path in materialized.video_paths)
+
+            chunk_report = {
+                **chunk.to_dict(),
+                "chunk_count": len(chunk_plan),
+                "payload_path": str(payload_path.resolve()),
+                "preset_name": preset_name,
+                "sequence_directories": {
+                    "normal": str(normal_result.sequence_dir),
+                    "depth": str(depth_result.sequence_dir),
+                    **({"rgb": str(rgb_result.sequence_dir)} if preset_name == "sparsectrl_animatediff" else {}),
+                },
+                "execution_result": execution_result.to_dict(),
+                "node_progress": execution_result.node_progress,
+                "materialized_frame_paths": [str(path.resolve()) for path in materialized.frame_paths],
+                "materialized_video_paths": [str(path.resolve()) for path in materialized.video_paths],
+            }
+            chunk_report_path = report_dir / f"{chunk_label}_report.json"
+            chunk_report_path.write_text(json.dumps(chunk_report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            chunk_report_paths.append(str(chunk_report_path.resolve()))
+            emit_backend_progress({
+                "event_type": "chunk_complete",
+                **chunk.to_dict(),
+                "chunk_count": len(chunk_plan),
+                "downloaded_frame_count": len(materialized.frame_paths),
+            })
+
+        if not final_frame_paths and not final_video_paths:
+            raise RuntimeError("Live anti-flicker execution completed but produced no downloadable outputs")
+
+        preset_asset_path = output_dir / f"{stem}_preset.workflow_api.json"
+        preset_asset_path.write_text(preset_path.read_text(encoding="utf-8"), encoding="utf-8")
+        workflow_path = output_dir / f"{stem}_workflow_manifest.json"
+        workflow_payload_path = output_dir / f"{stem}_workflow_payload.json"
+        keyframe_plan_path = output_dir / f"{stem}_keyframe_plan.json"
+        temporal_report_path = output_dir / f"{stem}_temporal_report.json"
+
+        workflow_manifest = {
+            "execution_mode": "live_comfyui_chunked",
+            "server_address": server_address,
+            "preset_name": preset_name,
+            "chunk_plan": [chunk.to_dict() for chunk in chunk_plan],
+            "chunk_reports": chunk_report_paths,
+            "payload_paths": chunk_payload_paths,
+            "frame_count_requested": frame_count,
+            "frame_count_materialized": len(final_frame_paths),
+            "video_count_materialized": len(final_video_paths),
+            "fail_fast_on_offline": bool(comfyui_cfg.get("fail_fast_on_offline", True)),
+        }
+        workflow_path.write_text(json.dumps(workflow_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        workflow_payload_summary = {
+            "preset_name": preset_name,
+            "payload_paths": chunk_payload_paths,
+            "chunk_plan": [chunk.to_dict() for chunk in chunk_plan],
+        }
+        workflow_payload_path.write_text(json.dumps(workflow_payload_summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+        kp_data = keyframe_plan.to_dict() if keyframe_plan is not None else {}
+        keyframe_plan_path.write_text(json.dumps(kp_data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+        keyframe_set = set(keyframe_indices)
+        frame_sequence = [
+            {
+                "frame_index": index,
+                "path": path,
+                "role": "keyframe" if index in keyframe_set else "propagated",
+                "temporal_coherence_score": 1.0,
+            }
+            for index, path in enumerate(final_frame_paths)
+        ]
+        time_range = {
+            "start_frame": 0,
+            "end_frame": len(frame_sequence) - 1,
+            "fps": fps,
+            "total_frames": len(frame_sequence),
+        }
+        guides_locked = ["normal", "depth"]
+        if preset_name == "sparsectrl_animatediff":
+            guides_locked.append("sparsectrl_rgb")
+
+        temporal_report = {
+            "preset_name": preset_name,
+            "preset_asset_path": str(preset_asset_path.resolve()),
+            "workflow_payload_path": str(workflow_payload_path.resolve()),
+            "workflow_manifest_path": str(workflow_path.resolve()),
+            "frame_count_requested": frame_count,
+            "frame_count_materialized": len(frame_sequence),
+            "fps": fps,
+            "keyframe_indices": keyframe_indices,
+            "elapsed_seconds": total_elapsed,
+            "chunk_count": len(chunk_plan),
+            "chunk_size": chunk_size,
+            "chunk_reports": chunk_report_paths,
+            "execution_mode": "live_comfyui_chunked",
+        }
+        temporal_report_path.write_text(json.dumps(temporal_report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+        outputs: dict[str, str] = {
+            "workflow": str(workflow_path.resolve()),
+            "workflow_payload": str(workflow_payload_path.resolve()),
+            "preset_asset": str(preset_asset_path.resolve()),
+            "keyframe_plan": str(keyframe_plan_path.resolve()),
+            "temporal_report": str(temporal_report_path.resolve()),
+            "frame_directory": str(frame_output_dir.resolve()),
+            "guide_directory": str(guide_output_dir.resolve()),
+            "chunk_reports_directory": str(report_dir.resolve()),
+        }
+        for entry in frame_sequence:
+            outputs[f"frame_{entry['frame_index']:04d}"] = entry["path"]
+        for index, video_path in enumerate(final_video_paths):
+            outputs[f"video_{index:04d}"] = video_path
+
+        return ArtifactManifest(
+            artifact_family=ArtifactFamily.ANTI_FLICKER_REPORT.value,
+            backend_type=BackendType.ANTI_FLICKER_RENDER,
+            version="5.0.0",
+            session_id=validated.get("session_id", "SESSION-108"),
+            outputs=outputs,
+            metadata={
+                "strategy": "comfyui_client_chunked_sequence_runtime",
+                "execution_mode": "live_comfyui_chunked",
+                "preset_name": preset_name,
+                "frame_count": len(frame_sequence),
+                "requested_frame_count": frame_count,
+                "fps": fps,
+                "keyframe_count": len(keyframe_indices),
+                "guides_locked": guides_locked,
+                "identity_lock_enabled": bool(identity_cfg.get("enabled", True)),
+                "guide_channels": [
+                    ch for ch, enabled in validated.get("guides", {}).items() if enabled
+                ],
+                "keyframe_interval": int(comfyui_cfg.get("keyframe_interval", 4)),
+                "lane": "temporal_consistency",
+                "preset_asset_path": str(preset_asset_path.resolve()),
+                "assembled_workflow_node_count": 0,
+                "temporal_metrics": {
+                    "chunk_count": len(chunk_plan),
+                    "aggregate_elapsed_seconds": total_elapsed,
+                    "downloaded_video_count": len(final_video_paths),
+                },
+                "keyframe_indices": keyframe_indices,
+                "identity_lock": {
+                    "enabled": bool(identity_cfg.get("enabled", True)),
+                    "weight": float(identity_cfg.get("weight", 0.85)),
+                },
+                "time_range": time_range,
+                "comfyui_server_address": server_address,
+                "chunking": {
+                    "enabled": len(chunk_plan) > 1,
+                    "chunk_size": chunk_size,
+                    "context_window": int(comfyui_cfg.get("context_window", self.MAX_SAFE_CONTEXT_WINDOW)),
+                    "context_overlap": int(comfyui_cfg.get("context_overlap", 4)),
+                    "chunk_plan": [chunk.to_dict() for chunk in chunk_plan],
+                },
+                "payload": {
+                    "frame_sequence": frame_sequence,
+                    "time_range": time_range,
+                    "keyframe_plan": kp_data,
+                    "workflow_manifest_path": str(workflow_path.resolve()),
+                    "workflow_payload_path": str(workflow_payload_path.resolve()),
+                    "preset_asset_path": str(preset_asset_path.resolve()),
+                    "lock_manifest": {
+                        "controlnet_guides": guides_locked,
+                        "chunk_plan": [chunk.to_dict() for chunk in chunk_plan],
+                        "payload_paths": chunk_payload_paths,
+                    },
+                },
+            },
+            quality_metrics={
+                "frame_count": float(len(frame_sequence)),
+                "chunk_count": float(len(chunk_plan)),
+                "chunk_size": float(chunk_size),
+            },
+            references=chunk_report_paths + chunk_payload_paths,
+            tags=["anti_flicker", "comfyui", "chunked", preset_name, "live"],
+        )
+
+    def execute(self, context: dict[str, Any]) -> ArtifactManifest:
+        validated, warnings = self.validate_config(context)
+        for w in warnings:
+            logger.warning("[anti_flicker_render] config warning: %s", w)
+
+        if bool(validated.get("comfyui", {}).get("live_execution", False)):
+            return self._execute_live_pipeline(validated)
+        return self._execute_offline_pipeline(validated)
 class WFCTilemapBackend:
     @property
     def name(self) -> str:

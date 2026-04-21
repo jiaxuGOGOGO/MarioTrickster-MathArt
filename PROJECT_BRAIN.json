@@ -1,7 +1,7 @@
 {
   "version": "v0.93.0",
-  "last_session_id": "SESSION-106",
-  "last_updated": "2026-04-21T12:00:00+08:00",
+  "last_session_id": "SESSION-108",
+  "last_updated": "2026-04-21",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -78,7 +78,7 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-106 CLOSES P1-B1-1: Physical Ribbon Mesh Extraction from secondary animation chains. Project transitions from bottom-layer scheduling into visible art asset production. PhysicalRibbonExtractor (6-stage pipeline: Catmull-Rom → TBN frame → width extrusion → triangle strip → GGXrd normal injection → UV generation) + PhysicalRibbonBackend (@register_backend plugin) + compose_character_with_attachments() (OpenUSD Composition Arcs). Next: P1-AI-1 bridge to ComfyUI/ControlNet with NormalMapExporter + DepthMapExporter.",
+  "current_focus": "P1-AI-2C / anti_flicker_render live runtime closure: 16-frame chunking, fast-fail ComfyUI probe, and stdout-safe CLI adapter",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research_notes_session091.md",
@@ -241,12 +241,12 @@
       "id": "P1-AI-2C",
       "priority": "P1",
       "title": "Expose Phase 2 anti-flicker visual pipeline through CLI / AssetPipeline",
-      "status": "SUBSTANTIALLY-CLOSED",
-      "estimated_effort": "medium",
-      "description": "SUBSTANTIALLY CLOSED in SESSION-068. AntiFlickerRenderBackend now executes the real HeadlessNeuralRenderPipeline (ComfyUI workflow build + EbSynth temporal propagation), produces OTIO-inspired frame_sequence time-series with per-frame path/role/temporal_coherence_score, keyframe plans, temporal reports, and workflow manifests. Backend-owned validate_config() normalizes temporal parameters, EbSynth patch size, and ComfyUI settings. IPC payload promotes frame_sequence + time_range to top-level envelope. 9/9 E2E subprocess tests PASS. Remaining: real ComfyUI runtime with GPU, production preset packs (P1-AI-2D).",
+      "status": "CLOSED",
+      "estimated_effort": "completed",
+      "description": "CLOSED in SESSION-108. anti_flicker_render is now exposed through a first-class CLI adapter and a live ComfyUI execution path inside the backend. The runtime performs explicit ComfyUI online probing before render start, fails fast when the endpoint is offline, enforces a 16-frame safe context window / chunk_size clamp for 12GB VRAM class GPUs, surfaces progress via stderr-only callbacks, and preserves stdout as pure JSON IPC manifest output. Targeted local verification covers chunk planning, context clamping, offline fast-fail, chunked materialization, and CLI stdout/stderr separation. Remaining production evidence is maintainer-side RTX 4070 + real ComfyUI/weight execution capture.",
       "added_in": "SESSION-060",
-      "updated_in": "SESSION-068",
-      "completed_in": "SESSION-068"
+      "updated_in": "SESSION-108",
+      "completed_in": "SESSION-108"
     },
     {
       "id": "P1-AI-2D",
@@ -296,9 +296,9 @@
       "title": "OpenUSD-compatible scene interchange",
       "status": "TODO",
       "estimated_effort": "high",
-      "description": "Extend the lightweight scene description into layered composition and export/import compatible serialization. SESSION-106 introduced CompositeManifestBuilder and attachment composition. SESSION-107 prepared the next step by normalizing image/sequence artifacts into typed single-frame and image-sequence manifests with explicit lineage, which can now be lifted into an OpenUSD-compatible scene graph by adding stable prim paths, relationship arcs, variant-set semantics, and adapter-owned usd/usda exporters.",
-      "updated_in": "SESSION-107",
-      "notes": "Recommended micro-adjustments before implementation: (1) promote artifact outputs to canonical prim-style paths, (2) split logical scene composition from file-format serialization, (3) assign stable asset identifiers for frame sequences and material channels, (4) define transform/material/guide prim schemas, and (5) preserve adapter-only export so render cores remain disk-agnostic."
+      "description": "Extend the lightweight scene description into layered composition and export/import compatible serialization. SESSION-106 introduced CompositeManifestBuilder and attachment composition. SESSION-107 normalized single-frame and image-sequence artifacts with explicit lineage. SESSION-108 further hardened the driving-adapter layer by making anti_flicker_render emit stdout-safe JSON manifests while routing runtime progress strictly to stderr, and by centralizing chunk plans / sequence payloads as explicit machine-readable metadata. The next OpenUSD step can now focus on stable prim paths, relationship arcs, variant-set semantics, asset identifiers, and adapter-owned usd/usda exporters without reworking CLI/runtime boundaries.",
+      "updated_in": "SESSION-108",
+      "notes": "Recommended micro-adjustments before implementation: (1) promote artifact outputs to canonical prim-style paths, (2) split logical scene composition from file-format serialization, (3) assign stable asset identifiers for frame sequences and material channels, (4) define transform/material/guide prim schemas, (5) preserve adapter-only export so render cores remain disk-agnostic, and (6) keep CLI stdout as pure scene/manifest IPC while human-readable runtime telemetry stays on stderr."
     },
     {
       "id": "P1-ARCH-6",
@@ -2070,6 +2070,12 @@
       "title": "Full-suite CI bootstrap hardening for optional dependencies and registry restoration",
       "completed_in": "SESSION-098",
       "result": "Introduced tests/conftest.py with session-scoped autouse registry bootstrap fixture and restore_builtin_backends() helper. Fixed registry teardown in 3 test files, gated Taichi/watchdog with importorskip/skipif, fixed orthographic_pixel_backend manifest schema compliance, and aligned unity_urp_native bridge key assertions. Baseline 68 FAIL reduced to 0 FAIL across 82 verifiable test files (1652+ PASS, 9 SKIP)."
+    },
+    {
+      "id": "P1-AI-2C",
+      "title": "Expose Phase 2 anti-flicker visual pipeline through CLI / AssetPipeline",
+      "completed_in": "SESSION-108",
+      "priority": "P1"
     }
   ],
   "capability_gaps": [
@@ -2437,6 +2443,18 @@
         "P1-ARCH-5: extend the stabilized PDG + GPU substrate toward OpenUSD-compatible scene interchange",
         "P1-B1-1: convert Jakobsen secondary-chain output into visible renderable ribbon/mesh attachments with file-backed artifacts"
       ]
+    },
+    {
+      "session_id": "SESSION-108",
+      "date": "2026-04-21",
+      "focus": "P1-AI-2C / anti_flicker_render live ComfyUI runtime closure, 16-frame safety chunking, and stdout-safe CLI exposure",
+      "status": "COMPLETE",
+      "summary": "Closed the remaining engineering gap around P1-AI-2C by wiring anti_flicker_render to a real ComfyUI runtime path guarded by an explicit endpoint probe, 16-frame chunk planning for 12GB VRAM safety, stderr-only progress callbacks, and a first-class CLI command that preserves stdout as JSON IPC only. The backend now materializes chunk payloads/reports as typed artifacts while remaining offline-testable in this sandbox. Local targeted verification: 5 PASS / 0 FAIL.",
+      "top_gaps": [
+        "P1-AI-2C-HW: run the new live anti_flicker_render path against the maintainer's RTX 4070 + real ComfyUI endpoint to archive production evidence",
+        "P1-ARCH-5: extend typed manifests and chunk metadata into OpenUSD-compatible scene interchange with stable prim paths and relationships",
+        "P1-AI-2E: extend motion-adaptive keyframe planning to high-nonlinearity action segments"
+      ]
     }
   ],
   "custom_notes": {
@@ -2774,6 +2792,32 @@
       "date": "2026-04-20",
       "title": "Genotype Hard-Clipping Boundary Closure & Extreme Mutation Stress Validation",
       "summary": "Closed HIGH-2.3 by refactoring mathart/animation/genotype.py around a declared continuous-domain contract, a unified enforce_genotype_bounds() hard-clipping pass, and deterministic extreme-strength mutation tests that assert every continuous gene remains inside bounds under ±1e6 mutation pressure. Verified downstream AssetPipeline genotype E2E regressions."
+    },
+    {
+      "session_id": "SESSION-108",
+      "date": "2026-04-21",
+      "focus": "P1-AI-2C: live anti_flicker_render runtime, 16-frame chunking, fast-fail probing, and stdout-safe CLI adapter",
+      "changes": [
+        "NEW mathart/core/anti_flicker_runtime.py — chunk planner, server-address normalization, RGB/normal/depth sequence export helpers, and chunk output materialization utilities",
+        "UPD mathart/comfy_client/comfyui_ws_client.py — add optional progress_callback plumbing so runtime progress can be surfaced without polluting stdout",
+        "REWRITE mathart/core/builtin_backends.py — AntiFlickerRenderBackend v5 with live/offline split, ComfyUI probe fast-fail, 16-frame chunk clamping, typed chunk reports, and machine-readable runtime metadata",
+        "REWRITE mathart/cli.py — add first-class anti_flicker_render command, stderr progress adapter, and strict stdout JSON IPC discipline",
+        "UPD mathart/core/builtin_backends.py — move optional heavy animation/unity dependencies behind local imports so anti-flicker tests do not fail during collection",
+        "NEW tests/test_p1_ai_2c_anti_flicker_live_cli.py — targeted coverage for chunk planning, context clamp, offline fast-fail, live chunk materialization, and stdout/stderr separation",
+        "NEW research/session108_p1_ai_2c_external_notes.md — AnimateDiff context windowing, Twelve-Factor logs, and Ports & Adapters rationale distilled for implementation",
+        "UPD PROJECT_BRAIN.json + SESSION_HANDOFF.md — close P1-AI-2C, capture validation evidence, and record OpenUSD-ready CLI guidance"
+      ],
+      "files_touched": [
+        "mathart/core/anti_flicker_runtime.py",
+        "mathart/comfy_client/comfyui_ws_client.py",
+        "mathart/core/builtin_backends.py",
+        "mathart/cli.py",
+        "tests/test_p1_ai_2c_anti_flicker_live_cli.py",
+        "research/session108_p1_ai_2c_external_notes.md",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
+      ],
+      "test_results": "5 PASS / 0 FAIL (pytest -q tests/test_p1_ai_2c_anti_flicker_live_cli.py)"
     }
   ],
   "closed_tasks_archive": [
@@ -3181,6 +3225,12 @@
       "completed_in": "SESSION-106",
       "title": "Physical Ribbon Mesh Extraction from secondary animation chain snapshots",
       "summary": "PhysicalRibbonExtractor (600+ lines) converts Jakobsen/XPBD secondary chain snapshots into real 3D Ribbon Mesh geometry via 6-stage pipeline: Catmull-Rom C1 interpolation, TBN frame construction (UE5 Niagara Ribbon pattern), width extrusion with taper, triangle strip indexing (double-sided), GGXrd capsule-proxy normal injection, arc-length UV generation. PhysicalRibbonBackend self-registers via @register_backend (BackendType.PHYSICAL_RIBBON, ArtifactFamily.MESH_OBJ). compose_character_with_attachments() implements Pixar OpenUSD Composition Arcs pattern via CompositeManifestBuilder. 45/45 white-box tests. Research: UE5 Niagara Ribbon Data Interface, Catmull-Rom (1974), Guilty Gear Xrd GDC 2015, Pixar OpenUSD Composition Arcs, Dead Cells GDC 2018."
+    },
+    {
+      "id": "P1-AI-2C",
+      "completed_in": "SESSION-108",
+      "title": "Live anti-flicker runtime closure with CLI-safe IPC discipline",
+      "summary": "Landed anti_flicker_render live ComfyUI runtime support with explicit endpoint fast-fail, 16-frame chunking for 12GB VRAM safety, chunk payload/report materialization, stderr-only progress callbacks, and a first-class CLI command that keeps stdout strictly JSON IPC. Verification: 5 targeted tests PASS in sandbox; maintainer-side RTX 4070 real endpoint evidence remains the next hardware validation step."
     }
   ],
   "session_log": [
@@ -3505,6 +3555,13 @@
         "PROJECT_BRAIN.json"
       ],
       "test_results": "5 PASS / 0 SKIP / 0 FAIL (python3.11 -m pytest -q tests/test_p1_ai_1_controlnet_bridge.py)"
+    },
+    {
+      "session_id": "SESSION-108",
+      "date": "2026-04-21",
+      "focus": "P1-AI-2C / live anti_flicker_render closure",
+      "status": "COMPLETE",
+      "summary": "AntiFlickerRenderBackend now supports live ComfyUI execution with explicit online probe, 16-frame safety chunking, chunk payload/report persistence, and CLI stderr progress routing while stdout remains machine-parseable JSON only. Offline-safe targeted verification passed 5/5."
     }
   ],
   "resolved_issues": [
