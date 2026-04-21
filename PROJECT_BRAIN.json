@@ -1,7 +1,7 @@
 {
-  "version": "v0.95.0",
-  "last_session_id": "SESSION-118",
-  "last_updated": "2026-04-21T07:37:16Z",
+  "version": "v0.95.1",
+  "last_session_id": "SESSION-119",
+  "last_updated": "2026-04-21T08:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -514,9 +514,11 @@
       "id": "P1-NEW-2",
       "priority": "P1",
       "title": "Reaction-diffusion textures",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "Add Gray-Scott reaction-diffusion for organic textures."
+      "description": "Add Gray-Scott reaction-diffusion for organic textures.",
+      "closed_in": "SESSION-119",
+      "closure_notes": "SESSION-119 delivers a fully tensorized Gray-Scott PDE solver (mathart/texture/reaction_diffusion.py) driven by the canonical Karl Sims 3x3 Laplacian stencil and Pearson xmorphia preset library (CORAL, MITOSIS, MAZE, SPOTS, ALIEN_SKIN, FLOW). The accompanying ReactionDiffusionBackend (mathart/core/reaction_diffusion_backend.py) self-registers via @register_backend, validates its own configuration, and emits a strongly-typed MATERIAL_BUNDLE ArtifactManifest with albedo/normal/height/mask PBR channels plus a raw fields.npz provenance archive. Hot path is 100% vectorized via scipy.ndimage.convolve(mode='wrap') — zero Python per-pixel loops, CFL-clamped dt, and np.clip-guarded bounds keep U,V in [0,1] indefinitely. Derived normal maps are unit-length within float32 precision and textures tile seamlessly under periodic boundaries. Advection hook (advection_field, advection_scheme) is reserved on GrayScottSolverConfig to cleanly absorb P1-RESEARCH-30C thermodynamic coupling in a future session. 43/43 targeted white-box tests PASS (tests/test_reaction_diffusion.py) covering AST loop guards, stencil math, CFL stability, seamless wrap, PBR unit-length normals, preset library, encoders, backend registration, and end-to-end manifest contract."
     },
     {
       "id": "P1-NEW-8",

@@ -51,6 +51,7 @@ _BUILTIN_BACKEND_MODULES = [
     "mathart.core.rl_training_backend",
     "mathart.core.orthographic_pixel_backend",
     "mathart.core.pseudo3d_shell_backend",
+    "mathart.core.reaction_diffusion_backend",
 ]
 
 

@@ -730,6 +730,13 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.pseudo3d_shell_backend")
         except Exception as e:
             logger.debug("Failed to auto-load pseudo 3D shell backend: %s", e)
+        # SESSION-119 (P1-NEW-2): Tensorized Gray-Scott reaction-diffusion
+        # organic texture backend.  Self-registers via @register_backend and
+        # emits MATERIAL_BUNDLE artifacts with PBR channel semantics.
+        try:
+            importlib.import_module("mathart.core.reaction_diffusion_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load reaction diffusion backend: %s", e)
     return registry
 
 

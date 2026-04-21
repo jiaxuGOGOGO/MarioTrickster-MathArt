@@ -85,6 +85,10 @@ class BackendType(str, Enum):
     # SESSION-118 (P1-HUMAN-31C): Pseudo-3D paper-doll / mesh-shell
     # deformation backend using tensorized dual quaternion skinning.
     PSEUDO_3D_SHELL = "pseudo_3d_shell"
+    # SESSION-119 (P1-NEW-2): Tensorized Gray-Scott reaction-diffusion
+    # organic texture backend (Karl Sims / Pearson xmorphia).  Produces
+    # MATERIAL_BUNDLE artifacts with albedo/normal/height/mask channels.
+    REACTION_DIFFUSION = "reaction_diffusion"
 
 
 _BACKEND_ALIASES: dict[str, str] = {
@@ -200,6 +204,12 @@ _BACKEND_ALIASES: dict[str, str] = {
     "paper_doll_shell": BackendType.PSEUDO_3D_SHELL.value,
     "dqs_mesh_shell": BackendType.PSEUDO_3D_SHELL.value,
     "mesh_shell_dqs": BackendType.PSEUDO_3D_SHELL.value,
+    # SESSION-119 (P1-NEW-2): Reaction-diffusion texture backend aliases
+    BackendType.REACTION_DIFFUSION.value: BackendType.REACTION_DIFFUSION.value,
+    "gray_scott": BackendType.REACTION_DIFFUSION.value,
+    "reaction_diffusion_texture": BackendType.REACTION_DIFFUSION.value,
+    "organic_texture": BackendType.REACTION_DIFFUSION.value,
+    "turing_pattern": BackendType.REACTION_DIFFUSION.value,
 }
 
 
