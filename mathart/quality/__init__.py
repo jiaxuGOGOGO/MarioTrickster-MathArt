@@ -19,6 +19,16 @@ not just passive filters at the end.
 """
 from mathart.quality.controller import ArtMathQualityController
 from mathart.quality.checkpoint import QualityCheckpoint, CheckpointResult
+# SESSION-120 (P1-NEW-8): Microsecond-level mid-generation branch-pruning gates.
+from mathart.quality.mid_generation_checkpoint import (
+    CheckpointVerdict,
+    MidGenerationCheckpoint,
+    SkeletonProportionGate,
+    NumericalToxinGate,
+    QualityCheckpointNode,
+    DEFAULT_SKELETON_PROPORTION_BOUNDS,
+    DEFAULT_PROPORTION_RATIO_GUARDS,
+)
 # SESSION-055: Multi-modal visual fitness scoring
 from mathart.quality.visual_fitness import (
     VisualFitnessConfig,
@@ -34,6 +44,14 @@ from mathart.quality.visual_fitness import (
 
 __all__ = [
     "ArtMathQualityController", "QualityCheckpoint", "CheckpointResult",
+    # SESSION-120 (P1-NEW-8): Mid-generation quality checkpoint filter suite.
+    "CheckpointVerdict",
+    "MidGenerationCheckpoint",
+    "SkeletonProportionGate",
+    "NumericalToxinGate",
+    "QualityCheckpointNode",
+    "DEFAULT_SKELETON_PROPORTION_BOUNDS",
+    "DEFAULT_PROPORTION_RATIO_GUARDS",
     # SESSION-055: Multi-modal visual fitness scoring
     "VisualFitnessConfig",
     "VisualFitnessResult",

@@ -34,6 +34,83 @@ class PDGError(RuntimeError):
     """Raised when the graph is invalid or execution fails."""
 
 
+class WorkItemState(str, Enum):
+    """Runtime cook state of a PDG work item.
+
+    Follows the Houdini PDG/TOPs vocabulary (``pdg.workItemState``):
+      * ``COOKED_SUCCESS``: node operation ran and produced items.
+      * ``COOKED_CANCEL``: node operation raised :class:`EarlyRejectionError`
+        and was gracefully cancelled by the scheduler (no items, no bug).
+      * ``COOKED_FAIL``: node operation raised an unexpected exception.
+      * ``SKIPPED``: node was never invoked because an upstream dependency
+        cancelled or failed (zero-cost downstream pruning).
+    """
+
+    COOKED_SUCCESS = "cooked_success"
+    COOKED_CANCEL = "cooked_cancel"
+    COOKED_FAIL = "cooked_fail"
+    SKIPPED = "skipped"
+
+
+class EarlyRejectionError(Exception):
+    """Typed cancellation signal for PDG branch pruning.
+
+    Raised from inside a ``MidGenerationCheckpoint`` (or any PDG node operation
+    that wants to opt into the fast-path short-circuit) to tell the PDG v2
+    scheduler that the currently executing work item is *semantically invalid*
+    (not buggy) and every transitively downstream node MUST be marked
+    :attr:`WorkItemState.SKIPPED` without being executed.
+
+    The scheduler translates this exception into ``COOKED_CANCEL`` state plus
+    a structured ``prune_reason`` entry in the trace. Generic exceptions
+    (``TypeError``, ``IndexError`` …) are *never* caught by this mechanism;
+    they still bubble out as :class:`PDGError` so real bugs stay visible
+    (Anti-Silent-Swallow guard).
+
+    Attributes
+    ----------
+    prune_reason:
+        Short machine-readable code (e.g. ``"skeleton_proportion_inverted"``).
+    source_node:
+        Name of the PDG node that issued the rejection. Populated by the
+        scheduler when empty.
+    diagnostics:
+        Free-form JSON-serialisable payload describing *why* the candidate
+        failed. Used downstream by evolutionary fitness to compute a structured
+        penalty score.
+    fitness_penalty:
+        Optional scalar ∈ [0, 1] suggesting how severely the candidate should
+        be penalised. ``None`` means "let the caller decide".
+    """
+
+    def __init__(
+        self,
+        prune_reason: str,
+        *,
+        source_node: str = "",
+        diagnostics: Optional[dict[str, Any]] = None,
+        fitness_penalty: Optional[float] = None,
+        message: str = "",
+    ) -> None:
+        self.prune_reason = str(prune_reason)
+        self.source_node = str(source_node)
+        self.diagnostics = dict(diagnostics or {})
+        self.fitness_penalty = (
+            float(fitness_penalty) if fitness_penalty is not None else None
+        )
+        base_message = message or f"early_rejection: {self.prune_reason}"
+        super().__init__(base_message)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "prune_reason": self.prune_reason,
+            "source_node": self.source_node,
+            "diagnostics": dict(self.diagnostics),
+            "fitness_penalty": self.fitness_penalty,
+            "message": str(self),
+        }
+
+
 @dataclass(frozen=True)
 class PDGFanOutItem:
     """One child work item emitted by a fan-out execution."""
@@ -156,6 +233,11 @@ class PDGTraceEntry:
     upstream_item_ids: list[str] = field(default_factory=list)
     requires_gpu: bool = False
     resource_wait_ms: float = 0.0
+    state: str = WorkItemState.COOKED_SUCCESS.value
+    prune_reason: Optional[str] = None
+    pruned_by: Optional[str] = None
+    rejection_diagnostics: Optional[dict[str, Any]] = None
+    fitness_penalty: Optional[float] = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -172,6 +254,15 @@ class PDGTraceEntry:
             "upstream_item_ids": list(self.upstream_item_ids),
             "requires_gpu": self.requires_gpu,
             "resource_wait_ms": round(self.resource_wait_ms, 3),
+            "state": self.state,
+            "prune_reason": self.prune_reason,
+            "pruned_by": self.pruned_by,
+            "rejection_diagnostics": (
+                dict(self.rejection_diagnostics)
+                if self.rejection_diagnostics is not None
+                else None
+            ),
+            "fitness_penalty": self.fitness_penalty,
         }
 
 
@@ -379,6 +470,10 @@ class _PDGv2RuntimeFacade:
         self._gpu_state_lock = threading.Lock()
         self._gpu_inflight = 0
         self._gpu_max_inflight = 0
+        # SESSION-120 (P1-NEW-8): structured branch-pruning ledger.
+        self._node_states: dict[str, str] = {}
+        self._rejections: list[dict[str, Any]] = []
+        self._skipped_nodes: list[dict[str, Any]] = []
 
     def run(
         self,
@@ -393,17 +488,52 @@ class _PDGv2RuntimeFacade:
         self._cache_misses = 0
 
         order = self.graph.execution_order(targets)
+        downstream_map = self._compute_downstream_map(order)
         for name in order:
             node = self.graph._nodes[name]
+            # SESSION-120 (P1-NEW-8): honour upstream cancellation — if any
+            # dependency was cancelled or already skipped, this node must be
+            # marked SKIPPED with ZERO operation invocation.
+            upstream_block = self._upstream_block_reason(node)
+            if upstream_block is not None:
+                self._record_skip_trace(node, reason=upstream_block)
+                self._results[name] = []
+                self._node_states[name] = WorkItemState.SKIPPED.value
+                self._context[name] = _legacy_context_value([])
+                continue
+
             if node.topology == "collect":
                 self._results[name] = self._execute_collect_node(node)
             else:
                 self._results[name] = self._execute_task_node(node)
+            # Re-read state from trace: if the task node raised
+            # EarlyRejectionError, _execute_task_node records COOKED_CANCEL
+            # via the trace entry and returns an empty item list.
+            state = self._node_states.get(name)
+            if state is None:
+                self._node_states[name] = WorkItemState.COOKED_SUCCESS.value
             self._context[name] = _legacy_context_value(self._results[name])
 
         requested = targets or order[-1:]
         results = {name: _legacy_context_value(self._results[name]) for name in order}
         target_outputs = {name: results[name] for name in requested}
+        node_states = {
+            name: self._node_states.get(name, WorkItemState.COOKED_SUCCESS.value)
+            for name in order
+        }
+        pruning_report = {
+            "rejections": [dict(entry) for entry in self._rejections],
+            "skipped_nodes": [dict(entry) for entry in self._skipped_nodes],
+            "cancelled_count": sum(
+                1 for state in node_states.values()
+                if state == WorkItemState.COOKED_CANCEL.value
+            ),
+            "skipped_count": sum(
+                1 for state in node_states.values()
+                if state == WorkItemState.SKIPPED.value
+            ),
+            "gpu_inflight_after_run": self._gpu_inflight,
+        }
         return {
             "graph_name": self.graph.name,
             "runtime_version": "pdg_v2",
@@ -428,20 +558,193 @@ class _PDGv2RuntimeFacade:
                     "topology": self.graph._nodes[name].topology,
                     "work_items": len(self._results[name]),
                     "partition_keys": [item.partition_key for item in self._results[name]],
+                    "state": node_states[name],
                 }
                 for name in order
             },
+            "node_states": node_states,
+            "pruning_report": pruning_report,
         }
+
+    # ── SESSION-120 (P1-NEW-8): branch-pruning helpers ────────────────────
+
+    def _compute_downstream_map(self, order: list[str]) -> dict[str, set[str]]:
+        """Build an adjacency map of transitive downstream dependents.
+
+        Pure topology analysis, no I/O. Used purely for diagnostic purposes
+        when emitting SKIPPED traces; the actual dependency check is performed
+        lazily per-node via :meth:`_upstream_block_reason` so the order of
+        execution remains correct even in the presence of mixed topologies.
+        """
+        downstream: dict[str, set[str]] = {name: set() for name in order}
+        for name in order:
+            for dep in self.graph._nodes[name].dependencies:
+                if dep in downstream:
+                    downstream[dep].add(name)
+        # Close transitively.
+        for name in reversed(order):
+            accumulated = set(downstream[name])
+            for child in list(downstream[name]):
+                accumulated |= downstream.get(child, set())
+            downstream[name] = accumulated
+        return downstream
+
+    def _upstream_block_reason(self, node: PDGNode) -> Optional[dict[str, Any]]:
+        """Return the reason why a node MUST be SKIPPED, or ``None`` to run.
+
+        A node is blocked when *any* of its direct dependencies landed in a
+        non-success terminal state (``COOKED_CANCEL`` or ``SKIPPED``). We
+        propagate the earliest upstream ``prune_reason`` so the full chain of
+        skip events points back to the original rejection.
+        """
+        for dep in node.dependencies:
+            dep_state = self._node_states.get(dep)
+            if dep_state in (
+                WorkItemState.COOKED_CANCEL.value,
+                WorkItemState.SKIPPED.value,
+            ):
+                # Prefer the rejection that originated this chain.
+                originating = next(
+                    (
+                        entry for entry in self._rejections
+                        if entry.get("source_node") == dep
+                    ),
+                    None,
+                )
+                if originating is None:
+                    # If the immediate dep was itself skipped, look up its
+                    # recorded skip reason.
+                    skip_entry = next(
+                        (
+                            entry for entry in self._skipped_nodes
+                            if entry.get("node") == dep
+                        ),
+                        None,
+                    )
+                    if skip_entry is not None:
+                        originating = {
+                            "source_node": skip_entry.get("reason", {}).get("source_node", dep),
+                            "prune_reason": skip_entry.get("reason", {}).get("prune_reason", "upstream_skipped"),
+                            "diagnostics": skip_entry.get("reason", {}).get("diagnostics", {}),
+                            "fitness_penalty": skip_entry.get("reason", {}).get("fitness_penalty"),
+                        }
+                if originating is None:
+                    originating = {
+                        "source_node": dep,
+                        "prune_reason": "upstream_skipped",
+                        "diagnostics": {},
+                        "fitness_penalty": None,
+                    }
+                return {
+                    "blocking_dependency": dep,
+                    "source_node": originating.get("source_node", dep),
+                    "prune_reason": originating.get("prune_reason", "upstream_skipped"),
+                    "diagnostics": dict(originating.get("diagnostics", {})),
+                    "fitness_penalty": originating.get("fitness_penalty"),
+                }
+        return None
+
+    def _record_skip_trace(self, node: PDGNode, *, reason: dict[str, Any]) -> None:
+        """Append a zero-cost SKIPPED trace entry and ledger record."""
+        self._trace.append(
+            PDGTraceEntry(
+                node_name=node.name,
+                dependencies=list(node.dependencies),
+                duration_ms=0.0,
+                output_keys=[],
+                item_id="",
+                partition_key=None,
+                cache_key=None,
+                cache_hit=False,
+                topology=node.topology,
+                parent_ids=[],
+                upstream_item_ids=[],
+                requires_gpu=node.requires_gpu,
+                resource_wait_ms=0.0,
+                state=WorkItemState.SKIPPED.value,
+                prune_reason=reason.get("prune_reason"),
+                pruned_by=reason.get("source_node"),
+                rejection_diagnostics=dict(reason.get("diagnostics", {})),
+                fitness_penalty=reason.get("fitness_penalty"),
+            )
+        )
+        self._skipped_nodes.append({"node": node.name, "reason": dict(reason)})
+
+    def _record_rejection(
+        self,
+        node: PDGNode,
+        error: EarlyRejectionError,
+        *,
+        duration_ms: float,
+        resource_wait_ms: float,
+        partition_key: Optional[str],
+        upstream_item_ids: tuple[str, ...],
+    ) -> None:
+        if not error.source_node:
+            error.source_node = node.name
+        self._node_states[node.name] = WorkItemState.COOKED_CANCEL.value
+        self._rejections.append(
+            {
+                "source_node": error.source_node or node.name,
+                "prune_reason": error.prune_reason,
+                "diagnostics": dict(error.diagnostics),
+                "fitness_penalty": error.fitness_penalty,
+                "message": str(error),
+            }
+        )
+        self._trace.append(
+            PDGTraceEntry(
+                node_name=node.name,
+                dependencies=list(node.dependencies),
+                duration_ms=duration_ms,
+                output_keys=[],
+                item_id="",
+                partition_key=partition_key,
+                cache_key=None,
+                cache_hit=False,
+                topology=node.topology,
+                parent_ids=[],
+                upstream_item_ids=list(upstream_item_ids),
+                requires_gpu=node.requires_gpu,
+                resource_wait_ms=resource_wait_ms,
+                state=WorkItemState.COOKED_CANCEL.value,
+                prune_reason=error.prune_reason,
+                pruned_by=error.source_node or node.name,
+                rejection_diagnostics=dict(error.diagnostics),
+                fitness_penalty=error.fitness_penalty,
+            )
+        )
+
+    # ── End SESSION-120 helpers ──────────────────────────────────────────
 
     def _execute_task_node(self, node: PDGNode) -> list[WorkItem]:
         invocations = self._build_mapped_invocations(node)
-        if len(invocations) <= 1 or self.graph.max_workers <= 1:
-            execution_results = [
-                self._execute_invocation(node, invocation, invocation_index=index)
-                for index, invocation in enumerate(invocations)
-            ]
-        else:
-            execution_results = self._execute_task_invocations_concurrently(node, invocations)
+        try:
+            if len(invocations) <= 1 or self.graph.max_workers <= 1:
+                execution_results = [
+                    self._execute_invocation(node, invocation, invocation_index=index)
+                    for index, invocation in enumerate(invocations)
+                ]
+            else:
+                execution_results = self._execute_task_invocations_concurrently(node, invocations)
+        except EarlyRejectionError as rejection:
+            # One of the invocations decided to abort. Record a single
+            # cancellation trace and leave every other invocation untouched
+            # (there are no in-flight invocations because the concurrent
+            # executor has already drained pending futures via
+            # FIRST_COMPLETED + result()).
+            representative = invocations[0] if invocations else _Invocation(
+                partition_key=None, dependencies={}
+            )
+            self._record_rejection(
+                node,
+                rejection,
+                duration_ms=0.0,
+                resource_wait_ms=0.0,
+                partition_key=representative.partition_key,
+                upstream_item_ids=representative.upstream_item_ids,
+            )
+            return []
 
         produced: list[WorkItem] = []
         for execution in execution_results:
@@ -596,24 +899,58 @@ class _PDGv2RuntimeFacade:
         in_flight: dict[Any, int] = {}
         next_index = 0
         max_workers = min(self.graph.max_workers, max(1, len(invocations)))
+        pending_rejection: Optional[EarlyRejectionError] = None
 
         with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix=f"pdg-{node.name}") as executor:
-            while next_index < len(invocations) or in_flight:
-                while next_index < len(invocations) and len(in_flight) < max_workers:
-                    future = executor.submit(
-                        self._execute_invocation,
-                        node,
-                        invocations[next_index],
-                        invocation_index=next_index,
+            try:
+                while next_index < len(invocations) or in_flight:
+                    if pending_rejection is None:
+                        while (
+                            next_index < len(invocations)
+                            and len(in_flight) < max_workers
+                        ):
+                            future = executor.submit(
+                                self._execute_invocation,
+                                node,
+                                invocations[next_index],
+                                invocation_index=next_index,
+                            )
+                            in_flight[future] = next_index
+                            next_index += 1
+                    if not in_flight:
+                        break
+                    done, _pending = wait(
+                        tuple(in_flight.keys()), return_when=FIRST_COMPLETED
                     )
-                    in_flight[future] = next_index
-                    next_index += 1
+                    for future in done:
+                        index = in_flight.pop(future)
+                        try:
+                            ordered_results[index] = future.result()
+                        except EarlyRejectionError as rejection:
+                            # Capture the rejection and stop submitting new
+                            # invocations, but continue draining the futures
+                            # already in flight so their GPU semaphores get
+                            # released via their own finally: blocks.
+                            if pending_rejection is None:
+                                pending_rejection = rejection
+            finally:
+                if pending_rejection is not None:
+                    # Drain remaining in-flight futures to guarantee resource
+                    # release; ignore their outcomes because the node is now
+                    # semantically cancelled.
+                    for future in list(in_flight.keys()):
+                        try:
+                            future.result()
+                        except EarlyRejectionError:
+                            pass
+                        except Exception:
+                            # Re-raise unexpected bugs after draining.
+                            raise
+                        finally:
+                            in_flight.pop(future, None)
 
-                done, _pending = wait(tuple(in_flight.keys()), return_when=FIRST_COMPLETED)
-                for future in done:
-                    index = in_flight.pop(future)
-                    ordered_results[index] = future.result()
-
+        if pending_rejection is not None:
+            raise pending_rejection
         return [ordered_results[index] for index in range(len(invocations))]
 
     def _build_mapped_invocations(self, node: PDGNode) -> list[_Invocation]:

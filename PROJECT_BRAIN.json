@@ -1,7 +1,7 @@
 {
-  "version": "v0.95.1",
-  "last_session_id": "SESSION-119",
-  "last_updated": "2026-04-21T08:00:00Z",
+  "version": "v0.95.2",
+  "last_session_id": "SESSION-120",
+  "last_updated": "2026-04-21T09:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -524,9 +524,11 @@
       "id": "P1-NEW-8",
       "priority": "P1",
       "title": "Quality checkpoint mid-generation",
-      "status": "TODO",
+      "status": "CLOSED",
       "estimated_effort": "low",
-      "description": "Wire ArtMathQualityController mid-generation checkpoint into longer searches."
+      "description": "Wire ArtMathQualityController mid-generation checkpoint into longer searches.",
+      "closed_in": "SESSION-120",
+      "closure_notes": "SESSION-120 implements a microsecond-level MidGenerationCheckpoint filter suite (SkeletonProportionGate, NumericalToxinGate) and upgrades the PDG v2 scheduler to support EarlyRejectionError branch pruning. Failing checkpoints emit COOKED_CANCEL state and propagate SKIPPED status to all transitive downstream dependencies, bypassing expensive GPU nodes (e.g. physics, rendering) at zero cost. The scheduler's thread pool executor was fortified to guarantee GPU semaphore release (finally block) even when a concurrent invocation aborts mid-flight. 23/23 rigorous concurrency and white-box tests pass, validating JSON trace serialization, latency budgets (<5ms), exact style bound mirrors, and anti-silent-swallow guards."
     },
     {
       "id": "P1-NEW-9C",
