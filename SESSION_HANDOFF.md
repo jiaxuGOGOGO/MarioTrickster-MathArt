@@ -1,115 +1,25 @@
-# SESSION-137 交接文档
+# SESSION-138 Handoff: Knowledge QA Gate & Quarantine Architecture
 
-**致下一位操作者：** 当前仓库已经完成一轮关键的 **HITL（Human-in-the-Loop）边界硬化**。这意味着系统在遇到操作系统权限、GPU/CUDA 前置条件、网络代理/镜像、以及杀毒软件误报等“自动化不应越权”的场景时，不再继续盲目推进，也不再把底层异常原样抛给最终用户，而是开始以**有边界的自动化**、**可操作的人工接管选项**、以及**最小惊讶原则**为约束来组织启动与恢复流程。
+## 1. What Was Accomplished
+- **Four-Dimensional Sandbox Validator**: Implemented `mathart.distill.sandbox_validator.SandboxValidator` to act as a pre-merge gate for all LLM-distilled knowledge.
+  - **Provenance**: Enforces a strict `source_quote` contract. Rules without verbatim evidence are rejected as hallucinations.
+  - **AST Firewall**: Parses `constraint.expr` using `ast.parse(mode="eval")` and strictly whitelists pure math operations and functions. Blocks all RCE vectors (`__import__`, `eval`, attribute access).
+  - **Math Fuzzing**: Evaluates expressions against `[0, -1, 1, 1e-6, 1e6, inf, -inf, nan]` to catch `ZeroDivisionError`, `OverflowError`, and unexpected `NaN`/`Inf` from finite inputs.
+  - **Physics Dry-Run**: Runs a 100-step spring-damper integrator to catch runaway stiffness or negative mass.
+  - **Timeout**: Enforces a hard 3-second watchdog budget per rule.
+- **Dual-Track Directory Discipline**: 
+  - `knowledge/quarantine/`: The landing zone for raw, unvalidated LLM output.
+  - `knowledge/active/`: The safe store for rules that have passed the sandbox. The runtime bus (`RuntimeDistillationBus`) now exclusively reads from `active/`.
+- **GitOps Proposal-Branch Flow**: Hardened `GitAgent` to refuse direct pushes to `main` or `master`. It now defaults to creating timestamped `knowledge-proposal/distill-*` branches and short-circuits if the sandbox validator reports any failures.
+- **Cloud Distill Prompt Update**: Updated `tools/PROMPTS/manus_cloud_distill.md` to explicitly document the SESSION-138 provenance contract, the `source_quote` requirement, and the quarantine/active directory split.
+- **End-to-End Tests**: Added `tests/test_sandbox_validator.py` with comprehensive coverage of all toxin types and architectural constraints. All tests pass.
 
-本轮工作的核心价值，不是新增一个孤立功能点，而是把项目从“工程师可以理解的失败”向“非技术创作者也能被温和接住的失败”推进了一大步。仓库现在已经具备四道真正可交付的护城河：**UAC / Symlink 权限边界拦截**、**GPU/CUDA 模式感知阻断**、**网络超时熔断并交还控制权**、以及**Defender 白名单人工指引前置提示**。
+## 2. Architectural Boundaries & Constraints
+- **Isolation**: The sandbox validator is pure CPU and has zero dependency on the `AssetPipeline`. It lives entirely within the `mathart/distill/` outer loop.
+- **No Direct Promotion**: Automation agents are forbidden from manually moving files from `quarantine/` to `active/`. They must use `SandboxValidator.promote_rule()`.
+- **No Direct Push**: Automation agents are forbidden from pushing to `main` or `master`. They must use `GitAgent.sync_knowledge(proposal_branch=True)`.
 
-| 维度 | 本轮落地结果 | 交付意义 |
-|---|---|---|
-| 人工干预契约 | `mathart/workspace/hitl_boundary.py` | 用强类型 `ManualInterventionRequiredError` 统一表达“必须交还给人类”的边界 |
-| 标准化菜单组件 | `mathart/cli_wizard.py` | 所有人工干预分支统一走标准菜单与文本提示组件，避免野生 `print()/input()` 分裂 |
-| 大文件软链接权限边界 | `mathart/workspace/asset_injector.py` | Windows 权限不足且涉及大文件时，不再静默复制占满磁盘，而是先征求用户明确同意 |
-| 网络熔断与恢复 | `mathart/workspace/atomic_downloader.py` + `idempotent_surgeon.py` | 连续超时后不再无限重试，而是引导用户配置代理或切换镜像 |
-| GPU/CUDA 阻断 | `mathart/workspace/preflight_radar.py` + `mode_dispatcher.py` | 需要 GPU 的生产模式在启动前先做硬件预检，不满足条件时阻断并引导降级 |
-| 防病毒预警 | `mathart/cli_wizard.py` | 首次进入向导时先给出 Defender 白名单参考命令，但绝不代替用户执行系统级操作 |
-| 回归验证 | `tests/test_hitl_boundary_gateway.py` | 锁定 WinError 1314 与 HTTP Timeout 两类死锁场景，确保系统不崩溃、不越权、不静默复制 |
-
-## 1. 本轮 SESSION-137 已完成内容
-
-本轮工作的目标不是“让自动化更激进”，而是让自动化知道**什么时候必须停下**。仓库现在已经把“物理或权限边界”提升为一等公民，而不再把这类失败当成普通异常处理。这一点对于未来面向 Windows 小白创作者交付，属于基础设施级别的质量跃迁。
-
-首先，针对 **Windows 符号链接权限问题**，资产注入器现在能够识别典型的 `WinError 1314` / 权限拒绝情形。当待处理资产达到“大文件复制风险阈值”时，流程会立即抛出 `ManualInterventionRequiredError`，并把选择权交给标准向导菜单。用户可以选择“以管理员身份重试”“启用开发者模式 / 符号链接权限”“明确同意执行全量复制”或“直接退出”。这避免了过去最危险的一类隐式行为：在用户毫不知情的情况下把数百 MB 甚至数 GB 模型静默复制到磁盘。
-
-其次，针对 **网络超时与受限网络环境**，下载器已经从“重试优先”升级为“熔断优先”。当下载连续超时达到阈值后，系统不会继续 `while True` 式地打满网络，而是进入标准化人工接管路径。装配器会通过向导提示用户配置本地代理，或切换 Hugging Face 镜像端点，并把这些配置仅保存在本地受 `.gitignore` 保护的运行时配置文件中。这样做既维持了自动恢复能力，也守住了“不能把失控重试伪装成可靠性”的底线。
-
-再次，针对 **GPU / CUDA 前置条件**，生产模式已经不再假设硬件一定可用。模式分发器在真正执行生产渲染前，会调用预检雷达完成一次模式感知扫描。如果当前会话要求 GPU，而机器没有可用 NVIDIA/CUDA 环境，或显存低于建议值，流程会返回阻断态并建议切换到 `dry_run` 等安全路径。这样做的意义在于：用户得到的是“你当前为什么不能运行生产模式，以及下一步该做什么”，而不是一串只有工程师才看得懂的导入错误或运行时堆栈。
-
-最后，针对 **Windows Defender / 杀毒误报**，CLI 顶层向导现在会在欢迎阶段主动展示项目目录与 ComfyUI 目录的白名单说明，并输出可复制的 PowerShell 参考命令。但这只是“明确的人类可执行指引”，而不是“程序替用户越权修改系统设置”。这条边界非常关键，因为它决定了本项目在安全性和产品信任上是成熟的，还是粗暴的。
-
-## 2. 外部研究如何约束了本次实现
-
-本轮代码不是仅凭仓库内部习惯拍脑袋落地，而是明确对齐了外部工业界与学术界资料。正式研究摘要已经落在 `docs/research/SESSION-137-HITL-BOUNDARY-RESEARCH.md`，原始摘录在 `docs/research/SESSION-137-HITL-BOUNDARY-RESEARCH-NOTES.md`。
-
-| 研究来源 | 被转化成的工程约束 |
-|---|---|
-| NASA HITL / graceful degradation 资料 | 遇到物理或权限边界时，自动化必须停下并给出人工接管选项，而不是继续假装自己能解决一切 |
-| Microsoft 符号链接权限文档 | Windows 下符号链接是明确受权限控制的能力，不能把失败偷偷改写为大体量复制 |
-| Python `urllib` 代理行为文档 | 代理恢复应优先复用环境变量语义，避免自造不透明网络栈 |
-| Microsoft Defender 官方文档 | 白名单应由用户手工确认并执行，程序只能提供可审计的参考命令 |
-| NVIDIA CUDA Windows 安装文档 | 需要 GPU 的路径必须把 CUDA-capable GPU、驱动、显存视为显式前置条件 |
-| bounded autonomy / human takeover 研究 | 自动化必须知道边界在哪里，且在交棒时提供对人类真正有帮助的选项与解释 |
-
-## 3. 当前验证状态
-
-本轮改造已经完成本地定向验证，并且验证结果为绿色。这里最重要的不是“测试数量”，而是测试覆盖到了过去最容易演变成灾难性 UX 的两类边界：**权限失败导致的静默大文件复制**，以及**网络受限环境下的无限超时重试**。
-
-| 验证项 | 结果 |
-|---|---|
-| `tests/test_hitl_boundary_gateway.py` | **2/2 PASS** |
-| `tests/test_dual_wizard_dispatcher.py` | **4/4 PASS** |
-| `tests/test_preflight_radar.py` | **17/17 PASS** |
-| `tests/test_idempotent_surgeon.py` | **22/22 PASS** |
-| 本轮定向验证总计 | **45/45 PASS** |
-
-这些测试已经明确锁定以下红线：当模拟 `WinError 1314` 且资产属于大文件时，系统必须抛出 `ManualInterventionRequiredError`，并且绝不能擅自调用复制落盘；当网络请求连续发生 `HTTP Timeout` 时，系统必须在有界重试后熔断并交还控制权，而不是崩溃，也不是无限循环。
-
-## 4. 对外可宣称的当前系统边界
-
-经过本轮加固后，本项目已经可以更有底气地对外宣称：它不是“无论如何都强行自动化”的工具，而是“在边界清晰的前提下尽量自动化”的工具。这种定位对于非技术创作者反而更安全，因为系统不再在他们不理解的地方做不可逆动作。
-
-| 场景 | 当前系统行为 | 是否允许自动越权 |
-|---|---|---|
-| Windows 无软链接权限且资产很大 | 中断自动化，展示人工干预菜单 | **否** |
-| GPU 模式但无 CUDA / 驱动 / 显存不足 | 启动前阻断并建议降级模式 | **否** |
-| 网络连续超时 | 有界重试后熔断，并引导代理/镜像恢复 | **否** |
-| Defender / 杀毒误报风险 | 展示人工可执行参考命令 | **否** |
-| 本地代理与镜像偏好 | 写入本地受保护配置并注入当前环境 | **是，但仅限本地用户配置层** |
-
-## 5. 交付给纯小白美术创作者前，仍然存在的认知门槛
-
-尽管这 4 个“硬核护城河”已经落地，但如果现在就把系统直接交给一个对代码、Git、代理、驱动、ComfyUI 都几乎不了解的纯小白美术创作者，仍然会出现一层新的问题：**系统已经学会优雅地停下了，但用户未必知道停下以后该怎么理解这些选项。**
-
-这意味着接下来的核心任务，不再只是继续修补底层异常，而是要继续降低“理解成本”。当前最显著的认知门槛主要有四类。
-
-| 认知门槛 | 当前表现 | 为什么对纯小白仍然偏高 |
-|---|---|---|
-| 模式选择门槛 | 用户需要理解 production / evolution / local distill / dry-run 的差异 | 这些词更像工程流程，而不是创作意图 |
-| 环境诊断门槛 | 用户看到 GPU、驱动、代理、镜像、磁盘、Defender 等概念 | 小白往往无法判断问题究竟发生在哪一层 |
-| 术语理解门槛 | 向导和日志里仍包含 ComfyUI、HF mirror、proxy、PDG workers 等术语 | 即使提示已变友好，术语本身仍然偏工程化 |
-| 人工恢复执行门槛 | 菜单已告诉用户要“做什么”，但没有把“每一步怎么做”视觉化 | 纯小白缺乏系统设置、代理配置、白名单操作经验 |
-
-这里最值得注意的是：**边界治理完成之后，最大的剩余问题已经从“系统是否安全”转移成了“用户是否能听懂系统”。** 这是一个产品层问题，而不再只是基础设施层问题。
-
-## 6. 已同步进入 PROJECT_BRAIN.json 的后续待办映射
-
-为了避免这些认知门槛只停留在文字总结里，本轮已经把它们逐项映射进 `PROJECT_BRAIN.json` 的待办列表中。下一轮如果继续推进面向非技术创作者的真正交付，应直接从这些任务切入，而不是重新从零讨论 UX 方向。
-
-| 新增 / 更新待办 | 对应要消除的认知门槛 | 说明 |
-|---|---|---|
-| `P0-SESSION-138-NOVICE-FIRST-RUN-STUDIO` | 模式选择门槛 | 把技术模式改写为面向创作结果的“第一次运行工作室” |
-| `P0-SESSION-138-ENV-DOCTOR-BUNDLE` | 环境诊断门槛 | 产出一键体检与可分享支持包，帮助小白定位问题层级 |
-| `P1-SESSION-138-ARTIST-GLOSSARY-PRESETS` | 术语理解门槛 | 用术语表、预设故事和场景化提示替换工程黑话 |
-| `P1-SESSION-138-MANUAL-RECOVERY-CHECKLISTS` | 人工恢复执行门槛 | 把 OS / 网络手工操作变成步骤化、可视化清单 |
-| `P0-SESSION-137-HITL-BOUNDARY` | 已完成护城河闭环 | 作为本轮关闭项，记录四类人工干预边界已经落地 |
-
-## 7. 下一位操作者建议的阅读顺序
-
-如果下一轮要继续推进“小白可交付”方向，建议不要先去碰更大的商业化包装，而是先把“边界提示能不能被人真正看懂”这件事做扎实。建议阅读顺序如下。
-
-| 优先级 | 文件 | 理由 |
-|---|---|---|
-| 1 | `mathart/workspace/hitl_boundary.py` | 这是本轮新增的核心契约，定义了何时必须把控制权交还给人类 |
-| 2 | `mathart/cli_wizard.py` | 当前所有标准菜单、文本提示、Defender 警示都从这里发出 |
-| 3 | `mathart/workspace/idempotent_surgeon.py` | 网络与权限异常是如何汇聚到标准人工接管路径上的，都在这里 |
-| 4 | `mathart/workspace/config_manager.py` | 本地代理 / 镜像偏好如何被安全持久化与环境注入，需要从这里理解 |
-| 5 | `mathart/workspace/preflight_radar.py` | GPU/CUDA 模式边界的阻断逻辑在这里成形 |
-| 6 | `docs/research/SESSION-137-HITL-BOUNDARY-RESEARCH.md` | 这里记录了为什么本轮设计必须如此，而不是那样 |
-
-## 8. 最后的架构判断
-
-SESSION-137 的真正意义，不是多了一个异常类，也不是多了几条测试，而是项目第一次在“自动化能力”之外，认真建立了“自动化自我约束能力”。这会直接影响未来桌面打包、GUI 包装、面向创作者的商业交付，以及远程/云端协作路径的可信度。
-
-如果说 SESSION-136 让项目拥有了**模式分发与云/本地双轨总线**，那么 SESSION-137 则让这条总线第一次拥有了**刹车系统、方向提示和人工接管车道**。下一步真正要做的，不是让车更快，而是让第一次上车的人也知道该怎么开。
-
----
-*Generated by Manus AI — SESSION-137.*
+## 3. Next Steps & Future Work
+- **Vector Retrieval Conflict Detection**: Future sessions should implement a mechanism to detect semantic conflicts between newly distilled rules and existing rules in the `active/` store using vector embeddings, before promotion.
+- **Expanded Fuzzing**: Consider expanding the math fuzzing set or using property-based testing libraries (like Hypothesis) for more exhaustive exploration of the parameter space.
+- **Human Review UI**: Build a lightweight CLI or web UI to help human reviewers inspect `knowledge-proposal/*` branches, view the sandbox reports, and merge PRs.

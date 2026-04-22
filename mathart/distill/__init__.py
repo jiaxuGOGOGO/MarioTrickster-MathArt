@@ -15,7 +15,13 @@ The pipeline reads from ``knowledge/*.md`` files and PDF sources, and outputs
 parameter configurations that drive the OKLAB, SDF, Animation, and Level modules.
 """
 
-from .parser import KnowledgeParser, KnowledgeRule, RuleType, TargetModule
+from .parser import (
+    KnowledgeParser,
+    KnowledgeRule,
+    QuarantineContractError,
+    RuleType,
+    TargetModule,
+)
 from .compiler import RuleCompiler, ParameterSpace, Constraint
 from .optimizer import EvolutionaryOptimizer, FitnessResult
 from .runtime_bus import (
@@ -26,6 +32,21 @@ from .runtime_bus import (
     RuntimeRuleClause,
     RuntimeRuleProgram,
     load_runtime_distillation_bus,
+)
+from .sandbox_validator import (
+    FUZZ_SAMPLES,
+    MathToxinError,
+    PhysicsDryRunReport,
+    PhysicsInstabilityError,
+    SandboxBatchResult,
+    SandboxTimeoutError,
+    SandboxValidationError,
+    SandboxValidationReport,
+    SandboxValidator,
+    UnsafeExpressionError,
+    math_fuzz_expression,
+    physics_dry_run,
+    safe_parse_expression,
 )
 from .knowledge_preloader import (
     PHYSICS_GAIT_MODULE,
@@ -43,6 +64,7 @@ from .knowledge_preloader import (
 __all__ = [
     "KnowledgeParser",
     "KnowledgeRule",
+    "QuarantineContractError",
     "RuleType",
     "TargetModule",
     "RuleCompiler",
@@ -67,4 +89,17 @@ __all__ = [
     "register_cognitive_science_knowledge",
     "register_transient_motion_knowledge",
     "preload_all_distilled_knowledge",
+    "FUZZ_SAMPLES",
+    "MathToxinError",
+    "PhysicsDryRunReport",
+    "PhysicsInstabilityError",
+    "SandboxBatchResult",
+    "SandboxTimeoutError",
+    "SandboxValidationError",
+    "SandboxValidationReport",
+    "SandboxValidator",
+    "UnsafeExpressionError",
+    "math_fuzz_expression",
+    "physics_dry_run",
+    "safe_parse_expression",
 ]

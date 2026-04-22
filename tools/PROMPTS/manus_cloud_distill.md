@@ -6,16 +6,32 @@
 
 云端执行者需要先完整理解上传资料的主题、适用边界、公式条件、变量定义、适用对象和失败条件，然后再决定是否落地到仓库。任何时候都**不得**跳过研究与验证步骤直接编写知识文件，更不得把含糊不清、未经校验的“灵感描述”直接写入 `knowledge/`。如果资料本身含有明显错误、缺页、定义不完整或前后矛盾，必须先在产出中标记不确定性，再决定是否暂缓落地。
 
+## 1.1 SESSION-138 Sandbox Provenance Contract (MUST READ)
+
+自 SESSION-138 起，云端蒸馏 Agent 必须严格遵守 **四维知识质检防伪漏斗** 与 **quarantine/active 双轨隔离** 纪律。这不是建议而是红线：
+
+- **溯源锚点 (`source_quote`)**：你输出的每一条规则上方都必须带有非空的 `source_quote` 字段，内容是原书 / 论文中可逐字回查的一段关键原文，长度不得少于 4 个字符。强烈建议同时提供 `page_number`（页码 / 章节号）。缺失 `source_quote` 的规则会在本地 `KnowledgeRule.enforce_quarantine_contract()` 反序列化阶段直接被 `QuarantineContractError` 拒绝，并**永远不会**进入 `knowledge/active/`。
+- **极限值自证**：对每一条带 `constraint.expr` 的公式，你必须在脑内代入极限值 `x ∈ {0, -1, 1, 1e-6, 1e6, +inf, -inf, nan}` 自检。任何会导致除零、`log(-1)`、溢出、`NaN` 的表达式，你必须在提交前自我纠正；否则本地 `SandboxValidator.math_fuzz_expression` 会直接判定为 `MathToxinError`。
+- **物理常理**：涉及刚体 / 弹簧 / 阻尼 / 质量的规则，必须满足 `mass > 0`，且在 100 步 CPU 弹簧阻尼积分下动能不会指数爆炸、位置不会穿模。不符合物理常理的规则会触发 `PhysicsInstabilityError`。
+- **安全注入禁令**：所有 `constraint.expr` 只能使用**纯粹的算术 + math 白名单函数**（`sin/cos/tan/sqrt/log/exp/abs/min/max/pow`、`pi/e`）。严禁 `__import__`、`os`、`sys`、`eval`、`exec`、属性访问（`.`）、下划线名、列表/字典推导。本地 AST 防火墙 (`safe_parse_expression`) 会以 `UnsafeExpressionError` 熔断。
+- **落地目录**：蒸馏得到的 JSON 必须首先写入 `knowledge/quarantine/`，由 `SandboxValidator.validate_quarantine()` 校验；只有 100% PASSED 的规则才可由 `SandboxValidator.promote_rule()` 写入 `knowledge/active/`。Agent **绝对禁止**手工把文件从 quarantine 拷贝到 active，这是人类 Reviewer 的职责。
+- **Git 推送纪律**：Agent 必须通过 `GitAgent.sync_knowledge(proposal_branch=True)`（默认行为）把改动推到时间戳化的 `knowledge-proposal/distill-YYYYMMDDHHMMSS` 检疫分支，由人类在 GitHub 上发起 Pull Request 合入 main。`main` / `master` 位于 `PROTECTED_BRANCHES`，直接 push 会被结构化拒绝。
+
+如果你违反以上任意一条红线，本仓库测试 `tests/test_sandbox_validator.py` 将会以端到端断言把整个蒸馏批次作废；所以请把“先自证，再落地”作为第一执行序。
+
 ## 2. Required Output Targets
 
 云端执行者在蒸馏完成后，只能将知识同步到以下知识载体或其直接子路径中：
 
 | 路径 | 用途 | 约束 |
 |---|---|---|
-| `knowledge/` | 数学规则、研究笔记、蒸馏结果 | 必须是结构化、可审阅的文本资产 |
+| `knowledge/quarantine/` | **默认落地位置**：未经沙盒验证的新鲜蒸馏产物 | 必须 JSON 数组；每条 `KnowledgeRule` 必须带 `source_quote` |
+| `knowledge/active/` | 沙盒 100% PASSED 通过的生产可用规则 | **仅** 由 `SandboxValidator.promote_rule()` 写入，Agent 不得手改 |
+| `knowledge/` 顶层其它 `.md` / `.json` | 历史沉淀的人类可读知识笔记 | 仅对既有文件做增量更新，不得新建未带 `source_quote` 的规则条目 |
 | `PROJECT_BRAIN.json` | 项目任务状态与会话状态 | 必须保持 JSON 语法合法 |
 | `SESSION_HANDOFF.md` | 面向下一个操作者的上下文交接 | 必须明确本轮新增能力、边界、风险与下一步 |
 | `tools/PROMPTS/` | 指令资产与提示词协议 | 必须可复用、可版本管理、可审计 |
+| `docs/research/` | 支撑本轮规则的一手外部文献摘要 | 必须能与 `source_quote` 相互回指 |
 
 云端执行者**绝对禁止**使用 `git add .`、`git add -A` 或任何会把缓存、模型权重、下载产物、临时输出和无关文件一起打包的宽泛命令。提交范围必须保持最小化、白名单化与可解释。
 
@@ -76,4 +92,17 @@
 
 ## 9. Definition of Done
 
-只有同时满足以下条件，任务才算真正完成：研究完成、规则完成、校验完成、白名单提交完成、远端推送完成、`PROJECT_BRAIN.json` 更新完成、`SESSION_HANDOFF.md` 更新完成。只完成其中一部分，不得宣称“已经全部同步”。
+只有同时满足以下条件，任务才算真正完成：研究完成、规则完成、**沙盒验证 100% PASSED**、**quarantine 已生成、active 由沙盒自动晋升**、**知识提议已推送到 `knowledge-proposal/distill-*` 检疫分支（而非 main/master）**、`PROJECT_BRAIN.json` 更新完成、`SESSION_HANDOFF.md` 更新完成。只完成其中一部分，不得宣称“已经全部同步”。
+
+## 10. SESSION-138 强制自检清单
+
+提交前，云端执行者必须在交付信息中回答以下 8 个 Yes/No 自检，任何一条回答 “No” 即说明不具备落地条件：
+
+1. 每条新规则都带有非空 `source_quote` 吗？
+2. 所有 `constraint.expr` 都只用了 math 白名单函数吗？
+3. 我是否对每条公式代入过 0 / -1 / NaN / Inf 自证不爆炸？
+4. 物理相关规则是否保证了 `mass > 0` 且 100 步不穿模？
+5. 所有新规则是否都**只**落在 `knowledge/quarantine/` 而非 `knowledge/active/`？
+6. 我是否通过 `GitAgent.sync_knowledge(proposal_branch=True)` 推送了 `knowledge-proposal/distill-*` 分支？
+7. 我是否**没有**直接 push 到 `main` / `master`？
+8. `PROJECT_BRAIN.json` 的任务状态、待办与会话 ID 是否同步更新？

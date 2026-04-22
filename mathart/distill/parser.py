@@ -76,6 +76,17 @@ class TargetModule(str, Enum):
     GENERAL = "general"           # Cross-domain or uncategorized knowledge
 
 
+class QuarantineContractError(ValueError):
+    """Raised when a KnowledgeRule lacks the evidence chain required by the
+    SESSION-138 quarantine contract (notably ``source_quote``).
+
+    Rules without a verbatim ``source_quote`` are treated as LLM hallucinations
+    and MUST be rejected before they can enter ``knowledge/quarantine/``.
+    External reference: see docs/research/SESSION-138-KNOWLEDGE-QA-GATE-RESEARCH.md
+    (arXiv 2601.05866, Medium *RAG Grounding: 11 Tests That Expose Fake Citations*).
+    """
+
+
 @dataclass
 class KnowledgeRule:
     """A single distilled knowledge rule.
@@ -99,6 +110,12 @@ class KnowledgeRule:
         - {"type": "formula", "expr": "mass * 0.3 + 0.1"}
     source : str
         Attribution (book/author/page).
+    source_quote : str
+        Verbatim excerpt from the primary source that justifies the rule.
+        REQUIRED for any rule that wishes to enter the quarantine pipeline;
+        rules without a ``source_quote`` are rejected as hallucinations.
+    page_number : str | None
+        Optional page / section anchor for deterministic provenance lookup.
     tags : list[str]
         Searchable tags.
     """
@@ -110,6 +127,8 @@ class KnowledgeRule:
     target_param: str
     constraint: dict = field(default_factory=dict)
     source: str = ""
+    source_quote: str = ""
+    page_number: str | None = None
     tags: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -120,9 +139,34 @@ class KnowledgeRule:
 
     @classmethod
     def from_dict(cls, d: dict) -> "KnowledgeRule":
+        d = dict(d)
         d["rule_type"] = RuleType(d["rule_type"])
         d["target_module"] = TargetModule(d["target_module"])
+        # Backward-compatible: older rule JSON files may not carry the new
+        # provenance fields; default them so legacy knowledge remains
+        # readable by the runtime bus while remaining ineligible for
+        # quarantine promotion (see ``enforce_quarantine_contract``).
+        d.setdefault("source_quote", "")
+        d.setdefault("page_number", None)
         return cls(**d)
+
+    def enforce_quarantine_contract(self) -> None:
+        """Assert that this rule carries the evidence chain required to enter
+        ``knowledge/quarantine/``. Raises :class:`QuarantineContractError` on
+        missing ``source_quote``. This is the SESSION-138 pre-merge gate.
+        """
+        quote = (self.source_quote or "").strip()
+        if not quote:
+            raise QuarantineContractError(
+                f"KnowledgeRule {self.id!r} is missing a non-empty"
+                " 'source_quote'; refusing to admit hallucinated rule into"
+                " the quarantine pipeline."
+            )
+        if len(quote) < 4:
+            raise QuarantineContractError(
+                f"KnowledgeRule {self.id!r} source_quote is too short to"
+                " be a meaningful provenance anchor (>=4 chars required)."
+            )
 
 
 class KnowledgeParser:
@@ -333,23 +377,93 @@ class KnowledgeParser:
     def __init__(self):
         self._rule_counter = 0
 
-    def parse_directory(self, directory: Union[str, Path]) -> list[KnowledgeRule]:
+    # ── Dual-track knowledge directory discipline (SESSION-138) ──────
+    #
+    # The runtime mass-production bus is ONLY allowed to consume rules that
+    # have survived the sandbox validator and been promoted into
+    # ``knowledge/active/``. Raw LLM-distilled rules land in
+    # ``knowledge/quarantine/`` first and are unreachable from the hot path.
+    # These constants and helpers formalise the contract so every caller
+    # uses the same convention.
+    QUARANTINE_SUBDIR = "quarantine"
+    ACTIVE_SUBDIR = "active"
+
+    @classmethod
+    def quarantine_dir(cls, knowledge_root: Union[str, Path]) -> Path:
+        return Path(knowledge_root) / cls.QUARANTINE_SUBDIR
+
+    @classmethod
+    def active_dir(cls, knowledge_root: Union[str, Path]) -> Path:
+        return Path(knowledge_root) / cls.ACTIVE_SUBDIR
+
+    def parse_directory(
+        self,
+        directory: Union[str, Path],
+        *,
+        recursive: bool = False,
+    ) -> list[KnowledgeRule]:
         """Parse all knowledge files in a directory.
 
-        Skips JSON files that are not rule-list format (e.g., sprite_library.json).
+        When ``recursive=False`` (legacy default) only top-level ``*.md`` and
+        ``*.json`` files are parsed; this preserves backward compatibility
+        with callers that point at the repository-root ``knowledge/`` folder
+        and do NOT want to recurse into ``quarantine/`` by accident.
+
+        When ``recursive=True`` the parser will walk the tree but still skip
+        the ``quarantine/`` subdirectory, because by contract only
+        ``active/`` rules may be loaded into the mass-production bus.
+
+        Skips JSON files that are not rule-list format (e.g.,
+        ``sprite_library.json``).
         """
         directory = Path(directory)
-        rules = []
-        for md_file in sorted(directory.glob("*.md")):
-            rules.extend(self.parse_markdown(md_file))
-        for json_file in sorted(directory.glob("*.json")):
-            try:
-                rules.extend(self.load_rules(json_file))
-            except (TypeError, KeyError, ValueError):
-                # Skip JSON files that don't conform to rule format
-                # (e.g., sprite_library.json, stagnation reports)
-                pass
+        rules: list[KnowledgeRule] = []
+
+        def _iter(root: Path):
+            if not recursive:
+                yield from sorted(root.glob("*.md"))
+                yield from sorted(root.glob("*.json"))
+                return
+            for path in sorted(root.rglob("*")):
+                if not path.is_file():
+                    continue
+                # Hard quarantine rule: never surface quarantine/** through
+                # the mass-production parser, even when recursing.
+                try:
+                    rel = path.relative_to(directory)
+                except ValueError:
+                    continue
+                if rel.parts and rel.parts[0] == self.QUARANTINE_SUBDIR:
+                    continue
+                if path.suffix.lower() in (".md", ".json"):
+                    yield path
+
+        for entry in _iter(directory):
+            if entry.suffix.lower() == ".md":
+                rules.extend(self.parse_markdown(entry))
+            else:
+                try:
+                    rules.extend(self.load_rules(entry))
+                except (TypeError, KeyError, ValueError):
+                    # Skip JSON files that don't conform to rule format
+                    # (e.g., sprite_library.json, stagnation reports)
+                    pass
         return rules
+
+    def parse_active_directory(
+        self, knowledge_root: Union[str, Path]
+    ) -> list[KnowledgeRule]:
+        """Load ONLY the rules that already live under
+        ``<knowledge_root>/active/``.
+
+        This is the single entrypoint the mass-production runtime bus should
+        use after SESSION-138; it structurally prevents any quarantined or
+        unvalidated rule from reaching compiled parameter spaces.
+        """
+        active = self.active_dir(knowledge_root)
+        if not active.exists():
+            return []
+        return self.parse_directory(active, recursive=True)
 
     def parse_markdown(self, filepath: Union[str, Path]) -> list[KnowledgeRule]:
         """Parse a Markdown knowledge file into rules."""
