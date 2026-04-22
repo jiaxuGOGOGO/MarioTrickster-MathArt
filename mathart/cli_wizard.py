@@ -8,6 +8,34 @@ import sys
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
+# ---------------------------------------------------------------------------
+# SESSION-148: Global stdout/stderr safe-encoding shield.
+#
+# Windows CMD / PowerShell defaults its console code page to GBK (cp936) /
+# cp437, which cannot encode high-range Emoji (U+1F300+) or many CJK-adjacent
+# glyphs that appear in wizard output.  When Python flushes such a string
+# through ``sys.stdout`` on those terminals the interpreter raises
+#   UnicodeEncodeError: 'utf-8' codec can't encode characters in
+#   position 2-3: surrogates not allowed
+# which tears down the entire wizard process mid-flow — including the
+# ComfyUI interactive rescue gateway.  This guard force-reconfigures both
+# standard streams to UTF-8 and, critically, swaps the error handler to
+# ``replace`` so any unencodable glyph degrades to ``?`` instead of
+# aborting the process.  Kept tightly defensive: the import happens
+# before any other wizard code writes to stdout, and any exception during
+# reconfiguration is swallowed so headless / redirected streams (unit
+# tests, CI) are never destabilised.
+# ---------------------------------------------------------------------------
+if sys.platform == "win32":
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        # Never allow the shield to become a new failure mode.
+        pass
+
 from mathart.workspace.hitl_boundary import ManualInterventionRequiredError, ManualOption
 from mathart.workspace.mode_dispatcher import ModeDispatcher
 

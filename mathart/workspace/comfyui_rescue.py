@@ -226,8 +226,15 @@ def is_comfyui_not_found_payload(payload: dict) -> bool:
 # Interactive rescue prompt
 # ---------------------------------------------------------------------------
 
+# SESSION-148: ASCII-safe UI 降级。
+# Windows CMD / PowerShell 默认 code page 为 GBK (cp936)，无法编码
+# 高位 Emoji (🚨 / ✅ / ⚠️ / ↩️ 等 Surrogate Pair)。底层 sys.stdout
+# 在 output_fn(_PROMPT_HEADER) 时会抛出
+#   UnicodeEncodeError: 'utf-8' codec can't encode characters in position 2-3: surrogates not allowed
+# 导致核心进程被强行阻断。商业级软件绝不能因为 UI 图标无法渲染
+# 而让自愈网关闪退。此处统一降级为跨平台 100% 安全的 ASCII 标签。
 _PROMPT_HEADER = (
-    "\n\ud83d\udea8 \u96f7\u8fbe\u672a\u80fd\u81ea\u52a8\u5b9a\u4f4d\u5230 ComfyUI \u5f15\u64ce\u3002"
+    "\n[!] \u96f7\u8fbe\u672a\u80fd\u81ea\u52a8\u5b9a\u4f4d\u5230 ComfyUI \u5f15\u64ce\u3002"
 )
 _PROMPT_BODY = (
     "\u5982\u679c\u60a8\u5df2\u5b89\u88c5\uff0c\u8bf7\u5c06 ComfyUI \u7684\u6839\u76ee\u5f55\uff08\u5305\u542b main.py \u7684\u6587\u4ef6\u5939\uff09"
@@ -236,14 +243,14 @@ _PROMPT_BODY = (
 )
 _PROMPT_INPUT = "\u8bf7\u7c98\u8d34\u6216\u62d6\u5165 ComfyUI \u6839\u76ee\u5f55\uff1a"
 _MSG_ACCEPT = (
-    "\u2705 \u5f15\u64ce\u7ed1\u5b9a\u6210\u529f\u5e76\u6c38\u4e45\u4fdd\u5b58\uff01COMFYUI_HOME = {path}"
+    "[OK] \u5f15\u64ce\u7ed1\u5b9a\u6210\u529f\u5e76\u6c38\u4e45\u4fdd\u5b58\uff01COMFYUI_HOME = {path}"
 )
 _MSG_INVALID = (
-    "\u26a0\ufe0f  \u8def\u5f84\u65e0\u6548\uff1a{path}\n    "
+    "[WARNING] \u8def\u5f84\u65e0\u6548\uff1a{path}\n    "
     "\u672a\u627e\u5230 main.py / custom_nodes\u3002\u8bf7\u91cd\u65b0\u62d6\u5165\uff0c\u6216\u6309\u56de\u8f66\u9000\u56de\u6c99\u76d2\u6a21\u5f0f\u3002"
 )
 _MSG_FALLBACK = (
-    "\u21aa\ufe0f  \u5df2\u9000\u56de\u6c99\u76d2\u6a21\u5f0f\u3002\u60a8\u968f\u65f6\u53ef\u4ee5\u8bbe\u7f6e COMFYUI_HOME \u73af\u5883\u53d8\u91cf\u6216\u91cd\u65b0\u8fd0\u884c\u751f\u4ea7\u6a21\u5f0f\u3002"
+    "[INFO] \u5df2\u9000\u56de\u6c99\u76d2\u6a21\u5f0f\u3002\u60a8\u968f\u65f6\u53ef\u4ee5\u8bbe\u7f6e COMFYUI_HOME \u73af\u5883\u53d8\u91cf\u6216\u91cd\u65b0\u8fd0\u884c\u751f\u4ea7\u6a21\u5f0f\u3002"
 )
 
 

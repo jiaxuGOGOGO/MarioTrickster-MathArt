@@ -13,6 +13,24 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
+# ---------------------------------------------------------------------------
+# SESSION-148: Global stdout/stderr safe-encoding shield (see cli_wizard.py
+# for the full rationale).  Duplicated here because `python -m mathart` and
+# direct ``mathart.cli`` invocations can enter the process BEFORE the
+# wizard module is imported, which means the wizard-side guard would be
+# installed too late to protect any registry/backend banner printed by
+# ``_configure_logging`` or the argparse help path.
+# ---------------------------------------------------------------------------
+if sys.platform == "win32":
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        # Never allow the shield to become a new failure mode.
+        pass
+
 LOGGER = logging.getLogger("mathart.cli")
 
 
