@@ -55,6 +55,8 @@ from .atomic_downloader import (
     DownloadOutcome,
     DownloadStatus,
 )
+from .config_manager import ConfigManager
+from .hitl_boundary import ManualInterventionRequiredError, rewrite_huggingface_url
 
 logger = logging.getLogger(__name__)
 
@@ -262,12 +264,23 @@ class IdempotentSurgeon:
         asset_plans: Iterable[AssetPlan] = DEFAULT_ASSET_PLANS,
         clock: Optional[Callable[[], float]] = None,
         dry_run: bool = False,
+        interactive: bool = False,
+        project_root: str | Path | None = None,
+        input_fn: Callable[[str], str] = input,
+        output_fn: Callable[[str], None] = print,
+        max_manual_rounds: int = 3,
     ) -> None:
         self._injector = injector or AssetInjector()
         self._downloader = downloader or AtomicDownloader()
         self._plans: dict[str, AssetPlan] = {p.asset_name: p for p in asset_plans}
         self._clock = clock or time.time
         self._dry_run = bool(dry_run)
+        self._interactive = bool(interactive)
+        self._project_root = Path(project_root or Path.cwd()).resolve()
+        self._config_manager = ConfigManager(self._project_root)
+        self._input_fn = input_fn
+        self._output_fn = output_fn
+        self._max_manual_rounds = max(1, int(max_manual_rounds))
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -428,13 +441,34 @@ class IdempotentSurgeon:
                 detail="dry_run=True — plan only, no mutation",
             )
 
-        injection = self._injector.inject(
-            asset_name=name,
-            target_path=str(target),
-            expected_filename=plan.filename,
-            expected_size=plan.expected_size,
-            expected_sha256=plan.expected_sha256,
-        )
+        try:
+            injection = self._injector.inject(
+                asset_name=name,
+                target_path=str(target),
+                expected_filename=plan.filename,
+                expected_size=plan.expected_size,
+                expected_sha256=plan.expected_sha256,
+            )
+        except ManualInterventionRequiredError as exc:
+            decision = self._resolve_manual_boundary(exc)
+            if decision == "force_copy":
+                injection = self._injector.inject(
+                    asset_name=name,
+                    target_path=str(target),
+                    expected_filename=plan.filename,
+                    expected_size=plan.expected_size,
+                    expected_sha256=plan.expected_sha256,
+                    allow_large_copy_without_prompt=True,
+                )
+            else:
+                return self._blocked_manual_action(
+                    raw_action=raw_action,
+                    asset_name=name,
+                    target_path=str(target),
+                    t0=t0,
+                    error=exc,
+                    decision=decision,
+                )
 
         if injection.status is InjectionStatus.ALREADY_SATISFIED:
             return ActionOutcome(
@@ -490,12 +524,61 @@ class IdempotentSurgeon:
                 injection=injection,
             )
 
-        download = self._downloader.fetch(
-            url=plan.url,
-            target_path=str(target),
-            expected_size=plan.expected_size,
-            expected_sha256=plan.expected_sha256,
-        )
+        download_url = plan.url
+        for _ in range(self._max_manual_rounds):
+            try:
+                download = self._downloader.fetch(
+                    url=download_url,
+                    target_path=str(target),
+                    expected_size=plan.expected_size,
+                    expected_sha256=plan.expected_sha256,
+                )
+                break
+            except ManualInterventionRequiredError as exc:
+                decision = self._resolve_manual_boundary(exc)
+                if decision == "configure_proxy":
+                    proxy_url = self._prompt_proxy_url()
+                    current_runtime = self._config_manager.load_runtime_network()
+                    runtime = self._config_manager.save_runtime_network(
+                        proxy_url=proxy_url,
+                        hf_endpoint=None if current_runtime is None else current_runtime.hf_endpoint,
+                        source="network_timeout_guard",
+                    )
+                    self._config_manager.apply_runtime_network(runtime)
+                    continue
+                if decision == "use_hf_mirror":
+                    current_runtime = self._config_manager.load_runtime_network()
+                    runtime = self._config_manager.save_runtime_network(
+                        proxy_url=None if current_runtime is None else current_runtime.proxy_url,
+                        hf_endpoint="https://hf-mirror.com",
+                        source="network_timeout_guard",
+                    )
+                    self._config_manager.apply_runtime_network(runtime)
+                    download_url = rewrite_huggingface_url(
+                        download_url,
+                        runtime.hf_endpoint or "https://hf-mirror.com",
+                    )
+                    continue
+                return self._blocked_manual_action(
+                    raw_action=raw_action,
+                    asset_name=name,
+                    target_path=str(target),
+                    t0=t0,
+                    error=exc,
+                    decision=decision,
+                )
+        else:
+            return ActionOutcome(
+                action_id=raw_action,
+                asset_name=name,
+                kind=ActionKind.BLOCKED,
+                target_path=str(target),
+                source_path=download_url,
+                elapsed_ms=(self._clock() - t0) * 1000.0,
+                bytes_touched=0,
+                detail="manual network recovery exceeded bounded retry budget",
+                injection=injection,
+            )
 
         if download.status is DownloadStatus.ALREADY_VERIFIED:
             return ActionOutcome(
@@ -503,7 +586,7 @@ class IdempotentSurgeon:
                 asset_name=name,
                 kind=ActionKind.SKIPPED,
                 target_path=download.target_path,
-                source_path=plan.url,
+                source_path=download_url,
                 elapsed_ms=(self._clock() - t0) * 1000.0,
                 bytes_touched=0,
                 detail="target already matched fingerprint — no socket opened",
@@ -517,7 +600,7 @@ class IdempotentSurgeon:
                 asset_name=name,
                 kind=ActionKind.DOWNLOADED,
                 target_path=download.target_path,
-                source_path=plan.url,
+                source_path=download_url,
                 elapsed_ms=(self._clock() - t0) * 1000.0,
                 bytes_touched=download.bytes_written,
                 detail="fresh atomic download complete",
@@ -531,7 +614,7 @@ class IdempotentSurgeon:
                 asset_name=name,
                 kind=ActionKind.RESUMED,
                 target_path=download.target_path,
-                source_path=plan.url,
+                source_path=download_url,
                 elapsed_ms=(self._clock() - t0) * 1000.0,
                 bytes_touched=download.bytes_written,
                 detail=f"resumed from byte {download.resumed_from} and published atomically",
@@ -570,6 +653,48 @@ class IdempotentSurgeon:
             bytes_touched=0,
             detail=f"blocking action — surgeon cannot autofix: {raw_action}",
         )
+
+    def _blocked_manual_action(
+        self,
+        *,
+        raw_action: str,
+        asset_name: str,
+        target_path: str,
+        t0: float,
+        error: ManualInterventionRequiredError,
+        decision: str,
+    ) -> ActionOutcome:
+        return ActionOutcome(
+            action_id=raw_action,
+            asset_name=asset_name,
+            kind=ActionKind.BLOCKED,
+            target_path=target_path,
+            source_path=None,
+            elapsed_ms=(self._clock() - t0) * 1000.0,
+            bytes_touched=0,
+            detail=f"manual intervention required: {error.code} -> {decision}",
+            error=error.message,
+        )
+
+    def _resolve_manual_boundary(self, error: ManualInterventionRequiredError) -> str:
+        if not self._interactive:
+            return "abort"
+        from mathart.cli_wizard import prompt_manual_intervention
+
+        return prompt_manual_intervention(
+            error,
+            input_fn=self._input_fn,
+            output_fn=self._output_fn,
+        )
+
+    def _prompt_proxy_url(self) -> str:
+        from mathart.cli_wizard import standard_text_prompt
+
+        return standard_text_prompt(
+            "请输入本地代理地址，例如 http://127.0.0.1:7890",
+            input_fn=self._input_fn,
+            output_fn=self._output_fn,
+        ).strip()
 
     @staticmethod
     def _verdict_str(report: Any) -> str:

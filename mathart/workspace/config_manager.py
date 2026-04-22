@@ -1,7 +1,8 @@
 """Local configuration manager for dual-track distillation workflows.
 
-This module intentionally keeps secrets outside version control while still
-providing a friendly terminal-driven setup flow for local research distillation.
+This module intentionally keeps secrets and machine-local network preferences
+outside version control while still providing a friendly terminal-driven setup
+flow for local research distillation.
 """
 from __future__ import annotations
 
@@ -13,16 +14,22 @@ from pathlib import Path
 from typing import Callable, Mapping
 
 
-REQUIRED_GITIGNORE_ENTRIES = (".env", "config.local.json", "*.local.json")
+REQUIRED_GITIGNORE_ENTRIES = (
+    ".env",
+    "config.local.json",
+    "runtime.local.json",
+    "*.local.json",
+)
 ENV_KEY_ALIASES: dict[str, tuple[str, ...]] = {
     "api_key": ("API_KEY", "MATHART_API_KEY"),
     "base_url": ("BASE_URL", "MATHART_BASE_URL"),
     "model_name": ("MODEL_NAME", "MATHART_MODEL_NAME"),
 }
+_RUNTIME_PROXY_ENV_KEYS = ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")
 
 
 class ConfigurationSafetyError(RuntimeError):
-    """Raised when secret-bearing local config is not protected from Git."""
+    """Raised when local config is not adequately protected from Git."""
 
 
 class MissingLocalAPIConfigurationError(RuntimeError):
@@ -50,8 +57,26 @@ class LocalAPIConfig:
         }
 
 
+@dataclass(frozen=True)
+class RuntimeNetworkConfig:
+    """Machine-local proxy and mirror preferences for bounded network recovery."""
+
+    proxy_url: str | None
+    hf_endpoint: str | None
+    storage_path: str
+    source: str
+
+    def redacted(self) -> dict[str, str | None]:
+        return {
+            "proxy_url": self.proxy_url,
+            "hf_endpoint": self.hf_endpoint,
+            "storage_path": self.storage_path,
+            "source": self.source,
+        }
+
+
 class ConfigManager:
-    """Manage local API credentials for the local distillation lane."""
+    """Manage local API credentials and machine-local runtime preferences."""
 
     def __init__(
         self,
@@ -59,14 +84,16 @@ class ConfigManager:
         *,
         env_filename: str = ".env",
         json_filename: str = "config.local.json",
+        runtime_filename: str = "runtime.local.json",
     ) -> None:
         self.project_root = Path(project_root or Path.cwd()).resolve()
         self.env_path = self.project_root / env_filename
         self.json_path = self.project_root / json_filename
+        self.runtime_path = self.project_root / runtime_filename
         self.gitignore_path = self.project_root / ".gitignore"
 
     def ensure_gitignore_protection(self) -> bool:
-        """Ensure local secret files are ignored by Git before any write occurs."""
+        """Ensure local files are ignored by Git before any write occurs."""
         existing = ""
         if self.gitignore_path.exists():
             existing = self.gitignore_path.read_text(encoding="utf-8")
@@ -84,16 +111,16 @@ class ConfigManager:
 
     def _assert_gitignore_protection(self) -> None:
         if not self.gitignore_path.exists():
-            raise ConfigurationSafetyError(".gitignore is missing; refusing to store API credentials")
+            raise ConfigurationSafetyError(".gitignore is missing; refusing to store local configuration")
         lines = set(self.gitignore_path.read_text(encoding="utf-8").splitlines())
         missing = [entry for entry in REQUIRED_GITIGNORE_ENTRIES if entry not in lines]
         if missing:
             raise ConfigurationSafetyError(
-                "Local API config is not fully protected by .gitignore: " + ", ".join(missing)
+                "Local configuration is not fully protected by .gitignore: " + ", ".join(missing)
             )
 
     def load(self, env: Mapping[str, str] | None = None) -> LocalAPIConfig | None:
-        """Load config from the process environment, .env, or config.local.json."""
+        """Load API config from the process environment, .env, or config.local.json."""
         env_mapping = dict(os.environ if env is None else env)
         config = self._load_from_environment(env_mapping)
         if config is not None:
@@ -102,6 +129,21 @@ class ConfigManager:
         if config is not None:
             return config
         return self._load_from_json_file()
+
+    def load_runtime_network(self) -> RuntimeNetworkConfig | None:
+        if not self.runtime_path.exists():
+            return None
+        payload = json.loads(self.runtime_path.read_text(encoding="utf-8"))
+        proxy_url = payload.get("proxy_url") or None
+        hf_endpoint = payload.get("hf_endpoint") or None
+        if not proxy_url and not hf_endpoint:
+            return None
+        return RuntimeNetworkConfig(
+            proxy_url=str(proxy_url).strip() if proxy_url else None,
+            hf_endpoint=str(hf_endpoint).strip() if hf_endpoint else None,
+            storage_path=str(self.runtime_path),
+            source="runtime_file",
+        )
 
     def has_config(self, env: Mapping[str, str] | None = None) -> bool:
         return self.load(env=env) is not None
@@ -166,16 +208,63 @@ class ConfigManager:
         self._assert_gitignore_protection()
         return self.json_path
 
+    def save_runtime_network(
+        self,
+        *,
+        proxy_url: str | None = None,
+        hf_endpoint: str | None = None,
+        source: str = "wizard",
+    ) -> RuntimeNetworkConfig:
+        self.ensure_gitignore_protection()
+        payload = {
+            "proxy_url": None if proxy_url is None else proxy_url.strip(),
+            "hf_endpoint": None if hf_endpoint is None else hf_endpoint.rstrip("/"),
+        }
+        self.runtime_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        self._assert_gitignore_protection()
+        return RuntimeNetworkConfig(
+            proxy_url=payload["proxy_url"],
+            hf_endpoint=payload["hf_endpoint"],
+            storage_path=str(self.runtime_path),
+            source=source,
+        )
+
+    def apply_runtime_network(
+        self,
+        runtime: RuntimeNetworkConfig | None = None,
+        *,
+        env: dict[str, str] | None = None,
+    ) -> dict[str, str]:
+        target_env = os.environ if env is None else env
+        loaded = runtime or self.load_runtime_network()
+        applied: dict[str, str] = {}
+        if loaded is None:
+            return applied
+        if loaded.proxy_url:
+            for key in _RUNTIME_PROXY_ENV_KEYS:
+                target_env[key] = loaded.proxy_url
+                applied[key] = loaded.proxy_url
+        if loaded.hf_endpoint:
+            target_env["HF_ENDPOINT"] = loaded.hf_endpoint
+            applied["HF_ENDPOINT"] = loaded.hf_endpoint
+        return applied
+
     def describe_state(self, env: Mapping[str, str] | None = None) -> dict[str, object]:
         current = self.load(env=env)
+        runtime = self.load_runtime_network()
         return {
             "project_root": str(self.project_root),
             "gitignore_path": str(self.gitignore_path),
             "env_path": str(self.env_path),
             "json_path": str(self.json_path),
+            "runtime_path": str(self.runtime_path),
             "gitignore_protected": self._is_gitignore_protected(),
             "config_present": current is not None,
             "config": None if current is None else current.redacted(),
+            "runtime_network": None if runtime is None else runtime.redacted(),
         }
 
     def _is_gitignore_protected(self) -> bool:
@@ -275,4 +364,5 @@ __all__ = [
     "LocalAPIConfig",
     "MissingLocalAPIConfigurationError",
     "REQUIRED_GITIGNORE_ENTRIES",
+    "RuntimeNetworkConfig",
 ]

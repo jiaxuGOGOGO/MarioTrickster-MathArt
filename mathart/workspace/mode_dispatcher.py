@@ -132,6 +132,16 @@ class ProductionStrategy(SessionStrategy):
         )
 
     def execute(self, context: SessionContext) -> dict[str, Any]:
+        if context.requires_gpu:
+            from .preflight_radar import PreflightRadar, PreflightVerdict
+
+            report = PreflightRadar(require_gpu=True).scan()
+            payload = report.to_dict()
+            if report.verdict is PreflightVerdict.MANUAL_INTERVENTION_REQUIRED:
+                payload["status"] = "blocked"
+                payload["reason"] = "gpu_boundary_guard"
+                payload["suggested_mode"] = SessionMode.DRY_RUN.value
+                return payload
         from tools.run_mass_production_factory import run_mass_production_factory
 
         output_root = Path(context.output_dir or self.project_root / "output" / "production")

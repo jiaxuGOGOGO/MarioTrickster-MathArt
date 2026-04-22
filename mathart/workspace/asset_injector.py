@@ -51,6 +51,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Iterable, Optional, Sequence
 
+from .hitl_boundary import (
+    ManualInterventionRequiredError,
+    is_windows_symlink_privilege_error,
+    symlink_manual_error,
+)
+
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -233,6 +239,8 @@ class AssetInjector:
         allow_copy_fallback: bool = True,
         fingerprint_sample_bytes: Optional[int] = None,
         clock: Optional[callable] = None,
+        platform_name: str | None = None,
+        large_file_copy_threshold_bytes: int = 500 * 1024 * 1024,
     ) -> None:
         self._roots: tuple[Path, ...] = tuple(
             _expand(r) for r in (*DEFAULT_CACHE_ROOTS, *extra_cache_roots)
@@ -240,6 +248,8 @@ class AssetInjector:
         self._allow_copy = bool(allow_copy_fallback)
         self._fingerprint_sample = fingerprint_sample_bytes
         self._clock = clock or time.time
+        self._platform = platform_name or sys.platform
+        self._large_file_copy_threshold_bytes = int(large_file_copy_threshold_bytes)
 
     # ------------------------------------------------------------------
     # Public entry points
@@ -253,6 +263,7 @@ class AssetInjector:
         expected_filename: Optional[str] = None,
         expected_size: Optional[int] = None,
         expected_sha256: Optional[str] = None,
+        allow_large_copy_without_prompt: bool = False,
     ) -> InjectionOutcome:
         """Materialise *one* asset into ``target_path`` using cache reuse."""
 
@@ -301,7 +312,12 @@ class AssetInjector:
             quarantined = self._quarantine_conflict(target)
 
         # ---- Step 4: three-tier link fallback --------------------------
-        method, notes, err = self._inject_with_fallback(source, target)
+        method, notes, err = self._inject_with_fallback(
+            source,
+            target,
+            asset_name=asset_name,
+            allow_large_copy_without_prompt=allow_large_copy_without_prompt,
+        )
         elapsed_ms = (self._clock() - start) * 1000.0
         if method is InjectionMethod.NONE:
             return InjectionOutcome(
@@ -473,7 +489,12 @@ class AssetInjector:
     # ------------------------------------------------------------------
 
     def _inject_with_fallback(
-        self, source: Path, target: Path
+        self,
+        source: Path,
+        target: Path,
+        *,
+        asset_name: str,
+        allow_large_copy_without_prompt: bool,
     ) -> tuple[InjectionMethod, list[str], Optional[str]]:
         """Try symlink → hardlink → copy, in that order.
 
@@ -492,6 +513,17 @@ class AssetInjector:
         except (OSError, NotImplementedError, AttributeError) as exc:
             # WinError 1314 = ERROR_PRIVILEGE_NOT_HELD; cross-FS; unsupported
             notes.append(f"tier1 symlink failed: {exc!r}")
+            if self._should_require_manual_copy_confirmation(
+                source,
+                exc,
+                allow_large_copy_without_prompt=allow_large_copy_without_prompt,
+            ):
+                raise symlink_manual_error(
+                    asset_name=asset_name,
+                    source_path=str(source),
+                    target_path=str(target),
+                    size_bytes=_safe_size(source) or 0,
+                ) from exc
             # If a partially-created target exists, clean it up silently.
             self._remove_if_link_only(target)
 
@@ -577,10 +609,27 @@ class AssetInjector:
     def cache_roots(self) -> tuple[Path, ...]:
         return self._roots
 
+    def _should_require_manual_copy_confirmation(
+        self,
+        source: Path,
+        exc: BaseException,
+        *,
+        allow_large_copy_without_prompt: bool,
+    ) -> bool:
+        if allow_large_copy_without_prompt:
+            return False
+        if not str(self._platform).startswith("win"):
+            return False
+        if not is_windows_symlink_privilege_error(exc):
+            return False
+        size_bytes = _safe_size(source) or 0
+        return size_bytes >= self._large_file_copy_threshold_bytes
+
     def describe(self) -> dict:
         return {
             "cache_roots": [str(r) for r in self._roots],
             "allow_copy_fallback": self._allow_copy,
             "fingerprint_sample_bytes": self._fingerprint_sample,
-            "platform": sys.platform,
+            "platform": self._platform,
+            "large_file_copy_threshold_bytes": self._large_file_copy_threshold_bytes,
         }

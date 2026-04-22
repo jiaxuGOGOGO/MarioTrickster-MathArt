@@ -5,8 +5,9 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
+from mathart.workspace.hitl_boundary import ManualInterventionRequiredError, ManualOption
 from mathart.workspace.mode_dispatcher import ModeDispatcher
 
 
@@ -37,6 +38,90 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--config-storage", choices=["env", "json"], default="env", help="Preferred local secret storage backend.")
     parser.add_argument("--execute", action="store_true", help="Execute the selected mode instead of previewing it.")
     return parser
+
+
+def standard_menu_prompt(
+    *,
+    title: str,
+    message: str,
+    options: Iterable[ManualOption],
+    input_fn: Callable[[str], str] = input,
+    output_fn: Callable[[str], None] = print,
+) -> str:
+    normalized = tuple(options)
+    if not normalized:
+        raise ValueError("standard_menu_prompt requires at least one option")
+
+    output_fn("")
+    output_fn(title)
+    output_fn(message)
+    for index, option in enumerate(normalized, start=1):
+        suffix = " [推荐]" if option.recommended else ""
+        output_fn(f"  [{index}] {option.label}{suffix}")
+        output_fn(f"      {option.description}")
+
+    while True:
+        raw = input_fn("请输入选项编号并回车: ").strip()
+        if raw.isdigit():
+            idx = int(raw) - 1
+            if 0 <= idx < len(normalized):
+                return normalized[idx].key
+        output_fn("输入无效，请输入上方菜单中的编号。")
+
+
+def standard_text_prompt(
+    prompt: str,
+    *,
+    input_fn: Callable[[str], str] = input,
+    output_fn: Callable[[str], None] = print,
+    default: str | None = None,
+    allow_empty: bool = False,
+) -> str:
+    suffix = "" if default is None else f" [默认: {default}]"
+    while True:
+        raw = input_fn(f"{prompt}{suffix}: ").strip()
+        if raw:
+            return raw
+        if default is not None:
+            return default
+        if allow_empty:
+            return ""
+        output_fn("输入不能为空，请重新填写。")
+
+
+def render_defender_whitelist_warning(
+    *,
+    project_root: str | Path,
+    comfyui_root: str | Path | None = None,
+    output_fn: Callable[[str], None] = print,
+) -> None:
+    project_root = Path(project_root).resolve()
+    comfy_text = str(Path(comfyui_root).resolve()) if comfyui_root else "<你的 ComfyUI 根目录>"
+    output_fn("MarioTrickster-MathArt Dual Wizard")
+    output_fn("安全提示：如 Windows Defender 或第三方杀毒软件误报，请手动把项目目录和 ComfyUI 目录加入白名单。")
+    output_fn(f"项目目录: {project_root}")
+    output_fn(f"ComfyUI 目录: {comfy_text}")
+    output_fn("可复制的 PowerShell 参考命令（请由你本人确认后手动执行，而不是让程序代替执行）：")
+    output_fn(f"  Add-MpPreference -ExclusionPath '{project_root}'")
+    output_fn(f"  Add-MpPreference -ExclusionPath '{comfy_text}'")
+    output_fn("")
+
+
+def prompt_manual_intervention(
+    error: ManualInterventionRequiredError,
+    *,
+    input_fn: Callable[[str], str] = input,
+    output_fn: Callable[[str], None] = print,
+) -> str:
+    for line in error.guidance:
+        output_fn(line)
+    return standard_menu_prompt(
+        title=error.title,
+        message=error.message,
+        options=error.options,
+        input_fn=input_fn,
+        output_fn=output_fn,
+    )
 
 
 def run_wizard(
@@ -92,15 +177,28 @@ def _run_interactive(
 ) -> int:
     project_root = Path.cwd().resolve()
     dispatcher = ModeDispatcher(project_root=project_root)
-    output_fn("MarioTrickster-MathArt Dual Wizard")
+    render_defender_whitelist_warning(project_root=project_root, output_fn=output_fn)
     output_fn("请选择当前工作模式：")
     for item in dispatcher.available_modes():
         output_fn(f"  [{item['index']}] {item['label']}")
-    selection = input_fn("输入编号并回车: ").strip()
-    execute_now = input_fn("是否立即执行该模式？[y/N]: ").strip().lower() in {"y", "yes"}
+    selection = standard_text_prompt("输入编号并回车", input_fn=input_fn, output_fn=output_fn)
+    execute_now = (
+        standard_text_prompt(
+            "是否立即执行该模式？输入 y/yes 表示执行，其余为仅预览",
+            input_fn=input_fn,
+            output_fn=output_fn,
+            default="n",
+        ).strip().lower()
+        in {"y", "yes"}
+    )
     source = None
     if selection in {"3", "local", "local_distill", "distill", "research"}:
-        source = input_fn("若要执行本地科研蒸馏，请输入素材文件路径（可留空稍后再传参）: ").strip() or None
+        source = standard_text_prompt(
+            "若要执行本地科研蒸馏，请输入素材文件路径（可留空稍后再传参）",
+            input_fn=input_fn,
+            output_fn=output_fn,
+            allow_empty=True,
+        ).strip() or None
     try:
         result = dispatcher.dispatch(
             selection,
@@ -144,4 +242,11 @@ def _namespace_to_options(args: argparse.Namespace, *, interactive: bool) -> dic
     }
 
 
-__all__ = ["build_parser", "run_wizard"]
+__all__ = [
+    "build_parser",
+    "prompt_manual_intervention",
+    "render_defender_whitelist_warning",
+    "run_wizard",
+    "standard_menu_prompt",
+    "standard_text_prompt",
+]

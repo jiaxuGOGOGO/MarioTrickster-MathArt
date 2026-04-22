@@ -54,6 +54,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Callable, Iterable, Iterator, Optional, Protocol
 
+from .hitl_boundary import is_timeout_boundary, network_timeout_manual_error
+
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -293,11 +295,13 @@ class AtomicDownloader:
 
         # ---- Step 1: resumable streaming ---------------------------------
         last_error: Optional[str] = None
+        last_exception: BaseException | None = None
         for attempt in range(1, self._max_retries + 1):
             offset = part.stat().st_size if part.exists() else 0
             try:
                 response = self._transport.open(url, offset=offset)
             except (urllib.error.URLError, OSError, TimeoutError) as exc:
+                last_exception = exc
                 last_error = f"open failed (attempt {attempt}): {exc!r}"
                 logger.warning("atomic_downloader: %s", last_error)
                 sleeper(self._backoff * attempt)
@@ -308,6 +312,7 @@ class AtomicDownloader:
                     response=response, part=part, prior_offset=offset
                 )
             except (OSError, TimeoutError) as exc:
+                last_exception = exc
                 last_error = f"stream failed (attempt {attempt}): {exc!r}"
                 logger.warning("atomic_downloader: %s", last_error)
                 sleeper(self._backoff * attempt)
@@ -360,6 +365,14 @@ class AtomicDownloader:
                 quarantined_part=None,
                 notes=(f"atomic publish via os.replace after attempt {attempt}",),
             )
+
+        if is_timeout_boundary(last_exception):
+            raise network_timeout_manual_error(
+                url=url,
+                target_path=str(target),
+                attempts=self._max_retries,
+                last_error=last_error or "unknown timeout transport error",
+            ) from last_exception
 
         return DownloadOutcome(
             url=url,

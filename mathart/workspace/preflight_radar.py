@@ -782,8 +782,9 @@ def _discover_comfyui(psutil_module: Optional[Any],
 def _synthesize_verdict(gpu: GPUProbe,
                         env: PythonEnvironmentProbe,
                         comfy: ComfyUIDiscovery,
-                        require_gpu: bool) -> tuple[PreflightVerdict, str,
-                                                    tuple[str, ...], tuple[str, ...]]:
+                        require_gpu: bool,
+                        minimum_gpu_vram_mb: int) -> tuple[PreflightVerdict, str,
+                                                           tuple[str, ...], tuple[str, ...]]:
     """Combine probe results into the top-level verdict.
 
     Decision matrix (intentionally explicit, no implicit precedence):
@@ -827,7 +828,17 @@ def _synthesize_verdict(gpu: GPUProbe,
                 fixable.append(f"missing_package:{pkg}")
 
     if require_gpu and not gpu.available:
-        blocking.append("gpu_required_but_not_available")
+        blocking.append(
+            "gpu_required_but_not_available: install NVIDIA driver / CUDA-capable GPU "
+            "or switch to dry_run / CPU-safe lane; reference https://developer.nvidia.com/cuda-downloads"
+        )
+    elif require_gpu and gpu.available:
+        max_vram = max(gpu.total_vram_mb) if gpu.total_vram_mb else 0
+        if max_vram and max_vram < minimum_gpu_vram_mb:
+            blocking.append(
+                f"gpu_vram_below_recommended: detected {max_vram} MiB < {minimum_gpu_vram_mb} MiB; "
+                "switch to dry_run or upgrade to a CUDA-capable GPU with sufficient memory"
+            )
 
     if blocking:
         verdict = PreflightVerdict.MANUAL_INTERVENTION_REQUIRED
@@ -892,6 +903,7 @@ class PreflightRadar:
         extra_candidate_roots: Iterable[Path] = (),
         require_gpu: bool = False,
         packages: Iterable[str] = _RUNTIME_CRITICAL_PACKAGES,
+        minimum_gpu_vram_mb: int = 6144,
     ) -> None:
         if psutil_module is None:
             psutil_module = _try_import("psutil")
@@ -902,6 +914,7 @@ class PreflightRadar:
         self._extra_candidates = tuple(extra_candidate_roots)
         self._require_gpu = bool(require_gpu)
         self._packages = tuple(packages)
+        self._minimum_gpu_vram_mb = int(minimum_gpu_vram_mb)
 
     # ------------------------------------------------------------------
     # Probe entry points (each is independently testable)
@@ -971,7 +984,11 @@ class PreflightRadar:
             )
 
         verdict, summary, fixable, blocking = _synthesize_verdict(
-            gpu=gpu, env=env, comfy=comfy, require_gpu=self._require_gpu,
+            gpu=gpu,
+            env=env,
+            comfy=comfy,
+            require_gpu=self._require_gpu,
+            minimum_gpu_vram_mb=self._minimum_gpu_vram_mb,
         )
 
         return PreflightReport(
