@@ -305,7 +305,96 @@ class ArtMathQualityController:
             print(result.summary())
         return result
 
-    # ── Checkpoint 4: ITERATION-END ───────────────────────────────────────────
+    # ── Checkpoint 3b: POST-SEQUENCE-GENERATION (SESSION-131) ──────────────────
+
+    def post_sequence_generation(
+        self,
+        iteration: int,
+        frames: list[np.ndarray],
+        mv_fields: list,
+        params: dict[str, float] | None = None,
+        min_ssim_threshold: float = 0.70,
+        max_warp_error_threshold: float = 0.20,
+    ) -> "CheckpointResult":
+        """Run after sequence generation to enforce temporal quality.
+
+        SESSION-131: Integrates the TemporalQualityGate circuit breaker
+        into the quality controller pipeline.  Uses Min-SSIM (worst frame
+        pair) as the primary fuse.
+
+        Parameters
+        ----------
+        iteration : int
+            Current iteration number.
+        frames : list[np.ndarray]
+            AI-rendered frames.
+        mv_fields : list[MotionVectorField]
+            Ground-truth motion vector fields.
+        params : dict, optional
+            Generation parameters for logging.
+        min_ssim_threshold : float
+            Minimum acceptable SSIM for worst frame pair.
+        max_warp_error_threshold : float
+            Maximum acceptable warp error for any frame pair.
+
+        Returns
+        -------
+        CheckpointResult
+        """
+        from mathart.quality.temporal_quality_gate import (
+            TemporalQualityGate,
+            QualityVerdict,
+        )
+
+        if not hasattr(self, '_temporal_gate'):
+            self._temporal_gate = TemporalQualityGate(
+                min_ssim_threshold=min_ssim_threshold,
+                max_warp_error_threshold=max_warp_error_threshold,
+            )
+
+        tq_result = self._temporal_gate.evaluate_sequence(frames, mv_fields)
+
+        if tq_result.verdict == QualityVerdict.PASS:
+            decision = CheckpointDecision.CONTINUE
+            q_score = tq_result.min_ssim
+            message = (
+                f"Temporal quality PASS: Min-SSIM={tq_result.min_ssim:.4f}, "
+                f"Mean-SSIM={tq_result.mean_ssim:.4f}"
+            )
+        elif tq_result.verdict == QualityVerdict.BREAKER_OPEN:
+            decision = CheckpointDecision.SAFE_HALT
+            q_score = tq_result.min_ssim
+            message = (
+                f"Temporal quality BREAKER OPEN: {tq_result.diagnostics}"
+            )
+        else:
+            decision = CheckpointDecision.RETRY
+            q_score = tq_result.min_ssim
+            message = (
+                f"Temporal quality FAIL: Min-SSIM={tq_result.min_ssim:.4f} "
+                f"at pair {tq_result.worst_frame_pair_index}, "
+                f"Max-WarpError={tq_result.max_warp_error:.4f}"
+            )
+
+        self._score_history.append(q_score)
+
+        result = CheckpointResult(
+            stage=CheckpointStage.POST_GENERATION,
+            iteration=iteration,
+            decision=decision,
+            quality_score=q_score,
+            knowledge_score=1.0,
+            math_score=1.0,
+            sprite_ref_score=1.0,
+            message=message,
+        )
+
+        self._checkpoint_log.append(result)
+        if self.verbose:
+            print(result.summary())
+        return result
+
+    # ── Checkpoint 4: ITERATION-END ─────────────────────────────────────────────────────────────
 
     def iteration_end(
         self,

@@ -29,6 +29,16 @@ from mathart.quality.mid_generation_checkpoint import (
     DEFAULT_SKELETON_PROPORTION_BOUNDS,
     DEFAULT_PROPORTION_RATIO_GUARDS,
 )
+# SESSION-131: Temporal Quality Gate — Circuit Breaker for AI Rendering
+from mathart.quality.temporal_quality_gate import (
+    BreakerState,
+    BreakerStatus,
+    QualityVerdict,
+    TemporalQualityResult,
+    TemporalQualityGate,
+    compute_warp_ssim_pair,
+    sliding_window_warp_ssim,
+)
 # SESSION-055: Multi-modal visual fitness scoring
 from mathart.quality.visual_fitness import (
     VisualFitnessConfig,
@@ -62,4 +72,12 @@ __all__ = [
     "compute_channel_dynamic_range",
     "compute_depth_smoothness",
     "compute_visual_fitness",
+    # SESSION-131: Temporal Quality Gate
+    "BreakerState",
+    "BreakerStatus",
+    "QualityVerdict",
+    "TemporalQualityResult",
+    "TemporalQualityGate",
+    "compute_warp_ssim_pair",
+    "sliding_window_warp_ssim",
 ]

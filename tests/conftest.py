@@ -54,6 +54,8 @@ _BUILTIN_BACKEND_MODULES = [
     "mathart.core.reaction_diffusion_backend",
     "mathart.core.unity_2d_anim_backend",
     "mathart.core.spine_preview_backend",
+    "mathart.core.physical_ribbon_backend",
+    "mathart.core.archive_delivery_backend",
 ]
 
 

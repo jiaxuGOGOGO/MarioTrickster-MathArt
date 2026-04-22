@@ -66,6 +66,10 @@ class TemporalConsistencyMetrics:
     warp_error_threshold: float = 0.15
     per_frame_errors: list[float] = field(default_factory=list)
     per_frame_energies: list[float] = field(default_factory=list)
+    # SESSION-131: Min-SSIM fuse fields
+    min_warp_ssim: float = 1.0
+    per_pair_warp_ssim: list[float] = field(default_factory=list)
+    worst_frame_pair_index: int = -1
     timestamp: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -84,6 +88,9 @@ class TemporalConsistencyMetrics:
             "warp_error_threshold": self.warp_error_threshold,
             "per_frame_errors": self.per_frame_errors,
             "per_frame_energies": self.per_frame_energies,
+            "min_warp_ssim": self.min_warp_ssim,
+            "per_pair_warp_ssim": self.per_pair_warp_ssim,
+            "worst_frame_pair_index": self.worst_frame_pair_index,
             "timestamp": self.timestamp,
         }
 
@@ -322,6 +329,8 @@ class NeuralRenderingEvolutionBridge:
 
         metrics.per_frame_errors = per_frame_errors
         metrics.per_frame_energies = per_frame_energies
+        # SESSION-131: Track per-pair warp SSIM for Min-SSIM fuse
+        metrics.per_pair_warp_ssim = warp_ssim_proxies
 
         if per_frame_errors:
             metrics.mean_warp_error = float(np.mean(per_frame_errors))
@@ -332,13 +341,23 @@ class NeuralRenderingEvolutionBridge:
             metrics.warp_ssim_proxy = float(np.mean(warp_ssim_proxies))
             metrics.coverage = float(np.mean(coverages))
 
+            # SESSION-131: Min-SSIM — worst frame pair is the fuse
+            if warp_ssim_proxies:
+                metrics.min_warp_ssim = float(np.min(warp_ssim_proxies))
+                metrics.worst_frame_pair_index = int(np.argmin(warp_ssim_proxies))
+
             # Flicker score: variance of warp errors (high variance = flicker)
             if len(per_frame_errors) > 1:
                 metrics.flicker_score = float(np.std(per_frame_errors))
             else:
                 metrics.flicker_score = 0.0
 
-        metrics.temporal_pass = metrics.mean_warp_error <= warp_error_threshold
+        # SESSION-131: Use Min-SSIM as secondary pass criterion
+        # Primary: mean_warp_error <= threshold
+        # Secondary: min_warp_ssim >= 0.5 (catastrophic frame detection)
+        warp_pass = metrics.mean_warp_error <= warp_error_threshold
+        ssim_pass = metrics.min_warp_ssim >= 0.5
+        metrics.temporal_pass = warp_pass and ssim_pass
 
         # Update state
         if metrics.temporal_pass:
@@ -531,6 +550,14 @@ class NeuralRenderingEvolutionBridge:
         # High flicker penalty
         if metrics.flicker_score > 0.1:
             bonus -= min(0.15, metrics.flicker_score * 1.5)
+
+        # SESSION-131: Min-SSIM catastrophic frame penalty
+        # If worst frame pair SSIM is below 0.5, apply heavy penalty
+        # proportional to the deficit.  This forces evolution to avoid
+        # parameter combinations that produce even one bad frame.
+        if metrics.min_warp_ssim < 0.5:
+            ssim_deficit = 0.5 - metrics.min_warp_ssim
+            bonus -= min(0.25, ssim_deficit * 2.0)
 
         # Zero coverage penalty (no valid motion data)
         if metrics.coverage < 0.01:

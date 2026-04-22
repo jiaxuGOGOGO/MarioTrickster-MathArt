@@ -1,7 +1,7 @@
 {
   "version": "v0.99.0",
-  "last_session_id": "SESSION-130",
-  "last_updated": "2026-04-22T20:00:00Z",
+  "last_session_id": "SESSION-131",
+  "last_updated": "2026-04-22T22:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -31,7 +31,7 @@
     "closed_archived": 53
   },
   "best_quality_score": 0.892,
-  "validation_pass_rate": "SESSION-130 audit: 18/18 anti_flicker_live_cli tests PASS (9 new SESSION-130 tests: 5 Temporal Variance Circuit Breaker + 4 Anti-Forgery Frame Hash), 2/2 mass_production_factory tests PASS, 24/24 orthographic_pixel_render tests PASS, 28/28 motion_2d_pipeline tests PASS, 13/14 CI backend schema tests PASS (2 pre-existing issues). Research grounded in AnimateDiff/SparseCtrl Temporal Conditioning, GDC Data-Driven Animation Pipelines, Jim Gray Fail-Fast Data Integrity.",
+  "validation_pass_rate": "SESSION-131 audit: 28/28 temporal_quality_gate tests PASS (all new), 24/24 orthographic_pixel_render tests PASS, 2/2 mass_production_factory tests PASS, 28/28 motion_2d_pipeline tests PASS, 18/18 anti_flicker_live_cli tests PASS. Total: 100/100 PASS across all suites. Research grounded in Lai et al. ECCV 2018 Temporal Warping Error, Martin Fowler Circuit Breaker Pattern, Automated Fitness Landscapes.",
   "total_iterations": 740,
   "total_code_lines": 164850,
   "distill_session_id": "DISTILL-012",
@@ -4030,6 +4030,47 @@
         "result": "PASS",
         "notes": "18/18 anti_flicker tests PASS (9 new SESSION-130 tests: 5 temporal variance + 4 anti-forgery), 2/2 mass production tests PASS, 24/24 orthographic tests PASS, 28/28 motion_2d_pipeline tests PASS, 13/14 CI schema tests PASS (2 pre-existing issues: anti_flicker_render keyframe_count in offline mode, pseudo_3d_shell NoneType)."
       }
+    },
+    {
+      "session_id": "SESSION-131",
+      "date": "2026-04-22",
+      "focus": "P0-SESSION-128-TEMPORAL-QUALITY-GATE: Implement AI rendering temporal quality auto-fuse mechanism based on GT motion flow and Min-SSIM circuit breaker",
+      "status": "COMPLETE",
+      "summary": "Executed the P0-SESSION-128-TEMPORAL-QUALITY-GATE attack plan grounded in three industrial/academic references (Lai et al. ECCV 2018 Temporal Warping Error, Martin Fowler Circuit Breaker Pattern, Automated Fitness Landscapes in Evolutionary Algorithms). Four core deliverables: (1) New module mathart/quality/temporal_quality_gate.py — complete three-state circuit breaker (CLOSED/OPEN/HALF_OPEN) implementing Martin Fowler's state machine pattern, with sliding-window warp-SSIM computation using occlusion-aware GT motion vectors. Min-SSIM fuse (NOT mean-SSIM) ensures a single catastrophic frame triggers rejection. OOM-safe O(1) memory per pair via sliding window. (2) Quality controller integration — post_sequence_generation() method in ArtMathQualityController invokes TemporalQualityGate and returns structured TemporalQualityResult with per-pair SSIM/warp-error diagnostics. (3) Neural rendering bridge upgrade — TemporalConsistencyMetrics extended with min_warp_ssim, per_pair_warp_ssim, worst_frame_pair_index fields; evaluate_temporal_consistency() now computes Min-SSIM as secondary pass criterion; compute_temporal_fitness_bonus() adds min_warp_ssim catastrophic frame penalty (up to -0.25) to evolution fitness landscape. (4) Factory integration — _node_ai_render now invokes TemporalQualityGate after anti_flicker_render backend execution, injecting temporal_quality_gate report into ArtifactManifest metadata. 28 new tests covering: warp-SSIM pair computation (4), sliding window (3), flicker injection with Min-SSIM fuse (3), circuit breaker state machine (5), evolution fitness penalty (4), contract validation (2), OOM prevention (2), neural rendering bridge integration (3), result serialization (2).",
+      "changes": [
+        "NEW mathart/quality/temporal_quality_gate.py — TemporalQualityGate circuit breaker, compute_warp_ssim_pair(), sliding_window_warp_ssim(), QualityVerdict enum, BreakerState/BreakerStatus, TemporalQualityResult, compute_fitness_penalty()",
+        "UPD mathart/quality/__init__.py — export temporal_quality_gate symbols",
+        "UPD mathart/quality/controller.py — add post_sequence_generation() method integrating TemporalQualityGate",
+        "UPD mathart/evolution/neural_rendering_bridge.py — add min_warp_ssim/per_pair_warp_ssim/worst_frame_pair_index to TemporalConsistencyMetrics, Min-SSIM secondary pass criterion, catastrophic frame fitness penalty",
+        "UPD tools/run_mass_production_factory.py — integrate TemporalQualityGate in _node_ai_render, inject temporal_quality_gate report into manifest metadata, bump to SESSION-131",
+        "UPD tests/conftest.py — add physical_ribbon_backend and archive_delivery_backend to _BUILTIN_BACKEND_MODULES for registry stability",
+        "NEW tests/test_temporal_quality_gate.py — 28 comprehensive tests (warp-SSIM, sliding window, flicker injection, circuit breaker state machine, fitness penalty, contract validation, OOM prevention, bridge integration, serialization)",
+        "NEW research/research_session131_industrial_references.md — consolidated research on Warping Error, Circuit Breaker Pattern, Fitness Landscapes",
+        "NEW research/session131_code_analysis.md — architecture analysis of motion_vector_baker, visual_fitness, controller, neural_rendering_bridge",
+        "UPD PROJECT_BRAIN.json — SESSION-131 state, resolved issues, architecture notes",
+        "UPD SESSION_HANDOFF.md — SESSION-131 handoff with MAP-Elites prep guidance"
+      ],
+      "files_touched": [
+        "mathart/quality/temporal_quality_gate.py",
+        "mathart/quality/__init__.py",
+        "mathart/quality/controller.py",
+        "mathart/evolution/neural_rendering_bridge.py",
+        "tools/run_mass_production_factory.py",
+        "tests/conftest.py",
+        "tests/test_temporal_quality_gate.py",
+        "research/research_session131_industrial_references.md",
+        "research/session131_code_analysis.md",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
+      ],
+      "validation": {
+        "commands": [
+          "python3.11 -m pytest tests/test_temporal_quality_gate.py -v",
+          "python3.11 -m pytest tests/test_orthographic_pixel_render.py tests/test_mass_production.py tests/test_motion_2d_pipeline.py tests/test_p1_ai_2c_anti_flicker_live_cli.py -v"
+        ],
+        "result": "PASS",
+        "notes": "28/28 temporal_quality_gate tests PASS (all new SESSION-131), 24/24 orthographic tests PASS, 2/2 mass production tests PASS, 28/28 motion_2d_pipeline tests PASS, 18/18 anti_flicker tests PASS. Total: 100/100 PASS across all suites when run together."
+      }
     }
   ],
   "resolved_issues": [
@@ -4137,6 +4178,13 @@
       "resolved_at": "2026-04-22T20:00:00Z",
       "resolution": "Complete eradication of single-image replication forgery in AI render guide sequences. Three-pronged attack: (1) Factory guide pipeline rewritten from scratch — _bake_true_motion_guide_sequence() reconstructs CharacterGenotype from serialized JSON, builds animation_func from Clip2D bone transforms with frame-accurate interpolation, renders genuine per-frame guide sequences with real geometric variation from actual skeletal animation, OOM-safe chunked rendering (CHUNK_SIZE=8). (2) Temporal Variance Circuit Breaker — validate_temporal_variance() in anti_flicker_runtime.py computes inter-frame MSE, rejects static/near-static sequences with PipelineContractError before they reach ComfyUI (catches both static forgery and micro-jitter forgery). compute_frame_hashes() provides SHA-256 per-frame pixel audit trail. (3) PDG topology corrected — ai_render_stage now depends on motion2d_export_stage, establishing true data-driven pipeline from bone animation to AI rendering.",
       "validation_test_file": "tests/test_p1_ai_2c_anti_flicker_live_cli.py + tests/test_mass_production.py + tests/test_orthographic_pixel_render.py + tests/test_motion_2d_pipeline.py"
+    },
+    {
+      "issue_id": "P0-SESSION-128-TEMPORAL-QUALITY-GATE",
+      "session_id": "SESSION-131",
+      "resolved_at": "2026-04-22T22:00:00Z",
+      "resolution": "Four-pronged temporal quality defense system: (1) New mathart/quality/temporal_quality_gate.py — three-state circuit breaker (CLOSED/OPEN/HALF_OPEN) per Martin Fowler pattern, sliding-window warp-SSIM with occlusion-aware GT motion vectors, Min-SSIM fuse (NOT mean-SSIM) ensures single catastrophic frame triggers rejection, OOM-safe O(1) memory per pair. (2) Quality controller integration — post_sequence_generation() in ArtMathQualityController invokes TemporalQualityGate with structured TemporalQualityResult diagnostics. (3) Neural rendering bridge upgrade — TemporalConsistencyMetrics extended with min_warp_ssim/per_pair_warp_ssim/worst_frame_pair_index, Min-SSIM secondary pass criterion, catastrophic frame fitness penalty (up to -0.25) in evolution landscape. (4) Factory integration — _node_ai_render invokes TemporalQualityGate post-render, injects temporal_quality_gate report into ArtifactManifest metadata.",
+      "validation_test_file": "tests/test_temporal_quality_gate.py + tests/test_orthographic_pixel_render.py + tests/test_mass_production.py + tests/test_motion_2d_pipeline.py + tests/test_p1_ai_2c_anti_flicker_live_cli.py"
     }
   ],
   "backlog": [],
@@ -4238,6 +4286,24 @@
       "topic": "quality_gate_system_prep",
       "decision": "With true motion guide sequences and the temporal variance circuit breaker in place, the architecture is now ready for the full Quality Gate system based on multi-frame optical flow (Motion Vectors) and SSIM temporal consistency.",
       "implication": "Next steps for the Quality Gate system: (1) Add optical flow extraction (Farneback or RAFT) between consecutive AI render output frames to compute motion vector fields. (2) Implement SSIM temporal consistency scoring: compare AI render output frame-pairs against guide input frame-pairs to detect temporal collapse or hallucination. (3) Build QualityGateBackend as a registry plugin that runs post-AI-render and produces a QUALITY_GATE_REPORT ArtifactManifest with per-frame scores. (4) Implement auto-fuse mechanism: if SSIM drops below threshold for >3 consecutive frames, trigger re-render with adjusted ControlNet strength. (5) Integrate FrameSequenceExporter as the canonical disk-materialization path for guide sequences, enabling ComfyUI VHS_LoadImagesPath directory-based loading."
+    },
+    {
+      "session_id": "SESSION-131",
+      "topic": "temporal_quality_gate_circuit_breaker",
+      "decision": "New mathart/quality/temporal_quality_gate.py implements a three-state circuit breaker (CLOSED/OPEN/HALF_OPEN) per Martin Fowler's pattern. Sliding-window warp-SSIM computation uses occlusion-aware GT motion vectors from motion_vector_baker. Min-SSIM fuse (NOT mean-SSIM) ensures a single catastrophic frame triggers rejection. OOM-safe O(1) memory per pair via sliding window — only two frames and one MV field are resident at any time.",
+      "implication": "The circuit breaker is the authoritative temporal quality defense layer. It sits between AI render output and artifact persistence, ensuring defective sequences never reach disk. The three-state machine enables graceful recovery: after cooldown_seconds (60s default), the breaker enters HALF_OPEN and allows a single probe evaluation. If the probe passes, the breaker returns to CLOSED. This prevents permanent lockout from transient ComfyUI instability."
+    },
+    {
+      "session_id": "SESSION-131",
+      "topic": "evolution_min_warp_ssim_penalty",
+      "decision": "TemporalConsistencyMetrics extended with min_warp_ssim, per_pair_warp_ssim, and worst_frame_pair_index. evaluate_temporal_consistency() now computes Min-SSIM as a secondary pass criterion (threshold 0.5). compute_temporal_fitness_bonus() adds a catastrophic frame penalty: when min_warp_ssim < 0.5, a penalty of up to -0.25 is applied to the evolution fitness landscape via configurable min_warp_ssim_penalty_lambda.",
+      "implication": "The evolution engine now has a direct negative feedback loop from temporal quality to genotype fitness. Characters whose morphology or gait produces temporally incoherent AI renders will be penalized in the fitness landscape, steering evolution toward motion patterns that produce stable, coherent video output. This closes the loop from SESSION-130's true motion guide to SESSION-131's quality-driven evolution."
+    },
+    {
+      "session_id": "SESSION-131",
+      "topic": "map_elites_multi_objective_evolution_prep",
+      "decision": "With the temporal quality gate and min_warp_ssim fitness penalty in place, the architecture is now ready for MAP-Elites multi-objective evolution that simultaneously optimizes motion coherence and character style diversity.",
+      "implication": "Next steps for MAP-Elites: (1) Define behavior descriptor space — 2D grid with axes [temporal_coherence_score, style_diversity_score] where temporal_coherence comes from TemporalQualityGate and style_diversity from visual_fitness pHash distance to archive centroid. (2) Implement MAP-Elites archive — a grid of elite cells, each storing the best genotype for its behavior descriptor bin. (3) Modify evolution loop — after fitness evaluation, compute behavior descriptors and attempt to place the individual into the MAP-Elites archive (replace if fitness is higher). (4) Add curiosity-driven exploration bonus — genotypes that fill empty archive cells receive a one-time fitness bonus to encourage coverage of the behavior space. (5) Integrate TemporalQualityGate verdict as a hard constraint — genotypes that fail the circuit breaker are never placed in the archive regardless of other fitness scores."
     }
   ]
 }
