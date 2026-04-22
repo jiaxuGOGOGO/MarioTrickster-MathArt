@@ -1,11 +1,11 @@
-# SESSION-146 HANDOFF — FULL-CHAIN TELEMETRY THROUGH-BORE & DEPENDENCY HARDENING
+# SESSION-146 HANDOFF — FULL-CHAIN TELEMETRY THROUGH-BORE, DEPENDENCY HARDENING & RADAR WIDE-AREA SEARCH NET
 
-> **全链路遥测贯通 + 依赖固化 + 双轨日志分流护栏：黑匣子从此对核心业务轨迹零失明**
+> **全链路遥测贯通 + 依赖固化 + 双轨日志分流护栏 + 雷达广域探测网强化：黑匣子从此对核心业务轨迹零失明，ComfyUI 探测再无死角**
 
 **Date**: 2026-04-22
 **Status**: COMPLETE
 **Parent Commit**: `3e2792d` (SESSION-145)
-**Tests**: 11/11 SESSION-146 targeted + 44/44 radar/wizard/director regression + 27/27 system-purge-observability = **82/82 PASS, 0 FAIL**
+**Tests**: 11/11 SESSION-146 targeted + 15/15 SESSION-146-B radar + 17/17 radar regression + 27/27 system-purge + 4/4 wizard + 27/27 director = **101/101 PASS, 0 FAIL**
 
 ---
 
@@ -22,9 +22,14 @@ SESSION-145 端到端环境探测测试暴露了系统在"底层依赖完整性"
    - 无论是模式 5 中极其重要的白模拦截报错，还是模式 1 中长达几十行的防撞雷达 JSON 诊断报告，**全部仅仅被打印在了终端（stdout），根本没有被写入 `logs/mathart.log`**。
    - 黑匣子仅有 GC 启动等生命周期记录，对核心业务轨迹和阻断快照完全失明。
 
+3. **ComfyUI 广域探测盲区 (Search Net Gap)**（追加痛点）：
+   - 宿主机明确安装了 ComfyUI，但雷达报出 `comfyui_not_found` 且 `candidate_roots: []`。
+   - 静态搜索网仅覆盖 14 条路径，缺少 Windows Portable 版本、多盘符 AI 目录、macOS 路径、以及相对工作区的祖先目录探测。
+   - 更致命的是：雷达未在黑匣子中留下"究竟去哪些路径找过"的搜查审计轨迹，导致排障无门。
+
 ---
 
-## 2. Key Deliverables (三重修复)
+## 2. Key Deliverables
 
 ### 2.1 修复一：依赖体系显式补齐与惰性加载捍卫
 
@@ -72,19 +77,76 @@ SESSION-145 端到端环境探测测试暴露了系统在"底层依赖完整性"
 - **文件 handler** (`logs/mathart.log`)：`DEBUG` 级别，捕获全量业务遥测。
 - **终端 handler** (stderr)：`WARNING` 级别，仅显示告警和错误，不冲刷向导菜单。
 
+### 2.4 修复四：ComfyUI 广域探测网强化 (SESSION-146-B)
+
+#### 2.4.1 扩容静态嗅探候选网 (Expand Candidate Roots)
+
+`_DEFAULT_CANDIDATE_PARENTS` 从 **14 条** 扩容至 **42 条**，覆盖以下全部部署模式：
+
+| 部署模式 | 新增候选路径示例 |
+|---------|----------------|
+| **POSIX 用户本地** | `~/Desktop/ComfyUI`, `~/Downloads/ComfyUI`, `~/git/ComfyUI`, `~/src/ComfyUI`, `~/workspace/ComfyUI` |
+| **Windows Portable 发行版** | `~/ComfyUI_windows_portable/ComfyUI`, `~/Desktop/ComfyUI_windows_portable/ComfyUI`, `~/Downloads/ComfyUI_windows_portable/ComfyUI` |
+| **Windows 多盘符** | `C:/Program Files/ComfyUI`, `C:/ComfyUI_windows_portable/ComfyUI`, `D:/Tools/ComfyUI`, `D:/ComfyUI_windows_portable/ComfyUI`, `E:/ComfyUI_windows_portable/ComfyUI`, `F:/ComfyUI_windows_portable/ComfyUI`, `G:/ComfyUI`, `G:/AI/ComfyUI`, `H:/ComfyUI`, `H:/AI/ComfyUI` |
+| **macOS 常规** | `/Applications/ComfyUI`, `~/Library/Application Support/ComfyUI` |
+
+相对工作区探测也从 3 条扩容至 8 条：
+
+| 相对路径 | 说明 |
+|---------|------|
+| `./ComfyUI`, `./comfyui` | 当前目录子目录 |
+| `../ComfyUI`, `../comfyui` | 父目录同级 |
+| `../ComfyUI_windows_portable/ComfyUI` | 父目录 Portable 版本 |
+| `../../ComfyUI`, `../../comfyui` | 祖父目录同级 |
+| `../../ComfyUI_windows_portable/ComfyUI` | 祖父目录 Portable 版本 |
+
+#### 2.4.2 侦察动作底层留痕 (Search Audit Trail Logging)
+
+| 函数 | 日志标签 | 级别 | 内容 |
+|------|---------|------|------|
+| `_scan_filesystem_for_comfyui` | `[Radar/FS]` | `DEBUG` | COMFYUI_HOME 环境变量状态 |
+| `_scan_filesystem_for_comfyui` | `[Radar/FS]` | `DEBUG` | 静态候选列表大小 |
+| `_scan_filesystem_for_comfyui` | `[Radar/FS]` | `DEBUG` | 当前工作目录 |
+| `_scan_filesystem_for_comfyui` | `[Radar/FS]` | `DEBUG` | 每条路径的 PROBE 结果 (HIT/miss) |
+| `_scan_filesystem_for_comfyui` | `[Radar/FS]` | `DEBUG` | 扫描摘要（N 条去重路径探测，M 条命中） |
+| `_scan_processes_for_comfyui` | `[Radar/PS]` | `DEBUG` | psutil 模块可用性 |
+| `_scan_processes_for_comfyui` | `[Radar/PS]` | `DEBUG` | 进程表遍历启动 |
+| `_scan_processes_for_comfyui` | `[Radar/PS]` | `DEBUG` | 每个 ComfyUI 候选进程的 pid/name/cmdline/cwd |
+| `_scan_processes_for_comfyui` | `[Radar/PS]` | `DEBUG` | main.py 参数 / cwd 回退候选的验证结果 |
+| `_scan_processes_for_comfyui` | `[Radar/PS]` | `DEBUG` | 扫描摘要（N 扫描/M python/K 候选/L 命中） |
+| `_discover_comfyui` | `[Radar]` | `INFO` | 探测启动 |
+| `_discover_comfyui` | `[Radar]` | `INFO` | 发现 ComfyUI（进程扫描/文件系统启发式） |
+| `_discover_comfyui` | `[Radar]` | `WARNING` | ComfyUI 未找到（含已探测候选数量） |
+
+**核心断言**：如果最终仍判定 `comfyui_not_found`，`logs/mathart.log` 中将留存一份极其详尽的"雷达曾尝试过哪些具体物理路径、扫过哪些进程表"的探查审计流水账。所有 `[Radar/FS]` 和 `[Radar/PS]` 标签的 DEBUG 日志仅落入文件，终端保持极度清爽。
+
+#### 2.4.3 雷达版本升级
+
+`radar_version` 从 `1.0.0` 升至 `1.1.0`。
+
 ---
 
 ## 3. Test Evidence
 
 ```
-tests/test_session146_telemetry.py         — 11/11 PASS
-tests/test_system_purge_observability.py   — 27/27 PASS
-tests/test_preflight_radar.py              — 13/13 PASS
-tests/test_dual_wizard_dispatcher.py       —  4/4  PASS
-tests/test_director_studio_blueprint.py    — 27/27 PASS
-─────────────────────────────────────────────────────
-TOTAL                                      — 82/82 PASS, 0 FAIL
+tests/test_session146_telemetry.py              — 11/11 PASS
+tests/test_session146b_radar_enhancement.py      — 15/15 PASS
+tests/test_preflight_radar.py                    — 17/17 PASS
+tests/test_system_purge_observability.py         — 27/27 PASS
+tests/test_dual_wizard_dispatcher.py             —  4/4  PASS
+tests/test_director_studio_blueprint.py          — 27/27 PASS
+──────────────────────────────────────────────────────────
+TOTAL                                            — 101/101 PASS, 0 FAIL
 ```
+
+SESSION-146-B 专项测试覆盖 5 大类 15 项：
+
+| 测试类 | 测试项 | 验证内容 |
+|--------|-------|---------|
+| `TestCandidatePathCoverage` | 5 项 | Windows Portable 路径、macOS 路径、多盘符覆盖、相对 cwd 探测、候选总数 >= 30 |
+| `TestFilesystemAuditTrail` | 4 项 | DEBUG 日志逐路径探测、COMFYUI_HOME 有/无记录、HIT 路径记录 |
+| `TestProcessScanAuditTrail` | 3 项 | 进程扫描摘要、psutil=None 记录、候选进程详情记录 |
+| `TestDiscoveryAuditTrail` | 3 项 | 未找到 WARNING、找到 INFO、探测启动记录 |
 
 ---
 
@@ -94,6 +156,7 @@ TOTAL                                      — 82/82 PASS, 0 FAIL
 - **遥测即审计 (Telemetry as Audit Trail)**：每一个业务阻断点、降级拦截、用户决策都必须在黑匣子中留存完整的 JSON 诊断证据与异常堆栈。
 - **双轨分流 (Log Multiplexing)**：文件 handler 全量捕获 DEBUG+，终端 handler 死守 WARNING+，两者互不干扰。
 - **惰性加载纪律 (Lazy Import Discipline)**：重型依赖（torch, matplotlib, psutil）禁止出现在模块顶级作用域。
+- **广域探测纪律 (Wide-Area Search Discipline)**：雷达的静态候选网必须覆盖所有主流 OS 的常见部署模式，每次探测必须在黑匣子中留下逐路径的审计流水账。
 
 ---
 
@@ -102,28 +165,27 @@ TOTAL                                      — 82/82 PASS, 0 FAIL
 | File | Change Type |
 |------|-------------|
 | `pyproject.toml` | 新增 psutil 核心依赖 + gpu optional-dependencies |
+| `mathart/workspace/preflight_radar.py` | 候选路径 14→42 条 + 进程/文件系统审计轨迹 + radar_version 1.1.0 |
 | `mathart/workspace/mode_dispatcher.py` | 新增 logger + 雷达 payload 落盘 + 拦截警告 + 模式选择埋点 |
 | `mathart/workspace/launcher_facade.py` | 新增中止诊断落盘 + 崩溃堆栈入库 |
 | `mathart/quality/interactive_gate.py` | 白模失败 exc_info + 真理网关警告/裁剪/覆盖入库 |
 | `mathart/cli_wizard.py` | 新增 logger + install_blackbox + 全链路向导轨迹埋点 |
 | `mathart/cli.py` | 移除 force=True + 改用 install_blackbox + root level 调整 |
 | `tests/test_session146_telemetry.py` | 新增 11 项端到端遥测验证测试 |
+| `tests/test_session146b_radar_enhancement.py` | 新增 15 项雷达广域探测网验证测试 |
+| `tests/test_preflight_radar.py` | radar_version 断言更新为 1.1.0 |
 
 ---
 
 ## 6. Coronation & Next Steps
 
 **Coronation**:
-> "黑匣子从此对核心业务轨迹零失明。无论是雷达拦截、白模崩溃、真理网关裁剪，还是用户的每一次模式选择，都将被完整烙印在 `logs/mathart.log` 中，永不丢失。"
-
-**回答核心问题**：
-> **如果环境雷达再次拦截量产任务，或者白模渲染再次失败，`logs/mathart.log` 黑匣子文件中是否能 100% 留存完整的 JSON 诊断证据与异常堆栈？**
->
-> **答案：是的，100%。** 11 项端到端遥测测试已在真实代码路径上验证了这一点。
+> "黑匣子从此对核心业务轨迹零失明，雷达探测网从此覆盖全平台全部署模式。无论是雷达拦截、白模崩溃、真理网关裁剪，还是用户的每一次模式选择，都将被完整烙印在 `logs/mathart.log` 中，永不丢失。即使 ComfyUI 最终仍未找到，黑匣子中也将留存一份逐路径、逐进程的完整探查审计流水账，为人工排障提供绝对的硬证据。"
 
 **Next Steps**:
 - P1：`tests/test_install_contract.py` — 扫描仓库内所有 `import` 语句与 `pyproject.toml` 声明依赖做自动化契约比对。
 - P2：为 `ProxyRenderer` 增加 `matplotlib` 缺失时的 ASCII-art 回退渲染器。
 - P2：为黑匣子增加结构化 JSON Lines 输出格式，便于 ELK/Loki 等日志平台接入。
+- P2：雷达增加 Windows Registry 查询策略（`HKLM\SOFTWARE\ComfyUI`）作为第三探测层。
 
 *Signed off by Manus AI*

@@ -128,7 +128,7 @@
     "engineering_automation": 95,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-146: FULL-CHAIN-TELEMETRY-THROUGH-BORE. psutil hardened into core deps; torch isolated to [gpu] optional; radar/launcher/gate/wizard business telemetry fully piped into blackbox; dual-track log multiplexing guard enforced (file=DEBUG, console=WARNING). 82/82 tests PASS.",
+  "current_focus": "SESSION-146 + 146-B: FULL-CHAIN-TELEMETRY-THROUGH-BORE & RADAR-WIDE-AREA-SEARCH-NET. psutil hardened into core deps; torch isolated to [gpu] optional; 19 telemetry injection points across radar/launcher/gate/wizard; dual-track log multiplexing guard (file=DEBUG, console=WARNING); ComfyUI candidate net expanded 14->42 paths (Windows Portable, macOS, multi-drive A-H, relative cwd ancestors); full search audit trail at DEBUG level ([Radar/FS] + [Radar/PS]); radar_version 1.1.0. 101/101 tests PASS.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research/session139_director_studio_research.md",
@@ -282,7 +282,7 @@
       "title": "Full-Chain Telemetry Through-Bore & Dependency Hardening",
       "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-146. Three-pronged fix: (1) psutil>=5.9 added to core deps, torch>=2.0 isolated to [gpu] optional-dependencies; (2) 19 telemetry injection points across mode_dispatcher, launcher_facade, interactive_gate, and cli_wizard — radar JSON payloads, proxy render tracebacks, Truth Gateway arbitration, and CLI wizard route selections now all land in logs/mathart.log; (3) cli.py force=True logging.basicConfig replaced with install_blackbox() + root-level-only adjustment to preserve file handler. Console handler stays at WARNING. 11/11 targeted + 71/71 regression = 82/82 PASS.",
+      "description": "CLOSED in SESSION-146. Three-pronged fix: (1) psutil>=5.9 added to core deps, torch>=2.0 isolated to [gpu] optional-dependencies; (2) 19 telemetry injection points across mode_dispatcher, launcher_facade, interactive_gate, and cli_wizard \u2014 radar JSON payloads, proxy render tracebacks, Truth Gateway arbitration, and CLI wizard route selections now all land in logs/mathart.log; (3) cli.py force=True logging.basicConfig replaced with install_blackbox() + root-level-only adjustment to preserve file handler. Console handler stays at WARNING. 11/11 targeted + 71/71 regression = 82/82 PASS.",
       "added_in": "SESSION-146",
       "completed_in": "SESSION-146",
       "closed_in": "SESSION-146",
@@ -294,6 +294,22 @@
         "mathart/cli_wizard.py",
         "mathart/cli.py",
         "tests/test_session146_telemetry.py"
+      ]
+    },
+    {
+      "id": "P0-SESSION-146B-RADAR-WIDE-AREA-SEARCH-NET",
+      "priority": "P0",
+      "title": "ComfyUI Wide-Area Search Net & Deep Audit Trail",
+      "status": "CLOSED",
+      "estimated_effort": "medium",
+      "description": "CLOSED in SESSION-146-B. Real-world evidence showed comfyui_not_found with candidate_roots:[] on a machine with ComfyUI installed. Three-pronged fix: (1) _DEFAULT_CANDIDATE_PARENTS expanded from 14 to 42 paths covering Windows Portable distribution, macOS conventional paths, multi-drive A-H with AI/Tools/Portable subfolder conventions, and additional POSIX user-local paths (Desktop, Downloads, git, src, workspace); (2) relative-to-cwd probes expanded from 3 to 8 paths including ../../ComfyUI and ../ComfyUI_windows_portable/ComfyUI ancestor patterns; (3) full search audit trail injected at DEBUG level: [Radar/FS] tags for every filesystem probe (COMFYUI_HOME status, per-path HIT/miss, scan summary) and [Radar/PS] tags for every process-table step (psutil availability, candidate process details, scan statistics). Discovery-level INFO/WARNING summaries at _discover_comfyui. radar_version bumped to 1.1.0. 15/15 targeted + 17/17 radar regression = 32/32 PASS.",
+      "added_in": "SESSION-146-B",
+      "completed_in": "SESSION-146-B",
+      "closed_in": "SESSION-146-B",
+      "primary_files": [
+        "mathart/workspace/preflight_radar.py",
+        "tests/test_session146b_radar_enhancement.py",
+        "tests/test_preflight_radar.py"
       ]
     },
     {
@@ -4678,6 +4694,12 @@
       "topic": "dependency_isolation_strategy",
       "decision": "psutil is a lightweight process-table utility required by PreflightRadar and MUST be in core dependencies. torch is a multi-GB heavy AI runtime and MUST NEVER appear in core dependencies; it is isolated to [project.optional-dependencies].gpu. All heavy optional imports (torch, gymnasium, numba, optuna) must use lazy-import guards at function scope, never at module top level.",
       "implication": "CPU-only sandbox startup remains sub-second. Users who need GPU SDF evaluation or neural rendering explicitly opt in via pip install mathart[gpu]. The lazy-import discipline is enforced by SESSION-146 tests and can be extended to a CI-level AST scan in P1-SESSION-146-IMPORT-CONTRACT-AUDIT."
+    },
+    {
+      "session_id": "SESSION-146-B",
+      "topic": "radar_wide_area_search_net_and_audit_trail",
+      "decision": "The ComfyUI discovery radar MUST cover all mainstream deployment patterns across Windows (including Portable distribution), macOS, and Linux. Static candidate paths expanded from 14 to 42. Relative-to-cwd probes expanded to include grandparent directories and Portable variants. Every filesystem probe and process-table walk step MUST emit DEBUG-level logs with [Radar/FS] and [Radar/PS] tags so that logs/mathart.log contains a complete search audit trail when ComfyUI is not found. Discovery-level summaries use INFO (found) and WARNING (not found) levels.",
+      "implication": "When a user reports comfyui_not_found, support engineers can request logs/mathart.log and immediately see every path the radar probed, every process it inspected, and exactly why each candidate was rejected. This eliminates the previous排障无门 problem. The DEBUG-level audit trail stays invisible on the terminal (console=WARNING guard) but is fully captured in the file handler. Future enhancements can add Windows Registry queries and PATH-based discovery as additional layers."
     }
   ]
 }

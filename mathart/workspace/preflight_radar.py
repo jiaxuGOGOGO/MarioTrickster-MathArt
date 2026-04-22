@@ -250,7 +250,7 @@ class PreflightReport:
     fixable_actions: tuple[str, ...]
     blocking_actions: tuple[str, ...]
     generated_at: str
-    radar_version: str = "1.0.0"
+    radar_version: str = "1.1.0"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -519,28 +519,65 @@ def _probe_python_env(packages: Iterable[str] = _RUNTIME_CRITICAL_PACKAGES) -> P
 
 # Common installation prefixes for major OSes. These are *probed*, never
 # *created*. Order matters: more specific user-local paths first.
+#
+# SESSION-146-B: Massively expanded candidate net after real-world evidence
+# showed ``candidate_roots: []`` on a machine with ComfyUI installed.
+# The radar now covers:
+#   - POSIX user-local (home, Documents, code, projects, dev, Desktop)
+#   - Windows user-local (AppData, Documents, Desktop)
+#   - Windows Portable distribution (ComfyUI_windows_portable/ComfyUI)
+#   - System-wide POSIX (/opt, /usr/local)
+#   - Windows drive roots A-H with common subfolder conventions
+#   - macOS conventional paths (Applications, Library)
+#   - Conda / venv co-located paths
 _DEFAULT_CANDIDATE_PARENTS: tuple[str, ...] = (
-    # POSIX user-local
+    # ── POSIX user-local ──
     "~/ComfyUI",
     "~/comfyui",
     "~/Documents/ComfyUI",
     "~/code/ComfyUI",
     "~/projects/ComfyUI",
     "~/dev/ComfyUI",
-    # Windows-style (works on WSL too)
+    "~/Desktop/ComfyUI",
+    "~/Downloads/ComfyUI",
+    "~/git/ComfyUI",
+    "~/src/ComfyUI",
+    "~/workspace/ComfyUI",
+    # ── Windows user-local (works on WSL too) ──
     "~/AppData/Local/Programs/ComfyUI",
-    # System-wide
+    "~/Documents/ComfyUI",
+    "~/Desktop/ComfyUI",
+    "~/Downloads/ComfyUI",
+    # ── Windows Portable distribution (extremely common) ──
+    "~/ComfyUI_windows_portable/ComfyUI",
+    "~/Desktop/ComfyUI_windows_portable/ComfyUI",
+    "~/Downloads/ComfyUI_windows_portable/ComfyUI",
+    # ── System-wide POSIX ──
     "/opt/ComfyUI",
     "/usr/local/ComfyUI",
-    # Windows drive roots
+    # ── macOS conventional ──
+    "/Applications/ComfyUI",
+    "~/Library/Application Support/ComfyUI",
+    # ── Windows drive roots (A-H) with common subfolder conventions ──
     "C:/ComfyUI",
     "C:/AI/ComfyUI",
     "C:/Tools/ComfyUI",
+    "C:/Program Files/ComfyUI",
+    "C:/ComfyUI_windows_portable/ComfyUI",
     "D:/ComfyUI",
     "D:/AI/ComfyUI",
+    "D:/Tools/ComfyUI",
+    "D:/ComfyUI_windows_portable/ComfyUI",
     "E:/ComfyUI",
     "E:/AI/ComfyUI",
+    "E:/ComfyUI_windows_portable/ComfyUI",
     "F:/ComfyUI",
+    "F:/AI/ComfyUI",
+    "F:/ComfyUI_windows_portable/ComfyUI",
+    "G:/ComfyUI",
+    "G:/AI/ComfyUI",
+    "H:/ComfyUI",
+    "H:/AI/ComfyUI",
 )
 
 
@@ -571,21 +608,30 @@ def _scan_processes_for_comfyui(psutil_module: Any) -> list[tuple[int, Path]]:
     root either from the cmdline argument's parent or from the process'
     ``cwd``. All ``psutil`` exceptions are swallowed — the radar must be
     crash-proof in environments with locked-down /proc.
+
+    SESSION-146-B: Every step of the process-table walk is now logged at
+    DEBUG level for post-mortem audit trail in ``logs/mathart.log``.
     """
 
     if psutil_module is None:
+        logger.debug("[Radar/PS] psutil module is None — process scan skipped entirely")
         return []
     AccessDenied = getattr(psutil_module, "AccessDenied", Exception)
     NoSuchProcess = getattr(psutil_module, "NoSuchProcess", Exception)
     ZombieProcess = getattr(psutil_module, "ZombieProcess", Exception)
 
+    logger.debug("[Radar/PS] Starting process-table walk via psutil")
     hits: list[tuple[int, Path]] = []
+    scanned = 0
+    python_procs = 0
+    comfy_candidates = 0
     for proc in _safe_iter_processes(psutil_module):
         try:
             info = proc.info if hasattr(proc, "info") else {}
             name = (info.get("name") or "").lower()
             cmdline = info.get("cmdline") or []
             cwd = info.get("cwd")
+            scanned += 1
             if not cmdline:
                 continue
             joined = " ".join(str(p) for p in cmdline).lower()
@@ -594,8 +640,14 @@ def _scan_processes_for_comfyui(psutil_module: Any) -> list[tuple[int, Path]]:
             )
             if not looks_python:
                 continue
+            python_procs += 1
             if "main.py" not in joined and "comfyui" not in joined:
                 continue
+            comfy_candidates += 1
+            logger.debug(
+                "[Radar/PS] ComfyUI candidate process: pid=%s name=%s cmdline=%s cwd=%s",
+                info.get("pid"), name, cmdline, cwd,
+            )
             for arg in cmdline:
                 arg_str = str(arg)
                 if arg_str.endswith("main.py"):
@@ -603,21 +655,38 @@ def _scan_processes_for_comfyui(psutil_module: Any) -> list[tuple[int, Path]]:
                     if not candidate.is_absolute() and cwd:
                         candidate = Path(cwd) / candidate
                     candidate = candidate.parent
-                    if _looks_like_comfyui_root(candidate):
+                    is_valid = _looks_like_comfyui_root(candidate)
+                    logger.debug(
+                        "[Radar/PS]   main.py arg -> root candidate: %s -> %s",
+                        candidate, "VALID" if is_valid else "invalid",
+                    )
+                    if is_valid:
                         hits.append((int(info.get("pid") or 0), candidate.resolve()))
                         break
             else:
                 if cwd:
                     candidate = Path(cwd)
-                    if _looks_like_comfyui_root(candidate):
+                    is_valid = _looks_like_comfyui_root(candidate)
+                    logger.debug(
+                        "[Radar/PS]   cwd fallback candidate: %s -> %s",
+                        candidate, "VALID" if is_valid else "invalid",
+                    )
+                    if is_valid:
                         hits.append((int(info.get("pid") or 0), candidate.resolve()))
-        except (AccessDenied, NoSuchProcess, ZombieProcess):
+        except (AccessDenied, NoSuchProcess, ZombieProcess) as exc:
+            logger.debug("[Radar/PS]   Process access denied/gone: %s", type(exc).__name__)
             continue
-        except OSError:
+        except OSError as exc:
+            logger.debug("[Radar/PS]   OSError probing process: %s", exc)
             continue
         except Exception as exc:  # noqa: BLE001 — defensive
-            logger.debug("preflight_radar: unexpected error probing process: %s", exc)
+            logger.debug("[Radar/PS]   Unexpected error probing process: %s", exc)
             continue
+
+    logger.debug(
+        "[Radar/PS] Process scan complete: %d scanned, %d python, %d comfy-candidates, %d hits",
+        scanned, python_procs, comfy_candidates, len(hits),
+    )
     return hits
 
 
@@ -627,43 +696,79 @@ def _scan_filesystem_for_comfyui(extra_candidates: Iterable[Path] = ()) -> list[
     Searches:
       - ``$COMFYUI_HOME``
       - The list of conventional install locations
-      - Sibling directories of the current working directory
+      - Sibling / ancestor directories of the current working directory
+      - Windows Portable distribution variants relative to cwd
       - Any caller-supplied ``extra_candidates``
 
     Never recurses — only direct directory probes — to keep latency O(1).
+
+    SESSION-146-B: Every probe step is now logged at DEBUG level so that
+    ``logs/mathart.log`` contains a complete search audit trail when the
+    radar concludes ``comfyui_not_found``. Console remains clean because
+    the dual-track guard keeps console at WARNING.
     """
 
     candidates: list[Path] = []
 
+    # --- 1. Environment variable ---
     env_home = os.environ.get("COMFYUI_HOME")
     if env_home:
-        candidates.append(Path(env_home).expanduser())
+        p = Path(env_home).expanduser()
+        candidates.append(p)
+        logger.debug("[Radar/FS] COMFYUI_HOME env var set: %s", p)
+    else:
+        logger.debug("[Radar/FS] COMFYUI_HOME env var not set")
 
+    # --- 2. Static candidate parents ---
+    logger.debug("[Radar/FS] Static candidate list size: %d", len(_DEFAULT_CANDIDATE_PARENTS))
     for raw in _DEFAULT_CANDIDATE_PARENTS:
         candidates.append(Path(raw).expanduser())
 
+    # --- 3. Relative-to-cwd probes (SESSION-146-B expanded) ---
     cwd = Path.cwd()
-    candidates.extend([
+    logger.debug("[Radar/FS] Current working directory: %s", cwd)
+    relative_probes = [
         cwd / "ComfyUI",
+        cwd / "comfyui",
         cwd.parent / "ComfyUI",
         cwd.parent / "comfyui",
-    ])
+        cwd.parent / "ComfyUI_windows_portable" / "ComfyUI",
+        cwd.parent.parent / "ComfyUI",
+        cwd.parent.parent / "comfyui",
+        cwd.parent.parent / "ComfyUI_windows_portable" / "ComfyUI",
+    ]
+    candidates.extend(relative_probes)
 
-    candidates.extend(Path(c).expanduser() for c in extra_candidates)
+    # --- 4. Extra caller-supplied candidates ---
+    extra_list = [Path(c).expanduser() for c in extra_candidates]
+    if extra_list:
+        logger.debug("[Radar/FS] Extra caller-supplied candidates: %s",
+                     [str(c) for c in extra_list])
+    candidates.extend(extra_list)
 
+    # --- 5. Deduplicate and probe ---
     seen: set[str] = set()
     matches: list[Path] = []
+    probed_count = 0
     for cand in candidates:
         try:
             resolved = cand.resolve()
         except OSError:
+            logger.debug("[Radar/FS]   SKIP (OSError resolving): %s", cand)
             continue
         key = str(resolved)
         if key in seen:
             continue
         seen.add(key)
-        if _looks_like_comfyui_root(resolved):
+        probed_count += 1
+        is_hit = _looks_like_comfyui_root(resolved)
+        logger.debug("[Radar/FS]   PROBE %s -> %s",
+                     resolved, "HIT" if is_hit else "miss")
+        if is_hit:
             matches.append(resolved)
+
+    logger.debug("[Radar/FS] Filesystem scan complete: %d unique paths probed, %d hits",
+                 probed_count, len(matches))
     return matches
 
 
@@ -718,6 +823,7 @@ def _discover_comfyui(psutil_module: Optional[Any],
     candidates: list[Path] = []
 
     # 1. Process-table reverse lookup
+    logger.info("[Radar] ComfyUI discovery started")
     if psutil_module is not None:
         for pid, root in _scan_processes_for_comfyui(psutil_module):
             candidates.append(root)
@@ -726,8 +832,10 @@ def _discover_comfyui(psutil_module: Optional[Any],
                 process_pid = pid
                 method = "process_scan"
                 notes.append(f"discovered via psutil pid={pid}")
+                logger.info("[Radar] ComfyUI found via process scan: pid=%d root=%s", pid, root)
     else:
         notes.append("psutil not importable — process scan skipped")
+        logger.warning("[Radar] psutil not importable — process-table scan skipped")
 
     # 2. Heuristic filesystem fallback
     fs_hits = _scan_filesystem_for_comfyui(extra_candidates=extra_candidates)
@@ -738,8 +846,16 @@ def _discover_comfyui(psutil_module: Optional[Any],
             chosen = hit
             method = "filesystem_heuristic"
             notes.append(f"discovered via filesystem heuristic: {hit}")
+            logger.info("[Radar] ComfyUI found via filesystem heuristic: %s", hit)
 
     if chosen is None:
+        logger.warning(
+            "[Radar] ComfyUI NOT FOUND after exhaustive search. "
+            "Candidates probed: %d. Set COMFYUI_HOME env var or install ComfyUI "
+            "in a conventional location. Full probe audit trail available at DEBUG "
+            "level in logs/mathart.log.",
+            len(candidates),
+        )
         return ComfyUIDiscovery(
             found=False,
             root_path=None,

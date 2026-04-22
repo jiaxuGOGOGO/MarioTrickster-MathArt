@@ -482,7 +482,7 @@ class TestReportSerialization:
         report = radar.scan()
         payload = json.loads(report.to_json())
         assert payload["verdict"] in {v.value for v in PreflightVerdict}
-        assert payload["radar_version"] == "1.0.0"
+        assert payload["radar_version"] == "1.1.0"
         assert "gpu" in payload and "python_env" in payload and "comfyui" in payload
         assert isinstance(payload["fixable_actions"], list)
         assert isinstance(payload["blocking_actions"], list)
