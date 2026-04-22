@@ -89,12 +89,25 @@ def _build_minimal_context(
         "level_params": {"width": 8, "height": 8},
         "physics_sim": {"particles": 10, "steps": 4},
         "vfx_params": {"effect": "splash"},
-        "mesh": "/tmp/ci_guard_mesh.obj",
         "cel_params": {"outline_method": "sobel"},
         "evolution_state": {"cycle": 1, "population": []},
         # Physics 3D specific
         "physics3d_ground_y": -10.0,
     }
+
+    # SESSION-128: Backend-specific fixture overrides.
+    # orthographic_pixel_render requires a real Mesh3D (Fail-Fast contract).
+    # archive_delivery requires a structured archive_sources list.
+    if meta.name == "orthographic_pixel_render":
+        from mathart.animation.orthographic_pixel_render import create_sphere_mesh
+        _REQUIREMENT_FIXTURES["mesh"] = create_sphere_mesh(
+            radius=0.5, rings=12, sectors=16, color=(180, 120, 80),
+        )
+    elif meta.name == "archive_delivery":
+        _REQUIREMENT_FIXTURES["archive_sources"] = []
+        ctx["character_id"] = "ci_guard_character"
+    else:
+        _REQUIREMENT_FIXTURES["mesh"] = "/tmp/ci_guard_mesh.obj"
 
     for req in meta.input_requirements:
         if req in _REQUIREMENT_FIXTURES:

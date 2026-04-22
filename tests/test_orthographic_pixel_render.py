@@ -375,9 +375,15 @@ def test_backend_validate_config():
 
 
 def test_backend_execute_returns_artifact_manifest():
-    """Backend execute must return a valid ArtifactManifest."""
+    """Backend execute must return a valid ArtifactManifest with real Mesh3D.
+
+    SESSION-128: Updated to provide a real Mesh3D (sphere) instead of relying
+    on the removed fallback sphere.  The backend now enforces a Fail-Fast
+    Mesh3D Consumption Contract — no mesh → PipelineContractError.
+    """
     from mathart.core.backend_registry import get_registry
     from mathart.core.artifact_schema import ArtifactManifest
+    from mathart.animation.orthographic_pixel_render import create_sphere_mesh
 
     registry = get_registry()
     entry = registry.get("orthographic_pixel_render")
@@ -388,9 +394,12 @@ def test_backend_execute_returns_artifact_manifest():
     backend = cls()
 
     with tempfile.TemporaryDirectory() as tmpdir:
+        # SESSION-128: Provide a REAL Mesh3D — fallback sphere is permanently removed
+        real_mesh = create_sphere_mesh(radius=0.5, rings=16, sectors=24, color=(200, 120, 80))
         context = {
             "output_dir": tmpdir,
             "name": "test_ortho",
+            "mesh": real_mesh,
             "render": {
                 "render_width": 64,
                 "render_height": 64,
@@ -406,9 +415,88 @@ def test_backend_execute_returns_artifact_manifest():
         assert "normal" in manifest.outputs
         assert "depth" in manifest.outputs
 
+        # SESSION-128: Verify mesh contract metadata is present
+        assert manifest.metadata["mesh_contract"]["fail_fast_enforced"] is True
+        assert manifest.metadata["mesh_contract"]["fallback_sphere_removed"] is True
+
         # Verify output files exist
         for channel, path in manifest.outputs.items():
             assert Path(path).exists(), f"Output file missing: {path}"
+
+
+def test_backend_execute_fail_fast_no_mesh():
+    """SESSION-128: Backend MUST raise PipelineContractError when no mesh is provided.
+
+    This test verifies the Fail-Fast Mesh3D Consumption Contract:
+    - No mesh → PipelineContractError (not a silent fallback sphere)
+    - Grounded in Jim Gray Fail-Fast (Tandem Computers, 1985)
+    """
+    from mathart.core.backend_registry import get_registry
+    from mathart.pipeline_contract import PipelineContractError
+
+    registry = get_registry()
+    entry = registry.get("orthographic_pixel_render")
+    assert entry is not None
+    meta, cls = entry
+    backend = cls()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        context = {
+            "output_dir": tmpdir,
+            "name": "test_no_mesh",
+            "render": {
+                "render_width": 64,
+                "render_height": 64,
+                "output_width": 32,
+                "output_height": 32,
+            },
+        }
+        try:
+            backend.execute(context)
+            assert False, "Expected PipelineContractError but backend succeeded"
+        except PipelineContractError as exc:
+            assert exc.violation_type == "missing_mesh3d"
+            assert "Fail-Fast" in exc.detail
+
+
+def test_backend_execute_fail_fast_empty_mesh():
+    """SESSION-128: Backend MUST raise PipelineContractError for empty Mesh3D."""
+    import numpy as np
+    from mathart.core.backend_registry import get_registry
+    from mathart.animation.orthographic_pixel_render import Mesh3D
+    from mathart.pipeline_contract import PipelineContractError
+
+    registry = get_registry()
+    entry = registry.get("orthographic_pixel_render")
+    assert entry is not None
+    meta, cls = entry
+    backend = cls()
+
+    empty_mesh = Mesh3D(
+        vertices=np.zeros((0, 3), dtype=np.float64),
+        normals=np.zeros((0, 3), dtype=np.float64),
+        triangles=np.zeros((0, 3), dtype=np.int32),
+        colors=np.zeros((0, 3), dtype=np.uint8),
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        context = {
+            "output_dir": tmpdir,
+            "name": "test_empty_mesh",
+            "mesh": empty_mesh,
+            "render": {
+                "render_width": 64,
+                "render_height": 64,
+                "output_width": 32,
+                "output_height": 32,
+            },
+        }
+        try:
+            backend.execute(context)
+            assert False, "Expected PipelineContractError but backend succeeded"
+        except PipelineContractError as exc:
+            assert exc.violation_type == "empty_mesh3d"
+            assert "empty" in exc.detail.lower()
 
 
 # ═══════════════════════════════════════════════════════════════════════════

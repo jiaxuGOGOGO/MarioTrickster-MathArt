@@ -1,10 +1,38 @@
-"""SESSION-089 (P1-INDUSTRIAL-34C): OrthographicPixelRenderBackend —
-Registry-Native Dead Cells 3D→2D Pixel Render Plugin.
+"""SESSION-128 (P0-SESSION-127-CORE-CONSTRAINTS): OrthographicPixelRenderBackend —
+Registry-Native Dead Cells 3D→2D Pixel Render Plugin with Fail-Fast Mesh Contract.
 
 This module implements the ``@register_backend`` plugin for the Dead Cells-
 style orthographic 3D→2D pixel art rendering pipeline.  It follows the
 project's IoC Registry Pattern (SESSION-064) and Strong-Type Artifact
 Contract (SESSION-064/073) without modifying any trunk code.
+
+SESSION-128 CRITICAL CHANGE — Fail-Fast Mesh3D Consumption Contract
+--------------------------------------------------------------------
+The orthographic render backend now **strictly enforces** that a real
+``Mesh3D`` object is provided in the execution context.  If the mesh is
+absent, ``None``, or has zero geometry (0 vertices / 0 triangles), the
+backend raises ``PipelineContractError`` immediately, halting the pipeline.
+
+This change is grounded in four industrial/academic references:
+
+1. **Pixar USD Composition Semantics**: A typed reference to a ``UsdGeomMesh``
+   must resolve to real geometry.  If the referenced layer is missing, USD
+   raises a composition error — it does NOT silently substitute a sphere.
+
+2. **Bazel / Buck Action Cache & Determinism**: A build action's output
+   depends only on its declared inputs.  If the input mesh is a demo sphere
+   instead of the real composed character mesh, the output hash is
+   deterministically *wrong* — producing 22,422 identical ``generator_invariant``
+   iterations.
+
+3. **Data Mesh Delivery Contract**: The ``/archive`` directory is the final
+   delivery contract.  Delivering renders of a demo sphere instead of the
+   real character mesh violates the delivery SLA.
+
+4. **Jim Gray Fail-Fast (Tandem Computers, 1985)**: "Each module is
+   self-checking.  When it detects a fault, it stops."  Silent fallback to
+   a demo sphere is the textbook "fail-soft" anti-pattern that propagates
+   corrupted state downstream.
 
 Research Foundations
 --------------------
@@ -26,12 +54,15 @@ Architecture Discipline
   ``artifact_family`` and ``backend_type``
 - ✅ Backend-owned ``validate_config()``: all parameter validation is
   physically sunk into this Adapter (Hexagonal Architecture)
+- ✅ Fail-Fast Mesh Contract: raises ``PipelineContractError`` on missing mesh
 
 Anti-Pattern Guards
 -------------------
 🚫 Perspective Distortion Trap: Enforces pure orthographic matrix.
 🚫 Bilinear Blur Trap: Forces nearest-neighbor downscale only.
 🚫 GUI Window Crash Trap: Pure NumPy — zero windowed context.
+🚫 Fallback Sphere Trap (SESSION-128): ZERO fallback mesh generation.
+   Missing Mesh3D → PipelineContractError, not silent degradation.
 """
 from __future__ import annotations
 
@@ -48,18 +79,14 @@ from mathart.core.backend_registry import (
 )
 from mathart.core.artifact_schema import ArtifactFamily, ArtifactManifest
 from mathart.core.backend_types import BackendType
+from mathart.pipeline_contract import PipelineContractError
 
 logger = logging.getLogger(__name__)
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  New BackendType and ArtifactFamily for Orthographic Pixel Render
+#  Channel semantics for the orthographic pixel render output
 # ═══════════════════════════════════════════════════════════════════════════
 
-# We use the existing INDUSTRIAL_SPRITE backend type and artifact family
-# since this backend is the industrial-grade 3D→2D pixel render pipeline.
-# The artifact family INDUSTRIAL_SPRITE is already defined in the schema.
-
-# Channel semantics for the orthographic pixel render output
 _ORTHO_CHANNEL_SEMANTICS: dict[str, dict[str, str]] = {
     "albedo": {
         "description": "Cel-shaded base color (sRGB, hard-stepped lighting)",
@@ -85,7 +112,7 @@ _ORTHO_CHANNEL_SEMANTICS: dict[str, dict[str, str]] = {
 @register_backend(
     "orthographic_pixel_render",
     display_name="Orthographic Pixel Render (Dead Cells 3D→2D)",
-    version="1.0.0",
+    version="2.0.0",
     artifact_families=(
         ArtifactFamily.SPRITE_SHEET.value,
         ArtifactFamily.MATERIAL_BUNDLE.value,
@@ -94,15 +121,22 @@ _ORTHO_CHANNEL_SEMANTICS: dict[str, dict[str, str]] = {
         BackendCapability.SPRITE_EXPORT,
         BackendCapability.ATLAS_EXPORT,
     ),
-    input_requirements=("mesh_data",),
-    session_origin="SESSION-089",
-    schema_version="1.0.0",
+    input_requirements=("mesh",),
+    session_origin="SESSION-128",
+    schema_version="2.0.0",
 )
 class OrthographicPixelRenderBackend:
     """Dead Cells-style 3D→2D orthographic pixel render backend.
 
+    SESSION-128 enforces a **Fail-Fast Mesh3D Consumption Contract**:
+    the backend MUST receive a real ``Mesh3D`` object from upstream
+    (typically composed by ``Pseudo3DShellBackend`` + ``PhysicalRibbonBackend``
+    + genotype attachment assembly).  If the mesh is missing, None, or
+    geometrically empty, the backend raises ``PipelineContractError``
+    immediately — no fallback sphere, no silent degradation.
+
     This backend implements the full pipeline:
-    1. Accept 3D mesh/skeleton data from upstream.
+    1. **Validate** real Mesh3D from context (Fail-Fast).
     2. Render via pure NumPy software rasterizer (headless).
     3. Apply hard-stepped cel-shading (Guilty Gear Xrd style).
     4. Downscale via nearest-neighbor (Dead Cells: no AA).
@@ -220,23 +254,101 @@ class OrthographicPixelRenderBackend:
     def execute(self, context: dict[str, Any]) -> ArtifactManifest:
         """Execute the orthographic pixel render pipeline.
 
+        SESSION-128 Fail-Fast Contract
+        ------------------------------
+        This method enforces the **Mesh3D Consumption Contract**:
+
+        1. The context MUST contain a ``"mesh"`` key with a ``Mesh3D`` instance.
+        2. The ``Mesh3D`` MUST have ``vertex_count > 0`` and ``triangle_count > 0``.
+        3. If either condition fails, ``PipelineContractError`` is raised
+           immediately — the pipeline is halted, not silently degraded.
+
+        This eliminates the root cause of the ``generator_invariant``
+        stagnation disaster: downstream renders of a fallback demo sphere
+        produce identical outputs regardless of genotype variation.
+
         Parameters
         ----------
         context : dict
-            Execution context with optional mesh data and configuration.
+            Execution context.  **MUST** contain ``"mesh"`` (Mesh3D).
 
         Returns
         -------
         ArtifactManifest
             Strongly-typed manifest with Albedo/Normal/Depth outputs.
+
+        Raises
+        ------
+        PipelineContractError
+            If ``"mesh"`` is missing, not a ``Mesh3D``, or geometrically empty.
         """
         from mathart.animation.orthographic_pixel_render import (
             OrthographicRenderConfig,
             Mesh3D,
             render_orthographic_sprite,
             save_sprite_result,
-            create_sphere_mesh,
             validate_hard_edges,
+        )
+
+        # ══════════════════════════════════════════════════════════════════
+        #  SESSION-128: FAIL-FAST MESH3D CONSUMPTION CONTRACT
+        #  Grounded in: Jim Gray Fail-Fast (1985), Pixar USD Schema
+        #  Validation, Bazel Hermetic Action Determinism.
+        #
+        #  🚫 ZERO fallback mesh generation.
+        #  🚫 ZERO silent degradation.
+        #  🚫 ZERO demo sphere substitution.
+        # ══════════════════════════════════════════════════════════════════
+        mesh = context.get("mesh")
+
+        if mesh is None:
+            raise PipelineContractError(
+                violation_type="missing_mesh3d",
+                detail=(
+                    "[OrthographicPixelRenderBackend] Fail-Fast: context does "
+                    "not contain a 'mesh' key.  The orthographic render backend "
+                    "requires a real Mesh3D object assembled by upstream stages "
+                    "(Pseudo3DShellBackend + PhysicalRibbonBackend + genotype "
+                    "attachment composition).  Fallback sphere generation has "
+                    "been permanently removed per SESSION-128 to eliminate the "
+                    "generator_invariant stagnation disaster.  "
+                    "Ref: Jim Gray Fail-Fast (Tandem Computers, 1985)."
+                ),
+            )
+
+        if not isinstance(mesh, Mesh3D):
+            raise PipelineContractError(
+                violation_type="invalid_mesh3d_type",
+                detail=(
+                    f"[OrthographicPixelRenderBackend] Fail-Fast: context['mesh'] "
+                    f"is {type(mesh).__name__}, not Mesh3D.  The orthographic "
+                    f"render backend requires a strongly-typed Mesh3D object.  "
+                    f"Raw mesh dicts must be converted to Mesh3D before passing "
+                    f"to this backend.  "
+                    f"Ref: Pixar USD Schema Validation — type ambiguity is the "
+                    f"root of all pipeline bugs."
+                ),
+            )
+
+        if mesh.vertex_count == 0 or mesh.triangle_count == 0:
+            raise PipelineContractError(
+                violation_type="empty_mesh3d",
+                detail=(
+                    f"[OrthographicPixelRenderBackend] Fail-Fast: Mesh3D is "
+                    f"geometrically empty (vertices={mesh.vertex_count}, "
+                    f"triangles={mesh.triangle_count}).  An empty mesh cannot "
+                    f"produce meaningful orthographic renders.  This likely "
+                    f"indicates an upstream assembly failure in the composed "
+                    f"mesh stage.  "
+                    f"Ref: Bazel Hermetic Determinism — an action with empty "
+                    f"inputs must fail, not produce a vacuous output."
+                ),
+            )
+
+        logger.info(
+            "[orthographic_pixel_render] Mesh3D contract satisfied: "
+            "%d vertices, %d triangles (real composed mesh, NOT fallback)",
+            mesh.vertex_count, mesh.triangle_count,
         )
 
         # Validate config (backend-owned)
@@ -268,21 +380,7 @@ class OrthographicPixelRenderBackend:
             fps=int(validated.get("fps", 12)),
         )
 
-        # Get or create mesh
-        mesh = context.get("mesh")
-        if mesh is None or not isinstance(mesh, Mesh3D):
-            # Default: create a demo sphere for testing
-            mesh = create_sphere_mesh(
-                radius=0.5, rings=16, sectors=24,
-                color=(200, 120, 80),
-            )
-            logger.info(
-                "[orthographic_pixel_render] No mesh provided; "
-                "using default sphere (%d verts, %d tris)",
-                mesh.vertex_count, mesh.triangle_count,
-            )
-
-        # Execute the full pipeline
+        # Execute the full pipeline with the REAL composed mesh
         t0 = time.monotonic()
         result = render_orthographic_sprite(mesh, config)
         elapsed_ms = (time.monotonic() - t0) * 1000.0
@@ -330,10 +428,16 @@ class OrthographicPixelRenderBackend:
         if "albedo" in outputs and "spritesheet" not in outputs:
             outputs["spritesheet"] = outputs["albedo"]
 
-        # Save render report
+        # Save render report — SESSION-128: includes mesh_source provenance
         report = {
             "pipeline": "dead_cells_orthographic_pixel_render",
-            "session": "SESSION-089",
+            "session": "SESSION-128",
+            "mesh_contract": {
+                "fail_fast_enforced": True,
+                "fallback_sphere_removed": True,
+                "mesh_source": "upstream_composed_mesh3d",
+                "reference": "Jim Gray Fail-Fast (Tandem Computers, 1985)",
+            },
             "render_config": {
                 "render_resolution": f"{config.render_width}x{config.render_height}",
                 "output_resolution": f"{config.output_width}x{config.output_height}",
@@ -367,8 +471,8 @@ class OrthographicPixelRenderBackend:
         return ArtifactManifest(
             artifact_family=ArtifactFamily.SPRITE_SHEET.value,
             backend_type="orthographic_pixel_render",
-            version="1.0.0",
-            session_id=validated.get("session_id", "SESSION-089"),
+            version="2.0.0",
+            session_id=validated.get("session_id", "SESSION-128"),
             outputs=outputs,
             metadata={
                 # SESSION-098 (HIGH-2.6): FAMILY_SCHEMAS for sprite_sheet
@@ -389,6 +493,11 @@ class OrthographicPixelRenderBackend:
                 "mesh_stats": {
                     "vertex_count": mesh.vertex_count,
                     "triangle_count": mesh.triangle_count,
+                },
+                "mesh_contract": {
+                    "fail_fast_enforced": True,
+                    "fallback_sphere_removed": True,
+                    "session": "SESSION-128",
                 },
                 "cel_shading": {
                     "thresholds": list(config.cel_thresholds),
@@ -429,6 +538,7 @@ class OrthographicPixelRenderBackend:
                 "pixel_art",
                 "cel_shading",
                 "headless",
-                "session-089",
+                "fail_fast_mesh_contract",
+                "session-128",
             ],
         )

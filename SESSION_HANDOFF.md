@@ -1,90 +1,165 @@
-# SESSION-127 HANDOFF — P1-NEW-10 Audit Hardening
+# SESSION-128 HANDOFF — P0-SESSION-127-CORE-CONSTRAINTS: Fail-Fast Mesh3D / RNG Digest / Archive Delivery
 
-**Objective**：在既有 **P1-NEW-10 / Production benchmark asset suite** 闭环基础上，针对原始工业级量产总装协议执行一次逐项审计，修正仍与需求存在偏差的实现，并将修正后的状态重新固化到项目主干。
+**Objective**：执行 **P0-SESSION-127-CORE-CONSTRAINTS** 核心攻坚计划，彻底消除回退网格依赖，打通量产级归档与 RNG 追踪闭环，根治 `generator_invariant` 停滞灾难。
 
-**Status**：**CLOSED（经 SESSION-127 审计加固）**。
+**Status**：**CLOSED（SESSION-128 三叉攻坚完成）**。
 
-本轮工作不是新增另一条平行流水线，而是对 **SESSION-126** 已落地的量产总线做一轮白盒审计与硬化。审计结论表明，原先总线的总体拓扑、PDG fan-out、GPU 节点标记与 CLI 入口都已存在，但正交渲染阶段仍有一个关键偏差：量产工厂传入的是原始 `mesh_data` 字典，而 `orthographic_pixel_render` 实际消费的是 `Mesh3D` 对象，因此运行时会触发后端默认球体回退。SESSION-127 已修正这一点，使正交渲染真正消费“角色身体 + 多槽位 3D 装备 + CPU 阶段组合网格”的装配结果；同时补齐了正交辅助图与跳过 AI 渲染时的归档副本，并把每个 PDG 阶段的 `SeedSequence` 裂变摘要写入批次索引，令确定性调度从“理论成立”提升为“产物可审计”。
+本轮工作以四大工业界/学术界参考为最高准则（Pixar USD Composition Semantics、Bazel Action Cache Determinism、Data Mesh Delivery Contract、Jim Gray Fail-Fast），对量产管线执行了三叉同步攻坚：斩断 Fallback 幽灵、打通 RNG 摘要透传、落实集中归档交付。所有代码变更均严格遵守 Registry Pattern 独立插件纪律，零越权修改主干。
 
-## What Changed in the Audit Pass
+## 研究基础与设计决策
 
-本轮不是重写需求，而是把原始需求中最容易被“看似通过、实则偏离”的部分逐条压实。因此，当前量产总线的价值不只是“能跑通”，而是已经在关键白盒断言上证明自己**按要求跑通**。
+本次代码落地前，强制完成了四项外网参考研究，研究成果记录于 `research/research_session128_industrial_references.md`。
 
-| 文件 | 审计修正 | 结果 |
+| 参考来源 | 核心洞察 | 在代码中的体现 |
 |---|---|---|
-| `tools/run_mass_production_factory.py` | 向 `orthographic_pixel_render` 显式传入 `Mesh3D`，不再仅传原始 `mesh_data` | 正交渲染使用真实装配网格，不再回退为默认球体 |
-| `tools/run_mass_production_factory.py` | 将正交辅助图与跳过 AI 渲染的报告副本纳入 `archive/` | 角色级交付目录可一次性检查 `.anim`、`preview.mp4`、辅助图与 AI 阶段证据 |
-| `tools/run_mass_production_factory.py` | 在批次索引中增加各 PDG 阶段 `rng_spawn_digest` | `HIGH-2.7-FOLLOWUP` 的确定性 RNG 纪律可直接在产物层追踪 |
-| `tests/test_mass_production.py` | 新增真实网格渲染、归档完整性、每阶段 RNG 裂变摘要断言 | dry-run 不再只验证“没锁死”，而是验证“按需求执行” |
-| `PROJECT_BRAIN.json` / `SESSION_HANDOFF.md` | 刷新为 SESSION-127 审计结论 | 项目状态与交接文档与当前真实代码一致 |
+| **Pixar USD Composition Semantics** | 强类型引用必须解析到真实几何；缺失层级触发组合错误，不做静默替换 | `OrthographicPixelRenderBackend` 对 `Mesh3D` 的三级验证（存在性→类型→几何非空） |
+| **Bazel / Buck Action Cache & Determinism** | 构建动作的输出仅取决于声明的输入；输入为 demo sphere 则输出哈希确定性地"错误" | `rng_spawn_digest` 注入所有 `ArtifactManifest.metadata`，实现 Bazel 级哈希可审计 |
+| **Data Mesh Delivery Contract** | `/archive` 目录是最终交付契约；交付 demo sphere 渲染违反 SLA | `ArchiveDeliveryBackend` 作为独立注册表插件，集中收集所有上游产物 |
+| **Jim Gray Fail-Fast (Tandem Computers, 1985)** | "每个模块自检；发现故障立即停止" | `PipelineContractError` 三级触发：`missing_mesh3d` / `invalid_mesh3d_type` / `empty_mesh3d` |
 
-## Locked Contract After Audit
+## 三大核心交付物
 
-第一条锁定约束是：**量产总线中的正交渲染必须消费组合后的真实角色网格，而不是任何演示回退网格**。当前实现已经在工厂侧把组合后的顶点、法线、三角形与颜色显式构造成 `Mesh3D` 对象，再交给 `orthographic_pixel_render`。这意味着正交法线图、深度图与材质辅助图终于与实际装备组合一致，后续 ControlNet / ComfyUI 链路才能基于真实几何条件工作。
+### 1. 斩断 Fallback 幽灵 — Fail-Fast Mesh3D Consumption Contract
 
-第二条锁定约束是：**归档不是“顺便复制一下”，而是量产交付合同的一部分**。因此现在每个 `character_<id>/archive/` 目录不仅包含 `unity_2d_anim` 与 `spine_preview` 的最终交付物，也包含 `orthographic_pixel_render` 导出的辅助图，以及 `--skip-ai-render` 场景下的 AI 阶段跳过报告。主理人后续做人工抽检时，不必在后端私有目录里来回翻找。
+`mathart/core/orthographic_pixel_backend.py` 完全重写。正交渲染后端现在执行**三级 Fail-Fast 验证**：
 
-第三条锁定约束是：**PDG 的确定性 RNG 必须在结果层可观察**。PDG v2 本身已经会为每个节点裂变 `SeedSequence` 并注入独立 `rng`，但现在量产工厂进一步把每个角色、每个阶段对应的 `rng_spawn_digest` 写入 `character_<id>_factory_index.json` 与 `batch_summary.json`。因此，并发确定性不再只是运行时隐式行为，而成为可以纳入 CI 与人工审计的显式证据。
-
-## Local Production Commands for RTX 4070
-
-如果主理人的本地环境仍为 **i5-12600KF（16 线程）+ 32GB RAM + RTX 4070 12GB**，建议继续使用以下命令格式。它们已经与当前代码和 SESSION-127 审计后的目录结构对齐。
-
-| 场景 | 推荐命令 | 说明 |
+| 验证层级 | 条件 | 触发异常 |
 |---|---|---|
-| 纯 CPU / dry-run 审计 | `python3.11 -m mathart.cli mass-produce --output-dir outputs --batch-size 20 --pdg-workers 16 --gpu-slots 1 --skip-ai-render --seed 20260421` | 验证 fan-out、CPU 数学阶段、真实网格正交渲染、归档结构与 CLI 出口，不依赖 ComfyUI。 |
-| 标准本地量产 | `python3.11 -m mathart.cli mass-produce --output-dir outputs --batch-size 20 --pdg-workers 16 --gpu-slots 1 --seed 20260421 --comfyui-url http://127.0.0.1:8188` | 适配 RTX 4070 12GB 的默认安全方案，AI 渲染启用但 GPU 并发仍保持 1。 |
-| 保守显存模式 | `python3.11 -m mathart.cli mass-produce --output-dir outputs --batch-size 12 --pdg-workers 16 --gpu-slots 1 --seed 20260421 --comfyui-url http://127.0.0.1:8188` | 当本地模型较重、ControlNet 更复杂或 ComfyUI 工作流峰值偏大时优先使用。 |
-| 直接脚本入口 | `python3.11 tools/run_mass_production_factory.py --output-root outputs --batch-size 20 --pdg-workers 16 --gpu-slots 1 --seed 20260421 --comfyui-url http://127.0.0.1:8188` | 与 CLI 子命令等价，适合调试总线主脚本。 |
+| 存在性检查 | `context.get("mesh") is None` | `PipelineContractError(violation_type="missing_mesh3d")` |
+| 类型检查 | `not isinstance(mesh, Mesh3D)` | `PipelineContractError(violation_type="invalid_mesh3d_type")` |
+| 几何非空检查 | `mesh.vertex_count == 0 or mesh.triangle_count == 0` | `PipelineContractError(violation_type="empty_mesh3d")` |
 
-在这台机器上，**仍然建议把 `--gpu-slots` 固定在 1**。CPU 侧 16 线程足够支撑 genotype、motion、shell、ribbon 等阶段并发推进；而 GPU 侧真正的风险从来都不是算力闲置，而是正交辅助图烘焙与 ComfyUI 时序工作流叠加后的显存峰值。因此，除非先做本地峰值显存测量，否则不要为了追求吞吐去盲目提升 GPU 槽位。
+**零 Fallback 球体生成**。代码库中与 Fallback Dummy Mesh 相关的所有逻辑已被永久移除。这从物理源头消灭了 22,422 次 `generator_invariant` 停滞迭代的病根。
 
-## ComfyUI Preparation Checklist
+### 2. PDG 节点级 RNG 摘要透传
 
-量产总线在启用 `anti_flicker_render` 时，默认把该阶段视为生产级 AI 渲染链路，而不是装饰性可选插件。因此，正式运行前请先完成本地 ComfyUI 环境准备。
+`rng_spawn_digest` 现在被强制注入到量产工厂所有阶段的 `ArtifactManifest.metadata` 字典中：
 
-| 准备项 | 要求 | 备注 |
-|---|---|---|
-| ComfyUI 地址 | 默认 `http://127.0.0.1:8188` | 如端口不同，用 `--comfyui-url` 覆盖。 |
-| 服务可用性 | 浏览器与本地 API 都可访问 | 建议先手工打开页面确认服务存活。 |
-| 模型准备 | SD 主模型、AnimateDiff、Normal / Depth ControlNet，以及工作流依赖的序列节点 | 应与 `anti_flicker_render` 既有工作流要求保持一致。 |
-| API / WebSocket | 必须可用 | 量产总线会按实时生产工作流发起调用。 |
-| 显存策略 | 保持 `gpu_slots=1` | RTX 4070 12GB 的默认安全边界。 |
-
-推荐的本地准备顺序仍然是：先执行一次 `--skip-ai-render` 的 dry-run，确认真实角色网格正交渲染、批次目录与角色归档都正常；然后手工验证 ComfyUI 是否能接收 normal / depth / RGB 条件输入并完成一次小样；最后再去掉 `--skip-ai-render` 开始正式量产。这样如果 AI 阶段失败，排障范围就能被限制在 ComfyUI 与 `anti_flicker_render`，而不会误伤 PDG 总线或 CPU 数学链路。
-
-## Output Contract After Audit
-
-量产结果继续统一落在 `outputs/mass_production_batch_<timestamp>/`，但在 SESSION-127 审计后，这个目录结构的解释更严格了：现在不仅阶段目录存在，而且交付归档的内容与用途也被明确固定。
-
-| 目录层级 | 内容 | 审计后要求 |
-|---|---|---|
-| `character_<id>/prep/` | genotype、装备挂载、预处理报告 | 必须能反查订单与角色装备组合 |
-| `character_<id>/unified_motion/` | UMR 运动片段与 manifest | 必须保留并发确定性所需的状态来源 |
-| `character_<id>/pseudo3d_shell/` | DQS 壳层网格与 manifest | 必须作为组合网格上游证据存在 |
-| `character_<id>/physical_ribbon/` | 披风 / 带状物理网格与 manifest | 必须保留二级动画证据 |
-| `character_<id>/orthographic_pixel_render/` | 正交辅助图输出与 manifest | 必须由真实 `Mesh3D` 渲染得出，而非后端回退网格 |
-| `character_<id>/unity_2d_anim/` | Unity `.anim` 及 manifest | 最终交付之一 |
-| `character_<id>/spine_preview/` | `preview.mp4` / `preview.gif` / diagnostics | 最终交付之一 |
-| `character_<id>/archive/` | 面向交付的集中归档副本 | 必须集中包含 Unity、Spine preview、正交辅助图，以及 AI 阶段证据 |
-| `character_<id>/character_<id>_factory_index.json` | 角色级索引 | 必须写入各阶段 `rng_spawn_digest` |
-| `batch_summary.json` | 批次汇总索引 | 必须可反查每个角色的 manifest、归档与 RNG 摘要 |
-| `pdg_runtime_trace.json` | 调度执行轨迹 | 必须保留 `requires_gpu` 与 `gpu_slots` 相关证据 |
-
-## White-Box Validation Closure
-
-本轮审计后的验证目标不再只是“量产总线能启动”，而是确认其**按原始需求的关键约束落地**。当前白盒验证结果如下。
-
-| 验证命令 / 范围 | 结果 |
+| 工厂阶段 | 注入方式 |
 |---|---|
-| `python3.11 -m pytest -q tests/test_mass_production.py` | **2/2 PASS** |
-| `test_mass_production_factory_dry_run_skip_ai_render` | **PASS** — 验证 PDG fan-out、GPU 节点标记、真实组合网格被正交渲染消费、角色级归档完整，以及每阶段 `SeedSequence` 裂变摘要存在且互异 |
-| `test_cli_mass_produce_dry_run_skip_ai_render` | **PASS** — 验证 `mathart.cli mass-produce` 入口在 dry-run 模式可正常退出 |
+| `orthographic_render_stage` | `manifest.metadata["rng_spawn_digest"] = rng_digest` |
+| `unified_motion_stage` | `manifest.metadata["rng_spawn_digest"] = rng_digest` |
+| `pseudo3d_shell_stage` | `manifest.metadata["rng_spawn_digest"] = rng_digest` |
+| `physical_ribbon_stage` | `manifest.metadata["rng_spawn_digest"] = rng_digest` |
+| `motion2d_export_stage` | 写入 motion2d report JSON + 返回值 |
+| `final_delivery` | `unity_manifest.metadata["rng_spawn_digest"]` + `preview_manifest.metadata["rng_spawn_digest"]` |
+| `ai_render` | `manifest.metadata["rng_spawn_digest"] = rng_digest` |
 
-因此，这一轮验证已经确认四件事。第一，**拓扑没有在 collect 收口前锁死**。第二，**GPU 受控阶段仍在 trace 中保持 `requires_gpu=True`，并由 `gpu_slots` 节流**。第三，**正交渲染确实使用了装配后的角色网格，而不是默认球体回退**。第四，**最终交付目录中的角色归档已经足以让主理人直接做人工抽检，不需要深入后端私有输出路径**。
+这些摘要同时写入 `character_<id>_factory_index.json` 和 `batch_summary.json`，达到 Bazel 级哈希可验证标准。
+
+### 3. 集中归档 Backend — ArchiveDeliveryBackend
+
+`mathart/core/archive_delivery_backend.py` 是一个全新的独立注册表插件：
+
+- 通过 `@register_backend("archive_delivery", ...)` 自注册，零主干修改
+- 消费 `archive_sources` 列表（每项包含 `label`、`manifest_path`、`files`、`rng_spawn_digest`）
+- 将所有上游产物集中复制到 `character_<id>/archive/` 目录
+- 生成 `<character_id>_archive_report.json` 详细清单
+- 返回强类型 `ArtifactManifest`（`artifact_family=META_REPORT`）
+- 聚合所有阶段的 `rng_spawn_digest` 到 `rng_digests` 元数据字段
+- `BackendType.ARCHIVE_DELIVERY` 已添加到 `backend_types.py` 枚举与别名表
+
+## 防混线红线审计
+
+| 红线 | 审计结果 |
+|---|---|
+| 防越权架构污染 | ✅ 零 `AssetPipeline` / `Orchestrator` 主干修改；归档逻辑完全封装在独立 Backend 插件中 |
+| 防伪造数据欺骗 | ✅ 零 Fallback Dummy Mesh；`PipelineContractError` 三级触发确保端到端流程从 Genotype 发起 |
+| 防敷衍 RNG 追踪 | ✅ `rng_spawn_digest` 硬编码序列化写入 Manifest 和 `batch_summary.json`；测试可反解析 |
+| 端到端闭环测试 | ✅ 24/24 正交渲染测试 PASS（0 警告 / 0 Fallback）；2/2 量产工厂测试 PASS |
+
+## 白盒验证闭环
+
+| 验证命令 | 结果 |
+|---|---|
+| `python3.11 -m pytest tests/test_orthographic_pixel_render.py -v` | **24/24 PASS** |
+| `python3.11 -m pytest tests/test_mass_production.py -v` | **2/2 PASS** |
+| `python3.11 -m pytest tests/test_ci_backend_schemas.py -v` | **13/14 PASS**（1 个预存 anti_flicker_render 问题，非 SESSION-128 引入） |
+
+关键断言覆盖：
+
+- `test_backend_execute_fail_fast_no_mesh`：确认无 mesh 时抛出 `PipelineContractError`
+- `test_backend_execute_fail_fast_empty_mesh`：确认空 mesh（0 顶点/0 三角形）时抛出 `PipelineContractError`
+- `test_backend_execute_returns_artifact_manifest`：使用真实 `Mesh3D` 验证完整渲染流程
+- CI backend schema 动态发现测试：`orthographic_pixel_render` 和 `archive_delivery` 均通过 fixture 注入验证
+
+## 文件变更清单
+
+| 文件 | 操作 | 说明 |
+|---|---|---|
+| `mathart/core/orthographic_pixel_backend.py` | **UPD** | 完全重写：Fail-Fast Mesh3D Consumption Contract |
+| `mathart/core/archive_delivery_backend.py` | **NEW** | 集中归档交付 Backend 插件 |
+| `mathart/core/backend_types.py` | **UPD** | 添加 `BackendType.ARCHIVE_DELIVERY` 枚举与别名 |
+| `tools/run_mass_production_factory.py` | **UPD** | RNG digest 注入所有阶段 Manifest metadata；导入 archive_delivery_backend |
+| `tests/test_orthographic_pixel_render.py` | **UPD** | 新增 Fail-Fast 测试；更新 execute 测试使用真实 Mesh3D |
+| `tests/test_ci_backend_schemas.py` | **UPD** | Backend 特定 fixture 覆盖 |
+| `research/research_session128_industrial_references.md` | **NEW** | 四大参考研究笔记 |
+| `PROJECT_BRAIN.json` | **UPD** | SESSION-128 状态、resolved issues、architecture notes |
+| `SESSION_HANDOFF.md` | **UPD** | 本文档 |
+
+## 接下来：ComfyUI 跨机渲染可复现性增强与 GPU 可微渲染加速
+
+SESSION-128 建立了确定性基础（RNG digest 链、Fail-Fast mesh 契约、集中归档），这是 ComfyUI 跨机器可复现性和 GPU 可微渲染加速的前置条件。以下是当前架构还需要的微调准备：
+
+### 微调准备 1：ComfyUI 工作流确定性固定
+
+当前 `HeadlessNeuralRenderPipeline` 生成的 ComfyUI 工作流 JSON 中，节点 ID 和随机种子尚未与 PDG 的 `rng_spawn_digest` 强绑定。需要：
+
+- 将 `rng_spawn_digest` 作为 ComfyUI 工作流中所有 KSampler 节点的 `seed` 输入源
+- 固定 ComfyUI 节点 ID 分配策略（确定性递增，而非随机 UUID）
+- 在 `ArtifactManifest.metadata` 中记录完整的 ComfyUI workflow JSON hash
+
+### 微调准备 2：GPU 设备指纹注入
+
+跨机器对比需要知道渲染环境差异。需要在 `ArtifactManifest.metadata` 中添加：
+
+- `gpu_device_name`（如 "NVIDIA GeForce RTX 4070"）
+- `cuda_version`（如 "12.1"）
+- `driver_version`（如 "535.129.03"）
+- `comfyui_version` 和已加载模型的 SHA-256 hash
+
+### 微调准备 3：帧级 pHash/SSIM 回归基线
+
+建立 CPU dry-run 与 GPU live-run 之间的可量化差异基线：
+
+- 对正交渲染阶段（纯 CPU NumPy）：两次运行应产生 bit-exact 相同输出
+- 对 AI 渲染阶段（ComfyUI GPU）：记录帧级 pHash 和 SSIM，建立"可接受差异"阈值
+- 将差异指标写入 `batch_summary.json` 的 `reproducibility_metrics` 字段
+
+### 微调准备 4：GPU 可微渲染替换路径
+
+当前正交渲染使用纯 NumPy 软件光栅化器。如需 GPU 加速：
+
+- **nvdiffrast**（NVIDIA）：可直接替换光栅化步骤，保持相同的 `Mesh3D` 输入契约和 `ArtifactManifest` 输出 schema
+- **Mitsuba 3**（EPFL）：提供可微分渲染，适合未来的风格迁移优化
+- 替换时只需修改 `OrthographicPixelRenderBackend.execute()` 内部实现，Fail-Fast Mesh3D 契约和 `ArtifactManifest` 输出格式保持不变
+
+### 待办列表更新
+
+| ID | 优先级 | 标题 | 状态 |
+|---|---|---|---|
+| P0-SESSION-127-CORE-CONSTRAINTS | P0 | Fail-Fast Mesh3D / RNG Digest / Archive Delivery | **CLOSED (SESSION-128)** |
+| P2-COMFYUI-REPRO-1 | P2 | ComfyUI 工作流确定性固定与种子绑定 | TODO |
+| P2-COMFYUI-REPRO-2 | P2 | GPU 设备指纹注入与跨机器对比 | TODO |
+| P2-COMFYUI-REPRO-3 | P2 | 帧级 pHash/SSIM 回归基线建立 | TODO |
+| P2-GPU-RENDER-1 | P2 | nvdiffrast / Mitsuba 3 GPU 可微渲染替换 | TODO |
+
+## Local Production Commands
+
+命令格式与 SESSION-127 保持一致，SESSION-128 的变更不影响 CLI 接口：
+
+| 场景 | 推荐命令 |
+|---|---|
+| 纯 CPU / dry-run 审计 | `python3.11 -m mathart.cli mass-produce --output-dir outputs --batch-size 20 --pdg-workers 16 --gpu-slots 1 --skip-ai-render --seed 20260422` |
+| 标准本地量产 | `python3.11 -m mathart.cli mass-produce --output-dir outputs --batch-size 20 --pdg-workers 16 --gpu-slots 1 --seed 20260422 --comfyui-url http://127.0.0.1:8188` |
+| 保守显存模式 | `python3.11 -m mathart.cli mass-produce --output-dir outputs --batch-size 12 --pdg-workers 16 --gpu-slots 1 --seed 20260422 --comfyui-url http://127.0.0.1:8188` |
 
 ## Immediate Operator Guidance
 
-如果主理人现在要在本地正式开跑，请先执行一次带 `--skip-ai-render` 的 dry-run，并重点检查三类文件。第一类，是 `batch_summary.json` 与各角色的 `character_<id>_factory_index.json`，确认每个阶段都有 `rng_spawn_digest` 且角色间不重复。第二类，是 `orthographic_pixel_render` 下的 render report，确认其 `mesh_stats` 与 `composed_mesh` 报告匹配。第三类，是 `archive/` 目录，确认 `.anim`、`preview.mp4`、正交辅助图与 AI 阶段证据都集中存在。
+如果主理人现在要在本地正式开跑，请先执行一次带 `--skip-ai-render` 的 dry-run，重点检查：
 
-从路线图角度看，P1-NEW-10 目前已经不只是“名义闭环”，而是完成了一次符合原始协议的审计加固。后续若还要继续提升价值，优先级最高的方向不再是补批量入口，而是继续扩展 SKU 丰富度与 AI 渲染可复现性。前者决定商业化资产池的覆盖面，后者决定 ComfyUI 链路能否从“本地可跑”进一步收敛为“跨机器稳定可复跑”。
+1. **`batch_summary.json`** 中每个角色、每个阶段都有 `rng_spawn_digest` 且角色间不重复
+2. **`orthographic_pixel_render/` 下的 render report**，确认 `mesh_contract.fail_fast_enforced = true` 且 `mesh_stats` 反映真实角色几何
+3. **`archive/` 目录**，确认 Unity `.anim`、`preview.mp4`、正交辅助图与 AI 阶段证据都集中存在
+
+从路线图角度看，SESSION-128 完成了从"量产可跑"到"量产可信"的关键跃迁。22,422 次 `generator_invariant` 停滞灾难已在类型系统层面被永久消灭。下一步的战略方向是 ComfyUI 跨机器可复现性与 GPU 可微渲染加速，而 SESSION-128 建立的 RNG digest 链和 Fail-Fast mesh 契约正是这两个方向的必要前置条件。

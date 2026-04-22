@@ -27,10 +27,11 @@ from mathart.animation.motion_2d_pipeline import Motion2DPipeline
 from mathart.animation.parts3d import build_attachments_from_genotype
 from mathart.core.artifact_schema import ArtifactManifest
 import mathart.core.physical_ribbon_backend  # noqa: F401  # Ensure registry side-effect import.
+import mathart.core.archive_delivery_backend  # noqa: F401  # SESSION-128: Ensure archive delivery backend registry side-effect import.
 from mathart.level import PDGFanOutResult, PDGNode, ProceduralDependencyGraph
 from mathart.pipeline import AssetPipeline
 
-_SESSION_ID = "SESSION-126"
+_SESSION_ID = "SESSION-128"
 _DEFAULT_SEED = 20260421
 _DEFAULT_GPU_SLOTS = 1
 _DEFAULT_COMFYUI_URL = "http://localhost:8188"
@@ -480,6 +481,10 @@ def _node_unified_motion(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str,
             "session_id": _SESSION_ID,
         },
     )
+    # SESSION-128: Inject rng_spawn_digest into ArtifactManifest metadata
+    rng_digest = _current_rng_digest(ctx)
+    if rng_digest:
+        manifest.metadata["rng_spawn_digest"] = rng_digest
     manifest_path = _save_manifest(manifest, stage_dir / "unified_motion_artifact_manifest.json")
     return {
         "character_id": prepared["character_id"],
@@ -489,7 +494,7 @@ def _node_unified_motion(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str,
         "state": prepared["motion_state"],
         "frame_count": prepared["frame_count"],
         "fps": prepared["fps"],
-        "rng_spawn_digest": _current_rng_digest(ctx),
+        "rng_spawn_digest": rng_digest,
     }
 
 
@@ -510,6 +515,10 @@ def _node_pseudo3d_shell(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str,
             "export_per_frame": False,
         },
     )
+    # SESSION-128: Inject rng_spawn_digest into ArtifactManifest metadata
+    rng_digest = _current_rng_digest(ctx)
+    if rng_digest:
+        manifest.metadata["rng_spawn_digest"] = rng_digest
     manifest_path = _save_manifest(manifest, stage_dir / "pseudo_3d_shell_artifact_manifest.json")
     return {
         "character_id": prepared["character_id"],
@@ -518,7 +527,7 @@ def _node_pseudo3d_shell(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str,
         "mesh_path": manifest.outputs.get("mesh"),
         "metadata_path": manifest.outputs.get("metadata"),
         "frame_count": int(manifest.metadata.get("frame_count", prepared["frame_count"])),
-        "rng_spawn_digest": _current_rng_digest(ctx),
+        "rng_spawn_digest": rng_digest,
     }
 
 
@@ -538,6 +547,10 @@ def _node_physical_ribbon(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str
             "session_id": _SESSION_ID,
         },
     )
+    # SESSION-128: Inject rng_spawn_digest into ArtifactManifest metadata
+    rng_digest = _current_rng_digest(ctx)
+    if rng_digest:
+        manifest.metadata["rng_spawn_digest"] = rng_digest
     manifest_path = _save_manifest(manifest, stage_dir / "physical_ribbon_artifact_manifest.json")
     return {
         "character_id": prepared["character_id"],
@@ -545,7 +558,7 @@ def _node_physical_ribbon(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str
         "manifest_path": str(manifest_path),
         "mesh_path": manifest.outputs.get("mesh"),
         "report_path": manifest.outputs.get("report"),
-        "rng_spawn_digest": _current_rng_digest(ctx),
+        "rng_spawn_digest": rng_digest,
     }
 
 
@@ -616,6 +629,11 @@ def _node_orthographic_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict
             "session_id": _SESSION_ID,
         },
     )
+    # SESSION-128: Inject rng_spawn_digest into ArtifactManifest metadata
+    # for Bazel-level hash auditability across the entire artifact chain.
+    rng_digest = _current_rng_digest(ctx)
+    if rng_digest:
+        manifest.metadata["rng_spawn_digest"] = rng_digest
     manifest_path = _save_manifest(manifest, stage_dir / "orthographic_pixel_render_artifact_manifest.json")
     archived = _archive_manifest_outputs(manifest, archive_dir, "orthographic_pixel_render")
     return {
@@ -627,7 +645,7 @@ def _node_orthographic_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict
         "depth": manifest.outputs.get("depth"),
         "report": manifest.outputs.get("render_report"),
         "archived": archived,
-        "rng_spawn_digest": _current_rng_digest(ctx),
+        "rng_spawn_digest": rng_digest,
     }
 
 
@@ -644,6 +662,8 @@ def _node_motion2d_export(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str
         result = motion_pipeline.run_biped_walk(n_frames=frame_count, speed=1.0)
     spine_json_path = stage_dir / f"{prepared['character_id']}_spine.json"
     motion_pipeline.export_spine_json(result, spine_json_path)
+    # SESSION-128: Capture rng_spawn_digest for motion2d stage
+    rng_digest = _current_rng_digest(ctx)
     report_path = _write_json(
         stage_dir / f"{prepared['character_id']}_motion2d_report.json",
         {
@@ -652,6 +672,7 @@ def _node_motion2d_export(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str
             "total_frames": int(result.total_frames),
             "pipeline_pass": bool(result.pipeline_pass),
             "fps": int(getattr(result.clip_2d, "fps", prepared["fps"])),
+            "rng_spawn_digest": rng_digest,
         },
     )
     return {
@@ -662,7 +683,7 @@ def _node_motion2d_export(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str
         "report_path": str(report_path.resolve()),
         "fps": int(getattr(result.clip_2d, "fps", prepared["fps"])),
         "frame_count": int(result.total_frames),
-        "rng_spawn_digest": _current_rng_digest(ctx),
+        "rng_spawn_digest": rng_digest,
     }
 
 
@@ -696,6 +717,11 @@ def _node_final_delivery(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str,
         },
     )
 
+    # SESSION-128: Inject rng_spawn_digest into delivery manifests
+    rng_digest = _current_rng_digest(ctx)
+    if rng_digest:
+        unity_manifest.metadata["rng_spawn_digest"] = rng_digest
+        preview_manifest.metadata["rng_spawn_digest"] = rng_digest
     unity_manifest_path = _save_manifest(unity_manifest, unity_dir / "unity_2d_anim_artifact_manifest.json")
     preview_manifest_path = _save_manifest(preview_manifest, preview_dir / "spine_preview_artifact_manifest.json")
     archived = {
@@ -710,7 +736,7 @@ def _node_final_delivery(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str,
         "preview_manifest_path": str(preview_manifest_path),
         "archived": archived,
         "spine_json_path": motion2d["spine_json_path"],
-        "rng_spawn_digest": _current_rng_digest(ctx),
+        "rng_spawn_digest": rng_digest,
     }
 
 
@@ -775,6 +801,10 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
             "session_id": _SESSION_ID,
         },
     )
+    # SESSION-128: Inject rng_spawn_digest into AI render manifest
+    rng_digest = _current_rng_digest(ctx)
+    if rng_digest:
+        manifest.metadata["rng_spawn_digest"] = rng_digest
     manifest_path = _save_manifest(manifest, stage_dir / "anti_flicker_render_artifact_manifest.json")
     archived = _archive_manifest_outputs(manifest, archive_dir, "anti_flicker_render")
     return {
@@ -783,7 +813,7 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
         "skipped": False,
         "manifest_path": str(manifest_path),
         "archived": archived,
-        "rng_spawn_digest": _current_rng_digest(ctx),
+        "rng_spawn_digest": rng_digest,
     }
 
 

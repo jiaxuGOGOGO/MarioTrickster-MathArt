@@ -99,6 +99,10 @@ class BackendType(str, Enum):
     # backend. Reads exported Spine JSON, solves world transforms in batch,
     # and emits headless MP4 / GIF diagnostics without any GUI dependency.
     SPINE_PREVIEW = "spine_preview"
+    # SESSION-128 (P0-SESSION-127-CORE-CONSTRAINTS): Centralized archive
+    # delivery backend.  Collects artifacts from all upstream stages into
+    # a unified archive/ directory with batch_summary.json index.
+    ARCHIVE_DELIVERY = "archive_delivery"
 
 
 _BACKEND_ALIASES: dict[str, str] = {
@@ -232,6 +236,11 @@ _BACKEND_ALIASES: dict[str, str] = {
     "spine_json_preview": BackendType.SPINE_PREVIEW.value,
     "spine_preview_backend": BackendType.SPINE_PREVIEW.value,
     "spine_headless_preview": BackendType.SPINE_PREVIEW.value,
+    # SESSION-128 (P0-SESSION-127-CORE-CONSTRAINTS): Archive delivery backend aliases
+    BackendType.ARCHIVE_DELIVERY.value: BackendType.ARCHIVE_DELIVERY.value,
+    "archive_backend": BackendType.ARCHIVE_DELIVERY.value,
+    "centralized_archive": BackendType.ARCHIVE_DELIVERY.value,
+    "data_mesh_delivery": BackendType.ARCHIVE_DELIVERY.value,
 }
 
 
