@@ -17,12 +17,22 @@ LOGGER = logging.getLogger("mathart.cli")
 
 
 def _configure_logging(*, quiet: bool = False) -> None:
-    logging.basicConfig(
-        level=logging.WARNING if quiet else logging.INFO,
-        format="[%(levelname)s] %(name)s: %(message)s",
-        stream=sys.stderr,
-        force=True,
-    )
+    # SESSION-146: Install the blackbox flight recorder first so that
+    # the file handler (DEBUG) + console handler (WARNING) are already
+    # in place.  We then only adjust the *root* logger's level for
+    # non-wizard CLI commands — never overwrite handlers with force=True,
+    # which would destroy the blackbox file handler.
+    try:
+        from mathart.core.logger import install_blackbox
+        install_blackbox()
+    except Exception:  # pragma: no cover — defensive
+        pass
+    # For non-wizard CLI paths, the root logger may need a lower
+    # threshold so that registry/backend INFO messages reach stderr.
+    # But the blackbox console handler already gates at WARNING,
+    # so we only touch the root level here.
+    root = logging.getLogger()
+    root.setLevel(logging.WARNING if quiet else logging.INFO)
 
 
 def _parse_scalar(value: str) -> Any:

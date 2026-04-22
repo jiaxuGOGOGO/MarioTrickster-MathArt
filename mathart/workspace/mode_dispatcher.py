@@ -6,6 +6,8 @@ branches in the CLI entry point.
 """
 from __future__ import annotations
 
+import json
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
 from enum import Enum
@@ -14,6 +16,8 @@ from typing import Any, ClassVar
 
 from .config_manager import ConfigManager
 from .git_agent import GitAgent
+
+logger = logging.getLogger(__name__)
 
 
 class SessionMode(str, Enum):
@@ -142,10 +146,24 @@ class ProductionStrategy(SessionStrategy):
 
             report = PreflightRadar(require_gpu=True).scan()
             payload = report.to_dict()
+            # SESSION-146: Mirror the full radar diagnostic payload into the
+            # blackbox log so that post-mortem analysis never depends on
+            # terminal scrollback alone.
+            logger.info(
+                "Radar diagnostic payload (verdict=%s): %s",
+                report.verdict.value,
+                json.dumps(payload, ensure_ascii=False),
+            )
             if report.verdict is PreflightVerdict.MANUAL_INTERVENTION_REQUIRED:
                 payload["status"] = "blocked"
                 payload["reason"] = "gpu_boundary_guard"
                 payload["suggested_mode"] = SessionMode.DRY_RUN.value
+                logger.warning(
+                    "Production mode BLOCKED by radar — verdict=%s, "
+                    "blocking_actions=%s",
+                    report.verdict.value,
+                    payload.get("blocking_actions", []),
+                )
                 return payload
         from tools.run_mass_production_factory import run_mass_production_factory
 
@@ -441,6 +459,13 @@ class ModeDispatcher:
     ) -> ModeDispatchResult:
         resolved_mode = self.resolve_mode(mode)
         strategy = self._registry[resolved_mode]
+        # SESSION-146: Wizard telemetry — record mode selection in blackbox.
+        logger.info(
+            "[CLI] User selected mode: %s (strategy=%s, execute=%s)",
+            resolved_mode.value,
+            strategy.__class__.__name__,
+            execute,
+        )
         context = strategy.build_context(dict(options or {}))
         payload = strategy.execute(context) if execute else strategy.preview(context)
         return ModeDispatchResult(

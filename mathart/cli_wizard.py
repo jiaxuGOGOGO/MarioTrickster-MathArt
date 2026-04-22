@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
 from mathart.workspace.hitl_boundary import ManualInterventionRequiredError, ManualOption
 from mathart.workspace.mode_dispatcher import ModeDispatcher
+
+logger = logging.getLogger(__name__)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -131,8 +134,17 @@ def run_wizard(
     input_fn: Callable[[str], str] = input,
     output_fn: Callable[[str], None] = print,
 ) -> int:
+    # SESSION-146: Install blackbox at wizard entry to guarantee all
+    # downstream logger.info/warning calls land in logs/mathart.log.
+    try:
+        from mathart.core.logger import install_blackbox
+        install_blackbox()
+    except Exception:  # pragma: no cover — defensive
+        pass
+
     raw_argv = [] if argv is None else list(argv)
     interactive = sys.stdin.isatty() if stdin_isatty is None else stdin_isatty
+    logger.info("[CLI] Wizard invoked: argv=%s, interactive=%s", raw_argv, interactive)
 
     if not raw_argv and interactive:
         return _run_interactive(input_fn=input_fn, output_fn=output_fn)
@@ -160,6 +172,12 @@ def run_wizard(
         sys.stdout.flush()
         return 0
     except Exception as exc:
+        # SESSION-146: Persist non-interactive dispatch errors into blackbox.
+        logger.warning(
+            "[CLI] Non-interactive dispatch FAILED for mode=%s",
+            args.mode,
+            exc_info=True,
+        )
         error_payload = {
             "status": "error",
             "error_type": exc.__class__.__name__,
@@ -182,9 +200,12 @@ def _run_interactive(
     for item in dispatcher.available_modes():
         output_fn(f"  [{item['index']}] {item['label']}")
     selection = standard_text_prompt("输入编号并回车", input_fn=input_fn, output_fn=output_fn)
+    # SESSION-146: Record the interactive mode selection in blackbox.
+    logger.info("[CLI] Interactive mode selection: %s", selection)
 
     # Director Studio shortcut — bypass normal dispatch for mode 5
     if selection in {"5", "director_studio", "director", "studio"}:
+        logger.info("[CLI] Routing to Director Studio")
         return _run_director_studio(project_root=project_root, input_fn=input_fn, output_fn=output_fn)
 
     execute_now = (
@@ -218,6 +239,12 @@ def _run_interactive(
         output_fn(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0
     except Exception as exc:
+        # SESSION-146: Persist interactive dispatch errors into blackbox.
+        logger.warning(
+            "[CLI] Interactive dispatch FAILED for selection=%s",
+            selection,
+            exc_info=True,
+        )
         output_fn(json.dumps({
             "status": "error",
             "error_type": exc.__class__.__name__,
@@ -278,6 +305,7 @@ def _run_director_studio(
     output_fn("  [B] 蓝图派生 — 基于已有蓝图进行控制变量繁衍")
     output_fn("  [C] 混合模式 — 在蓝图基础上叠加感性描述")
     creation_mode = standard_text_prompt("选择模式", input_fn=input_fn, output_fn=output_fn, default="A").strip().upper()
+    logger.info("[CLI] Director Studio creation mode: %s", creation_mode)
 
     raw_intent: dict = {}
 
@@ -311,7 +339,10 @@ def _run_director_studio(
     # Parse intent
     try:
         spec = parser.parse_dict(raw_intent)
+        logger.info("[CLI] Director intent parsed: vibe=%s, evolve_variants=%s",
+                    raw_intent.get("vibe", ""), raw_intent.get("evolve_variants", 0))
     except Exception as exc:
+        logger.warning("[CLI] Director intent parse FAILED", exc_info=True)
         output_fn(json.dumps({"status": "error", "error_type": exc.__class__.__name__, "message": str(exc)}, ensure_ascii=False, indent=2))
         return 1
 
@@ -326,6 +357,11 @@ def _run_director_studio(
     )
     gate_result = gate.run(spec)
 
+    logger.info(
+        "[CLI] Director gate decision: %s (rounds=%d)",
+        gate_result.decision.value,
+        gate_result.total_rounds,
+    )
     if gate_result.decision == GateDecision.ABORTED:
         output_fn("\n导演工坊已退出。")
         return 0
@@ -361,6 +397,7 @@ def _run_director_studio(
         output_fn(f"   变种蓝图已保存 → {bp_dir}")
 
     output_fn("\n🎬 导演工坊流程完成！")
+    logger.info("[CLI] Director Studio workflow completed successfully")
     return 0
 
 __all__ = [

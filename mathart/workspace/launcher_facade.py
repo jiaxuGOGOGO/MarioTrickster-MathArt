@@ -194,6 +194,13 @@ class LauncherFacade:
                 status = supervisor.start()
             except (DaemonCrashedError, ComfyUINotResponsiveError) as exc:
                 self._stage = LauncherStage.ABORTED
+                # SESSION-146: Log the full crash context with traceback
+                # into the blackbox before returning the outcome.
+                logger.warning(
+                    "LauncherFacade supervisor CRASHED: %s",
+                    exc,
+                    exc_info=True,
+                )
                 outcome = LauncherOutcome(
                     verdict=LauncherVerdict.CRASHED,
                     stage_reached=LauncherStage.SUPERVISOR,
@@ -319,6 +326,16 @@ class LauncherFacade:
             error=reason,
         )
         self._last_outcome = outcome
+        # SESSION-146: Persist the full abort diagnostic into the blackbox
+        # so that post-mortem never depends on terminal scrollback.
+        import json as _json
+        logger.warning(
+            "LauncherFacade ABORTED — reason=%s, blocking=%s, "
+            "preflight_report=%s",
+            reason,
+            list(blocking),
+            _json.dumps(report_dict, ensure_ascii=False),
+        )
         return outcome
 
     def _emit_running_outcome(self) -> LauncherOutcome:

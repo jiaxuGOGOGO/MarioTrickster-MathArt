@@ -449,6 +449,12 @@ class InteractivePreviewGate:
             self.output_fn(
                 "\n🚫 检测到致命约束违规（数学/物理不可能），系统将自动安全裁剪。"
             )
+            # SESSION-146: Log fatal knowledge violations into blackbox.
+            logger.warning(
+                "Truth Gateway FATAL block — %d violations auto-clamped: %s",
+                len(fatal_violations),
+                [v["param_key"] for v in fatal_violations],
+            )
             genotype = apply_knowledge_clamp_to_genotype(genotype, violations)
             result.user_chose_comply = True
             result.clamped_params = [v["param_key"] for v in violations]
@@ -468,7 +474,7 @@ class InteractivePreviewGate:
                 result.overridden_params = [v["param_key"] for v in physical_violations]
                 self.output_fn("🎨 艺术自由优先 — 已保留您的参数设定。")
                 logger.warning(
-                    "User overrode knowledge constraints for: %s",
+                    "Truth Gateway: user OVERRODE knowledge constraints for: %s",
                     result.overridden_params,
                 )
             else:
@@ -477,6 +483,10 @@ class InteractivePreviewGate:
                 result.user_chose_comply = True
                 result.clamped_params = [v["param_key"] for v in violations]
                 self.output_fn("✅ 已安全裁剪至知识边界内。")
+                logger.info(
+                    "Truth Gateway: user COMPLIED with knowledge clamp for: %s",
+                    result.clamped_params,
+                )
 
         self.output_fn("=" * 60 + "\n")
         return genotype, result
@@ -525,9 +535,16 @@ class InteractivePreviewGate:
                     output_path=self.workspace_root / "workspace" / "proxy" / f"proxy_round_{round_num}.png",
                 )
                 self.output_fn(f"\n🎬【白模已生成】→ {proxy_path}")
+                logger.info("Proxy rendered successfully: round=%d, path=%s", round_num, proxy_path)
             except Exception as e:
                 self.output_fn(f"\n⚠️ 白模生成失败: {e}")
-                logger.warning("Proxy render failed: %s", e)
+                # SESSION-146: Capture the full traceback in the blackbox
+                # so that proxy render failures are never lost.
+                logger.warning(
+                    "Proxy render FAILED at round %d — degraded to parameter view",
+                    round_num,
+                    exc_info=True,
+                )
 
             # Show parameter summary
             flat = current_genotype.flat_params()

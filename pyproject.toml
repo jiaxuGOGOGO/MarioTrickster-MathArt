@@ -31,9 +31,20 @@ dependencies = [
     # animated-GIF / APNG writer used by future preview export paths.
     # Kept minimal — no ffmpeg plugin auto-download at install time.
     "imageio>=2.31",
+    # SESSION-146: psutil is used by PreflightRadar for process-table
+    # reverse-lookup (ComfyUI sniffer). Without it, the radar degrades
+    # to filesystem-only discovery and logs "psutil not importable".
+    "psutil>=5.9",
 ]
 
 [project.optional-dependencies]
+gpu = [
+    # SESSION-146: torch is a multi-GB heavy AI runtime. It MUST NOT
+    # appear in default dependencies to protect CPU-sandbox sub-second
+    # startup. Users who need GPU SDF evaluation or neural rendering
+    # install this extra explicitly: `pip install mathart[gpu]`.
+    "torch>=2.0",
+]
 dev = [
     "pytest>=7.4",
     "pytest-cov>=4.1",
