@@ -1,17 +1,41 @@
 """GitOps knowledge sync agent with strict whitelist discipline.
 
-The agent is intentionally conservative: it refuses to package unknown paths,
-validates staged knowledge carriers before commit, and degrades gracefully on
-push errors so the main application never crashes.
+SESSION-138 hardens this agent to match the quarantine + proposal-branch
+GitOps contract described in
+``docs/research/SESSION-138-KNOWLEDGE-QA-GATE-RESEARCH.md``:
+
+* ``main`` / ``master`` are listed in :data:`PROTECTED_BRANCHES` and this
+  agent will **refuse** to push to them regardless of caller intent; per
+  Microsoft Learn *Quarantine pattern* and GitHub *About protected
+  branches*, any LLM-distilled knowledge must reach ``main`` exclusively
+  via a human-reviewed Pull Request.
+* A :meth:`GitAgent.sync_knowledge` call creates (or reuses) a
+  timestamped ``knowledge-proposal/distill-<UTC>`` branch, stages only the
+  whitelisted paths, commits with a session-tagged message, and pushes
+  that proposal branch to the remote.
+* ``knowledge/quarantine/`` content that has NOT been validated by the
+  sandbox is still allowed to be pushed to proposal branches (since that
+  is precisely what human reviewers need to see), but the
+  :meth:`GitAgent.require_sandbox_report` helper gives callers a typed
+  way to short-circuit a push when the validator returned any failure.
+
+The agent is intentionally conservative: it refuses to package unknown
+paths, validates staged knowledge carriers before commit, and degrades
+push errors gracefully so the main application never crashes.
 """
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Any, Callable, Iterable, Sequence
+
+# Forward-ref alias used in sync_knowledge signature — duck-typed on purpose
+# so this module has zero runtime dependency on sandbox_validator.
+SandboxReportLike = Any
 
 
 DEFAULT_WHITELIST = (
@@ -20,7 +44,18 @@ DEFAULT_WHITELIST = (
     "SESSION_HANDOFF.md",
     "tools/PROMPTS",
     "docs/research",
+    "mathart/distill",
+    "tests",
 )
+
+# Any push target in this set is a RED LINE. The SESSION-138 contract
+# forbids the automation agent from ever pushing distilled knowledge
+# directly to these branches; only human reviewers may merge via PR.
+PROTECTED_BRANCHES: frozenset[str] = frozenset({"main", "master"})
+
+# Automation-generated proposal branches live under this prefix; human
+# reviewers approve them via GitHub Pull Request.
+PROPOSAL_BRANCH_PREFIX = "knowledge-proposal/distill-"
 
 
 @dataclass(frozen=True)
@@ -44,11 +79,17 @@ class GitAgent:
         whitelist: Sequence[str] = DEFAULT_WHITELIST,
         remote_name: str = "origin",
         branch_name: str | None = None,
+        proposal_branch_prefix: str = PROPOSAL_BRANCH_PREFIX,
+        use_proposal_branch: bool = True,
+        clock: "Callable[[], datetime] | None" = None,
     ) -> None:
         self.project_root = Path(project_root or Path.cwd()).resolve()
         self.whitelist = tuple(self._normalize_whitelist_entry(item) for item in whitelist)
         self.remote_name = remote_name
         self.branch_name = branch_name
+        self.proposal_branch_prefix = proposal_branch_prefix
+        self.use_proposal_branch = use_proposal_branch
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     def preview_status(self) -> dict[str, object]:
         changed = self._git_changed_paths()
@@ -61,16 +102,121 @@ class GitAgent:
             "whitelist": list(self.whitelist),
         }
 
+    # ── SESSION-138 proposal-branch helpers ───────────────────────────
+    def _is_protected(self, branch: str | None) -> bool:
+        if not branch:
+            return False
+        return branch.strip() in PROTECTED_BRANCHES
+
+    def _current_branch(self) -> str:
+        proc = self._git(["rev-parse", "--abbrev-ref", "HEAD"], check=True)
+        return proc.stdout.strip()
+
+    def _generate_proposal_branch_name(self) -> str:
+        ts = self._clock().strftime("%Y%m%d%H%M%S")
+        return f"{self.proposal_branch_prefix}{ts}"
+
+    def _ensure_proposal_branch(self, branch_name: str) -> None:
+        """Create ``branch_name`` as a proposal branch off HEAD if it does
+        not exist locally yet, and check it out. ``main`` / ``master`` are
+        structurally refused as targets.
+        """
+        if self._is_protected(branch_name):
+            raise ValueError(
+                f"Refusing to operate on protected branch {branch_name!r};"
+                " SESSION-138 forbids direct GitOps push to main/master."
+            )
+        if not re.match(r"^[A-Za-z0-9][A-Za-z0-9/_.-]*$", branch_name):
+            raise ValueError(
+                f"Invalid proposal branch name {branch_name!r}."
+            )
+        existing = self._git(["branch", "--list", branch_name], check=True)
+        if existing.stdout.strip():
+            self._git(["checkout", branch_name], check=True)
+        else:
+            self._git(["checkout", "-b", branch_name], check=True)
+
+    @staticmethod
+    def require_sandbox_report(report: "SandboxReportLike | None") -> None:
+        """Allow callers to short-circuit a push when the SESSION-138 sandbox
+        validator returned any failure. The report is treated duck-typed so
+        this module stays import-cycle free with ``sandbox_validator``.
+        """
+        if report is None:
+            return
+        failed = getattr(report, "failed", None)
+        passed = getattr(report, "passed", None)
+        if failed is None or passed is None:
+            return
+        if int(failed) > 0:
+            raise ValueError(
+                f"Sandbox validator reports {failed} toxic rule(s);"
+                " refusing to trigger any GitOps proposal push."
+            )
+
     def sync_knowledge(
         self,
         *,
         paths: Sequence[str] | None = None,
         push: bool = True,
         commit_message: str | None = None,
-        session_id: str = "SESSION-136",
+        session_id: str = "SESSION-138",
+        sandbox_report: "SandboxReportLike | None" = None,
+        proposal_branch: bool | None = None,
     ) -> GitSyncResult:
-        """Stage, validate, commit, and optionally push only whitelisted knowledge artifacts."""
+        """Stage, validate, commit, and optionally push only whitelisted knowledge artifacts.
+
+        When ``proposal_branch`` is true (the default under SESSION-138), the
+        commit is placed on a freshly generated
+        ``knowledge-proposal/distill-<UTC>`` branch and that branch — never
+        ``main`` — is pushed to the remote. ``sandbox_report`` is a
+        duck-typed object with ``passed`` / ``failed`` integer attributes;
+        if any rule failed the sandbox, the push is refused early.
+        """
+        if proposal_branch is None:
+            proposal_branch = self.use_proposal_branch
         try:
+            self.require_sandbox_report(sandbox_report)
+            # Structurally refuse to touch protected branches, even if a
+            # caller tries to force it via ``branch_name``.
+            target_branch: str | None = None
+            if proposal_branch:
+                target_branch = self._generate_proposal_branch_name()
+            elif self.branch_name is not None:
+                if self._is_protected(self.branch_name):
+                    return GitSyncResult(
+                        ok=False,
+                        staged_paths=(),
+                        commit_message=None,
+                        push_attempted=False,
+                        pushed=False,
+                        manual_action_required=True,
+                        reason=(
+                            f"Refused to push: branch_name={self.branch_name!r}"
+                            " is in PROTECTED_BRANCHES. Use a proposal branch."
+                        ),
+                    )
+                target_branch = self.branch_name
+            else:
+                current = self._current_branch()
+                if self._is_protected(current):
+                    return GitSyncResult(
+                        ok=False,
+                        staged_paths=(),
+                        commit_message=None,
+                        push_attempted=False,
+                        pushed=False,
+                        manual_action_required=True,
+                        reason=(
+                            f"Refused to push: current branch {current!r} is"
+                            " protected. SESSION-138 requires a proposal branch."
+                        ),
+                    )
+                target_branch = current
+
+            if proposal_branch:
+                self._ensure_proposal_branch(target_branch)  # type: ignore[arg-type]
+
             staged_candidates = self._resolve_stage_candidates(paths)
             if not staged_candidates:
                 return GitSyncResult(
@@ -120,9 +266,9 @@ class GitAgent:
                     manual_action_required=False,
                     reason="Committed locally; push skipped by caller.",
                 )
-            push_args = ["push", self.remote_name]
-            if self.branch_name:
-                push_args.append(self.branch_name)
+            push_args = ["push", "--set-upstream", self.remote_name]
+            if target_branch:
+                push_args.append(target_branch)
             push_proc = self._git(push_args, check=False)
             if push_proc.returncode != 0:
                 combined = (push_proc.stdout + "\n" + push_proc.stderr).strip()
@@ -249,4 +395,10 @@ class GitAgent:
         return normalized.strip("/")
 
 
-__all__ = ["DEFAULT_WHITELIST", "GitAgent", "GitSyncResult"]
+__all__ = [
+    "DEFAULT_WHITELIST",
+    "GitAgent",
+    "GitSyncResult",
+    "PROPOSAL_BRANCH_PREFIX",
+    "PROTECTED_BRANCHES",
+]
