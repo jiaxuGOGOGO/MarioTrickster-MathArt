@@ -128,3 +128,19 @@ from .director_intent import (
 from mathart.workspace.director_intent import KnowledgeConflict
 from mathart.workspace.director_intent import KnowledgeProvenanceRecord
 from mathart.workspace.director_intent import VIBE_TO_KNOWLEDGE_MODULES
+
+# SESSION-147: Project-level knowledge bus factory used by Director Studio
+# routes (both interactive wizard and non-interactive strategy dispatch)
+# to physically connect RuntimeDistillationBus → DirectorIntentParser.
+from .knowledge_bus_factory import build_project_knowledge_bus  # noqa: E402
+
+# SESSION-147: ComfyUI interactive path rescue (used by ProductionStrategy
+# when the radar returns comfyui_not_found in interactive mode).
+from .comfyui_rescue import (
+    COMFYUI_ENV_VAR,
+    RescueOutcome,
+    is_comfyui_not_found_payload,
+    persist_comfyui_home,
+    hot_inject_env,
+    prompt_comfyui_path_rescue,
+)

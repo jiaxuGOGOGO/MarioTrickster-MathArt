@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, Callable, ClassVar
 
 from .config_manager import ConfigManager
 from .git_agent import GitAgent
@@ -117,6 +117,20 @@ class ProductionStrategy(SessionStrategy):
     display_name = "🏭 工业量产(Production)"
     menu_index = "1"
 
+    def __init__(
+        self,
+        project_root: str | Path | None = None,
+        *,
+        input_fn: Callable[[str], str] | None = None,
+        output_fn: Callable[[str], None] | None = None,
+    ) -> None:
+        super().__init__(project_root=project_root)
+        # SESSION-147: Hooks that allow the interactive wizard to drive the
+        # comfyui_not_found rescue prompt.  Default to module-level input/
+        # print so CLI behaviour is unchanged when the hooks are omitted.
+        self._input_fn: Callable[[str], str] = input_fn or input
+        self._output_fn: Callable[[str], None] = output_fn or print
+
     def build_context(self, options: dict[str, Any]) -> SessionContext:
         skip_ai_render = bool(options.get("skip_ai_render", False))
         return SessionContext(
@@ -143,6 +157,10 @@ class ProductionStrategy(SessionStrategy):
     def execute(self, context: SessionContext) -> dict[str, Any]:
         if context.requires_gpu:
             from .preflight_radar import PreflightRadar, PreflightVerdict
+            from .comfyui_rescue import (
+                is_comfyui_not_found_payload,
+                prompt_comfyui_path_rescue,
+            )
 
             report = PreflightRadar(require_gpu=True).scan()
             payload = report.to_dict()
@@ -164,7 +182,56 @@ class ProductionStrategy(SessionStrategy):
                     report.verdict.value,
                     payload.get("blocking_actions", []),
                 )
-                return payload
+                # SESSION-147: When the block is *only* because ComfyUI
+                # was not discovered AND we are running interactively,
+                # hand control to the interactive rescue gateway instead
+                # of hard-exiting.  On a successful rescue we re-run the
+                # radar in-process so the user does not need to restart
+                # their terminal.
+                if context.interactive and is_comfyui_not_found_payload(payload):
+                    outcome = prompt_comfyui_path_rescue(
+                        project_root=self.project_root,
+                        input_fn=self._input_fn,
+                        output_fn=self._output_fn,
+                    )
+                    if outcome.resolved:
+                        logger.info(
+                            "[Dispatcher] ComfyUI rescue succeeded — re-running "
+                            "preflight radar with COMFYUI_HOME=%s",
+                            outcome.path,
+                        )
+                        report = PreflightRadar(require_gpu=True).scan()
+                        payload = report.to_dict()
+                        payload["comfyui_rescue"] = {
+                            "resolved": True,
+                            "path": outcome.path,
+                            "env_file": outcome.env_file,
+                        }
+                        logger.info(
+                            "Radar re-scan diagnostic payload (verdict=%s): %s",
+                            report.verdict.value,
+                            json.dumps(payload, ensure_ascii=False),
+                        )
+                        if report.verdict is PreflightVerdict.MANUAL_INTERVENTION_REQUIRED:
+                            payload["status"] = "blocked"
+                            payload["reason"] = "gpu_boundary_guard_post_rescue"
+                            payload["suggested_mode"] = SessionMode.DRY_RUN.value
+                            logger.warning(
+                                "Production mode STILL BLOCKED after rescue — "
+                                "verdict=%s, blocking_actions=%s",
+                                report.verdict.value,
+                                payload.get("blocking_actions", []),
+                            )
+                            return payload
+                        # else: fall through to the production launch
+                    else:
+                        payload["comfyui_rescue"] = {
+                            "resolved": False,
+                            "fallback_to_sandbox": outcome.fallback_to_sandbox,
+                        }
+                        return payload
+                else:
+                    return payload
         from tools.run_mass_production_factory import run_mass_production_factory
 
         output_root = Path(context.output_dir or self.project_root / "output" / "production")
@@ -364,9 +431,27 @@ class DirectorStudioStrategy(SessionStrategy):
         from .director_intent import DirectorIntentParser, CreatorIntentSpec, Genotype
         from ..quality.interactive_gate import InteractivePreviewGate, GateDecision
         from ..evolution.blueprint_evolution import BlueprintEvolutionEngine
+        # SESSION-147: Wire the "大一统知识总线" so that non-interactive
+        # dispatch (cloud/batch Director Studio runs) enjoys the same
+        # knowledge-grounded translation as the interactive wizard.
+        from .knowledge_bus_factory import build_project_knowledge_bus
 
         extra = context.extra
-        parser = DirectorIntentParser(workspace_root=self.project_root)
+        knowledge_bus = build_project_knowledge_bus(project_root=self.project_root)
+        if knowledge_bus is not None:
+            logger.info(
+                "[Dispatcher] Director Studio knowledge bus wired: modules=%d",
+                len(getattr(knowledge_bus, "compiled_spaces", {}) or {}),
+            )
+        else:
+            logger.warning(
+                "[Dispatcher] Director Studio knowledge bus UNAVAILABLE — "
+                "falling back to heuristic-only translation."
+            )
+        parser = DirectorIntentParser(
+            workspace_root=self.project_root,
+            knowledge_bus=knowledge_bus,
+        )
 
         # Build intent spec
         intent_path = extra.get("intent_path", "")
@@ -381,8 +466,11 @@ class DirectorStudioStrategy(SessionStrategy):
             }
             spec = parser.parse_dict(raw)
 
-        # Interactive preview gate
-        gate = InteractivePreviewGate(workspace_root=self.project_root)
+        # Interactive preview gate (SESSION-147: share the bus with the parser)
+        gate = InteractivePreviewGate(
+            workspace_root=self.project_root,
+            knowledge_bus=knowledge_bus,
+        )
         gate_result = gate.run(spec)
 
         result: dict[str, Any] = {
@@ -414,8 +502,19 @@ class DirectorStudioStrategy(SessionStrategy):
 class ModeDispatcher:
     """Registry-driven top-level router for dual-track workspace modes."""
 
-    def __init__(self, project_root: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        project_root: str | Path | None = None,
+        *,
+        input_fn: Callable[[str], str] | None = None,
+        output_fn: Callable[[str], None] | None = None,
+    ) -> None:
         self.project_root = Path(project_root or Path.cwd()).resolve()
+        # SESSION-147: Allow the interactive wizard to inject its own
+        # input/output channels so the ComfyUI rescue prompt in
+        # ProductionStrategy shares the wizard's REPL transport.
+        self._input_fn = input_fn
+        self._output_fn = output_fn
         self._registry: dict[SessionMode, SessionStrategy] = {}
         self._register_defaults()
 
@@ -476,7 +575,13 @@ class ModeDispatcher:
         )
 
     def _register_defaults(self) -> None:
-        self.register(ProductionStrategy(self.project_root))
+        self.register(
+            ProductionStrategy(
+                self.project_root,
+                input_fn=self._input_fn,
+                output_fn=self._output_fn,
+            )
+        )
         self.register(EvolutionStrategy(self.project_root))
         self.register(LocalDistillStrategy(self.project_root))
         self.register(DryRunAuditStrategy(self.project_root))

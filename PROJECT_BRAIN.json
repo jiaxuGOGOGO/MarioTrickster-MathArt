@@ -1,6 +1,6 @@
 {
   "version": "v0.99.1",
-  "last_session_id": "SESSION-146",
+  "last_session_id": "SESSION-147",
   "last_updated": "2026-04-22",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -276,6 +276,63 @@
     ]
   },
   "pending_tasks": [
+    {
+      "id": "P0-SESSION-147-KNOWLEDGE-BUS-THROUGH-WIRING",
+      "priority": "P0",
+      "title": "DirectorIntent Knowledge-Bus Brain-Split Repair (cli_wizard + mode_dispatcher injection)",
+      "status": "CLOSED",
+      "estimated_effort": "small",
+      "description": "CLOSED in SESSION-147. The SESSION-146 blackbox surfaced 'No knowledge bus injected — using heuristic fallback only' every time Director Studio was invoked: although DirectorIntentParser had long supported an external knowledge_bus parameter, both the interactive entrypoint (mathart/cli_wizard.py::_run_director_studio) and the non-interactive entrypoint (mathart/workspace/mode_dispatcher.py::DirectorStudioStrategy.execute) were instantiating the parser without one. Fix introduces a single-source-of-truth factory mathart.workspace.knowledge_bus_factory.build_project_knowledge_bus() that compiles the repository's knowledge/ directory (18 modules, 323 parameters) into a RuntimeDistillationBus, with graceful None/empty degradation when knowledge/ is absent. Both entrypoints now wire the factory output into DirectorIntentParser. Smoke test scripts/session147_smoke.py shows modules_compiled=18, params_total=323, brainsplit_warning=False. 24/24 SESSION-147 targeted + 144/144 cross-suite regression = 168/168 PASS.",
+      "added_in": "SESSION-147",
+      "completed_in": "SESSION-147",
+      "closed_in": "SESSION-147",
+      "primary_files": [
+        "mathart/workspace/knowledge_bus_factory.py",
+        "mathart/workspace/__init__.py",
+        "mathart/cli_wizard.py",
+        "mathart/workspace/mode_dispatcher.py",
+        "tests/test_session147_rescue_and_bus.py",
+        "scripts/session147_smoke.py"
+      ]
+    },
+    {
+      "id": "P0-SESSION-147-COMFYUI-INTERACTIVE-RESCUE",
+      "priority": "P0",
+      "title": "ComfyUI Interactive Path Rescue Gateway (.env persistence + runtime hot-injection + radar rewake)",
+      "status": "CLOSED",
+      "estimated_effort": "medium",
+      "description": "CLOSED in SESSION-147. Before this session, a comfyui_not_found radar verdict terminated the interactive wizard, kicking the user out of the terminal with no recovery path. SESSION-147 introduces mathart/workspace/comfyui_rescue.py, a self-healing gateway that: (1) detects the comfyui_not_found blocker via is_comfyui_not_found_payload(); (2) friendly-prompts the user in the same terminal as the wizard ('\ud83d\udea8 Radar could not auto-locate the ComfyUI engine...'); (3) cleans drag-and-drop quoting via _clean_pasted_path; (4) validates the target is a real ComfyUI root via _looks_like_comfyui_root (main.py + custom_nodes/); (5) persists COMFYUI_HOME into project-root .env via dotenv.set_key with a native append-or-update fallback when python-dotenv is unavailable; (6) hot-injects the value into os.environ so the current process picks it up without restart; (7) re-runs PreflightRadar().scan() to re-wake the production pipeline. ProductionStrategy and ModeDispatcher now accept input_fn/output_fn hooks routed from cli_wizard._run_interactive. python-dotenv>=1.0 added to core deps. Up to 3 attempts before falling back to sandbox mode. End-to-end smoke test exercises the full round-trip including radar rewake.",
+      "added_in": "SESSION-147",
+      "completed_in": "SESSION-147",
+      "closed_in": "SESSION-147",
+      "primary_files": [
+        "mathart/workspace/comfyui_rescue.py",
+        "mathart/workspace/mode_dispatcher.py",
+        "mathart/cli_wizard.py",
+        "mathart/workspace/__init__.py",
+        "pyproject.toml",
+        "tests/test_session147_rescue_and_bus.py",
+        "scripts/session147_smoke.py"
+      ]
+    },
+    {
+      "id": "P2-SESSION-147-RESCUE-WINDOWS-UNC",
+      "priority": "P2",
+      "title": "Extend comfyui_rescue path validator to cover Windows UNC & 8.3 short names",
+      "status": "OPEN",
+      "estimated_effort": "small",
+      "description": "_looks_like_comfyui_root currently checks for main.py + custom_nodes/ as direct children of the resolved path. Windows UNC paths (\\\\server\\share\\ComfyUI) and 8.3 short-name paths (C:\\PROGRA~1\\ComfyUI) can fail Path.resolve() under certain mount configurations; add explicit pre-normalization and a regression test.",
+      "added_in": "SESSION-147"
+    },
+    {
+      "id": "P2-SESSION-147-KBUS-CACHE",
+      "priority": "P2",
+      "title": "Cache the compiled knowledge bus to avoid per-wizard-launch re-parsing",
+      "status": "OPEN",
+      "estimated_effort": "small",
+      "description": "build_project_knowledge_bus() currently re-compiles knowledge/ on every wizard launch (~100-200ms). Add a cheap content-hash cache (json index of file mtimes) so repeat launches bypass the parser.parse_directory step. Must invalidate on any knowledge/ change to avoid stale rules.",
+      "added_in": "SESSION-147"
+    },
     {
       "id": "P0-SESSION-146-TELEMETRY-THROUGH-BORE",
       "priority": "P0",

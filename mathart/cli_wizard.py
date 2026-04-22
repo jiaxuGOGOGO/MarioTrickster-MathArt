@@ -194,7 +194,14 @@ def _run_interactive(
     output_fn: Callable[[str], None],
 ) -> int:
     project_root = Path.cwd().resolve()
-    dispatcher = ModeDispatcher(project_root=project_root)
+    # SESSION-147: Inject the wizard's REPL transport so that if the
+    # preflight radar blocks on comfyui_not_found, the rescue prompt
+    # talks to the same terminal as the wizard.
+    dispatcher = ModeDispatcher(
+        project_root=project_root,
+        input_fn=input_fn,
+        output_fn=output_fn,
+    )
     render_defender_whitelist_warning(project_root=project_root, output_fn=output_fn)
     output_fn("请选择当前工作模式：")
     for item in dispatcher.available_modes():
@@ -290,6 +297,11 @@ def _run_director_studio(
         InteractivePreviewGate, GateDecision,
     )
     from mathart.evolution.blueprint_evolution import BlueprintEvolutionEngine
+    # SESSION-147: Physically wire the "大一统知识总线". Without this, the
+    # DirectorIntentParser silently degrades to heuristic-only translation
+    # ("No knowledge bus injected — using heuristic fallback only"), which
+    # is the precise脑裂 bug uncovered by the SESSION-146 blackbox audit.
+    from mathart.workspace.knowledge_bus_factory import build_project_knowledge_bus
 
     output_fn("")
     output_fn("🎬 ═══════════════════════════════════════════")
@@ -297,7 +309,24 @@ def _run_director_studio(
     output_fn("═══════════════════════════════════════════")
     output_fn("")
 
-    parser = DirectorIntentParser(workspace_root=project_root)
+    # SESSION-147: Build the project-level knowledge bus BEFORE constructing
+    # any intent-parsing primitives so the bus is hot-ready for first query.
+    knowledge_bus = build_project_knowledge_bus(project_root=project_root)
+    if knowledge_bus is not None:
+        logger.info(
+            "[CLI] Director Studio knowledge bus wired: modules=%d",
+            len(getattr(knowledge_bus, "compiled_spaces", {}) or {}),
+        )
+    else:
+        logger.warning(
+            "[CLI] Director Studio knowledge bus UNAVAILABLE — falling back "
+            "to heuristic-only semantic translation."
+        )
+
+    parser = DirectorIntentParser(
+        workspace_root=project_root,
+        knowledge_bus=knowledge_bus,
+    )
 
     # Step 1: Gather intent
     output_fn("请选择创作方式：")
@@ -350,10 +379,14 @@ def _run_director_studio(
     output_fn("✅ 意图解析完成，进入白模预演...")
 
     # Step 2: Interactive preview gate
+    # SESSION-147: Reuse the same project-level knowledge bus so the Truth
+    # Gateway arbitration inside the preview REPL stays in sync with the
+    # constraints that shaped the initial parameter clamping.
     gate = InteractivePreviewGate(
         workspace_root=project_root,
         input_fn=input_fn,
         output_fn=output_fn,
+        knowledge_bus=knowledge_bus,
     )
     gate_result = gate.run(spec)
 

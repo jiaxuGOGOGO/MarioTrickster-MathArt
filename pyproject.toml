@@ -35,6 +35,14 @@ dependencies = [
     # reverse-lookup (ComfyUI sniffer). Without it, the radar degrades
     # to filesystem-only discovery and logs "psutil not importable".
     "psutil>=5.9",
+    # SESSION-147: python-dotenv powers the ComfyUI interactive path
+    # rescue gateway (mathart.workspace.comfyui_rescue) — we use its
+    # ``set_key`` helper to persist COMFYUI_HOME into the project-level
+    # .env without clobbering unrelated keys. The module gracefully
+    # degrades to a pure-Python append-or-update implementation when
+    # dotenv is unavailable, so this dependency is a UX improvement
+    # rather than a hard prerequisite.
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]

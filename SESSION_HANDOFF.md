@@ -1,3 +1,120 @@
+# SESSION-147 HANDOFF — KNOWLEDGE-BUS THROUGH-WIRING & COMFYUI INTERACTIVE PATH RESCUE
+
+> **打通“知识大一统”最后一公里：DirectorIntent 脚裂修复 + 雷达拦截变友好回收网关，.env 持久化 + 运行时热注入 + 雷达重唤**
+
+**Date**: 2026-04-22
+**Status**: COMPLETE
+**Parent Commit**: `b9cdf05` (SESSION-146-B)
+**Tests**: 24/24 SESSION-147 targeted (bus factory + rescue gateway) + 144/144 cross-suite regression (wizard / director / dispatcher / preflight-radar / 146-B audit / 146 telemetry / knowledge-synergy / idempotent-surgeon / hitl-boundary) = **168/168 PASS, 0 FAIL**
+
+---
+
+## 1. Problem Statement (SESSION-146 黑匣子抒出的两大最后一公里漏洞)
+
+### 1.1 架构遗漏——知识总线脚裂 (Knowledge Bus Brain-Split)
+
+SESSION-146 贯通后的黑匣子日志首次暴露：
+
+```
+DEBUG | mathart.workspace.director_intent | No knowledge bus injected — using heuristic fallback only
+```
+
+在之前的 *知识大一统* 任务中，`DirectorIntentParser` 已支持外注 `knowledge_bus`，但顶层向导入口 (`mathart/cli_wizard.py::_run_director_studio` 与非交互的 `mode_dispatcher.py::DirectorStudioStrategy.execute`) **漏掉了实例化并注入 `RuntimeDistillationBus`**。结果以下这套已数事上线的 18 模块 / 323 参数的知识总线对 Director Studio 全程物理断连，解析器退化到 heuristic fallback 。
+
+### 1.2 UX 体验断层——雷达过度防御与死板阻断
+
+SESSION-146-B 雷达道射到 **46 条路径**仍未命中时，能在黑匣子留下完整审计，但 `ProductionStrategy.execute` 直接用 `comfyui_not_found` 阻断信号抛出并退出程序。用户明知本机已装 ComfyUI（只是放在非常规盘符），却被向导一脚踢出，产品观感极差且没有救援航道。
+
+---
+
+## 2. Key Deliverables
+
+### 2.1 修复一：知识总线工厂 + 双入口注入
+
+| 文件 | 变更 |
+|------|------|
+| `mathart/workspace/knowledge_bus_factory.py` (新增) | 提供 `build_project_knowledge_bus()` 单一入口，从项目 `knowledge/` 目录编译 `RuntimeDistillationBus`；没有 `knowledge/` 时返回 `None` 或空 bus，绝不报错。 |
+| `mathart/cli_wizard.py::_run_director_studio` | 在 parser 实例化前调用 `build_project_knowledge_bus()` 并作为 `knowledge_bus=` 注入 `DirectorIntentParser`。 |
+| `mathart/workspace/mode_dispatcher.py::DirectorStudioStrategy.execute` | 非交互通道同步研産，保证 --mode 5 依然物理可观测知识总线。 |
+| `mathart/workspace/__init__.py` | 导出 `build_project_knowledge_bus` 以供下游代码复用。 |
+
+**证据**：运行 `scripts/session147_smoke.py` 即可观测到 `modules compiled : 18 / parameters total : 323`，且日志流中 `No knowledge bus injected` 警告彻底消失。
+
+### 2.2 修复二：ComfyUI 交互式路径自愈网关
+
+| 文件 | 变更 |
+|------|------|
+| `mathart/workspace/comfyui_rescue.py` (新增) | 实现 `prompt_comfyui_path_rescue()`、`_clean_pasted_path()`、`_looks_like_comfyui_root()`、`persist_comfyui_home()`、`hot_inject_env()`、`is_comfyui_not_found_payload()`。 |
+| `mathart/workspace/mode_dispatcher.py::ProductionStrategy` | `__init__` 新增 `input_fn` / `output_fn` hooks；`execute()` 在雷达返回 `comfyui_not_found` 时挂起并调用 `prompt_comfyui_path_rescue`，成功后重新调用 `radar.scan()` 重唤放行。 |
+| `mathart/workspace/mode_dispatcher.py::ModeDispatcher` | 构造函数接收 `input_fn` / `output_fn` 并透传给 `ProductionStrategy`。 |
+| `mathart/cli_wizard.py::_run_interactive` | 实例化 `ModeDispatcher` 时透传向导的 REPL 通道，确保提示用与向导同片终端。 |
+| `pyproject.toml` | 核心依赖新增 `python-dotenv>=1.0`（`set_key` 的墤馬；未安装时降级到纯 Python 追写补丁）。 |
+
+**现场行为**：当雷达给出 `comfyui_not_found` 且运行在交互模式时，用户会在同一个终端看到：
+
+```
+🚨 雷达未能自动定位到 ComfyUI 引擎。
+如果您已安装，请直接将 ComfyUI 的根目录（包含 main.py 的文件夹）拖拽到此处并回车。
+或直接按回车退回沙盒模式。
+```
+
+用户输入（带引号的拖拽路径亦可被辷边）→ `_clean_pasted_path` 去除 `"'` 和空白 → `_looks_like_comfyui_root` 检查 `main.py` + `custom_nodes/` → `persist_comfyui_home` 向 `.env` 写入 `COMFYUI_HOME="..."` (通过 `dotenv.set_key` 或比较自实现的 key-upsert) → `hot_inject_env` 把该值热注入 `os.environ` → 打印 `✅ 引擎绑定成功并永久保存！` → 重新 `PreflightRadar().scan()` → 重新进入量产渲染。
+
+### 2.3 测试矩阵
+
+| Suite | 规模 | 状态 |
+|-------|------|------|
+| `tests/test_session147_rescue_and_bus.py` (新增) | 24 | PASS |
+| `tests/test_dual_wizard_dispatcher.py` | 4 | PASS |
+| `tests/test_director_studio_blueprint.py` | 23 | PASS |
+| `tests/test_session146_telemetry.py` | 11 | PASS |
+| `tests/test_session146b_radar_enhancement.py` | 15 | PASS |
+| `tests/test_preflight_radar.py` | 17 | PASS |
+| `tests/test_knowledge_synergy_bridge.py` | 26 | PASS |
+| `tests/test_idempotent_surgeon.py` | 22 | PASS |
+| `tests/test_hitl_boundary_gateway.py` | 2 | PASS |
+| `scripts/session147_smoke.py` E2E | 1 | GREEN |
+
+### 2.4 如何现场确认修复生效
+
+**知识总线接通**：执行 `PYTHONPATH=. python3 scripts/session147_smoke.py`；
+- `[BUS] modules compiled : 18` + `[BUS] parameters total : 323` 即证明 `knowledge/` 目录已被全量装载；
+- `[PARSER] knowledge_bus attached: True` 证明 `DirectorIntentParser` 持有 bus。
+- `[LOG] brainsplit warning present? False` 证明 `logs/mathart.log` 不再写入 `No knowledge bus injected — using heuristic fallback only`。
+
+**交互式路径救援现场表现**：执行同一脚本的 Part 2，可观测到
+- `[RADAR] detected comfyui_not_found blocker` → 证明截获器命中；
+- `[RESCUE] resolved = True` + `path = /tmp/.../ComfyUI` → 证明引号被剥离且路径校验通过；
+- `[.env] contents = "COMFYUI_HOME='...'\n"` → 证明 `.env` 持久化完成；
+- `[os.environ] COMFYUI_HOME=...` → 证明热注入完成；
+- `[RADAR/REWAKE] found=True, root=...` → 证明雷达重唤后成功识别引擎，量产渲染可继续。
+
+---
+
+## 3. SESSION-147 四条硬多疆界（给下一任期的工程节点）
+
+1. `comfyui_rescue.py` 依然是 **UX 网关**，不要在模块内反向调用 parser / gate 等上层 orchestrator；任何 "auto-detect" 、网络抓论均应在 `preflight_radar.py` 内完成。
+2. `hot_inject_env()` 仅针对当前进程；任何跨会话的 `COMFYUI_HOME` 维护绝对依赖 `.env`，不允许写 shell 配置。
+3. `persist_comfyui_home` 面对拿 dotenv 不到的环境时尾随附加，请保留该降级路径，以充当离线者的救生门。
+4. 新增测试文件 `tests/test_session147_rescue_and_bus.py` 的 autouse fixture `_isolate_comfyui_env` 是 **存活红线**，不得被减弱或替换为 `monkeypatch.delenv`——它才是露出 SESSION-146 雷达回归底线的原因。
+
+---
+
+## 4. 待办列表 (TODO Reconciliation)
+
+| 项 | 状态 |
+|----|------|
+| 知识总线在 cli_wizard Director Studio 入口被注入 | ✅ DONE (SESSION-147) |
+| 知识总线在非交互 ModeDispatcher 被注入 | ✅ DONE (SESSION-147) |
+| 雷达 `comfyui_not_found` 阻断变交互式路径回收 | ✅ DONE (SESSION-147) |
+| `.env` 持久化 `COMFYUI_HOME` | ✅ DONE (SESSION-147) |
+| `os.environ` 热注入 + 雷达重唤 | ✅ DONE (SESSION-147) |
+| `python-dotenv` 追加核心依赖 | ✅ DONE (SESSION-147) |
+| 未来：`comfyui_rescue` 支持 Windows 缩略名路径 / UNC 路径预校验 | ⬜ TBD |
+| 未来：`knowledge_bus_factory` 开放缓存层以避免每次 wizard 启动重复编译 | ⬜ TBD |
+
+---
+
 # SESSION-146 HANDOFF — FULL-CHAIN TELEMETRY THROUGH-BORE, DEPENDENCY HARDENING & RADAR WIDE-AREA SEARCH NET
 
 > **全链路遥测贯通 + 依赖固化 + 双轨日志分流护栏 + 雷达广域探测网强化：黑匣子从此对核心业务轨迹零失明，ComfyUI 探测再无死角**
