@@ -1,75 +1,55 @@
-# SESSION-132 HANDOFF — P0-SESSION-129-PREFLIGHT-RADAR: Read-Only Preflight Radar & ComfyUI Discovery
+# 🚀 AI Operator Handoff: SESSION-133 (Idempotent Surgeon)
 
-**Objective**：激活最高级别代码落地协议，实现“全自动免配置客户端”的第一阶段——纯只读的启动前置探针系统（Preflight Radar）。彻底终结盲目重复安装。
-
-**Status**：**CLOSED（SESSION-132 集中攻坚完成）**。
-
-本轮工作以顶级工业界/学术界参考（Terraform IaC State Drift Detection、Docker Desktop Heuristic Discovery、Aviation-Grade Fail-Safe Preflight）为最高准则，实现了零干预的环境雷达与 ComfyUI 资产智能嗅探器。
+**To the Next Operator:**
+You are inheriting the `MarioTrickster-MathArt` project after the successful landing of **P0-SESSION-130-IDEMPOTENT-SURGEON** (Phase 2). The workspace now features a fully idempotent, zero-copy auto-assembly engine for ComfyUI assets.
 
 ---
 
-## 核心交付物与架构红线审计
+## 📌 1. Current State: What Was Just Built
 
-### 1. 构建全局环境与硬件雷达 (`mathart/workspace/preflight_radar.py`)
-雷达系统被严格限制在只读边界内，探测当前环境的绝对真实状态树。
+We implemented a three-tier repair engine that consumes the `PreflightReport` from Phase 1 and non-destructively heals missing assets:
 
-| 探针模块 | 策略与实现 | 状态契约 |
-|---|---|---|
-| **GPUProbe** | 优先探测 `torch.cuda`，降级调用 `nvidia-smi` 子进程。| 优雅降级，CPU-only 环境安全返回 `MISSING`。 |
-| **PythonEnvironmentProbe** | 静态快照 `sys.executable`，核对核心运行时依赖（numpy, scipy, networkx, Pillow）。| 根据缺失包数量返回 `OK`, `DEGRADED`, `MISSING`。 |
-| **ComfyUIDiscovery** | 多级降级嗅探器（进程特征扫描 + 启发式遍历），详见下文。| `found` 布尔值，附带探测方法与资产级体检报告。 |
+1. **`AssetInjector` (Zero-Copy Cache Recovery)**
+   - Scans HuggingFace, Torch, and standard WebUI caches.
+   - Enforces a strict 3-tier fallback: `os.symlink` → `os.link` (hardlink) → `shutil.copy2`.
+   - **Crucial:** Survives Windows `WinError 1314` (symlink privilege trap) gracefully.
+2. **`AtomicDownloader` (Network Fallback)**
+   - Fetches missing assets using HTTP Range requests (`.part` files).
+   - Only publishes to the final path via an atomic `os.replace` *after* SHA-256 verification.
+   - Never exposes a half-downloaded file to the user's ComfyUI instance.
+3. **`IdempotentSurgeon` (The Orchestrator)**
+   - Translates `PreflightReport.fixable_actions` into strongly-typed `ActionOutcome` records (`SKIPPED`, `SYMLINKED`, `DOWNLOADED`, `BLOCKED`).
+   - **Absolute Idempotency:** A second run over a healed environment performs zero filesystem mutations and opens zero TCP sockets.
 
-### 2. ComfyUI 智能嗅探器与软链接穿透
-严禁硬编码路径。我们实现了双轨探测机制，并在底层彻底打通了对软链接（Symlinks）的穿透能力。
+All code is strictly statically audited against destructive operations (no `shutil.rmtree` or `os.remove` on user data; corrupt files are quarantined to `.bak-<ts>`).
 
-- **进程逆推（Process Reverse-Engineering）**：使用 `psutil` 遍历进程表。寻找 `cmdline` 中包含 `main.py` 且呈现 Python 特征的活跃进程，通过参数逆推工作目录。
-- **启发式遍历（Heuristic Fallback）**：扫描 `COMFYUI_HOME`、常规安装盘符（`C:/ComfyUI`, `/opt/ComfyUI`）及当前同级目录。
-- **软链接穿透（Symlink Transparency）**：所有资产检查均使用 `Path.resolve()`。高端用户的模型通常放置在外部硬盘并通过软链接挂载。雷达现在能正确识别它们为 `exists=True`，并标记 `is_symlink=True`，从根本上防止了后续的“重复下载”灾难。
-
-### 3. 强类型的 `PreflightReport` 决策契约
-雷达不执行修复，只输出诊断结果。所有结果汇聚为不可变的强类型数据类，并最终合成三态 `PreflightVerdict` 决策矩阵：
-
-| 判定结果 (Verdict) | 触发条件 | 后续行动指示 |
-|---|---|---|
-| `READY` | ComfyUI 存在，所有资产就绪，GPU（若要求）可用，Python 环境健康。 | 直接起飞，放行管线。 |
-| `AUTO_FIXABLE` | 找到了 ComfyUI，但缺少部分模型（如 SparseCtrl 权重）或少数 Python 包。 | 交由 Phase 2 自动装配器非破坏性修复。 |
-| `MANUAL_INTERVENTION_REQUIRED` | 彻底找不到 ComfyUI，或者核心组件大面积缺失。 | 阻断启动，要求人工介入（如配置 `COMFYUI_HOME`）。 |
-
-### 4. 防混线护栏审计（白盒测试全通）
-
-通过 `tests/test_preflight_radar.py` 强制断言了所有护栏，**17/17 测试用例全部 PASS**：
-1. **【绝对只读防污染】**：源码级正则断言（`TestReadOnlyRedLine`），代码中不存在任何 `pip install`、`git clone` 或 `os.makedirs`。
-2. **【防进程卡死与权限崩溃】**：注入了 `AccessDenied`、`ZombieProcess` 异常（`TestPsutilSafetyNet`），探针默默跳过，绝不崩溃。
-3. **【软链接误判红线】**：构建了伪造的外部驱动器和符号链接（`TestSymlinkTransparentAssetProbe`），断言雷达准确穿透并报告 `OK`。
-4. **【契约序列化】**：断言 `PreflightReport.to_json()` 可被机器完美解析，为 Phase 2 跨进程交接做好准备。
+**Test Status:** `tests/test_idempotent_surgeon.py` contains 22 E2E tests, including a hard idempotency assertion (`TestSecondRunIsNoop`) and a simulated Windows permission drop. **All 22/22 PASS.** (Total suite: 39/39 PASS).
 
 ---
 
-## 客户端化演进：Phase 2 数据交接清单
+## 🎯 2. The Next Mission: Phase 3 (Daemon Handoff & Git Subsystem)
 
-打通了这层具有极强探知能力的只读雷达后，接下来的阶段（Phase 2）将是**基于报告的非破坏性自动装配与大文件模型软链接自愈注入**。
+The Surgeon currently emits a `BLOCKED` status for two types of missing dependencies:
+1. `missing_package:*` (Python `pip` dependencies)
+2. Git-managed custom nodes (e.g., `ComfyUI-AnimateDiff-Evolved`), identified via `is_directory=True` in the `AssetPlan`.
 
-为了确保架构纯洁性，Phase 2（Auto-Assembler）必须遵循以下数据交接准备与纪律：
+**Your Goal (P0-SESSION-134-DAEMON-HANDOFF):**
+Implement the background daemon that takes over when the Surgeon yields a `manual_intervention_required` verdict due to `BLOCKED` actions.
 
-### 1. 交接载体：JSON 契约
-Phase 1 雷达输出的 `PreflightReport` JSON 字符串是唯一的交接媒介。Phase 2 必须解析该 JSON，读取 `verdict`。
-- 如果是 `READY`，直接退出装配流程。
-- 如果是 `MANUAL_INTERVENTION_REQUIRED`，向用户打印 `blocking_actions` 并终止。
-- 只有当状态为 `AUTO_FIXABLE` 时，Phase 2 才被允许激活。
-
-### 2. 修复动作解析（Action Parsing）
-Phase 2 将遍历 `fixable_actions` 数组。每个 action 都是结构化字符串：
-- `missing_asset:sparsectrl_rgb_model -> models/controlnet/v3_sd15_sparsectrl_rgb.ckpt`
-- `missing_package:scipy`
-
-### 3. 隔离下载与软链接注入（非破坏性装配）
-为了防止污染用户的 ComfyUI 目录，Phase 2 的下载器**绝不允许**直接将文件下载到 ComfyUI 内部。
-- **机制**：在本项目内部（如 `mathart/workspace/cache/models`）执行下载。
-- **注入**：下载完成后，通过 `os.symlink()` 将文件链接到 ComfyUI 的对应位置。
-- **幂等性**：注入前必须再次检查目标路径，如果文件突然出现，则跳过注入。
-
-### 4. 架构挂载点
-Phase 2 应封装为一个独立的模块 `mathart/workspace/auto_assembler.py`。它消费 `preflight_radar.py` 的输出，执行有限的副作用，然后**必须再次调用雷达**以验证环境是否已跃迁至 `READY` 状态。
+### Architectural Directives for Phase 3:
+1. **Isolated Subprocess Execution:** `git clone` and `pip install` must be executed via `subprocess.Popen` targeting the specific Python executable identified by `PythonEnvironmentProbe` in Phase 1. Do NOT assume the current `sys.executable` is the target ComfyUI venv.
+2. **Safe Restart Protocol:** Once the daemon successfully resolves the blocked actions, it must safely terminate the existing ComfyUI process (using the PID from the `PreflightRadar` snapshot) and spawn a new one.
+3. **IPC Reporting:** The daemon must report its progress back to the main UI/CLI via a JSON lines (`.jsonl`) IPC stream, never polluting `stdout` with raw `pip` logs.
 
 ---
-*Generated by Manus AI — SESSION-132.*
+
+## 🧠 3. Knowledge Base & Context Pointers
+
+- **Binding Research:** Read `docs/research/SESSION-133-SURGEON-RESEARCH.md` to understand the Ansible/Terraform idempotency semantics and the aria2 `.part` file discipline that govern this architecture.
+- **Contract Definition:** Review `mathart/workspace/idempotent_surgeon.py` to see the `AssemblyReport` schema. Your daemon will consume this exact object.
+- **PROJECT_BRAIN.json:** Updated. `last_session_id` is `SESSION-133`. The Phase 3 task has been pushed to the top of the `pending_tasks` queue.
+
+Godspeed, Operator. The foundation is solid; it is time to automate the final mile of Python and Git dependencies.
+
+---
+*Generated by Manus AI — SESSION-133.*
