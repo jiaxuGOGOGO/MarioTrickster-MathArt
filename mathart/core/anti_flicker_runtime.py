@@ -224,10 +224,182 @@ def materialize_chunk_outputs(
     )
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  SESSION-130: Temporal Variance Circuit Breaker
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Industrial Reference: AnimateDiff / SparseCtrl temporal conditioning
+#  requires genuine per-frame geometric variation in guide sequences.
+#  Static or near-static conditioning causes mode collapse in the diffusion
+#  model's temporal attention layers.
+#
+#  This circuit breaker enforces a hard minimum on inter-frame pixel
+#  variance BEFORE the sequence reaches the ComfyUI payload assembler.
+#  If the guide sequence is effectively static (all frames near-identical),
+#  the pipeline is halted immediately with PipelineContractError.
+#
+#  Reference: Jim Gray, "Why Do Computers Stop and What Can Be Done About
+#  It?" (Tandem Computers, 1985) — Fail-Fast principle.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class TemporalVarianceReport:
+    """Diagnostic report from temporal variance validation."""
+
+    channel: str
+    frame_count: int
+    mean_mse: float
+    max_mse: float
+    min_mse: float
+    distinct_pair_count: int
+    total_pair_count: int
+    passed: bool
+    threshold: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "channel": self.channel,
+            "frame_count": self.frame_count,
+            "mean_mse": round(self.mean_mse, 6),
+            "max_mse": round(self.max_mse, 6),
+            "min_mse": round(self.min_mse, 6),
+            "distinct_pair_count": self.distinct_pair_count,
+            "total_pair_count": self.total_pair_count,
+            "passed": self.passed,
+            "threshold": self.threshold,
+        }
+
+
+def validate_temporal_variance(
+    frames: Sequence[Image.Image],
+    *,
+    channel: str = "source",
+    mse_threshold: float = 1.0,
+    min_distinct_ratio: float = 0.5,
+) -> TemporalVarianceReport:
+    """Validate that a guide frame sequence has genuine temporal variance.
+
+    This is the **Temporal Variance Circuit Breaker** — a Fail-Fast guard
+    that prevents static or near-static guide sequences from reaching the
+    AI rendering backend.  AnimateDiff / SparseCtrl temporal attention
+    requires real geometric variation between frames; identical conditioning
+    frames cause mode collapse or frozen-motion artifacts.
+
+    The validator computes MSE (Mean Squared Error) between consecutive
+    frame pairs.  If fewer than ``min_distinct_ratio`` of pairs exceed
+    ``mse_threshold``, the sequence is rejected.
+
+    Parameters
+    ----------
+    frames : Sequence[Image.Image]
+        The guide frame sequence to validate.
+    channel : str
+        Human-readable channel name for diagnostics (e.g., "source", "normal").
+    mse_threshold : float
+        Minimum MSE between consecutive frames to count as "distinct".
+        Default 1.0 (on 0-255 scale) catches sub-pixel jitter forgeries.
+    min_distinct_ratio : float
+        Minimum fraction of consecutive pairs that must be distinct.
+        Default 0.5 means at least half of frame transitions must show
+        real motion.
+
+    Returns
+    -------
+    TemporalVarianceReport
+        Diagnostic report including pass/fail status.
+
+    Raises
+    ------
+    PipelineContractError
+        If the sequence fails the temporal variance check.
+    """
+    from mathart.pipeline_contract import PipelineContractError
+
+    frame_list = list(frames)
+    n = len(frame_list)
+
+    if n < 2:
+        raise PipelineContractError(
+            "temporal_variance_insufficient_frames",
+            f"[TemporalVarianceCircuitBreaker] Channel '{channel}': "
+            f"guide sequence has {n} frame(s), need >= 2 for temporal validation.",
+        )
+
+    mse_values: list[float] = []
+    for i in range(n - 1):
+        arr_a = np.asarray(frame_list[i].convert("RGB"), dtype=np.float64)
+        arr_b = np.asarray(frame_list[i + 1].convert("RGB"), dtype=np.float64)
+        mse = float(np.mean((arr_a - arr_b) ** 2))
+        mse_values.append(mse)
+        # OOM prevention: explicitly delete large arrays after use
+        del arr_a, arr_b
+
+    distinct_count = sum(1 for m in mse_values if m > mse_threshold)
+    total_pairs = len(mse_values)
+    mean_mse = float(np.mean(mse_values)) if mse_values else 0.0
+    max_mse = float(np.max(mse_values)) if mse_values else 0.0
+    min_mse = float(np.min(mse_values)) if mse_values else 0.0
+    passed = (distinct_count / max(1, total_pairs)) >= min_distinct_ratio
+
+    report = TemporalVarianceReport(
+        channel=channel,
+        frame_count=n,
+        mean_mse=mean_mse,
+        max_mse=max_mse,
+        min_mse=min_mse,
+        distinct_pair_count=distinct_count,
+        total_pair_count=total_pairs,
+        passed=passed,
+        threshold=mse_threshold,
+    )
+
+    if not passed:
+        raise PipelineContractError(
+            "temporal_variance_below_threshold",
+            f"[TemporalVarianceCircuitBreaker] Channel '{channel}': "
+            f"guide sequence FAILED temporal variance check.  "
+            f"Only {distinct_count}/{total_pairs} consecutive pairs exceed "
+            f"MSE threshold {mse_threshold:.2f} (need ratio >= {min_distinct_ratio:.0%}).  "
+            f"Mean MSE = {mean_mse:.4f}, Max MSE = {max_mse:.4f}.  "
+            f"This indicates a static or near-static guide sequence that will "
+            f"cause mode collapse in AnimateDiff/SparseCtrl temporal attention.  "
+            f"The upstream rendering pipeline must produce frames with real "
+            f"geometric variation from actual bone-driven animation.",
+        )
+
+    return report
+
+
+def compute_frame_hashes(frames: Sequence[Image.Image]) -> list[str]:
+    """Compute SHA-256 hashes of frame pixel data for anti-forgery auditing.
+
+    Used by end-to-end tests to verify that consecutive frames in a guide
+    sequence are genuinely distinct (not copies of the same image).
+
+    Parameters
+    ----------
+    frames : Sequence[Image.Image]
+        Frame sequence to hash.
+
+    Returns
+    -------
+    list[str]
+        Per-frame SHA-256 hex digests.
+    """
+    import hashlib
+    hashes: list[str] = []
+    for frame in frames:
+        pixel_bytes = frame.convert("RGB").tobytes()
+        hashes.append(hashlib.sha256(pixel_bytes).hexdigest())
+    return hashes
+
+
 __all__ = [
     "AntiFlickerChunk",
     "RGBSequenceExportResult",
     "MaterializedOutputSequence",
+    "TemporalVarianceReport",
     "normalize_server_address",
     "plan_frame_chunks",
     "pil_sequence_to_alpha_masks",
@@ -235,4 +407,6 @@ __all__ = [
     "pil_sequence_to_depth_arrays",
     "export_rgb_sequence",
     "materialize_chunk_outputs",
+    "validate_temporal_variance",
+    "compute_frame_hashes",
 ]
