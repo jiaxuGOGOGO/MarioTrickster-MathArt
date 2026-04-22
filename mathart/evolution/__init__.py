@@ -335,3 +335,14 @@ __all__ = [
     "ThreeLayerEvolutionLoop",
     "MicrokernelPipelineBridge",
 ]
+
+# SESSION-139: Blueprint Evolution — Controlled Variational Derivation
+from .blueprint_evolution import (
+    BlueprintEvolutionEngine,
+    BlueprintEvolutionResult,
+    GENE_FAMILIES,
+    VariantOffspring,
+    build_freeze_mask,
+    evolve_from_blueprint,
+    is_frozen,
+)

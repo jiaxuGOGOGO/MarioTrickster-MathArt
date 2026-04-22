@@ -81,3 +81,15 @@ __all__ = [
     "compute_warp_ssim_pair",
     "sliding_window_warp_ssim",
 ]
+
+# SESSION-139: Interactive Preview Gate — REPL & Blueprint Sedimentation
+from mathart.quality.interactive_gate import (
+    GateDecision,
+    InteractiveGateResult,
+    InteractivePreviewGate,
+    FeedbackRound,
+    ProgrammaticPreviewGate,
+    ProxyRenderer,
+    amplify_genotype,
+    dampen_genotype,
+)

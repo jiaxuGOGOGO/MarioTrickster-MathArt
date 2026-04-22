@@ -21,6 +21,7 @@ class SessionMode(str, Enum):
     EVOLUTION = "evolution"
     LOCAL_DISTILL = "local_distill"
     DRY_RUN = "dry_run"
+    DIRECTOR_STUDIO = "director_studio"
 
 
 MODE_ALIASES = {
@@ -39,6 +40,10 @@ MODE_ALIASES = {
     "dry_run": SessionMode.DRY_RUN,
     "dry-run": SessionMode.DRY_RUN,
     "audit": SessionMode.DRY_RUN,
+    "5": SessionMode.DIRECTOR_STUDIO,
+    "director_studio": SessionMode.DIRECTOR_STUDIO,
+    "director": SessionMode.DIRECTOR_STUDIO,
+    "studio": SessionMode.DIRECTOR_STUDIO,
 }
 
 
@@ -308,6 +313,86 @@ class DryRunAuditStrategy(SessionStrategy):
         }
 
 
+
+class DirectorStudioStrategy(SessionStrategy):
+    """Strategy for the Director Studio — semantic intent, preview REPL, blueprint evolution."""
+    mode = SessionMode.DIRECTOR_STUDIO
+    display_name = "🎬 语义导演工坊(Director Studio)"
+    menu_index = "5"
+
+    def build_context(self, options: dict[str, Any]) -> SessionContext:
+        return SessionContext(
+            mode=self.mode,
+            label=self.display_name,
+            requires_gpu=False,
+            starts_daemon=False,
+            may_push_knowledge=False,
+            knowledge_read_only=True,
+            supports_cloud_agent_push=False,
+            interactive=bool(options.get("interactive", True)),
+            project_root=str(self.project_root),
+            output_dir=str(Path(options.get("output_dir") or self.project_root / "output" / "director_studio").resolve()),
+            dry_run=False,
+            extra={
+                "intent_path": options.get("intent_path", ""),
+                "blueprint_path": options.get("blueprint_path", ""),
+                "evolve_variants": int(options.get("evolve_variants", 0)),
+                "freeze_locks": list(options.get("freeze_locks", [])),
+                "vibe": options.get("vibe", ""),
+            },
+        )
+
+    def execute(self, context: SessionContext) -> dict[str, Any]:
+        from .director_intent import DirectorIntentParser, CreatorIntentSpec, Genotype
+        from ..quality.interactive_gate import InteractivePreviewGate, GateDecision
+        from ..evolution.blueprint_evolution import BlueprintEvolutionEngine
+
+        extra = context.extra
+        parser = DirectorIntentParser(workspace_root=self.project_root)
+
+        # Build intent spec
+        intent_path = extra.get("intent_path", "")
+        if intent_path and Path(intent_path).exists():
+            spec = parser.parse_file(intent_path)
+        else:
+            raw = {
+                "vibe": extra.get("vibe", ""),
+                "base_blueprint": extra.get("blueprint_path", ""),
+                "evolve_variants": extra.get("evolve_variants", 0),
+                "freeze_locks": extra.get("freeze_locks", []),
+            }
+            spec = parser.parse_dict(raw)
+
+        # Interactive preview gate
+        gate = InteractivePreviewGate(workspace_root=self.project_root)
+        gate_result = gate.run(spec)
+
+        result: dict[str, Any] = {
+            "status": "completed",
+            "gate_decision": gate_result.decision.value,
+            "total_preview_rounds": gate_result.total_rounds,
+            "blueprint_saved": gate_result.blueprint_path or "",
+        }
+
+        # If approved and variants requested, run evolution
+        if gate_result.decision in (GateDecision.APPROVED, GateDecision.BLUEPRINT_SAVED):
+            if spec.evolve_variants > 0 and gate_result.final_genotype:
+                engine = BlueprintEvolutionEngine(seed=42)
+                evo_result = engine.evolve(
+                    parent_genotype=gate_result.final_genotype,
+                    num_variants=spec.evolve_variants,
+                    freeze_locks=spec.freeze_locks,
+                    parent_name="director_session",
+                )
+                result["evolution"] = {
+                    "num_variants": evo_result.num_variants,
+                    "frozen_variance_sum": sum(evo_result.frozen_param_variance.values()),
+                    "mutated_params": len(evo_result.mutated_param_variance),
+                }
+
+        return result
+
+
 class ModeDispatcher:
     """Registry-driven top-level router for dual-track workspace modes."""
 
@@ -370,6 +455,7 @@ class ModeDispatcher:
         self.register(EvolutionStrategy(self.project_root))
         self.register(LocalDistillStrategy(self.project_root))
         self.register(DryRunAuditStrategy(self.project_root))
+        self.register(DirectorStudioStrategy(self.project_root))
 
 
 __all__ = [
@@ -377,5 +463,6 @@ __all__ = [
     "ModeDispatchResult",
     "ModeDispatcher",
     "SessionContext",
+    "DirectorStudioStrategy",
     "SessionMode",
 ]

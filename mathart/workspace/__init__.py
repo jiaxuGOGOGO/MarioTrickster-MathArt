@@ -101,3 +101,18 @@ __all__ = [
     "LauncherStage",
     "LauncherVerdict",
 ]
+
+# SESSION-139: Director Intent — Semantic Translation & Blueprint Inheritance
+from .director_intent import (
+    AnimationConfig,
+    Blueprint,
+    BlueprintMeta,
+    ColorPalette,
+    CreatorIntentSpec,
+    DirectorIntentParser,
+    Genotype,
+    PhysicsConfig,
+    ProportionsConfig,
+    SEMANTIC_VIBE_MAP,
+    parse_intent,
+)

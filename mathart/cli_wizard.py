@@ -182,6 +182,11 @@ def _run_interactive(
     for item in dispatcher.available_modes():
         output_fn(f"  [{item['index']}] {item['label']}")
     selection = standard_text_prompt("输入编号并回车", input_fn=input_fn, output_fn=output_fn)
+
+    # Director Studio shortcut — bypass normal dispatch for mode 5
+    if selection in {"5", "director_studio", "director", "studio"}:
+        return _run_director_studio(project_root=project_root, input_fn=input_fn, output_fn=output_fn)
+
     execute_now = (
         standard_text_prompt(
             "是否立即执行该模式？输入 y/yes 表示执行，其余为仅预览",
@@ -242,6 +247,125 @@ def _namespace_to_options(args: argparse.Namespace, *, interactive: bool) -> dic
     }
 
 
+
+
+def _run_director_studio(
+    *,
+    project_root: Path,
+    input_fn: Callable[[str], str] = input,
+    output_fn: Callable[[str], None] = print,
+) -> int:
+    """Run the Director Studio workflow: intent → preview REPL → blueprint → evolution."""
+    from mathart.workspace.director_intent import (
+        DirectorIntentParser, CreatorIntentSpec, Blueprint, BlueprintMeta, Genotype,
+    )
+    from mathart.quality.interactive_gate import (
+        InteractivePreviewGate, GateDecision,
+    )
+    from mathart.evolution.blueprint_evolution import BlueprintEvolutionEngine
+
+    output_fn("")
+    output_fn("🎬 ═══════════════════════════════════════════")
+    output_fn("   语义导演工坊 (Director Studio)")
+    output_fn("═══════════════════════════════════════════")
+    output_fn("")
+
+    parser = DirectorIntentParser(workspace_root=project_root)
+
+    # Step 1: Gather intent
+    output_fn("请选择创作方式：")
+    output_fn("  [A] 感性创世 — 用自然语言描述你想要的风格")
+    output_fn("  [B] 蓝图派生 — 基于已有蓝图进行控制变量繁衍")
+    output_fn("  [C] 混合模式 — 在蓝图基础上叠加感性描述")
+    creation_mode = standard_text_prompt("选择模式", input_fn=input_fn, output_fn=output_fn, default="A").strip().upper()
+
+    raw_intent: dict = {}
+
+    if creation_mode in ("B", "C"):
+        bp_path = standard_text_prompt(
+            "请输入蓝图文件路径 (如 workspace/blueprints/hero_v1.yaml)",
+            input_fn=input_fn, output_fn=output_fn,
+        )
+        raw_intent["base_blueprint"] = bp_path
+
+        variants_str = standard_text_prompt(
+            "派生变种数量 (0=不派生)",
+            input_fn=input_fn, output_fn=output_fn, default="0",
+        )
+        raw_intent["evolve_variants"] = int(variants_str) if variants_str.isdigit() else 0
+
+        if raw_intent["evolve_variants"] > 0:
+            locks = standard_text_prompt(
+                "锁定基因族 (逗号分隔, 如 physics,proportions; 留空=不锁定)",
+                input_fn=input_fn, output_fn=output_fn, allow_empty=True,
+            )
+            raw_intent["freeze_locks"] = [x.strip() for x in locks.split(",") if x.strip()] if locks else []
+
+    if creation_mode in ("A", "C"):
+        vibe = standard_text_prompt(
+            "用自然语言描述你想要的风格 (如: 活泼的跳跃, 夸张弹性)",
+            input_fn=input_fn, output_fn=output_fn,
+        )
+        raw_intent["vibe"] = vibe
+
+    # Parse intent
+    try:
+        spec = parser.parse_dict(raw_intent)
+    except Exception as exc:
+        output_fn(json.dumps({"status": "error", "error_type": exc.__class__.__name__, "message": str(exc)}, ensure_ascii=False, indent=2))
+        return 1
+
+    output_fn("")
+    output_fn("✅ 意图解析完成，进入白模预演...")
+
+    # Step 2: Interactive preview gate
+    gate = InteractivePreviewGate(
+        workspace_root=project_root,
+        input_fn=input_fn,
+        output_fn=output_fn,
+    )
+    gate_result = gate.run(spec)
+
+    if gate_result.decision == GateDecision.ABORTED:
+        output_fn("
+导演工坊已退出。")
+        return 0
+
+    # Step 3: Blueprint evolution (if requested)
+    if spec.evolve_variants > 0 and gate_result.final_genotype:
+        output_fn(f"
+🧬 开始控制变量繁衍: {spec.evolve_variants} 个变种...")
+        engine = BlueprintEvolutionEngine(seed=42)
+        evo_result = engine.evolve(
+            parent_genotype=gate_result.final_genotype,
+            num_variants=spec.evolve_variants,
+            freeze_locks=spec.freeze_locks,
+            parent_name="director_session",
+        )
+        output_fn(f"✅ 繁衍完成: {evo_result.num_variants} 个变种")
+        frozen_var = sum(evo_result.frozen_param_variance.values())
+        output_fn(f"   冻结参数方差总和: {frozen_var:.10f} (应为 0.0)")
+        output_fn(f"   变异参数数量: {len(evo_result.mutated_param_variance)}")
+
+        # Save offspring blueprints
+        bp_dir = project_root / "workspace" / "blueprints" / "variants"
+        bp_dir.mkdir(parents=True, exist_ok=True)
+        for offspring in evo_result.offspring:
+            child_bp = Blueprint(
+                meta=BlueprintMeta(
+                    name=f"variant_{offspring.variant_index}",
+                    parent_blueprint=evo_result.parent_blueprint_name,
+                    description=f"Auto-derived variant #{offspring.variant_index}",
+                ),
+                genotype=Genotype.from_dict(offspring.genotype_dict),
+            )
+            child_bp.save_yaml(bp_dir / f"variant_{offspring.variant_index}.yaml")
+        output_fn(f"   变种蓝图已保存 → {bp_dir}")
+
+    output_fn("
+🎬 导演工坊流程完成！")
+    return 0
+
 __all__ = [
     "build_parser",
     "prompt_manual_intervention",
@@ -249,4 +373,5 @@ __all__ = [
     "run_wizard",
     "standard_menu_prompt",
     "standard_text_prompt",
+    "_run_director_studio",
 ]
