@@ -19,6 +19,10 @@ dependencies = [
     "numba>=0.65",
     "networkx>=3.2",
     "gymnasium>=0.29,<2",
+    # SESSION-144: white-model proxy renderer (Director Studio REPL) depends on matplotlib.
+    # It is driven head-less via matplotlib.use("Agg"), so no GUI backend is pulled in.
+    "matplotlib>=3.7",
+    "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]

@@ -78,7 +78,39 @@ mathart --mode 4      # Dry-Run 最轻量，仅走沙盒路径，不唤醒 GPU
 
 ---
 
-## 4. 🧭 命令口径 FAQ
+## 4. 🎨 白模预演依赖 (Proxy Renderer Dependencies)
+
+### 症状
+Director Studio 进入白模预演阶段后打印：
+
+```text
+⚠️ 白模生成失败: No module named 'matplotlib'
+Proxy render failed: No module named 'matplotlib'
+```
+
+### 根因
+`mathart/quality/interactive_gate.py` 的 `ProxyRenderer.render_proxy()` 使用 `matplotlib`（head-less `Agg` 后端）绘制三联图（物理弹性曲线 / 身体比例线框 / 动画缓动曲线）。在 SESSION-143 之前，`matplotlib` 并未显式列入 `pyproject.toml` 的核心依赖，依赖方全凭运行时 `import`，只要本地环境未预装就会触发该异常。
+
+### 自救方案
+
+- **方案 A（推荐）**：SESSION-144 已将 `matplotlib>=3.7` 与 `PyYAML>=6.0` 固化进核心依赖。拉取最新代码后重装即可：
+
+  ```bash
+  git pull
+  pip install -e .
+  ```
+
+- **方案 B（临时）**：手动安装：
+
+  ```bash
+  pip install matplotlib>=3.7 PyYAML>=6.0
+  ```
+
+- **注意**：即使白模生成失败，真理网关仍会降级继续提供参数视图，允许你选择 `[1]/[2]/[3]/[4]`，不影响整体流程，只是失去了可视化预演。
+
+---
+
+## 5. 🧭 命令口径 FAQ
 
 | 症状 | 根因 | 自救 |
 |---|---|---|

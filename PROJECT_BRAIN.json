@@ -128,7 +128,7 @@
     "engineering_automation": 95,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-143: P0-SESSION-143-ULTIMATE-CONTRACT-ALIGNMENT. Code-Docs Contract Audit, mathart brand CLI entry, and hallucination purge.",
+  "current_focus": "SESSION-144: P1-PROXY-RENDERER-DEPENDENCY-FIX. matplotlib & PyYAML hardened into core dependencies.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research/session139_director_studio_research.md",
@@ -3211,6 +3211,15 @@
         "REWRITE docs/USER_GUIDE.md — purged reference_image hallucination, aligned REPL menu labels",
         "REWRITE docs/TROUBLESHOOTING.md — purged --purge-cache hallucination, aligned GC and log rotation facts",
         "NEW docs/audit/SESSION-143-DOC-CODE-CONTRACT-AUDIT.md — full code-docs contract audit report"
+      ]
+    },
+    {
+      "session_id": "SESSION-144",
+      "date": "2026-04-22",
+      "focus": "P1-PROXY-RENDERER-DEPENDENCY-FIX",
+      "changes": [
+        "UPD pyproject.toml — add matplotlib>=3.7 and PyYAML>=6.0 to core dependencies",
+        "UPD docs/TROUBLESHOOTING.md — new section 4: Proxy Renderer Dependencies (headless Agg)"
       ]
     }
   ],
