@@ -46,9 +46,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-import cv2
 import numpy as np
-from PIL import Image
+
+# SESSION-145: cv2 and PIL are lazy-imported inside the methods that
+# actually need them (_draw_frames, _write_mp4, _write_gif) to preserve
+# the sub-second cold-start guarantee of the top-level `mathart` wizard.
+# See also: mathart/quality/interactive_gate.py for the same discipline.
 
 
 @dataclass(frozen=True)
@@ -556,6 +559,8 @@ class HeadlessSpineRenderer:
         screen_origins: np.ndarray,
         screen_tips: np.ndarray,
     ) -> list[np.ndarray]:
+        import cv2  # SESSION-145: lazy import — heavy C++ extension
+
         width, height = self.canvas_size
         frames: list[np.ndarray] = []
         for frame_idx in range(clip.frame_count):
@@ -574,6 +579,8 @@ class HeadlessSpineRenderer:
         return frames
 
     def _write_mp4(self, output_path: Path, frames: list[np.ndarray], *, fps: float) -> None:
+        import cv2  # SESSION-145: lazy import — heavy C++ extension
+
         if not frames:
             raise ValueError("No frames to write")
         height, width = frames[0].shape[:2]
@@ -593,6 +600,9 @@ class HeadlessSpineRenderer:
             writer.release()
 
     def _write_gif(self, output_path: Path, frames: list[np.ndarray], *, fps: float) -> None:
+        import cv2  # SESSION-145: lazy import — heavy C++ extension
+        from PIL import Image  # SESSION-145: lazy import — keep top-level clean
+
         if not frames:
             raise ValueError("No frames to write")
         duration_ms = max(int(round(1000.0 / max(float(fps), 1.0))), 1)

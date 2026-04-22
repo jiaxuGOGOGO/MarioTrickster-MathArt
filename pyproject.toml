@@ -23,6 +23,14 @@ dependencies = [
     # It is driven head-less via matplotlib.use("Agg"), so no GUI backend is pulled in.
     "matplotlib>=3.7",
     "PyYAML>=6.0",
+    # SESSION-145: Spine preview headless MP4/GIF renderer depends on OpenCV.
+    # Uses only cv2.VideoWriter / cv2.line / cv2.circle — zero GUI calls.
+    # The headless variant avoids pulling in Qt/GTK display backends.
+    "opencv-python-headless>=4.8",
+    # SESSION-145: imageio provides a lightweight, Pillow-independent
+    # animated-GIF / APNG writer used by future preview export paths.
+    # Kept minimal — no ffmpeg plugin auto-download at install time.
+    "imageio>=2.31",
 ]
 
 [project.optional-dependencies]
