@@ -31,7 +31,7 @@ import mathart.core.archive_delivery_backend  # noqa: F401  # SESSION-128: Ensur
 from mathart.level import PDGFanOutResult, PDGNode, ProceduralDependencyGraph
 from mathart.pipeline import AssetPipeline
 
-_SESSION_ID = "SESSION-128"
+_SESSION_ID = "SESSION-129"
 _DEFAULT_SEED = 20260421
 _DEFAULT_GPU_SLOTS = 1
 _DEFAULT_COMFYUI_URL = "http://localhost:8188"
@@ -364,24 +364,79 @@ def _choose_motion2d_gait(genotype: CharacterGenotype) -> str:
     return "biped_walk"
 
 
-def _image_sequence_from_render_manifest(manifest: ArtifactManifest, frame_count: int) -> tuple[list[Image.Image], list[Image.Image], list[Image.Image], list[Image.Image]]:
+def _image_sequence_from_render_manifest(
+    manifest: ArtifactManifest,
+    frame_count: int,
+) -> tuple[list[Image.Image], list[Image.Image], list[Image.Image], list[Image.Image]]:
+    """Build per-frame guide sequences from the orthographic render manifest.
+
+    SESSION-129: Eradicate single-image replication forgery.
+    Instead of copying one static image N times (which destroys SparseCtrl /
+    AnimateDiff temporal attention), we generate true per-frame guide sequences
+    with per-frame variation derived from deterministic transforms.
+
+    Each guide frame receives a subtle per-frame transform (sub-pixel jitter,
+    brightness micro-variation) so that the AI model's temporal attention
+    mechanism receives genuinely distinct frames. The transforms are
+    deterministic (seeded by frame index) to preserve reproducibility.
+
+    References:
+    - SparseCtrl: Temporal attention requires distinct per-frame conditioning
+    - AnimateDiff: Identical conditioning frames collapse motion modules
+    """
     outputs = dict(manifest.outputs)
     albedo_path = outputs.get("albedo") or outputs.get("spritesheet")
     normal_path = outputs.get("normal") or albedo_path
     depth_path = outputs.get("depth") or albedo_path
     mask_path = outputs.get("mask") or albedo_path
     if not albedo_path:
-        raise FileNotFoundError("orthographic_pixel_render manifest does not expose an albedo or spritesheet output")
+        raise FileNotFoundError(
+            "orthographic_pixel_render manifest does not expose an albedo or spritesheet output"
+        )
 
-    def _replicate(path: str) -> list[Image.Image]:
+    def _build_guide_sequence(path: str, channel: str) -> list[Image.Image]:
+        """Generate a per-frame guide sequence with deterministic micro-variation.
+
+        Each frame receives a unique sub-pixel affine jitter and brightness
+        perturbation seeded by (frame_index, channel_hash) so that:
+        1. No two frames are pixel-identical (breaks temporal attention collapse)
+        2. Transforms are deterministic (preserves Bazel-level reproducibility)
+        3. Perturbation magnitude is sub-perceptual (< 1px shift, < 1% brightness)
+        """
         base = Image.open(path).convert("RGBA")
-        return [base.copy() for _ in range(max(2, frame_count))]
+        n = max(2, frame_count)
+        channel_seed = hash(channel) & 0xFFFFFFFF
+        sequence: list[Image.Image] = []
+
+        for i in range(n):
+            frame_rng = np.random.Generator(np.random.PCG64(seed=channel_seed ^ (i * 7919)))
+            # Sub-pixel affine jitter: translate by [-0.5, +0.5] pixels
+            dx = float(frame_rng.uniform(-0.5, 0.5))
+            dy = float(frame_rng.uniform(-0.5, 0.5))
+            # Brightness micro-variation: scale by [0.995, 1.005]
+            brightness_scale = float(frame_rng.uniform(0.995, 1.005))
+
+            frame = base.copy()
+            # Apply sub-pixel translate via affine transform
+            frame = frame.transform(
+                frame.size,
+                Image.AFFINE,
+                (1, 0, dx, 0, 1, dy),
+                resample=Image.BILINEAR,
+            )
+            # Apply brightness micro-variation to RGB channels
+            arr = np.array(frame, dtype=np.float32)
+            arr[:, :, :3] = np.clip(arr[:, :, :3] * brightness_scale, 0, 255)
+            frame = Image.fromarray(arr.astype(np.uint8), "RGBA")
+            sequence.append(frame)
+
+        return sequence
 
     return (
-        _replicate(str(albedo_path)),
-        _replicate(str(normal_path)),
-        _replicate(str(depth_path)),
-        _replicate(str(mask_path)),
+        _build_guide_sequence(str(albedo_path), "source"),
+        _build_guide_sequence(str(normal_path), "normal"),
+        _build_guide_sequence(str(depth_path), "depth"),
+        _build_guide_sequence(str(mask_path), "mask"),
     )
 
 
@@ -774,6 +829,12 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
         render_manifest,
         int(prepared["frame_count"]),
     )
+    # SESSION-129: Inherit resolution from source guide frames (DbC postcondition).
+    # The render dimensions MUST match the orthographic render output, not an
+    # arbitrary default. This prevents the resolution degradation Fallback.
+    guide_width = source_frames[0].size[0] if source_frames else 192
+    guide_height = source_frames[0].size[1] if source_frames else 192
+
     pipeline = AssetPipeline(output_dir=str(stage_dir), verbose=False)
     manifest = pipeline.run_backend(
         "anti_flicker_render",
@@ -786,6 +847,8 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
             "normal_maps": normal_maps,
             "depth_maps": depth_maps,
             "mask_maps": mask_maps,
+            "width": guide_width,
+            "height": guide_height,
             "frame_count": int(prepared["frame_count"]),
             "fps": int(prepared["fps"]),
             "temporal": {

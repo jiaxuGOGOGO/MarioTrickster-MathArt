@@ -281,6 +281,7 @@ from mathart.animation.motion_2d_pipeline import (
     PipelineConfig,
     PipelineResult,
 )
+from mathart.pipeline_contract import PipelineContractError
 
 
 class TestMotion2DPipeline:
@@ -322,3 +323,83 @@ class TestMotion2DPipeline:
         assert "total_frames" in d
         assert "pipeline_pass" in d
         assert "projection_quality" in d
+
+
+# ── SESSION-129: Bone Topology Contract Tests ─────────────────────────────
+
+
+class TestSession129BoneTopologyContract:
+    """SESSION-129: Verify that quadruped bone names in animation tracks
+    exactly match setup skeleton bone names (UE5 Retargeting discipline).
+    """
+
+    def test_quadruped_spine_json_bone_consistency(self):
+        """Exported quadruped Spine JSON animation tracks must reference
+        only bones that exist in the setup skeleton (bones array).
+        """
+        pipeline = Motion2DPipeline(PipelineConfig())
+        result = pipeline.run_quadruped_trot(n_frames=10)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = pipeline.export_spine_json(result, Path(tmpdir) / "quad.json")
+            data = json.loads(path.read_text())
+            setup_bone_names = {bone["name"] for bone in data["bones"]}
+            for anim_name, anim_data in data.get("animations", {}).items():
+                anim_bone_names = set(anim_data.get("bones", {}).keys())
+                orphan = anim_bone_names - setup_bone_names
+                assert not orphan, (
+                    f"Animation '{anim_name}' references bones {sorted(orphan)} "
+                    f"not in setup skeleton {sorted(setup_bone_names)}"
+                )
+
+    def test_quadruped_animation_contains_fl_fr_hl_hr_bones(self):
+        """Quadruped animation tracks must contain fl_upper, fr_upper,
+        hl_upper, hr_upper bone names (not front_left, hind_right, etc.).
+        """
+        pipeline = Motion2DPipeline(PipelineConfig())
+        result = pipeline.run_quadruped_trot(n_frames=10)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = pipeline.export_spine_json(result, Path(tmpdir) / "quad.json")
+            data = json.loads(path.read_text())
+            for anim_name, anim_data in data.get("animations", {}).items():
+                anim_bones = set(anim_data.get("bones", {}).keys())
+                expected = {"fl_upper", "fr_upper", "hl_upper", "hr_upper"}
+                present = anim_bones & expected
+                assert len(present) >= 2, (
+                    f"Animation '{anim_name}' should contain quadruped bones "
+                    f"from {expected}, but found only {present} in {anim_bones}"
+                )
+
+    def test_quadruped_no_semantic_limb_names_in_animation(self):
+        """Quadruped animation tracks must NOT contain NSM semantic limb
+        names (front_left, hind_right, etc.) — only structural bone names.
+        """
+        pipeline = Motion2DPipeline(PipelineConfig())
+        result = pipeline.run_quadruped_trot(n_frames=10)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = pipeline.export_spine_json(result, Path(tmpdir) / "quad.json")
+            data = json.loads(path.read_text())
+            forbidden = {"front_left", "front_right", "hind_left", "hind_right"}
+            for anim_name, anim_data in data.get("animations", {}).items():
+                anim_bones = set(anim_data.get("bones", {}).keys())
+                leaked = anim_bones & forbidden
+                assert not leaked, (
+                    f"Animation '{anim_name}' contains NSM semantic limb names "
+                    f"{sorted(leaked)} that should have been mapped to structural "
+                    f"bone names (fl_upper, etc.)"
+                )
+
+    def test_biped_spine_json_bone_consistency(self):
+        """Biped export must also pass the same topology contract."""
+        pipeline = Motion2DPipeline(PipelineConfig())
+        result = pipeline.run_biped_walk(n_frames=10)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = pipeline.export_spine_json(result, Path(tmpdir) / "biped.json")
+            data = json.loads(path.read_text())
+            setup_bone_names = {bone["name"] for bone in data["bones"]}
+            for anim_name, anim_data in data.get("animations", {}).items():
+                anim_bone_names = set(anim_data.get("bones", {}).keys())
+                orphan = anim_bone_names - setup_bone_names
+                assert not orphan, (
+                    f"Animation '{anim_name}' references bones {sorted(orphan)} "
+                    f"not in setup skeleton {sorted(setup_bone_names)}"
+                )

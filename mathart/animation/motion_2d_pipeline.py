@@ -96,6 +96,7 @@ from .principles_quantifier import (
     PrincipleReport,
     AnimFrame,
 )
+from mathart.pipeline_contract import PipelineContractError
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -151,6 +152,23 @@ class Motion2DPipeline:
         self.scorer = PrincipleScorer()
         self.exporter = SpineJSONExporter()
 
+    # ── SESSION-129: Quadruped limb-to-bone mapping (UE5 Retargeting discipline) ──
+    # NSM gait profiles use semantic limb names (front_left, hind_right, etc.)
+    # while the skeleton uses structural bone names (fl_upper, hr_upper, etc.).
+    # This mapping enforces a strict 1:1 namespace bridge — any unmapped limb
+    # name that does not exist in the setup skeleton triggers a contract error.
+    _QUADRUPED_LIMB_TO_BONE: dict[str, str] = {
+        "front_left": "fl_upper",
+        "front_right": "fr_upper",
+        "hind_left": "hl_upper",
+        "hind_right": "hr_upper",
+    }
+
+    _BIPED_LIMB_TO_BONE: dict[str, str] = {
+        "l_foot": "l_thigh",
+        "r_foot": "r_thigh",
+    }
+
     def _nsm_to_3d_pose(
         self,
         frame: NSMGaitFrame,
@@ -158,7 +176,12 @@ class Motion2DPipeline:
         frame_idx: int,
         n_frames: int,
     ) -> Pose3D:
-        """Convert an NSM gait frame to a 3D pose."""
+        """Convert an NSM gait frame to a 3D pose.
+
+        SESSION-129: Enforces Design-by-Contract bone name mapping.
+        Every animation track bone name MUST exist in the setup skeleton.
+        Unmapped names trigger PipelineContractError (Fail-Fast).
+        """
         t = frame_idx / max(n_frames - 1, 1)
         phase = frame.global_phase * 2.0 * math.pi
 
@@ -167,16 +190,31 @@ class Motion2DPipeline:
             root_rotation=(0.0, 0.0, frame.torso_twist * 10.0),
         )
 
+        # Build the set of valid bone names from the skeleton (UE5 chain validation)
+        valid_bone_names = {bone.name for bone in skeleton_bones}
+
+        # Determine morphology-specific mapping
+        is_quadruped = frame.morphology == "quadruped"
+        limb_map = self._QUADRUPED_LIMB_TO_BONE if is_quadruped else self._BIPED_LIMB_TO_BONE
+
         for limb_name, state in frame.limb_states.items():
             ox, oy = state.target_offset
             rz = ox * 50.0  # Convert offset to approximate rotation
 
-            # Map limb names to bone names
-            bone_name = limb_name
-            if limb_name == "l_foot":
-                bone_name = "l_thigh"
-            elif limb_name == "r_foot":
-                bone_name = "r_thigh"
+            # Map limb names to bone names via strict dictionary lookup
+            bone_name = limb_map.get(limb_name, limb_name)
+
+            # SESSION-129 Fail-Fast: reject unmapped bone names that don't exist in skeleton
+            if bone_name not in valid_bone_names:
+                raise PipelineContractError(
+                    violation_type="bone_topology_mismatch",
+                    detail=(
+                        f"Animation track targets bone '{bone_name}' (from NSM limb '{limb_name}') "
+                        f"which does not exist in the setup skeleton. "
+                        f"Valid bones: {sorted(valid_bone_names)}. "
+                        f"Morphology: {frame.morphology}."
+                    ),
+                )
 
             depth = 0.01 if "left" in limb_name or limb_name.startswith("l_") else -0.01
             pose.bone_transforms[bone_name] = {
@@ -408,10 +446,35 @@ class Motion2DPipeline:
         result: PipelineResult,
         output_path: str | Path,
     ) -> Path:
-        """Export a pipeline result to Spine JSON."""
+        """Export a pipeline result to Spine JSON.
+
+        SESSION-129: Post-export topology validation.
+        After writing the Spine JSON, re-parse it and assert that every bone
+        name referenced in animations.*.bones exists in the setup bones list.
+        This is the final safety net — the UE5 Retarget Output Log equivalent.
+        """
         if result.clip_2d is None:
             raise ValueError("No clip_2d in pipeline result")
-        return self.exporter.export(result.clip_2d, output_path)
+        path = self.exporter.export(result.clip_2d, output_path)
+
+        # SESSION-129: Post-export bone topology audit
+        import json as _json
+        data = _json.loads(path.read_text(encoding="utf-8"))
+        setup_bone_names = {bone["name"] for bone in data.get("bones", [])}
+        animations = data.get("animations", {})
+        for anim_name, anim_data in animations.items():
+            anim_bone_names = set(anim_data.get("bones", {}).keys())
+            orphan_bones = anim_bone_names - setup_bone_names
+            if orphan_bones:
+                raise PipelineContractError(
+                    violation_type="spine_bone_topology_violation",
+                    detail=(
+                        f"Animation '{anim_name}' references bones {sorted(orphan_bones)} "
+                        f"that do not exist in the setup skeleton. "
+                        f"Setup bones: {sorted(setup_bone_names)}."
+                    ),
+                )
+        return path
 
 
 __all__ = [

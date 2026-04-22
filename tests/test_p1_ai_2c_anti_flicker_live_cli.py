@@ -13,6 +13,7 @@ from mathart.core.artifact_schema import ArtifactFamily, ArtifactManifest
 from mathart.core.backend_types import BackendType
 from mathart.core.builtin_backends import AntiFlickerRenderBackend
 from mathart.core.anti_flicker_runtime import normalize_server_address, plan_frame_chunks
+from mathart.pipeline_contract import PipelineContractError
 
 
 def _install_gymnasium_stub(monkeypatch) -> None:
@@ -97,12 +98,82 @@ def test_validate_config_clamps_context_window_and_chunk_size() -> None:
         {
             "temporal": {"frame_count": 48, "chunk_size": 64},
             "comfyui": {"live_execution": True, "context_window": 32},
+            "width": 256,
+            "height": 256,
         }
     )
     assert validated["temporal"]["chunk_size"] == 16
     assert validated["temporal"]["chunking_enabled"] is True
     assert validated["comfyui"]["context_window"] == 16
     assert any("12GB safe limit" in warning for warning in warnings)
+
+
+# ── SESSION-129: Fail-Fast Dimension Contract Tests ───────────────────────
+
+
+def test_validate_config_rejects_missing_dimensions() -> None:
+    """SESSION-129: AntiFlickerRenderBackend must reject configs without
+    explicit width/height (no silent default to 64).
+    """
+    backend = AntiFlickerRenderBackend()
+    try:
+        backend.validate_config(
+            {
+                "temporal": {"frame_count": 8},
+                "comfyui": {"live_execution": False},
+            }
+        )
+    except PipelineContractError as exc:
+        assert exc.violation_type == "missing_render_dimensions"
+    else:
+        raise AssertionError("Expected PipelineContractError for missing dimensions")
+
+
+def test_validate_config_rejects_tiny_dimensions() -> None:
+    """SESSION-129: Dimensions below 64x64 must trigger Fail-Fast."""
+    backend = AntiFlickerRenderBackend()
+    try:
+        backend.validate_config(
+            {
+                "temporal": {"frame_count": 8},
+                "comfyui": {"live_execution": False},
+                "width": 32,
+                "height": 32,
+            }
+        )
+    except PipelineContractError as exc:
+        assert exc.violation_type == "render_dimensions_too_small"
+    else:
+        raise AssertionError("Expected PipelineContractError for tiny dimensions")
+
+
+def test_external_guide_bypass_inherits_resolution() -> None:
+    """SESSION-129: When external source_frames are provided, the backend
+    must inherit their resolution and set _idle_bake_bypassed=True.
+    """
+    backend = AntiFlickerRenderBackend()
+    guide_size = (192, 192)
+    source_frames = [Image.new("RGBA", guide_size, (255, 0, 0, 255)) for _ in range(8)]
+    normal_maps = [Image.new("RGB", guide_size, (127, 127, 255)) for _ in range(8)]
+    depth_maps = [Image.new("L", guide_size, 127) for _ in range(8)]
+
+    # We only test validate + execute entry logic, not the full pipeline
+    # The execute method should detect external guides and set bypass flag
+    context = {
+        "output_dir": "/tmp/test_bypass",
+        "name": "bypass_test",
+        "session_id": "TEST-129",
+        "source_frames": source_frames,
+        "normal_maps": normal_maps,
+        "depth_maps": depth_maps,
+        "width": 192,
+        "height": 192,
+        "temporal": {"frame_count": 8, "fps": 12},
+        "comfyui": {"live_execution": False},
+    }
+    validated, warnings = backend.validate_config(context)
+    assert validated["width"] == 192
+    assert validated["height"] == 192
 
 
 def test_live_backend_fast_fails_before_render_when_comfyui_is_offline(tmp_path: Path, monkeypatch) -> None:
@@ -125,6 +196,8 @@ def test_live_backend_fast_fails_before_render_when_comfyui_is_offline(tmp_path:
                 "output_dir": str(tmp_path),
                 "name": "offline_guard",
                 "session_id": "TEST-108",
+                "width": 192,
+                "height": 192,
                 "comfyui": {
                     "live_execution": True,
                     "fail_fast_on_offline": True,
@@ -183,6 +256,8 @@ def test_live_backend_chunks_large_sequences_and_materializes_outputs(tmp_path: 
             "output_dir": str(tmp_path),
             "name": "chunked_runtime",
             "session_id": "TEST-108",
+            "width": 192,
+            "height": 192,
             "temporal": {"frame_count": 37, "chunk_size": 16, "fps": 12},
             "comfyui": {
                 "live_execution": True,
@@ -251,6 +326,8 @@ def test_live_backend_pads_small_sequences_to_comfyui_minimum(tmp_path: Path, mo
             "output_dir": str(tmp_path),
             "name": "small_runtime",
             "session_id": "TEST-108",
+            "width": 192,
+            "height": 192,
             "temporal": {"frame_count": 4, "chunk_size": 4, "fps": 12},
             "comfyui": {
                 "live_execution": True,

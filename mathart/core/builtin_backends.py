@@ -44,7 +44,7 @@ from mathart.core.backend_registry import (
 )
 from mathart.core.artifact_schema import ArtifactFamily, ArtifactManifest
 from mathart.core.backend_types import BackendType
-
+from mathart.pipeline_contract import PipelineContractError
 logger = logging.getLogger(__name__)
 
 
@@ -782,14 +782,31 @@ class AntiFlickerRenderBackend:
         ebsynth["patch_size"] = patch_size
         validated["ebsynth"] = ebsynth
 
-        render_width = int(validated.get("width", 64))
-        render_height = int(validated.get("height", 64))
-        if render_width < 8:
-            warnings.append(f"width={render_width} too small; clamping to 8")
-            render_width = 8
-        if render_height < 8:
-            warnings.append(f"height={render_height} too small; clamping to 8")
-            render_height = 8
+        # SESSION-129: Fail-Fast dimension enforcement (Jim Gray / Crash-Only)
+        # Width and height are mandatory preconditions. Defaulting to 64 or
+        # clamping to 8 silently produces 32x16 garbage that pollutes downstream
+        # AI rendering. Instead we enforce hard contract boundaries.
+        if "width" not in validated or "height" not in validated:
+            raise PipelineContractError(
+                violation_type="missing_render_dimensions",
+                detail=(
+                    "AntiFlickerRenderBackend requires explicit 'width' and 'height' "
+                    "parameters. Refusing to default to arbitrary dimensions. "
+                    f"Received keys: {sorted(validated.keys())}."
+                ),
+            )
+        render_width = int(validated["width"])
+        render_height = int(validated["height"])
+        if render_width < 64 or render_height < 64:
+            raise PipelineContractError(
+                violation_type="render_dimensions_too_small",
+                detail=(
+                    f"Render dimensions {render_width}x{render_height} are below the "
+                    f"minimum 64x64 threshold. This would produce unusable color blocks "
+                    f"that destroy downstream AI temporal attention. "
+                    f"Provide dimensions >= 64x64."
+                ),
+            )
         validated["width"] = render_width
         validated["height"] = render_height
 
@@ -1435,9 +1452,43 @@ class AntiFlickerRenderBackend:
         )
 
     def execute(self, context: dict[str, Any]) -> ArtifactManifest:
+        """Execute anti-flicker rendering.
+
+        SESSION-129: External guide bypass.
+        When the caller provides ``source_frames``, ``normal_maps``, and
+        ``depth_maps`` sequences directly in the context, the internal idle
+        animation baking logic is completely short-circuited. The external
+        guides are passed through as-is, and their resolution becomes the
+        authoritative render resolution. This prevents the 'static frame
+        catastrophe' (SparseCtrl/AnimateDiff research) where N copies of
+        a single idle frame destroy temporal attention.
+        """
         validated, warnings = self.validate_config(context)
         for w in warnings:
             logger.warning("[anti_flicker_render] config warning: %s", w)
+
+        # SESSION-129: Detect external guide sequences and propagate them
+        external_source = context.get("source_frames")
+        external_normal = context.get("normal_maps")
+        external_depth = context.get("depth_maps")
+        if external_source is not None and len(external_source) > 0:
+            validated["_external_source_frames"] = external_source
+            validated["_external_normal_maps"] = external_normal or external_source
+            validated["_external_depth_maps"] = external_depth or external_source
+            validated["_external_mask_maps"] = context.get("mask_maps", external_source)
+            validated["_idle_bake_bypassed"] = True
+            # Inherit resolution from external guides (DbC postcondition)
+            first_frame = external_source[0]
+            if hasattr(first_frame, "size"):
+                validated["width"] = first_frame.size[0]
+                validated["height"] = first_frame.size[1]
+            logger.info(
+                "[anti_flicker_render] SESSION-129: External guide bypass active. "
+                "Idle baking short-circuited. Resolution inherited: %dx%d",
+                validated.get("width", 0), validated.get("height", 0),
+            )
+        else:
+            validated["_idle_bake_bypassed"] = False
 
         if bool(validated.get("comfyui", {}).get("live_execution", False)):
             return self._execute_live_pipeline(validated)

@@ -106,6 +106,10 @@ def _build_minimal_context(
     elif meta.name == "archive_delivery":
         _REQUIREMENT_FIXTURES["archive_sources"] = []
         ctx["character_id"] = "ci_guard_character"
+    elif meta.name == "anti_flicker_render":
+        # SESSION-129: AntiFlickerRenderBackend now requires explicit dimensions.
+        ctx["width"] = 192
+        ctx["height"] = 192
     else:
         _REQUIREMENT_FIXTURES["mesh"] = "/tmp/ci_guard_mesh.obj"
 
