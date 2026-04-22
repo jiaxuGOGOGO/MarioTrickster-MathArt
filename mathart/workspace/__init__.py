@@ -1,5 +1,6 @@
 """Workspace management: inbox hot folder, output classification, file picker,
-preflight radar, and the idempotent auto-assembly surgeon (SESSION-133).
+preflight radar, the idempotent auto-assembly surgeon (SESSION-133),
+and the daemon supervisor + launcher facade (SESSION-134).
 """
 from .manager import WorkspaceManager, pick_files
 from .preflight_radar import (
@@ -35,6 +36,22 @@ from .idempotent_surgeon import (
     AssetPlan,
     IdempotentSurgeon,
 )
+from .daemon_supervisor import (
+    ComfyUINotResponsiveError,
+    DaemonCrashedError,
+    DaemonLifecycleEvent,
+    DaemonState,
+    DaemonStatus,
+    DaemonSupervisor,
+    HttpReadinessProbe,
+    ReadinessProbe,
+)
+from .launcher_facade import (
+    LauncherFacade,
+    LauncherOutcome,
+    LauncherStage,
+    LauncherVerdict,
+)
 
 __all__ = [
     # Legacy workspace helpers
@@ -69,4 +86,18 @@ __all__ = [
     "AssemblyReport",
     "AssetPlan",
     "IdempotentSurgeon",
+    # Daemon Supervisor (Phase 3a)
+    "ComfyUINotResponsiveError",
+    "DaemonCrashedError",
+    "DaemonLifecycleEvent",
+    "DaemonState",
+    "DaemonStatus",
+    "DaemonSupervisor",
+    "HttpReadinessProbe",
+    "ReadinessProbe",
+    # Launcher Facade (Phase 3b)
+    "LauncherFacade",
+    "LauncherOutcome",
+    "LauncherStage",
+    "LauncherVerdict",
 ]

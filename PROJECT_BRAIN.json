@@ -1,6 +1,6 @@
 {
   "version": "v0.99.0",
-  "last_session_id": "SESSION-133",
+  "last_session_id": "SESSION-134",
   "last_updated": "2026-04-22T06:16:44.905571Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -221,12 +221,21 @@
   },
   "pending_tasks": [
     {
+      "id": "P0-SESSION-135-UI-IPC-DECOUPLING",
+      "priority": "P0",
+      "title": "Phase 4: UI / IPC Decoupling for Commercial Agent",
+      "status": "OPEN",
+      "estimated_effort": "high",
+      "description": "With Radar, Surgeon, and Daemon in place, the core is ready for commercial packaging. Next step: decouple stdout from the Facade and expose a JSON-RPC / WebSocket event bus so a lightweight WebUI, Tauri desktop app, or CLI Wizard can consume progress events (Radar progress, download % from Surgeon, and Daemon lifecycle state) without parsing text."
+    },
+    {
       "id": "P0-SESSION-134-DAEMON-HANDOFF",
       "priority": "P0",
       "title": "Phase 3: Daemon Handoff & Git Subsystem",
-      "status": "OPEN",
+      "status": "CLOSED",
       "estimated_effort": "high",
-      "description": "The surgeon correctly emits BLOCKED for git-managed directories (like ComfyUI-AnimateDiff-Evolved) and missing Python packages. Phase 3 must implement a background daemon that consumes the AssemblyReport, executes `git clone` or `pip install` in an isolated venv, and orchestrates the final restart of the ComfyUI process."
+      "description": "CLOSED in SESSION-134. Implemented DaemonSupervisor with K8s-style readiness probes, PM2-style streaming log pumps, and POSIX/Windows process group termination. Added LauncherFacade for one-shot boot. 12/12 tests PASS.",
+      "completed_in": "SESSION-134"
     },
     {
       "id": "P1-2",

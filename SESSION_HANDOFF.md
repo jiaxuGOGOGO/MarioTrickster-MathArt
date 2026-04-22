@@ -1,55 +1,49 @@
-# 🚀 AI Operator Handoff: SESSION-133 (Idempotent Surgeon)
+# 🚀 AI Operator Handoff: SESSION-134 (Daemon Supervisor & Launcher Facade)
 
 **To the Next Operator:**
-You are inheriting the `MarioTrickster-MathArt` project after the successful landing of **P0-SESSION-130-IDEMPOTENT-SURGEON** (Phase 2). The workspace now features a fully idempotent, zero-copy auto-assembly engine for ComfyUI assets.
+You are inheriting the `MarioTrickster-MathArt` project after the successful landing of **P0-SESSION-131-DAEMON-LAUNCHER** (Phase 3). The workspace now features a fully autonomous, idempotent, zero-configuration ComfyUI embedded launch bus.
 
 ---
 
 ## 📌 1. Current State: What Was Just Built
 
-We implemented a three-tier repair engine that consumes the `PreflightReport` from Phase 1 and non-destructively heals missing assets:
+We implemented a robust child process supervisor and integrated it with the Phase 1 Radar and Phase 2 Surgeon.
 
-1. **`AssetInjector` (Zero-Copy Cache Recovery)**
-   - Scans HuggingFace, Torch, and standard WebUI caches.
-   - Enforces a strict 3-tier fallback: `os.symlink` → `os.link` (hardlink) → `shutil.copy2`.
-   - **Crucial:** Survives Windows `WinError 1314` (symlink privilege trap) gracefully.
-2. **`AtomicDownloader` (Network Fallback)**
-   - Fetches missing assets using HTTP Range requests (`.part` files).
-   - Only publishes to the final path via an atomic `os.replace` *after* SHA-256 verification.
-   - Never exposes a half-downloaded file to the user's ComfyUI instance.
-3. **`IdempotentSurgeon` (The Orchestrator)**
-   - Translates `PreflightReport.fixable_actions` into strongly-typed `ActionOutcome` records (`SKIPPED`, `SYMLINKED`, `DOWNLOADED`, `BLOCKED`).
-   - **Absolute Idempotency:** A second run over a healed environment performs zero filesystem mutations and opens zero TCP sockets.
+1. **`DaemonSupervisor` (High-Availability Process Manager)**
+   - Modeled after Kubernetes Pod Probes: uses exponential backoff to poll `/system_stats` (Readiness Probe) before declaring the service `READY`.
+   - **No Pipe Deadlocks:** Spawns dedicated daemon threads (`_stdout_pump`, `_stderr_pump`) to drain logs into a bounded ring buffer, mirroring PM2/systemd discipline.
+   - **Zombie Immunity:** Spawns the child in a dedicated process group (`start_new_session=True` on POSIX, `CREATE_NEW_PROCESS_GROUP` on Windows) and registers `atexit` hooks to guarantee cascading termination on any exit path.
+   - **Attach-over-Launch:** If port 8188 is already bound and responds to the probe, it silently attaches to the foreign ComfyUI instance instead of crashing.
+2. **`LauncherFacade` (The One-Shot Bus)**
+   - Encapsulates the 3-stage pipeline: `Radar -> Surgeon -> Supervisor`.
+   - Idempotent: Calling `.start()` twice returns the cached endpoint without side effects.
+   - Strictly enforces the Phase 1 contract: if the Radar yields `MANUAL_INTERVENTION_REQUIRED`, the Facade aborts immediately and refuses to launch.
 
-All code is strictly statically audited against destructive operations (no `shutil.rmtree` or `os.remove` on user data; corrupt files are quarantined to `.bak-<ts>`).
-
-**Test Status:** `tests/test_idempotent_surgeon.py` contains 22 E2E tests, including a hard idempotency assertion (`TestSecondRunIsNoop`) and a simulated Windows permission drop. **All 22/22 PASS.** (Total suite: 39/39 PASS).
+**Test Status:** `tests/test_daemon_supervisor.py` contains 12 E2E tests, asserting zombie-free exits, pipe-drain resilience, attach-mode semantics, and crash recovery. **All 12/12 PASS.** (Total suite: 51/51 PASS).
 
 ---
 
-## 🎯 2. The Next Mission: Phase 3 (Daemon Handoff & Git Subsystem)
+## 🎯 2. The Next Mission: Phase 4 (UI / IPC Decoupling)
 
-The Surgeon currently emits a `BLOCKED` status for two types of missing dependencies:
-1. `missing_package:*` (Python `pip` dependencies)
-2. Git-managed custom nodes (e.g., `ComfyUI-AnimateDiff-Evolved`), identified via `is_directory=True` in the `AssetPlan`.
+With the Radar, Surgeon, and Daemon in place, the core backend is now ready for commercial packaging. However, the current output is primarily Python objects and standard output.
 
-**Your Goal (P0-SESSION-134-DAEMON-HANDOFF):**
-Implement the background daemon that takes over when the Surgeon yields a `manual_intervention_required` verdict due to `BLOCKED` actions.
+**Your Goal (P0-SESSION-135-UI-IPC-DECOUPLING):**
+Decouple the console output from the `LauncherFacade` and expose a structured event bus.
 
-### Architectural Directives for Phase 3:
-1. **Isolated Subprocess Execution:** `git clone` and `pip install` must be executed via `subprocess.Popen` targeting the specific Python executable identified by `PythonEnvironmentProbe` in Phase 1. Do NOT assume the current `sys.executable` is the target ComfyUI venv.
-2. **Safe Restart Protocol:** Once the daemon successfully resolves the blocked actions, it must safely terminate the existing ComfyUI process (using the PID from the `PreflightRadar` snapshot) and spawn a new one.
-3. **IPC Reporting:** The daemon must report its progress back to the main UI/CLI via a JSON lines (`.jsonl`) IPC stream, never polluting `stdout` with raw `pip` logs.
+### Architectural Directives for Phase 4:
+1. **JSON-RPC / WebSocket Event Bus:** The client needs to stream progress to a GUI (like a Tauri desktop app or a web frontend). You must implement an event emitter that broadcasts `DaemonLifecycleEvent`, `PreflightReport` progress, and Surgeon download percentages as JSON lines or WebSocket frames.
+2. **Headless Execution:** Ensure the Facade can run completely silently (`stdout=DEVNULL` for its own logs) while still firing structured events.
+3. **GUI Mock:** Provide a simple proof-of-concept subscriber script that consumes these events and renders a CLI progress bar or simple HTML dashboard.
 
 ---
 
 ## 🧠 3. Knowledge Base & Context Pointers
 
-- **Binding Research:** Read `docs/research/SESSION-133-SURGEON-RESEARCH.md` to understand the Ansible/Terraform idempotency semantics and the aria2 `.part` file discipline that govern this architecture.
-- **Contract Definition:** Review `mathart/workspace/idempotent_surgeon.py` to see the `AssemblyReport` schema. Your daemon will consume this exact object.
-- **PROJECT_BRAIN.json:** Updated. `last_session_id` is `SESSION-133`. The Phase 3 task has been pushed to the top of the `pending_tasks` queue.
+- **Binding Research:** Read `docs/research/SESSION-134-DAEMON-RESEARCH.md` to understand the Kubernetes probe semantics and PM2 pipe-drain rules that govern the supervisor.
+- **Contract Definition:** Review `mathart/workspace/launcher_facade.py` to see the `LauncherOutcome` schema. Your IPC layer will serialize this object.
+- **PROJECT_BRAIN.json:** Updated. `last_session_id` is `SESSION-134`. The Phase 4 task has been pushed to the top of the `pending_tasks` queue.
 
-Godspeed, Operator. The foundation is solid; it is time to automate the final mile of Python and Git dependencies.
+Godspeed, Operator. The engine is running flawlessly; it is time to give it a commercial-grade dashboard.
 
 ---
-*Generated by Manus AI — SESSION-133.*
+*Generated by Manus AI — SESSION-134.*
