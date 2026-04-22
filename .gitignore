@@ -29,6 +29,11 @@ htmlcov/
 .coverage
 coverage.xml
 
+# Local secrets (must never be committed)
+.env
+config.local.json
+*.local.json
+
 # Distillation artifacts
 distilled_rules.json
 param_spaces.json

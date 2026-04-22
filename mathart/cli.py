@@ -13,13 +13,6 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
-from tools.run_mass_production_factory import run_mass_production_factory
-
-from mathart.pipeline import AssetPipeline
-from mathart.core.artifact_schema import ArtifactManifest
-from mathart.core.backend_registry import BackendMeta, get_registry
-from mathart.core.backend_types import backend_alias_map, backend_type_value
-
 LOGGER = logging.getLogger("mathart.cli")
 
 
@@ -88,12 +81,16 @@ def _merge_context(args: argparse.Namespace) -> dict[str, Any]:
     return context
 
 
-def _manifest_path_for(manifest: ArtifactManifest, output_dir: str, backend_name: str) -> Path:
+def _manifest_path_for(manifest: Any, output_dir: str, backend_name: str) -> Path:
+    from mathart.core.backend_types import backend_type_value
+
     file_name = f"{backend_type_value(backend_name)}_artifact_manifest.json"
     return Path(output_dir).resolve() / file_name
 
 
-def _backend_payload(meta: BackendMeta) -> dict[str, Any]:
+def _backend_payload(meta: Any) -> dict[str, Any]:
+    from mathart.core.backend_types import backend_alias_map
+
     aliases = sorted(
         alias for alias, target in backend_alias_map().items()
         if target == meta.name and alias != meta.name
@@ -113,6 +110,8 @@ def _backend_payload(meta: BackendMeta) -> dict[str, Any]:
 
 
 def _registry_backends_payload() -> list[dict[str, Any]]:
+    from mathart.core.backend_registry import get_registry
+
     registry = get_registry()
     return [
         _backend_payload(meta)
@@ -213,6 +212,8 @@ def _emit_json(payload: dict[str, Any]) -> None:
 
 
 def _command_registry_list() -> int:
+    from mathart.core.backend_types import backend_alias_map
+
     _emit_json(
         {
             "status": "ok",
@@ -225,6 +226,8 @@ def _command_registry_list() -> int:
 
 
 def _command_registry_show(backend_name: str) -> int:
+    from mathart.core.backend_registry import get_registry
+
     registry = get_registry()
     meta, _ = registry.get_or_raise(backend_name)
     payload = {
@@ -263,6 +266,8 @@ def _build_stderr_progress_callback(backend_name: str) -> Callable[[dict[str, An
 
 
 def _resolved_backend_name(backend_name: str) -> str:
+    from mathart.core.backend_registry import get_registry
+
     registry = get_registry()
     meta, _ = registry.get_or_raise(backend_name)
     return meta.name
@@ -276,6 +281,8 @@ def _inject_runtime_callbacks(backend_name: str, context: dict[str, Any]) -> dic
 
 
 def _run_backend_and_emit(backend_name: str, context: dict[str, Any], output_dir: Path) -> int:
+    from mathart.pipeline import AssetPipeline
+
     output_dir.mkdir(parents=True, exist_ok=True)
     runtime_context = _inject_runtime_callbacks(backend_name, dict(context))
     pipeline = AssetPipeline(output_dir=str(output_dir), verbose=False)
@@ -310,6 +317,8 @@ def _command_anti_flicker_render(args: argparse.Namespace) -> int:
 
 
 def _command_mass_produce(args: argparse.Namespace) -> int:
+    from tools.run_mass_production_factory import run_mass_production_factory
+
     payload = run_mass_production_factory(
         output_root=Path(args.output_dir).resolve(),
         batch_size=args.batch_size,
@@ -324,8 +333,20 @@ def _command_mass_produce(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    should_route_to_wizard = (
+        not raw_argv
+        or raw_argv[0] in {"wizard", "guided"}
+        or "--mode" in raw_argv
+    )
+    if should_route_to_wizard:
+        from mathart.cli_wizard import run_wizard
+
+        wizard_args = raw_argv[1:] if raw_argv[:1] in (["wizard"], ["guided"]) else raw_argv
+        return run_wizard(wizard_args)
+
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(raw_argv)
     _configure_logging(quiet=args.quiet)
 
     try:
