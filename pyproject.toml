@@ -38,6 +38,12 @@ ci = [
 ]
 
 [project.scripts]
+# SESSION-143: Flagship dual-track wizard entry points.
+# `mathart` / `mathart-wizard` both route to `mathart.cli:main`, which
+# auto-dispatches to `mathart.cli_wizard.run_wizard()` when invoked with
+# no args, `wizard`, `guided`, or `--mode ...`.
+mathart = "mathart.cli:main"
+mathart-wizard = "mathart.cli:main"
 mathart-palette = "mathart.oklab.cli:main"
 mathart-sdf = "mathart.sdf.cli:main"
 mathart-anim = "mathart.animation.cli:main"

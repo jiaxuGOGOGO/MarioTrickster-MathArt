@@ -327,14 +327,12 @@ def _run_director_studio(
     gate_result = gate.run(spec)
 
     if gate_result.decision == GateDecision.ABORTED:
-        output_fn("
-导演工坊已退出。")
+        output_fn("\n导演工坊已退出。")
         return 0
 
     # Step 3: Blueprint evolution (if requested)
     if spec.evolve_variants > 0 and gate_result.final_genotype:
-        output_fn(f"
-🧬 开始控制变量繁衍: {spec.evolve_variants} 个变种...")
+        output_fn(f"\n🧬 开始控制变量繁衍: {spec.evolve_variants} 个变种...")
         engine = BlueprintEvolutionEngine(seed=42)
         evo_result = engine.evolve(
             parent_genotype=gate_result.final_genotype,
@@ -362,8 +360,7 @@ def _run_director_studio(
             child_bp.save_yaml(bp_dir / f"variant_{offspring.variant_index}.yaml")
         output_fn(f"   变种蓝图已保存 → {bp_dir}")
 
-    output_fn("
-🎬 导演工坊流程完成！")
+    output_fn("\n🎬 导演工坊流程完成！")
     return 0
 
 __all__ = [

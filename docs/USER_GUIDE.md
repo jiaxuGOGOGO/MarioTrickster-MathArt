@@ -6,13 +6,18 @@
 
 ## 1. 终端向导说明 (Dual-Track Wizard)
 
-当你运行 `mathart-evolve` 命令时，终端会弹出一个极客风格的交互菜单。只需输入对应的数字并回车，即可进入不同的生产模式：
+当你在终端直接输入 `mathart`（或等价别名 `mathart-wizard`）时，系统会弹出一个极客风格的交互菜单。只需输入对应的数字并回车，即可进入不同的生产模式：
 
 - **`[1] 🏭 工业量产 (Production)`**：当你的蓝图已经调优完毕，准备大规模生成最终的像素精灵图或特效时使用。此模式会唤醒 GPU 渲染管线。
 - **`[2] 🧬 本地闭环进化 (Evolution)`**：让系统使用遗传算法，在约束空间内自动寻找最优参数组合。适合“我也不知道具体参数，让 AI 自己找”的场景。
 - **`[3] 💻 本地 AI 科研蒸馏 (Local Distill + GitPush)`**：专门用于将外部知识（如 PDF 书籍、论文）转化为代码约束。
 - **`[4] 🧪 纯 CPU 沙盒审计 (Dry-Run)`**：不调用 GPU，仅在纯物理沙盒中预演 100 步，验证参数是否会导致模型崩溃。
 - **`[5] 🎬 语义导演工坊 (Director Studio)`**：**创作者最常用的模式！** 在这里，你可以用自然语言编写意图，系统会翻译为数学参数并提供白模预演。
+
+> **🔰 命令对照**：
+> - `mathart` / `mathart-wizard` → 顶层品牌命令，**调起交互向导**。
+> - `mathart-evolve <子命令>` → 旧版 argparse 子命令 CLI，**不弹出菜单**，保留用于自动化脚本与 CI（`status / distill / registry / gaps / eval / add-sprite / add-sheet / sprites / init-workspace / scan / pick / texture / infer / graduate / run`）。
+> - 无交互环境（CI、非 TTY）下使用 `mathart --mode 5` / `--mode 2` 等显式指定模式，避免因无 TTY 触发的 JSON 错误载荷。
 
 ---
 
@@ -33,16 +38,20 @@ description: "一个看起来非常轻盈、跳跃感很强的角色"
 **系统内置支持的词汇包括：**
 `活泼`、`lively`、`夸张`、`exaggerated`、`沉稳`、`轻盈`、`厚重`、`heavy`、`弹性`、`bouncy`、`沉重`、`落地`、`跳跃` 等。
 
-### 高级咒语：引入参考图
+### `director_intent.py` 当前实际解析字段
 
-如果你有明确的视觉参考，可以添加参考图路径（此功能在生成阶段被 ComfyUI 的 IP-Adapter 消费）：
+以下是 `mathart/workspace/director_intent.py` 中 `CreatorIntentParser` **真实读取**的 YAML 根字段（其余字段会被忽略）：
 
-```yaml
-# workspace/inbox/intent.yaml
-vibe: "沉稳, 厚重"
-reference_image: "workspace/inbox/sprites/hero_reference.png"
-description: "重甲骑士，落地要有重量感"
-```
+| 字段 | 类型 | 用途 |
+|---|---|---|
+| `vibe` | string | 语义 vibe 关键字，驱动 `SEMANTIC_VIBE_MAP` 参数偏移 |
+| `description` | string | 自由文本说明，仅用于人类记忆，不参与参数化 |
+| `base_blueprint` | string | 祖先蓝图的相对/绝对路径，由 `_resolve_blueprint_path` 解析 |
+| `overrides` | mapping | 精确参数覆盖，字典会被逐键合并到基因型 |
+| `evolve_variants` | int | 需要繁衍的变异体数量（0 = 不繁衍） |
+| `freeze_locks` | list[string] | 基因家族锁，必须是 `GENE_FAMILIES` 子集 |
+
+> **说明**：当前解析器**不消费** `reference_image` 字段。如果你的工作流需要参考图，请直接在 ComfyUI 工作流节点中配置 IP-Adapter，`intent.yaml` 中写入该字段只会被解析器忽略，不会报错但也不会被传递下去。此能力将作为后续 Roadmap 条目补齐。
 
 ---
 
@@ -51,7 +60,7 @@ description: "重甲骑士，落地要有重量感"
 当你想基于一个完美的“祖先”来生成一支“控制变量的小怪军团”时，就需要使用蓝图系统。
 
 ### 什么是蓝图？
-蓝图（Blueprint）是系统生成的 `.yaml` 文件，它精确记录了一个角色的所有基因（物理参数、比例、动画帧率等）。它不包含任何冗余数据，可以跨版本永久保存。
+蓝图（Blueprint）是系统生成的 `.yaml` 文件，它精确记录了一个角色的所有基因（物理参数、比例、动画帧率等）。它不包含任何冗余数据（无 Base64、无绝对路径），可以跨版本永久保存，由 `CreatorBlueprint.save_yaml()` / `load_yaml()` 统一读写。
 
 ### 如何繁衍变异？
 
@@ -59,48 +68,55 @@ description: "重甲骑士，落地要有重量感"
 
 ```yaml
 # workspace/inbox/intent.yaml
-# 1. 指定祖先蓝图
+# 1. 指定祖先蓝图（会依次尝试：绝对路径 → workspace_root/<path> → workspace/blueprints/<basename>）
 base_blueprint: "workspace/blueprints/perfect_jump_slime.yaml"
 
 # 2. 我要生成 5 个变异体
 evolve_variants: 5
 
 # 3. 锁定核心物理手感，只允许外观和颜色发生变异
-freeze_locks: 
+freeze_locks:
   - "physics"     # 锁定重力、质量、弹力等物理手感
   - "animation"   # 锁定动画帧率和节奏
 ```
 
-**基因家族 (Gene Families) 列表：**
+**基因家族 (Gene Families) 列表**（`blueprint_evolution.GENE_FAMILIES`）：
+
 - `physics`：物理手感（重力、质量、弹力、阻尼等）。
 - `proportions`：身体比例（头身比、四肢比例、缩放等）。
 - `animation`：动画节奏（帧率、预期动作、跟随动作等）。
 - `palette`：调色板和色彩科学。
 
-> **⚠️ 核心红线**：一旦你锁定了 `physics`，系统生成的 5 个变异体在物理手感上将**绝对一模一样**，差异仅存在于未锁定的基因（如身体比例和颜色）中。
+> **⚠️ 核心红线**：一旦你锁定了 `physics`，系统生成的 5 个变异体在物理手感上将**绝对一模一样**（三级冻结会在 init / mutate / post-restore 三次再戳，方差严格为 0），差异仅存在于未锁定的基因（如身体比例和颜色）中。
 
 ---
 
 ## 4. 交互式白模预演 (Animatic REPL)
 
-当你在导演工坊模式下提交了 `intent.yaml` 后，系统**不会立刻开始漫长的 GPU 渲染**。相反，它会在不到一秒的时间内生成一个纯线框的“白模预演”（Proxy），并在终端中询问你的意见：
+当你在导演工坊模式下提交了 `intent.yaml` 后，系统**不会立刻开始漫长的 GPU 渲染**。相反，它会在不到一秒的时间内生成一个纯线框的“白模预演”（Proxy），并在终端中询问你的意见。以下菜单文案与 `mathart/quality/interactive_gate.py` 中 `InteractivePreviewGate` 的实际输出严格一致：
 
 ```text
-[1] 批准生成 (Approved) [推荐]
-      当前白模符合预期，立即唤醒 GPU 渲染最终像素资产。
-[2] [+] 再夸张点 (Amplify)
-      物理反馈不够强烈？系统将自动放大相关参数。
-[3] [-] 收敛点 (Dampen)
-      动作太夸张了？系统将自动减弱相关参数。
-[4] 放弃 (Abort)
-      完全不行，退出并重新修改 intent.yaml。
+  [1] ✅ 完美出图
+  [2] [+] 再夸张点
+  [3] [-] 收敛点
+  [4] ❌ 退出
 ```
+
+- `[1]` → 批准当前参数，可进一步选择是否落地保存为 `Blueprint`。
+- `[2]` → 振幅 +Δ，对 `freeze_locks` 锁定的家族不生效。
+- `[3]` → 振幅 -Δ，同样受锁约束。
+- `[4]` → 退出导演工坊流程，不触发后续进化。
 
 ### 真理网关警告 (Truth Gateway Warning)
 
-如果你疯狂选择 `[+] 再夸张点`，导致参数突破了系统蒸馏出的“物理学知识边界”（例如，重力被你调成了负数，或者弹力大到永远停不下来），系统会拦截并发出警告：
+如果你疯狂选择 `[+] 再夸张点`，导致参数突破了系统蒸馏出的“物理学知识边界”（例如，重力被你调成了负数，或者弹力大到永远停不下来），系统会拦截并通过如下菜单（同样来自 `interactive_gate.py` 的实际文案）请你裁决：
 
-- **PHYSICAL (物理违规)**：系统会提示“这不符合真实物理规律”，但允许你选择 **强制覆盖 (Override)**，因为艺术创作需要夸张。
-- **FATAL (致命数学错误)**：系统会提示“这将导致引擎崩溃（如除以零）”，此时**不允许覆盖**，系统会自动将参数拉回安全边界。
+```text
+  [1] 遵从科学 — 由系统自动安全裁剪
+  [2] 人类意图覆盖 — 无视知识强行生成
+```
 
-通过这种方式，你可以放心地挥洒创意，系统会在底层保护你免受崩溃的困扰。
+- **PHYSICAL (物理违规)**：两个选项都可选。选择 `[2]` 即激活「艺术覆盖权」，系统会记录覆盖事件并写入 `ArtifactManifest.applied_knowledge_rules`，后续可追溯。
+- **FATAL (致命数学错误)**：例如触发除零、NaN 传播。`[2]` 选项会被自动屏蔽，系统强制执行 Clamp-Not-Reject：把越界参数裁剪回安全边界，不允许覆盖。
+
+通过这种方式，你可以放心地挥洒创意，系统会在底层保护你免受崩溃的困扰，并保留完整的审计链。

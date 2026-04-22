@@ -128,7 +128,7 @@
     "engineering_automation": 95,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-140: P0-SESSION-137-KNOWLEDGE-SYNERGY-BRIDGE. Distilled Knowledge Bus ↔ Creator Intent Holographic Weaving Unification: Knowledge-Grounded Semantic Translation Bridge, Knowledge-Projected Mutation Clamping, Intent-Knowledge Conflict Arbitration (Truth Gateway Warning), Asset Provenance & Knowledge Lineage Tagging.",
+  "current_focus": "SESSION-143: P0-SESSION-143-ULTIMATE-CONTRACT-ALIGNMENT. Code-Docs Contract Audit, mathart brand CLI entry, and hallucination purge.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research/session139_director_studio_research.md",
@@ -3198,6 +3198,19 @@
         "EXTEND mathart/core/artifact_schema.py — ArtifactManifest.applied_knowledge_rules provenance field",
         "NEW tests/test_knowledge_synergy_bridge.py — 26 end-to-end knowledge synergy tests",
         "NEW research/session140_knowledge_synergy_research.md — External research notes"
+      ]
+    },
+    {
+      "session_id": "SESSION-143",
+      "date": "2026-04-22",
+      "focus": "P0-SESSION-143-ULTIMATE-CONTRACT-ALIGNMENT: Code-Docs Contract Audit & CLI Entry",
+      "changes": [
+        "NEW pyproject.toml — injected mathart and mathart-wizard top-level console scripts",
+        "FIX mathart/cli_wizard.py — fixed unterminated string literal SyntaxError",
+        "REWRITE README.md — aligned to mathart brand command, fixed VRAM threshold and version",
+        "REWRITE docs/USER_GUIDE.md — purged reference_image hallucination, aligned REPL menu labels",
+        "REWRITE docs/TROUBLESHOOTING.md — purged --purge-cache hallucination, aligned GC and log rotation facts",
+        "NEW docs/audit/SESSION-143-DOC-CODE-CONTRACT-AUDIT.md — full code-docs contract audit report"
       ]
     }
   ],
