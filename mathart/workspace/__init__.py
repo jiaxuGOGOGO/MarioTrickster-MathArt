@@ -102,6 +102,15 @@ __all__ = [
     "LauncherVerdict",
 ]
 
+# SESSION-141: Garbage Collector & In-Flight Pruner
+from .garbage_collector import (
+    GarbageCollector,
+    GCConfig,
+    GCReport,
+    InFlightPruner,
+    PruneReport,
+)
+
 # SESSION-139: Director Intent — Semantic Translation & Blueprint Inheritance
 from .director_intent import (
     AnimationConfig,

@@ -33,9 +33,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
-import gymnasium as gym
 import numpy as np
-from gymnasium import spaces
+
+try:
+    import gymnasium as gym
+    from gymnasium import spaces
+except ImportError:  # pragma: no cover — lightweight sandbox mode
+    gym = None  # type: ignore[assignment]
+    spaces = None  # type: ignore[assignment]
 
 from mathart.animation.umr_rl_adapter import (
     DeepMimicRewardConfig,

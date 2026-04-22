@@ -23,6 +23,17 @@ from pathlib import Path
 
 
 def main(argv=None):
+    # SESSION-141: Install blackbox flight recorder as the very first action
+    from mathart.core.logger import install_blackbox
+    from mathart.workspace.garbage_collector import GarbageCollector
+
+    project_root = Path.cwd()
+    install_blackbox(project_root=project_root)
+
+    # SESSION-141: Run cold GC sweep at startup
+    gc = GarbageCollector(project_root)
+    gc.sweep()
+
     parser = argparse.ArgumentParser(
         prog="mathart-evolve",
         description="MarioTrickster-MathArt Self-Evolution Engine",

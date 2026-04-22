@@ -543,6 +543,25 @@ class ThreeLayerEvolutionLoop:
                     for action in actions:
                         self._log(f"  {action}")
 
+            # SESSION-141: In-flight hot pruning — prune previous iteration's
+            # intermediate waste AFTER parameters have been safely extracted
+            # into iter_report (temporal safety gate satisfied).
+            try:
+                from mathart.workspace.garbage_collector import InFlightPruner
+                pruner = InFlightPruner(self.root)
+                temp_dir = self.root / "temp"
+                if temp_dir.is_dir():
+                    prune_report = pruner.scan_and_prune_dir(
+                        temp_dir, params_safe=True, keep_json=True,
+                    )
+                    if prune_report.files_deleted > 0:
+                        iter_report["hot_prune"] = {
+                            "files_deleted": prune_report.files_deleted,
+                            "bytes_freed": prune_report.bytes_freed,
+                        }
+            except Exception as exc:
+                logger.debug("Hot prune skipped: %s", exc)
+
             loop_report["iterations"].append(iter_report)
             self.state.history.append(iter_report)
 

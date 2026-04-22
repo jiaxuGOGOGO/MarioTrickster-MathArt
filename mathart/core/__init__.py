@@ -60,6 +60,16 @@ from mathart.core.niche_registry import (
     register_niche,
     get_niche_registry,
 )
+# SESSION-141: Blackbox Logger & Centralized Settings
+from mathart.core.logger import (
+    install_blackbox,
+    get_blackbox_logger,
+    BlackboxConfig,
+)
+from mathart.core.settings import (
+    Settings,
+    get_settings,
+)
 
 __all__ = [
     # Backend Registry
@@ -88,4 +98,11 @@ __all__ = [
     "ParetoFront",
     "register_niche",
     "get_niche_registry",
+    # SESSION-141: Blackbox Logger
+    "install_blackbox",
+    "get_blackbox_logger",
+    "BlackboxConfig",
+    # SESSION-141: Centralized Settings
+    "Settings",
+    "get_settings",
 ]
