@@ -346,3 +346,4 @@ from .blueprint_evolution import (
     evolve_from_blueprint,
     is_frozen,
 )
+from mathart.evolution.blueprint_evolution import KnowledgeClampRecord

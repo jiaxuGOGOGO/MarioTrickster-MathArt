@@ -305,6 +305,13 @@ class ArtifactManifest:
         Free-form tags for categorization and search.
     schema_hash : str
         SHA-256 hash of the manifest content for integrity verification.
+    applied_knowledge_rules : list[dict[str, Any]]
+        SESSION-140: Knowledge provenance records — lightweight list of
+        distilled knowledge rules that were activated during generation.
+        Each entry contains only the rule ID, module name, constrained
+        parameter, and a brief description.  This implements the
+        Data Lineage & Provenance requirement (防血统数据膨胀红线:
+        only actually-activated rules are recorded, never the full KB).
     """
     artifact_family: str
     backend_type: str | BackendType
@@ -317,6 +324,7 @@ class ArtifactManifest:
     references: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     schema_hash: str = ""
+    applied_knowledge_rules: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.backend_type = backend_type_value(self.backend_type)
@@ -358,6 +366,7 @@ class ArtifactManifest:
             "references": self.references,
             "tags": self.tags,
             "schema_hash": self.schema_hash,
+            "applied_knowledge_rules": self.applied_knowledge_rules,
         }
 
     @classmethod
@@ -375,6 +384,7 @@ class ArtifactManifest:
             references=data.get("references", []),
             tags=data.get("tags", []),
             schema_hash=data.get("schema_hash", ""),
+            applied_knowledge_rules=data.get("applied_knowledge_rules", []),
         )
 
     def to_ipc_payload(

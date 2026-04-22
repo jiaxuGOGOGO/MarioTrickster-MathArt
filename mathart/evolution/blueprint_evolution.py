@@ -1,14 +1,23 @@
-"""Blueprint Evolution — Controlled Variational Derivation with Freeze Mask.
+"""Blueprint Evolution — Knowledge-Projected Controlled Variational Derivation.
 
 SESSION-139: P0-SESSION-136-DIRECTOR-STUDIO-V2
+SESSION-140: P0-SESSION-137-KNOWLEDGE-SYNERGY-BRIDGE
 
 This module implements the **Controlled Variational Evolution** engine that
-derives offspring from a Blueprint base while strictly respecting freeze locks.
+derives offspring from a Blueprint base while strictly respecting freeze locks
+AND distilled knowledge constraints.
 
 Core invariant (SACRED RED LINE):
     If ``freeze_locks`` includes ``"physics"``, then the physics parameters
     of ALL offspring MUST be **byte-identical** to the parent.  The variance
     across the population for frozen gene families is **exactly 0.0**.
+
+SESSION-140 upgrade — Knowledge-Projected Mutation:
+    When a ``RuntimeDistillationBus`` is injected, the mutation operator is
+    constrained by distilled knowledge boundaries.  If a random mutation
+    attempts to push a parameter beyond the knowledge-defined min/max, it is
+    **clamped** (not rejected) to the nearest feasible boundary.  This
+    preserves genetic diversity while enforcing safety (Clamp-Not-Reject).
 
 The freeze mask is enforced at THREE levels:
 1. **Initialization**: Frozen genes are copied verbatim from the parent.
@@ -16,10 +25,14 @@ The freeze mask is enforced at THREE levels:
 3. **Post-enforcement**: After every genetic operation, frozen genes are
    force-restored from the parent snapshot (belt-and-suspenders).
 
-External research anchors (SESSION-139):
-- GAAF (2026): Genetic Algorithm with Adaptive Freezing
-- Gene Masking (PMC 2016): Binary mask templates for chromosome protection
-- Parameter Control in EAs (Eiben et al.): Fixed constraint enforcement
+Knowledge clamping is enforced AFTER mutation but BEFORE post-enforcement:
+    mutate → clamp_by_knowledge → freeze re-stamp
+
+External research anchors:
+- SESSION-139: GAAF (2026), Gene Masking (PMC 2016), Eiben et al.
+- SESSION-140: Knowledge-Constrained EA (IJAISC 2014), Constraint-Aware
+  Mutation Operators (ResearchGate 2022), Manifold-Assisted Coevolutionary
+  Algorithm (Swarm & Evo Comp 2024), Safe RL on Constraint Manifold (2024)
 """
 from __future__ import annotations
 
@@ -28,9 +41,12 @@ import logging
 import random
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from ..distill.runtime_bus import RuntimeDistillationBus, CompiledParameterSpace
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +88,37 @@ def is_frozen(param_key: str, freeze_mask: Set[str]) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Knowledge Clamping Record
+# ---------------------------------------------------------------------------
+
+@dataclass
+class KnowledgeClampRecord:
+    """Record of a single knowledge-driven clamp action during mutation.
+
+    SESSION-140: Lightweight provenance — only stores the parameter key,
+    the pre-clamp and post-clamp values, and the rule that triggered it.
+    """
+    param_key: str = ""
+    pre_clamp_value: float = 0.0
+    post_clamp_value: float = 0.0
+    knowledge_min: Optional[float] = None
+    knowledge_max: Optional[float] = None
+    rule_id: str = ""
+    is_hard: bool = False
+
+    def to_dict(self) -> dict:
+        return {
+            "param_key": self.param_key,
+            "pre_clamp_value": round(self.pre_clamp_value, 6),
+            "post_clamp_value": round(self.post_clamp_value, 6),
+            "knowledge_min": round(self.knowledge_min, 6) if self.knowledge_min is not None else None,
+            "knowledge_max": round(self.knowledge_max, 6) if self.knowledge_max is not None else None,
+            "rule_id": self.rule_id,
+            "is_hard": self.is_hard,
+        }
+
+
+# ---------------------------------------------------------------------------
 # Evolution Result
 # ---------------------------------------------------------------------------
 
@@ -82,6 +129,7 @@ class VariantOffspring:
     genotype_dict: Dict[str, Any]
     flat_params: Dict[str, float]
     mutation_log: List[str] = field(default_factory=list)
+    knowledge_clamp_log: List[KnowledgeClampRecord] = field(default_factory=list)
 
 
 @dataclass
@@ -93,6 +141,9 @@ class BlueprintEvolutionResult:
     offspring: List[VariantOffspring] = field(default_factory=list)
     frozen_param_variance: Dict[str, float] = field(default_factory=dict)
     mutated_param_variance: Dict[str, float] = field(default_factory=dict)
+    # SESSION-140: aggregate knowledge clamping stats
+    total_knowledge_clamps: int = 0
+    knowledge_grounded: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -101,18 +152,24 @@ class BlueprintEvolutionResult:
 
 class BlueprintEvolutionEngine:
     """Derives controlled variants from a Blueprint base with freeze-mask
-    protection.
+    protection and knowledge-driven mutation clamping.
 
     This engine is the core of the "Controlled Variational Evolution" system.
     It takes a parent genotype, a freeze mask, and produces N offspring where:
     - Frozen genes are 100% identical to the parent (variance = 0).
     - Unfrozen genes undergo bounded random mutation.
+    - Knowledge constraints clamp mutations to feasible boundaries.
+
+    SESSION-140: Accepts an optional ``RuntimeDistillationBus`` via dependency
+    injection.  When present, ``clamp_by_knowledge()`` is applied after each
+    mutation step.
     """
 
     def __init__(
         self,
         mutation_strength: float = 0.15,
         seed: Optional[int] = None,
+        knowledge_bus: Optional["RuntimeDistillationBus"] = None,
     ) -> None:
         """
         Parameters
@@ -122,11 +179,93 @@ class BlueprintEvolutionEngine:
             Default 0.15 = ±15% variation.
         seed : int, optional
             Random seed for reproducibility.
+        knowledge_bus : RuntimeDistillationBus, optional
+            SESSION-140: Injected knowledge bus for constraint clamping.
         """
         self.mutation_strength = mutation_strength
         self.rng = np.random.RandomState(seed)
         if seed is not None:
             random.seed(seed)
+        self.knowledge_bus = knowledge_bus
+
+    def clamp_by_knowledge(
+        self,
+        flat_params: Dict[str, float],
+    ) -> Tuple[Dict[str, float], List[KnowledgeClampRecord]]:
+        """Clamp mutated parameters to knowledge-defined boundaries.
+
+        SESSION-140: Knowledge-Projected Mutation — the core safety mechanism.
+
+        For each parameter in ``flat_params``, check all compiled knowledge
+        spaces for matching constraints.  If the value exceeds the knowledge
+        boundary, clamp it to the nearest feasible point.
+
+        Returns
+        -------
+        tuple of (clamped_params, clamp_records)
+            The clamped parameter dict and a list of clamp records for
+            provenance tracking.
+        """
+        if self.knowledge_bus is None:
+            return dict(flat_params), []
+
+        clamped = dict(flat_params)
+        records: List[KnowledgeClampRecord] = []
+
+        for module_name, compiled in self.knowledge_bus.compiled_spaces.items():
+            for idx, param_name in enumerate(compiled.param_names):
+                # Try to match against flat params
+                matched_key = self._resolve_param_key(param_name, clamped)
+                if matched_key is None:
+                    continue
+
+                original_value = clamped[matched_key]
+                has_min = bool(compiled.has_min[idx])
+                has_max = bool(compiled.has_max[idx])
+                min_val = float(compiled.min_values[idx]) if has_min else None
+                max_val = float(compiled.max_values[idx]) if has_max else None
+                is_hard = bool(compiled.hard_mask[idx])
+                new_value = original_value
+
+                needs_clamp = False
+                if has_min and original_value < min_val:
+                    new_value = min_val
+                    needs_clamp = True
+                if has_max and original_value > max_val:
+                    new_value = max_val
+                    needs_clamp = True
+
+                if needs_clamp:
+                    clamped[matched_key] = new_value
+                    records.append(KnowledgeClampRecord(
+                        param_key=matched_key,
+                        pre_clamp_value=original_value,
+                        post_clamp_value=new_value,
+                        knowledge_min=min_val,
+                        knowledge_max=max_val,
+                        rule_id=f"{module_name}.{param_name}",
+                        is_hard=is_hard,
+                    ))
+                    logger.debug(
+                        "Knowledge clamp: %s = %.4f → %.4f [%s.%s]",
+                        matched_key, original_value, new_value,
+                        module_name, param_name,
+                    )
+
+        return clamped, records
+
+    @staticmethod
+    def _resolve_param_key(
+        knowledge_param: str, flat: Dict[str, float]
+    ) -> Optional[str]:
+        """Resolve a knowledge parameter name to a flat genotype key."""
+        if knowledge_param in flat:
+            return knowledge_param
+        leaf = knowledge_param.split(".")[-1]
+        candidates = [k for k in flat if k.endswith(f".{leaf}")]
+        if len(candidates) == 1:
+            return candidates[0]
+        return None
 
     def evolve(
         self,
@@ -164,6 +303,7 @@ class BlueprintEvolutionEngine:
         }
 
         offspring_list: List[VariantOffspring] = []
+        total_clamps = 0
 
         for i in range(num_variants):
             child_genotype = copy.deepcopy(parent_genotype)
@@ -191,6 +331,17 @@ class BlueprintEvolutionEngine:
                 child_flat[key] = new_value
                 mutation_log.append(f"{key}: {value:.4f} → {new_value:.4f}")
 
+            # SESSION-140: Knowledge-Projected Mutation Clamping
+            # Applied AFTER mutation but BEFORE freeze re-stamp
+            child_flat, clamp_records = self.clamp_by_knowledge(child_flat)
+            total_clamps += len(clamp_records)
+            for rec in clamp_records:
+                mutation_log.append(
+                    f"[KNOWLEDGE CLAMP] {rec.param_key}: "
+                    f"{rec.pre_clamp_value:.4f} → {rec.post_clamp_value:.4f} "
+                    f"(rule: {rec.rule_id})"
+                )
+
             # POST-ENFORCEMENT: Belt-and-suspenders — re-stamp frozen values
             for key, sacred_value in frozen_snapshot.items():
                 child_flat[key] = sacred_value
@@ -210,6 +361,7 @@ class BlueprintEvolutionEngine:
                 genotype_dict=child_genotype.to_dict(),
                 flat_params=child_genotype.flat_params(),
                 mutation_log=mutation_log,
+                knowledge_clamp_log=clamp_records,
             ))
 
         # Compute variance statistics
@@ -218,6 +370,8 @@ class BlueprintEvolutionEngine:
             freeze_locks=list(freeze_locks),
             num_variants=num_variants,
             offspring=offspring_list,
+            total_knowledge_clamps=total_clamps,
+            knowledge_grounded=total_clamps > 0,
         )
 
         # Frozen param variance (MUST be 0.0)
@@ -233,12 +387,14 @@ class BlueprintEvolutionEngine:
             result.mutated_param_variance[key] = float(np.var(values))
 
         logger.info(
-            "Evolved %d variants from '%s' | frozen=%d params (var=%.6f) | mutated=%d params",
+            "Evolved %d variants from '%s' | frozen=%d params (var=%.6f) | "
+            "mutated=%d params | knowledge_clamps=%d",
             num_variants,
             parent_name,
             len(frozen_snapshot),
             sum(result.frozen_param_variance.values()),
             len(unfrozen_keys),
+            total_clamps,
         )
 
         return result
@@ -280,6 +436,7 @@ def evolve_from_blueprint(
     freeze_locks: List[str],
     mutation_strength: float = 0.15,
     seed: Optional[int] = None,
+    knowledge_bus: Optional["RuntimeDistillationBus"] = None,
 ) -> BlueprintEvolutionResult:
     """One-shot convenience: load a blueprint and evolve variants.
 
@@ -295,6 +452,8 @@ def evolve_from_blueprint(
         Base mutation strength.
     seed : int, optional
         Random seed.
+    knowledge_bus : RuntimeDistillationBus, optional
+        SESSION-140: Injected knowledge bus for constraint clamping.
 
     Returns
     -------
@@ -303,7 +462,11 @@ def evolve_from_blueprint(
     from ..workspace.director_intent import Blueprint
 
     bp = Blueprint.load_yaml(Path(blueprint_path))
-    engine = BlueprintEvolutionEngine(mutation_strength=mutation_strength, seed=seed)
+    engine = BlueprintEvolutionEngine(
+        mutation_strength=mutation_strength,
+        seed=seed,
+        knowledge_bus=knowledge_bus,
+    )
     return engine.evolve(
         parent_genotype=bp.genotype,
         num_variants=num_variants,
@@ -316,6 +479,7 @@ __all__ = [
     "BlueprintEvolutionEngine",
     "BlueprintEvolutionResult",
     "GENE_FAMILIES",
+    "KnowledgeClampRecord",
     "VariantOffspring",
     "build_freeze_mask",
     "evolve_from_blueprint",

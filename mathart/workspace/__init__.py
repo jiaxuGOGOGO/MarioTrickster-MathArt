@@ -116,3 +116,6 @@ from .director_intent import (
     SEMANTIC_VIBE_MAP,
     parse_intent,
 )
+from mathart.workspace.director_intent import KnowledgeConflict
+from mathart.workspace.director_intent import KnowledgeProvenanceRecord
+from mathart.workspace.director_intent import VIBE_TO_KNOWLEDGE_MODULES

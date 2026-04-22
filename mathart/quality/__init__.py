@@ -93,3 +93,6 @@ from mathart.quality.interactive_gate import (
     amplify_genotype,
     dampen_genotype,
 )
+from mathart.quality.interactive_gate import ConflictArbitrationResult
+from mathart.quality.interactive_gate import check_knowledge_conflicts
+from mathart.quality.interactive_gate import apply_knowledge_clamp_to_genotype
