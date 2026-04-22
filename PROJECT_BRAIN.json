@@ -1,7 +1,7 @@
 {
   "version": "v0.99.0",
-  "last_session_id": "SESSION-131",
-  "last_updated": "2026-04-22T22:00:00Z",
+  "last_session_id": "SESSION-132",
+  "last_updated": "2026-04-22T06:16:44.905571Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -77,7 +77,7 @@
     "engineering_automation": 93,
     "animation_physics_realism": 58
   },
-  "current_focus": "HIGH-2.7 follow-through / PDG v2 deterministic RNG streams — CLOSED in SESSION-123. mathart/level/pdg.py now derives per-invocation NumPy Generator instances from a stable SeedSequence contract, exposes ctx['_pdg']['rng'] plus rng_contract metadata, keeps cache keys free of live Generator objects, and pushes the explicit RNG path into WFC / ConstraintAwareWFC and the level pipeline. 69/69 targeted tests PASS.",
+  "current_focus": "SESSION-132: P0-SESSION-129-PREFLIGHT-RADAR. Read-Only Preflight Radar with Heuristic ComfyUI Discovery, Symlink Transparency, and Typed Verdicts (READY/AUTO_FIXABLE/MANUAL).",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research/session123_rng_determinism_research.md",
@@ -1017,6 +1017,25 @@
       "estimated_effort": "high",
       "description": "SESSION-098 follow-up. Audit identified 39 bare np.random calls in mathart/ production code (human_math.py, rl_locomotion.py, skill_embeddings.py, session065_research_bridge.py, etc.). Refactor each to accept optional rng: np.random.Generator | None parameter with default_rng() fallback, preserving backward compatibility while enabling test-side deterministic control per NEP-19.",
       "added_in": "SESSION-098"
+    },
+    {
+      "id": "P0-SESSION-129-PREFLIGHT-RADAR",
+      "priority": "P0",
+      "title": "Read-Only Preflight Radar and ComfyUI Discovery",
+      "status": "CLOSED",
+      "estimated_effort": "medium",
+      "description": "Implemented pure read-only environment probe with heuristic discovery, symlink traversal, and typed PreflightReport contract.",
+      "added_in": "SESSION-129",
+      "closed_in": "SESSION-132"
+    },
+    {
+      "id": "P0-SESSION-133-AUTO-ASSEMBLER",
+      "priority": "P0",
+      "title": "Phase 2: Non-Destructive Auto-Assembler & Model Injection",
+      "status": "TODO",
+      "estimated_effort": "high",
+      "description": "Consume PreflightReport.auto_fixable actions. Download missing models, safely symlink them into ComfyUI without overwriting existing files, and transition environment to READY.",
+      "added_in": "SESSION-132"
     }
   ],
   "completed_tasks": [
