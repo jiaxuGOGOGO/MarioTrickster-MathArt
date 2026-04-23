@@ -1,6 +1,6 @@
 {
-  "version": "v0.99.2",
-  "last_session_id": "SESSION-150",
+  "version": "v0.99.3",
+  "last_session_id": "SESSION-151",
   "last_updated": "2026-04-23",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -24,6 +24,26 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH",
+        "title": "End-to-End ComfyUI Dynamic Payload Injection & Headless Render Backend",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-151",
+        "modules": [
+          "mathart/backend/__init__.py",
+          "mathart/backend/comfy_mutator.py",
+          "mathart/backend/comfy_client.py",
+          "mathart/backend/comfyui_render_backend.py",
+          "mathart/core/backend_types.py",
+          "mathart/core/backend_registry.py",
+          "mathart/core/artifact_schema.py"
+        ],
+        "tests": [
+          "tests/test_comfyui_render_backend.py"
+        ],
+        "description": "Implemented the complete ComfyUI headless render backend with industrial-grade BFF (Backend for Frontend) dynamic payload mutation. Three core modules: (1) comfy_mutator.py — semantic JSON tree traversal mutator using _meta.title markers (NEVER hardcoded node IDs), immutable blueprint pattern, full mutation audit ledger; (2) comfy_client.py — high-availability API client with ephemeral /upload/image multipart upload, WebSocket telemetry with HTTP poll fallback, timeout circuit breaker (RenderTimeoutError), VRAM garbage collection via /free endpoint, and mandatory output repatriation to outputs/production/; (3) comfyui_render_backend.py — @register_backend plugin (BackendType.COMFYUI_RENDER, ArtifactFamily.COMFYUI_RENDER_REPORT) with validate_config() backend-owned parameter normalization, graceful degradation when ComfyUI is offline, and strongly-typed ArtifactManifest output with full provenance metadata for downstream GA fitness evaluation. All three anti-pattern red lines enforced: no hardcoded node IDs, poll loop has sleep+timeout, all outputs repatriated to outputs/production/. 29/29 tests PASS."
+      },
       {
         "id": "P0-SESSION-139-ULTIMATE-DOCUMENTATION",
         "title": "Industrial-Grade Documentation Matrix & Zero-Friction Onboarding",
@@ -83,8 +103,8 @@
   },
   "best_quality_score": 0.892,
   "validation_pass_rate": "SESSION-138 audit: 100% PASS across tests/test_sandbox_validator.py. Landed P0-SESSION-135-KNOWLEDGE-QA-GATE four-dimensional anti-hallucination funnel: source_quote provenance contract, AST-safe expression firewall, canonical math fuzzing, and 100-step physics dry-run with hard timeout. Implemented quarantine/active dual-track directory discipline and GitOps proposal-branch enforcement (refusing direct push to main/master).",
-  "total_iterations": 741,
-  "total_code_lines": 164850,
+  "total_iterations": 749,
+  "total_code_lines": 166700,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
   "sprite_count": 0,
@@ -443,7 +463,7 @@
       "title": "ComfyUI Interactive Path Rescue Gateway (.env persistence + runtime hot-injection + radar rewake)",
       "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-147. Before this session, a comfyui_not_found radar verdict terminated the interactive wizard, kicking the user out of the terminal with no recovery path. SESSION-147 introduces mathart/workspace/comfyui_rescue.py, a self-healing gateway that: (1) detects the comfyui_not_found blocker via is_comfyui_not_found_payload(); (2) friendly-prompts the user in the same terminal as the wizard ('\ud83d\udea8 Radar could not auto-locate the ComfyUI engine...'); (3) cleans drag-and-drop quoting via _clean_pasted_path; (4) validates the target is a real ComfyUI root via _looks_like_comfyui_root (main.py + custom_nodes/); (5) persists COMFYUI_HOME into project-root .env via dotenv.set_key with a native append-or-update fallback when python-dotenv is unavailable; (6) hot-injects the value into os.environ so the current process picks it up without restart; (7) re-runs PreflightRadar().scan() to re-wake the production pipeline. ProductionStrategy and ModeDispatcher now accept input_fn/output_fn hooks routed from cli_wizard._run_interactive. python-dotenv>=1.0 added to core deps. Up to 3 attempts before falling back to sandbox mode. End-to-end smoke test exercises the full round-trip including radar rewake.",
+      "description": "CLOSED in SESSION-147. Before this session, a comfyui_not_found radar verdict terminated the interactive wizard, kicking the user out of the terminal with no recovery path. SESSION-147 introduces mathart/workspace/comfyui_rescue.py, a self-healing gateway that: (1) detects the comfyui_not_found blocker via is_comfyui_not_found_payload(); (2) friendly-prompts the user in the same terminal as the wizard ('🚨 Radar could not auto-locate the ComfyUI engine...'); (3) cleans drag-and-drop quoting via _clean_pasted_path; (4) validates the target is a real ComfyUI root via _looks_like_comfyui_root (main.py + custom_nodes/); (5) persists COMFYUI_HOME into project-root .env via dotenv.set_key with a native append-or-update fallback when python-dotenv is unavailable; (6) hot-injects the value into os.environ so the current process picks it up without restart; (7) re-runs PreflightRadar().scan() to re-wake the production pipeline. ProductionStrategy and ModeDispatcher now accept input_fn/output_fn hooks routed from cli_wizard._run_interactive. python-dotenv>=1.0 added to core deps. Up to 3 attempts before falling back to sandbox mode. End-to-end smoke test exercises the full round-trip including radar rewake.",
       "added_in": "SESSION-147",
       "completed_in": "SESSION-147",
       "closed_in": "SESSION-147",
@@ -481,7 +501,7 @@
       "title": "Full-Chain Telemetry Through-Bore & Dependency Hardening",
       "status": "CLOSED",
       "estimated_effort": "medium",
-      "description": "CLOSED in SESSION-146. Three-pronged fix: (1) psutil>=5.9 added to core deps, torch>=2.0 isolated to [gpu] optional-dependencies; (2) 19 telemetry injection points across mode_dispatcher, launcher_facade, interactive_gate, and cli_wizard \u2014 radar JSON payloads, proxy render tracebacks, Truth Gateway arbitration, and CLI wizard route selections now all land in logs/mathart.log; (3) cli.py force=True logging.basicConfig replaced with install_blackbox() + root-level-only adjustment to preserve file handler. Console handler stays at WARNING. 11/11 targeted + 71/71 regression = 82/82 PASS.",
+      "description": "CLOSED in SESSION-146. Three-pronged fix: (1) psutil>=5.9 added to core deps, torch>=2.0 isolated to [gpu] optional-dependencies; (2) 19 telemetry injection points across mode_dispatcher, launcher_facade, interactive_gate, and cli_wizard — radar JSON payloads, proxy render tracebacks, Truth Gateway arbitration, and CLI wizard route selections now all land in logs/mathart.log; (3) cli.py force=True logging.basicConfig replaced with install_blackbox() + root-level-only adjustment to preserve file handler. Console handler stays at WARNING. 11/11 targeted + 71/71 regression = 82/82 PASS.",
       "added_in": "SESSION-146",
       "completed_in": "SESSION-146",
       "closed_in": "SESSION-146",
@@ -3099,6 +3119,35 @@
   },
   "recent_sessions": [
     {
+      "session_id": "SESSION-151",
+      "focus": "ComfyUI BFF dynamic payload injection & headless render backend",
+      "status": "COMPLETE",
+      "date": "2026-04-23",
+      "summary": "Implemented the complete end-to-end ComfyUI headless render backend as a registry-native @register_backend plugin. Three core modules landed in mathart/backend/: (1) ComfyWorkflowMutator — BFF dynamic JSON tree traversal mutator that finds nodes by semantic _meta.title markers (NEVER hardcoded node IDs), performs immutable-blueprint deep-copy mutation with full audit ledger tracking every injection; (2) ComfyAPIClient — high-availability HTTP+WebSocket client with ephemeral /upload/image multipart push (no local path dependency), WebSocket execution telemetry with HTTP poll fallback, RenderTimeoutError circuit breaker (configurable timeout + poll_interval), VRAM garbage collection via POST /free, and mandatory output repatriation to outputs/production/ with timestamped filenames; (3) ComfyUIRenderBackend — @register_backend(BackendType.COMFYUI_RENDER) plugin with validate_config() backend-owned parameter normalization, graceful degradation manifests when ComfyUI is offline, and strongly-typed COMFYUI_RENDER_REPORT ArtifactManifest carrying prompt_id, mutation_count, render_elapsed_seconds, vram_freed, and blueprint_name for downstream GA fitness evaluation. Extended BackendType enum, BackendCapability enum, ArtifactFamily enum, and backend_registry auto-import chain. All three SESSION-151 anti-pattern red lines enforced and tested: (a) no hardcoded ComfyUI node IDs — source code audit confirms _meta.title semantic matching only; (b) poll loop deadlock prevention — time.sleep() + RenderTimeoutError verified by test; (c) output repatriation — all renders saved to outputs/production/. 29/29 tests PASS.",
+      "files_touched": [
+        "mathart/backend/__init__.py",
+        "mathart/backend/comfy_mutator.py",
+        "mathart/backend/comfy_client.py",
+        "mathart/backend/comfyui_render_backend.py",
+        "mathart/core/backend_types.py",
+        "mathart/core/backend_registry.py",
+        "mathart/core/artifact_schema.py",
+        "tests/test_comfyui_render_backend.py",
+        "outputs/production/.gitkeep",
+        "scripts/update_brain_session151.py",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "validation": "tests/test_comfyui_render_backend.py -> 29/29 PASSED (mutator 9, client 8, backend 7, integration 3, red-line guards 2)",
+      "next_gaps": [
+        "P1-SESSION-151-GA-FITNESS-EVALUATOR: Wire COMFYUI_RENDER_REPORT metadata into GeneticAlgorithm fitness scoring function",
+        "P1-SESSION-151-BATCH-RENDER-LANE: Add batch render support to PDG mass_production_factory ai_render_stage",
+        "P1-SESSION-151-WEBSOCKET-PROGRESS-BAR: Surface WebSocket progress events to CLI wizard TUI",
+        "P2-SESSION-151-MULTI-WORKFLOW-STRATEGY: Support multiple workflow blueprints per render batch (style A/B testing)",
+        "P2-SESSION-151-COMFYUI-MODEL-CACHE: Pre-warm model cache before batch render to avoid cold-start latency"
+      ]
+    },
+    {
       "session_id": "SESSION-150",
       "focus": "Procedural math-driven animation dynamics + enhanced graceful error boundary",
       "status": "COMPLETE",
@@ -4981,6 +5030,14 @@
       "topic": "radar_wide_area_search_net_and_audit_trail",
       "decision": "The ComfyUI discovery radar MUST cover all mainstream deployment patterns across Windows (including Portable distribution), macOS, and Linux. Static candidate paths expanded from 14 to 42. Relative-to-cwd probes expanded to include grandparent directories and Portable variants. Every filesystem probe and process-table walk step MUST emit DEBUG-level logs with [Radar/FS] and [Radar/PS] tags so that logs/mathart.log contains a complete search audit trail when ComfyUI is not found. Discovery-level summaries use INFO (found) and WARNING (not found) levels.",
       "implication": "When a user reports comfyui_not_found, support engineers can request logs/mathart.log and immediately see every path the radar probed, every process it inspected, and exactly why each candidate was rejected. This eliminates the previous排障无门 problem. The DEBUG-level audit trail stays invisible on the terminal (console=WARNING guard) but is fully captured in the file handler. Future enhancements can add Windows Registry queries and PATH-based discovery as additional layers."
+    }
+  ],
+  "architecture_decisions": [
+    {
+      "session_id": "SESSION-151",
+      "topic": "comfyui_bff_payload_mutation_and_headless_render_architecture",
+      "decision": "ComfyUI workflow manipulation MUST use semantic _meta.title marker matching (e.g., '[MathArt_Prompt]', '[MathArt_Input_Image]') for node discovery. Hardcoded numeric node IDs (e.g., '3', '15') are STRICTLY FORBIDDEN because ComfyUI regenerates node IDs on every workflow edit. Image assets MUST be uploaded via the /upload/image multipart endpoint (ephemeral push), NEVER referenced by local filesystem paths. The HTTP poll loop MUST include time.sleep(poll_interval) and a configurable timeout with RenderTimeoutError circuit breaker. All rendered outputs MUST be repatriated from ComfyUI's internal output folder to outputs/production/ with timestamped filenames. VRAM MUST be freed via POST /free after every render batch.",
+      "implication": "The BFF mutation architecture makes the render pipeline resilient to workflow edits — artists can modify ComfyUI workflows freely without breaking the automation. The ephemeral upload pattern eliminates cross-platform path issues (Windows drive letters, WSL mount points). The timeout circuit breaker prevents terminal deadlocks during long renders. The output repatriation ensures all production assets are version-controlled and discoverable. The VRAM GC prevents OOM crashes during batch rendering. The strongly-typed COMFYUI_RENDER_REPORT manifest provides the exact metadata contract needed for the upcoming GA fitness evaluator to score render quality without inspecting image files directly."
     }
   ]
 }

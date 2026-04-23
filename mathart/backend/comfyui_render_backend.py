@@ -1,0 +1,429 @@
+"""ComfyUI Headless Render Backend — Registry-Native Production Plugin.
+
+SESSION-151 (P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH)
+----------------------------------------------------------
+This module implements the **@register_backend** plugin for the ComfyUI
+end-to-end headless render lane.  It integrates:
+
+1. ``ComfyWorkflowMutator`` — BFF dynamic payload injection via semantic
+   ``_meta.title`` markers (NEVER hardcoded node IDs).
+2. ``ComfyAPIClient`` — Ephemeral upload, WebSocket telemetry, timeout
+   circuit breaker, and VRAM garbage collection.
+3. ``ArtifactManifest`` — Strongly-typed ``COMFYUI_RENDER_REPORT`` output
+   with full provenance metadata for downstream quality gates and GA
+   fitness evaluation.
+
+Architecture Discipline
+-----------------------
+- This backend is a **pure plugin** — it self-registers via ``@register_backend``
+  at import time.  No trunk orchestrator code is modified.
+- The CLI bus passes opaque config dicts; all parameter validation is owned
+  by ``validate_config()`` inside this Adapter (Hexagonal Architecture).
+- Graceful degradation: if ComfyUI is offline, the backend returns a valid
+  ``ArtifactManifest`` with ``degraded=True`` metadata — no crash.
+
+Red Lines (SESSION-151 Anti-Pattern Guards)
+-------------------------------------------
+- [ANTI-PATTERN] NEVER hardcode ComfyUI node IDs.
+- [ANTI-PATTERN] NEVER reference local filesystem paths in workflow nodes.
+- [ANTI-PATTERN] NEVER block the main thread without timeout.
+- [CONTRACT] All outputs are repatriated to ``outputs/production/``.
+- [CONTRACT] VRAM is freed after every render batch.
+"""
+from __future__ import annotations
+
+import json
+import logging
+import time
+from pathlib import Path
+from typing import Any
+
+from mathart.core.backend_registry import (
+    BackendCapability,
+    BackendMeta,
+    register_backend,
+)
+from mathart.core.artifact_schema import ArtifactFamily, ArtifactManifest
+from mathart.core.backend_types import BackendType
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Default Configuration
+# ---------------------------------------------------------------------------
+
+_DEFAULT_SERVER = "127.0.0.1:8188"
+_DEFAULT_RENDER_TIMEOUT = 600.0
+_DEFAULT_POLL_INTERVAL = 1.0
+_DEFAULT_OUTPUT_PREFIX = "final_render"
+
+
+# ---------------------------------------------------------------------------
+# Registry-Native Backend Plugin
+# ---------------------------------------------------------------------------
+
+@register_backend(
+    BackendType.COMFYUI_RENDER,
+    display_name="ComfyUI Headless Render (BFF Dynamic Dispatch)",
+    version="1.0.0",
+    artifact_families=(
+        ArtifactFamily.COMFYUI_RENDER_REPORT.value,
+    ),
+    capabilities=(
+        BackendCapability.COMFYUI_RENDER,
+        BackendCapability.GPU_ACCELERATED,
+    ),
+    input_requirements=("workflow_blueprint", "image_path", "prompt"),
+    session_origin="SESSION-151",
+)
+class ComfyUIRenderBackend:
+    """ComfyUI headless render backend with BFF payload mutation.
+
+    This backend implements the complete end-to-end render pipeline:
+
+    1. **validate_config()** — Parse and normalize all render parameters.
+       The CLI bus passes opaque config; this method is the single authority.
+
+    2. **execute()** — Run the full pipeline:
+       a. Load workflow blueprint
+       b. Upload proxy image via ``/upload/image``
+       c. Mutate workflow with semantic markers
+       d. Submit to ComfyUI via ``POST /prompt``
+       e. Wait for completion (WebSocket → HTTP poll fallback)
+       f. Download outputs to ``outputs/production/``
+       g. Free VRAM via ``POST /free``
+       h. Return strongly-typed ``ArtifactManifest``
+    """
+
+    @property
+    def name(self) -> str:
+        return BackendType.COMFYUI_RENDER.value
+
+    @property
+    def meta(self) -> BackendMeta:
+        return self._backend_meta
+
+    # ------------------------------------------------------------------
+    # Config Validation (Backend-Owned, Not CLI)
+    # ------------------------------------------------------------------
+
+    def validate_config(
+        self,
+        config: dict[str, Any],
+    ) -> tuple[dict[str, Any], list[str]]:
+        """Validate and normalize ComfyUI render configuration.
+
+        Parameters
+        ----------
+        config : dict
+            Raw config dict from the CLI bus or PDG context.
+
+        Returns
+        -------
+        tuple[dict, list[str]]
+            (validated_config, warnings)
+        """
+        warnings: list[str] = []
+        validated = dict(config)
+
+        # --- ComfyUI server ---
+        comfyui = validated.get("comfyui", {})
+        if not isinstance(comfyui, dict):
+            comfyui = {}
+            warnings.append("comfyui config must be a dict; using defaults")
+        validated["comfyui"] = comfyui
+
+        server = str(comfyui.get("server_address", comfyui.get("url", _DEFAULT_SERVER)))
+        # Strip protocol prefix if present
+        for prefix in ("http://", "https://", "ws://", "wss://"):
+            if server.startswith(prefix):
+                server = server[len(prefix):]
+        comfyui["server_address"] = server.rstrip("/")
+
+        render_timeout = float(comfyui.get("render_timeout", _DEFAULT_RENDER_TIMEOUT))
+        if render_timeout < 10:
+            warnings.append(f"render_timeout={render_timeout}s too low; clamping to 10s")
+            render_timeout = 10.0
+        comfyui["render_timeout"] = render_timeout
+
+        poll_interval = float(comfyui.get("poll_interval", _DEFAULT_POLL_INTERVAL))
+        comfyui["poll_interval"] = max(0.5, poll_interval)
+
+        auto_free = bool(comfyui.get("auto_free_vram", True))
+        comfyui["auto_free_vram"] = auto_free
+
+        # --- Workflow blueprint ---
+        blueprint_path = validated.get("workflow_blueprint", validated.get("blueprint_path", ""))
+        if blueprint_path:
+            bp = Path(blueprint_path)
+            if not bp.exists():
+                warnings.append(f"workflow_blueprint {bp} not found")
+        validated["workflow_blueprint"] = str(blueprint_path)
+
+        # --- Image path ---
+        image_path = validated.get("image_path", "")
+        if image_path:
+            ip = Path(image_path)
+            if not ip.exists():
+                warnings.append(f"image_path {ip} not found")
+        validated["image_path"] = str(image_path)
+
+        # --- Prompt ---
+        prompt = str(validated.get("prompt", ""))
+        if not prompt:
+            warnings.append("No prompt provided; using empty string")
+        validated["prompt"] = prompt
+
+        negative_prompt = str(validated.get("negative_prompt", ""))
+        validated["negative_prompt"] = negative_prompt
+
+        # --- Seed ---
+        seed = int(validated.get("seed", -1))
+        validated["seed"] = seed
+
+        # --- Output ---
+        output_dir = validated.get("output_dir", "")
+        validated["output_dir"] = str(output_dir) if output_dir else ""
+
+        output_prefix = str(validated.get("output_prefix", _DEFAULT_OUTPUT_PREFIX))
+        validated["output_prefix"] = output_prefix
+
+        return validated, warnings
+
+    # ------------------------------------------------------------------
+    # Execute — End-to-End Render Pipeline
+    # ------------------------------------------------------------------
+
+    def execute(self, context: dict[str, Any]) -> ArtifactManifest:
+        """Execute the complete ComfyUI headless render pipeline.
+
+        Parameters
+        ----------
+        context : dict
+            The validated config dict containing:
+            - ``workflow_blueprint``: Path to workflow_api.json
+            - ``image_path``: Local path to the proxy image
+            - ``prompt``: Positive vibe description
+            - ``negative_prompt``: Negative prompt (optional)
+            - ``seed``: Random seed (-1 = auto)
+            - ``comfyui``: Server config sub-dict
+            - ``output_dir``: Override output directory (optional)
+            - ``output_prefix``: Filename prefix for outputs
+
+        Returns
+        -------
+        ArtifactManifest
+            Strongly-typed ``COMFYUI_RENDER_REPORT`` manifest.
+        """
+        from mathart.backend.comfy_mutator import ComfyWorkflowMutator
+        from mathart.backend.comfy_client import ComfyAPIClient, RenderTimeoutError
+
+        t0 = time.monotonic()
+
+        # --- Validate config ---
+        validated, warnings = self.validate_config(context)
+        for w in warnings:
+            logger.warning("[ComfyUIRenderBackend] config warning: %s", w)
+
+        comfyui_cfg = validated["comfyui"]
+        output_dir = Path(validated["output_dir"]) if validated["output_dir"] else None
+        blueprint_path = validated["workflow_blueprint"]
+        image_path = validated["image_path"]
+        prompt = validated["prompt"]
+        negative_prompt = validated["negative_prompt"]
+        seed = validated["seed"]
+        output_prefix = validated["output_prefix"]
+        session_id = str(validated.get("session_id", "SESSION-151"))
+
+        # --- Create API client ---
+        client = ComfyAPIClient(
+            server_address=comfyui_cfg["server_address"],
+            output_root=str(output_dir) if output_dir else None,
+            connect_timeout=10.0,
+            render_timeout=comfyui_cfg["render_timeout"],
+            poll_interval=comfyui_cfg["poll_interval"],
+            auto_free_vram=comfyui_cfg["auto_free_vram"],
+        )
+
+        # --- Health check (graceful degradation) ---
+        if not client.is_server_online():
+            logger.warning(
+                "[ComfyUIRenderBackend] ComfyUI server at %s is offline. "
+                "Returning degraded manifest.",
+                comfyui_cfg["server_address"],
+            )
+            return self._build_degraded_manifest(
+                reason=f"ComfyUI server at {comfyui_cfg['server_address']} is offline",
+                blueprint_name=Path(blueprint_path).name if blueprint_path else "none",
+                server_address=comfyui_cfg["server_address"],
+                elapsed=time.monotonic() - t0,
+            )
+
+        # --- Upload proxy image ---
+        uploaded_filename = ""
+        if image_path:
+            try:
+                uploaded_filename = client.upload_image(image_path)
+            except Exception as e:
+                logger.error(
+                    "[ComfyUIRenderBackend] Image upload failed: %s", e
+                )
+                return self._build_error_manifest(
+                    error=f"Image upload failed: {e}",
+                    blueprint_name=Path(blueprint_path).name if blueprint_path else "none",
+                    server_address=comfyui_cfg["server_address"],
+                    elapsed=time.monotonic() - t0,
+                )
+
+        # --- Build mutated payload ---
+        mutator = ComfyWorkflowMutator(blueprint_path=blueprint_path if blueprint_path else None)
+
+        try:
+            payload = mutator.build_payload(
+                image_filename=uploaded_filename,
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                seed=seed,
+                output_prefix=output_prefix,
+            )
+        except Exception as e:
+            logger.error(
+                "[ComfyUIRenderBackend] Payload mutation failed: %s", e
+            )
+            return self._build_error_manifest(
+                error=f"Payload mutation failed: {e}",
+                blueprint_name=Path(blueprint_path).name if blueprint_path else "none",
+                server_address=comfyui_cfg["server_address"],
+                elapsed=time.monotonic() - t0,
+            )
+
+        mutation_ledger = payload.get("mathart_mutation_ledger", {})
+        mutation_count = mutation_ledger.get("mutations_applied", 0)
+
+        # --- Execute render ---
+        result = client.render(
+            payload,
+            image_path=None,  # Already uploaded above
+            output_prefix=output_prefix,
+            free_vram_after=comfyui_cfg["auto_free_vram"],
+        )
+
+        elapsed = time.monotonic() - t0
+        bp_name = Path(blueprint_path).name if blueprint_path else "none"
+
+        if not result.success:
+            if result.degraded:
+                return self._build_degraded_manifest(
+                    reason=result.degraded_reason,
+                    blueprint_name=bp_name,
+                    server_address=comfyui_cfg["server_address"],
+                    elapsed=elapsed,
+                )
+            return self._build_error_manifest(
+                error=result.error_message,
+                blueprint_name=bp_name,
+                server_address=comfyui_cfg["server_address"],
+                elapsed=elapsed,
+            )
+
+        # --- Build success manifest ---
+        outputs: dict[str, Any] = {}
+        for i, img_path in enumerate(result.output_images):
+            outputs[f"render_image_{i}"] = img_path
+        for i, vid_path in enumerate(result.output_videos):
+            outputs[f"render_video_{i}"] = vid_path
+        if result.output_dir:
+            outputs["output_dir"] = result.output_dir
+
+        return ArtifactManifest(
+            artifact_family=ArtifactFamily.COMFYUI_RENDER_REPORT.value,
+            backend_type=BackendType.COMFYUI_RENDER,
+            outputs=outputs,
+            metadata={
+                "prompt_id": result.prompt_id,
+                "server_address": comfyui_cfg["server_address"],
+                "render_elapsed_seconds": round(elapsed, 3),
+                "images_downloaded": len(result.output_images),
+                "vram_freed": result.vram_freed,
+                "mutation_count": mutation_count,
+                "blueprint_name": bp_name,
+                "uploaded_filename": uploaded_filename,
+                "seed": seed,
+                "prompt": prompt[:200],
+                "negative_prompt": negative_prompt[:200],
+                "output_prefix": output_prefix,
+                "session_id": session_id,
+                "mutation_ledger": mutation_ledger,
+            },
+            quality_metrics={
+                "render_success": True,
+                "degraded": False,
+                "images_count": len(result.output_images),
+                "videos_count": len(result.output_videos),
+            },
+        )
+
+    # ------------------------------------------------------------------
+    # Manifest Builders
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_degraded_manifest(
+        *,
+        reason: str,
+        blueprint_name: str,
+        server_address: str,
+        elapsed: float,
+    ) -> ArtifactManifest:
+        """Build a degraded manifest when ComfyUI is offline."""
+        return ArtifactManifest(
+            artifact_family=ArtifactFamily.COMFYUI_RENDER_REPORT.value,
+            backend_type=BackendType.COMFYUI_RENDER,
+            outputs={},
+            metadata={
+                "prompt_id": "",
+                "server_address": server_address,
+                "render_elapsed_seconds": round(elapsed, 3),
+                "images_downloaded": 0,
+                "vram_freed": False,
+                "mutation_count": 0,
+                "blueprint_name": blueprint_name,
+                "degraded": True,
+                "degraded_reason": reason,
+            },
+            quality_metrics={
+                "render_success": False,
+                "degraded": True,
+            },
+        )
+
+    @staticmethod
+    def _build_error_manifest(
+        *,
+        error: str,
+        blueprint_name: str,
+        server_address: str,
+        elapsed: float,
+    ) -> ArtifactManifest:
+        """Build an error manifest when rendering fails."""
+        return ArtifactManifest(
+            artifact_family=ArtifactFamily.COMFYUI_RENDER_REPORT.value,
+            backend_type=BackendType.COMFYUI_RENDER,
+            outputs={},
+            metadata={
+                "prompt_id": "",
+                "server_address": server_address,
+                "render_elapsed_seconds": round(elapsed, 3),
+                "images_downloaded": 0,
+                "vram_freed": False,
+                "mutation_count": 0,
+                "blueprint_name": blueprint_name,
+                "error": error,
+            },
+            quality_metrics={
+                "render_success": False,
+                "degraded": False,
+                "error": error,
+            },
+        )

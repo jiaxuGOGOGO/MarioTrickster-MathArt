@@ -135,6 +135,11 @@ class ArtifactFamily(Enum):
     # family. Carries preview media paths plus render diagnostics for the
     # tensorized FK visual verification lane.
     ANIMATION_PREVIEW = "animation_preview"
+    # SESSION-151 (P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH): ComfyUI
+    # headless render report artifact family.  Carries rendered image/video
+    # paths, mutation ledger, VRAM GC status, and production telemetry for
+    # the end-to-end BFF dynamic payload injection render lane.
+    COMFYUI_RENDER_REPORT = "comfyui_render_report"
 
     @classmethod
     def required_metadata_keys(cls, family_value: str) -> frozenset[str]:
@@ -246,6 +251,19 @@ class ArtifactFamily(Enum):
                 "canvas_size",
                 "render_time_ms",
                 "animation_name",
+            }),
+            # SESSION-151 (P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH):
+            # Mandatory metadata for ComfyUI render reports so downstream
+            # quality gates and GA fitness evaluators can validate render
+            # provenance without inspecting image files.
+            cls.COMFYUI_RENDER_REPORT.value: frozenset({
+                "prompt_id",
+                "server_address",
+                "render_elapsed_seconds",
+                "images_downloaded",
+                "vram_freed",
+                "mutation_count",
+                "blueprint_name",
             }),
         }
         return _FAMILY_REQUIRED_METADATA.get(family_value, frozenset())

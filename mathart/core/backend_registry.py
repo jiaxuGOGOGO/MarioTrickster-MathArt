@@ -112,6 +112,11 @@ class BackendCapability(Enum):
     # Backends declaring this capability produce training-loop artifacts such
     # as micro-batch rollout reports without requiring trunk routing changes.
     RL_TRAINING = auto()
+    # SESSION-151 (P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH): ComfyUI
+    # headless render capability.  Backends declaring this flag provide
+    # end-to-end BFF payload mutation, ephemeral upload, WebSocket
+    # telemetry, and VRAM garbage collection for production AI rendering.
+    COMFYUI_RENDER = auto()
 
 
 # ---------------------------------------------------------------------------
@@ -751,6 +756,14 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.spine_preview_backend")
         except Exception as e:
             logger.debug("Failed to auto-load Spine preview backend: %s", e)
+        # SESSION-151 (P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH):
+        # auto-register the ComfyUI headless render backend so the
+        # microkernel can discover the BFF payload mutation + render lane
+        # without any trunk modification.
+        try:
+            importlib.import_module("mathart.backend.comfyui_render_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load ComfyUI render backend: %s", e)
     return registry
 
 

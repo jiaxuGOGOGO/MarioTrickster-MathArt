@@ -103,6 +103,11 @@ class BackendType(str, Enum):
     # delivery backend.  Collects artifacts from all upstream stages into
     # a unified archive/ directory with batch_summary.json index.
     ARCHIVE_DELIVERY = "archive_delivery"
+    # SESSION-151 (P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH): ComfyUI
+    # dynamic payload injection and headless render backend.  Provides
+    # end-to-end BFF mutation, ephemeral upload, WebSocket telemetry,
+    # and VRAM garbage collection for production AI rendering.
+    COMFYUI_RENDER = "comfyui_render"
 
 
 _BACKEND_ALIASES: dict[str, str] = {
@@ -241,6 +246,12 @@ _BACKEND_ALIASES: dict[str, str] = {
     "archive_backend": BackendType.ARCHIVE_DELIVERY.value,
     "centralized_archive": BackendType.ARCHIVE_DELIVERY.value,
     "data_mesh_delivery": BackendType.ARCHIVE_DELIVERY.value,
+    # SESSION-151 (P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH): ComfyUI render backend aliases
+    BackendType.COMFYUI_RENDER.value: BackendType.COMFYUI_RENDER.value,
+    "comfyui_api_render": BackendType.COMFYUI_RENDER.value,
+    "comfy_render": BackendType.COMFYUI_RENDER.value,
+    "comfyui_headless": BackendType.COMFYUI_RENDER.value,
+    "bff_render": BackendType.COMFYUI_RENDER.value,
 }
 
 

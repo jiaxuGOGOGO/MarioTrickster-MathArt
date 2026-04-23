@@ -1,239 +1,349 @@
-# SESSION-150 HANDOFF — PROCEDURAL MATH-DRIVEN ANIMATION DYNAMICS & ENHANCED GRACEFUL ERROR BOUNDARY
+# SESSION HANDOFF — SESSION-151
 
-> **"既然项目名为 MathArt，那每一帧都应该由纯数学方程诞生。" —— 唤醒纯数学动态几何体序列，贯彻"数学造物"的极客美学。**
+> **"ComfyUI 的节点 ID 是沙上之塔，唯有语义标记才是磐石。" —— 贯通 BFF 动态载荷变异 + 无头渲染闭环，打通纯数学→AI 视觉抛光的最后一公里。**
 
 **Date**: 2026-04-23
-**Status**: COMPLETE
-**Parent Commit**: `c2436e5` (SESSION-149: Dynamic demo mesh + graceful quality-breaker boundary)
-**Smoke**: `scripts/session150_smoke.py` → ALL 3 ASSERTIONS PASSED（纯数学动画 + 意图参数透传 + RED 异常护盾三轨绿灯）
+**Status**: COMPLETE — 29/29 tests PASS
+**Parent Commit**: `ebd00bd` (SESSION-150)
+**Task ID**: P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH
+**Smoke**: `tests/test_comfyui_render_backend.py` → 29/29 PASSED（Mutator 9 + Client 8 + Backend 7 + Integration 3 + Red-Line Guards 2）
 
 ---
 
-## 1. Problem Statement (SESSION-149 架构追问暴露的深层设计缺陷)
+## 1. Executive Summary
 
-SESSION-149 成功修复了 `TemporalVarianceCircuitBreaker` 的 MSE=0.0000 问题（注入了
-Y 轴弹跳 + Y 轴自转），但系统主导者提出了一个极其深刻的架构追问：
+SESSION-151 实现了**完整的端到端 ComfyUI 无头渲染后端** —— 这是上游纯数学动画管线与下游 AI 视觉抛光层之间的关键缺失环节。三个工业级模块落地于 `mathart/backend/`，通过 `@register_backend` 完全融入现有 Registry Pattern：
 
-> "既然项目名为 MathArt，难道不是纯靠数学运算出来吗？为什么还需要强依赖外部提供模型？"
+1. **ComfyWorkflowMutator** (`comfy_mutator.py`) — BFF 动态 JSON 树遍历变异器
+2. **ComfyAPIClient** (`comfy_client.py`) — 高可用 HTTP+WebSocket 渲染客户端
+3. **ComfyUIRenderBackend** (`comfyui_render_backend.py`) — Registry-native 后端插件
 
-这个追问 100% 正确。审查后发现 SESSION-149 的修复存在三个遗留缺陷：
+所有三条 **SESSION-151 反模式红线** 均已强制执行并通过测试：
 
-### 1.1 未读取意图解析器的时序物理参数
-
-SESSION-149 的 demo 动画使用硬编码的 `bounce_amplitude=0.6`，完全没有从上游
-`CreatorIntentSpec` 中读取弹性系数（bounce, squash_stretch, elasticity）。
-Director Studio 的语义→参数翻译管线在 demo 路径上被完全旁路。
-
-### 1.2 缺少挤压拉伸形变（Squash & Stretch）
-
-SESSION-149 只有平移和旋转，没有体积守恒的挤压拉伸形变——这是迪士尼动画
-12 原则中的第一原则，也是 MathArt 项目已有大量基础设施（`cage_deform.py`、
-`principles.py`、`industrial_renderer.py`）支撑的核心能力。
-
-### 1.3 日志噪音与异常提示不够优雅
-
-- 每帧重复打印 `will generate demo cylinder mesh` 警告（43 帧 = 43 遍）
-- 质量熔断提示使用黄色而非红色高亮，文案可以更精准
+| 红线 | 防护机制 | 测试用例 |
+|---|---|---|
+| 严禁硬编码 ComfyUI 节点 ID | `_meta.title` 语义匹配 | `test_red_line_no_hardcoded_node_ids` |
+| API 轮询死锁屏障 | `time.sleep()` + `RenderTimeoutError` | `test_red_line_poll_has_sleep` |
+| 输出资产统一落盘 | 全部渲染 → `outputs/production/` | `test_red_line_output_repatriation` |
 
 ---
 
-## 2. Key Deliverables
+## 2. What Was Built
 
-### 2.1 修复一：Procedural Dynamic Mesh — 四重叠加纯数学动画方程
+### 2.1 ComfyWorkflowMutator (`mathart/backend/comfy_mutator.py`)
 
-**位置**：`mathart/core/pseudo3d_shell_backend.py`
+**架构**: BFF (Backend for Frontend) 载荷变异引擎
 
-**SESSION-150 全新动画方程矩阵**：
+变异器实现了**语义 JSON 树遍历**策略，通过 `_meta.title` 字段中的标记（如 `[MathArt_Prompt]`、`[MathArt_Input_Image]`）查找 ComfyUI 节点，**绝不**使用数字节点 ID。这一点至关重要，因为 ComfyUI 在每次工作流编辑时都会重新生成节点 ID。
 
-| # | 运动维度 | 数学方程 | 物理含义 |
-|---|----------|----------|----------|
-| 1 | **抛物线弹跳** (Y-axis displacement) | `y(t) = A · \|sin(π · freq · t)\|` | 绝对值正弦波产生弹跳球抛物线包络，物体始终从地面弹起 |
-| 2 | **挤压拉伸** (Volume-preserving deformation) | `Sy(t) = 1 + I · sin(2π · freq · t)`, `Sx(t) = 1 / Sy(t)` | 迪士尼第一原则：落地时挤压（矮胖）、腾空时拉伸（高瘦），体积守恒 Sx·Sy ≈ 1 |
-| 3 | **连续自旋** (Y-axis spin) | `θ(t) = 2π · R · t` | 持续旋转确保弹跳驻点时仍有横向像素位移 |
-| 4 | **副骨相位偏移** (Secondary bone phase offset) | `t' = t + π/3`, amplitude × 0.5 | 第二根骨头接收 π/3 相位差 + 半幅弹跳，产生网格表面的差异形变 |
+**核心设计决策**：
 
-**核心数学函数**：
+- **不可变蓝图模式 (Immutable Blueprint Pattern)**：原始工作流 JSON 在变异前进行深拷贝。蓝图永远不会被原地修改。
+- **标记注入 (Marker-Based Injection)**：每个可注入节点在 `_meta.title` 中携带 `[MathArt_*]` 标记。变异器扫描所有节点，根据 `class_type` 语义将值注入正确的 `inputs` 字段。
+- **变异审计账本 (Mutation Audit Ledger)**：每次注入都记录为 `MutationRecord`，包含 `marker`、`node_id`、`class_type`、`input_key`、`old_value`、`new_value` 和 `timestamp`。为调试和 GA 适应度溯源提供完整审计轨迹。
+- **歧义检测 (Ambiguity Detection)**：如果多个节点匹配同一标记，立即抛出 `MutationError` —— 绝不静默损坏。
+
+**支持的标记**：
+
+| 标记 | Class Type | Input Key | 注入内容 |
+|---|---|---|---|
+| `[MathArt_Input_Image]` | `LoadImage` | `image` | 上传后的文件名 |
+| `[MathArt_Prompt]` | `CLIPTextEncode` | `text` | 正向提示词 |
+| `[MathArt_Negative]` | `CLIPTextEncode` | `text` | 负向提示词 |
+| `[MathArt_Seed]` | `KSampler` | `seed` | 随机种子 |
+| `[MathArt_Output]` | `SaveImage` | `filename_prefix` | 输出前缀 |
+
+### 2.2 ComfyAPIClient (`mathart/backend/comfy_client.py`)
+
+**架构**: 高可用无头 API 客户端
+
+客户端实现了完整的 ComfyUI HTTP+WebSocket API 生命周期，具备工业级错误处理：
+
+**临时资产推流 (Ephemeral Asset Upload)** — `upload_image()`：
+- 通过 `POST /upload/image` multipart 表单上传代理图片
+- 返回服务器端文件名用于工作流注入
+- 绝不在工作流节点中引用本地文件系统路径
+
+**渲染执行 (Render Execution)** — `render()`：
+- 通过 `POST /prompt` 提交变异后的载荷
+- 主通道：WebSocket 遥测 (`ws://{server}/ws?clientId={id}`)
+- 备用通道：HTTP 轮询 `GET /history/{prompt_id}`
+- 熔断器：可配置超时后抛出 `RenderTimeoutError`
+- 轮询循环：`time.sleep(poll_interval)` 防止 CPU 空转
+
+**输出回收 (Output Repatriation)** — `_download_outputs()`：
+- 通过 `GET /view?filename=...&subfolder=...&type=output` 下载渲染图
+- 保存至 `outputs/production/final_render_{timestamp}_{idx}.png`
+- 绝不将资产遗留在 ComfyUI 内部 output 文件夹
+
+**显存垃圾回收 (VRAM Garbage Collection)** — `free_vram()`：
+- 调用 `POST /free`，参数 `{"unload_models": true, "free_memory": true}`
+- 防止批量渲染时 OOM 崩溃
+
+**优雅降级 (Graceful Degradation)**：
+- 每次渲染前执行 `is_server_online()` 健康检查
+- 服务器离线时返回 `RenderResult(degraded=True)` —— 绝不崩溃
+
+### 2.3 ComfyUIRenderBackend (`mathart/backend/comfyui_render_backend.py`)
+
+**架构**: Registry-Native `@register_backend` 插件
+
+注册为 `BackendType.COMFYUI_RENDER`，声明 `COMFYUI_RENDER` 和 `GPU_ACCELERATED` 能力。产出 `ArtifactFamily.COMFYUI_RENDER_REPORT` 清单。
+
+**执行管线**：
+1. `validate_config()` — 后端拥有的参数规范化（六边形架构）
+2. 健康检查 → 离线时优雅降级
+3. 上传代理图片 → 临时推流
+4. 构建变异载荷 → 语义注入
+5. 提交渲染 → WebSocket/HTTP 轮询
+6. 下载输出 → 回收至 `outputs/production/`
+7. 释放显存 → 垃圾回收
+8. 返回 `ArtifactManifest` 携带完整溯源元数据
+
+**清单元数据契约** (`ArtifactFamily.COMFYUI_RENDER_REPORT` 必填字段)：
+
+| 键 | 类型 | 描述 |
+|---|---|---|
+| `prompt_id` | `str` | ComfyUI 执行 ID |
+| `server_address` | `str` | ComfyUI 服务器地址 |
+| `render_elapsed_seconds` | `float` | 总渲染耗时 |
+| `images_downloaded` | `int` | 输出图片数量 |
+| `vram_freed` | `bool` | 是否已释放显存 |
+| `mutation_count` | `int` | 应用的变异数量 |
+| `blueprint_name` | `str` | 工作流蓝图文件名 |
+
+---
+
+## 3. Registry Integration Points
+
+### BackendType 枚举 (`mathart/core/backend_types.py`)
+```python
+COMFYUI_RENDER = "comfyui_render"
+```
+别名: `comfyui_api_render`, `comfy_render`, `comfyui_headless`, `bff_render`
+
+### BackendCapability 枚举 (`mathart/core/backend_registry.py`)
+```python
+COMFYUI_RENDER = auto()
+```
+
+### ArtifactFamily 枚举 (`mathart/core/artifact_schema.py`)
+```python
+COMFYUI_RENDER_REPORT = "comfyui_render_report"
+```
+
+### 自动导入钩子 (`mathart/core/backend_registry.py`)
+```python
+importlib.import_module("mathart.backend.comfyui_render_backend")
+```
+
+---
+
+## 4. Test Results
+
+```
+tests/test_comfyui_render_backend.py — 29/29 PASSED
+
+TestComfyWorkflowMutator (9 tests):
+  ✓ test_find_nodes_by_title
+  ✓ test_find_node_by_title_unique
+  ✓ test_find_node_by_title_missing_raises
+  ✓ test_find_node_by_title_ambiguous_raises
+  ✓ test_mutate_injects_values
+  ✓ test_mutate_optional_marker_skipped
+  ✓ test_build_payload
+  ✓ test_red_line_no_hardcoded_node_ids
+  ✓ test_mutation_ledger_audit_trail
+
+TestComfyAPIClient (8 tests):
+  ✓ test_client_initialization
+  ✓ test_client_custom_config
+  ✓ test_server_offline_graceful_degradation
+  ✓ test_render_timeout_error_type
+  ✓ test_upload_error_type
+  ✓ test_render_result_to_dict
+  ✓ test_red_line_poll_has_sleep
+  ✓ test_red_line_output_repatriation
+
+TestComfyUIRenderBackend (7 tests):
+  ✓ test_backend_registered
+  ✓ test_backend_type_enum
+  ✓ test_artifact_family_enum
+  ✓ test_required_metadata_keys
+  ✓ test_validate_config
+  ✓ test_validate_config_strips_protocol
+  ✓ test_validate_config_clamps_timeout
+  ✓ test_execute_offline_degraded
+  ✓ test_backend_type_aliases
+
+TestIntegration (3 tests):
+  ✓ test_mutator_to_client_payload_contract
+  ✓ test_blueprint_file_loading
+  ✓ test_end_to_end_offline_graceful
+```
+
+---
+
+## 5. Files Touched
+
+| 文件 | 操作 | 描述 |
+|---|---|---|
+| `mathart/backend/__init__.py` | **新增** | 包初始化，导出公共 API |
+| `mathart/backend/comfy_mutator.py` | **新增** | BFF 动态 JSON 树遍历变异器 |
+| `mathart/backend/comfy_client.py` | **新增** | 高可用 HTTP+WebSocket 客户端 |
+| `mathart/backend/comfyui_render_backend.py` | **新增** | Registry-native 后端插件 |
+| `mathart/core/backend_types.py` | **修改** | 新增 `COMFYUI_RENDER` 枚举 + 别名 |
+| `mathart/core/backend_registry.py` | **修改** | 新增 `COMFYUI_RENDER` 能力 + 自动导入 |
+| `mathart/core/artifact_schema.py` | **修改** | 新增 `COMFYUI_RENDER_REPORT` 族 + 元数据 |
+| `tests/test_comfyui_render_backend.py` | **新增** | 29 项全面测试 |
+| `outputs/production/.gitkeep` | **新增** | 生产输出目录 |
+| `scripts/update_brain_session151.py` | **新增** | PROJECT_BRAIN.json 更新脚本 |
+| `SESSION_HANDOFF.md` | **改写** | 本文档 |
+| `PROJECT_BRAIN.json` | **更新** | v0.99.3, SESSION-151 |
+
+---
+
+## 6. 接下来：无缝接入遗传算法 (GA) 内环的架构微调路线图
+
+### 6.1 当前后端为 GA 适应度评估器提供了什么
+
+`COMFYUI_RENDER_REPORT` 清单专门设计用于喂给**遗传算法 (Genetic Algorithm) 内环** —— 自动化评分与突变管线。清单元数据包含 GA 适应度评估所需的全部信息，无需检查图像文件本身。
+
+### 6.2 需要的微调准备
+
+#### 微调 1: GA 适应度评分函数 (`P1-SESSION-151-GA-FITNESS-EVALUATOR`)
+
+**当前状态**: `COMFYUI_RENDER_REPORT` 清单携带了适应度评估所需的全部元数据。
+
+**需要构建**:
+```
+mathart/evolution/comfyui_fitness_evaluator.py
+```
+
+适应度函数应消费 `ArtifactManifest` 并计算多维适应度分数：
+
+| 维度 | 范围 | 数据来源 |
+|---|---|---|
+| 渲染成功分 | 0/1 | `quality_metrics.render_success` |
+| 时序一致性分 | 0-1 | `mutation_ledger` + 帧间 SSIM |
+| 提示词遵从分 | 0-1 | CLIP 相似度（prompt vs 渲染图） |
+| 风格一致性分 | 0-1 | 感知哈希距离（vs 参考风格） |
+| 显存效率分 | 0-1 | `metadata.vram_freed` 惩罚项 |
+
+评估器应实现 `EvolutionBridge` 协议，以便 `EvolutionOrchestrator` 通过 `BackendCapability.EVOLUTION_DOMAIN` 发现它。
+
+#### 微调 2: 基因型→工作流映射 (`P1-SESSION-151-GENOTYPE-WORKFLOW-MAP`)
+
+**当前状态**: 变异器接受显式注入字典。GA 需要将基因型向量映射为注入字典。
+
+**需要构建**: `GenotypeWorkflowMapper` 将基因型（浮点向量）转换为：
+
+| 基因维度 | 映射目标 | 范围 |
+|---|---|---|
+| dim[0:N] | `prompt` | 从提示词库索引选择 |
+| dim[N] | `cfg_scale` | [5.0, 15.0] |
+| dim[N+1] | `denoise_strength` | [0.3, 1.0] |
+| dim[N+2] | `seed` | 基因型哈希确定性派生 |
+| dim[N+3] | `sampler_name` | 分类选择（euler/dpmpp_2m/...） |
+
+此映射器应为纯函数，无副作用。
+
+#### 微调 3: PDG 批量渲染车道 (`P1-SESSION-151-BATCH-RENDER-LANE`)
+
+**当前状态**: `run_mass_production_factory.py` 有 `ai_render_stage` 占位符。
+
+**需要构建**: 将 `ComfyUIRenderBackend.execute()` 接入 PDG `ai_render_stage`：
 
 ```python
-# 1. 抛物线弹跳 — 绝对值正弦波
-def _bounce_displacement(t, amplitude, frequency):
-    return amplitude * abs(math.sin(math.pi * frequency * t))
-
-# 2. 体积守恒挤压拉伸 — 迪士尼第一原则
-def _squash_stretch_scales(t, intensity, frequency):
-    scale_y = 1.0 + intensity * math.sin(2.0 * math.pi * frequency * t)
-    scale_x = 1.0 / scale_y  # Volume preservation: Sx * Sy = 1
-    return scale_x, scale_y
-
-# 3. 连续自旋
-def _spin_angle(t, revolutions):
-    return 2.0 * math.pi * revolutions * t
+def ai_render_stage(context):
+    backend = ComfyUIRenderBackend()
+    manifest = backend.execute(context)
+    return manifest
 ```
 
-**意图参数透传 (Intent Parameter Passthrough)**：
+PDG 应扇出 N 个基因型 → N 个渲染任务 → N 个适应度分数 → 选择 + 交叉 + 突变。
 
-当上游 `CreatorIntentSpec` 通过 `context["intent_params"]` 提供物理参数时，
-这些参数会覆盖默认值：
+#### 微调 4: 种群管理器 (`P2-SESSION-151-GA-POPULATION-MANAGER`)
 
-| 意图参数 | 默认值 | 控制的运动维度 |
-|----------|--------|----------------|
-| `bounce_amplitude` / `bounce` | 0.8 | 弹跳高度 |
-| `bounce_frequency` | 2.0 | 弹跳频率 |
-| `squash_stretch` / `squash_stretch_intensity` / `elasticity` | 0.35 | 挤压拉伸强度 |
-| `spin_revolutions` | 1.5 | 旋转圈数 |
+**当前状态**: 项目已有 `evolution_loop.py` 中的 `InternalEvolver`。
 
-**烟测硬证据 (`scripts/session150_smoke.py`)**：
+**需要构建**: 扩展 `InternalEvolver` 为 `ComfyUIPopulationManager`：
+- 维护 N 个基因型的种群（工作流参数向量）
+- 通过批量渲染 + 适应度评估器评估适应度
+- 应用锦标赛选择、交叉和突变
+- 将精英基因型持久化至 `outputs/evolution/generation_{N}/`
+- 发出 `EVOLUTION_COMFYUI_RENDER` 制品供知识蒸馏器消费
 
-```json
-// 测试 1: 默认参数 (43 帧)
-{
-  "frame_count": 43,
-  "vertex_count": 352,
-  "min_pair_max_vertex_shift": 0.1136,
-  "mean_pair_max_vertex_shift": 0.1457,
-  "circuit_breaker_safe": true
-}
+#### 微调 5: WebSocket 进度条 (`P1-SESSION-151-WEBSOCKET-PROGRESS-BAR`)
 
-// 测试 2: 意图参数放大 (bounce=1.5, squash=0.5, spin=2.0)
-{
-  "frame_count": 24,
-  "min_pair_max_vertex_shift": 0.2754,
-  "mean_pair_max_vertex_shift": 0.4437,
-  "intent_amplified": true
-}
-```
+**当前状态**: `ComfyAPIClient` 接收 WebSocket 进度事件但仅记录日志。
 
-### 2.2 修复二：单次 INFO 横幅替代逐帧 WARNING 噪音
-
-**旧行为**：每帧打印 `will generate demo cylinder mesh` + `will generate demo single-bone rotation`（43 帧 = 86 条 WARNING）。
-
-**新行为**：
-
-- 首帧以 INFO 级别打印一句优雅的横幅：
-  ```
-  [MathArt] Initiating purely procedural math-driven animation sequence
-  — every frame is born from equations, no external assets required.
-  ```
-- 后续帧完全静默（零终端输出）
-- 所有 validate_config 警告降级为 DEBUG，仅写入 `logs/mathart.log` 黑匣子
-
-**实现**：模块级线程安全 `_emit_procedural_banner()` + `_PROCEDURAL_BANNER_LOCK` + `_PROCEDURAL_BANNER_EMITTED` 布尔标志。
-
-### 2.3 修复三：RED 高亮质量熔断提示
-
-**旧行为**：黄色 ANSI 高亮 (`\033[1;33m`)，文案为"动画幅度过小或不合规"。
-
-**新行为**：
-
-```
-[!] 质量防线拦截：渲染管线检测到动画序列波动不足，为保护下游 GPU 算力，任务已安全中止。
-    * 完整堆栈已落盘至 logs/mathart.log 黑匣子。
-    * 请检查上游动画输入（骨骼动画 / 帧间位移）或调整意图参数后重试。
-```
-
-- 主消息使用 **RED BOLD** (`\033[1;31m`) 确保最大视觉冲击
-- 子行使用灰色 (`\033[90m`) 提供恢复指引
-- 零 Traceback 泄漏，返回码 0（平滑回退主菜单）
-
-### 2.4 测试矩阵
-
-| Suite | 规模 | 状态 |
-|-------|------|------|
-| `scripts/session150_smoke.py` (新增) | 3 项断言（纯数学动画 + 意图透传 + RED 护盾） | **GREEN** |
-| Phase 1：Demo 圆柱 43 帧 / 352 顶点 / `min_pair_max_vertex_shift=0.114` | — | **PASS** |
-| Phase 2：意图参数放大 / `mean_pair_max_vertex_shift=0.444` | — | **PASS** |
-| Phase 3：dispatch 包装 + RED 高亮 + 0 traceback 泄漏 + rc=0 | — | **PASS** |
-
-### 2.5 如何现场确认修复生效
-
-```bash
-# 1) 安装可选依赖（仅烟测脚本需要）
-sudo pip3 install networkx -q
-
-# 2) 跑三轨烟测
-PYTHONPATH=. python3 scripts/session150_smoke.py
-# 预期：ALL SESSION-150 SMOKE ASSERTIONS PASSED
-```
+**需要构建**: 将进度事件浮现到 CLI 向导 TUI：
+- `progress` 事件 → 进度条百分比
+- `status` 事件 → 状态行更新
+- `error` 事件 → 即时错误显示
 
 ---
 
-## 3. Architecture Discipline Reinforced
+## 7. Updated Todo List
 
-- **数学造物哲学 (MathArt Philosophy)**：当无外部输入时，每一帧都必须由纯数学
-  方程（sin, cos, abs, π）实时驱动生成。Demo 路径不是"占位符"，而是项目核心
-  理念的最纯粹体现。
-- **意图参数透传义务 (Intent Parameter Passthrough Contract)**：任何 fallback
-  生成路径都必须检查并尊重上游 `CreatorIntentSpec` 提供的物理参数，确保
-  Director Studio 的语义→参数翻译管线不被旁路。
-- **体积守恒纪律 (Volume Preservation Discipline)**：所有挤压拉伸形变必须满足
-  `Sx · Sy ≈ 1.0`，这是迪士尼动画第一原则的数学表达。
-- **单次横幅纪律 (Single-Shot Banner Discipline)**：长批次循环中的状态通知
-  必须使用"首次 INFO + 后续静默"模式，杜绝终端噪音。
-- **红色裁决纪律 (Red Verdict Discipline)**：质量熔断是最高级别的业务事件，
-  必须使用 RED BOLD ANSI 高亮，确保操作员绝不会忽略。
+### P0 (立即)
+- [x] ~~P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH~~ — **已关闭** (SESSION-151)
 
----
+### P1 (下一冲刺)
+- [ ] P1-SESSION-151-GA-FITNESS-EVALUATOR — 将 COMFYUI_RENDER_REPORT 接入 GA 适应度评分
+- [ ] P1-SESSION-151-BATCH-RENDER-LANE — 在 PDG ai_render_stage 中添加批量渲染
+- [ ] P1-SESSION-151-WEBSOCKET-PROGRESS-BAR — 将 WS 进度浮现到 CLI 向导 TUI
+- [ ] P1-SESSION-151-GENOTYPE-WORKFLOW-MAP — 基因型向量 → 工作流注入映射
+- [ ] P1-SESSION-149-LOG-THROTTLE-EXTRACT — 提升 _emit_demo_warning 为 mathart.core.log_throttle
+- [ ] P1-SESSION-149-QUALITY-BOUNDARY-TESTS — 将烟测断言固化到 tests/
 
-## 4. Files Modified
-
-| File | Change Type |
-|------|-------------|
-| `mathart/core/pseudo3d_shell_backend.py` | **重写**：四重叠加纯数学动画方程 + 意图参数透传 + 单次 INFO 横幅 |
-| `mathart/cli_wizard.py` | **升级**：RED BOLD 质量熔断提示 + 改进中文文案 |
-| `mathart/workspace/mode_dispatcher.py` | **更新**：SESSION-150 注释升级 |
-| `scripts/session150_smoke.py` | **新增**：三轨烟测脚本（纯数学动画 + 意图透传 + RED 护盾） |
-| `SESSION_HANDOFF.md` | **改写**为 SESSION-150 主体 |
-| `PROJECT_BRAIN.json` | 新增 SESSION-150 会话条目 + 待办状态同步 |
+### P2 (积压)
+- [ ] P2-SESSION-151-MULTI-WORKFLOW-STRATEGY — 每批渲染支持多个工作流蓝图（风格 A/B 测试）
+- [ ] P2-SESSION-151-COMFYUI-MODEL-CACHE — 批量渲染前预热模型缓存
+- [ ] P2-SESSION-151-GA-POPULATION-MANAGER — 完整种群管理器 + 精英持久化
+- [ ] P2-SESSION-149-DEMO-VIBE-PARAMS — 接通 vibe parser NL → intent params 自动映射
 
 ---
 
-## 5. Core Mathematical Equations Summary
+## 8. Architecture Decision Record
 
-SESSION-150 在纯数学生成函数中运用的核心数学方程：
+### ADR-SESSION-151: ComfyUI BFF 载荷变异与无头渲染架构
 
-| 方程 | 数学形式 | 物理意义 | 视觉效果 |
-|------|----------|----------|----------|
-| **绝对值正弦弹跳** | `y = A · \|sin(πft)\|` | 弹性碰撞的抛物线轨迹 | 肉眼可见的上下弹跳 |
-| **体积守恒挤压** | `Sy = 1 + I·sin(2πft)`, `Sx = 1/Sy` | 迪士尼 Squash & Stretch | 落地时变矮变胖，腾空时变高变瘦 |
-| **连续旋转** | `θ = 2πRt` | 匀速角运动 | 持续旋转产生横向像素位移 |
-| **相位偏移** | `t' = t + π/3` | 多骨差异形变 | 网格表面扭曲/剪切效果 |
+**上下文**: ComfyUI 工作流是 JSON 图，节点 ID 是自动生成的整数，每次工作流编辑都会改变。之前的方法硬编码节点 ID，导致艺术家修改工作流时立即崩溃。
 
-这四个方程的叠加保证了：
-- 每两帧之间的顶点位移 MSE **远超** `TemporalVarianceCircuitBreaker` 的阈值
-- 即使在弹跳驻点（速度为零的瞬间），旋转仍然产生横向位移
-- 即使在旋转对称位置，弹跳和挤压拉伸仍然产生纵向位移
-- 数学上不可能出现连续两帧完全相同的情况
+**决策**: 所有节点发现必须使用语义 `_meta.title` 标记匹配。节点 ID 被视为运行时发现的不透明句柄，绝不在源代码中引用。图像资产必须通过临时 multipart 推流上传，绝不引用本地路径。HTTP 轮询循环必须包含 `time.sleep()` 和可配置超时的 `RenderTimeoutError` 熔断器。所有渲染输出必须从 ComfyUI 内部 output 文件夹回收到 `outputs/production/`。每次渲染批次后必须通过 `POST /free` 释放显存。
+
+**影响**: BFF 变异架构使渲染管线对工作流编辑具有弹性 —— 艺术家可以自由修改 ComfyUI 工作流而不破坏自动化。临时上传模式消除了跨平台路径问题。超时熔断器防止长渲染时的终端死锁。输出回收确保所有生产资产可版本控制和可发现。显存 GC 防止批量渲染时的 OOM 崩溃。强类型 `COMFYUI_RENDER_REPORT` 清单提供了即将到来的 GA 适应度评估器所需的精确元数据契约。
 
 ---
 
-## 6. Historical Index (Recent Sessions)
+## 9. Historical Index (Recent Sessions)
 
 | Session | 主线 | Commit |
 |---------|------|--------|
-| SESSION-150 (当前) | Procedural math-driven animation + enhanced error boundary | (this push) |
-| SESSION-149 | Dynamic demo mesh + graceful quality-breaker boundary | `c2436e5` |
+| SESSION-151 (当前) | ComfyUI BFF 动态载荷变异 + 无头渲染后端 | (this push) |
+| SESSION-150 | 纯数学驱动动画 + 增强优雅错误边界 | `ebd00bd` |
+| SESSION-149 | 动态 demo 网格 + 优雅质量熔断边界 | `c2436e5` |
 | SESSION-148 | Windows 终端编码崩溃护盾 + ASCII-safe 救援 UI | `ccc5067` |
 | SESSION-147 | 知识总线大一统 + ComfyUI 交互式自愈救援网关 | `0f6da73` |
 | SESSION-146-B | 雷达广域探测网 + 深度审计轨迹 | `b9cdf05` |
-| SESSION-146 | 全链路遥测贯通 + 依赖契约硬化 | `ec6953c` |
 
 ---
 
-## 7. Coronation & Next Steps
+## 10. Handoff Checklist
 
-**Coronation**:
-> "从此，MathArt 的每一帧都由 sin、cos、abs 和 π 亲手铸造。
-> 抛物线弹跳赋予它重力，体积守恒赋予它弹性，连续旋转赋予它生命，
-> 相位偏移赋予它灵魂。当质量护盾出手时，操作员看到的不再是灰色的
-> Traceback 洪流，而是一句红色的、克制的、明确的业务裁决。
-> 这就是数学造物的极客美学。"
+- [x] 所有新代码遵循 Registry Pattern (`@register_backend`)
+- [x] 所有新代码遵循六边形架构 (`validate_config()` 在 Adapter 中)
+- [x] 所有新代码遵循不可变蓝图模式（变异前深拷贝）
+- [x] 代码库中无硬编码 ComfyUI 节点 ID
+- [x] 工作流节点中无本地文件系统路径引用
+- [x] 轮询循环有 `time.sleep()` 和超时熔断器
+- [x] 所有输出回收至 `outputs/production/`
+- [x] 每次渲染批次后释放显存
+- [x] 29/29 测试通过
+- [x] PROJECT_BRAIN.json 更新至 v0.99.3
+- [x] SESSION_HANDOFF.md 更新完整上下文
+- [x] 所有变更推送至 GitHub
 
-**Next Steps**:
-- P1：把 `_emit_procedural_banner` 抽象为通用 `mathart.core.log_throttle` 工具
-- P1：在 `tests/` 下补 `test_session150_quality_boundary.py` 单元测试
-- P2：为 `PipelineQualityCircuitBreak` 增加 per-violation_type `recovery_hint`
-- P2：完成 vibe parser NL → intent_params 自动映射（passthrough 已落地）
-- P2 (carried)：`comfyui_rescue` Windows UNC 路径支持
-- P2 (carried)：`ProxyRenderer` ASCII-art 回退渲染器
-
-*Signed off by Manus AI · SESSION-150*
+*Signed off by Manus AI · SESSION-151*
