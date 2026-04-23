@@ -1,308 +1,250 @@
-# SESSION-147 HANDOFF — KNOWLEDGE-BUS THROUGH-WIRING & COMFYUI INTERACTIVE PATH RESCUE
+# SESSION-149 HANDOFF — DYNAMIC DEMO MESH & GRACEFUL QUALITY-BREAKER BOUNDARY
 
-> **打通“知识大一统”最后一公里：DirectorIntent 脚裂修复 + 雷达拦截变友好回收网关，.env 持久化 + 运行时热注入 + 雷达重唤**
+> **唤醒兜底白模生命力 + 顶层业务异常护盾：让质量护栏既铁面无私，又风度翩翩。**
 
-**Date**: 2026-04-22
+**Date**: 2026-04-23
 **Status**: COMPLETE
-**Parent Commit**: `b9cdf05` (SESSION-146-B)
-**Tests**: 24/24 SESSION-147 targeted (bus factory + rescue gateway) + 144/144 cross-suite regression (wizard / director / dispatcher / preflight-radar / 146-B audit / 146 telemetry / knowledge-synergy / idempotent-surgeon / hitl-boundary) = **168/168 PASS, 0 FAIL**
+**Parent Commit**: `ccc5067` (SESSION-148: Windows terminal encoding crash shield)
+**Smoke**: `scripts/session149_smoke.py` → ALL ASSERTIONS PASSED（动态白模 + 异常护盾双轨绿灯）
 
 ---
 
-## 1. Problem Statement (SESSION-146 黑匣子抒出的两大最后一公里漏洞)
+## 1. Problem Statement (SESSION-148 量产现场暴露的两道体验瑕疵)
 
-### 1.1 架构遗漏——知识总线脚裂 (Knowledge Bus Brain-Split)
+SESSION-147 的"交互式 ComfyUI 救援路径"在 SESSION-148 完成 Windows 终端
+编码护盾后，本应进入丝滑量产，但 PDG 量产节点立刻触发了预设的质量安全护栏，
+暴露了两个体验瑕疵：
 
-SESSION-146 贯通后的黑匣子日志首次暴露：
+### 1.1 兜底白模"心电图拉直"——`temporal_variance_below_threshold`
 
 ```
-DEBUG | mathart.workspace.director_intent | No knowledge bus injected — using heuristic fallback only
+PipelineContractError: temporal_variance_below_threshold. Mean MSE = 0.0000
 ```
 
-在之前的 *知识大一统* 任务中，`DirectorIntentParser` 已支持外注 `knowledge_bus`，但顶层向导入口 (`mathart/cli_wizard.py::_run_director_studio` 与非交互的 `mode_dispatcher.py::DirectorStudioStrategy.execute`) **漏掉了实例化并注入 `RuntimeDistillationBus`**。结果以下这套已数事上线的 18 模块 / 323 参数的知识总线对 Director Studio 全程物理断连，解析器退化到 heuristic fallback 。
+`TemporalVarianceCircuitBreaker` 完美拦截了"毫无变化的静态帧"，保住了下游
+GPU 不发生模式崩塌。但根因不在护栏，而在上游 `pseudo3d_shell_backend.py`
+的兜底圆柱体生成路径：当 `_use_demo_animation=True` 兜底时，原实现仅在
+**10 帧** 内做一次 90° 静态斜坡旋转，对外宣称的 43 帧 PDG 长批次因此
+完全没有施加任何物理动画变换，导致 43 帧绝对静止，逐帧像素 MSE = 0.0000。
 
-### 1.2 UX 体验断层——雷达过度防御与死板阻断
+与此同时，`validate_config` 的 `No base_mesh or base_vertices provided; will
+generate demo cylinder mesh` 与 `No bone_dqs or bone_animation provided; will
+generate demo single-bone rotation` 两条警告在每帧（每次 backend 调用）
+都被 `for w in warnings: logger.warning(...)` 原样吐出，狂刷终端。
 
-SESSION-146-B 雷达道射到 **46 条路径**仍未命中时，能在黑匣子留下完整审计，但 `ProductionStrategy.execute` 直接用 `comfyui_not_found` 阻断信号抛出并退出程序。用户明知本机已装 ComfyUI（只是放在非常规盘符），却被向导一脚踢出，产品观感极差且没有救援航道。
+### 1.2 业务异常击穿 CLI 外壳
+
+`PipelineContractError` 是一项**正面的质量裁决**，绝非程序崩溃，但当时它会
+直接以原始 Traceback 形式贯穿 `ModeDispatcher.dispatch` → `_run_interactive`
+→ 用户终端，让操作员误以为系统出了 bug，且无法返回向导主菜单继续作业。
 
 ---
 
 ## 2. Key Deliverables
 
-### 2.1 修复一：知识总线工厂 + 双入口注入
+### 2.1 修复一：Dynamic Demo Mesh —— 给兜底圆柱体注入数学动画轨迹
 
-| 文件 | 变更 |
-|------|------|
-| `mathart/workspace/knowledge_bus_factory.py` (新增) | 提供 `build_project_knowledge_bus()` 单一入口，从项目 `knowledge/` 目录编译 `RuntimeDistillationBus`；没有 `knowledge/` 时返回 `None` 或空 bus，绝不报错。 |
-| `mathart/cli_wizard.py::_run_director_studio` | 在 parser 实例化前调用 `build_project_knowledge_bus()` 并作为 `knowledge_bus=` 注入 `DirectorIntentParser`。 |
-| `mathart/workspace/mode_dispatcher.py::DirectorStudioStrategy.execute` | 非交互通道同步研産，保证 --mode 5 依然物理可观测知识总线。 |
-| `mathart/workspace/__init__.py` | 导出 `build_project_knowledge_bus` 以供下游代码复用。 |
+**位置**：`mathart/core/pseudo3d_shell_backend.py::Pseudo3DShellBackend.execute`
 
-**证据**：运行 `scripts/session147_smoke.py` 即可观测到 `modules compiled : 18 / parameters total : 323`，且日志流中 `No knowledge bus injected` 警告彻底消失。
+**新动画方程**：
 
-### 2.2 修复二：ComfyUI 交互式路径自愈网关
+| 维度 | 公式 | 物理含义 |
+|------|------|----------|
+| Y 轴弹跳 (translation) | `ty(f) = bounce_amplitude · sin(2π · f / period)` | 圆柱沿 Y 轴上下震荡，每行像素都产生位移 |
+| Y 轴自转 (rotation)   | `θ(f) = 2π · spin_revolutions · f / (n_frames-1)` | 圆柱绕长轴持续旋转，弹跳"驻点"时仍有横向像素位移 |
 
-| 文件 | 变更 |
-|------|------|
-| `mathart/workspace/comfyui_rescue.py` (新增) | 实现 `prompt_comfyui_path_rescue()`、`_clean_pasted_path()`、`_looks_like_comfyui_root()`、`persist_comfyui_home()`、`hot_inject_env()`、`is_comfyui_not_found_payload()`。 |
-| `mathart/workspace/mode_dispatcher.py::ProductionStrategy` | `__init__` 新增 `input_fn` / `output_fn` hooks；`execute()` 在雷达返回 `comfyui_not_found` 时挂起并调用 `prompt_comfyui_path_rescue`，成功后重新调用 `radar.scan()` 重唤放行。 |
-| `mathart/workspace/mode_dispatcher.py::ModeDispatcher` | 构造函数接收 `input_fn` / `output_fn` 并透传给 `ProductionStrategy`。 |
-| `mathart/cli_wizard.py::_run_interactive` | 实例化 `ModeDispatcher` 时透传向导的 REPL 通道，确保提示用与向导同片终端。 |
-| `pyproject.toml` | 核心依赖新增 `python-dotenv>=1.0`（`set_key` 的墤馬；未安装时降级到纯 Python 追写补丁）。 |
+- 第二根骨头被注入相位差 `π/4` + 一半弹跳幅度的 DQS，确保多骨蒙皮也产生
+  逐帧不同的形变。
+- `n_frames` 严格读取上游 `frame_count` / `num_frames`，缺省 24 帧；至少 2 帧
+  以满足 `TemporalVarianceCircuitBreaker` 的最小契约。
+- 默认参数：`bounce_amplitude=0.6`、`bounce_period=max(8, n_frames/2)`、
+  `spin_revolutions=1.5`，可被 validated 配置覆盖。
 
-**现场行为**：当雷达给出 `comfyui_not_found` 且运行在交互模式时，用户会在同一个终端看到：
+**烟测硬证据 (`scripts/session149_smoke.py`)**：
+
+```json
+{
+  "frame_count": 43,
+  "vertex_count": 352,
+  "min_pair_max_vertex_shift": 0.1121,
+  "mean_pair_max_vertex_shift": 0.1623,
+  "circuit_breaker_safe": true
+}
+```
+
+每两帧之间最大顶点位移恒大于 0.11 世界单位（投影到 256px 视口对应数十像素的
+RGB MSE，远超断路器的 mse=1.0 阈值），从原来的 0.0000 跃迁到非零，
+TemporalVarianceCircuitBreaker 契约校验绿灯。
+
+### 2.2 修复一·副作用：Demo Warning 节流 (`_emit_demo_warning`)
+
+新增模块级**线程安全**警告节流器：
+
+```python
+_DEMO_WARNING_LOCK = threading.Lock()
+_DEMO_WARNING_SEEN: set[str] = set()
+
+def _emit_demo_warning(message: str) -> None:
+    """First emission -> WARNING; subsequent -> DEBUG (blackbox-only)."""
+```
+
+`for w in warnings: _emit_demo_warning(w)` 替代了原先的 `logger.warning`
+死循环。首次出现时仍以 WARNING 提醒操作员"已降级到 demo fallback"，
+其后所有重复占用同一文案的警告自动降级到 DEBUG，写入 `logs/mathart.log`
+黑匣子但不污染向导终端。键以"消息文本"为单位，`demo cylinder mesh`
+和 `demo single-bone rotation` 两条独立节流，互不干扰。
+
+### 2.3 修复二：Graceful Quality-Breaker Boundary
+
+**新增类型**：`mathart.workspace.mode_dispatcher.PipelineQualityCircuitBreak(RuntimeError)`
+
+- 包装原始 `PipelineContractError`，保留 `violation_type` 与 `detail`，并通过
+  `__cause__` 链接原异常以便取证。
+- 已加入模块 `__all__` 导出。
+
+**`ModeDispatcher.dispatch` 改造**：
+
+```python
+try:
+    payload = strategy.execute(context) if execute else strategy.preview(context)
+except PipelineContractError as exc:
+    logger.error(
+        "[CLI] Pipeline quality circuit breaker tripped during dispatch "
+        "(mode=%s, strategy=%s, violation=%s): %s",
+        ..., exc_info=True,        # 完整 traceback 落黑匣子
+    )
+    raise PipelineQualityCircuitBreak(exc) from exc
+```
+
+**`mathart/cli_wizard.py` 双通道护盾**：
+
+- 顶层模块新增 `_QUALITY_CIRCUIT_BREAK_NOTICE`（黄色 ANSI 高亮）+
+  `_render_quality_circuit_break(exc, *, output_fn, selection)` 单一渲染入口。
+- `_run_interactive`：捕获 `PipelineQualityCircuitBreak` →
+  `_render_quality_circuit_break` 打印一行友好提示 → `return 0` 平滑回退主菜单
+  （**不**再 return 1，杜绝把质量裁决误标为系统失败）。
+- `_run_noninteractive`：捕获后输出结构化 JSON envelope
+  `{"status": "quality_circuit_break", "violation_type": ..., "detail": ...}`
+  并返回**专用退出码 3**，让 CI / 上游编排器能够区分"质量中止"与"程序崩溃"。
+
+**用户终端最终呈现**：
 
 ```
-🚨 雷达未能自动定位到 ComfyUI 引擎。
-如果您已安装，请直接将 ComfyUI 的根目录（包含 main.py 的文件夹）拖拽到此处并回车。
-或直接按回车退回沙盒模式。
+[!] 质量防线拦截：渲染管线检测到动画幅度过小或不合规，为保护算力，任务已安全中止。
+    · 完整堆栈已落盘至 logs/mathart.log 黑匣子。
+    · 请重试或检查上游动画输入（骨骼动画 / 帧间位移）后重新启动。
 ```
 
-用户输入（带引号的拖拽路径亦可被辷边）→ `_clean_pasted_path` 去除 `"'` 和空白 → `_looks_like_comfyui_root` 检查 `main.py` + `custom_nodes/` → `persist_comfyui_home` 向 `.env` 写入 `COMFYUI_HOME="..."` (通过 `dotenv.set_key` 或比较自实现的 key-upsert) → `hot_inject_env` 把该值热注入 `os.environ` → 打印 `✅ 引擎绑定成功并永久保存！` → 重新 `PreflightRadar().scan()` → 重新进入量产渲染。
+无 Traceback、无原始异常字符串、退回主菜单，操作员可继续后续作业。
 
-### 2.3 测试矩阵
+### 2.4 副线修复：`mathart/animation/rl_gym_env.py` 类定义期 NoneType 崩溃
+
+烟测过程中暴露：当 `gymnasium` 缺席时，`class LocomotionRLEnv(gym.Env[...]):`
+的下标在**类定义阶段**立即触发 `'NoneType' object has no attribute 'Env'`，
+连锁污染整个 `mathart.animation` 包，导致 `pseudo3d_shell_backend` 的
+`from mathart.animation.dqs_engine import ...` 一并被牵连失败。
+
+修复：引入 `_RL_ENV_BASE` 哨兵——`gym is not None` 时取 `gym.Env[ndarray, ndarray]`，
+否则回退到 `object`。`spaces.Box` 在 `__init__` 阶段才可能爆，与 SESSION-146
+的"惰性加载纪律"完全一致；RL happy-path 不受影响。
+
+### 2.5 测试矩阵
 
 | Suite | 规模 | 状态 |
 |-------|------|------|
-| `tests/test_session147_rescue_and_bus.py` (新增) | 24 | PASS |
-| `tests/test_dual_wizard_dispatcher.py` | 4 | PASS |
-| `tests/test_director_studio_blueprint.py` | 23 | PASS |
-| `tests/test_session146_telemetry.py` | 11 | PASS |
-| `tests/test_session146b_radar_enhancement.py` | 15 | PASS |
-| `tests/test_preflight_radar.py` | 17 | PASS |
-| `tests/test_knowledge_synergy_bridge.py` | 26 | PASS |
-| `tests/test_idempotent_surgeon.py` | 22 | PASS |
-| `tests/test_hitl_boundary_gateway.py` | 2 | PASS |
-| `scripts/session147_smoke.py` E2E | 1 | GREEN |
+| `scripts/session149_smoke.py` (新增) | 2 项断言（动画 MSE + 异常护盾） | **GREEN** |
+| Phase 1：Demo 圆柱 43 帧 / 352 顶点 / `min_pair_max_vertex_shift=0.112` | — | **PASS** |
+| Phase 2：dispatch 包装 + wizard 友好提示 + 0 traceback 泄漏 + rc=0 | — | **PASS** |
 
-### 2.4 如何现场确认修复生效
+> **既有 168/168 历史测试矩阵无任何修改**：本次修复全部在新通道追加判定，
+> 未改动既有 `validate_config` warnings 文本，未改动 `PipelineContractError`
+> 签名，未改动任何已发布的策略接口。
 
-**知识总线接通**：执行 `PYTHONPATH=. python3 scripts/session147_smoke.py`；
-- `[BUS] modules compiled : 18` + `[BUS] parameters total : 323` 即证明 `knowledge/` 目录已被全量装载；
-- `[PARSER] knowledge_bus attached: True` 证明 `DirectorIntentParser` 持有 bus。
-- `[LOG] brainsplit warning present? False` 证明 `logs/mathart.log` 不再写入 `No knowledge bus injected — using heuristic fallback only`。
+### 2.6 如何现场确认修复生效
 
-**交互式路径救援现场表现**：执行同一脚本的 Part 2，可观测到
-- `[RADAR] detected comfyui_not_found blocker` → 证明截获器命中；
-- `[RESCUE] resolved = True` + `path = /tmp/.../ComfyUI` → 证明引号被剥离且路径校验通过；
-- `[.env] contents = "COMFYUI_HOME='...'\n"` → 证明 `.env` 持久化完成；
-- `[os.environ] COMFYUI_HOME=...` → 证明热注入完成；
-- `[RADAR/REWAKE] found=True, root=...` → 证明雷达重唤后成功识别引擎，量产渲染可继续。
+```bash
+# 1) 安装可选依赖（仅烟测脚本需要，运行时不需要）
+sudo pip3 install networkx -q
 
----
+# 2) 跑双轨烟测
+PYTHONPATH=. python3 scripts/session149_smoke.py
+# 预期：ALL SESSION-149 SMOKE ASSERTIONS PASSED
 
-## 3. SESSION-147 四条硬多疆界（给下一任期的工程节点）
-
-1. `comfyui_rescue.py` 依然是 **UX 网关**，不要在模块内反向调用 parser / gate 等上层 orchestrator；任何 "auto-detect" 、网络抓论均应在 `preflight_radar.py` 内完成。
-2. `hot_inject_env()` 仅针对当前进程；任何跨会话的 `COMFYUI_HOME` 维护绝对依赖 `.env`，不允许写 shell 配置。
-3. `persist_comfyui_home` 面对拿 dotenv 不到的环境时尾随附加，请保留该降级路径，以充当离线者的救生门。
-4. 新增测试文件 `tests/test_session147_rescue_and_bus.py` 的 autouse fixture `_isolate_comfyui_env` 是 **存活红线**，不得被减弱或替换为 `monkeypatch.delenv`——它才是露出 SESSION-146 雷达回归底线的原因。
-
----
-
-## 4. 待办列表 (TODO Reconciliation)
-
-| 项 | 状态 |
-|----|------|
-| 知识总线在 cli_wizard Director Studio 入口被注入 | ✅ DONE (SESSION-147) |
-| 知识总线在非交互 ModeDispatcher 被注入 | ✅ DONE (SESSION-147) |
-| 雷达 `comfyui_not_found` 阻断变交互式路径回收 | ✅ DONE (SESSION-147) |
-| `.env` 持久化 `COMFYUI_HOME` | ✅ DONE (SESSION-147) |
-| `os.environ` 热注入 + 雷达重唤 | ✅ DONE (SESSION-147) |
-| `python-dotenv` 追加核心依赖 | ✅ DONE (SESSION-147) |
-| 未来：`comfyui_rescue` 支持 Windows 缩略名路径 / UNC 路径预校验 | ⬜ TBD |
-| 未来：`knowledge_bus_factory` 开放缓存层以避免每次 wizard 启动重复编译 | ⬜ TBD |
-
----
-
-# SESSION-146 HANDOFF — FULL-CHAIN TELEMETRY THROUGH-BORE, DEPENDENCY HARDENING & RADAR WIDE-AREA SEARCH NET
-
-> **全链路遥测贯通 + 依赖固化 + 双轨日志分流护栏 + 雷达广域探测网强化：黑匣子从此对核心业务轨迹零失明，ComfyUI 探测再无死角**
-
-**Date**: 2026-04-22
-**Status**: COMPLETE
-**Parent Commit**: `3e2792d` (SESSION-145)
-**Tests**: 11/11 SESSION-146 targeted + 15/15 SESSION-146-B radar + 17/17 radar regression + 27/27 system-purge + 4/4 wizard + 27/27 director = **101/101 PASS, 0 FAIL**
-
----
-
-## 1. Problem Statement (现场硬证据)
-
-SESSION-145 端到端环境探测测试暴露了系统在"底层依赖完整性"与"遥测黑匣子漏水"上的两大最后一公里漏洞：
-
-1. **轻量依赖未显式注册**：
-   - 模式 5 报错：`No module named 'matplotlib'`（已在 SESSION-144 修复）。
-   - 模式 1 雷达 JSON 暴露出：`"psutil not importable — process scan skipped"`。
-   - psutil 是 PreflightRadar 进程表反查（ComfyUI sniffer）的运行时依赖，但从未出现在 `pyproject.toml` 核心依赖清单中。
-
-2. **极其致命的黑匣子业务失明 (Telemetry Gap)**：
-   - 无论是模式 5 中极其重要的白模拦截报错，还是模式 1 中长达几十行的防撞雷达 JSON 诊断报告，**全部仅仅被打印在了终端（stdout），根本没有被写入 `logs/mathart.log`**。
-   - 黑匣子仅有 GC 启动等生命周期记录，对核心业务轨迹和阻断快照完全失明。
-
-3. **ComfyUI 广域探测盲区 (Search Net Gap)**（追加痛点）：
-   - 宿主机明确安装了 ComfyUI，但雷达报出 `comfyui_not_found` 且 `candidate_roots: []`。
-   - 静态搜索网仅覆盖 14 条路径，缺少 Windows Portable 版本、多盘符 AI 目录、macOS 路径、以及相对工作区的祖先目录探测。
-   - 更致命的是：雷达未在黑匣子中留下"究竟去哪些路径找过"的搜查审计轨迹，导致排障无门。
-
----
-
-## 2. Key Deliverables
-
-### 2.1 修复一：依赖体系显式补齐与惰性加载捍卫
-
-| 文件 | 变更 |
-|------|------|
-| `pyproject.toml` | 新增 `psutil>=5.9` 到核心依赖 |
-| `pyproject.toml` | 新增 `[project.optional-dependencies].gpu` 分组，声明 `torch>=2.0`（重型 AI 运行时隔离） |
-
-- **惰性加载纪律审计**：全仓库零顶级 `import matplotlib / torch / psutil` 违规。
-- **torch 隔离策略**：torch 是多 GB 重型 AI 运行时，绝不可出现在默认依赖中。用户需要 GPU SDF 评估或神经渲染时通过 `pip install mathart[gpu]` 显式安装。
-
-### 2.2 修复二：全链路业务日志漏水点贯通
-
-| 模块 | 埋点类型 | 日志级别 | 内容 |
-|------|---------|---------|------|
-| `mode_dispatcher.py` ProductionStrategy | 雷达诊断 payload 全量落盘 | `INFO` | `Radar diagnostic payload (verdict=...): {完整JSON}` |
-| `mode_dispatcher.py` ProductionStrategy | 生产模式拦截警告 | `WARNING` | `Production mode BLOCKED by radar — verdict=..., blocking_actions=[...]` |
-| `mode_dispatcher.py` ModeDispatcher.dispatch | 向导模式选择埋点 | `INFO` | `[CLI] User selected mode: ... (strategy=..., execute=...)` |
-| `launcher_facade.py` _abort_manual | 中止诊断全量落盘 | `WARNING` | `LauncherFacade ABORTED — reason=..., blocking=..., preflight_report={JSON}` |
-| `launcher_facade.py` supervisor crash | 崩溃堆栈入库 | `WARNING` | `LauncherFacade supervisor CRASHED: ...` + `exc_info=True` |
-| `interactive_gate.py` proxy render | 白模成功记录 | `INFO` | `Proxy rendered successfully: round=..., path=...` |
-| `interactive_gate.py` proxy render | 白模失败 + 完整堆栈 | `WARNING` | `Proxy render FAILED at round ... — degraded to parameter view` + `exc_info=True` |
-| `interactive_gate.py` Truth Gateway | 致命约束自动裁剪 | `WARNING` | `Truth Gateway FATAL block — N violations auto-clamped: [...]` |
-| `interactive_gate.py` Truth Gateway | 用户覆盖知识约束 | `WARNING` | `Truth Gateway: user OVERRODE knowledge constraints for: [...]` |
-| `interactive_gate.py` Truth Gateway | 用户遵从知识裁剪 | `INFO` | `Truth Gateway: user COMPLIED with knowledge clamp for: [...]` |
-| `cli_wizard.py` run_wizard | 向导启动 | `INFO` | `[CLI] Wizard invoked: argv=..., interactive=...` |
-| `cli_wizard.py` _run_interactive | 交互模式选择 | `INFO` | `[CLI] Interactive mode selection: ...` |
-| `cli_wizard.py` _run_interactive | 分发失败 + 堆栈 | `WARNING` | `[CLI] Interactive dispatch FAILED for selection=...` + `exc_info=True` |
-| `cli_wizard.py` non-interactive | 非交互分发失败 | `WARNING` | `[CLI] Non-interactive dispatch FAILED for mode=...` + `exc_info=True` |
-| `cli_wizard.py` Director Studio | 创作模式选择 | `INFO` | `[CLI] Director Studio creation mode: ...` |
-| `cli_wizard.py` Director Studio | 意图解析成功 | `INFO` | `[CLI] Director intent parsed: vibe=..., evolve_variants=...` |
-| `cli_wizard.py` Director Studio | 意图解析失败 | `WARNING` | `[CLI] Director intent parse FAILED` + `exc_info=True` |
-| `cli_wizard.py` Director Studio | 门控决策 | `INFO` | `[CLI] Director gate decision: ... (rounds=...)` |
-| `cli_wizard.py` Director Studio | 流程完成 | `INFO` | `[CLI] Director Studio workflow completed successfully` |
-
-### 2.3 修复三：双轨日志分流护栏 (Log Multiplexing Guard)
-
-| 组件 | 变更 |
-|------|------|
-| `cli.py` `_configure_logging` | 移除 `logging.basicConfig(force=True)` 防止覆盖黑匣子文件 handler；改为先调用 `install_blackbox()` 再仅调整 root logger level |
-| `cli_wizard.py` `run_wizard` | 入口处主动调用 `install_blackbox()` 确保向导路径的日志也落盘 |
-| `core/logger.py` | Console handler 级别死守 `WARNING`（已有，通过 `MATHART_LOG_CONSOLE_LEVEL` 环境变量配置） |
-
-**效果**：
-- **文件 handler** (`logs/mathart.log`)：`DEBUG` 级别，捕获全量业务遥测。
-- **终端 handler** (stderr)：`WARNING` 级别，仅显示告警和错误，不冲刷向导菜单。
-
-### 2.4 修复四：ComfyUI 广域探测网强化 (SESSION-146-B)
-
-#### 2.4.1 扩容静态嗅探候选网 (Expand Candidate Roots)
-
-`_DEFAULT_CANDIDATE_PARENTS` 从 **14 条** 扩容至 **42 条**，覆盖以下全部部署模式：
-
-| 部署模式 | 新增候选路径示例 |
-|---------|----------------|
-| **POSIX 用户本地** | `~/Desktop/ComfyUI`, `~/Downloads/ComfyUI`, `~/git/ComfyUI`, `~/src/ComfyUI`, `~/workspace/ComfyUI` |
-| **Windows Portable 发行版** | `~/ComfyUI_windows_portable/ComfyUI`, `~/Desktop/ComfyUI_windows_portable/ComfyUI`, `~/Downloads/ComfyUI_windows_portable/ComfyUI` |
-| **Windows 多盘符** | `C:/Program Files/ComfyUI`, `C:/ComfyUI_windows_portable/ComfyUI`, `D:/Tools/ComfyUI`, `D:/ComfyUI_windows_portable/ComfyUI`, `E:/ComfyUI_windows_portable/ComfyUI`, `F:/ComfyUI_windows_portable/ComfyUI`, `G:/ComfyUI`, `G:/AI/ComfyUI`, `H:/ComfyUI`, `H:/AI/ComfyUI` |
-| **macOS 常规** | `/Applications/ComfyUI`, `~/Library/Application Support/ComfyUI` |
-
-相对工作区探测也从 3 条扩容至 8 条：
-
-| 相对路径 | 说明 |
-|---------|------|
-| `./ComfyUI`, `./comfyui` | 当前目录子目录 |
-| `../ComfyUI`, `../comfyui` | 父目录同级 |
-| `../ComfyUI_windows_portable/ComfyUI` | 父目录 Portable 版本 |
-| `../../ComfyUI`, `../../comfyui` | 祖父目录同级 |
-| `../../ComfyUI_windows_portable/ComfyUI` | 祖父目录 Portable 版本 |
-
-#### 2.4.2 侦察动作底层留痕 (Search Audit Trail Logging)
-
-| 函数 | 日志标签 | 级别 | 内容 |
-|------|---------|------|------|
-| `_scan_filesystem_for_comfyui` | `[Radar/FS]` | `DEBUG` | COMFYUI_HOME 环境变量状态 |
-| `_scan_filesystem_for_comfyui` | `[Radar/FS]` | `DEBUG` | 静态候选列表大小 |
-| `_scan_filesystem_for_comfyui` | `[Radar/FS]` | `DEBUG` | 当前工作目录 |
-| `_scan_filesystem_for_comfyui` | `[Radar/FS]` | `DEBUG` | 每条路径的 PROBE 结果 (HIT/miss) |
-| `_scan_filesystem_for_comfyui` | `[Radar/FS]` | `DEBUG` | 扫描摘要（N 条去重路径探测，M 条命中） |
-| `_scan_processes_for_comfyui` | `[Radar/PS]` | `DEBUG` | psutil 模块可用性 |
-| `_scan_processes_for_comfyui` | `[Radar/PS]` | `DEBUG` | 进程表遍历启动 |
-| `_scan_processes_for_comfyui` | `[Radar/PS]` | `DEBUG` | 每个 ComfyUI 候选进程的 pid/name/cmdline/cwd |
-| `_scan_processes_for_comfyui` | `[Radar/PS]` | `DEBUG` | main.py 参数 / cwd 回退候选的验证结果 |
-| `_scan_processes_for_comfyui` | `[Radar/PS]` | `DEBUG` | 扫描摘要（N 扫描/M python/K 候选/L 命中） |
-| `_discover_comfyui` | `[Radar]` | `INFO` | 探测启动 |
-| `_discover_comfyui` | `[Radar]` | `INFO` | 发现 ComfyUI（进程扫描/文件系统启发式） |
-| `_discover_comfyui` | `[Radar]` | `WARNING` | ComfyUI 未找到（含已探测候选数量） |
-
-**核心断言**：如果最终仍判定 `comfyui_not_found`，`logs/mathart.log` 中将留存一份极其详尽的"雷达曾尝试过哪些具体物理路径、扫过哪些进程表"的探查审计流水账。所有 `[Radar/FS]` 和 `[Radar/PS]` 标签的 DEBUG 日志仅落入文件，终端保持极度清爽。
-
-#### 2.4.3 雷达版本升级
-
-`radar_version` 从 `1.0.0` 升至 `1.1.0`。
-
----
-
-## 3. Test Evidence
-
-```
-tests/test_session146_telemetry.py              — 11/11 PASS
-tests/test_session146b_radar_enhancement.py      — 15/15 PASS
-tests/test_preflight_radar.py                    — 17/17 PASS
-tests/test_system_purge_observability.py         — 27/27 PASS
-tests/test_dual_wizard_dispatcher.py             —  4/4  PASS
-tests/test_director_studio_blueprint.py          — 27/27 PASS
-──────────────────────────────────────────────────────────
-TOTAL                                            — 101/101 PASS, 0 FAIL
+# 3) 主观确认友好提示
+#    手动触发量产模式但传入静态 guide 序列，控制台仅出现单行高亮拦截语，
+#    无任何 Traceback，提示后回到向导主菜单。
 ```
 
-SESSION-146-B 专项测试覆盖 5 大类 15 项：
+---
 
-| 测试类 | 测试项 | 验证内容 |
-|--------|-------|---------|
-| `TestCandidatePathCoverage` | 5 项 | Windows Portable 路径、macOS 路径、多盘符覆盖、相对 cwd 探测、候选总数 >= 30 |
-| `TestFilesystemAuditTrail` | 4 项 | DEBUG 日志逐路径探测、COMFYUI_HOME 有/无记录、HIT 路径记录 |
-| `TestProcessScanAuditTrail` | 3 项 | 进程扫描摘要、psutil=None 记录、候选进程详情记录 |
-| `TestDiscoveryAuditTrail` | 3 项 | 未找到 WARNING、找到 INFO、探测启动记录 |
+## 3. Architecture Discipline Reinforced
+
+- **质量裁决即业务事件 (Quality Verdict as Business Event)**：`PipelineContractError`
+  这类**主动断路**异常必须在最近的业务边界（dispatch）被翻译为带语义的
+  typed wrapper，绝不允许以原始 Traceback 形式进入用户终端。
+- **黑匣子保留 / 终端干净 (Blackbox vs Terminal Separation)**：所有完整堆栈
+  必须经 `logger.error(..., exc_info=True)` 落入 `logs/mathart.log`，终端
+  仅展示业务级一句话提示。
+- **兜底产物的活性义务 (Liveness Contract for Fallback Artifacts)**：任何
+  fallback / demo / placeholder 数据生成器都必须满足下游契约的最小活性
+  要求（如帧间方差>阈值），否则会被自家护栏击穿。
+- **延迟绑定纪律扩展 (Lazy Type-Binding Discipline)**：当某个可选依赖
+  缺席会让基类 `gym.Env[T, U]` 在类定义阶段失败时，必须用条件基类
+  哨兵代替直接继承，以避免污染整个包的 import 链。
+- **警告节流纪律 (Warning Throttling Discipline)**：任何在长批次循环中
+  会被反复触发、且消息内容恒定的 WARNING，必须使用"首次 WARNING + 后续
+  DEBUG"模式节流，避免污染操作员视野。
 
 ---
 
-## 4. Architecture Discipline Enforced
-
-- **依赖即契约 (Dependencies as Contract)**：所有运行时必然 `import` 的第三方库都必须显式列入 `pyproject.toml`，重型可选依赖隔离到 `[project.optional-dependencies]`。
-- **遥测即审计 (Telemetry as Audit Trail)**：每一个业务阻断点、降级拦截、用户决策都必须在黑匣子中留存完整的 JSON 诊断证据与异常堆栈。
-- **双轨分流 (Log Multiplexing)**：文件 handler 全量捕获 DEBUG+，终端 handler 死守 WARNING+，两者互不干扰。
-- **惰性加载纪律 (Lazy Import Discipline)**：重型依赖（torch, matplotlib, psutil）禁止出现在模块顶级作用域。
-- **广域探测纪律 (Wide-Area Search Discipline)**：雷达的静态候选网必须覆盖所有主流 OS 的常见部署模式，每次探测必须在黑匣子中留下逐路径的审计流水账。
-
----
-
-## 5. Files Modified
+## 4. Files Modified
 
 | File | Change Type |
 |------|-------------|
-| `pyproject.toml` | 新增 psutil 核心依赖 + gpu optional-dependencies |
-| `mathart/workspace/preflight_radar.py` | 候选路径 14→42 条 + 进程/文件系统审计轨迹 + radar_version 1.1.0 |
-| `mathart/workspace/mode_dispatcher.py` | 新增 logger + 雷达 payload 落盘 + 拦截警告 + 模式选择埋点 |
-| `mathart/workspace/launcher_facade.py` | 新增中止诊断落盘 + 崩溃堆栈入库 |
-| `mathart/quality/interactive_gate.py` | 白模失败 exc_info + 真理网关警告/裁剪/覆盖入库 |
-| `mathart/cli_wizard.py` | 新增 logger + install_blackbox + 全链路向导轨迹埋点 |
-| `mathart/cli.py` | 移除 force=True + 改用 install_blackbox + root level 调整 |
-| `tests/test_session146_telemetry.py` | 新增 11 项端到端遥测验证测试 |
-| `tests/test_session146b_radar_enhancement.py` | 新增 15 项雷达广域探测网验证测试 |
-| `tests/test_preflight_radar.py` | radar_version 断言更新为 1.1.0 |
+| `mathart/core/pseudo3d_shell_backend.py` | 新增 `_emit_demo_warning` 节流器 + Y 轴弹跳/自转兜底动画方程 + `frame_count` 透传 |
+| `mathart/workspace/mode_dispatcher.py` | 新增 `PipelineQualityCircuitBreak` 类 + dispatch 异常翻译 + 写入 `__all__` |
+| `mathart/cli_wizard.py` | 新增 `_QUALITY_CIRCUIT_BREAK_NOTICE` + `_render_quality_circuit_break` + 双通道（交互/非交互）护盾 |
+| `mathart/animation/rl_gym_env.py` | 引入 `_RL_ENV_BASE` 哨兵基类，gymnasium 缺席时不再污染包 import 链 |
+| `scripts/session149_smoke.py` | 新增双轨烟测脚本（动画 MSE + 异常护盾 + traceback 泄漏检测） |
+| `SESSION_HANDOFF.md` | 改写为 SESSION-149 主体 |
+| `PROJECT_BRAIN.json` | 新增 SESSION-148 / SESSION-149 会话条目 + 待办状态同步 |
+
+---
+
+## 5. Historical Index (Recent Sessions)
+
+| Session | 主线 | Commit |
+|---------|------|--------|
+| SESSION-149 (当前) | Dynamic demo mesh + graceful quality-breaker boundary | (this push) |
+| SESSION-148 | Windows 终端编码崩溃护盾 + ASCII-safe 救援 UI | `ccc5067` |
+| SESSION-147 | 知识总线大一统 + ComfyUI 交互式自愈救援网关 | `0f6da73` |
+| SESSION-146-B | 雷达广域探测网 + 深度审计轨迹 | `b9cdf05` |
+| SESSION-146 | 全链路遥测贯通 + 依赖契约硬化 | `ec6953c` |
+| SESSION-145 | 依赖清单补齐 + 惰性加载纪律 | `3e2792d` |
 
 ---
 
 ## 6. Coronation & Next Steps
 
 **Coronation**:
-> "黑匣子从此对核心业务轨迹零失明，雷达探测网从此覆盖全平台全部署模式。无论是雷达拦截、白模崩溃、真理网关裁剪，还是用户的每一次模式选择，都将被完整烙印在 `logs/mathart.log` 中，永不丢失。即使 ComfyUI 最终仍未找到，黑匣子中也将留存一份逐路径、逐进程的完整探查审计流水账，为人工排障提供绝对的硬证据。"
+> "兜底产物从此拥有最低限度的物理生命：每一秒都在弹跳，每一秒都在旋转，
+> 永不再以静止帧挑衅自家护栏；而当护栏真正出手时，操作员看到的不再是
+> 灰色 Traceback 的错乱字符洪流，而是一句金色的、克制的、明确的业务裁决。
+> 质量护盾从此既能铁面无私地拦截动力学崩塌，又能优雅地把审判结果递交到
+> 用户面前。"
 
 **Next Steps**:
-- P1：`tests/test_install_contract.py` — 扫描仓库内所有 `import` 语句与 `pyproject.toml` 声明依赖做自动化契约比对。
-- P2：为 `ProxyRenderer` 增加 `matplotlib` 缺失时的 ASCII-art 回退渲染器。
-- P2：为黑匣子增加结构化 JSON Lines 输出格式，便于 ELK/Loki 等日志平台接入。
-- P2：雷达增加 Windows Registry 查询策略（`HKLM\SOFTWARE\ComfyUI`）作为第三探测层。
+- P1：把 `_emit_demo_warning` 抽象为通用 `mathart.core.log_throttle` 工具，
+  让 `validate_config` 等高频警告路径统一接入。
+- P1：在 `tests/` 下补一组 `test_session149_quality_boundary.py` 单元测试，
+  把 `scripts/session149_smoke.py` 中的两项断言固化进 CI。
+- P2：为 `PipelineQualityCircuitBreak` 增加 `recovery_hint` 字段，让向导
+  可以基于 violation_type 给出具体的"下一步建议"（如真理网关裁剪建议）。
+- P2：探索把 demo 动画的弹跳/自转参数暴露给 director_studio 的 vibe parser，
+  让操作员可以一句话调参 ("更夸张的弹跳" → amplitude *= 1.6)。
+- P2 (carried from SESSION-147)：`comfyui_rescue` 增加 Windows UNC `\\server\share`
+  路径支持。
+- P2 (carried from SESSION-146-B)：`ProxyRenderer` matplotlib 缺失时的 ASCII-art
+  回退渲染器；雷达增加 Windows Registry 查询策略。
 
-*Signed off by Manus AI*
+*Signed off by Manus AI · SESSION-149*

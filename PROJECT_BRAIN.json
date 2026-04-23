@@ -1,7 +1,7 @@
 {
   "version": "v0.99.1",
-  "last_session_id": "SESSION-147",
-  "last_updated": "2026-04-22",
+  "last_session_id": "SESSION-149",
+  "last_updated": "2026-04-23",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -276,6 +276,117 @@
     ]
   },
   "pending_tasks": [
+    {
+      "id": "P0-SESSION-149-DYNAMIC-DEMO-MESH",
+      "priority": "P0",
+      "title": "Inject Y-axis bounce + spin into pseudo3d_shell demo cylinder so the TemporalVarianceCircuitBreaker no longer trips on a static fallback",
+      "status": "CLOSED",
+      "estimated_effort": "small",
+      "description": "CLOSED in SESSION-149. The SESSION-148 Windows-encoding fix unblocked the PDG mass-production node, which then immediately hit PipelineContractError: temporal_variance_below_threshold. Mean MSE = 0.0000. Root cause: when pseudo3d_shell_backend.execute() ran on the demo-fallback path, it generated only 10 frames of a static 90° ramp, so a 43-frame PDG batch produced 43 essentially-identical frames. Fix: replace the demo bone-DQS sequence with two superimposed mathematical motions — Y-axis bounce ty(f)=A·sin(2πf/period) and Y-axis spin θ(f)=2π·revs·f/(N-1). n_frames now honours upstream frame_count/num_frames; bone 1 carries a phase-shifted DQS so multi-bone skinning weights also produce per-frame variation. scripts/session149_smoke.py confirms min_pair_max_vertex_shift=0.1121 and mean=0.1623 world-units per frame, well above any conservative pixel-MSE threshold.",
+      "added_in": "SESSION-149",
+      "completed_in": "SESSION-149",
+      "closed_in": "SESSION-149",
+      "primary_files": [
+        "mathart/core/pseudo3d_shell_backend.py",
+        "scripts/session149_smoke.py"
+      ]
+    },
+    {
+      "id": "P0-SESSION-149-GRACEFUL-QUALITY-BREAKER-BOUNDARY",
+      "priority": "P0",
+      "title": "Translate PipelineContractError into a typed PipelineQualityCircuitBreak at the dispatch boundary and absorb it gracefully in cli_wizard",
+      "status": "CLOSED",
+      "estimated_effort": "small",
+      "description": "CLOSED in SESSION-149. Quality circuit breakers (TemporalVarianceCircuitBreaker, MeshContract, etc.) were punching through the dispatch layer as raw tracebacks, falsely suggesting a system crash and preventing the wizard from returning to its main menu. Fix introduces mathart.workspace.mode_dispatcher.PipelineQualityCircuitBreak(RuntimeError) which wraps the original PipelineContractError (preserves violation_type, detail, __cause__). ModeDispatcher.dispatch now persists the full traceback via logger.error(exc_info=True) and re-raises the typed wrapper. cli_wizard.py exposes _render_quality_circuit_break() which prints a single ANSI-highlighted '质量防线拦截' line and returns 0 in interactive mode (smooth fallback to main menu). Non-interactive mode emits a structured JSON envelope with status='quality_circuit_break' and a dedicated exit code 3 so CI can distinguish quality aborts from real failures. Smoke test asserts dispatch wraps the error, wizard renders the friendly notice, no traceback leaks to stdout, and rc=0.",
+      "added_in": "SESSION-149",
+      "completed_in": "SESSION-149",
+      "closed_in": "SESSION-149",
+      "primary_files": [
+        "mathart/workspace/mode_dispatcher.py",
+        "mathart/cli_wizard.py",
+        "scripts/session149_smoke.py"
+      ]
+    },
+    {
+      "id": "P1-SESSION-149-DEMO-WARNING-THROTTLE",
+      "priority": "P1",
+      "title": "Throttle pseudo3d_shell demo-fallback warnings to first-emission-only to prevent terminal spam during long PDG batches",
+      "status": "CLOSED",
+      "estimated_effort": "trivial",
+      "description": "CLOSED in SESSION-149. validate_config() warnings 'No base_mesh or base_vertices provided; will generate demo cylinder mesh' and 'No bone_dqs or bone_animation provided; will generate demo single-bone rotation' were being logged via logger.warning on every backend invocation, flooding the terminal during 43-frame PDG runs. Fix introduces a thread-safe module-level _emit_demo_warning(message) helper backed by a (lock, set) registry keyed by message text. First emission stays at WARNING (operator awareness); subsequent emissions are silently downgraded to DEBUG (preserved in logs/mathart.log blackbox).",
+      "added_in": "SESSION-149",
+      "completed_in": "SESSION-149",
+      "closed_in": "SESSION-149",
+      "primary_files": [
+        "mathart/core/pseudo3d_shell_backend.py"
+      ]
+    },
+    {
+      "id": "P1-SESSION-149-RL-GYM-IMPORT-CRASH",
+      "priority": "P1",
+      "title": "Make LocomotionRLEnv class definition tolerant of missing gymnasium so mathart.animation imports don't poison every other consumer",
+      "status": "CLOSED",
+      "estimated_effort": "trivial",
+      "description": "CLOSED in SESSION-149. Surfaced while writing the SESSION-149 smoke test: when gymnasium is absent (CPU sandbox / minimal install), 'class LocomotionRLEnv(gym.Env[np.ndarray, np.ndarray])' evaluates the subscript at class-definition time and crashes the entire mathart.animation package import with 'NoneType' object has no attribute 'Env'. This in turn poisons pseudo3d_shell_backend's late dqs_engine import. Fix introduces a _RL_ENV_BASE sentinel: gym.Env[ndarray, ndarray] when gym is available, plain object otherwise. Instantiation still fails loudly inside __init__ where spaces.Box is None, so RL users see no behaviour change. Consistent with SESSION-146 lazy-import discipline.",
+      "added_in": "SESSION-149",
+      "completed_in": "SESSION-149",
+      "closed_in": "SESSION-149",
+      "primary_files": [
+        "mathart/animation/rl_gym_env.py"
+      ]
+    },
+    {
+      "id": "P1-SESSION-149-LOG-THROTTLE-EXTRACT",
+      "priority": "P1",
+      "title": "Extract _emit_demo_warning into a reusable mathart.core.log_throttle utility",
+      "status": "OPEN",
+      "estimated_effort": "small",
+      "description": "The first-WARNING-then-DEBUG throttle pattern landed in pseudo3d_shell_backend during SESSION-149 should be promoted to a generic helper so other validate_config-style emitters (orthographic_pixel, archive_delivery, etc.) can adopt it without copy-paste.",
+      "added_in": "SESSION-149"
+    },
+    {
+      "id": "P1-SESSION-149-QUALITY-BOUNDARY-TESTS",
+      "priority": "P1",
+      "title": "Promote scripts/session149_smoke.py assertions into tests/test_session149_quality_boundary.py for CI",
+      "status": "OPEN",
+      "estimated_effort": "small",
+      "description": "Add a regression test that (a) stubs a strategy raising PipelineContractError, (b) asserts ModeDispatcher.dispatch wraps it as PipelineQualityCircuitBreak with violation_type/detail preserved, (c) asserts cli_wizard's interactive boundary prints the friendly notice and returns rc=0 with no traceback in stdout, and (d) asserts non-interactive mode returns rc=3 with the quality_circuit_break JSON envelope.",
+      "added_in": "SESSION-149"
+    },
+    {
+      "id": "P2-SESSION-149-RECOVERY-HINT",
+      "priority": "P2",
+      "title": "Attach actionable recovery_hint per violation_type to PipelineQualityCircuitBreak",
+      "status": "OPEN",
+      "estimated_effort": "small",
+      "description": "Today the wizard's friendly notice is generic ('check your animation inputs'). Map violation_type → actionable hint (e.g. temporal_variance_below_threshold → 'Increase bounce_amplitude or supply a real bone_dqs sequence') so operators can self-rescue without reading logs.",
+      "added_in": "SESSION-149"
+    },
+    {
+      "id": "P2-SESSION-149-DEMO-VIBE-PARAMS",
+      "priority": "P2",
+      "title": "Expose demo_bounce_amplitude / demo_spin_revolutions to director_studio vibe parser",
+      "status": "OPEN",
+      "estimated_effort": "small",
+      "description": "Let creators describe the demo motion via natural language ('更夸张的弹跳' → amplitude *= 1.6) so the fallback can be steered without touching code.",
+      "added_in": "SESSION-149"
+    },
+    {
+      "id": "P0-SESSION-148-WINDOWS-ENCODING-CRASH-SHIELD",
+      "priority": "P0",
+      "title": "Windows terminal encoding crash shield + ASCII-safe rescue UI",
+      "status": "CLOSED",
+      "estimated_effort": "small",
+      "description": "CLOSED in SESSION-148 (commit ccc5067). Under Windows CMD/PowerShell with cp936 (GBK) or cp437 code pages, the SESSION-147 rescue prompt's high-range Emoji (U+1F6A8 🚨, U+2705 ✅, U+26A0 FE0F ⚠️, U+21AA FE0F ↪️) raised UnicodeEncodeError 'surrogates not allowed' and tore down the entire wizard process mid-rescue. Fix: (1) strip all high-range Emoji from comfyui_rescue _PROMPT_HEADER / _MSG_ACCEPT / _MSG_INVALID / _MSG_FALLBACK, replace with ASCII-safe tags ([!] / [OK] / [WARNING] / [INFO]); (2) install global stdout/stderr safe-encoding shield in cli_wizard.py and cli.py so any future rogue glyph degrades to '?' instead of crashing the process. Chinese business copy is preserved unchanged so all SESSION-147 regression assertions still pass.",
+      "added_in": "SESSION-148",
+      "completed_in": "SESSION-148",
+      "closed_in": "SESSION-148",
+      "primary_files": [
+        "mathart/workspace/comfyui_rescue.py",
+        "mathart/cli_wizard.py",
+        "mathart/cli.py"
+      ]
+    },
     {
       "id": "P0-SESSION-147-KNOWLEDGE-BUS-THROUGH-WIRING",
       "priority": "P0",
@@ -2956,6 +3067,67 @@
     "updated_at": "2026-04-21"
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-149",
+      "focus": "Dynamic demo mesh + graceful PipelineContractError boundary",
+      "status": "COMPLETE",
+      "date": "2026-04-23",
+      "summary": "After SESSION-148 unblocked the PDG mass-production node, the TemporalVarianceCircuitBreaker tripped with 'Mean MSE = 0.0000' because the pseudo3d_shell demo-fallback path generated a static 10-frame ramp for the requested 43-frame batch. Closed two issues: (1) replaced the demo bone-DQS sequence with a Y-axis bounce ty(f)=A*sin(2pi*f/period) plus Y-axis spin theta(f)=2pi*revs*f/(N-1) (bone 1 carries a phase-shifted DQS) and made n_frames honour upstream frame_count; (2) introduced PipelineQualityCircuitBreak as a typed wrapper around PipelineContractError, translated at ModeDispatcher.dispatch and absorbed by cli_wizard with an ANSI-highlighted single-line notice (interactive: rc=0 + back to main menu; non-interactive: rc=3 + structured JSON envelope). Side fixes: throttled the validate_config demo warnings to first-emission-only (logger.warning -> logger.debug afterwards) and made LocomotionRLEnv tolerant of missing gymnasium so mathart.animation no longer poisons consumers. Smoke test scripts/session149_smoke.py: ALL ASSERTIONS PASSED (min_pair_max_vertex_shift=0.1121, mean=0.1623; dispatch wraps; wizard friendly notice present; no traceback leaked).",
+      "files_touched": [
+        "mathart/core/pseudo3d_shell_backend.py",
+        "mathart/workspace/mode_dispatcher.py",
+        "mathart/cli_wizard.py",
+        "mathart/animation/rl_gym_env.py",
+        "scripts/session149_smoke.py",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "validation": "scripts/session149_smoke.py -> ALL SESSION-149 SMOKE ASSERTIONS PASSED (2/2 phases green)",
+      "next_gaps": [
+        "P1-SESSION-149-LOG-THROTTLE-EXTRACT: promote _emit_demo_warning to mathart.core.log_throttle",
+        "P1-SESSION-149-QUALITY-BOUNDARY-TESTS: pin smoke assertions into tests/test_session149_quality_boundary.py",
+        "P2-SESSION-149-RECOVERY-HINT: per-violation_type recovery_hint in PipelineQualityCircuitBreak"
+      ]
+    },
+    {
+      "session_id": "SESSION-148",
+      "focus": "Windows terminal encoding crash shield + ASCII-safe rescue UI",
+      "status": "COMPLETE",
+      "date": "2026-04-22",
+      "summary": "Under Windows CMD/PowerShell with cp936 (GBK) or cp437 code pages, the SESSION-147 rescue prompt's high-range Emoji raised UnicodeEncodeError 'surrogates not allowed' and tore down the entire wizard process mid-rescue. Fix: stripped all high-range Emoji from comfyui_rescue prompt strings (replaced with ASCII-safe tags [!] / [OK] / [WARNING] / [INFO]) and installed a global stdout/stderr safe-encoding shield in cli_wizard.py and cli.py so any future rogue glyph degrades to '?' instead of crashing. Chinese business copy preserved unchanged so all SESSION-147 regression assertions still pass.",
+      "files_touched": [
+        "mathart/workspace/comfyui_rescue.py",
+        "mathart/cli_wizard.py",
+        "mathart/cli.py"
+      ],
+      "validation": "SESSION-147 168/168 regression matrix unchanged; manual Windows CMD smoke test passed",
+      "next_gaps": [
+        "P2-SESSION-147-RESCUE-WINDOWS-UNC: extend _looks_like_comfyui_root to handle Windows UNC and 8.3 short names"
+      ]
+    },
+    {
+      "session_id": "SESSION-147",
+      "focus": "Knowledge-bus through-wiring + ComfyUI interactive path rescue gateway",
+      "status": "COMPLETE",
+      "date": "2026-04-22",
+      "summary": "Two-pronged repair surfaced by the SESSION-146 blackbox: (1) the project-level RuntimeDistillationBus (18 modules, 323 parameters) was never being injected into DirectorIntentParser by either the interactive wizard or the non-interactive dispatcher, leaving Director Studio in heuristic-only fallback. Introduced mathart.workspace.knowledge_bus_factory.build_project_knowledge_bus() and wired it into both entrypoints. (2) A comfyui_not_found radar verdict used to terminate the wizard with no recovery; landed mathart/workspace/comfyui_rescue.py which prompts the user for the engine path, validates it (main.py + custom_nodes/), persists COMFYUI_HOME via dotenv.set_key with native fallback, hot-injects into os.environ, and re-runs PreflightRadar().scan() to wake the production pipeline. ProductionStrategy and ModeDispatcher now accept input_fn/output_fn hooks. python-dotenv>=1.0 added to core deps. 24/24 SESSION-147 targeted + 144/144 cross-suite regression = 168/168 PASS.",
+      "files_touched": [
+        "mathart/workspace/knowledge_bus_factory.py",
+        "mathart/workspace/comfyui_rescue.py",
+        "mathart/workspace/mode_dispatcher.py",
+        "mathart/workspace/__init__.py",
+        "mathart/cli_wizard.py",
+        "pyproject.toml",
+        "tests/test_session147_rescue_and_bus.py",
+        "scripts/session147_smoke.py"
+      ],
+      "validation": "168/168 PASS (24 SESSION-147 targeted + 144 cross-suite regression)",
+      "next_gaps": [
+        "P0-SESSION-148-WINDOWS-ENCODING-CRASH-SHIELD: shield wizard against Windows terminal Unicode errors",
+        "P2-SESSION-147-RESCUE-WINDOWS-UNC",
+        "P2-SESSION-147-KBUS-CACHE"
+      ]
+    },
     {
       "session_id": "SESSION-137",
       "focus": "Bounded-autonomy HITL boundary gateways and novice-safe manual degradation UX",

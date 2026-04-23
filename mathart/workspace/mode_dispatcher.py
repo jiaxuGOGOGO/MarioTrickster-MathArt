@@ -17,7 +17,38 @@ from typing import Any, Callable, ClassVar
 from .config_manager import ConfigManager
 from .git_agent import GitAgent
 
+# SESSION-149: import the pipeline contract exception lazily-but-eagerly so
+# the dispatch-level graceful error boundary can branch on it explicitly.
+# Doing the import at module top-level is safe because pipeline_contract has
+# no heavy dependencies (no torch / matplotlib / psutil involved).
+from mathart.pipeline_contract import PipelineContractError
+
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# SESSION-149: PipelineQualityCircuitBreak — typed wrapper raised by the
+# dispatch-level error boundary when the underlying pipeline aborts due to a
+# PipelineContractError (e.g. TemporalVarianceCircuitBreaker tripping on a
+# static guide sequence).  cli_wizard catches this specifically so the user
+# sees a friendly highlighted notice and is bounced back to the wizard main
+# menu, while the full traceback is preserved in the blackbox file handler
+# via logger.error("...", exc_info=True).
+# ---------------------------------------------------------------------------
+class PipelineQualityCircuitBreak(RuntimeError):
+    """Dispatch-level signal that a quality circuit breaker tripped.
+
+    Wraps the original ``PipelineContractError`` so callers can distinguish
+    legitimate quality interventions from genuine programming bugs.
+    """
+
+    def __init__(self, original: PipelineContractError) -> None:
+        self.violation_type = getattr(original, "violation_type", "unknown")
+        self.detail = getattr(original, "detail", str(original))
+        self.__cause__ = original
+        super().__init__(
+            f"[QualityCircuitBreak:{self.violation_type}] {self.detail}"
+        )
 
 
 class SessionMode(str, Enum):
@@ -566,7 +597,29 @@ class ModeDispatcher:
             execute,
         )
         context = strategy.build_context(dict(options or {}))
-        payload = strategy.execute(context) if execute else strategy.preview(context)
+        try:
+            payload = (
+                strategy.execute(context) if execute else strategy.preview(context)
+            )
+        except PipelineContractError as exc:
+            # SESSION-149: Quality circuit breakers (TemporalVariance,
+            # MeshContract, etc.) MUST not punch through the dispatch
+            # boundary as raw tracebacks.  We persist the full stack into
+            # the blackbox via logger.error(exc_info=True), then re-raise
+            # a typed wrapper that the CLI wizard can catch and turn into
+            # a friendly highlighted notice + smooth fallback to the main
+            # menu.  The original exception remains chained via __cause__
+            # for forensic inspection.
+            logger.error(
+                "[CLI] Pipeline quality circuit breaker tripped during dispatch "
+                "(mode=%s, strategy=%s, violation=%s): %s",
+                resolved_mode.value,
+                strategy.__class__.__name__,
+                getattr(exc, "violation_type", "unknown"),
+                getattr(exc, "detail", str(exc)),
+                exc_info=True,
+            )
+            raise PipelineQualityCircuitBreak(exc) from exc
         return ModeDispatchResult(
             strategy_name=strategy.__class__.__name__,
             session=context,
@@ -595,4 +648,5 @@ __all__ = [
     "SessionContext",
     "DirectorStudioStrategy",
     "SessionMode",
+    "PipelineQualityCircuitBreak",  # SESSION-149: typed quality breaker
 ]

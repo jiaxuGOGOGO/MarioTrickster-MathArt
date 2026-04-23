@@ -37,9 +37,52 @@ if sys.platform == "win32":
         pass
 
 from mathart.workspace.hitl_boundary import ManualInterventionRequiredError, ManualOption
-from mathart.workspace.mode_dispatcher import ModeDispatcher
+from mathart.workspace.mode_dispatcher import ModeDispatcher, PipelineQualityCircuitBreak
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# SESSION-149: Graceful Error Boundary for Pipeline Quality Circuit Breakers.
+#
+# When the dispatch layer translates a ``PipelineContractError`` (e.g. the
+# ``TemporalVarianceCircuitBreaker`` tripping on a frozen guide sequence) into
+# a typed ``PipelineQualityCircuitBreak`` we MUST keep the traceback OUT of the
+# user-facing terminal.  The full stack is already persisted by the dispatcher
+# via ``logger.error(..., exc_info=True)``; the wizard's job is purely to
+# render a one-line, brand-consistent, highlighted notice so the operator
+# understands the run was aborted as a deliberate quality intervention rather
+# than a programming bug, and is then bounced back to the wizard main menu.
+# ---------------------------------------------------------------------------
+_QUALITY_CIRCUIT_BREAK_NOTICE = (
+    "\n\033[1;33m[!] 质量防线拦截：渲染管线检测到动画幅度过小或不合规，"
+    "为保护算力，任务已安全中止。\033[0m\n"
+    "    · 完整堆栈已落盘至 logs/mathart.log 黑匣子。\n"
+    "    · 请重试或检查上游动画输入（骨骼动画 / 帧间位移）后重新启动。\n"
+)
+
+
+def _render_quality_circuit_break(
+    exc: PipelineQualityCircuitBreak,
+    *,
+    output_fn: Callable[[str], None],
+    selection: str | None = None,
+) -> None:
+    """Print a friendly notice for a quality circuit break and log into blackbox.
+
+    The traceback is intentionally NOT echoed to the terminal; it has already
+    been recorded by the dispatch layer through ``logger.error(exc_info=True)``
+    so support engineers can recover the full chain from logs/mathart.log.
+    """
+    logger.error(
+        "[CLI] Quality circuit break absorbed by wizard boundary "
+        "(selection=%s, violation=%s): %s",
+        selection,
+        getattr(exc, "violation_type", "unknown"),
+        getattr(exc, "detail", str(exc)),
+        exc_info=True,
+    )
+    output_fn(_QUALITY_CIRCUIT_BREAK_NOTICE)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -199,6 +242,28 @@ def run_wizard(
         sys.stdout.write(json.dumps(result.to_dict(), ensure_ascii=False))
         sys.stdout.flush()
         return 0
+    except PipelineQualityCircuitBreak as exc:
+        # SESSION-149: Quality circuit breakers are LEGITIMATE quality
+        # interventions, not crashes.  Even in non-interactive mode we
+        # emit a structured JSON envelope (no traceback) and exit with a
+        # dedicated return code (3) so callers / CI can distinguish a
+        # quality abort from a generic dispatch failure.
+        logger.error(
+            "[CLI] Non-interactive dispatch absorbed quality breaker for mode=%s (violation=%s): %s",
+            args.mode,
+            getattr(exc, "violation_type", "unknown"),
+            getattr(exc, "detail", str(exc)),
+            exc_info=True,
+        )
+        error_payload = {
+            "status": "quality_circuit_break",
+            "violation_type": getattr(exc, "violation_type", "unknown"),
+            "detail": getattr(exc, "detail", str(exc)),
+            "message": "质量防线拦截：渲染管线检测到动画幅度过小或不合规，任务已安全中止。",
+        }
+        sys.stdout.write(json.dumps(error_payload, ensure_ascii=False))
+        sys.stdout.flush()
+        return 3
     except Exception as exc:
         # SESSION-146: Persist non-interactive dispatch errors into blackbox.
         logger.warning(
@@ -272,6 +337,17 @@ def _run_interactive(
         )
         payload = result.to_dict()
         output_fn(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+    except PipelineQualityCircuitBreak as exc:
+        # SESSION-149: Render the friendly highlighted notice and bounce
+        # the operator back to the wizard main menu.  The full traceback
+        # has already been persisted to logs/mathart.log by the dispatch
+        # layer; we deliberately do NOT echo it to the terminal so the
+        # quality intervention is presented as the deliberate, controlled
+        # event it is rather than as a system crash.
+        _render_quality_circuit_break(
+            exc, output_fn=output_fn, selection=selection,
+        )
         return 0
     except Exception as exc:
         # SESSION-146: Persist interactive dispatch errors into blackbox.

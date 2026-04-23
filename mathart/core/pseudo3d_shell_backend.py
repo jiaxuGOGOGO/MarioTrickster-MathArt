@@ -48,6 +48,8 @@ from __future__ import annotations
 
 import json
 import logging
+import math
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -67,6 +69,46 @@ from mathart.core.artifact_schema import (
 from mathart.core.backend_types import BackendType
 
 logger = logging.getLogger(__name__)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  SESSION-149: Demo-Mesh Warning Throttle
+#
+# When the production pipeline streams long demo sequences (e.g. 43+ frames
+# in PDG mass production), the validate_config() warning ``No base_mesh or
+# base_vertices provided; will generate demo cylinder mesh`` was being
+# emitted on every single frame, flooding the wizard terminal with up to
+# dozens of identical WARNING lines per render call.  We promote the first
+# emission to WARNING (so operators still see it once) and downgrade every
+# subsequent emission inside the same process to DEBUG, ensuring the audit
+# trail is preserved in logs/mathart.log without polluting the TUI.
+#
+# The throttle is keyed by warning text so that the demo-bone warning and
+# the demo-mesh warning are throttled independently.  A module-level lock
+# keeps the registry safe across the PDG worker pool.
+# ═══════════════════════════════════════════════════════════════════════════
+
+_DEMO_WARNING_LOCK = threading.Lock()
+_DEMO_WARNING_SEEN: set[str] = set()
+
+
+def _emit_demo_warning(message: str) -> None:
+    """Emit a demo-fallback warning at most once per process per message.
+
+    The first occurrence is logged at WARNING level so the operator is
+    immediately notified that the backend has degraded to a synthetic
+    placeholder.  Every subsequent occurrence within the same process is
+    silently downgraded to DEBUG (still captured by the blackbox file
+    handler) to prevent terminal spam during long-running PDG batch runs.
+    """
+    with _DEMO_WARNING_LOCK:
+        first_time = message not in _DEMO_WARNING_SEEN
+        if first_time:
+            _DEMO_WARNING_SEEN.add(message)
+    if first_time:
+        logger.warning("[pseudo_3d_shell] %s", message)
+    else:
+        logger.debug("[pseudo_3d_shell] %s (throttled)", message)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -182,10 +224,14 @@ class Pseudo3DShellBackend:
 
         t0 = time.perf_counter()
 
-        # ── Validate config ───────────────────────────────────────────────
+        # ── Validate config ────────────────────────────────────────────────────────────────
         validated, warnings = self.validate_config(context)
+        # SESSION-149: Throttle the demo-fallback warnings so a 43-frame PDG
+        # batch no longer prints the same WARNING line dozens of times.
+        # First occurrence -> WARNING (operator awareness); subsequent ones
+        # -> DEBUG (blackbox audit trail only).
         for w in warnings:
-            logger.warning("[pseudo_3d_shell] %s", w)
+            _emit_demo_warning(w)
 
         stem = validated.get("name", "pseudo_3d_shell")
         output_dir = Path(validated["output_dir"])
@@ -232,21 +278,74 @@ class Pseudo3DShellBackend:
         V = base_verts.shape[0]
         B = skin_weights.shape[1]
 
-        # ── Resolve bone animation ────────────────────────────────────────
+        # ── Resolve bone animation ─────────────────────────────────────
         if validated.get("_use_demo_animation", False):
-            # Demo: rotate bone 1 by 90 degrees around Z axis
-            n_frames = 10
+            # SESSION-149: "Dynamic Demo Mesh" — the previous fallback used
+            # a static 90° ramp over 10 frames, which (a) was too short to
+            # sustain a 43-frame PDG batch and (b) produced near-zero pixel
+            # delta between consecutive frames once the rotation hit its
+            # plateau, tripping the TemporalVarianceCircuitBreaker with
+            # ``temporal_variance_below_threshold. Mean MSE = 0.0000``.
+            #
+            # The replacement injects two superimposed mathematical motions
+            # so every frame is provably distinct (MSE >> 1.0 on the guide
+            # render):
+            #
+            #   1. Y-axis bounce — vertical translation
+            #          ty(f) = bounce_amplitude * sin(2 π f / period)
+            #      keeps the cylinder oscillating up-and-down, generating
+            #      large-area pixel deltas in every contour row.
+            #   2. Y-axis spin   — continuous self-rotation
+            #          θ(f) = 2 π * (spin_revolutions * f / total_frames)
+            #      perpetually rotates the cylinder around its long axis,
+            #      so even at the apex of the bounce (where vertical motion
+            #      momentarily vanishes), the rotational velocity guarantees
+            #      texture-band pixels keep shifting laterally.
+            #
+            # Honour the orchestrator-provided ``frame_count`` so the demo
+            # produces *exactly* the number of frames the PDG batch asked
+            # for; default to 24 frames when no upstream value is supplied.
+            n_frames = int(
+                validated.get("frame_count")
+                or context.get("frame_count")
+                or context.get("num_frames")
+                or 24
+            )
+            n_frames = max(n_frames, 2)  # circuit breaker requires >= 2
+            bounce_amplitude = float(validated.get("demo_bounce_amplitude", 0.6))
+            bounce_period = float(validated.get("demo_bounce_period", max(8.0, n_frames / 2.0)))
+            spin_revolutions = float(validated.get("demo_spin_revolutions", 1.5))
+
             bone_dqs_list = []
             for f in range(n_frames):
-                angle = (f / max(n_frames - 1, 1)) * (np.pi / 2.0)
-                dq0 = dq_identity()  # bone 0: identity
+                # Y-axis bounce translation (root bone)
+                ty = bounce_amplitude * math.sin(
+                    2.0 * math.pi * f / max(bounce_period, 1.0)
+                )
+                # Y-axis spin angle (root bone), monotonically increasing
+                spin_angle = (
+                    2.0 * math.pi * spin_revolutions * f / max(n_frames - 1, 1)
+                )
+                dq0 = dq_from_axis_angle_translation(
+                    np.array([0.0, 1.0, 0.0]),
+                    np.array(spin_angle),
+                    np.array([0.0, ty, 0.0]),
+                )
+                # Bone 1 inherits a phase-shifted rotation so multi-bone
+                # skinning weights also get distinct deformation per frame
+                # rather than collapsing into a static skeleton.
                 dq1 = dq_from_axis_angle_translation(
-                    np.array([0.0, 0.0, 1.0]),
-                    np.array(angle),
-                    np.array([0.0, 0.0, 0.0]),
+                    np.array([0.0, 1.0, 0.0]),
+                    np.array(spin_angle + math.pi / 4.0),
+                    np.array([0.0, ty * 0.5, 0.0]),
                 )
                 bone_dqs_list.append(np.stack([dq0, dq1], axis=0))
             bone_dqs = np.stack(bone_dqs_list, axis=0)  # (F, B, 8)
+            logger.debug(
+                "[pseudo_3d_shell] demo animation: frames=%d bounce=%.3f "
+                "spin_rev=%.3f period=%.2f (Y-axis bounce + Y-axis spin)",
+                n_frames, bounce_amplitude, spin_revolutions, bounce_period,
+            )
         else:
             bone_dqs = np.asarray(
                 validated.get("bone_dqs", context.get("bone_dqs")),

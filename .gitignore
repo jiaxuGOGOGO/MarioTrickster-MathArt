@@ -48,3 +48,4 @@ evolution_reports/CYCLE-*.json
 reports/
 ci_fixture_output_dir/
 .pdg_cache/
+outputs/

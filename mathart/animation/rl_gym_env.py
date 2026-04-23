@@ -42,6 +42,22 @@ except ImportError:  # pragma: no cover — lightweight sandbox mode
     gym = None  # type: ignore[assignment]
     spaces = None  # type: ignore[assignment]
 
+# SESSION-149: When gymnasium is absent (CPU-only sandbox / minimal install),
+# the class statement ``class LocomotionRLEnv(gym.Env[np.ndarray, np.ndarray])``
+# below evaluates the subscript at *class definition time* and crashes the
+# module import with ``'NoneType' object has no attribute 'Env'`` — which in
+# turn poisons every other consumer of ``mathart.animation`` (notably the
+# pseudo3d_shell backend that re-imports ``mathart.animation.dqs_engine``).
+# Falling back to a plain ``object`` base class preserves import integrity
+# everywhere; instantiating ``LocomotionRLEnv`` without gymnasium will still
+# fail loudly inside ``__init__`` because ``spaces.Box`` is None, so the RL
+# happy-path is unaffected.  This is consistent with the SESSION-146
+# lazy-import discipline.
+if gym is not None:
+    _RL_ENV_BASE = gym.Env[np.ndarray, np.ndarray]  # type: ignore[misc]
+else:
+    _RL_ENV_BASE = object  # type: ignore[assignment]
+
 from mathart.animation.umr_rl_adapter import (
     DeepMimicRewardConfig,
     PrebakedReferenceBuffers,
@@ -79,7 +95,7 @@ class LocomotionRLEnvConfig:
         return 1.0 / max(self.frame_count, 1)
 
 
-class LocomotionRLEnv(gym.Env[np.ndarray, np.ndarray]):
+class LocomotionRLEnv(_RL_ENV_BASE):  # type: ignore[misc]
     """Gymnasium-compliant locomotion environment over pre-baked UMR buffers.
 
     The environment uses a lightweight control update rather than a full
