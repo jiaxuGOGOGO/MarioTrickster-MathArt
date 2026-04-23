@@ -31,7 +31,7 @@ import mathart.core.archive_delivery_backend  # noqa: F401  # SESSION-128: Ensur
 from mathart.level import PDGFanOutResult, PDGNode, ProceduralDependencyGraph
 from mathart.pipeline import AssetPipeline
 
-_SESSION_ID = "SESSION-131"
+_SESSION_ID = "SESSION-158"
 _DEFAULT_SEED = 20260421
 _DEFAULT_GPU_SLOTS = 1
 _DEFAULT_COMFYUI_URL = "http://localhost:8188"
@@ -882,14 +882,193 @@ def _node_final_delivery(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str,
     }
 
 
-def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]:
-    """AI render node — SESSION-130: True Motion Guide Architecture.
+def _node_guide_baking(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]:
+    """SESSION-158: Independent CPU-bound guide baking stage.
 
-    This node now depends on BOTH orthographic_render_stage AND
-    motion2d_export_stage.  It uses the Clip2D bone transforms from
-    motion2d to bake genuine per-frame guide sequences via
-    ``_bake_true_motion_guide_sequence()``, then validates temporal
-    variance before passing to the anti_flicker_render backend.
+    Pipeline Decoupling — this node is the **rescued industrial bake engine**
+    that was previously trapped inside ``_node_ai_render`` behind the
+    ``--skip-ai-render`` conditional lock.  It now runs as a first-class,
+    GPU-independent CPU stage that ALWAYS executes, producing high-precision
+    Catmull-Rom interpolated guide sequences (Albedo/Normal/Depth/Mask)
+    regardless of whether downstream AI rendering is enabled.
+
+    Architecture Discipline:
+    - Pure CPU: uses only PIL/OpenCV/NumPy — zero GPU, zero LLM, zero ComfyUI.
+    - IR Hydration: guide sequences are persisted as first-class assets on disk
+      before any AI render stage consumes them.
+    - Separation of Concerns: math/bake logic is fully decoupled from
+      GPU/AI render logic.
+
+    Industrial References:
+    - AnimateDiff / ControlNet Temporal Conditioning: guide frames MUST have
+      real inter-frame geometric displacement for coherent motion generation.
+    - GDC Data-Driven Animation Pipelines: upstream bone transforms must flow
+      1:1 to downstream rendering without forgery or duplication.
+    """
+    import sys
+    import logging as _bake_logging
+    from mathart.core.anti_flicker_runtime import validate_temporal_variance
+
+    prepared = deps["prepare_character"]
+    render = deps["orthographic_render_stage"]
+    motion2d = deps["motion2d_export_stage"]
+    character_dir = Path(prepared["character_dir"])
+    stage_dir = _ensure_dir(character_dir / "guide_baking")
+    archive_dir = _ensure_dir(character_dir / "archive")
+
+    # ── UX: Sci-fi gateway banner ──────────────────────────────────────────
+    _ux_msg = (
+        f"\033[1;36m[\u2699\ufe0f  \u5de5\u4e1a\u70d8\u7119\u7f51\u5173] "
+        f"\u6b63\u5728\u901a\u8fc7 Catmull-Rom \u6837\u6761\u63d2\u503c\uff0c"
+        f"\u7eaf CPU \u89e3\u7b97\u9ad8\u7cbe\u5ea6\u5de5\u4e1a\u7ea7\u8d34\u56fe"
+        f"\u52a8\u4f5c\u5e8f\u5217... "
+        f"[{prepared['character_id']}]\033[0m"
+    )
+    sys.stderr.write(_ux_msg + "\n")
+    sys.stderr.flush()
+
+    # ── Resolve render dimensions from upstream orthographic manifest ──────
+    render_manifest = _load_manifest(Path(render["manifest_path"]))
+    render_meta = render_manifest.metadata or {}
+    render_width = int(render_meta.get("output_width", render_meta.get("width", 192)))
+    render_height = int(render_meta.get("output_height", render_meta.get("height", 192)))
+
+    # ── Bake TRUE per-frame guide sequences from real Clip2D animation ─────
+    clip_2d = motion2d.get("clip_2d")
+    frame_count = int(prepared["frame_count"])
+    source_frames, normal_maps, depth_maps, mask_maps = _bake_true_motion_guide_sequence(
+        genotype_path=prepared["genotype_path"],
+        clip_2d=clip_2d,
+        frame_count=frame_count,
+        render_width=render_width,
+        render_height=render_height,
+    )
+
+    # ── Temporal Variance Diagnostic (non-fatal in bake stage) ─────────────
+    # SESSION-158: The Circuit Breaker is now a diagnostic in the bake stage
+    # and a hard gate only in the AI render stage.  This ensures baked assets
+    # are ALWAYS persisted as first-class IR, even when temporal variance is
+    # low (e.g. idle/standing poses).  The hard fail-fast guard remains in
+    # _node_ai_render to protect AnimateDiff from static conditioning.
+    temporal_variance_passed = True
+    try:
+        validate_temporal_variance(source_frames, channel="source", mse_threshold=1.0)
+    except Exception as tv_exc:
+        temporal_variance_passed = False
+        _bake_logging.getLogger(__name__).info(
+            "[SESSION-158] Guide baking temporal variance diagnostic: %s "
+            "(non-fatal — baked assets will still be persisted as IR)",
+            tv_exc,
+        )
+
+    # ── Persist guide sequences as first-class assets (IR Hydration) ───────
+    albedo_dir = _ensure_dir(stage_dir / "albedo")
+    normal_dir = _ensure_dir(stage_dir / "normal")
+    depth_dir = _ensure_dir(stage_dir / "depth")
+    mask_dir = _ensure_dir(stage_dir / "mask")
+
+    albedo_paths: list[str] = []
+    normal_paths: list[str] = []
+    depth_paths: list[str] = []
+    mask_paths: list[str] = []
+
+    for fi in range(len(source_frames)):
+        fname = f"frame_{fi:04d}.png"
+        ap = albedo_dir / fname
+        source_frames[fi].save(str(ap))
+        albedo_paths.append(str(ap.resolve()))
+
+        np_ = normal_dir / fname
+        normal_maps[fi].save(str(np_))
+        normal_paths.append(str(np_.resolve()))
+
+        dp = depth_dir / fname
+        depth_maps[fi].save(str(dp))
+        depth_paths.append(str(dp.resolve()))
+
+        mp = mask_dir / fname
+        mask_maps[fi].save(str(mp))
+        mask_paths.append(str(mp.resolve()))
+
+    guide_width = source_frames[0].size[0] if source_frames else render_width
+    guide_height = source_frames[0].size[1] if source_frames else render_height
+
+    # ── Write baking report ────────────────────────────────────────────────
+    baking_report = {
+        "character_id": prepared["character_id"],
+        "session_id": _SESSION_ID,
+        "stage": "guide_baking",
+        "frame_count": len(source_frames),
+        "render_width": render_width,
+        "render_height": render_height,
+        "guide_width": guide_width,
+        "guide_height": guide_height,
+        "channels": ["albedo", "normal", "depth", "mask"],
+        "albedo_dir": str(albedo_dir.resolve()),
+        "normal_dir": str(normal_dir.resolve()),
+        "depth_dir": str(depth_dir.resolve()),
+        "mask_dir": str(mask_dir.resolve()),
+        "cpu_only": True,
+        "gpu_required": False,
+        "temporal_variance_passed": temporal_variance_passed,
+        "renderer": "render_character_maps_industrial (Catmull-Rom interpolated)",
+    }
+    report_path = _write_json(
+        stage_dir / f"{prepared['character_id']}_guide_baking_report.json",
+        baking_report,
+    )
+
+    # ── Archive baked guides ───────────────────────────────────────────────
+    archive_bake_dir = _ensure_dir(archive_dir / "guide_baking")
+    for sub in ["albedo", "normal", "depth", "mask"]:
+        src_sub = stage_dir / sub
+        dst_sub = archive_bake_dir / sub
+        if dst_sub.exists():
+            shutil.rmtree(dst_sub)
+        shutil.copytree(str(src_sub), str(dst_sub))
+    shutil.copy2(str(report_path), str(archive_bake_dir / report_path.name))
+
+    rng_digest = _current_rng_digest(ctx)
+
+    sys.stderr.write(
+        f"\033[1;32m[\u2705 \u5de5\u4e1a\u70d8\u7119\u5b8c\u6210] "
+        f"{len(source_frames)} \u5e27\u9ad8\u7cbe\u5ea6\u5f15\u5bfc\u56fe"
+        f"\u5e8f\u5217\u5df2\u843d\u76d8 → {stage_dir}\033[0m\n"
+    )
+    sys.stderr.flush()
+
+    return {
+        "character_id": prepared["character_id"],
+        "character_dir": prepared["character_dir"],
+        "report_path": str(report_path.resolve()),
+        "frame_count": len(source_frames),
+        "guide_width": guide_width,
+        "guide_height": guide_height,
+        "albedo_dir": str(albedo_dir.resolve()),
+        "normal_dir": str(normal_dir.resolve()),
+        "depth_dir": str(depth_dir.resolve()),
+        "mask_dir": str(mask_dir.resolve()),
+        "albedo_paths": albedo_paths,
+        "normal_paths": normal_paths,
+        "depth_paths": depth_paths,
+        "mask_paths": mask_paths,
+        "source_frames": source_frames,
+        "normal_maps": normal_maps,
+        "depth_maps": depth_maps,
+        "mask_maps": mask_maps,
+        "rng_spawn_digest": rng_digest,
+    }
+
+
+def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]:
+    """AI render node — SESSION-158: Decoupled from guide baking.
+
+    SESSION-158 PIPELINE DECOUPLING: This node no longer performs guide
+    baking itself.  It consumes pre-baked guide sequences from the
+    upstream ``guide_baking_stage`` (a pure CPU node that ALWAYS runs).
+    When ``--skip-ai-render`` is active, this node skips only the GPU/AI
+    rendering while the baked industrial guides remain available as
+    first-class assets.
 
     Industrial References:
     - AnimateDiff / SparseCtrl: guide sequences MUST have real geometric
@@ -897,11 +1076,8 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
     - Jim Gray Fail-Fast: static guide sequences are rejected immediately
       by the Temporal Variance Circuit Breaker.
     """
-    from mathart.core.anti_flicker_runtime import validate_temporal_variance
-
     prepared = deps["prepare_character"]
-    render = deps["orthographic_render_stage"]
-    motion2d = deps["motion2d_export_stage"]
+    baked = deps["guide_baking_stage"]
     character_dir = Path(prepared["character_dir"])
     stage_dir = _ensure_dir(character_dir / "anti_flicker_render")
     archive_dir = _ensure_dir(character_dir / "archive")
@@ -912,6 +1088,8 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
                 "character_id": prepared["character_id"],
                 "skipped": True,
                 "reason": "skip_ai_render flag enabled",
+                "guide_baking_available": True,
+                "guide_baking_report": baked["report_path"],
             },
         )
         archived_skip = archive_dir / "anti_flicker_render"
@@ -928,30 +1106,19 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
             "rng_spawn_digest": _current_rng_digest(ctx),
         }
 
-    # SESSION-130: Bake TRUE per-frame guide sequences from real animation.
-    # The orthographic render manifest provides the render dimensions;
-    # the Clip2D from motion2d provides the per-frame bone transforms.
-    render_manifest = _load_manifest(Path(render["manifest_path"]))
-    render_meta = render_manifest.metadata or {}
-    render_width = int(render_meta.get("output_width", render_meta.get("width", 192)))
-    render_height = int(render_meta.get("output_height", render_meta.get("height", 192)))
+    # SESSION-158: Consume pre-baked guide sequences from guide_baking_stage.
+    source_frames = baked["source_frames"]
+    normal_maps = baked["normal_maps"]
+    depth_maps = baked["depth_maps"]
+    mask_maps = baked["mask_maps"]
+    guide_width = int(baked["guide_width"])
+    guide_height = int(baked["guide_height"])
 
-    clip_2d = motion2d.get("clip_2d")
-    source_frames, normal_maps, depth_maps, mask_maps = _bake_true_motion_guide_sequence(
-        genotype_path=prepared["genotype_path"],
-        clip_2d=clip_2d,
-        frame_count=int(prepared["frame_count"]),
-        render_width=render_width,
-        render_height=render_height,
-    )
-
-    # SESSION-130: Temporal Variance Circuit Breaker — Fail-Fast guard.
-    # Validate that the baked guide sequences have genuine inter-frame
-    # geometric variation before passing to the AI rendering backend.
+    # SESSION-158: Hard Temporal Variance Circuit Breaker — only enforced
+    # here at the AI render boundary, NOT in the bake stage.  This protects
+    # AnimateDiff from static conditioning while allowing baked IR to persist.
+    from mathart.core.anti_flicker_runtime import validate_temporal_variance
     validate_temporal_variance(source_frames, channel="source", mse_threshold=1.0)
-
-    guide_width = source_frames[0].size[0] if source_frames else render_width
-    guide_height = source_frames[0].size[1] if source_frames else render_height
 
     pipeline = AssetPipeline(output_dir=str(stage_dir), verbose=False)
     manifest = pipeline.run_backend(
@@ -987,21 +1154,14 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
     if rng_digest:
         manifest.metadata["rng_spawn_digest"] = rng_digest
     # SESSION-131: Temporal Quality Gate — Circuit Breaker for AI Rendering.
-    # After the anti_flicker_render backend produces output, evaluate temporal
-    # quality using GT motion vectors and Min-SSIM fuse.  If the sequence
-    # fails quality requirements, the circuit breaker trips and prevents
-    # defective sequences from being archived.
     temporal_quality_report = None
     try:
         from mathart.quality.temporal_quality_gate import (
             TemporalQualityGate,
             QualityVerdict,
         )
-        # Convert PIL source_frames to numpy for quality evaluation
         eval_frames = [np.array(f) for f in source_frames[:min(len(source_frames), 16)]]
         if len(eval_frames) >= 2:
-            # Build synthetic MV fields from frame differences as proxy
-            # (In production, these come from motion_vector_baker)
             from types import SimpleNamespace
             proxy_mv_fields = []
             for fi in range(len(eval_frames) - 1):
@@ -1011,7 +1171,7 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
                 h, w = fa_gray.shape
                 proxy_mv_fields.append(SimpleNamespace(
                     dx=np.zeros((h, w), dtype=np.float64),
-                    dy=diff * 0.1,  # proxy displacement from brightness change
+                    dy=diff * 0.1,
                     mask=np.ones((h, w), dtype=bool),
                 ))
             gate = TemporalQualityGate(
@@ -1026,7 +1186,6 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
                     f"[SESSION-131] Temporal quality {tq_result.verdict.value}: "
                     f"{tq_result.diagnostics}"
                 )
-        # Clean up eval frames to prevent OOM
         del eval_frames
     except Exception as tq_exc:
         import logging as _logging
@@ -1034,7 +1193,6 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
             f"[SESSION-131] Temporal quality gate skipped: {tq_exc}"
         )
 
-    # Inject temporal quality report into manifest metadata
     if temporal_quality_report is not None:
         manifest.metadata["temporal_quality_gate"] = temporal_quality_report
 
@@ -1059,6 +1217,7 @@ def _node_collect_batch(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, 
     render_items = {item["character_id"]: item for item in deps["orthographic_render_stage"]}
     motion2d_items = {item["character_id"]: item for item in deps["motion2d_export_stage"]}
     delivery_items = {item["character_id"]: item for item in deps["final_delivery_stage"]}
+    baking_items = {item["character_id"]: item for item in deps["guide_baking_stage"]}
     ai_items = {item["character_id"]: item for item in deps["ai_render_stage"]}
 
     batch_dir = Path(ctx["batch_dir"]).resolve()
@@ -1079,6 +1238,7 @@ def _node_collect_batch(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, 
                 "orthographic_render_stage": render_items[cid].get("rng_spawn_digest"),
                 "motion2d_export_stage": motion2d_items[cid].get("rng_spawn_digest"),
                 "final_delivery_stage": delivery_items[cid].get("rng_spawn_digest"),
+                "guide_baking_stage": baking_items[cid].get("rng_spawn_digest"),
                 "ai_render_stage": ai_items[cid].get("rng_spawn_digest"),
             },
             "manifests": {
@@ -1089,11 +1249,13 @@ def _node_collect_batch(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, 
                 "unity_2d_anim": delivery_items[cid]["unity_manifest_path"],
                 "spine_preview": delivery_items[cid]["preview_manifest_path"],
                 "anti_flicker_render": ai_items[cid]["manifest_path"],
+                "guide_baking": baking_items[cid]["report_path"],
             },
             "final_outputs": {
                 "spine_json": delivery_items[cid]["spine_json_path"],
                 "delivery_archive": delivery_items[cid]["archived"],
                 "orthographic_archive": render_items[cid].get("archived", {}),
+                "guide_baking": baking_items[cid],
                 "ai_render": ai_items[cid],
             },
         }
@@ -1205,10 +1367,24 @@ def build_mass_production_graph(*, cache_dir: str | Path, max_workers: int, gpu_
             cache_enabled=False,
         )
     )
+    # SESSION-158: guide_baking_stage — independent CPU-bound bake node.
+    # ALWAYS runs (requires_gpu=False), producing industrial-grade guide
+    # sequences even when --skip-ai-render is active.
+    graph.add_node(
+        PDGNode(
+            name="guide_baking_stage",
+            dependencies=["prepare_character", "orthographic_render_stage", "motion2d_export_stage"],
+            operation=_node_guide_baking,
+            cache_enabled=False,
+            requires_gpu=False,
+        )
+    )
+    # SESSION-158: ai_render_stage now depends on guide_baking_stage
+    # instead of directly performing bake + render in one monolith.
     graph.add_node(
         PDGNode(
             name="ai_render_stage",
-            dependencies=["prepare_character", "orthographic_render_stage", "motion2d_export_stage"],
+            dependencies=["prepare_character", "guide_baking_stage"],
             operation=_node_ai_render,
             cache_enabled=False,
             requires_gpu=True,
@@ -1225,6 +1401,7 @@ def build_mass_production_graph(*, cache_dir: str | Path, max_workers: int, gpu_
                 "orthographic_render_stage",
                 "motion2d_export_stage",
                 "final_delivery_stage",
+                "guide_baking_stage",
                 "ai_render_stage",
             ],
             operation=_node_collect_batch,

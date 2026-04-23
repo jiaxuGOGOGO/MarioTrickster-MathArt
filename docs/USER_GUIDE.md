@@ -343,7 +343,64 @@ result2 = distiller.distill_text(
 
 ---
 
-## 8. L-System 程序化植物生成 (PlantPresets 静态工厂)
+## 8. 管线解耦：纯 CPU 工业级动画引导序列烘焙 (SESSION-158)
+
+> **SESSION-158 新增** — 系统已解除管线截断。现在即使在无显卡的纯 CPU 模式下，也能直接烘焙出拥有专业步态的高清工业级动画引导序列（Albedo/Normal/Depth/Mask）。
+
+### 这是什么？
+
+在 SESSION-158 之前，工业级动画引导图的烘焙逻辑（Catmull-Rom 骨骼插值、SMPL 体型解算、RUN_KEY_POSES 步态驱动）被错误地锁死在 AI 渲染节点（`ai_render_stage`）内部。当用户使用 `--skip-ai-render` 标志跳过 GPU 渲染时，烘焙逻辑也被连坐截断，导致纯 CPU 模式下完全无法产出任何工业级资产。
+
+SESSION-158 执行了精准的管线解耦外科手术：
+
+| 改动 | 说明 |
+|------|------|
+| **新增 `guide_baking_stage`** | 独立的纯 CPU PDG 节点，`requires_gpu=False`，ALWAYS 执行 |
+| **烘焙逻辑剥离** | `_bake_true_motion_guide_sequence()` 从 `ai_render_stage` 中完全移出 |
+| **IR Hydration** | 烘焙产物（Albedo/Normal/Depth/Mask 序列帧）作为一等公民资产落盘到 `guide_baking/` 目录 |
+| **AI 渲染解耦** | `ai_render_stage` 现在仅消费上游已烘焙好的引导图，不再自行烘焙 |
+
+### 管线拓扑变化
+
+```
+[旧管线] orthographic_render + motion2d → ai_render_stage (烘焙+AI渲染 耦合)
+                                          └─ skip_ai_render → 全部截断 ❌
+
+[新管线] orthographic_render + motion2d → guide_baking_stage (纯CPU,永远执行) ✅
+                                          └→ ai_render_stage (仅GPU渲染)
+                                              └─ skip_ai_render → 仅跳过AI渲染
+```
+
+### 终端中看到的烘焙信息
+
+当管线运行到烘焙阶段时，终端会高亮显示：
+
+```text
+[⚙️  工业烘焙网关] 正在通过 Catmull-Rom 样条插值，纯 CPU 解算高精度工业级贴图动作序列... [character_000]
+[✅ 工业烘焙完成] 40 帧高精度引导图序列已落盘 → /path/to/guide_baking
+```
+
+### 傻瓜验收：如何确认解耦成功？
+
+在终端运行（无需 GPU）：
+
+```bash
+python -m mathart mass-produce --output-dir ./test_output --batch-size 1 --skip-ai-render --seed 42
+```
+
+然后检查输出目录：
+
+```bash
+ls test_output/mass_production_batch_*/character_000/guide_baking/
+# 应看到: albedo/ normal/ depth/ mask/ 四个子目录，每个包含完整的 PNG 序列帧
+# 以及一份 character_000_guide_baking_report.json 烘焙报告
+```
+
+**关键验收点**：即使使用了 `--skip-ai-render`，`guide_baking/` 目录下也必须有完整的工业级引导图序列。这些不再是扭动的果冻，而是拥有标准跑跳动作姿态的成套工业图纸！
+
+---
+
+## 9. L-System 程序化植物生成 (PlantPresets 静态工厂)
 
 ### 这是什么？
 

@@ -42,7 +42,16 @@ def test_mass_production_factory_dry_run_skip_ai_render(tmp_path: Path) -> None:
     assert topology["fan_out_orders"]["work_items"] == 2
     assert topology["prepare_character"]["work_items"] == 2
     assert topology["orthographic_render_stage"]["work_items"] == 2
+    assert topology["guide_baking_stage"]["work_items"] == 2
     assert topology["ai_render_stage"]["work_items"] == 2
+
+    # SESSION-158: guide_baking_stage is CPU-only (requires_gpu=False)
+    baking_trace = [
+        entry for entry in runtime["trace"]
+        if entry["node_name"] == "guide_baking_stage"
+    ]
+    assert baking_trace
+    assert all(entry["requires_gpu"] is False for entry in baking_trace)
 
     gpu_trace = [
         entry for entry in runtime["trace"]
@@ -64,6 +73,17 @@ def test_mass_production_factory_dry_run_skip_ai_render(tmp_path: Path) -> None:
         assert record["manifests"]["anti_flicker_render"] is None
         assert Path(record["final_outputs"]["spine_json"]).exists()
 
+        # SESSION-158: guide_baking assets MUST exist even with skip_ai_render
+        guide_baking = record["final_outputs"]["guide_baking"]
+        assert guide_baking["frame_count"] > 0
+        assert Path(guide_baking["report_path"]).exists()
+        assert Path(guide_baking["albedo_dir"]).exists()
+        assert Path(guide_baking["normal_dir"]).exists()
+        assert Path(guide_baking["depth_dir"]).exists()
+        assert Path(guide_baking["mask_dir"]).exists()
+        assert record["manifests"]["guide_baking"] is not None
+        assert Path(record["manifests"]["guide_baking"]).exists()
+
         stage_rng = record["stage_rng_spawn_digests"]
         assert set(stage_rng) == {
             "prepare_character",
@@ -73,6 +93,7 @@ def test_mass_production_factory_dry_run_skip_ai_render(tmp_path: Path) -> None:
             "orthographic_render_stage",
             "motion2d_export_stage",
             "final_delivery_stage",
+            "guide_baking_stage",
             "ai_render_stage",
         }
         assert all(stage_rng[key] for key in stage_rng)
