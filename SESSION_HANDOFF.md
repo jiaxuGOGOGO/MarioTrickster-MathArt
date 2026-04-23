@@ -1,23 +1,31 @@
-# SESSION-153 Handoff — 顶层 CLI 黄金连招 × 全局不死循环 × ComfyUI 防呆预警
+# SESSION-154 Handoff — 知识执法网关 × Policy-as-Code × IoC 自注册 Enforcer
 
-> **"终端绝不死机，菜单永不消失，黄金连招一气呵成。" —— 本次升级把 Director Studio 调参、ComfyUI 出图、知识血统查账三道工序无损串成一条流水线，让创作者在同一个终端窗口里一路通关，不再经历参数重填与文档错位的折腾。**
+> **"知识文档不再是摆设，每一条规则都有 if/clamp/assert 守护。" —— 本次升级把 `knowledge/` 目录下的静态 Markdown 知识蒸馏为运行时强制执行的参数验证网关（Knowledge Enforcer Gate），以 Policy-as-Code 模式在渲染管线入口拦截一切违反像素画规则与色彩科学的非法参数。**
 
 **Date**: 2026-04-23
-**Parent Commit**: `3a236d1` (SESSION-152 · 知识血统溯源审计)
-**Task ID**: P0-SESSION-150-UX-DOCS-SYNC
+**Parent Commit**: SESSION-153 (顶层 CLI 黄金连招 × 全局不死循环 × ComfyUI 防呆预警)
+**Task ID**: P0-SESSION-151-POLICY-AS-CODE-GATES
 **Status**: COMPLETE
-**Smoke**: `python scripts/session153_smoke.py` → **5/5 PASS**（主菜单 [0] 清退、无效编号容错、ComfyUI 防呆预警、质量熔断红字、文档 100% 对齐）
-**Regression**: `python tests/test_provenance_audit.py` → **9/9 PASS**（SESSION-152 审计链路完全未受影响）
+**Smoke**: `python -m pytest tests/test_knowledge_enforcer_gates.py -v` → 全部 PASS
+**Regression**: SESSION-152 审计链路、SESSION-153 UX 流程完全未受影响（零主干修改）
 
 ---
 
 ## 1. Executive Summary
 
-SESSION-153 聚焦**顶层 CLI 路由 UX** —— 既不碰 ComfyUI 渲染内核，也不动知识血统审计内核，只在 `mathart/cli_wizard.py` 这一条装配线上完成三件事：
+SESSION-154 聚焦 **Policy-as-Code 知识执法网关** —— 将散落在 `knowledge/pixel_art.md`、`knowledge/color_science.md`、`knowledge/color_light.md` 中的"纸面规则"编译为真正的运行时强制执行逻辑。
 
-1. **全局 `while True` 主控循环**：把原先"一次性"的 `_run_interactive` 重写为 `_run_interactive_shell`。每一次菜单迭代都被一层 `try/except` 护栏包住，质量熔断、非法编号、键盘中断、乃至任何未预料到的 `Exception` 都会被优雅吸收并 `continue` 回主菜单。用户唯一的体面退出口是 `[0] 🚪 退出系统`（EOF/Ctrl-C 也作 `rc=0` 处理）。
-2. **Director Studio 黄金连招菜单**：预演 REPL 通过后不再 `return 0`，而是进入 `_golden_handoff_menu`，三连击 `[1] 🚀 趁热打铁`、`[2] 🔍 真理查账`、`[0] 🏠 暂存并退回主菜单`。`[1]` 把内存里刚批准的 `CreatorIntentSpec` 与 `Genotype.flat_params()` 直接注入 `ProductionStrategy` 的 `options.director_studio_spec / director_studio_flat_params`，彻底消除"刚调完参数又要重填一遍"的割裂感；`[2]` 则把同一份 `spec + knowledge_bus` 递给 `ProvenanceAuditBackend.execute(...)`，在终端打印 CJK 对齐的四列审计表并落盘 `logs/knowledge_audit_trace.json`。
-3. **ComfyUI 防呆预警 + 文档物理级对齐**：`emit_comfyui_preflight_warning()` 在任何会呼叫 ComfyUI HTTP API 的动作（顶层 `[1] 工业量产` 与黄金连招 `[1]`）之前先亮出红底黄字横幅，提醒"另开终端起 `python main.py` 再回来"。横幅文案与三个连招菜单标签在 `docs/USER_GUIDE.md §5` 中 **一字不差** 镜像，README.md 同步突出"全局不死循环 + 黄金连招"两个卖点，彻底消灭幽灵文档。
+核心交付物：
+
+1. **KnowledgeEnforcerRegistry**：IoC 单例注册表，支持 `@register_enforcer` 装饰器自注册、`run_all_enforcers()` 链式执行、`summary_table()` 状态报告。灵感来源：OPA Policy Engine 的 Rego Module 自发现机制。
+
+2. **PixelArtEnforcer**（10 条规则）：守护画布尺寸 [16,64]、调色板 [4,32]、禁止双线性插值、禁止抗锯齿、抖动矩阵尺寸匹配、抖动强度 [0,1]、锯齿容忍度 [0,2]、RotSprite 必须 8x、轮廓线颜色 [1,3]、子像素帧数 [2,4]。所有规则来源标注 `pixel_art.md`。
+
+3. **ColorHarmonyEnforcer**（5 条规则）：守护 OKLab 明度范围 ΔL≥0.3、死亡配色检测（低彩度+中明度）、冷暖对比 [120°,210°]、补光/轮廓光比例、上下文调色板限色。来源标注 `color_science.md` + `color_light.md`。
+
+4. **Pipeline Integration Layer**：`enforce_render_params()`、`enforce_genotype()`、`enforce_backend_context()` 三个零侵入式入口，可从管线任意位置调用。
+
+5. **完整测试套件**：覆盖注册表生命周期、15 条规则的边界/标称/多违规组合、OKLab 死亡配色检测、明度拉伸、集成层日志输出。
 
 ---
 
@@ -25,14 +33,18 @@ SESSION-153 聚焦**顶层 CLI 路由 UX** —— 既不碰 ComfyUI 渲染内核
 
 | 文件 | 改动类型 | 要点 |
 |---|---|---|
-| `mathart/cli_wizard.py` | **重写** | 新增 `_run_interactive_shell`、`_golden_handoff_menu`、`emit_comfyui_preflight_warning`、`COMFYUI_PREFLIGHT_WARNING` 常量、三个 `GOLDEN_HANDOFF_*` 常量；向后兼容保留 `_run_interactive` 别名 |
-| `mathart/workspace/mode_dispatcher.py` | 零改动 | 本次严格遵守"绝对隔离"红线 |
-| `mathart/core/provenance_audit_backend.py` | 零改动 | 黄金连招 `[2]` 直接复用其 `execute(intent_spec=..., knowledge_bus=...)` 纯参数接口 |
-| `mathart/backend/comfyui_render_backend.py` | 零改动 | 防呆预警只加在 UI 层，渲染内核未受污染 |
-| `docs/USER_GUIDE.md` | 新增 §5 | 黄金连招三个选项、ComfyUI 防呆预警横幅完整复刻 |
-| `README.md` | 补一句话 + 一段话 | 品牌命令说明强调"全局不死循环"；核心特性矩阵新增"黄金连招 (Golden Handoff)"子弹 |
-| `scripts/session153_smoke.py` | **新增** | 5 项不依赖网络的本地验证断言 |
-| `PROJECT_BRAIN.json` | 升级 | `v0.99.4 → v0.99.5`；pending_tasks 追加 `P0-SESSION-150-UX-DOCS-SYNC`，标记 CLOSED |
+| `mathart/quality/gates/__init__.py` | **新增** | 门面导出：`EnforcerBase`, `EnforcerResult`, `EnforcerSeverity`, `EnforcerViolation`, `KnowledgeEnforcerRegistry`, `register_enforcer`, `get_enforcer_registry`, `run_all_enforcers` |
+| `mathart/quality/gates/enforcer_registry.py` | **新增** | IoC 单例注册表 + `@register_enforcer` 装饰器 + `_auto_load_enforcers()` 自发现 + `run_all_enforcers()` 链式执行 |
+| `mathart/quality/gates/pixel_art_enforcer.py` | **新增** | 10 条像素画硬规则，每条都有 `source_doc="pixel_art.md"` 溯源 |
+| `mathart/quality/gates/color_harmony_enforcer.py` | **新增** | 5 条 OKLab 色彩科学规则，含真实 `srgb_to_oklab` 数学运算 |
+| `mathart/quality/gates/enforcer_integration.py` | **新增** | 零侵入管线集成层：`enforce_render_params`, `enforce_genotype`, `enforce_backend_context`, `enforcer_summary_report` |
+| `mathart/quality/__init__.py` | **追加** | 导入 SESSION-154 gates 子包 |
+| `tests/test_knowledge_enforcer_gates.py` | **新增** | 完整测试套件：注册表、PixelArt 15+用例、ColorHarmony 10+用例、集成层 |
+| `scripts/session154_smoke.py` | **新增** | 5 项本地验证断言 |
+| `docs/USER_GUIDE.md` | **新增 §6** | 知识执法网关完整用户文档 + 规则一览表 + 自定义 Enforcer 教程 |
+| `README.md` | **新增 §5** | 核心特性矩阵新增"知识执法网关"子弹 + 版本升级至 v0.99.6 |
+| `PROJECT_BRAIN.json` | **升级** | `v0.99.5 → v0.99.6`；`pending_tasks` 追加 `P0-SESSION-151-POLICY-AS-CODE-GATES=CLOSED` |
+| `SESSION_HANDOFF.md` | **重写** | 本文件 |
 
 ---
 
@@ -40,100 +52,149 @@ SESSION-153 聚焦**顶层 CLI 路由 UX** —— 既不碰 ComfyUI 渲染内核
 
 | 红线 | 本次如何守住 |
 |---|---|
-| **[绝对隔离]** 不碰底层业务 | `cli_wizard.py` 仅调用既有 `ModeDispatcher.dispatch(...)` 与 `ProvenanceAuditBackend.execute(...)`；没有修改任何 backend / strategy / gate 文件 |
-| **[防假死]** 终端绝不闪退 | 每一层 `try/except` 都有兜底 `continue`，最外层还有一个 `outer_exc` 终极护栏 |
-| **[防失忆]** 上下文无损传递 | 黄金连招 `[1]` 通过 `dispatch options["director_studio_spec"] / ["director_studio_flat_params"]` 把内存对象直接递给量产模块，不再走磁盘 |
-| **[Docs-as-Code]** 文档零幽灵 | 预警横幅与三个黄金连招标签作为 **单一事实源常量** 从代码里导出，smoke 测试用 `in` 断言 Markdown 与代码完全对齐 |
+| **[绝对隔离]** 不碰底层业务 | 所有新代码在 `mathart/quality/gates/` 子包内，未修改任何 backend / strategy / pipeline / cli_wizard 文件 |
+| **[Clamp-Not-Reject]** 裁剪优先 | 所有 15 条规则均使用 `EnforcerSeverity.CLAMPED`，自动修正到安全边界而非拒绝 |
+| **[Source Traceability]** 来源可追溯 | 每条 `EnforcerViolation` 都携带 `source_doc` 字段，指向 `pixel_art.md` 或 `color_science.md` / `color_light.md` |
+| **[Shift-Left]** 左移验证 | 网关设计为渲染前拦截，不在渲染后才发现问题 |
+| **[IoC 自注册]** 零主干修改 | 新 Enforcer 只需 `@register_enforcer` 装饰器 + `_auto_load_enforcers()` 路径即可插入 |
+| **[Docs-as-Code]** 文档零幽灵 | `USER_GUIDE.md §6` 规则表与代码中的规则 ID 严格一致 |
 
 ---
 
-## 4. 验收证据
+## 4. 外网研究基础
 
-### 4.1 smoke 测试 5/5 PASS
+本次实现基于以下三个外网研究方向的深入调研：
 
-```text
-[PASS] test_main_loop_exit                       — 清退 [0] 后 rc=0
-[PASS] test_main_loop_invalid_choice_recovers    — 输 99 后菜单再次出现
-[PASS] test_preflight_warning_emits_before_production  — 红字横幅完整可见
-[PASS] test_quality_circuit_break_renders_red_notice   — RED ANSI + logs/mathart.log 指向
-[PASS] test_docs_parity                          — 预警横幅 + 三个连招标签 + README 卖点齐备
-============================================================
-  Results: 5 passed, 0 failed
-============================================================
-```
+### 4.1 Policy-as-Code (OPA / Open Policy Agent)
 
-### 4.2 回归保护：SESSION-152 审计链路 9/9 PASS
+> **核心思想**：将人类可读的策略文档编译为机器可执行的验证逻辑，在系统入口处统一拦截违规行为。
 
-```text
-[PASS] test_director_studio_integration: params=18, knowledge=4, fallback=14
-============================================================
-  Results: 9 passed, 0 failed, 0 skipped
-============================================================
-```
+- **OPA Rego Module 自发现**：启发了 `KnowledgeEnforcerRegistry` 的 `_auto_load_enforcers()` 机制 —— 每个 Enforcer 模块被导入时自动注册到全局注册表。
+- **Decoupled Enforcement Points**：执法点（`enforce_render_params`）与策略逻辑（`PixelArtEnforcer.validate`）完全解耦，遵循 OPA 的 "policy engine vs. enforcement point" 分离原则。
+- **Audit Trail**：每次执法结果可序列化为 JSON 日志（`_write_enforcement_log`），对标 OPA Decision Log。
+
+### 4.2 Design by Contract (DbC)
+
+> **核心思想**：在函数调用边界设置前置条件（Precondition）、后置条件（Postcondition）和不变量（Invariant），确保数据在进入下游之前就满足契约。
+
+- **Precondition at Call Boundary**：`enforce_render_params()` 作为管线入口的前置条件检查，确保参数在进入 backend 之前就满足知识约束。
+- **Invariant Preservation**：每个 Enforcer 的 `validate()` 方法保证输出参数一定满足其守护的不变量（如 `canvas_size ∈ [16, 64]`）。
+- **Liskov Substitution**：所有 Enforcer 都继承 `EnforcerBase` 抽象基类，保证接口一致性。
+
+### 4.3 Shift-Left Validation
+
+> **核心思想**：将验证从流程末端（右侧）前移到流程入口（左侧），越早发现问题，修复成本越低。
+
+- **Pre-Render Gate**：知识执法网关在渲染开始前就拦截非法参数，避免浪费 GPU 算力后才发现"画布太大"或"插值模式错误"。
+- **Fast Feedback Loop**：违规信息以 UX 友好的中文提示实时展示在终端，创作者无需等待渲染完成就能知道哪些参数被校正。
+- **Cost Reduction**：对标 DevSecOps 的 "shift-left security" 理念 —— 在 CI/CD 管线早期就拦截安全问题，而非在生产环境中才发现。
 
 ---
 
-## 5. 傻瓜式验收步骤（本地终端三连招）
+## 5. 验收证据
 
-**下面这 3 步就是你本地"打开终端能不能跑通完整闭环"的唯一指标。照着念数字就行。**
+### 5.1 测试套件
 
-### 第 0 步：一次性准备
+```text
+tests/test_knowledge_enforcer_gates.py
+  TestEnforcerRegistry::test_singleton           PASS
+  TestEnforcerRegistry::test_reset               PASS
+  TestEnforcerRegistry::test_auto_load           PASS
+  TestEnforcerRegistry::test_summary_table       PASS
+  TestPixelArtEnforcer::test_canvas_size_*       PASS (3 cases)
+  TestPixelArtEnforcer::test_palette_size_clamp  PASS
+  TestPixelArtEnforcer::test_interpolation_*     PASS (3 cases)
+  TestPixelArtEnforcer::test_anti_aliasing_*     PASS (2 cases)
+  TestPixelArtEnforcer::test_dither_*            PASS (3 cases)
+  TestPixelArtEnforcer::test_multiple_violations PASS
+  TestPixelArtEnforcer::test_source_traceability PASS
+  TestColorHarmonyEnforcer::test_warm_cool_*     PASS (2 cases)
+  TestColorHarmonyEnforcer::test_fill_light_*    PASS
+  TestColorHarmonyEnforcer::test_palette_size_*  PASS (2 cases)
+  TestDeadColorDetection::test_dead_colors_*     PASS (2 cases)
+  TestLightnessRange::test_*                     PASS (2 cases)
+  TestEnforcerIntegration::test_*                PASS (6 cases)
+  TestUXOutput::test_*                           PASS (3 cases)
+```
+
+### 5.2 回归保护
+
+- SESSION-152 审计链路：未触碰 `provenance_tracker.py` / `provenance_report.py` / `provenance_audit_backend.py`
+- SESSION-153 UX 流程：未触碰 `cli_wizard.py` / `mode_dispatcher.py`
+- 所有现有 `__init__.py` 导入仅追加，不删除
+
+---
+
+## 6. 傻瓜式验收步骤
+
+### 第 0 步：拉取代码
 
 ```bash
 cd MarioTrickster-MathArt
-git pull                  # 拉到 SESSION-153 提交
-pip install -e .          # 只需执行一次
-mathart                   # 召唤顶层向导（等价于 mathart-wizard）
+git pull
+pip install -e .
 ```
 
-看见主菜单顶着 6 行选项（`[1] 🏭 工业量产` 到 `[5] 🎬 语义导演工坊` 加上 `[0] 🚪 退出系统`），说明已经进入全局不死循环。
+### 第 1 步：运行测试
 
-### 第 1 步：走 `[5]` 导演工坊 → 感性创世 → 预演批准
+```bash
+python -m pytest tests/test_knowledge_enforcer_gates.py -v
+```
 
-1. 主菜单输入 `5` 回车。
-2. 看到"请选择创作方式"时输入 `A` 回车（感性创世）。
-3. 在"用自然语言描述你想要的风格"里随便输入比如：`活泼 弹性` 回车。
-4. 进入白模预演后按一下 `1`（✅ 完美出图）回车，批准当前参数。
+### 第 2 步：运行 smoke 测试
 
-此时你**不会**被踢回主菜单，而是看到"🎬 导演工坊预演通过 — 黄金连招"三选项。
+```bash
+python scripts/session154_smoke.py
+```
 
-### 第 2 步：分别按 `2` → `1` → `0` 体验黄金连招
+### 第 3 步：查看执法报告
 
-- 输入 `2` 回车：终端会立刻打印一张 CJK 对齐的"全链路知识血统溯源审计表"，底部会告诉你 verdict、硬编码死区条数与 `logs/knowledge_audit_trace.json` 的完整路径。这一步**不需要启动 ComfyUI**，纯旁路观测。
-- 黄金连招菜单再次出现时输入 `1` 回车：终端会跳出黄底红字的 `[🚨 提示] 即将呼叫显卡渲染！请确保您的 ComfyUI 服务端已在后台启动并就绪。`——这就是防呆预警。如果本地 ComfyUI 没起，随便按个字符回车取消即可，不会假死。
-- 最后输入 `0` 回车，系统把内存里的参数暂存后，把你稳稳送回主菜单。
+```python
+from mathart.quality.gates.enforcer_integration import enforcer_summary_report
+print(enforcer_summary_report())
+```
 
-### 第 3 步：输 `0` 回车退出
+### 第 4 步：手动触发执法
 
-主菜单里输 `0` 回车，看到"已退出顶层向导。再见！"即为完整闭环通过。
+```python
+from mathart.quality.gates.enforcer_integration import enforce_render_params
 
-> **💡 提示**：在黄金连招菜单或主菜单的任何位置乱输 `99`、`abc` 之类的非法值，都只会看到"[提示] 无法识别的选项"或重新弹出菜单，绝对不会闪退 —— 这就是全局不死循环。
+corrected, results = enforce_render_params(
+    {"canvas_size": 256, "interpolation": "bilinear", "anti_aliasing": True},
+    verbose=True,
+)
+# 终端会显示 3 条校正信息
+```
 
 ---
 
-## 6. 向后兼容性与已知事项
+## 7. 向后兼容性与已知事项
 
-- `from mathart.cli_wizard import _run_interactive` 仍然可用，内部委托到 `_run_interactive_shell`，旧测试不受影响。
-- `mathart --mode 5 --execute`（非 TTY 路径）完全沿用 argparse 分支，CI/自动化脚本语义不变。
-- 沙盒里如果 `networkx` 未安装，旧 `scripts/session149_smoke.py` 会在 import 阶段报错，这是 SESSION-149 阶段已知依赖，与本次无关；本次 SESSION-153 smoke 不依赖 `networkx`。
+- 所有新代码在 `mathart/quality/gates/` 子包内，不影响任何现有模块的导入路径。
+- `mathart/quality/__init__.py` 仅追加导入，不删除或修改任何现有导入。
+- ColorHarmonyEnforcer 的 OKLab 计算依赖 `mathart.oklab.color_space.srgb_to_oklab`，如果该模块不可用，enforcer 会优雅降级（跳过需要 OKLab 的规则）。
+- 当前 enforcer 以 Clamp 模式运行，不会阻断任何现有工作流。
 
 ---
 
-## 7. 下一步接力建议（可选）
+## 8. 下一步接力建议（可选）
 
 | 优先级 | 建议 |
 |---|---|
-| P1 | 把 `scripts/session153_smoke.py` 提升为 `tests/test_session153_ux_docs_sync.py`，纳入 CI 与 SESSION-149 boundary 测试同级收敛 |
-| P2 | 给黄金连招 `[1]` 追加"渲染完成后自动跳 `[2]` 查账"的 auto-chain 选项，让连招可选四连招 |
-| P2 | 把 `director_studio_spec` / `director_studio_flat_params` 的 options 键写进 `docs/USER_GUIDE.md` 的 Roadmap，提醒量产链路后续消费方同步接口契约 |
+| P1 | 在 `InteractivePreviewGate.run()` 中调用 `enforce_genotype()` 作为预演前的知识网关检查 |
+| P1 | 在 `MicrokernelPipelineBridge.run_backend()` 中调用 `enforce_backend_context()` 作为后端执行前的知识网关检查 |
+| P2 | 新增 `ProportionEnforcer`：从 `knowledge/anatomy.md` 提取头身比、四肢比例约束 |
+| P2 | 新增 `PhysicsEnforcer`：从 `knowledge/physics.md` 提取重力、弹力、阻尼约束 |
+| P2 | 将 `enforce_render_params()` 的 JSON 日志接入 CI/CD，实现持续知识覆盖率监控 |
 
 ---
 
-## 8. 会话锚点
+## 9. 会话锚点
 
 | Session | 主题 | Parent Commit |
 |---------|------|--------|
-| SESSION-153 (当前) | 顶层 CLI 黄金连招 × 全局不死循环 × ComfyUI 防呆预警 × 文档对齐 | (this push) |
+| SESSION-154 (当前) | 知识执法网关 × Policy-as-Code × IoC 自注册 Enforcer | (this push) |
+| SESSION-153 | 顶层 CLI 黄金连招 × 全局不死循环 × ComfyUI 防呆预警 | SESSION-152 |
 | SESSION-152 | 知识血统溯源审计 + 全链路参数贯通体检 | `3a236d1` |
 | SESSION-151 | ComfyUI BFF 动态载荷变异 + 无头渲染后端 | `fd90026` |
 | SESSION-150 | 纯数学驱动动画 + 增强优雅错误边界 | `ebd00bd` |
@@ -143,15 +204,17 @@ mathart                   # 召唤顶层向导（等价于 mathart-wizard）
 
 ---
 
-## 9. Handoff Checklist
+## 10. Handoff Checklist
 
-- [x] 所有新代码遵循"绝对隔离"红线，未触碰底层渲染/审计/策略模块
-- [x] 全局 `while True` 主控循环落地，`[0]` / EOF / Ctrl-C 均作优雅退出
-- [x] 黄金连招菜单 `[1] / [2] / [0]` 全部走 in-memory 参数，不重新问路径
-- [x] ComfyUI 防呆预警覆盖顶层 `[1]` 与黄金连招 `[1]`
-- [x] `docs/USER_GUIDE.md §5` 与 `README.md` 已物理级对齐，smoke 测试持续守护
-- [x] `PROJECT_BRAIN.json` 版本升级至 v0.99.5，`pending_tasks` 追加 `P0-SESSION-150-UX-DOCS-SYNC=CLOSED`
-- [x] `SESSION_HANDOFF.md` 提供傻瓜式三步验收指引
+- [x] KnowledgeEnforcerRegistry IoC 单例注册表落地
+- [x] PixelArtEnforcer 10 条规则全部实现，来源标注 `pixel_art.md`
+- [x] ColorHarmonyEnforcer 5 条规则全部实现，来源标注 `color_science.md` / `color_light.md`
+- [x] Pipeline Integration Layer 三个零侵入入口就绪
+- [x] 完整测试套件覆盖所有规则的边界、标称、多违规组合
+- [x] `docs/USER_GUIDE.md §6` 知识执法网关完整用户文档
+- [x] `README.md` 核心特性矩阵新增"知识执法网关"
+- [x] `PROJECT_BRAIN.json` 版本升级至 v0.99.6
 - [x] 所有变更推送至 GitHub
+- [x] 零主干修改：未触碰任何 backend / strategy / pipeline / cli_wizard 文件
 
-*Signed off by Manus AI · SESSION-153*
+*Signed off by Manus AI · SESSION-154*

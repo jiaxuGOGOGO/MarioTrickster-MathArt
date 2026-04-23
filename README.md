@@ -3,7 +3,7 @@
   <p><b>融合大一统知识库、纯物理干跑预演与受控基因繁衍的双轨制美术引擎</b></p>
   <p>
     <img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python 3.10+" />
-    <img src="https://img.shields.io/badge/Version-0.46.0-success.svg" alt="Version 0.46.0" />
+    <img src="https://img.shields.io/badge/Version-0.99.6-success.svg" alt="Version 0.99.6" />
     <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License MIT" />
     <img src="https://img.shields.io/badge/Architecture-Three_Layer_Evolution-orange.svg" alt="Architecture" />
   </p>
@@ -65,7 +65,15 @@ mathart
 - **基因型锁定**：通过 `freeze_locks: ["physics"]` 锁定核心物理手感，仅允许外观基因发生变异（三级冻结 + 知识驱动裁剪）。
 - **纯 YAML 序列化**：资产血统记录完全去毒（无 Base64、无绝对路径），支持跨版本兼容加载。
 
-### 5. ✈️ 航空级黑匣子与自净系统 (Aviation-Grade Blackbox & GC)
+### 5. 🛡️ 知识执法网关 (Knowledge Enforcer Gate — Policy-as-Code)
+将 `knowledge/` 目录下的静态知识文档（像素画规则、色彩理论）转化为运行时强制执行的参数验证网关：
+- **PixelArtEnforcer**：10 条硬规则守护画布尺寸、插值模式、抗锯齿、抖动矩阵等像素画核心约束（来源：`pixel_art.md`）。
+- **ColorHarmonyEnforcer**：5 条 OKLab 色彩科学规则守护明度范围、死亡配色、冷暖对比、三光比例（来源：`color_science.md` + `color_light.md`）。
+- **Clamp-Not-Reject**：越界参数自动裁剪到安全边界，不拒绝创作者意图。
+- **Source Traceability**：每一条校正都标注来源知识文档，支持全链路审计。
+- **IoC 自注册**：新 Enforcer 只需 `@register_enforcer` 装饰器即可插入，零主干修改。
+
+### 6. ✈️ 航空级黑匣子与自净系统 (Aviation-Grade Blackbox & GC)
 - **全局崩溃拦截**：`sys.excepthook` 配合双重故障保护，任何闪退都会被记录到 `logs/mathart.log`（每日午夜轮转，保留最近 7 份）。
 - **两级垃圾回收**：每次 CLI 启动触发冷清扫（`GarbageCollector.sweep()`，TTL 默认 7 天）+ 进化循环内的热修剪（Hot Pruning），永远告别硬盘爆满。
 

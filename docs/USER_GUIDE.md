@@ -153,3 +153,104 @@ freeze_locks:
   - 如果出现红色的 `⚠️ [Heuristic Fallback / 代码硬编码死区]`，说明该参数没有知识支撑，纯粹是代码写死的默认值（AI 偷懒了）。
 - **[0] 暂存并退回**：
   将当前参数暂存，安全返回最顶层的主菜单。
+
+---
+
+## 6. 知识执法网关：Policy-as-Code 参数守卫 (Knowledge Enforcer Gate)
+
+> **SESSION-154 新增** — 将 `knowledge/` 目录下的静态知识文档转化为运行时强制执行的参数验证网关。
+
+### 什么是知识执法网关？
+
+知识执法网关 (Knowledge Enforcer Gate) 是一套 **Policy-as-Code** 参数守卫系统。它把散落在 `knowledge/pixel_art.md`、`knowledge/color_science.md`、`knowledge/color_light.md` 等文档中的"纸面规则"，编译为真正的 `if/clamp/assert` 代码逻辑，在参数进入渲染管线 **之前** 就拦截非法值。
+
+**核心设计原则**：
+
+| 原则 | 说明 |
+|------|------|
+| **Clamp-Not-Reject (裁剪优先)** | 遇到越界参数时，系统优先自动修正到安全边界，而非直接报错拒绝 |
+| **Source Traceability (来源可追溯)** | 每一条校正都会标注其来源知识文档（如 `pixel_art.md §基础规则`） |
+| **Shift-Left Validation (左移验证)** | 在渲染开始前就拦截非法参数，避免浪费 GPU 算力 |
+| **Zero Trunk Modification (零主干侵入)** | 网关以插件形式挂载，不修改任何现有管线核心代码 |
+
+### 当前已注册的 Enforcer
+
+| Enforcer | 来源知识文档 | 守护规则数 |
+|----------|-------------|----------|
+| `pixel_art_enforcer` | `pixel_art.md` | 10 条 |
+| `color_harmony_enforcer` | `color_science.md`, `color_light.md` | 5 条 |
+
+### PixelArtEnforcer 守护规则一览
+
+| 规则 ID | 守护内容 | 合法范围 | 违规处理 |
+|---------|---------|---------|----------|
+| 禁止像素画画布尺寸越界 | 画布尺寸 | [16, 64] px | Clamp |
+| 禁止像素画调色板越界 | 调色板大小 | [4, 32] 色 | Clamp |
+| 禁止像素画双线性插值 | 插值模式 | 仅 `nearest` | 强制 nearest |
+| 禁止像素画抗锯齿 | Anti-Aliasing | 必须关闭 | 强制 False |
+| 像素画抖动矩阵尺寸不匹配 | Bayer 矩阵 | 16px→2x2, 32px+→4x4 | Clamp |
+| 像素画抖动强度越界 | 抖动强度 | [0.0, 1.0] | Clamp |
+| 像素画锯齿容忍度越界 | Jaggies | [0, 2] px | Clamp |
+| RotSprite放大倍数非法 | RotSprite 倍率 | 必须 8x | 强制 8 |
+| 像素画轮廓线颜色数越界 | 轮廓线颜色 | [1, 3] | Clamp |
+| 像素画子像素帧数越界 | 子像素帧数 | [2, 4] | Clamp |
+
+### ColorHarmonyEnforcer 守护规则一览
+
+| 规则 ID | 守护内容 | 合法范围 | 违规处理 |
+|---------|---------|---------|----------|
+| 色彩明度范围不足 | 调色板 L-range | ΔL ≥ 0.3 | 拉伸明度 |
+| 死亡配色检测 | 低彩度+中明度 | C ≥ 0.02 或 L 不在 [0.3, 0.7] | 提升彩度 |
+| 冷暖对比不足/过度 | 光影色相差 | [120°, 210°] | 修正色相 |
+| 补光/轮廓光比例越界 | 3-light ratio | Fill [0.3, 0.5], Rim [0.2, 0.4] | Clamp |
+| 上下文调色板大小越界 | 角色/主题限色 | 角色 [8, 16], 主题 [16, 24] | Clamp |
+
+### 终端中看到的执法信息
+
+当知识执法网关激活时，终端会显示类似以下信息：
+
+```text
+============================================================
+  🛡️ 【知识执法网关 — Knowledge Enforcer Gate】
+============================================================
+  [💡 知识网关激活] 依据《pixel_art.md》，系统已自动校正您的参数 canvas_size: 256 → 64 (规则: 禁止像素画画布尺寸越界)
+  [💡 知识网关激活] 依据《pixel_art.md》，系统已自动校正您的参数 interpolation: 'bilinear' → 'nearest' (规则: 禁止像素画双线性插值)
+
+  📊 执法摘要: 2 条规则触发
+     校正 (Clamped): 2
+     拦截 (Rejected): 0
+============================================================
+```
+
+### 如何扩展：编写自定义 Enforcer
+
+如果你想为新的知识文档添加执法逻辑，只需：
+
+1. 在 `mathart/quality/gates/` 下新建 Python 文件
+2. 继承 `EnforcerBase` 并实现 `name`、`source_docs`、`validate()` 三个接口
+3. 用 `@register_enforcer` 装饰器自动注册
+4. 在 `enforcer_registry.py` 的 `_auto_load_enforcers()` 中添加模块路径
+
+```python
+from mathart.quality.gates import EnforcerBase, register_enforcer, EnforcerResult
+
+@register_enforcer
+class MyCustomEnforcer(EnforcerBase):
+    @property
+    def name(self) -> str:
+        return "my_custom_enforcer"
+
+    @property
+    def source_docs(self) -> list[str]:
+        return ["my_knowledge.md"]
+
+    def validate(self, params):
+        violations = []
+        corrected = dict(params)
+        # ... your validation logic here ...
+        return EnforcerResult(
+            enforcer_name=self.name,
+            params=corrected,
+            violations=violations,
+        )
+```

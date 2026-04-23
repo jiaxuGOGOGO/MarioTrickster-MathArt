@@ -96,3 +96,21 @@ from mathart.quality.interactive_gate import (
 from mathart.quality.interactive_gate import ConflictArbitrationResult
 from mathart.quality.interactive_gate import check_knowledge_conflicts
 from mathart.quality.interactive_gate import apply_knowledge_clamp_to_genotype
+
+# SESSION-154 (P0-SESSION-151-POLICY-AS-CODE-GATES): Knowledge Enforcer Gate Registry
+from mathart.quality.gates import (
+    EnforcerBase,
+    EnforcerResult,
+    EnforcerSeverity,
+    EnforcerViolation,
+    KnowledgeEnforcerRegistry,
+    register_enforcer,
+    get_enforcer_registry,
+    run_all_enforcers,
+)
+from mathart.quality.gates.enforcer_integration import (
+    enforce_render_params,
+    enforce_genotype,
+    enforce_backend_context,
+    enforcer_summary_report,
+)

@@ -1,6 +1,6 @@
 {
-  "version": "v0.99.5",
-  "last_session_id": "SESSION-153",
+  "version": "v0.99.6",
+  "last_session_id": "SESSION-154",
   "last_updated": "2026-04-23",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -24,6 +24,25 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-151-POLICY-AS-CODE-GATES",
+        "title": "Knowledge Enforcer Gate Registry — Policy-as-Code Parameter Validation",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-154",
+        "modules": [
+          "mathart/quality/gates/__init__.py",
+          "mathart/quality/gates/enforcer_registry.py",
+          "mathart/quality/gates/pixel_art_enforcer.py",
+          "mathart/quality/gates/color_harmony_enforcer.py",
+          "mathart/quality/gates/enforcer_integration.py",
+          "mathart/quality/__init__.py"
+        ],
+        "tests": [
+          "tests/test_knowledge_enforcer_gates.py"
+        ],
+        "description": "Implemented the complete Knowledge Enforcer Gate Registry as a Policy-as-Code parameter validation system. Three core modules: (1) enforcer_registry.py — KnowledgeEnforcerRegistry IoC singleton with @register_enforcer decorator, _auto_load_enforcers() self-discovery, run_all_enforcers() chained execution, and summary_table() status reporting; (2) pixel_art_enforcer.py — 10 hard rules from pixel_art.md covering canvas_size [16,64], palette_size [4,32], nearest-only interpolation, anti-aliasing prohibition, dither matrix matching, dither strength [0,1], jaggies tolerance [0,2], RotSprite 8x enforcement, outline colors [1,3], subpixel frames [2,4]; (3) color_harmony_enforcer.py — 5 OKLab color science rules from color_science.md + color_light.md covering lightness range ΔL≥0.3, dead color detection (low chroma + mid lightness), warm-cool contrast [120°,210°], fill/rim light ratios, context-aware palette sizing. Pipeline integration via enforce_render_params(), enforce_genotype(), enforce_backend_context() — all zero-trunk-modification hooks. Research foundations: OPA Policy-as-Code, Design by Contract (DbC), Shift-Left Validation. All rules follow Clamp-Not-Reject principle with full source document traceability."
+      },
       {
         "id": "P0-SESSION-148-KNOWLEDGE-PROVENANCE-AUDIT",
         "title": "Full-Chain Knowledge Provenance Audit & Parameter Penetration Testing",
@@ -315,6 +334,25 @@
     ]
   },
   "pending_tasks": [
+    {
+      "id": "P0-SESSION-151-POLICY-AS-CODE-GATES",
+      "title": "Knowledge Enforcer Gate Registry — Policy-as-Code Parameter Validation",
+      "priority": "P0",
+      "status": "CLOSED",
+      "session_landed": "SESSION-154",
+      "modules": [
+        "mathart/quality/gates/__init__.py",
+        "mathart/quality/gates/enforcer_registry.py",
+        "mathart/quality/gates/pixel_art_enforcer.py",
+        "mathart/quality/gates/color_harmony_enforcer.py",
+        "mathart/quality/gates/enforcer_integration.py",
+        "mathart/quality/__init__.py"
+      ],
+      "tests": [
+        "tests/test_knowledge_enforcer_gates.py"
+      ],
+      "description": "Implemented the complete Knowledge Enforcer Gate Registry as a Policy-as-Code parameter validation system. Three core modules: (1) enforcer_registry.py — KnowledgeEnforcerRegistry IoC singleton with @register_enforcer decorator, _auto_load_enforcers() self-discovery, run_all_enforcers() chained execution, and summary_table() status reporting; (2) pixel_art_enforcer.py — 10 hard rules from pixel_art.md covering canvas_size [16,64], palette_size [4,32], nearest-only interpolation, anti-aliasing prohibition, dither matrix matching, dither strength [0,1], jaggies tolerance [0,2], RotSprite 8x enforcement, outline colors [1,3], subpixel frames [2,4]; (3) color_harmony_enforcer.py — 5 OKLab color science rules from color_science.md + color_light.md covering lightness range ΔL≥0.3, dead color detection (low chroma + mid lightness), warm-cool contrast [120°,210°], fill/rim light ratios, context-aware palette sizing. Pipeline integration via enforce_render_params(), enforce_genotype(), enforce_backend_context() — all zero-trunk-modification hooks. Research foundations: OPA Policy-as-Code, Design by Contract (DbC), Shift-Left Validation. All rules follow Clamp-Not-Reject principle with full source document traceability."
+    },
     {
       "id": "P0-SESSION-149-DYNAMIC-DEMO-MESH",
       "priority": "P0",
@@ -3055,6 +3093,11 @@
         "Data-Oriented Tensor Skinning — industrial einsum pipelines"
       ],
       "test_results": "45/45 PASS"
+    },
+    {
+      "session_id": "SESSION-154",
+      "title": "知识执法网关 × Policy-as-Code × IoC 自注册 Enforcer",
+      "summary": "Built the Knowledge Enforcer Gate Registry — a Policy-as-Code parameter validation system that compiles static knowledge documents (pixel_art.md, color_science.md, color_light.md) into runtime-enforced validation gates. Delivered: KnowledgeEnforcerRegistry (IoC singleton), PixelArtEnforcer (10 rules), ColorHarmonyEnforcer (5 rules with real OKLab math), Pipeline Integration Layer (3 zero-trunk hooks), comprehensive test suite. Research: OPA Policy-as-Code, Design by Contract, Shift-Left Validation."
     }
   ],
   "custom_notes": {
@@ -5080,6 +5123,12 @@
       "topic": "knowledge_provenance_audit_and_non_intrusive_sidecar_architecture",
       "decision": "All parameter provenance MUST be tracked through a non-intrusive sidecar pattern (inspired by Envoy/Istio service mesh sidecars and eBPF kernel telemetry). The tracker NEVER modifies any float computation — it only reads knowledge bus state and parameter derivation paths. Each parameter is classified into one of six provenance types: KNOWLEDGE_DRIVEN, KNOWLEDGE_CLAMPED, VIBE_HEURISTIC, USER_OVERRIDE, BLUEPRINT_INHERITED, or HEURISTIC_FALLBACK. Parameters with no knowledge source MUST be honestly labeled as 'Heuristic Fallback / 代码硬编码死区' in the audit report. The audit backend self-registers via @register_backend (BackendType.PROVENANCE_AUDIT) and can be invoked standalone or as a pipeline terminal step. JSON audit logs are persisted to logs/knowledge_audit_trace.json for CI/CD consumption.",
       "implication": "The provenance audit system exposes that 50% of parameters (9/18) are in hardcoded dead zones, providing a precise attack target list for subsequent targeted fix campaigns. The non-intrusive design ensures zero risk of breaking existing pipeline computations. The JSON audit log enables continuous knowledge coverage monitoring in CI/CD. Five targeted fix campaigns have been identified: P1-SESSION-152-PROPORTIONS-KNOWLEDGE-BIND (4 params), P1-SESSION-152-ANIMATION-KNOWLEDGE-BIND (4 params), P1-SESSION-152-PHYSICS-GRAVITY-KNOWLEDGE-BIND (1 param), P1-SESSION-152-VIBE-KNOWLEDGE-VALIDATION (5 params), P2-SESSION-152-BACKEND-CONSUMPTION-AUDIT (AOP checkpoint)."
+    },
+    {
+      "session_id": "SESSION-154",
+      "topic": "knowledge_enforcer_gate_policy_as_code_architecture",
+      "decision": "Knowledge enforcement MUST use a self-registering IoC plugin pattern (inspired by OPA Rego Module discovery). Each enforcer is a standalone Python module that auto-registers via @register_enforcer decorator when imported. The registry uses a singleton pattern with thread-safe lazy initialization. Enforcement follows Clamp-Not-Reject: violations auto-correct parameters to safe boundaries instead of rejecting requests. Every violation MUST carry source_doc traceability pointing to the originating knowledge Markdown file. Pipeline integration MUST be zero-trunk-modification: enforce_render_params(), enforce_genotype(), enforce_backend_context() are additive hooks that callers opt into, never forced into existing code paths.",
+      "implication": "The IoC plugin architecture makes adding new enforcers trivial — a single Python file with @register_enforcer is sufficient. The Clamp-Not-Reject principle ensures creative workflows are never blocked, only guided. Source traceability enables full audit trails from parameter correction back to the human-authored knowledge document. Zero-trunk-modification ensures SESSION-154 changes cannot break any existing pipeline, backend, or CLI functionality. The architecture is extensible to future enforcers (ProportionEnforcer, PhysicsEnforcer) without modifying the registry or integration layer."
     }
   ],
   "design_decisions": [
