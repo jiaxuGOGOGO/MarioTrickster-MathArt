@@ -1,11 +1,11 @@
 {
   "audit_version": "1.0.0",
-  "session_id": "SESSION-152",
-  "run_id": "d16a519c-6e6",
-  "timestamp": "2026-04-22T23:48:46",
+  "session_id": "TEST-009",
+  "run_id": "5ddec046-b32",
+  "timestamp": "2026-04-23T01:28:52",
   "generator": "ProvenanceReportGenerator (SESSION-152)",
   "knowledge_snapshot": {
-    "snapshot_time": "2026-04-22T23:48:46",
+    "snapshot_time": "2026-04-23T01:28:52",
     "knowledge_dir": "/home/ubuntu/MarioTrickster-MathArt/knowledge",
     "knowledge_files_found": [
       "anatomy.md",
@@ -2054,7 +2054,7 @@
     "physics.gravity": {
       "param_key": "physics.gravity",
       "param_family": "physics",
-      "final_value": 9.81,
+      "final_value": 13.81,
       "source_type": "heuristic_fallback",
       "knowledge_file": "",
       "knowledge_module": "",
@@ -2063,21 +2063,21 @@
       "knowledge_constraint_max": null,
       "knowledge_default": null,
       "knowledge_source_quote": "",
-      "base_value": 9.81,
-      "derivation_reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 9.8100，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。",
+      "base_value": 13.81,
+      "derivation_reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 13.8100，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。",
       "vibe_token": "",
       "vibe_delta": 0.0,
       "seen_at_intent": true,
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
     },
     "physics.mass": {
       "param_key": "physics.mass",
       "param_family": "physics",
-      "final_value": 1.0,
+      "final_value": 3.0,
       "source_type": "knowledge_default",
       "knowledge_file": "",
       "knowledge_module": "physics",
@@ -2086,21 +2086,21 @@
       "knowledge_constraint_max": 5.0,
       "knowledge_default": 2.55,
       "knowledge_source_quote": "",
-      "base_value": 1.0,
-      "derivation_reason": "参数值 1.0000 落在知识模块 'physics' 的约束范围内 [0.1, 5.0]，知识默认值=2.55。未触发钳位，但知识总线确认此值合规。",
+      "base_value": 3.0,
+      "derivation_reason": "参数值 3.0000 落在知识模块 'physics' 的约束范围内 [0.1, 5.0]，知识默认值=2.55。未触发钳位，但知识总线确认此值合规。",
       "vibe_token": "",
       "vibe_delta": 0.0,
       "seen_at_intent": true,
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
     },
     "physics.stiffness": {
       "param_key": "physics.stiffness",
       "param_family": "physics",
-      "final_value": 75.0,
+      "final_value": 50.0,
       "source_type": "knowledge_default",
       "knowledge_file": "",
       "knowledge_module": "physics",
@@ -2109,21 +2109,21 @@
       "knowledge_constraint_max": 500.0,
       "knowledge_default": 255.0,
       "knowledge_source_quote": "",
-      "base_value": 75.0,
-      "derivation_reason": "参数值 75.0000 落在知识模块 'physics' 的约束范围内 [10.0, 500.0]，知识默认值=255.0。未触发钳位，但知识总线确认此值合规。",
+      "base_value": 50.0,
+      "derivation_reason": "参数值 50.0000 落在知识模块 'physics' 的约束范围内 [10.0, 500.0]，知识默认值=255.0。未触发钳位，但知识总线确认此值合规。",
       "vibe_token": "",
       "vibe_delta": 0.0,
       "seen_at_intent": true,
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
     },
     "physics.damping": {
       "param_key": "physics.damping",
       "param_family": "physics",
-      "final_value": 0.3,
+      "final_value": 0.55,
       "source_type": "knowledge_default",
       "knowledge_file": "",
       "knowledge_module": "physics",
@@ -2132,22 +2132,22 @@
       "knowledge_constraint_max": 20.0,
       "knowledge_default": 10.05,
       "knowledge_source_quote": "",
-      "base_value": 0.3,
-      "derivation_reason": "参数值 0.3000 落在知识模块 'physics' 的约束范围内 [0.1, 20.0]，知识默认值=10.05。未触发钳位，但知识总线确认此值合规。",
+      "base_value": 0.55,
+      "derivation_reason": "参数值 0.5500 落在知识模块 'physics' 的约束范围内 [0.1, 20.0]，知识默认值=10.05。未触发钳位，但知识总线确认此值合规。",
       "vibe_token": "",
       "vibe_delta": 0.0,
       "seen_at_intent": true,
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
     },
     "physics.bounce": {
       "param_key": "physics.bounce",
       "param_family": "physics",
-      "final_value": 1.2,
-      "source_type": "vibe_heuristic",
+      "final_value": 0.6,
+      "source_type": "heuristic_fallback",
       "knowledge_file": "",
       "knowledge_module": "",
       "knowledge_rule_id": "",
@@ -2155,16 +2155,16 @@
       "knowledge_constraint_max": null,
       "knowledge_default": null,
       "knowledge_source_quote": "",
-      "base_value": 1.2,
-      "derivation_reason": "语义氛围词 '活泼' 通过 SEMANTIC_VIBE_MAP 启发式表 调整了此参数 (delta=+0.2000)。⚠️ 此调整未经知识总线验证，属于启发式推测。",
-      "vibe_token": "活泼",
-      "vibe_delta": 0.2,
+      "base_value": 0.6,
+      "derivation_reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 0.6000，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。",
+      "vibe_token": "",
+      "vibe_delta": 0.0,
       "seen_at_intent": true,
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
     },
     "physics.friction": {
       "param_key": "physics.friction",
@@ -2186,8 +2186,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
     },
     "proportions.head_ratio": {
       "param_key": "proportions.head_ratio",
@@ -2209,8 +2209,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
     },
     "proportions.body_ratio": {
       "param_key": "proportions.body_ratio",
@@ -2232,8 +2232,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
     },
     "proportions.limb_ratio": {
       "param_key": "proportions.limb_ratio",
@@ -2255,11 +2255,34 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
     },
     "proportions.scale": {
       "param_key": "proportions.scale",
+      "param_family": "proportions",
+      "final_value": 1.35,
+      "source_type": "heuristic_fallback",
+      "knowledge_file": "",
+      "knowledge_module": "",
+      "knowledge_rule_id": "",
+      "knowledge_constraint_min": null,
+      "knowledge_constraint_max": null,
+      "knowledge_default": null,
+      "knowledge_source_quote": "",
+      "base_value": 1.35,
+      "derivation_reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 1.3500，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。",
+      "vibe_token": "",
+      "vibe_delta": 0.0,
+      "seen_at_intent": true,
+      "seen_at_gate": false,
+      "seen_at_backend": false,
+      "consumed_by_backend": "",
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
+    },
+    "proportions.squash_stretch": {
+      "param_key": "proportions.squash_stretch",
       "param_family": "proportions",
       "final_value": 1.0,
       "source_type": "heuristic_fallback",
@@ -2278,31 +2301,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
-    },
-    "proportions.squash_stretch": {
-      "param_key": "proportions.squash_stretch",
-      "param_family": "proportions",
-      "final_value": 1.5,
-      "source_type": "vibe_heuristic",
-      "knowledge_file": "",
-      "knowledge_module": "",
-      "knowledge_rule_id": "",
-      "knowledge_constraint_min": null,
-      "knowledge_constraint_max": null,
-      "knowledge_default": null,
-      "knowledge_source_quote": "",
-      "base_value": 1.5,
-      "derivation_reason": "语义氛围词 '弹性' 通过 SEMANTIC_VIBE_MAP 启发式表 调整了此参数 (delta=+0.5000)。⚠️ 此调整未经知识总线验证，属于启发式推测。",
-      "vibe_token": "弹性",
-      "vibe_delta": 0.5,
-      "seen_at_intent": true,
-      "seen_at_gate": false,
-      "seen_at_backend": false,
-      "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
     },
     "animation.frame_rate": {
       "param_key": "animation.frame_rate",
@@ -2324,82 +2324,13 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
     },
     "animation.anticipation": {
       "param_key": "animation.anticipation",
       "param_family": "animation",
-      "final_value": 0.25,
-      "source_type": "vibe_heuristic",
-      "knowledge_file": "",
-      "knowledge_module": "",
-      "knowledge_rule_id": "",
-      "knowledge_constraint_min": null,
-      "knowledge_constraint_max": null,
-      "knowledge_default": null,
-      "knowledge_source_quote": "",
-      "base_value": 0.25,
-      "derivation_reason": "语义氛围词 '活泼' 通过 SEMANTIC_VIBE_MAP 启发式表 调整了此参数 (delta=+0.1000)。⚠️ 此调整未经知识总线验证，属于启发式推测。",
-      "vibe_token": "活泼",
-      "vibe_delta": 0.1,
-      "seen_at_intent": true,
-      "seen_at_gate": false,
-      "seen_at_backend": false,
-      "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
-    },
-    "animation.follow_through": {
-      "param_key": "animation.follow_through",
-      "param_family": "animation",
-      "final_value": 0.4,
-      "source_type": "vibe_heuristic",
-      "knowledge_file": "",
-      "knowledge_module": "",
-      "knowledge_rule_id": "",
-      "knowledge_constraint_min": null,
-      "knowledge_constraint_max": null,
-      "knowledge_default": null,
-      "knowledge_source_quote": "",
-      "base_value": 0.4,
-      "derivation_reason": "语义氛围词 '弹性' 通过 SEMANTIC_VIBE_MAP 启发式表 调整了此参数 (delta=+0.2000)。⚠️ 此调整未经知识总线验证，属于启发式推测。",
-      "vibe_token": "弹性",
-      "vibe_delta": 0.2,
-      "seen_at_intent": true,
-      "seen_at_gate": false,
-      "seen_at_backend": false,
-      "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
-    },
-    "animation.exaggeration": {
-      "param_key": "animation.exaggeration",
-      "param_family": "animation",
-      "final_value": 1.3,
-      "source_type": "vibe_heuristic",
-      "knowledge_file": "",
-      "knowledge_module": "",
-      "knowledge_rule_id": "",
-      "knowledge_constraint_min": null,
-      "knowledge_constraint_max": null,
-      "knowledge_default": null,
-      "knowledge_source_quote": "",
-      "base_value": 1.3,
-      "derivation_reason": "语义氛围词 '活泼' 通过 SEMANTIC_VIBE_MAP 启发式表 调整了此参数 (delta=+0.3000)。⚠️ 此调整未经知识总线验证，属于启发式推测。",
-      "vibe_token": "活泼",
-      "vibe_delta": 0.3,
-      "seen_at_intent": true,
-      "seen_at_gate": false,
-      "seen_at_backend": false,
-      "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
-    },
-    "animation.ease_in": {
-      "param_key": "animation.ease_in",
-      "param_family": "animation",
-      "final_value": 0.3,
+      "final_value": 0.15,
       "source_type": "heuristic_fallback",
       "knowledge_file": "",
       "knowledge_module": "",
@@ -2408,16 +2339,85 @@
       "knowledge_constraint_max": null,
       "knowledge_default": null,
       "knowledge_source_quote": "",
-      "base_value": 0.3,
-      "derivation_reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 0.3000，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。",
+      "base_value": 0.15,
+      "derivation_reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 0.1500，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。",
       "vibe_token": "",
       "vibe_delta": 0.0,
       "seen_at_intent": true,
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
+    },
+    "animation.follow_through": {
+      "param_key": "animation.follow_through",
+      "param_family": "animation",
+      "final_value": 0.2,
+      "source_type": "heuristic_fallback",
+      "knowledge_file": "",
+      "knowledge_module": "",
+      "knowledge_rule_id": "",
+      "knowledge_constraint_min": null,
+      "knowledge_constraint_max": null,
+      "knowledge_default": null,
+      "knowledge_source_quote": "",
+      "base_value": 0.2,
+      "derivation_reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 0.2000，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。",
+      "vibe_token": "",
+      "vibe_delta": 0.0,
+      "seen_at_intent": true,
+      "seen_at_gate": false,
+      "seen_at_backend": false,
+      "consumed_by_backend": "",
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
+    },
+    "animation.exaggeration": {
+      "param_key": "animation.exaggeration",
+      "param_family": "animation",
+      "final_value": 1.0,
+      "source_type": "heuristic_fallback",
+      "knowledge_file": "",
+      "knowledge_module": "",
+      "knowledge_rule_id": "",
+      "knowledge_constraint_min": null,
+      "knowledge_constraint_max": null,
+      "knowledge_default": null,
+      "knowledge_source_quote": "",
+      "base_value": 1.0,
+      "derivation_reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 1.0000，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。",
+      "vibe_token": "",
+      "vibe_delta": 0.0,
+      "seen_at_intent": true,
+      "seen_at_gate": false,
+      "seen_at_backend": false,
+      "consumed_by_backend": "",
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
+    },
+    "animation.ease_in": {
+      "param_key": "animation.ease_in",
+      "param_family": "animation",
+      "final_value": 0.55,
+      "source_type": "heuristic_fallback",
+      "knowledge_file": "",
+      "knowledge_module": "",
+      "knowledge_rule_id": "",
+      "knowledge_constraint_min": null,
+      "knowledge_constraint_max": null,
+      "knowledge_default": null,
+      "knowledge_source_quote": "",
+      "base_value": 0.55,
+      "derivation_reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 0.5500，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。",
+      "vibe_token": "",
+      "vibe_delta": 0.0,
+      "seen_at_intent": true,
+      "seen_at_gate": false,
+      "seen_at_backend": false,
+      "consumed_by_backend": "",
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
     },
     "animation.ease_out": {
       "param_key": "animation.ease_out",
@@ -2439,8 +2439,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
     },
     "animation.cycle_frames": {
       "param_key": "animation.cycle_frames",
@@ -2462,15 +2462,15 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-22T23:48:46",
-      "run_id": "d16a519c-6e6"
+      "audit_timestamp": "2026-04-23T01:28:52",
+      "run_id": "5ddec046-b32"
     }
   },
   "summary": {
     "total_params": 18,
     "knowledge_driven_count": 4,
-    "heuristic_fallback_count": 9,
-    "vibe_heuristic_count": 5,
+    "heuristic_fallback_count": 14,
+    "vibe_heuristic_count": 0,
     "user_override_count": 0,
     "blueprint_inherited_count": 0,
     "dangling_count": 0
@@ -2479,8 +2479,13 @@
   "dead_zones": [
     {
       "param_key": "physics.gravity",
-      "final_value": 9.81,
-      "reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 9.8100，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。"
+      "final_value": 13.81,
+      "reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 13.8100，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。"
+    },
+    {
+      "param_key": "physics.bounce",
+      "final_value": 0.6,
+      "reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 0.6000，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。"
     },
     {
       "param_key": "proportions.head_ratio",
@@ -2499,6 +2504,11 @@
     },
     {
       "param_key": "proportions.scale",
+      "final_value": 1.35,
+      "reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 1.3500，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。"
+    },
+    {
+      "param_key": "proportions.squash_stretch",
       "final_value": 1.0,
       "reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 1.0000，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。"
     },
@@ -2508,9 +2518,24 @@
       "reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 12.0000，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。"
     },
     {
+      "param_key": "animation.anticipation",
+      "final_value": 0.15,
+      "reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 0.1500，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。"
+    },
+    {
+      "param_key": "animation.follow_through",
+      "final_value": 0.2,
+      "reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 0.2000，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。"
+    },
+    {
+      "param_key": "animation.exaggeration",
+      "final_value": 1.0,
+      "reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 1.0000，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。"
+    },
+    {
       "param_key": "animation.ease_in",
-      "final_value": 0.3,
-      "reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 0.3000，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。"
+      "final_value": 0.55,
+      "reason": "⚠️ [Heuristic Fallback / 代码硬编码死区] 此参数使用了 dataclass 默认值 0.5500，未被任何知识规则驱动、未被用户覆写、未被语义氛围词调整。这是一个潜在的'AI偷懒'断点，需要后续靶向修复。"
     },
     {
       "param_key": "animation.ease_out",

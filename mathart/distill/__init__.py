@@ -48,6 +48,14 @@ from .sandbox_validator import (
     physics_dry_run,
     safe_parse_expression,
 )
+from .knowledge_triage import (
+    FunnelResult,
+    KnowledgeFunnel,
+    KnowledgeTier,
+    KnowledgeTriageEngine,
+    TriageDecision,
+    TriageResult,
+)
 from .knowledge_preloader import (
     PHYSICS_GAIT_MODULE,
     COGNITIVE_MOTION_MODULE,
@@ -89,6 +97,12 @@ __all__ = [
     "register_cognitive_science_knowledge",
     "register_transient_motion_knowledge",
     "preload_all_distilled_knowledge",
+    "FunnelResult",
+    "KnowledgeFunnel",
+    "KnowledgeTier",
+    "KnowledgeTriageEngine",
+    "TriageDecision",
+    "TriageResult",
     "FUZZ_SAMPLES",
     "MathToxinError",
     "PhysicsDryRunReport",

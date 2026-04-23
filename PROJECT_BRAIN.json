@@ -1,6 +1,6 @@
 {
-  "version": "v0.99.6",
-  "last_session_id": "SESSION-155",
+  "version": "v0.99.7",
+  "last_session_id": "SESSION-156",
   "last_updated": "2026-04-23",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -24,6 +24,23 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-156-KNOWLEDGE-TRIAGE-DEDUP",
+        "title": "Knowledge Triage & Native Deduplication Funnel — Pre-Compilation Intelligence Gate",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-156",
+        "modules": [
+          "mathart/distill/knowledge_triage.py",
+          "mathart/distill/__init__.py",
+          "mathart/evolution/outer_loop.py",
+          "docs/USER_GUIDE.md"
+        ],
+        "tests": [
+          "tests/test_knowledge_triage.py"
+        ],
+        "description": "Implemented the Knowledge Triage & Native Deduplication Funnel as a mandatory pre-compilation intelligence gate. Two core components: (1) knowledge_triage.py — KnowledgeTriageEngine classifies distilled rules into Actionable-Rule (Micro/Tier 1&2, compilable to code) vs Macro-Guidance (Macro/Tier 3, archive-only) using signal-counting heuristics with 12 actionable patterns and 12 macro patterns, conservative default-to-macro policy; KnowledgeFunnel orchestrates the complete pipeline: DeduplicationEngine (native reuse, zero new dedup code) → KnowledgeTriageEngine → physical pipeline isolation. (2) outer_loop.py — OuterLoopDistiller.distill_text() now routes all rules through KnowledgeFunnel before integration. CRITICAL: only Actionable-Rule rules reach _synthesize_enforcer_plugin(); Macro-Guidance rules are tagged [Macro-Guidance] and archived but PHYSICALLY BLOCKED from the Auto-Compiler. New _rebuild_rules_from_funnel() method tags rules by tier. Enhanced _format_log_entry() includes dedup and triage statistics. DistillResult gains triage_summary field. Full 7-step sci-fi UX terminal pipeline display. DRY principle: zero new dedup code, 100% reuse of DeduplicationEngine. All 69 tests PASS (19 new + 50 regression)."
+      },
       {
         "id": "P0-SESSION-155-AUTONOMOUS-KNOWLEDGE-COMPILER",
         "title": "Autonomous Knowledge Compiler — LLM-driven Enforcer Synthesis & AST Guardian",

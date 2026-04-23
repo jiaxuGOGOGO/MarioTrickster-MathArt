@@ -102,6 +102,7 @@ class DistillResult:
     log_entry: str = ""
     enforcer_plugins_generated: list[str] = field(default_factory=list)
     ast_validation_errors: list[str] = field(default_factory=list)
+    triage_summary: dict = field(default_factory=dict)
 
     def summary(self) -> str:
         base = (
@@ -109,6 +110,10 @@ class DistillResult:
             f"integrated {self.rules_integrated}. "
             f"Updated {len(self.knowledge_files_updated)} files."
         )
+        if self.triage_summary:
+            ac = self.triage_summary.get('actionable_count', 0)
+            mc = self.triage_summary.get('macro_count', 0)
+            base += f" Triage: {ac} actionable, {mc} macro-archived."
         if self.enforcer_plugins_generated:
             base += f" Generated {len(self.enforcer_plugins_generated)} enforcer plugins."
         if self.ast_validation_errors:
@@ -192,6 +197,13 @@ class OuterLoopDistiller:
         self._next_session_id = self._get_next_session_id()
         self._auto_generated_dir = self.project_root / "mathart" / "quality" / "gates" / "auto_generated"
 
+        # SESSION-156: Knowledge Funnel — Dedup + Triage pre-compilation gate
+        from mathart.distill.knowledge_triage import KnowledgeFunnel
+        self._funnel = KnowledgeFunnel(
+            project_root=self.project_root,
+            verbose=self.verbose,
+        )
+
     def distill_text(
         self,
         text: str,
@@ -217,61 +229,113 @@ class OuterLoopDistiller:
         self._next_session_id = self._increment_session_id(session_id)
 
         if self.verbose:
-            print(f"[OuterLoop] Distilling: {source_name} ({len(text)} chars)")
+            print(f"\n\033[1;36m{'='*60}\033[0m")
+            print(f"\033[1;36m  \U0001f9e0 MarioTrickster Knowledge Pipeline v2 (SESSION-156)\033[0m")
+            print(f"\033[1;36m{'='*60}\033[0m")
+            print(f"\033[36m  [1/7] \U0001f4c4 \u6587\u6863\u63a5\u6536: {source_name} ({len(text)} chars)\033[0m")
 
         # Extract rules
         if self.use_llm and os.environ.get("OPENAI_API_KEY"):
+            if self.verbose:
+                print(f"\033[36m  [2/7] \U0001f916 LLM \u89c4\u5219\u63d0\u53d6\u5f15\u64ce\u542f\u52a8...\033[0m")
             rules = self._extract_rules_llm(text, source_name)
         else:
+            if self.verbose:
+                print(f"\033[36m  [2/7] \U0001f50d \u542f\u7528\u542f\u53d1\u5f0f\u89c4\u5219\u63d0\u53d6 (\u65e0 LLM)...\033[0m")
             rules = self._extract_rules_heuristic(text, source_name)
 
         if self.verbose:
-            print(f"[OuterLoop] Extracted {len(rules)} rules")
+            print(f"\033[36m  [2/7] \u2705 \u63d0\u53d6\u5b8c\u6210: {len(rules)} \u6761\u539f\u59cb\u89c4\u5219\033[0m")
+            print(f"\033[36m  [3/7] \U0001f4d6 \u539f\u751f\u53bb\u91cd\u5f15\u64ce\u5524\u9192\u4e2d...\033[0m")
 
-        # Integrate rules into knowledge files
-        updated_files, conflicts = self._integrate_rules(rules, source_name, page_ref)
+        # ── SESSION-156: Knowledge Funnel — Dedup + Triage ──────────────
+        # Run the complete pre-compilation funnel BEFORE integration.
+        # This ensures: (1) duplicates are removed, (2) rules are classified
+        # into Actionable vs Macro, (3) only Actionable rules reach the
+        # Auto-Compiler. Macro rules are archived but BLOCKED from codegen.
+        from mathart.distill.knowledge_triage import KnowledgeTier
 
-        # SESSION-155: Autonomous Knowledge Compiler - Enforcer Synthesis
+        funnel_input = [
+            (r.domain, r.rule_text, r.params, r.rule_type)
+            for r in rules
+        ]
+        funnel_result = self._funnel.process(funnel_input, source_name=source_name)
+
+        # Rebuild DistillRule lists from funnel output
+        actionable_rules = self._rebuild_rules_from_funnel(
+            funnel_result.actionable_rules, rules, KnowledgeTier.ACTIONABLE
+        )
+        macro_rules = self._rebuild_rules_from_funnel(
+            funnel_result.macro_rules, rules, KnowledgeTier.MACRO
+        )
+
+        # Integrate ALL accepted rules into knowledge files (both tiers)
+        # Macro rules get [Macro-Guidance] tag in their rule_text
+        all_accepted_rules = actionable_rules + macro_rules
+        updated_files, conflicts = self._integrate_rules(
+            all_accepted_rules, source_name, page_ref
+        )
+
+        # ── SESSION-155: Autonomous Knowledge Compiler - Enforcer Synthesis ──
+        # CRITICAL: Only ACTIONABLE rules are sent to the Auto-Compiler.
+        # Macro rules are PHYSICALLY BLOCKED here — they never reach codegen.
         generated_plugins = []
         ast_errors = []
-        if self.use_llm and os.environ.get("OPENAI_API_KEY") and rules:
+        if self.use_llm and os.environ.get("OPENAI_API_KEY") and actionable_rules:
             if self.verbose:
-                print(f"\033[36m  [4/5] 🛠️  Enforcer code synthesis ............\033[0m")
-            
-            plugin_path, errors = self._synthesize_enforcer_plugin(session_id, source_name, rules)
+                print(f"\033[36m  [5/7] \U0001f6e0\ufe0f  Enforcer code synthesis (actionable rules only) ............\033[0m")
+
+            plugin_path, errors = self._synthesize_enforcer_plugin(
+                session_id, source_name, actionable_rules
+            )
             if errors:
                 ast_errors.extend(errors)
                 if self.verbose:
-                    print(f"\033[31m  [5/5] 🔬 AST guardian validation FAILED ......\033[0m")
+                    print(f"\033[31m  [6/7] \U0001f52c AST guardian validation FAILED ......\033[0m")
                     for err in errors:
                         print(f"         - {err}")
             elif plugin_path:
                 generated_plugins.append(str(plugin_path))
                 if self.verbose:
-                    print(f"\033[32m  [5/5] 🔬 AST guardian validation PASSED ......\033[0m")
+                    print(f"\033[32m  [6/7] \U0001f52c AST guardian validation PASSED ......\033[0m")
+        elif self.verbose and macro_rules and not actionable_rules:
+            print(
+                f"\033[33m  [5/7] \u26a0\ufe0f  所有规则均为宏观哲学，"
+                f"Auto-Compiler 已被安全跳过 ......\033[0m"
+            )
 
         # Generate log entry
         log_entry = self._format_log_entry(
-            session_id, source_name, rules, updated_files, conflicts, generated_plugins
+            session_id, source_name, rules, updated_files, conflicts,
+            generated_plugins, funnel_result,
         )
 
         # Append to DISTILL_LOG.md
         self._append_log(log_entry)
 
+        # Build result with triage metadata
+        triage_meta = {
+            "actionable_count": len(actionable_rules),
+            "macro_count": len(macro_rules),
+            "dedup_exact_dups": funnel_result.dedup_result.exact_dups,
+            "dedup_new": funnel_result.dedup_result.new_rules,
+        }
+
         result = DistillResult(
             session_id=session_id,
             source_name=source_name,
             rules_extracted=len(rules),
-            rules_integrated=len(rules) - len(conflicts),
+            rules_integrated=len(all_accepted_rules) - len(conflicts),
             knowledge_files_updated=updated_files,
             conflicts_detected=conflicts,
             log_entry=log_entry,
             enforcer_plugins_generated=generated_plugins,
             ast_validation_errors=ast_errors,
+            triage_summary=triage_meta,
         )
 
         if self.verbose:
-            print(f"[OuterLoop] {result.summary()}")
+            print(f"\033[36m  [7/7] \U0001f4cb {result.summary()}\033[0m")
 
         return result
 
@@ -670,6 +734,59 @@ class {class_name}(EnforcerBase):
         except Exception as e:
             return None, [f"Synthesis failed: {str(e)}"]
 
+    def _rebuild_rules_from_funnel(
+        self,
+        funnel_rules: list[tuple[str, str, dict]],
+        original_rules: list["DistillRule"],
+        tier: "KnowledgeTier",
+    ) -> list["DistillRule"]:
+        """Rebuild DistillRule objects from funnel output, tagging by tier.
+
+        For MACRO rules, prepends ``[Macro-Guidance]`` to the rule_text so
+        the knowledge files clearly mark them as non-compilable.
+        For ACTIONABLE rules, prepends ``[Actionable-Rule]``.
+        """
+        from mathart.distill.knowledge_triage import KnowledgeTier
+
+        rebuilt: list[DistillRule] = []
+        # Build lookup from (domain, rule_text) → original DistillRule
+        lookup = {}
+        for r in original_rules:
+            lookup[(r.domain, r.rule_text)] = r
+
+        for domain, rule_text, params in funnel_rules:
+            # Strip [VARIANT] prefix for lookup
+            clean_text = rule_text.replace("[VARIANT] ", "")
+            original = lookup.get((domain, clean_text))
+
+            if original:
+                tagged_rule = DistillRule(
+                    domain=original.domain,
+                    rule_text=(
+                        f"[Macro-Guidance] {original.rule_text}"
+                        if tier == KnowledgeTier.MACRO
+                        else f"[Actionable-Rule] {original.rule_text}"
+                    ),
+                    params=params,
+                    source=original.source,
+                    page=original.page,
+                    confidence=original.confidence,
+                    rule_type=original.rule_type,
+                    code_target=original.code_target,
+                )
+            else:
+                # Fallback: create from funnel data
+                tag = "[Macro-Guidance]" if tier == KnowledgeTier.MACRO else "[Actionable-Rule]"
+                tagged_rule = DistillRule(
+                    domain=domain,
+                    rule_text=f"{tag} {rule_text}",
+                    params=params,
+                    rule_type="heuristic" if tier == KnowledgeTier.MACRO else "soft_default",
+                )
+            rebuilt.append(tagged_rule)
+
+        return rebuilt
+
     def _format_log_entry(
         self,
         session_id: str,
@@ -678,6 +795,7 @@ class {class_name}(EnforcerBase):
         updated_files: list[str],
         conflicts: list[str],
         generated_plugins: list[str] = None,
+        funnel_result=None,
     ) -> str:
         """Format a DISTILL_LOG.md entry."""
         date_str = datetime.now().strftime("%Y-%m-%d")
@@ -688,8 +806,22 @@ class {class_name}(EnforcerBase):
             "",
             f"**来源**：{source_name}",
             f"**蒸馏内容**：从文档中提取 {len(rules)} 条规则，涵盖领域：{', '.join(domains)}",
-            "**知识沉淀**：",
         ]
+
+        # SESSION-156: Funnel statistics
+        if funnel_result:
+            dr = funnel_result.dedup_result
+            tr = funnel_result.triage_result
+            lines.append(
+                f"**去重漏斗**：{dr.total_input} 输入 → "
+                f"{dr.exact_dups} 精确重复剔除, {dr.new_rules} 新规则通过"
+            )
+            lines.append(
+                f"**智能分诊**：{tr.actionable_count} 条微观约束 → 编译器, "
+                f"{tr.macro_count} 条宏观哲学 → 安全归档"
+            )
+
+        lines.append("**知识沉淀**：")
         for f in updated_files:
             lines.append(f"- `{f}` — 追加新规则")
 

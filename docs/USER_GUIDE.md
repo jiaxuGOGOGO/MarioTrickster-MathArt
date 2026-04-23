@@ -254,3 +254,89 @@ class MyCustomEnforcer(EnforcerBase):
             violations=violations,
         )
 ```
+
+---
+
+## 7. 知识智能分流与原生去重 (Knowledge Triage & Dedup Funnel)
+
+> **SESSION-156 新增** — 系统具备知识智能分流与去重能力。只提炼干货，宏观理论归档为指导思想，微观规则才会触发代码编译！
+
+### 这是什么？
+
+当你向系统喂入一本书、一篇论文或一段文字时，系统不再"来者不拒"地把所有内容都塞进代码编译器。而是先经过两道智能漏斗：
+
+1. **原生去重漏斗 (Native Dedup)**：系统会自动对比已有知识库，剔除重复内容。如果你喂了两遍同一本书，第二遍的重复规则会被自动跳过，不会造成知识膨胀。
+2. **智能分诊漏斗 (Knowledge Triage)**：系统会自动判断每条知识的"类型"——
+
+| 类型 | 标签 | 说明 | 会生成代码吗？ |
+|------|------|------|--------------|
+| **微观硬核约束** | `[Actionable-Rule]` | 物理重力阈值、色彩数值限制、像素画禁忌等可量化规则 | **会** — 送入 Auto-Compiler 自动合成 Python 代码 |
+| **宏观指导哲学** | `[Macro-Guidance]` | 游戏设计哲学、世界观设定、透视理论、"游戏必须好玩"等抽象概念 | **不会** — 仅归档为知识库中的高维上下文，绝对不生成代码 |
+
+### 为什么要这样做？
+
+如果把"游戏必须要好玩"这种宏观哲学强行编译成 Python 代码，系统会产生严重的 AI 幻觉和无意义的代码。智能分诊确保：
+
+- **微观约束**（如 `canvas_size ∈ [16, 64]`）→ 变成真正的 `if/clamp` 守护代码
+- **宏观哲学**（如 "好的关卡设计应该有节奏感"）→ 安全存入知识库，留给未来 AI 推理时作为上下文参考
+
+### 终端中看到的分诊信息
+
+当知识处理流转时，终端会透明展示系统的"思考过程"：
+
+```text
+============================================================
+  🧠 MarioTrickster Knowledge Pipeline v2 (SESSION-156)
+============================================================
+  [1/7] 📄 文档接收: pixel_logic_book.pdf (45000 chars)
+  [2/7] 🤖 LLM 规则提取引擎启动...
+  [2/7] ✅ 提取完成: 12 条原始规则
+  [3/7] 📖 原生去重引擎唤醒中...
+  [📖 原生去重] 正在对比已有智库，剔除冗余...
+  [📖 去重完成] DeduplicationResult: 12 input → 10 new, 2 exact-dup, 0 variant-kept, 0 param-merged
+  [⚖️ 知识分诊] 正在对通过去重的规则进行智能分流...
+  [⚖️ 知识分诊] 判定为【微观约束 Actionable-Rule】，送入 Python 编译引擎...
+         规则: canvas_size must be between 16 and 64 pixels
+         信号: numeric_params_present, \b(?:min|max|range|threshold|limit|clamp|cap)\b
+  [⚖️ 知识分诊] 判定为【宏观哲学 Macro-Guidance】，安全归档，跳过代码生成...
+         规则: Good pixel art should convey a sense of personality and charm
+         原因: Macro signals (3) dominate over actionable signals (0). Blocking from Auto-Compiler.
+  [⚖️ 分诊汇总] TriageResult: 10 rules → 7 actionable (→ compiler), 3 macro (→ archive only)
+  [5/7] 🛠️  Enforcer code synthesis (actionable rules only) ............
+  [6/7] 🔬 AST guardian validation PASSED ......
+  [7/7] 📋 Session DISTILL-004: Extracted 12 rules, integrated 10. Triage: 7 actionable, 3 macro-archived.
+```
+
+### 傻瓜验收：如何测试分诊是否真的有效？
+
+想亲眼验证系统是否真的聪明到能阻止宏观废话生成代码？试试这个：
+
+**步骤 1**：在终端进入 Python 交互模式：
+
+```python
+from mathart.evolution.outer_loop import OuterLoopDistiller
+
+distiller = OuterLoopDistiller(use_llm=False, verbose=True)
+
+# 喂一段极度宏观的废话
+result = distiller.distill_text(
+    "游戏必须要好玩。好的游戏设计应该让玩家感到沉浸和满足。"
+    "优秀的关卡设计需要有节奏感和情感曲线。"
+    "游戏的美学应该追求和谐与平衡。",
+    source_name="废话测试"
+)
+```
+
+**预期结果**：终端会显示 `[⚖️ 知识分诊] 判定为【宏观哲学 Macro-Guidance】，安全归档，跳过代码生成...`，并且 `result.enforcer_plugins_generated` 为空列表（没有生成任何 Python 代码）。
+
+**步骤 2**：再喂一段微观约束：
+
+```python
+result2 = distiller.distill_text(
+    "spring_k = 15.0\ndamping_c = 4.0\nmax_velocity = 200 px/s\ncanvas_size = 32",
+    source_name="物理约束测试"
+)
+```
+
+**预期结果**：终端会显示 `[⚖️ 知识分诊] 判定为【微观约束 Actionable-Rule】，送入 Python 编译引擎...`，规则会正常进入编译流程。
+
