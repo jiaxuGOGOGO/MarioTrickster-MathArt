@@ -1,199 +1,176 @@
-# SESSION-149 HANDOFF — DYNAMIC DEMO MESH & GRACEFUL QUALITY-BREAKER BOUNDARY
+# SESSION-150 HANDOFF — PROCEDURAL MATH-DRIVEN ANIMATION DYNAMICS & ENHANCED GRACEFUL ERROR BOUNDARY
 
-> **唤醒兜底白模生命力 + 顶层业务异常护盾：让质量护栏既铁面无私，又风度翩翩。**
+> **"既然项目名为 MathArt，那每一帧都应该由纯数学方程诞生。" —— 唤醒纯数学动态几何体序列，贯彻"数学造物"的极客美学。**
 
 **Date**: 2026-04-23
 **Status**: COMPLETE
-**Parent Commit**: `ccc5067` (SESSION-148: Windows terminal encoding crash shield)
-**Smoke**: `scripts/session149_smoke.py` → ALL ASSERTIONS PASSED（动态白模 + 异常护盾双轨绿灯）
+**Parent Commit**: `c2436e5` (SESSION-149: Dynamic demo mesh + graceful quality-breaker boundary)
+**Smoke**: `scripts/session150_smoke.py` → ALL 3 ASSERTIONS PASSED（纯数学动画 + 意图参数透传 + RED 异常护盾三轨绿灯）
 
 ---
 
-## 1. Problem Statement (SESSION-148 量产现场暴露的两道体验瑕疵)
+## 1. Problem Statement (SESSION-149 架构追问暴露的深层设计缺陷)
 
-SESSION-147 的"交互式 ComfyUI 救援路径"在 SESSION-148 完成 Windows 终端
-编码护盾后，本应进入丝滑量产，但 PDG 量产节点立刻触发了预设的质量安全护栏，
-暴露了两个体验瑕疵：
+SESSION-149 成功修复了 `TemporalVarianceCircuitBreaker` 的 MSE=0.0000 问题（注入了
+Y 轴弹跳 + Y 轴自转），但系统主导者提出了一个极其深刻的架构追问：
 
-### 1.1 兜底白模"心电图拉直"——`temporal_variance_below_threshold`
+> "既然项目名为 MathArt，难道不是纯靠数学运算出来吗？为什么还需要强依赖外部提供模型？"
 
-```
-PipelineContractError: temporal_variance_below_threshold. Mean MSE = 0.0000
-```
+这个追问 100% 正确。审查后发现 SESSION-149 的修复存在三个遗留缺陷：
 
-`TemporalVarianceCircuitBreaker` 完美拦截了"毫无变化的静态帧"，保住了下游
-GPU 不发生模式崩塌。但根因不在护栏，而在上游 `pseudo3d_shell_backend.py`
-的兜底圆柱体生成路径：当 `_use_demo_animation=True` 兜底时，原实现仅在
-**10 帧** 内做一次 90° 静态斜坡旋转，对外宣称的 43 帧 PDG 长批次因此
-完全没有施加任何物理动画变换，导致 43 帧绝对静止，逐帧像素 MSE = 0.0000。
+### 1.1 未读取意图解析器的时序物理参数
 
-与此同时，`validate_config` 的 `No base_mesh or base_vertices provided; will
-generate demo cylinder mesh` 与 `No bone_dqs or bone_animation provided; will
-generate demo single-bone rotation` 两条警告在每帧（每次 backend 调用）
-都被 `for w in warnings: logger.warning(...)` 原样吐出，狂刷终端。
+SESSION-149 的 demo 动画使用硬编码的 `bounce_amplitude=0.6`，完全没有从上游
+`CreatorIntentSpec` 中读取弹性系数（bounce, squash_stretch, elasticity）。
+Director Studio 的语义→参数翻译管线在 demo 路径上被完全旁路。
 
-### 1.2 业务异常击穿 CLI 外壳
+### 1.2 缺少挤压拉伸形变（Squash & Stretch）
 
-`PipelineContractError` 是一项**正面的质量裁决**，绝非程序崩溃，但当时它会
-直接以原始 Traceback 形式贯穿 `ModeDispatcher.dispatch` → `_run_interactive`
-→ 用户终端，让操作员误以为系统出了 bug，且无法返回向导主菜单继续作业。
+SESSION-149 只有平移和旋转，没有体积守恒的挤压拉伸形变——这是迪士尼动画
+12 原则中的第一原则，也是 MathArt 项目已有大量基础设施（`cage_deform.py`、
+`principles.py`、`industrial_renderer.py`）支撑的核心能力。
+
+### 1.3 日志噪音与异常提示不够优雅
+
+- 每帧重复打印 `will generate demo cylinder mesh` 警告（43 帧 = 43 遍）
+- 质量熔断提示使用黄色而非红色高亮，文案可以更精准
 
 ---
 
 ## 2. Key Deliverables
 
-### 2.1 修复一：Dynamic Demo Mesh —— 给兜底圆柱体注入数学动画轨迹
+### 2.1 修复一：Procedural Dynamic Mesh — 四重叠加纯数学动画方程
 
-**位置**：`mathart/core/pseudo3d_shell_backend.py::Pseudo3DShellBackend.execute`
+**位置**：`mathart/core/pseudo3d_shell_backend.py`
 
-**新动画方程**：
+**SESSION-150 全新动画方程矩阵**：
 
-| 维度 | 公式 | 物理含义 |
-|------|------|----------|
-| Y 轴弹跳 (translation) | `ty(f) = bounce_amplitude · sin(2π · f / period)` | 圆柱沿 Y 轴上下震荡，每行像素都产生位移 |
-| Y 轴自转 (rotation)   | `θ(f) = 2π · spin_revolutions · f / (n_frames-1)` | 圆柱绕长轴持续旋转，弹跳"驻点"时仍有横向像素位移 |
+| # | 运动维度 | 数学方程 | 物理含义 |
+|---|----------|----------|----------|
+| 1 | **抛物线弹跳** (Y-axis displacement) | `y(t) = A · \|sin(π · freq · t)\|` | 绝对值正弦波产生弹跳球抛物线包络，物体始终从地面弹起 |
+| 2 | **挤压拉伸** (Volume-preserving deformation) | `Sy(t) = 1 + I · sin(2π · freq · t)`, `Sx(t) = 1 / Sy(t)` | 迪士尼第一原则：落地时挤压（矮胖）、腾空时拉伸（高瘦），体积守恒 Sx·Sy ≈ 1 |
+| 3 | **连续自旋** (Y-axis spin) | `θ(t) = 2π · R · t` | 持续旋转确保弹跳驻点时仍有横向像素位移 |
+| 4 | **副骨相位偏移** (Secondary bone phase offset) | `t' = t + π/3`, amplitude × 0.5 | 第二根骨头接收 π/3 相位差 + 半幅弹跳，产生网格表面的差异形变 |
 
-- 第二根骨头被注入相位差 `π/4` + 一半弹跳幅度的 DQS，确保多骨蒙皮也产生
-  逐帧不同的形变。
-- `n_frames` 严格读取上游 `frame_count` / `num_frames`，缺省 24 帧；至少 2 帧
-  以满足 `TemporalVarianceCircuitBreaker` 的最小契约。
-- 默认参数：`bounce_amplitude=0.6`、`bounce_period=max(8, n_frames/2)`、
-  `spin_revolutions=1.5`，可被 validated 配置覆盖。
+**核心数学函数**：
 
-**烟测硬证据 (`scripts/session149_smoke.py`)**：
+```python
+# 1. 抛物线弹跳 — 绝对值正弦波
+def _bounce_displacement(t, amplitude, frequency):
+    return amplitude * abs(math.sin(math.pi * frequency * t))
+
+# 2. 体积守恒挤压拉伸 — 迪士尼第一原则
+def _squash_stretch_scales(t, intensity, frequency):
+    scale_y = 1.0 + intensity * math.sin(2.0 * math.pi * frequency * t)
+    scale_x = 1.0 / scale_y  # Volume preservation: Sx * Sy = 1
+    return scale_x, scale_y
+
+# 3. 连续自旋
+def _spin_angle(t, revolutions):
+    return 2.0 * math.pi * revolutions * t
+```
+
+**意图参数透传 (Intent Parameter Passthrough)**：
+
+当上游 `CreatorIntentSpec` 通过 `context["intent_params"]` 提供物理参数时，
+这些参数会覆盖默认值：
+
+| 意图参数 | 默认值 | 控制的运动维度 |
+|----------|--------|----------------|
+| `bounce_amplitude` / `bounce` | 0.8 | 弹跳高度 |
+| `bounce_frequency` | 2.0 | 弹跳频率 |
+| `squash_stretch` / `squash_stretch_intensity` / `elasticity` | 0.35 | 挤压拉伸强度 |
+| `spin_revolutions` | 1.5 | 旋转圈数 |
+
+**烟测硬证据 (`scripts/session150_smoke.py`)**：
 
 ```json
+// 测试 1: 默认参数 (43 帧)
 {
   "frame_count": 43,
   "vertex_count": 352,
-  "min_pair_max_vertex_shift": 0.1121,
-  "mean_pair_max_vertex_shift": 0.1623,
+  "min_pair_max_vertex_shift": 0.1136,
+  "mean_pair_max_vertex_shift": 0.1457,
   "circuit_breaker_safe": true
+}
+
+// 测试 2: 意图参数放大 (bounce=1.5, squash=0.5, spin=2.0)
+{
+  "frame_count": 24,
+  "min_pair_max_vertex_shift": 0.2754,
+  "mean_pair_max_vertex_shift": 0.4437,
+  "intent_amplified": true
 }
 ```
 
-每两帧之间最大顶点位移恒大于 0.11 世界单位（投影到 256px 视口对应数十像素的
-RGB MSE，远超断路器的 mse=1.0 阈值），从原来的 0.0000 跃迁到非零，
-TemporalVarianceCircuitBreaker 契约校验绿灯。
+### 2.2 修复二：单次 INFO 横幅替代逐帧 WARNING 噪音
 
-### 2.2 修复一·副作用：Demo Warning 节流 (`_emit_demo_warning`)
+**旧行为**：每帧打印 `will generate demo cylinder mesh` + `will generate demo single-bone rotation`（43 帧 = 86 条 WARNING）。
 
-新增模块级**线程安全**警告节流器：
+**新行为**：
 
-```python
-_DEMO_WARNING_LOCK = threading.Lock()
-_DEMO_WARNING_SEEN: set[str] = set()
+- 首帧以 INFO 级别打印一句优雅的横幅：
+  ```
+  [MathArt] Initiating purely procedural math-driven animation sequence
+  — every frame is born from equations, no external assets required.
+  ```
+- 后续帧完全静默（零终端输出）
+- 所有 validate_config 警告降级为 DEBUG，仅写入 `logs/mathart.log` 黑匣子
 
-def _emit_demo_warning(message: str) -> None:
-    """First emission -> WARNING; subsequent -> DEBUG (blackbox-only)."""
-```
+**实现**：模块级线程安全 `_emit_procedural_banner()` + `_PROCEDURAL_BANNER_LOCK` + `_PROCEDURAL_BANNER_EMITTED` 布尔标志。
 
-`for w in warnings: _emit_demo_warning(w)` 替代了原先的 `logger.warning`
-死循环。首次出现时仍以 WARNING 提醒操作员"已降级到 demo fallback"，
-其后所有重复占用同一文案的警告自动降级到 DEBUG，写入 `logs/mathart.log`
-黑匣子但不污染向导终端。键以"消息文本"为单位，`demo cylinder mesh`
-和 `demo single-bone rotation` 两条独立节流，互不干扰。
+### 2.3 修复三：RED 高亮质量熔断提示
 
-### 2.3 修复二：Graceful Quality-Breaker Boundary
+**旧行为**：黄色 ANSI 高亮 (`\033[1;33m`)，文案为"动画幅度过小或不合规"。
 
-**新增类型**：`mathart.workspace.mode_dispatcher.PipelineQualityCircuitBreak(RuntimeError)`
-
-- 包装原始 `PipelineContractError`，保留 `violation_type` 与 `detail`，并通过
-  `__cause__` 链接原异常以便取证。
-- 已加入模块 `__all__` 导出。
-
-**`ModeDispatcher.dispatch` 改造**：
-
-```python
-try:
-    payload = strategy.execute(context) if execute else strategy.preview(context)
-except PipelineContractError as exc:
-    logger.error(
-        "[CLI] Pipeline quality circuit breaker tripped during dispatch "
-        "(mode=%s, strategy=%s, violation=%s): %s",
-        ..., exc_info=True,        # 完整 traceback 落黑匣子
-    )
-    raise PipelineQualityCircuitBreak(exc) from exc
-```
-
-**`mathart/cli_wizard.py` 双通道护盾**：
-
-- 顶层模块新增 `_QUALITY_CIRCUIT_BREAK_NOTICE`（黄色 ANSI 高亮）+
-  `_render_quality_circuit_break(exc, *, output_fn, selection)` 单一渲染入口。
-- `_run_interactive`：捕获 `PipelineQualityCircuitBreak` →
-  `_render_quality_circuit_break` 打印一行友好提示 → `return 0` 平滑回退主菜单
-  （**不**再 return 1，杜绝把质量裁决误标为系统失败）。
-- `_run_noninteractive`：捕获后输出结构化 JSON envelope
-  `{"status": "quality_circuit_break", "violation_type": ..., "detail": ...}`
-  并返回**专用退出码 3**，让 CI / 上游编排器能够区分"质量中止"与"程序崩溃"。
-
-**用户终端最终呈现**：
+**新行为**：
 
 ```
-[!] 质量防线拦截：渲染管线检测到动画幅度过小或不合规，为保护算力，任务已安全中止。
-    · 完整堆栈已落盘至 logs/mathart.log 黑匣子。
-    · 请重试或检查上游动画输入（骨骼动画 / 帧间位移）后重新启动。
+[!] 质量防线拦截：渲染管线检测到动画序列波动不足，为保护下游 GPU 算力，任务已安全中止。
+    * 完整堆栈已落盘至 logs/mathart.log 黑匣子。
+    * 请检查上游动画输入（骨骼动画 / 帧间位移）或调整意图参数后重试。
 ```
 
-无 Traceback、无原始异常字符串、退回主菜单，操作员可继续后续作业。
+- 主消息使用 **RED BOLD** (`\033[1;31m`) 确保最大视觉冲击
+- 子行使用灰色 (`\033[90m`) 提供恢复指引
+- 零 Traceback 泄漏，返回码 0（平滑回退主菜单）
 
-### 2.4 副线修复：`mathart/animation/rl_gym_env.py` 类定义期 NoneType 崩溃
-
-烟测过程中暴露：当 `gymnasium` 缺席时，`class LocomotionRLEnv(gym.Env[...]):`
-的下标在**类定义阶段**立即触发 `'NoneType' object has no attribute 'Env'`，
-连锁污染整个 `mathart.animation` 包，导致 `pseudo3d_shell_backend` 的
-`from mathart.animation.dqs_engine import ...` 一并被牵连失败。
-
-修复：引入 `_RL_ENV_BASE` 哨兵——`gym is not None` 时取 `gym.Env[ndarray, ndarray]`，
-否则回退到 `object`。`spaces.Box` 在 `__init__` 阶段才可能爆，与 SESSION-146
-的"惰性加载纪律"完全一致；RL happy-path 不受影响。
-
-### 2.5 测试矩阵
+### 2.4 测试矩阵
 
 | Suite | 规模 | 状态 |
 |-------|------|------|
-| `scripts/session149_smoke.py` (新增) | 2 项断言（动画 MSE + 异常护盾） | **GREEN** |
-| Phase 1：Demo 圆柱 43 帧 / 352 顶点 / `min_pair_max_vertex_shift=0.112` | — | **PASS** |
-| Phase 2：dispatch 包装 + wizard 友好提示 + 0 traceback 泄漏 + rc=0 | — | **PASS** |
+| `scripts/session150_smoke.py` (新增) | 3 项断言（纯数学动画 + 意图透传 + RED 护盾） | **GREEN** |
+| Phase 1：Demo 圆柱 43 帧 / 352 顶点 / `min_pair_max_vertex_shift=0.114` | — | **PASS** |
+| Phase 2：意图参数放大 / `mean_pair_max_vertex_shift=0.444` | — | **PASS** |
+| Phase 3：dispatch 包装 + RED 高亮 + 0 traceback 泄漏 + rc=0 | — | **PASS** |
 
-> **既有 168/168 历史测试矩阵无任何修改**：本次修复全部在新通道追加判定，
-> 未改动既有 `validate_config` warnings 文本，未改动 `PipelineContractError`
-> 签名，未改动任何已发布的策略接口。
-
-### 2.6 如何现场确认修复生效
+### 2.5 如何现场确认修复生效
 
 ```bash
-# 1) 安装可选依赖（仅烟测脚本需要，运行时不需要）
+# 1) 安装可选依赖（仅烟测脚本需要）
 sudo pip3 install networkx -q
 
-# 2) 跑双轨烟测
-PYTHONPATH=. python3 scripts/session149_smoke.py
-# 预期：ALL SESSION-149 SMOKE ASSERTIONS PASSED
-
-# 3) 主观确认友好提示
-#    手动触发量产模式但传入静态 guide 序列，控制台仅出现单行高亮拦截语，
-#    无任何 Traceback，提示后回到向导主菜单。
+# 2) 跑三轨烟测
+PYTHONPATH=. python3 scripts/session150_smoke.py
+# 预期：ALL SESSION-150 SMOKE ASSERTIONS PASSED
 ```
 
 ---
 
 ## 3. Architecture Discipline Reinforced
 
-- **质量裁决即业务事件 (Quality Verdict as Business Event)**：`PipelineContractError`
-  这类**主动断路**异常必须在最近的业务边界（dispatch）被翻译为带语义的
-  typed wrapper，绝不允许以原始 Traceback 形式进入用户终端。
-- **黑匣子保留 / 终端干净 (Blackbox vs Terminal Separation)**：所有完整堆栈
-  必须经 `logger.error(..., exc_info=True)` 落入 `logs/mathart.log`，终端
-  仅展示业务级一句话提示。
-- **兜底产物的活性义务 (Liveness Contract for Fallback Artifacts)**：任何
-  fallback / demo / placeholder 数据生成器都必须满足下游契约的最小活性
-  要求（如帧间方差>阈值），否则会被自家护栏击穿。
-- **延迟绑定纪律扩展 (Lazy Type-Binding Discipline)**：当某个可选依赖
-  缺席会让基类 `gym.Env[T, U]` 在类定义阶段失败时，必须用条件基类
-  哨兵代替直接继承，以避免污染整个包的 import 链。
-- **警告节流纪律 (Warning Throttling Discipline)**：任何在长批次循环中
-  会被反复触发、且消息内容恒定的 WARNING，必须使用"首次 WARNING + 后续
-  DEBUG"模式节流，避免污染操作员视野。
+- **数学造物哲学 (MathArt Philosophy)**：当无外部输入时，每一帧都必须由纯数学
+  方程（sin, cos, abs, π）实时驱动生成。Demo 路径不是"占位符"，而是项目核心
+  理念的最纯粹体现。
+- **意图参数透传义务 (Intent Parameter Passthrough Contract)**：任何 fallback
+  生成路径都必须检查并尊重上游 `CreatorIntentSpec` 提供的物理参数，确保
+  Director Studio 的语义→参数翻译管线不被旁路。
+- **体积守恒纪律 (Volume Preservation Discipline)**：所有挤压拉伸形变必须满足
+  `Sx · Sy ≈ 1.0`，这是迪士尼动画第一原则的数学表达。
+- **单次横幅纪律 (Single-Shot Banner Discipline)**：长批次循环中的状态通知
+  必须使用"首次 INFO + 后续静默"模式，杜绝终端噪音。
+- **红色裁决纪律 (Red Verdict Discipline)**：质量熔断是最高级别的业务事件，
+  必须使用 RED BOLD ANSI 高亮，确保操作员绝不会忽略。
 
 ---
 
@@ -201,50 +178,62 @@ PYTHONPATH=. python3 scripts/session149_smoke.py
 
 | File | Change Type |
 |------|-------------|
-| `mathart/core/pseudo3d_shell_backend.py` | 新增 `_emit_demo_warning` 节流器 + Y 轴弹跳/自转兜底动画方程 + `frame_count` 透传 |
-| `mathart/workspace/mode_dispatcher.py` | 新增 `PipelineQualityCircuitBreak` 类 + dispatch 异常翻译 + 写入 `__all__` |
-| `mathart/cli_wizard.py` | 新增 `_QUALITY_CIRCUIT_BREAK_NOTICE` + `_render_quality_circuit_break` + 双通道（交互/非交互）护盾 |
-| `mathart/animation/rl_gym_env.py` | 引入 `_RL_ENV_BASE` 哨兵基类，gymnasium 缺席时不再污染包 import 链 |
-| `scripts/session149_smoke.py` | 新增双轨烟测脚本（动画 MSE + 异常护盾 + traceback 泄漏检测） |
-| `SESSION_HANDOFF.md` | 改写为 SESSION-149 主体 |
-| `PROJECT_BRAIN.json` | 新增 SESSION-148 / SESSION-149 会话条目 + 待办状态同步 |
+| `mathart/core/pseudo3d_shell_backend.py` | **重写**：四重叠加纯数学动画方程 + 意图参数透传 + 单次 INFO 横幅 |
+| `mathart/cli_wizard.py` | **升级**：RED BOLD 质量熔断提示 + 改进中文文案 |
+| `mathart/workspace/mode_dispatcher.py` | **更新**：SESSION-150 注释升级 |
+| `scripts/session150_smoke.py` | **新增**：三轨烟测脚本（纯数学动画 + 意图透传 + RED 护盾） |
+| `SESSION_HANDOFF.md` | **改写**为 SESSION-150 主体 |
+| `PROJECT_BRAIN.json` | 新增 SESSION-150 会话条目 + 待办状态同步 |
 
 ---
 
-## 5. Historical Index (Recent Sessions)
+## 5. Core Mathematical Equations Summary
+
+SESSION-150 在纯数学生成函数中运用的核心数学方程：
+
+| 方程 | 数学形式 | 物理意义 | 视觉效果 |
+|------|----------|----------|----------|
+| **绝对值正弦弹跳** | `y = A · \|sin(πft)\|` | 弹性碰撞的抛物线轨迹 | 肉眼可见的上下弹跳 |
+| **体积守恒挤压** | `Sy = 1 + I·sin(2πft)`, `Sx = 1/Sy` | 迪士尼 Squash & Stretch | 落地时变矮变胖，腾空时变高变瘦 |
+| **连续旋转** | `θ = 2πRt` | 匀速角运动 | 持续旋转产生横向像素位移 |
+| **相位偏移** | `t' = t + π/3` | 多骨差异形变 | 网格表面扭曲/剪切效果 |
+
+这四个方程的叠加保证了：
+- 每两帧之间的顶点位移 MSE **远超** `TemporalVarianceCircuitBreaker` 的阈值
+- 即使在弹跳驻点（速度为零的瞬间），旋转仍然产生横向位移
+- 即使在旋转对称位置，弹跳和挤压拉伸仍然产生纵向位移
+- 数学上不可能出现连续两帧完全相同的情况
+
+---
+
+## 6. Historical Index (Recent Sessions)
 
 | Session | 主线 | Commit |
 |---------|------|--------|
-| SESSION-149 (当前) | Dynamic demo mesh + graceful quality-breaker boundary | (this push) |
+| SESSION-150 (当前) | Procedural math-driven animation + enhanced error boundary | (this push) |
+| SESSION-149 | Dynamic demo mesh + graceful quality-breaker boundary | `c2436e5` |
 | SESSION-148 | Windows 终端编码崩溃护盾 + ASCII-safe 救援 UI | `ccc5067` |
 | SESSION-147 | 知识总线大一统 + ComfyUI 交互式自愈救援网关 | `0f6da73` |
 | SESSION-146-B | 雷达广域探测网 + 深度审计轨迹 | `b9cdf05` |
 | SESSION-146 | 全链路遥测贯通 + 依赖契约硬化 | `ec6953c` |
-| SESSION-145 | 依赖清单补齐 + 惰性加载纪律 | `3e2792d` |
 
 ---
 
-## 6. Coronation & Next Steps
+## 7. Coronation & Next Steps
 
 **Coronation**:
-> "兜底产物从此拥有最低限度的物理生命：每一秒都在弹跳，每一秒都在旋转，
-> 永不再以静止帧挑衅自家护栏；而当护栏真正出手时，操作员看到的不再是
-> 灰色 Traceback 的错乱字符洪流，而是一句金色的、克制的、明确的业务裁决。
-> 质量护盾从此既能铁面无私地拦截动力学崩塌，又能优雅地把审判结果递交到
-> 用户面前。"
+> "从此，MathArt 的每一帧都由 sin、cos、abs 和 π 亲手铸造。
+> 抛物线弹跳赋予它重力，体积守恒赋予它弹性，连续旋转赋予它生命，
+> 相位偏移赋予它灵魂。当质量护盾出手时，操作员看到的不再是灰色的
+> Traceback 洪流，而是一句红色的、克制的、明确的业务裁决。
+> 这就是数学造物的极客美学。"
 
 **Next Steps**:
-- P1：把 `_emit_demo_warning` 抽象为通用 `mathart.core.log_throttle` 工具，
-  让 `validate_config` 等高频警告路径统一接入。
-- P1：在 `tests/` 下补一组 `test_session149_quality_boundary.py` 单元测试，
-  把 `scripts/session149_smoke.py` 中的两项断言固化进 CI。
-- P2：为 `PipelineQualityCircuitBreak` 增加 `recovery_hint` 字段，让向导
-  可以基于 violation_type 给出具体的"下一步建议"（如真理网关裁剪建议）。
-- P2：探索把 demo 动画的弹跳/自转参数暴露给 director_studio 的 vibe parser，
-  让操作员可以一句话调参 ("更夸张的弹跳" → amplitude *= 1.6)。
-- P2 (carried from SESSION-147)：`comfyui_rescue` 增加 Windows UNC `\\server\share`
-  路径支持。
-- P2 (carried from SESSION-146-B)：`ProxyRenderer` matplotlib 缺失时的 ASCII-art
-  回退渲染器；雷达增加 Windows Registry 查询策略。
+- P1：把 `_emit_procedural_banner` 抽象为通用 `mathart.core.log_throttle` 工具
+- P1：在 `tests/` 下补 `test_session150_quality_boundary.py` 单元测试
+- P2：为 `PipelineQualityCircuitBreak` 增加 per-violation_type `recovery_hint`
+- P2：完成 vibe parser NL → intent_params 自动映射（passthrough 已落地）
+- P2 (carried)：`comfyui_rescue` Windows UNC 路径支持
+- P2 (carried)：`ProxyRenderer` ASCII-art 回退渲染器
 
-*Signed off by Manus AI · SESSION-149*
+*Signed off by Manus AI · SESSION-150*

@@ -1,6 +1,6 @@
 {
-  "version": "v0.99.1",
-  "last_session_id": "SESSION-149",
+  "version": "v0.99.2",
+  "last_session_id": "SESSION-150",
   "last_updated": "2026-04-23",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -128,7 +128,7 @@
     "engineering_automation": 95,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-146 + 146-B: FULL-CHAIN-TELEMETRY-THROUGH-BORE & RADAR-WIDE-AREA-SEARCH-NET. psutil hardened into core deps; torch isolated to [gpu] optional; 19 telemetry injection points across radar/launcher/gate/wizard; dual-track log multiplexing guard (file=DEBUG, console=WARNING); ComfyUI candidate net expanded 14->42 paths (Windows Portable, macOS, multi-drive A-H, relative cwd ancestors); full search audit trail at DEBUG level ([Radar/FS] + [Radar/PS]); radar_version 1.1.0. 101/101 tests PASS.",
+  "current_focus": "SESSION-150: PROCEDURAL-MATH-DRIVEN-ANIMATION-DYNAMICS & ENHANCED-GRACEFUL-ERROR-BOUNDARY. Replaced static demo cylinder with four superimposed mathematical motions (parabolic bounce |sin(pi*f*t)|, volume-preserving squash/stretch, continuous Y-axis spin, secondary bone phase offset). Intent parameter passthrough from CreatorIntentSpec (bounce_amplitude, squash_stretch, elasticity). Single-shot INFO banner replaces per-frame WARNING spam. RED ANSI-highlighted quality circuit break notice. scripts/session150_smoke.py: ALL 3 ASSERTIONS PASSED.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research/session139_director_studio_research.md",
@@ -366,10 +366,41 @@
       "id": "P2-SESSION-149-DEMO-VIBE-PARAMS",
       "priority": "P2",
       "title": "Expose demo_bounce_amplitude / demo_spin_revolutions to director_studio vibe parser",
-      "status": "OPEN",
+      "status": "SUBSTANTIALLY-CLOSED",
       "estimated_effort": "small",
-      "description": "Let creators describe the demo motion via natural language ('更夸张的弹跳' → amplitude *= 1.6) so the fallback can be steered without touching code.",
-      "added_in": "SESSION-149"
+      "description": "SESSION-150 implemented intent parameter passthrough: bounce_amplitude, squash_stretch_intensity, elasticity, and spin_revolutions from CreatorIntentSpec context are now read by the procedural fallback path. Remaining: wire the vibe parser's natural language output to populate these fields automatically.",
+      "added_in": "SESSION-149",
+      "completed_in": "SESSION-150"
+    },
+    {
+      "id": "P0-SESSION-150-PROCEDURAL-MATH-ANIMATION",
+      "priority": "P0",
+      "title": "Replace static demo cylinder with four-motion procedural math-driven animation (parabolic bounce + squash/stretch + spin + phase offset)",
+      "status": "CLOSED",
+      "estimated_effort": "medium",
+      "description": "CLOSED in SESSION-150. The SESSION-149 fix (Y-axis bounce + spin) was upgraded to a full four-motion procedural animation system: (1) parabolic bounce y(t)=A*|sin(pi*freq*t)| with configurable amplitude/frequency, (2) volume-preserving squash/stretch Sy=1+I*sin(2pi*freq*t), Sx=1/Sy (Disney Principle #1), (3) continuous Y-axis spin theta=2pi*R*t, (4) secondary bone phase offset (pi/3 shift + halved amplitude). Intent parameter passthrough from CreatorIntentSpec (bounce_amplitude, squash_stretch_intensity, elasticity, spin_revolutions). Single-shot INFO banner replaces per-frame WARNING spam. Smoke test: min_pair_max_vertex_shift=0.114, mean=0.146; intent amplified mean=0.444.",
+      "added_in": "SESSION-150",
+      "completed_in": "SESSION-150",
+      "closed_in": "SESSION-150",
+      "primary_files": [
+        "mathart/core/pseudo3d_shell_backend.py",
+        "scripts/session150_smoke.py"
+      ]
+    },
+    {
+      "id": "P0-SESSION-150-ENHANCED-ERROR-BOUNDARY",
+      "priority": "P0",
+      "title": "Upgrade quality circuit break notice from yellow to RED ANSI highlighting with improved Chinese messaging",
+      "status": "CLOSED",
+      "estimated_effort": "small",
+      "description": "CLOSED in SESSION-150. Upgraded the SESSION-149 quality circuit break notice: (1) changed ANSI color from yellow (33) to RED bold (1;31) for maximum visibility, (2) improved Chinese messaging to '质量防线拦截：渲染管线检测到动画序列波动不足，为保护下游 GPU 算力，任务已安全中止', (3) added grey (90) sub-lines for blackbox location and recovery hints. Smoke test confirms RED highlight present and zero traceback leakage.",
+      "added_in": "SESSION-150",
+      "completed_in": "SESSION-150",
+      "closed_in": "SESSION-150",
+      "primary_files": [
+        "mathart/cli_wizard.py",
+        "mathart/workspace/mode_dispatcher.py"
+      ]
     },
     {
       "id": "P0-SESSION-148-WINDOWS-ENCODING-CRASH-SHIELD",
@@ -3067,6 +3098,27 @@
     "updated_at": "2026-04-21"
   },
   "recent_sessions": [
+    {
+      "session_id": "SESSION-150",
+      "focus": "Procedural math-driven animation dynamics + enhanced graceful error boundary",
+      "status": "COMPLETE",
+      "date": "2026-04-23",
+      "summary": "Architectural deep-dive triggered by the question: 'MathArt should be purely math-driven — why depend on external models?' Upgraded the SESSION-149 demo cylinder fix into a full four-motion procedural animation system: (1) parabolic bounce y(t)=A*|sin(pi*freq*t)|, (2) volume-preserving squash/stretch Sy=1+I*sin(2pi*freq*t) Sx=1/Sy (Disney Principle #1), (3) continuous Y-axis spin theta=2pi*R*t, (4) secondary bone phase offset (pi/3 + halved amplitude). Added intent parameter passthrough from CreatorIntentSpec (bounce_amplitude, squash_stretch_intensity, elasticity, spin_revolutions). Replaced per-frame WARNING spam with single-shot INFO banner. Upgraded quality circuit break notice to RED ANSI bold with improved Chinese messaging. scripts/session150_smoke.py: ALL 3 ASSERTIONS PASSED (procedural animation safe, intent amplified, RED notice rendered).",
+      "files_touched": [
+        "mathart/core/pseudo3d_shell_backend.py",
+        "mathart/workspace/mode_dispatcher.py",
+        "mathart/cli_wizard.py",
+        "scripts/session150_smoke.py",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "validation": "scripts/session150_smoke.py -> ALL SESSION-150 SMOKE ASSERTIONS PASSED (3/3 phases green)",
+      "next_gaps": [
+        "P1-SESSION-149-LOG-THROTTLE-EXTRACT: promote _emit_demo_warning to mathart.core.log_throttle",
+        "P1-SESSION-149-QUALITY-BOUNDARY-TESTS: pin smoke assertions into tests/",
+        "P2-SESSION-149-DEMO-VIBE-PARAMS: wire vibe parser NL output to intent params (passthrough already landed)"
+      ]
+    },
     {
       "session_id": "SESSION-149",
       "focus": "Dynamic demo mesh + graceful PipelineContractError boundary",

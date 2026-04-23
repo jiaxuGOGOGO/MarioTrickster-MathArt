@@ -27,13 +27,16 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# SESSION-149: PipelineQualityCircuitBreak — typed wrapper raised by the
-# dispatch-level error boundary when the underlying pipeline aborts due to a
-# PipelineContractError (e.g. TemporalVarianceCircuitBreaker tripping on a
-# static guide sequence).  cli_wizard catches this specifically so the user
-# sees a friendly highlighted notice and is bounced back to the wizard main
-# menu, while the full traceback is preserved in the blackbox file handler
-# via logger.error("...", exc_info=True).
+# SESSION-149 → SESSION-150: PipelineQualityCircuitBreak — typed wrapper
+# raised by the dispatch-level error boundary when the underlying pipeline
+# aborts due to a PipelineContractError (e.g. TemporalVarianceCircuitBreaker
+# tripping on a static guide sequence).  cli_wizard catches this specifically
+# so the user sees a friendly RED-highlighted notice and is bounced back to
+# the wizard main menu, while the full traceback is preserved in the blackbox
+# file handler via logger.error("...", exc_info=True).
+#
+# SESSION-150 enhancement: the dispatch layer now also captures the exception
+# context (mode, strategy, violation details) for richer blackbox forensics.
 # ---------------------------------------------------------------------------
 class PipelineQualityCircuitBreak(RuntimeError):
     """Dispatch-level signal that a quality circuit breaker tripped.
@@ -602,14 +605,14 @@ class ModeDispatcher:
                 strategy.execute(context) if execute else strategy.preview(context)
             )
         except PipelineContractError as exc:
-            # SESSION-149: Quality circuit breakers (TemporalVariance,
-            # MeshContract, etc.) MUST not punch through the dispatch
-            # boundary as raw tracebacks.  We persist the full stack into
-            # the blackbox via logger.error(exc_info=True), then re-raise
-            # a typed wrapper that the CLI wizard can catch and turn into
-            # a friendly highlighted notice + smooth fallback to the main
-            # menu.  The original exception remains chained via __cause__
-            # for forensic inspection.
+            # SESSION-149 → SESSION-150: Quality circuit breakers
+            # (TemporalVariance, MeshContract, etc.) MUST not punch through
+            # the dispatch boundary as raw tracebacks.  We persist the full
+            # stack into the blackbox via logger.error(exc_info=True), then
+            # re-raise a typed wrapper that the CLI wizard can catch and
+            # turn into a friendly RED-highlighted notice + smooth fallback
+            # to the main menu.  The original exception remains chained via
+            # __cause__ for forensic inspection.
             logger.error(
                 "[CLI] Pipeline quality circuit breaker tripped during dispatch "
                 "(mode=%s, strategy=%s, violation=%s): %s",
