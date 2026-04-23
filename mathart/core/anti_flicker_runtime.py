@@ -371,6 +371,60 @@ def validate_temporal_variance(
     return report
 
 
+def assert_nonzero_temporal_variance(
+    frames: Sequence[Image.Image],
+    *,
+    channel: str = "source",
+    mse_floor: float = 0.0001,
+) -> None:
+    """SESSION-160: Hard per-pair MSE floor assertion (Variance Assert Gate).
+
+    This is the **防静止自爆核弹** — a stricter, non-negotiable assertion that
+    fires if ANY consecutive frame pair has MSE below ``mse_floor``.  Unlike
+    ``validate_temporal_variance`` which allows a ratio of static pairs, this
+    gate enforces that EVERY frame transition shows measurable pixel change.
+
+    Industrial Reference: MSE-based frame differencing is the standard method
+    for motion detection in video surveillance and animation QA pipelines.
+    A per-pair MSE of 0.0001 on a 0-255 scale corresponds to sub-pixel
+    identical frames — a clear sign of rendering forgery or frozen animation.
+
+    Parameters
+    ----------
+    frames : Sequence[Image.Image]
+        The guide frame sequence to validate.
+    channel : str
+        Human-readable channel name for diagnostics.
+    mse_floor : float
+        Absolute minimum MSE between any consecutive pair.  If any pair
+        falls below this floor, a RuntimeError is raised immediately.
+
+    Raises
+    ------
+    RuntimeError
+        If any consecutive frame pair has MSE < mse_floor.
+    """
+    frame_list = list(frames)
+    n = len(frame_list)
+    if n < 2:
+        return  # Single-frame sequences cannot be validated
+
+    for i in range(n - 1):
+        arr_a = np.asarray(frame_list[i].convert("RGB"), dtype=np.float64)
+        arr_b = np.asarray(frame_list[i + 1].convert("RGB"), dtype=np.float64)
+        mse = float(np.mean((arr_a - arr_b) ** 2))
+        del arr_a, arr_b  # OOM prevention
+        if mse < mse_floor:
+            raise RuntimeError(
+                f"[SESSION-160 VarianceAssertGate] Channel '{channel}': "
+                f"frame pair ({i}, {i+1}) has MSE={mse:.8f} < floor={mse_floor:.8f}.  "
+                f"This indicates IDENTICAL or near-identical consecutive frames — "
+                f"a frozen animation that MUST NOT reach downstream AI rendering.  "
+                f"The upstream bone-driven bake pipeline must produce genuine "
+                f"per-frame geometric displacement."
+            )
+
+
 def compute_frame_hashes(frames: Sequence[Image.Image]) -> list[str]:
     """Compute SHA-256 hashes of frame pixel data for anti-forgery auditing.
 
@@ -408,5 +462,6 @@ __all__ = [
     "export_rgb_sequence",
     "materialize_chunk_outputs",
     "validate_temporal_variance",
+    "assert_nonzero_temporal_variance",
     "compute_frame_hashes",
 ]

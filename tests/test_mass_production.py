@@ -84,6 +84,30 @@ def test_mass_production_factory_dry_run_skip_ai_render(tmp_path: Path) -> None:
         assert record["manifests"]["guide_baking"] is not None
         assert Path(record["manifests"]["guide_baking"]).exists()
 
+        # SESSION-160: RenderContext Wiring — motion_state and fps must be
+        # propagated through guide_baking report and output dict.
+        baking_report_data = json.loads(
+            Path(guide_baking["report_path"]).read_text(encoding="utf-8")
+        )
+        assert "motion_state" in baking_report_data, (
+            "SESSION-160: guide_baking report MUST contain motion_state"
+        )
+        assert "fps" in baking_report_data, (
+            "SESSION-160: guide_baking report MUST contain fps"
+        )
+        assert isinstance(baking_report_data["motion_state"], str)
+        assert baking_report_data["motion_state"] != ""
+        assert isinstance(baking_report_data["fps"], int)
+        assert baking_report_data["fps"] > 0
+
+        # SESSION-160: guide_baking output dict must also carry context
+        assert "motion_state" in guide_baking, (
+            "SESSION-160: guide_baking output MUST propagate motion_state"
+        )
+        assert "fps" in guide_baking, (
+            "SESSION-160: guide_baking output MUST propagate fps"
+        )
+
         stage_rng = record["stage_rng_spawn_digests"]
         assert set(stage_rng) == {
             "prepare_character",

@@ -30,8 +30,9 @@ import mathart.core.physical_ribbon_backend  # noqa: F401  # Ensure registry sid
 import mathart.core.archive_delivery_backend  # noqa: F401  # SESSION-128: Ensure archive delivery backend registry side-effect import.
 from mathart.level import PDGFanOutResult, PDGNode, ProceduralDependencyGraph
 from mathart.pipeline import AssetPipeline
+from mathart.animation.unified_gait_blender import get_motion_lane_registry  # SESSION-160: Dynamic Action Registry
 
-_SESSION_ID = "SESSION-158"
+_SESSION_ID = "SESSION-160"
 _DEFAULT_SEED = 20260421
 _DEFAULT_GPU_SLOTS = 1
 _DEFAULT_COMFYUI_URL = "http://localhost:8188"
@@ -232,7 +233,29 @@ def _preset_factories() -> list[tuple[str, Any]]:
 _TORSO_PARTS = ["torso_breastplate", "torso_robe", "torso_vest"]
 _HAND_PARTS = ["hand_sword", "hand_staff", "hand_shield"]
 _FOOT_PARTS = ["foot_boots", "foot_sandals", "foot_greaves"]
-_MOTION_STATES = ["idle", "walk", "run", "jump", "fall", "hit"]
+# ---------------------------------------------------------------------------
+# SESSION-160: Dynamic Action Registry — ERADICATE hardcoded state lists.
+# Actions are now sourced from the authoritative MotionStateLaneRegistry
+# (IoC pattern).  Adding new actions (Dash, Climb, AttackCombo, etc.)
+# requires ZERO modification to this file — just register a new lane.
+#
+# Industrial Reference: Unreal Engine Animation Blueprint State Machine —
+# states are dynamically registered, not hardcoded in if/else trees.
+# ---------------------------------------------------------------------------
+def _get_registered_motion_states() -> tuple[str, ...]:
+    """Dynamically retrieve all registered motion states from the
+    authoritative MotionStateLaneRegistry.
+
+    SESSION-160: This replaces the former hardcoded ``_MOTION_STATES`` list.
+    New actions are automatically discovered via the IoC registry without
+    any code modification in this module.
+
+    Returns
+    -------
+    tuple[str, ...]
+        Sorted tuple of all registered motion state names.
+    """
+    return get_motion_lane_registry().names()
 
 
 def _pick_part(rng: np.random.Generator, choices: list[str]) -> str:
@@ -304,7 +327,8 @@ def _attachment_mesh_from_genotype(genotype: CharacterGenotype) -> tuple[dict[st
 
 
 def _state_from_rng(rng: np.random.Generator) -> str:
-    return _MOTION_STATES[int(rng.integers(0, len(_MOTION_STATES)))]
+    states = _get_registered_motion_states()
+    return states[int(rng.integers(0, len(states)))]
 
 
 def _load_motion_frames(motion_clip_path: str | Path) -> list[dict[str, Any]]:
@@ -370,10 +394,19 @@ def _bake_true_motion_guide_sequence(
     frame_count: int,
     render_width: int = 192,
     render_height: int = 192,
+    *,
+    motion_state: str = "idle",
+    fps: int = 24,
+    character_id: str = "",
 ) -> tuple[list[Image.Image], list[Image.Image], list[Image.Image], list[Image.Image]]:
     """Bake TRUE per-frame guide sequences from real bone-driven animation.
 
     SESSION-130: ERADICATE single-image replication forgery.
+    SESSION-160: RenderContext Hydration — motion_state, fps, and character_id
+    are now threaded through as explicit parameters (Temporal Context Wiring).
+    This ensures the full upstream intent (action + timing) is available at
+    every render call site, matching the DigitalRune RenderContext pattern
+    where context is never implicitly assumed but always explicitly passed.
 
     This function replaces the SESSION-129 micro-jitter approach with genuine
     per-frame rendering driven by the Motion2DPipeline's Clip2D bone transforms.
@@ -406,6 +439,13 @@ def _bake_true_motion_guide_sequence(
         Output frame width in pixels.
     render_height : int
         Output frame height in pixels.
+    motion_state : str
+        SESSION-160: The active motion state name (e.g. 'idle', 'run', 'jump').
+        Threaded through as RenderContext for downstream traceability.
+    fps : int
+        SESSION-160: Target frames-per-second from upstream prepare_character.
+    character_id : str
+        SESSION-160: Character identifier for diagnostic logging.
 
     Returns
     -------
@@ -415,6 +455,14 @@ def _bake_true_motion_guide_sequence(
     """
     from mathart.animation.genotype import CharacterGenotype
     from mathart.pipeline_contract import PipelineContractError
+
+    # ── SESSION-160: RenderContext Hydration — log threaded parameters ──────
+    import logging as _bake_ctx_log
+    _bake_ctx_log.getLogger(__name__).debug(
+        "[SESSION-160] RenderContext hydrated: motion_state=%s, fps=%d, "
+        "character_id=%s, frame_count=%d, render=%dx%d",
+        motion_state, fps, character_id, frame_count, render_width, render_height,
+    )
 
     # ── Reconstruct character from serialized genotype ──────────────────────
     genotype_data = _load_json(Path(genotype_path))
@@ -536,7 +584,7 @@ def _node_seed_orders(ctx: dict[str, Any], _deps: dict[str, Any]) -> dict[str, A
     batch_size = int(ctx.get("batch_size", 1))
     return {
         "batch_size": batch_size,
-        "states": list(_MOTION_STATES),
+        "states": list(_get_registered_motion_states()),  # SESSION-160: Dynamic from registry
         "preset_names": [name for name, _ in _preset_factories()],
         "batch_dir": str(Path(ctx["batch_dir"]).resolve()),
         "skip_ai_render": bool(ctx.get("skip_ai_render", False)),
@@ -936,12 +984,17 @@ def _node_guide_baking(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
     # ── Bake TRUE per-frame guide sequences from real Clip2D animation ─────
     clip_2d = motion2d.get("clip_2d")
     frame_count = int(prepared["frame_count"])
+    # SESSION-160: Thread full RenderContext (motion_state, fps, character_id)
+    # through to the bake function — Temporal Context Wiring.
     source_frames, normal_maps, depth_maps, mask_maps = _bake_true_motion_guide_sequence(
         genotype_path=prepared["genotype_path"],
         clip_2d=clip_2d,
         frame_count=frame_count,
         render_width=render_width,
         render_height=render_height,
+        motion_state=prepared["motion_state"],
+        fps=int(prepared["fps"]),
+        character_id=prepared["character_id"],
     )
 
     # ── Temporal Variance Diagnostic (non-fatal in bake stage) ─────────────
@@ -1008,6 +1061,8 @@ def _node_guide_baking(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
         "normal_dir": str(normal_dir.resolve()),
         "depth_dir": str(depth_dir.resolve()),
         "mask_dir": str(mask_dir.resolve()),
+        "motion_state": prepared["motion_state"],  # SESSION-160: RenderContext
+        "fps": int(prepared["fps"]),  # SESSION-160: RenderContext
         "cpu_only": True,
         "gpu_required": False,
         "temporal_variance_passed": temporal_variance_passed,
@@ -1056,6 +1111,8 @@ def _node_guide_baking(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
         "normal_maps": normal_maps,
         "depth_maps": depth_maps,
         "mask_maps": mask_maps,
+        "motion_state": prepared["motion_state"],  # SESSION-160: Context propagation
+        "fps": int(prepared["fps"]),  # SESSION-160: Context propagation
         "rng_spawn_digest": rng_digest,
     }
 
@@ -1117,8 +1174,19 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
     # SESSION-158: Hard Temporal Variance Circuit Breaker — only enforced
     # here at the AI render boundary, NOT in the bake stage.  This protects
     # AnimateDiff from static conditioning while allowing baked IR to persist.
-    from mathart.core.anti_flicker_runtime import validate_temporal_variance
+    from mathart.core.anti_flicker_runtime import (
+        validate_temporal_variance,
+        assert_nonzero_temporal_variance,
+    )
     validate_temporal_variance(source_frames, channel="source", mse_threshold=1.0)
+
+    # SESSION-160: 防静止自爆核弹 (Variance Assert Gate) — per-pair MSE floor.
+    # This is a stricter, non-negotiable assertion that fires if ANY
+    # consecutive frame pair has MSE below the absolute floor.  It catches
+    # frozen-animation forgeries that the ratio-based gate might miss.
+    assert_nonzero_temporal_variance(
+        source_frames, channel="source", mse_floor=0.0001,
+    )
 
     pipeline = AssetPipeline(output_dir=str(stage_dir), verbose=False)
     manifest = pipeline.run_backend(

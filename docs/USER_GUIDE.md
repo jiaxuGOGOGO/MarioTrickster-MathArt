@@ -400,6 +400,72 @@ ls test_output/mass_production_batch_*/character_000/guide_baking/
 
 ---
 
+## 8.1 动态动作注册表 + 时序上下文穿透 + 防静止断言 (SESSION-160)
+
+> **SESSION-160 新增** — 三大核心重构：动态动作注册表铲除硬编码、RenderContext 时序参数断链修复、MSE 防静止自爆核弹部署。
+
+### 8.1.1 动态动作注册表 (ActionRegistry)
+
+SESSION-160 彻底铲除了工厂文件中的硬编码动作列表 `_MOTION_STATES = ["idle", "walk", "run", "jump", "fall", "hit"]`，替换为从 `MotionStateLaneRegistry`（IoC 注册表）动态获取。
+
+| 改动 | 说明 |
+|------|------|
+| **铲除 `_MOTION_STATES`** | 不再存在硬编码动作列表，新增 `_get_registered_motion_states()` 动态查询 |
+| **动态发现** | 新动作类型（如 Dash、Climb、AttackCombo）只需在 Registry 中注册新 Lane，零修改工厂代码 |
+| **工业参考** | Unreal Engine Animation Blueprint State Machine — 状态动态注册，不硬编码 |
+
+如何添加新动作类型：
+
+```python
+# 在 mathart/animation/unified_gait_blender.py 中注册新 Lane
+registry = get_motion_lane_registry()
+registry.register("dash", DashMotionLane())
+# 工厂会自动发现并使用新动作，无需任何其他修改
+```
+
+### 8.1.2 时序上下文穿透 (Temporal Context Wiring)
+
+SESSION-160 修复了从 `prepare_character` 到 `guide_baking_stage` 的时序参数断链。现在 `motion_state`、`fps`、`character_id` 作为显式的 RenderContext 参数无损穿透到烘焙函数。
+
+| 参数 | 来源 | 穿透路径 |
+|------|------|----------|
+| `motion_state` | `prepare_character` | → `guide_baking_stage` → `baking_report.json` → `ai_render_stage` |
+| `fps` | `prepare_character` | → `guide_baking_stage` → `baking_report.json` |
+| `character_id` | `prepare_character` | → `_bake_true_motion_guide_sequence()` 诊断日志 |
+
+工业参考：DigitalRune RenderContext — 渲染上下文必须显式传递，不允许隐式假设。
+
+### 8.1.3 防静止自爆核弹 (Variance Assert Gate)
+
+SESSION-160 在 AI 渲染边界部署了更严格的逐帧对 MSE 地板断言。与 SESSION-158 的比率式断路器不同，此断言要求 **每一对** 连续帧的 MSE 都必须超过绝对地板值。
+
+| 防线 | 触发条件 | 行为 |
+|------|----------|------|
+| **SESSION-158 比率式断路器** | 超过50%帧对 MSE < 1.0 | `PipelineContractError` |
+| **SESSION-160 地板断言** | 任何单帧对 MSE < 0.0001 | `RuntimeError`（立即终止） |
+
+工业参考：MSE 帧差分是视频监控和动画 QA 管线的标准运动检测方法。
+
+### 傻瓜验收：如何确认 SESSION-160 重构生效？
+
+1. **动态注册表**：运行以下代码确认动作列表来自 Registry：
+
+```python
+from mathart.animation.unified_gait_blender import get_motion_lane_registry
+print(get_motion_lane_registry().names())
+# 应输出: ('fall', 'hit', 'idle', 'jump', 'run', 'walk')
+```
+
+2. **时序上下文**：检查烘焙报告中是否包含 `motion_state` 和 `fps` 字段：
+
+```bash
+cat test_output/mass_production_batch_*/character_000/guide_baking/*_guide_baking_report.json | python3 -m json.tool | grep -E 'motion_state|fps'
+```
+
+3. **防静止断言**：`assert_nonzero_temporal_variance()` 已部署在 AI 渲染边界，任何冻结动画将触发 `RuntimeError`。
+
+---
+
 ## 9. L-System 程序化植物生成 (PlantPresets 静态工厂)
 
 ### 这是什么？
