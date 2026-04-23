@@ -1,4 +1,44 @@
-"""Interactive and non-interactive top-level wizard for dual-track modes."""
+"""Interactive and non-interactive top-level wizard for dual-track modes.
+
+SESSION-153 (P0-SESSION-150-UX-DOCS-SYNC) upgrade — "Golden Handoff" UX:
+
+The wizard now guarantees three UX contracts on top of the existing SESSION-146
+blackbox + SESSION-147 rescue + SESSION-148 encoding shield + SESSION-149/150
+quality circuit boundary:
+
+1. **Global ``while True`` main loop**: The top-level interactive shell never
+   returns to a dead terminal after a sub-flow finishes.  Every sub-flow
+   (production / evolution / local distill / dry-run / director studio) now
+   yields control back to the main menu.  A dedicated ``[0] 退出系统`` option
+   is the *only* way to leave the shell.
+
+2. **Director Studio "Golden Handoff" menu**: After the preview REPL approves
+   a genotype (``GateDecision.APPROVED`` / ``BLUEPRINT_SAVED``) the wizard
+   intercepts the original "direct return" and offers three smooth handoffs:
+       [1] 🚀 趁热打铁：立刻将当前参数发往后台 ComfyUI 渲染最终大片！
+       [2] 🔍 真理查账：打印【全链路知识血统溯源审计表】
+       [0] 🏠 暂存并退回主菜单
+   Option [1] physically reuses the approved ``final_genotype`` in-memory,
+   threading it straight into ``ProductionStrategy`` without asking the user
+   to re-enter any parameters.  Option [2] invokes
+   ``ProvenanceAuditBackend.execute(intent_spec=..., knowledge_bus=...)``
+   with the exact same in-memory intent/bus, printing the Knowledge Lineage
+   audit table to the terminal.
+
+3. **ComfyUI pre-flight warning**: Before any action that will talk to the
+   ComfyUI HTTP API (option [1] above, plus the top-level production mode)
+   the wizard MUST block and display a RED highlighted banner so the user
+   is not left wondering why the terminal looks frozen.  The banner text is
+   kept in ``COMFYUI_PREFLIGHT_WARNING`` and is mirrored verbatim in
+   ``docs/USER_GUIDE.md`` (Docs-as-Code contract).
+
+Hard-red lines honoured by this revision:
+- NEVER modifies low-level render / mutation / audit business logic.
+- NEVER removes the SESSION-147 ComfyUI rescue path or SESSION-148 encoding
+  shield; both still fire first.
+- NEVER swallows PipelineQualityCircuitBreak silently — the SESSION-150 red
+  notice remains the canonical break boundary, only wrapped in ``continue``.
+"""
 from __future__ import annotations
 
 import argparse
@@ -6,7 +46,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Optional
 
 # ---------------------------------------------------------------------------
 # SESSION-148: Global stdout/stderr safe-encoding shield.
@@ -46,15 +86,6 @@ logger = logging.getLogger(__name__)
 # SESSION-150: Enhanced Graceful Error Boundary for Pipeline Quality Circuit
 # Breakers — upgraded from SESSION-149 with RED ANSI highlighting and
 # improved user-facing messaging.
-#
-# When the dispatch layer translates a ``PipelineContractError`` (e.g. the
-# ``TemporalVarianceCircuitBreaker`` tripping on a frozen guide sequence) into
-# a typed ``PipelineQualityCircuitBreak`` we MUST keep the traceback OUT of the
-# user-facing terminal.  The full stack is already persisted by the dispatcher
-# via ``logger.error(..., exc_info=True)``; the wizard's job is purely to
-# render a one-line, brand-consistent, RED-highlighted notice so the operator
-# understands the run was aborted as a deliberate quality intervention rather
-# than a programming bug, and is then bounced back to the wizard main menu.
 # ---------------------------------------------------------------------------
 _QUALITY_CIRCUIT_BREAK_NOTICE = (
     "\n\033[1;31m[!] 质量防线拦截：渲染管线检测到动画序列波动不足，"
@@ -64,18 +95,49 @@ _QUALITY_CIRCUIT_BREAK_NOTICE = (
 )
 
 
+# ---------------------------------------------------------------------------
+# SESSION-153: ComfyUI Pre-flight Warning banner (Docs-as-Code contract).
+#
+# This exact string is mirrored verbatim inside docs/USER_GUIDE.md.  Any
+# edit to the wording MUST be reflected in the whitepaper within the same
+# commit; the guide's "黄金连招" section assumes 100% textual parity.
+# ---------------------------------------------------------------------------
+COMFYUI_PREFLIGHT_WARNING = (
+    "\n\033[1;33m[🚨 提示] 即将呼叫显卡渲染！请确保您的 ComfyUI 服务端"
+    "已在后台启动并就绪。\033[0m\n"
+    "    \033[90m* 默认地址：http://localhost:8188\033[0m\n"
+    "    \033[90m* 若尚未启动，请另开一个终端运行 `python main.py` "
+    "再回到本窗口继续。\033[0m\n"
+)
+
+
+# ---------------------------------------------------------------------------
+# SESSION-153: Golden Handoff menu text (Docs-as-Code contract).
+#
+# These three option labels are the SINGLE SOURCE OF TRUTH.  They are
+# mirrored character-for-character in docs/USER_GUIDE.md §5 "黄金连招".
+# If you change one, you MUST change the other.
+# ---------------------------------------------------------------------------
+GOLDEN_HANDOFF_TITLE = "🎬 导演工坊预演通过 — 黄金连招"
+GOLDEN_HANDOFF_PROMPT = "白模已获批，请选择下一步："
+GOLDEN_HANDOFF_OPTION_PRODUCE = (
+    "[1] 🚀 趁热打铁：立刻将当前参数发往后台 ComfyUI 渲染最终大片！"
+)
+GOLDEN_HANDOFF_OPTION_AUDIT = (
+    "[2] 🔍 真理查账：打印【全链路知识血统溯源审计表】"
+)
+GOLDEN_HANDOFF_OPTION_HOME = (
+    "[0] 🏠 暂存并退回主菜单"
+)
+
+
 def _render_quality_circuit_break(
     exc: PipelineQualityCircuitBreak,
     *,
     output_fn: Callable[[str], None],
     selection: str | None = None,
 ) -> None:
-    """Print a friendly notice for a quality circuit break and log into blackbox.
-
-    The traceback is intentionally NOT echoed to the terminal; it has already
-    been recorded by the dispatch layer through ``logger.error(exc_info=True)``
-    so support engineers can recover the full chain from logs/mathart.log.
-    """
+    """Print a friendly notice for a quality circuit break and log into blackbox."""
     logger.error(
         "[CLI] Quality circuit break absorbed by wizard boundary "
         "(selection=%s, violation=%s): %s",
@@ -87,6 +149,20 @@ def _render_quality_circuit_break(
     output_fn(_QUALITY_CIRCUIT_BREAK_NOTICE)
 
 
+def emit_comfyui_preflight_warning(
+    output_fn: Callable[[str], None] = print,
+) -> None:
+    """Emit the ComfyUI pre-flight warning banner.
+
+    Called before any wizard action that will talk to the ComfyUI HTTP API
+    (Golden Handoff option [1], top-level production mode, etc.).  This
+    helper is deliberately a no-op on its own — the caller is still
+    responsible for the actual dispatch — so it stays trivially testable
+    and cannot accidentally suppress a render.
+    """
+    output_fn(COMFYUI_PREFLIGHT_WARNING)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mathart-wizard",
@@ -95,7 +171,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--mode",
         default=None,
-        help="Mode index or alias. Supported: 1/production, 2/evolution, 3/local_distill, 4/dry_run.",
+        help="Mode index or alias. Supported: 1/production, 2/evolution, 3/local_distill, 4/dry_run, 5/director_studio.",
     )
     parser.add_argument("--project-root", default=None, help="Project root override.")
     parser.add_argument("--output-dir", default=None, help="Output directory override.")
@@ -220,7 +296,7 @@ def run_wizard(
     logger.info("[CLI] Wizard invoked: argv=%s, interactive=%s", raw_argv, interactive)
 
     if not raw_argv and interactive:
-        return _run_interactive(input_fn=input_fn, output_fn=output_fn)
+        return _run_interactive_shell(input_fn=input_fn, output_fn=output_fn)
 
     parser = build_parser()
     args = parser.parse_args(raw_argv)
@@ -245,11 +321,6 @@ def run_wizard(
         sys.stdout.flush()
         return 0
     except PipelineQualityCircuitBreak as exc:
-        # SESSION-150: Quality circuit breakers are LEGITIMATE quality
-        # interventions, not crashes.  Even in non-interactive mode we
-        # emit a structured JSON envelope (no traceback) and exit with a
-        # dedicated return code (3) so callers / CI can distinguish a
-        # quality abort from a generic dispatch failure.
         logger.error(
             "[CLI] Non-interactive dispatch quality circuit break: mode=%s, violation=%s, detail=%s",
             args.mode,
@@ -267,7 +338,6 @@ def run_wizard(
         sys.stdout.flush()
         return 3
     except Exception as exc:
-        # SESSION-146: Persist non-interactive dispatch errors into blackbox.
         logger.warning(
             "[CLI] Non-interactive dispatch FAILED for mode=%s",
             args.mode,
@@ -283,11 +353,50 @@ def run_wizard(
         return 1
 
 
-def _run_interactive(
+# ---------------------------------------------------------------------------
+# SESSION-153: Global interactive shell — infinite main-menu loop.
+#
+# This replaces the old single-shot ``_run_interactive`` entry-point with a
+# ``while True`` shell.  Each iteration:
+#   1. Renders the main menu with the new [0] exit option.
+#   2. Dispatches to the corresponding sub-flow.
+#   3. Catches ALL exceptions (quality break, ComfyUI rescue rollback,
+#      KeyboardInterrupt, bare Exception) so a sub-flow failure NEVER
+#      drops the user into a dead terminal.
+#   4. Returns to the main menu via ``continue``.
+# ---------------------------------------------------------------------------
+
+def _print_main_menu(
+    dispatcher: ModeDispatcher,
+    *,
+    output_fn: Callable[[str], None],
+) -> None:
+    output_fn("")
+    output_fn("=" * 60)
+    output_fn("  MarioTrickster-MathArt · 顶层交互向导主菜单")
+    output_fn("=" * 60)
+    output_fn("请选择当前工作模式：")
+    for item in dispatcher.available_modes():
+        output_fn(f"  [{item['index']}] {item['label']}")
+    output_fn("  [0] 🚪 退出系统")
+
+
+def _run_interactive_shell(
     *,
     input_fn: Callable[[str], str],
     output_fn: Callable[[str], None],
 ) -> int:
+    """Top-level ``while True`` main menu shell.
+
+    Guarantees that any sub-flow (including ComfyUI rescue abort, quality
+    circuit break, ValueError from dispatcher.resolve_mode, or an
+    unexpected ``Exception``) bounces the user back to the main menu
+    instead of exiting the terminal.
+
+    The shell only exits when the user explicitly selects ``[0]`` or
+    sends EOF (Ctrl-D / Ctrl-Z on Windows), both of which are treated as
+    a clean ``return 0``.
+    """
     project_root = Path.cwd().resolve()
     # SESSION-147: Inject the wizard's REPL transport so that if the
     # preflight radar blocks on comfyui_not_found, the rescue prompt
@@ -298,72 +407,124 @@ def _run_interactive(
         output_fn=output_fn,
     )
     render_defender_whitelist_warning(project_root=project_root, output_fn=output_fn)
-    output_fn("请选择当前工作模式：")
-    for item in dispatcher.available_modes():
-        output_fn(f"  [{item['index']}] {item['label']}")
-    selection = standard_text_prompt("输入编号并回车", input_fn=input_fn, output_fn=output_fn)
-    # SESSION-146: Record the interactive mode selection in blackbox.
-    logger.info("[CLI] Interactive mode selection: %s", selection)
 
-    # Director Studio shortcut — bypass normal dispatch for mode 5
-    if selection in {"5", "director_studio", "director", "studio"}:
-        logger.info("[CLI] Routing to Director Studio")
-        return _run_director_studio(project_root=project_root, input_fn=input_fn, output_fn=output_fn)
+    while True:
+        try:
+            _print_main_menu(dispatcher, output_fn=output_fn)
+            try:
+                selection = standard_text_prompt(
+                    "输入编号并回车",
+                    input_fn=input_fn,
+                    output_fn=output_fn,
+                ).strip()
+            except (EOFError, KeyboardInterrupt):
+                output_fn("\n检测到退出信号，正在离开向导...")
+                logger.info("[CLI] Interactive shell exiting via EOF/KeyboardInterrupt")
+                return 0
 
-    execute_now = (
-        standard_text_prompt(
-            "是否立即执行该模式？输入 y/yes 表示执行，其余为仅预览",
-            input_fn=input_fn,
-            output_fn=output_fn,
-            default="n",
-        ).strip().lower()
-        in {"y", "yes"}
-    )
-    source = None
-    if selection in {"3", "local", "local_distill", "distill", "research"}:
-        source = standard_text_prompt(
-            "若要执行本地科研蒸馏，请输入素材文件路径（可留空稍后再传参）",
-            input_fn=input_fn,
-            output_fn=output_fn,
-            allow_empty=True,
-        ).strip() or None
-    try:
-        result = dispatcher.dispatch(
-            selection,
-            options={
-                "interactive": True,
-                "project_root": str(project_root),
-                "source": source,
-            },
-            execute=execute_now,
-        )
-        payload = result.to_dict()
-        output_fn(json.dumps(payload, ensure_ascii=False, indent=2))
-        return 0
-    except PipelineQualityCircuitBreak as exc:
-        # SESSION-150: Render the friendly RED-highlighted notice and bounce
-        # the operator back to the wizard main menu.  The full traceback
-        # has already been persisted to logs/mathart.log by the dispatch
-        # layer; we deliberately do NOT echo it to the terminal so the
-        # quality intervention is presented as the deliberate, controlled
-        # event it is rather than as a system crash.
-        _render_quality_circuit_break(
-            exc, output_fn=output_fn, selection=selection,
-        )
-        return 0
-    except Exception as exc:
-        # SESSION-146: Persist interactive dispatch errors into blackbox.
-        logger.warning(
-            "[CLI] Interactive dispatch FAILED for selection=%s",
-            selection,
-            exc_info=True,
-        )
-        output_fn(json.dumps({
-            "status": "error",
-            "error_type": exc.__class__.__name__,
-            "message": str(exc),
-        }, ensure_ascii=False, indent=2))
-        return 1
+            logger.info("[CLI] Interactive mode selection: %s", selection)
+
+            # --- [0] Explicit graceful exit ------------------------------
+            if selection in {"0", "exit", "quit", "q"}:
+                output_fn("\n已退出顶层向导。再见！")
+                logger.info("[CLI] Interactive shell exiting via menu [0]")
+                return 0
+
+            # --- [5] Director Studio shortcut — Golden Handoff owner ----
+            if selection in {"5", "director_studio", "director", "studio"}:
+                logger.info("[CLI] Routing to Director Studio (with Golden Handoff)")
+                try:
+                    _run_director_studio(
+                        project_root=project_root,
+                        dispatcher=dispatcher,
+                        input_fn=input_fn,
+                        output_fn=output_fn,
+                    )
+                except PipelineQualityCircuitBreak as exc:
+                    _render_quality_circuit_break(
+                        exc, output_fn=output_fn, selection=selection,
+                    )
+                except Exception as exc:  # [防假死红线] catch-all
+                    logger.warning(
+                        "[CLI] Director Studio sub-flow FAILED", exc_info=True,
+                    )
+                    output_fn(json.dumps({
+                        "status": "error",
+                        "error_type": exc.__class__.__name__,
+                        "message": str(exc),
+                    }, ensure_ascii=False, indent=2))
+                continue
+
+            # --- [1-4] Standard dispatcher modes -------------------------
+            execute_now = (
+                standard_text_prompt(
+                    "是否立即执行该模式？输入 y/yes 表示执行，其余为仅预览",
+                    input_fn=input_fn,
+                    output_fn=output_fn,
+                    default="n",
+                ).strip().lower()
+                in {"y", "yes"}
+            )
+            source = None
+            if selection in {"3", "local", "local_distill", "distill", "research"}:
+                source = standard_text_prompt(
+                    "若要执行本地科研蒸馏，请输入素材文件路径（可留空稍后再传参）",
+                    input_fn=input_fn,
+                    output_fn=output_fn,
+                    allow_empty=True,
+                ).strip() or None
+
+            # SESSION-153: Pre-flight ComfyUI warning before Production.
+            # We fire the banner BEFORE dispatch so users see it even when
+            # the radar immediately blocks (they still learn that ComfyUI
+            # is the next required piece).  This is a UI nudge only; it
+            # does NOT touch the dispatcher / radar / rescue flow.
+            if execute_now and selection in {"1", "production", "prod"}:
+                emit_comfyui_preflight_warning(output_fn=output_fn)
+
+            try:
+                result = dispatcher.dispatch(
+                    selection,
+                    options={
+                        "interactive": True,
+                        "project_root": str(project_root),
+                        "source": source,
+                    },
+                    execute=execute_now,
+                )
+                payload = result.to_dict()
+                output_fn(json.dumps(payload, ensure_ascii=False, indent=2))
+            except PipelineQualityCircuitBreak as exc:
+                # SESSION-150: Render the friendly RED-highlighted notice and
+                # bounce the operator back to the wizard main menu.
+                _render_quality_circuit_break(
+                    exc, output_fn=output_fn, selection=selection,
+                )
+            except ValueError as exc:
+                # Unsupported mode value — just nudge & re-prompt.
+                output_fn(f"\n[提示] 无法识别的选项：{exc}")
+            except Exception as exc:  # [防假死红线] catch-all
+                logger.warning(
+                    "[CLI] Interactive dispatch FAILED for selection=%s",
+                    selection,
+                    exc_info=True,
+                )
+                output_fn(json.dumps({
+                    "status": "error",
+                    "error_type": exc.__class__.__name__,
+                    "message": str(exc),
+                }, ensure_ascii=False, indent=2))
+            # explicit continue not required; loop naturally iterates.
+        except Exception as outer_exc:  # [防假死红线] ultimate safety net
+            logger.error(
+                "[CLI] Interactive shell outer guard absorbed exception",
+                exc_info=True,
+            )
+            output_fn(
+                f"\n[⚠️ 系统自愈] 主循环捕获异常 {outer_exc.__class__.__name__}，"
+                "已安全返回主菜单。"
+            )
+            continue
 
 
 def _namespace_to_options(args: argparse.Namespace, *, interactive: bool) -> dict[str, Any]:
@@ -387,15 +548,197 @@ def _namespace_to_options(args: argparse.Namespace, *, interactive: bool) -> dic
     }
 
 
+# ---------------------------------------------------------------------------
+# SESSION-153: Director Studio — Golden Handoff gateway.
+# ---------------------------------------------------------------------------
+
+def _extract_vibe_adjustments(raw_vibe: str) -> dict:
+    """Reconstruct ``SEMANTIC_VIBE_MAP`` matches for honest audit tracking.
+
+    Mirrors the logic in ``provenance_audit_backend.run_standalone_audit``
+    so the interactive audit path sees exactly the same vibe_adjustments
+    map that the standalone runner would.
+    """
+    try:
+        import re
+        from mathart.workspace.director_intent import SEMANTIC_VIBE_MAP
+    except Exception:
+        return {}
+    out: dict = {}
+    if not raw_vibe:
+        return out
+    tokens = re.split(r"[,;，；\s的]+", raw_vibe.strip().lower())
+    for token in tokens:
+        token = token.strip()
+        if token and token in SEMANTIC_VIBE_MAP:
+            out[token] = dict(SEMANTIC_VIBE_MAP[token])
+    return out
+
+
+def _golden_handoff_menu(
+    *,
+    project_root: Path,
+    dispatcher: ModeDispatcher,
+    spec: Any,
+    final_genotype: Any,
+    knowledge_bus: Any,
+    input_fn: Callable[[str], str],
+    output_fn: Callable[[str], None],
+) -> None:
+    """Render the post-preview Golden Handoff menu in an inner ``while True``.
+
+    [防失忆红线] Every branch reuses the in-memory ``spec`` / ``final_genotype``
+    / ``knowledge_bus`` objects — nothing is re-parsed from disk, nothing is
+    lost between rounds.  The inner loop only returns when the user picks
+    ``[0]`` or the audit/production branch completes and falls through.
+    """
+    while True:
+        output_fn("")
+        output_fn("─" * 60)
+        output_fn(GOLDEN_HANDOFF_TITLE)
+        output_fn("─" * 60)
+        output_fn(GOLDEN_HANDOFF_PROMPT)
+        output_fn(f"  {GOLDEN_HANDOFF_OPTION_PRODUCE}")
+        output_fn(f"  {GOLDEN_HANDOFF_OPTION_AUDIT}")
+        output_fn(f"  {GOLDEN_HANDOFF_OPTION_HOME}")
+
+        try:
+            choice = standard_text_prompt(
+                "输入编号并回车",
+                input_fn=input_fn,
+                output_fn=output_fn,
+                default="0",
+            ).strip()
+        except (EOFError, KeyboardInterrupt):
+            output_fn("\n检测到退出信号，黄金连招菜单已关闭。")
+            return
+
+        # --- [0] 暂存并退回主菜单 --------------------------------------
+        if choice in {"0", "home", "main", "back"}:
+            output_fn("已暂存当前意图至内存，返回主菜单。")
+            logger.info("[CLI] Golden Handoff: user chose [0] return to main menu")
+            return
+
+        # --- [1] 趁热打铁：立刻渲染大片 --------------------------------
+        if choice in {"1", "produce", "render"}:
+            logger.info("[CLI] Golden Handoff: user chose [1] launch ComfyUI render")
+            # Pre-flight warning BEFORE any network call.
+            emit_comfyui_preflight_warning(output_fn=output_fn)
+            try:
+                proceed = standard_text_prompt(
+                    "ComfyUI 已就绪？输入 y 继续发起渲染，其他键取消",
+                    input_fn=input_fn,
+                    output_fn=output_fn,
+                    default="n",
+                ).strip().lower() in {"y", "yes"}
+            except (EOFError, KeyboardInterrupt):
+                output_fn("\n已取消渲染，返回黄金连招菜单。")
+                continue
+
+            if not proceed:
+                output_fn("已取消本次渲染请求，参数仍保留在内存中。")
+                continue
+
+            # [防失忆红线] Pipe the in-memory spec + genotype into
+            # ProductionStrategy via dispatcher.  We deliberately set
+            # ``skip_ai_render=False`` so the production lane will talk
+            # to ComfyUI; the radar / rescue chain will still protect
+            # the user if the server is absent.
+            try:
+                output_fn("\n[⏳] 正在唤醒 ProductionStrategy，请稍候...")
+                result = dispatcher.dispatch(
+                    "production",
+                    options={
+                        "interactive": True,
+                        "project_root": str(project_root),
+                        "skip_ai_render": False,
+                        # [防失忆红线] carry the approved context so
+                        # downstream factory stages can pick it up when
+                        # they look at ctx.extra.director_studio_* keys.
+                        "director_studio_spec": spec.to_dict() if hasattr(spec, "to_dict") else None,
+                        "director_studio_flat_params": final_genotype.flat_params() if hasattr(final_genotype, "flat_params") else {},
+                    },
+                    execute=True,
+                )
+                payload = result.to_dict()
+                output_fn(json.dumps(payload, ensure_ascii=False, indent=2))
+            except PipelineQualityCircuitBreak as exc:
+                _render_quality_circuit_break(
+                    exc, output_fn=output_fn, selection="golden_handoff_produce",
+                )
+            except Exception as exc:
+                logger.warning(
+                    "[CLI] Golden Handoff production dispatch FAILED",
+                    exc_info=True,
+                )
+                output_fn(json.dumps({
+                    "status": "error",
+                    "error_type": exc.__class__.__name__,
+                    "message": str(exc),
+                }, ensure_ascii=False, indent=2))
+            # Fall through — after the render attempt we return to the
+            # handoff menu so the user can additionally print the audit
+            # table, or cleanly go home.
+            continue
+
+        # --- [2] 真理查账：打印全链路审计表 ----------------------------
+        if choice in {"2", "audit", "provenance"}:
+            logger.info("[CLI] Golden Handoff: user chose [2] provenance audit")
+            try:
+                from mathart.core.provenance_audit_backend import ProvenanceAuditBackend
+
+                output_fn("")
+                output_fn("─" * 60)
+                output_fn("🔍 【全链路知识血统溯源审计表】")
+                output_fn("─" * 60)
+
+                backend = ProvenanceAuditBackend(project_root=project_root)
+                artifact = backend.execute(
+                    knowledge_bus=knowledge_bus,
+                    intent_spec=spec,
+                    raw_vibe=getattr(spec, "raw_vibe", ""),
+                    vibe_adjustments=_extract_vibe_adjustments(
+                        getattr(spec, "raw_vibe", "")
+                    ),
+                    output_fn=output_fn,
+                    session_id="SESSION-153-GOLDEN-HANDOFF",
+                )
+                output_fn("")
+                output_fn(
+                    f"[✓] 审计完成 — verdict={artifact.health_verdict}, "
+                    f"硬编码死区={len(artifact.dead_zone_params)} 项, "
+                    f"JSON 日志：{artifact.json_log_path}"
+                )
+            except Exception as exc:
+                logger.warning(
+                    "[CLI] Golden Handoff provenance audit FAILED",
+                    exc_info=True,
+                )
+                output_fn(json.dumps({
+                    "status": "error",
+                    "error_type": exc.__class__.__name__,
+                    "message": str(exc),
+                }, ensure_ascii=False, indent=2))
+            continue
+
+        output_fn("[提示] 请输入 1 / 2 / 0 中的一个数字。")
 
 
 def _run_director_studio(
     *,
     project_root: Path,
+    dispatcher: ModeDispatcher | None = None,
     input_fn: Callable[[str], str] = input,
     output_fn: Callable[[str], None] = print,
 ) -> int:
-    """Run the Director Studio workflow: intent → preview REPL → blueprint → evolution."""
+    """Run the Director Studio workflow: intent → preview REPL → Golden Handoff.
+
+    SESSION-153 change: after the preview REPL is approved we no longer
+    immediately ``return 0``.  Instead we enter ``_golden_handoff_menu``
+    which offers the [1] render / [2] audit / [0] home choices, then
+    falls back to the main menu.  The sub-flow is idempotent — it can
+    be re-entered multiple times without re-parsing intent.
+    """
     from mathart.workspace.director_intent import (
         DirectorIntentParser, CreatorIntentSpec, Blueprint, BlueprintMeta, Genotype,
     )
@@ -403,11 +746,18 @@ def _run_director_studio(
         InteractivePreviewGate, GateDecision,
     )
     from mathart.evolution.blueprint_evolution import BlueprintEvolutionEngine
-    # SESSION-147: Physically wire the "大一统知识总线". Without this, the
-    # DirectorIntentParser silently degrades to heuristic-only translation
-    # ("No knowledge bus injected — using heuristic fallback only"), which
-    # is the precise脑裂 bug uncovered by the SESSION-146 blackbox audit.
     from mathart.workspace.knowledge_bus_factory import build_project_knowledge_bus
+
+    # SESSION-153: Fall back to a local dispatcher if the caller did not
+    # inject one (e.g. legacy tests that still call _run_director_studio
+    # directly).  The caller-supplied dispatcher is preferred so I/O
+    # channels and registered strategies stay consistent.
+    if dispatcher is None:
+        dispatcher = ModeDispatcher(
+            project_root=project_root,
+            input_fn=input_fn,
+            output_fn=output_fn,
+        )
 
     output_fn("")
     output_fn("🎬 ═══════════════════════════════════════════")
@@ -439,7 +789,9 @@ def _run_director_studio(
     output_fn("  [A] 感性创世 — 用自然语言描述你想要的风格")
     output_fn("  [B] 蓝图派生 — 基于已有蓝图进行控制变量繁衍")
     output_fn("  [C] 混合模式 — 在蓝图基础上叠加感性描述")
-    creation_mode = standard_text_prompt("选择模式", input_fn=input_fn, output_fn=output_fn, default="A").strip().upper()
+    creation_mode = standard_text_prompt(
+        "选择模式", input_fn=input_fn, output_fn=output_fn, default="A",
+    ).strip().upper()
     logger.info("[CLI] Director Studio creation mode: %s", creation_mode)
 
     raw_intent: dict = {}
@@ -474,20 +826,23 @@ def _run_director_studio(
     # Parse intent
     try:
         spec = parser.parse_dict(raw_intent)
-        logger.info("[CLI] Director intent parsed: vibe=%s, evolve_variants=%s",
-                    raw_intent.get("vibe", ""), raw_intent.get("evolve_variants", 0))
+        logger.info(
+            "[CLI] Director intent parsed: vibe=%s, evolve_variants=%s",
+            raw_intent.get("vibe", ""), raw_intent.get("evolve_variants", 0),
+        )
     except Exception as exc:
         logger.warning("[CLI] Director intent parse FAILED", exc_info=True)
-        output_fn(json.dumps({"status": "error", "error_type": exc.__class__.__name__, "message": str(exc)}, ensure_ascii=False, indent=2))
+        output_fn(json.dumps({
+            "status": "error",
+            "error_type": exc.__class__.__name__,
+            "message": str(exc),
+        }, ensure_ascii=False, indent=2))
         return 1
 
     output_fn("")
     output_fn("✅ 意图解析完成，进入白模预演...")
 
-    # Step 2: Interactive preview gate
-    # SESSION-147: Reuse the same project-level knowledge bus so the Truth
-    # Gateway arbitration inside the preview REPL stays in sync with the
-    # constraints that shaped the initial parameter clamping.
+    # Step 2: Interactive preview gate (reuse the same knowledge bus).
     gate = InteractivePreviewGate(
         workspace_root=project_root,
         input_fn=input_fn,
@@ -505,7 +860,7 @@ def _run_director_studio(
         output_fn("\n导演工坊已退出。")
         return 0
 
-    # Step 3: Blueprint evolution (if requested)
+    # Step 3: Optional blueprint evolution (unchanged from SESSION-142).
     if spec.evolve_variants > 0 and gate_result.final_genotype:
         output_fn(f"\n🧬 开始控制变量繁衍: {spec.evolve_variants} 个变种...")
         engine = BlueprintEvolutionEngine(seed=42)
@@ -520,7 +875,6 @@ def _run_director_studio(
         output_fn(f"   冻结参数方差总和: {frozen_var:.10f} (应为 0.0)")
         output_fn(f"   变异参数数量: {len(evo_result.mutated_param_variance)}")
 
-        # Save offspring blueprints
         bp_dir = project_root / "workspace" / "blueprints" / "variants"
         bp_dir.mkdir(parents=True, exist_ok=True)
         for offspring in evo_result.offspring:
@@ -535,9 +889,38 @@ def _run_director_studio(
             child_bp.save_yaml(bp_dir / f"variant_{offspring.variant_index}.yaml")
         output_fn(f"   变种蓝图已保存 → {bp_dir}")
 
+    # SESSION-153: Golden Handoff — intercept the old "direct return 0"
+    # and offer the three-way handoff menu.  Only reachable on APPROVED
+    # or BLUEPRINT_SAVED because ABORTED already returned above.
+    if gate_result.final_genotype is not None:
+        _golden_handoff_menu(
+            project_root=project_root,
+            dispatcher=dispatcher,
+            spec=spec,
+            final_genotype=gate_result.final_genotype,
+            knowledge_bus=knowledge_bus,
+            input_fn=input_fn,
+            output_fn=output_fn,
+        )
+
     output_fn("\n🎬 导演工坊流程完成！")
     logger.info("[CLI] Director Studio workflow completed successfully")
     return 0
+
+
+# ---------------------------------------------------------------------------
+# Backward-compat alias for SESSION-146/147/148 callers that imported
+# ``_run_interactive``.  Keep the name working but delegate to the new
+# shell so no external test or automation breaks.
+# ---------------------------------------------------------------------------
+
+def _run_interactive(
+    *,
+    input_fn: Callable[[str], str] = input,
+    output_fn: Callable[[str], None] = print,
+) -> int:
+    return _run_interactive_shell(input_fn=input_fn, output_fn=output_fn)
+
 
 __all__ = [
     "build_parser",
@@ -546,5 +929,14 @@ __all__ = [
     "run_wizard",
     "standard_menu_prompt",
     "standard_text_prompt",
+    "emit_comfyui_preflight_warning",
+    "COMFYUI_PREFLIGHT_WARNING",
+    "GOLDEN_HANDOFF_TITLE",
+    "GOLDEN_HANDOFF_PROMPT",
+    "GOLDEN_HANDOFF_OPTION_PRODUCE",
+    "GOLDEN_HANDOFF_OPTION_AUDIT",
+    "GOLDEN_HANDOFF_OPTION_HOME",
     "_run_director_studio",
+    "_run_interactive",
+    "_run_interactive_shell",
 ]

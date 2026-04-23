@@ -1,6 +1,6 @@
 {
-  "version": "v0.99.4",
-  "last_session_id": "SESSION-152",
+  "version": "v0.99.5",
+  "last_session_id": "SESSION-153",
   "last_updated": "2026-04-23",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -1505,6 +1505,23 @@
       "description": "CLOSED in SESSION-133. Implemented Idempotent Surgeon, Asset Injector (3-tier link fallback), and Atomic Downloader (resumable .part). Zero-copy caching verified. 22/22 tests PASS.",
       "added_in": "SESSION-132",
       "completed_in": "SESSION-133"
+    },
+    {
+      "id": "P0-SESSION-150-UX-DOCS-SYNC",
+      "priority": "P0",
+      "title": "Top-Level CLI Golden Handoff + Global while-True Shell + ComfyUI Pre-flight Warning + Docs-as-Code Alignment",
+      "status": "CLOSED",
+      "estimated_effort": "medium",
+      "description": "CLOSED in SESSION-153. The top-level wizard no longer drops the operator into a dead terminal after the Director Studio preview REPL approves a genotype. Three UX contracts landed atop the SESSION-146/147/148/149/150 stack: (1) Global while-True main-menu shell — _run_interactive_shell replaces the old single-shot entry-point; every sub-flow (production / evolution / local distill / dry-run / director studio) is wrapped in a per-iteration try/except guard so PipelineQualityCircuitBreak, ValueError (invalid mode), bare Exception, and even an outer-guard catch-all all bounce back to the menu via `continue`; [0] 🚪 退出系统 is the ONLY graceful exit; EOF/Ctrl-C also exit cleanly. (2) Golden Handoff menu — after GateDecision.APPROVED or BLUEPRINT_SAVED the wizard enters _golden_handoff_menu, which offers [1] 🚀 趁热打铁 (reuses the in-memory CreatorIntentSpec + final Genotype to dispatch ProductionStrategy without re-parsing — director_studio_spec / director_studio_flat_params are threaded into dispatch options), [2] 🔍 真理查账 (invokes ProvenanceAuditBackend.execute with the same in-memory intent_spec + knowledge_bus, printing the 4-column CJK audit table and persisting logs/knowledge_audit_trace.json), and [0] 🏠 暂存并退回主菜单. (3) ComfyUI pre-flight warning — emit_comfyui_preflight_warning fires a RED-highlighted banner before any ComfyUI HTTP call (top-level Production mode + Golden Handoff [1]) so users never mistake a long network wait for a frozen terminal. Docs-as-Code contract honored: the preflight banner and all three Golden Handoff labels (GOLDEN_HANDOFF_OPTION_PRODUCE / _AUDIT / _HOME) are mirrored character-for-character in docs/USER_GUIDE.md §5; README.md highlights the 全局不死循环 and 黄金连招 upgrade. Zero business-logic files modified — ComfyUI render backend, ProvenanceAudit backend, ProductionStrategy and InteractivePreviewGate are all untouched. All five SESSION-153 smoke assertions PASS (main-loop exit, invalid-choice recovery, preflight emission, quality-break RED notice, docs parity); SESSION-152 provenance audit suite remains 9/9 PASS.",
+      "added_in": "SESSION-153",
+      "completed_in": "SESSION-153",
+      "closed_in": "SESSION-153",
+      "primary_files": [
+        "mathart/cli_wizard.py",
+        "docs/USER_GUIDE.md",
+        "README.md",
+        "scripts/session153_smoke.py"
+      ]
     }
   ],
   "completed_tasks": [

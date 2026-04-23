@@ -1,323 +1,140 @@
-# SESSION-152: Knowledge Provenance Audit — 全链路知识血统溯源与参数贯通审计
+# SESSION-153 Handoff — 顶层 CLI 黄金连招 × 全局不死循环 × ComfyUI 防呆预警
 
-> **"每一个浮点数都必须交代自己的来历。不是来自蒸馏知识，就必须诚实标红为'代码硬编码死区'。" —— 打通知识总线→参数推演→渲染管线的全链路可解释性闭环。**
+> **"终端绝不死机，菜单永不消失，黄金连招一气呵成。" —— 本次升级把 Director Studio 调参、ComfyUI 出图、知识血统查账三道工序无损串成一条流水线，让创作者在同一个终端窗口里一路通关，不再经历参数重填与文档错位的折腾。**
 
 **Date**: 2026-04-23
-**Status**: COMPLETE — 9/9 tests PASS
-**Parent Commit**: `fd90026` (SESSION-151)
-**Task ID**: P0-SESSION-148-KNOWLEDGE-PROVENANCE-AUDIT
-**Smoke**: `tests/test_provenance_audit.py` → 9/9 PASSED（Singleton 1 + Snapshot 1 + Classification 1 + Dangling 1 + Report 1 + Sidecar 1 + Registry 1 + E2E 1 + Integration 1）
+**Parent Commit**: `3a236d1` (SESSION-152 · 知识血统溯源审计)
+**Task ID**: P0-SESSION-150-UX-DOCS-SYNC
+**Status**: COMPLETE
+**Smoke**: `python scripts/session153_smoke.py` → **5/5 PASS**（主菜单 [0] 清退、无效编号容错、ComfyUI 防呆预警、质量熔断红字、文档 100% 对齐）
+**Regression**: `python tests/test_provenance_audit.py` → **9/9 PASS**（SESSION-152 审计链路完全未受影响）
 
 ---
 
 ## 1. Executive Summary
 
-SESSION-152 实现了**完整的端到端知识血统溯源与参数贯通审计系统** —— 这是 MarioTrickster-MathArt 项目中首次对"知识总线到底有没有真正驱动参数推演"进行全链路可解释性审计。三个工业级模块落地于 `mathart/core/`，严格遵循**非侵入式旁路拦截器 (Sidecar/Interceptor Pattern)** 原则，通过 `@register_backend` 完全融入现有 Registry Pattern：
+SESSION-153 聚焦**顶层 CLI 路由 UX** —— 既不碰 ComfyUI 渲染内核，也不动知识血统审计内核，只在 `mathart/cli_wizard.py` 这一条装配线上完成三件事：
 
-1. **KnowledgeLineageTracker** (`provenance_tracker.py`) — 知识血统追踪器（单例 + 线程安全）
-2. **ProvenanceReportGenerator** (`provenance_report.py`) — 终极审计报告生成器（终端体检表 + JSON 落盘）
-3. **ProvenanceAuditBackend** (`provenance_audit_backend.py`) — Registry-native 审计后端插件
-
-所有三条 **SESSION-152 反模式红线** 均已强制执行并通过测试：
-
-| 红线 | 防护机制 | 测试用例 |
-|---|---|---|
-| [防假账红线] 严禁伪造知识来源 | 实际查询 RuntimeDistillationBus 状态 | `test_lineage_classification` |
-| [防破坏红线] 严禁修改任何浮点计算 | 只读旁路观测，原始 dict 不变 | `test_non_intrusive_sidecar` |
-| [防断流红线] 检测悬空未使用参数 | Backend 消费检查点 + 差集检测 | `test_dangling_detection` |
-
-### 审计结果摘要（诚实暴露）
-
-| 指标 | 数值 | 占比 |
-|---|---|---|
-| 总追踪参数 | 18 | 100% |
-| **知识驱动** (Knowledge-Driven) | 4 | 22.2% |
-| **硬编码死区** (Heuristic Fallback) | **9** | **50.0%** |
-| 语义启发式 (Vibe Heuristic) | 5 | 27.8% |
-| 用户覆写 (User Override) | 0 | 0.0% |
-| 蓝图继承 (Blueprint Inherited) | 0 | 0.0% |
-| 悬空参数 (Dangling) | 0 | 0.0% |
-| **健康判定** | **PARTIAL** | — |
+1. **全局 `while True` 主控循环**：把原先"一次性"的 `_run_interactive` 重写为 `_run_interactive_shell`。每一次菜单迭代都被一层 `try/except` 护栏包住，质量熔断、非法编号、键盘中断、乃至任何未预料到的 `Exception` 都会被优雅吸收并 `continue` 回主菜单。用户唯一的体面退出口是 `[0] 🚪 退出系统`（EOF/Ctrl-C 也作 `rc=0` 处理）。
+2. **Director Studio 黄金连招菜单**：预演 REPL 通过后不再 `return 0`，而是进入 `_golden_handoff_menu`，三连击 `[1] 🚀 趁热打铁`、`[2] 🔍 真理查账`、`[0] 🏠 暂存并退回主菜单`。`[1]` 把内存里刚批准的 `CreatorIntentSpec` 与 `Genotype.flat_params()` 直接注入 `ProductionStrategy` 的 `options.director_studio_spec / director_studio_flat_params`，彻底消除"刚调完参数又要重填一遍"的割裂感；`[2]` 则把同一份 `spec + knowledge_bus` 递给 `ProvenanceAuditBackend.execute(...)`，在终端打印 CJK 对齐的四列审计表并落盘 `logs/knowledge_audit_trace.json`。
+3. **ComfyUI 防呆预警 + 文档物理级对齐**：`emit_comfyui_preflight_warning()` 在任何会呼叫 ComfyUI HTTP API 的动作（顶层 `[1] 工业量产` 与黄金连招 `[1]`）之前先亮出红底黄字横幅，提醒"另开终端起 `python main.py` 再回来"。横幅文案与三个连招菜单标签在 `docs/USER_GUIDE.md §5` 中 **一字不差** 镜像，README.md 同步突出"全局不死循环 + 黄金连招"两个卖点，彻底消灭幽灵文档。
 
 ---
 
-## 2. What Was Built
+## 2. 核心落地清单
 
-### 2.1 KnowledgeLineageTracker (`mathart/core/provenance_tracker.py`)
-
-**架构**: OpenLineage-aligned 知识血统追踪器
-
-追踪器实现了**全链路参数溯源**策略，通过三阶段审计协议追踪每个参数的来源：
-
-**核心设计决策**：
-
-- **单例 + 线程安全 (Singleton + Thread-Local)**：使用 `threading.local()` 确保每个会话有独立的审计上下文，同时全局共享追踪器实例。
-- **知识总线快照 (Knowledge Bus Snapshot)**：在审计开始时对 `RuntimeDistillationBus` 做只读快照，记录编译模块数、约束总数、知识文件列表。
-- **六级溯源分类 (Six-Level Provenance Classification)**：
-
-| 溯源类型 | 含义 | 标记 |
+| 文件 | 改动类型 | 要点 |
 |---|---|---|
-| `KNOWLEDGE_DRIVEN` | 知识总线约束范围内 + 有对应规则 | 合规 |
-| `KNOWLEDGE_CLAMPED` | 被知识总线钳位修正 | 合规（已修正） |
-| `VIBE_HEURISTIC` | 语义氛围词启发式调整 | ⚠️ 未经知识验证 |
-| `USER_OVERRIDE` | 用户显式覆写 | 用户意图 |
-| `BLUEPRINT_INHERITED` | 从蓝图文件继承 | 蓝图溯源 |
-| `HEURISTIC_FALLBACK` | **代码硬编码死区** | **⚠️ AI偷懒断点** |
+| `mathart/cli_wizard.py` | **重写** | 新增 `_run_interactive_shell`、`_golden_handoff_menu`、`emit_comfyui_preflight_warning`、`COMFYUI_PREFLIGHT_WARNING` 常量、三个 `GOLDEN_HANDOFF_*` 常量；向后兼容保留 `_run_interactive` 别名 |
+| `mathart/workspace/mode_dispatcher.py` | 零改动 | 本次严格遵守"绝对隔离"红线 |
+| `mathart/core/provenance_audit_backend.py` | 零改动 | 黄金连招 `[2]` 直接复用其 `execute(intent_spec=..., knowledge_bus=...)` 纯参数接口 |
+| `mathart/backend/comfyui_render_backend.py` | 零改动 | 防呆预警只加在 UI 层，渲染内核未受污染 |
+| `docs/USER_GUIDE.md` | 新增 §5 | 黄金连招三个选项、ComfyUI 防呆预警横幅完整复刻 |
+| `README.md` | 补一句话 + 一段话 | 品牌命令说明强调"全局不死循环"；核心特性矩阵新增"黄金连招 (Golden Handoff)"子弹 |
+| `scripts/session153_smoke.py` | **新增** | 5 项不依赖网络的本地验证断言 |
+| `PROJECT_BRAIN.json` | 升级 | `v0.99.4 → v0.99.5`；pending_tasks 追加 `P0-SESSION-150-UX-DOCS-SYNC`，标记 CLOSED |
 
-- **悬空参数检测 (Dangling Parameter Detection)**：比较 Intent 阶段的参数集与 Backend 消费的参数集，差集即为"半路丢失"的废弃参数。
+---
 
-### 2.2 ProvenanceReportGenerator (`mathart/core/provenance_report.py`)
+## 3. 架构纪律与红线
 
-**架构**: XAI-aligned 可解释性审计报告生成器
-
-报告生成器消费 `ProvenanceAuditContext` 并产出两种格式：
-
-1. **终端体检表**：使用 `tabulate` 库生成 CJK 对齐的四列审计表格
-2. **JSON 审计日志**：落盘至 `logs/knowledge_audit_trace.json`，包含完整的知识快照、血统记录、摘要统计和死区清单
-
-**报告列定义**：
-
-| 列 | 含义 |
+| 红线 | 本次如何守住 |
 |---|---|
-| 最终应用参数 | 参数键名（如 `physics.bounce`） |
-| 实际推演数值 | 最终浮点值 |
-| 驱动该值的知识来源 | 溯源分类 + 知识文件路径 |
-| 具体推演原由 | 人类可读的推演原因 |
-
-**[防假账红线]** 硬编码死区参数以 `⚠️ [Heuristic Fallback / 代码硬编码死区]` 标红显示，报告末尾单独列出完整死区清单。
-
-### 2.3 ProvenanceAuditBackend (`mathart/core/provenance_audit_backend.py`)
-
-**架构**: Registry-native 旁路审计后端
-
-后端通过 `@register_backend(BackendType.PROVENANCE_AUDIT)` 自注册，可被 `BackendRegistry` 自动发现。支持两种运行模式：
-
-1. **管线内模式**：作为管线最后一步执行，消费上游 Intent + Backend 状态
-2. **独立模式**：`run_standalone_audit()` 函数可直接从 CLI 调用
+| **[绝对隔离]** 不碰底层业务 | `cli_wizard.py` 仅调用既有 `ModeDispatcher.dispatch(...)` 与 `ProvenanceAuditBackend.execute(...)`；没有修改任何 backend / strategy / gate 文件 |
+| **[防假死]** 终端绝不闪退 | 每一层 `try/except` 都有兜底 `continue`，最外层还有一个 `outer_exc` 终极护栏 |
+| **[防失忆]** 上下文无损传递 | 黄金连招 `[1]` 通过 `dispatch options["director_studio_spec"] / ["director_studio_flat_params"]` 把内存对象直接递给量产模块，不再走磁盘 |
+| **[Docs-as-Code]** 文档零幽灵 | 预警横幅与三个黄金连招标签作为 **单一事实源常量** 从代码里导出，smoke 测试用 `in` 断言 Markdown 与代码完全对齐 |
 
 ---
 
-## 3. 审计发现：诚实暴露的偷懒断点
+## 4. 验收证据
 
-### 3.1 硬编码死区清单（AI偷懒真凶）
+### 4.1 smoke 测试 5/5 PASS
 
-以下 **9 个参数** 完全由代码 `dataclass` 默认值驱动，未接通任何外部蒸馏知识：
-
-| 参数 | 硬编码值 | 所属模块 | 诊断 |
-|---|---|---|---|
-| `physics.gravity` | 9.81 | physics | 经典物理常数，但游戏物理应由知识规则定制 |
-| `proportions.head_ratio` | 0.25 | proportions | 角色比例应由解剖学知识驱动 |
-| `proportions.body_ratio` | 0.50 | proportions | 角色比例应由解剖学知识驱动 |
-| `proportions.limb_ratio` | 0.25 | proportions | 角色比例应由解剖学知识驱动 |
-| `proportions.scale` | 1.00 | proportions | 缩放因子应由游戏设计知识驱动 |
-| `animation.frame_rate` | 12.0 | animation | 帧率应由动画原则知识驱动 |
-| `animation.ease_in` | 0.30 | animation | 缓入曲线应由动画原则知识驱动 |
-| `animation.ease_out` | 0.30 | animation | 缓出曲线应由动画原则知识驱动 |
-| `animation.cycle_frames` | 24.0 | animation | 循环帧数应由动画原则知识驱动 |
-
-### 3.2 知识驱动参数（合规区）
-
-以下 **4 个参数** 确认由知识总线约束验证：
-
-| 参数 | 值 | 知识模块 | 约束范围 |
-|---|---|---|---|
-| `physics.bounce` | 0.9 | physics | [0.0, 1.0] |
-| `physics.mass` | 1.0 | physics | [0.1, 5.0] |
-| `physics.stiffness` | 75.0 | physics | [10.0, 500.0] |
-| `physics.damping` | 0.3 | physics | [0.0, 1.0] |
-
-### 3.3 语义启发式参数（部分合规区）
-
-以下 **5 个参数** 由 `SEMANTIC_VIBE_MAP` 启发式表调整，但**未经知识总线验证**：
-
-| 参数 | 值 | 氛围词 | Delta |
-|---|---|---|---|
-| `animation.exaggeration` | 0.7 | 活泼 | +0.3 |
-| `physics.elasticity` | 0.8 | 弹性 | +0.3 |
-| `proportions.squash_stretch` | 1.5 | 弹性 | +0.5 |
-| `animation.anticipation` | 0.7 | 活泼 | +0.3 |
-| `animation.follow_through` | 0.7 | 活泼 | +0.3 |
-
----
-
-## 4. Test Results
-
+```text
+[PASS] test_main_loop_exit                       — 清退 [0] 后 rc=0
+[PASS] test_main_loop_invalid_choice_recovers    — 输 99 后菜单再次出现
+[PASS] test_preflight_warning_emits_before_production  — 红字横幅完整可见
+[PASS] test_quality_circuit_break_renders_red_notice   — RED ANSI + logs/mathart.log 指向
+[PASS] test_docs_parity                          — 预警横幅 + 三个连招标签 + README 卖点齐备
+============================================================
+  Results: 5 passed, 0 failed
+============================================================
 ```
-tests/test_provenance_audit.py — 9/9 PASSED
 
-test_tracker_singleton:
-  ✓ KnowledgeLineageTracker is a proper singleton
+### 4.2 回归保护：SESSION-152 审计链路 9/9 PASS
 
-test_knowledge_snapshot:
-  ✓ No-bus graceful degradation
-  ✓ With bus: 18 modules, 323 constraints, 42 knowledge files
-
-test_lineage_classification:
-  ✓ USER_OVERRIDE correctly classified
-  ✓ VIBE_HEURISTIC correctly classified
-  ✓ HEURISTIC_FALLBACK correctly classified
-
-test_dangling_detection:
-  ✓ Dangling parameter correctly detected
-
-test_report_generation:
-  ✓ Terminal report produced
-  ✓ JSON log dumped to logs/knowledge_audit_trace.json
-
-test_non_intrusive_sidecar:
-  ✓ Original float values unchanged after tracking
-
-test_registry_auto_discovery:
-  ✓ ProvenanceAuditBackend discovered via BackendRegistry
-
-test_standalone_audit_e2e:
-  ✓ Full standalone audit: 18 params, 4 knowledge, 9 fallback, verdict=PARTIAL
-
-test_director_studio_integration:
-  ✓ Director Studio → Audit integration: 18 params, 4 knowledge, 14 fallback
+```text
+[PASS] test_director_studio_integration: params=18, knowledge=4, fallback=14
+============================================================
+  Results: 9 passed, 0 failed, 0 skipped
+============================================================
 ```
 
 ---
 
-## 5. Files Touched
+## 5. 傻瓜式验收步骤（本地终端三连招）
 
-| 文件 | 操作 | 描述 |
-|---|---|---|
-| `mathart/core/provenance_tracker.py` | **新增** | 知识血统追踪器（单例 + 线程安全 + 六级溯源） |
-| `mathart/core/provenance_report.py` | **新增** | 审计报告生成器（终端体检表 + JSON 落盘） |
-| `mathart/core/provenance_audit_backend.py` | **新增** | Registry-native 审计后端插件 |
-| `mathart/core/__init__.py` | **修改** | 导出 provenance 模块公共 API |
-| `mathart/core/backend_types.py` | **修改** | 新增 `PROVENANCE_AUDIT` 枚举 + 别名 |
-| `mathart/core/backend_registry.py` | **修改** | 新增 provenance_audit_backend 自动导入 |
-| `tests/test_provenance_audit.py` | **新增** | 9 项全面测试 |
-| `docs/SESSION-152-PROVENANCE-AUDIT-DESIGN.md` | **新增** | 架构设计文档 |
-| `logs/knowledge_audit_trace.json` | **生成** | 审计 JSON 日志（运行时生成） |
+**下面这 3 步就是你本地"打开终端能不能跑通完整闭环"的唯一指标。照着念数字就行。**
 
----
+### 第 0 步：一次性准备
 
-## 6. 接下来：根据体检报告暴露的"代码硬编码死区"和"参数断流区"逐个派发靶向修复战役
+```bash
+cd MarioTrickster-MathArt
+git pull                  # 拉到 SESSION-153 提交
+pip install -e .          # 只需执行一次
+mathart                   # 召唤顶层向导（等价于 mathart-wizard）
+```
 
-### 6.1 当前审计系统为靶向修复提供了什么
+看见主菜单顶着 6 行选项（`[1] 🏭 工业量产` 到 `[5] 🎬 语义导演工坊` 加上 `[0] 🚪 退出系统`），说明已经进入全局不死循环。
 
-`ProvenanceAuditBackend` 的 JSON 审计日志精确定位了每个参数的来源类型和缺失的知识绑定。后续修复战役可以直接消费 `logs/knowledge_audit_trace.json` 中的 `dead_zones` 数组，逐个为硬编码参数编写知识规则并接通知识总线。
+### 第 1 步：走 `[5]` 导演工坊 → 感性创世 → 预演批准
 
-### 6.2 需要的微调准备
+1. 主菜单输入 `5` 回车。
+2. 看到"请选择创作方式"时输入 `A` 回车（感性创世）。
+3. 在"用自然语言描述你想要的风格"里随便输入比如：`活泼 弹性` 回车。
+4. 进入白模预演后按一下 `1`（✅ 完美出图）回车，批准当前参数。
 
-#### 靶向修复战役 1: `P1-SESSION-152-PROPORTIONS-KNOWLEDGE-BIND` — 角色比例知识绑定
+此时你**不会**被踢回主菜单，而是看到"🎬 导演工坊预演通过 — 黄金连招"三选项。
 
-**死区参数**: `proportions.head_ratio`, `proportions.body_ratio`, `proportions.limb_ratio`, `proportions.scale`
+### 第 2 步：分别按 `2` → `1` → `0` 体验黄金连招
 
-**当前状态**: 这 4 个参数使用 `dataclass` 硬编码默认值，知识目录中已有 `anatomy.md` 但其约束未覆盖 `proportions.*` 命名空间。
+- 输入 `2` 回车：终端会立刻打印一张 CJK 对齐的"全链路知识血统溯源审计表"，底部会告诉你 verdict、硬编码死区条数与 `logs/knowledge_audit_trace.json` 的完整路径。这一步**不需要启动 ComfyUI**，纯旁路观测。
+- 黄金连招菜单再次出现时输入 `1` 回车：终端会跳出黄底红字的 `[🚨 提示] 即将呼叫显卡渲染！请确保您的 ComfyUI 服务端已在后台启动并就绪。`——这就是防呆预警。如果本地 ComfyUI 没起，随便按个字符回车取消即可，不会假死。
+- 最后输入 `0` 回车，系统把内存里的参数暂存后，把你稳稳送回主菜单。
 
-**需要构建**:
-1. 在 `knowledge/anatomy.md` 中补充 `proportions.*` 参数的约束规则（参考 Andrew Loomis 人体比例理论）
-2. 在 `mathart/distill/parser.py` 中确认 `proportions` 模块的编译路径
-3. 运行审计验证 `proportions.*` 参数从 `HEURISTIC_FALLBACK` 升级为 `KNOWLEDGE_DRIVEN`
+### 第 3 步：输 `0` 回车退出
 
-**架构微调**: 需要在 `RuntimeDistillationBus` 的 `CompiledParameterSpace` 中为 `proportions` 命名空间注册约束映射。当前知识总线的 18 个编译模块中没有 `proportions` 模块 —— 这是根因。
+主菜单里输 `0` 回车，看到"已退出顶层向导。再见！"即为完整闭环通过。
 
-#### 靶向修复战役 2: `P1-SESSION-152-ANIMATION-KNOWLEDGE-BIND` — 动画参数知识绑定
-
-**死区参数**: `animation.frame_rate`, `animation.ease_in`, `animation.ease_out`, `animation.cycle_frames`
-
-**当前状态**: 知识目录中已有 `animation.md`，且 `animation` 模块已在知识总线的 18 个编译模块中。但这 4 个参数的命名空间与知识约束的键名不匹配（知识约束可能使用了不同的参数名）。
-
-**需要构建**:
-1. 审计 `knowledge/animation.md` 中的约束键名与 `CreatorIntentSpec.genotype.flat_params()` 的键名映射
-2. 补充缺失的约束规则（参考 Disney 12 Principles of Animation、Richard Williams "The Animator's Survival Kit"）
-3. 确保 `_apply_knowledge_grounding()` 中的键名匹配逻辑能正确关联
-
-**架构微调**: `DirectorIntentParser._apply_knowledge_grounding()` 当前使用 `param_key.split('.')[0]` 提取模块名。如果知识约束的键名格式与 `flat_params()` 不一致（如 `frame_rate` vs `animation.frame_rate`），需要在知识解析器中添加命名空间前缀映射。
-
-#### 靶向修复战役 3: `P1-SESSION-152-PHYSICS-GRAVITY-KNOWLEDGE-BIND` — 物理重力知识绑定
-
-**死区参数**: `physics.gravity`
-
-**当前状态**: `physics` 模块已在知识总线中，且 `physics.bounce`, `physics.mass`, `physics.stiffness`, `physics.damping` 均已知识驱动。但 `physics.gravity` 仍为硬编码 `9.81`。
-
-**需要构建**:
-1. 在 `knowledge/physics_sim.md` 中补充 `gravity` 约束（游戏物理中重力通常在 5.0-30.0 范围内，参考 Celeste/Hollow Knight 的重力调参经验）
-2. 运行审计验证 `physics.gravity` 从 `HEURISTIC_FALLBACK` 升级为 `KNOWLEDGE_DRIVEN`
-
-**架构微调**: 无需架构修改，仅需补充知识规则。
-
-#### 靶向修复战役 4: `P1-SESSION-152-VIBE-KNOWLEDGE-VALIDATION` — 语义启发式知识验证
-
-**死区参数**: `animation.exaggeration`, `physics.elasticity`, `proportions.squash_stretch`, `animation.anticipation`, `animation.follow_through`
-
-**当前状态**: 这 5 个参数由 `SEMANTIC_VIBE_MAP` 启发式表调整，但调整后的值未经知识总线验证。
-
-**需要构建**:
-1. 在 `DirectorIntentParser._apply_knowledge_grounding()` 中添加"vibe 后验证"步骤：vibe 调整完成后，再次查询知识总线确认调整后的值是否在约束范围内
-2. 如果 vibe 调整后的值超出知识约束，记录为 `KNOWLEDGE_CLAMPED` 而非 `VIBE_HEURISTIC`
-
-**架构微调**: 需要在 `_apply_knowledge_grounding()` 中调整调用顺序 —— 当前是先 knowledge grounding 再 vibe adjustment，应改为 vibe adjustment 后再做一次 knowledge validation pass。
-
-#### 靶向修复战役 5: `P2-SESSION-152-BACKEND-CONSUMPTION-AUDIT` — 后端消费审计
-
-**当前状态**: 审计系统已实现 `checkpoint_backend()` 方法，但当前管线中没有后端主动调用此方法。因此 `dangling_count` 始终为 0（因为没有后端消费检查点）。
-
-**需要构建**:
-1. 在每个 `@register_backend` 的 `execute()` 方法中添加一行旁路调用：`get_tracker().checkpoint_backend(self.name, consumed_params)`
-2. 这样审计系统就能检测"Intent 阶段有但 Backend 没用"的悬空参数
-
-**架构微调**: 需要在 `BackendRegistry` 的 `execute_backend()` 包装器中添加自动检查点钩子，而非要求每个后端手动调用。这是一个 AOP (Aspect-Oriented Programming) 切面。
+> **💡 提示**：在黄金连招菜单或主菜单的任何位置乱输 `99`、`abc` 之类的非法值，都只会看到"[提示] 无法识别的选项"或重新弹出菜单，绝对不会闪退 —— 这就是全局不死循环。
 
 ---
 
-## 7. Updated Todo List
+## 6. 向后兼容性与已知事项
 
-### P0 (立即)
-- [x] ~~P0-SESSION-148-KNOWLEDGE-PROVENANCE-AUDIT~~ — **已关闭** (SESSION-152)
-- [x] ~~P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH~~ — **已关闭** (SESSION-151)
-
-### P1 (下一冲刺 — 靶向修复战役)
-- [ ] P1-SESSION-152-PROPORTIONS-KNOWLEDGE-BIND — 角色比例 4 参数接通知识总线
-- [ ] P1-SESSION-152-ANIMATION-KNOWLEDGE-BIND — 动画 4 参数接通知识总线
-- [ ] P1-SESSION-152-PHYSICS-GRAVITY-KNOWLEDGE-BIND — 物理重力接通知识总线
-- [ ] P1-SESSION-152-VIBE-KNOWLEDGE-VALIDATION — 语义启发式后验证
-- [ ] P1-SESSION-151-GA-FITNESS-EVALUATOR — 将 COMFYUI_RENDER_REPORT 接入 GA 适应度评分
-- [ ] P1-SESSION-151-BATCH-RENDER-LANE — 在 PDG ai_render_stage 中添加批量渲染
-- [ ] P1-SESSION-151-WEBSOCKET-PROGRESS-BAR — 将 WS 进度浮现到 CLI 向导 TUI
-- [ ] P1-SESSION-151-GENOTYPE-WORKFLOW-MAP — 基因型向量 → 工作流注入映射
-- [ ] P1-SESSION-149-LOG-THROTTLE-EXTRACT — 提升 _emit_demo_warning 为 mathart.core.log_throttle
-- [ ] P1-SESSION-149-QUALITY-BOUNDARY-TESTS — 将烟测断言固化到 tests/
-
-### P2 (积压)
-- [ ] P2-SESSION-152-BACKEND-CONSUMPTION-AUDIT — 后端消费检查点 AOP 切面
-- [ ] P2-SESSION-151-MULTI-WORKFLOW-STRATEGY — 每批渲染支持多个工作流蓝图
-- [ ] P2-SESSION-151-COMFYUI-MODEL-CACHE — 批量渲染前预热模型缓存
-- [ ] P2-SESSION-151-GA-POPULATION-MANAGER — 完整种群管理器 + 精英持久化
-- [ ] P2-SESSION-149-DEMO-VIBE-PARAMS — 接通 vibe parser NL → intent params 自动映射
+- `from mathart.cli_wizard import _run_interactive` 仍然可用，内部委托到 `_run_interactive_shell`，旧测试不受影响。
+- `mathart --mode 5 --execute`（非 TTY 路径）完全沿用 argparse 分支，CI/自动化脚本语义不变。
+- 沙盒里如果 `networkx` 未安装，旧 `scripts/session149_smoke.py` 会在 import 阶段报错，这是 SESSION-149 阶段已知依赖，与本次无关；本次 SESSION-153 smoke 不依赖 `networkx`。
 
 ---
 
-## 8. Architecture Decision Record
+## 7. 下一步接力建议（可选）
 
-### ADR-SESSION-152: 知识血统溯源与非侵入式审计架构
-
-**上下文**: 项目的知识蒸馏管线 (`RuntimeDistillationBus`) 已经建立，但缺乏对"知识是否真正驱动了参数推演"的可解释性审计。大量参数可能使用了 `dataclass` 硬编码默认值而非蒸馏知识，但这一事实在之前的管线中是不可见的。
-
-**决策**: 实现 OpenLineage-aligned 的知识血统追踪系统，作为非侵入式旁路拦截器 (Sidecar Pattern) 挂载到现有管线。追踪器 NEVER 修改任何浮点计算值，仅读取知识总线状态和参数推演路径，生成可解释的审计报告。每个参数被分类为六级溯源类型之一。硬编码死区参数必须诚实标红显示。审计后端通过 `@register_backend` 自注册，遵循 Registry Pattern。
-
-**影响**: 审计系统首次暴露了项目中 50% 的参数处于硬编码死区的事实。这为后续靶向修复战役提供了精确的攻击目标清单。审计 JSON 日志可被 CI/CD 管线消费，实现持续知识覆盖率监控。非侵入式设计确保审计系统的加入不会破坏任何现有功能。
-
-### 工业界/学术界参考对齐
-
-| 参考 | 对齐点 | 落地模块 |
-|---|---|---|
-| OpenLineage (Marquez/DataHub) | `run_id` + `source_type` + `source_file` 血统事件 | `provenance_tracker.py` |
-| XAI in Procedural Generation | 可解释知识映射审计轨迹 | `provenance_report.py` |
-| Sidecar/Interceptor Pattern (Envoy) | 非侵入式旁路观测 | 全部三个模块 |
-| Data Provenance & Lineage Tracking | 参数值包裹来源上下文 | `ParameterLineageRecord` |
+| 优先级 | 建议 |
+|---|---|
+| P1 | 把 `scripts/session153_smoke.py` 提升为 `tests/test_session153_ux_docs_sync.py`，纳入 CI 与 SESSION-149 boundary 测试同级收敛 |
+| P2 | 给黄金连招 `[1]` 追加"渲染完成后自动跳 `[2]` 查账"的 auto-chain 选项，让连招可选四连招 |
+| P2 | 把 `director_studio_spec` / `director_studio_flat_params` 的 options 键写进 `docs/USER_GUIDE.md` 的 Roadmap，提醒量产链路后续消费方同步接口契约 |
 
 ---
 
-## 9. Historical Index (Recent Sessions)
+## 8. 会话锚点
 
-| Session | 主线 | Commit |
+| Session | 主题 | Parent Commit |
 |---------|------|--------|
-| SESSION-152 (当前) | 知识血统溯源审计 + 全链路参数贯通体检 | (this push) |
+| SESSION-153 (当前) | 顶层 CLI 黄金连招 × 全局不死循环 × ComfyUI 防呆预警 × 文档对齐 | (this push) |
+| SESSION-152 | 知识血统溯源审计 + 全链路参数贯通体检 | `3a236d1` |
 | SESSION-151 | ComfyUI BFF 动态载荷变异 + 无头渲染后端 | `fd90026` |
 | SESSION-150 | 纯数学驱动动画 + 增强优雅错误边界 | `ebd00bd` |
 | SESSION-149 | 动态 demo 网格 + 优雅质量熔断边界 | `c2436e5` |
@@ -326,18 +143,15 @@ test_director_studio_integration:
 
 ---
 
-## 10. Handoff Checklist
+## 9. Handoff Checklist
 
-- [x] 所有新代码遵循 Registry Pattern (`@register_backend`)
-- [x] 所有新代码遵循 Sidecar Pattern（非侵入式旁路观测）
-- [x] 所有新代码遵循 OpenLineage 血统事件规范
-- [x] 审计报告诚实暴露硬编码死区（50% 参数标红）
-- [x] 悬空参数检测机制已实现（`checkpoint_backend` + 差集检测）
-- [x] 知识总线快照包含完整的编译模块和约束统计
-- [x] JSON 审计日志落盘至 `logs/knowledge_audit_trace.json`
-- [x] 9/9 测试通过
-- [x] PROJECT_BRAIN.json 更新至 v0.99.4, SESSION-152
-- [x] SESSION_HANDOFF.md 更新完整上下文
+- [x] 所有新代码遵循"绝对隔离"红线，未触碰底层渲染/审计/策略模块
+- [x] 全局 `while True` 主控循环落地，`[0]` / EOF / Ctrl-C 均作优雅退出
+- [x] 黄金连招菜单 `[1] / [2] / [0]` 全部走 in-memory 参数，不重新问路径
+- [x] ComfyUI 防呆预警覆盖顶层 `[1]` 与黄金连招 `[1]`
+- [x] `docs/USER_GUIDE.md §5` 与 `README.md` 已物理级对齐，smoke 测试持续守护
+- [x] `PROJECT_BRAIN.json` 版本升级至 v0.99.5，`pending_tasks` 追加 `P0-SESSION-150-UX-DOCS-SYNC=CLOSED`
+- [x] `SESSION_HANDOFF.md` 提供傻瓜式三步验收指引
 - [x] 所有变更推送至 GitHub
 
-*Signed off by Manus AI · SESSION-152*
+*Signed off by Manus AI · SESSION-153*
