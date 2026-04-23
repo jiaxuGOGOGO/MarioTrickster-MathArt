@@ -1,5 +1,20 @@
 """AI Render Stream Backend — Full-Array Artifact Streaming to ComfyUI.
 
+SESSION-169 (P0-SESSION-169-EXCEPTION-PIERCING-AND-GLOBAL-ABORT)
+-----------------------------------------------------------------
+Critical fix: The ``ComfyUIExecutionError`` catch in the render retry loop
+now converts the fatal exception into a ``PipelineContractError`` wrapped
+in ``PipelineQualityCircuitBreak`` before re-raising, ensuring the PDG
+scheduler's concurrent executor receives a typed signal for global abort.
+The upstream ``comfy_client.py`` exception piercing (SESSION-169) guarantees
+that the Poison Pill exception now reaches this layer without being
+swallowed by the HTTP polling fallback.
+
+Research grounding (SESSION-169):
+- Circuit Breaker Pattern (Michael Nygard, "Release It!" 2007)
+- Targeted Exception Handling: fatal domain errors MUST propagate.
+- Concurrent Futures Global Cancellation: pending tasks MUST be cancelled.
+
 SESSION-168 (P0-SESSION-168-COMFYUI-CLIENT-DEADLOCK-BREAKER)
 -------------------------------------------------------------
 Critical fix: Added ``ComfyUIExecutionError`` precision catch in the render
@@ -615,9 +630,19 @@ class AIRenderStreamBackend:
                         break
                     time.sleep(delay)
                 except ComfyUIExecutionError as e:
-                    # SESSION-168: POISON PILL — ComfyUI reported a fatal
-                    # execution crash.  Immediately open the circuit breaker
-                    # and abort ALL remaining actions.  Do NOT retry.
+                    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                    # SESSION-169: POISON PILL + GLOBAL CIRCUIT BREAK
+                    # ComfyUI reported a fatal execution crash (e.g. PyTorch
+                    # Half/Float precision conflict).  This is NOT a transient
+                    # network error — retrying is futile and dangerous.
+                    #
+                    # Action plan:
+                    # 1. FORCE-OPEN the circuit breaker.
+                    # 2. Log a CRITICAL-level alert with full node diagnostics.
+                    # 3. Print the red crash banner to stderr.
+                    # 4. Re-raise so the PDG scheduler can cancel all pending
+                    #    futures and the CLI wizard can display the crash banner.
+                    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                     logger.critical(
                         "[AIRenderStreamBackend] \u26a0\ufe0f FATAL ComfyUIExecutionError "
                         "for '%s' (node=%s): %s.  "
@@ -627,6 +652,19 @@ class AIRenderStreamBackend:
                     circuit.failure_count = circuit.failure_threshold
                     circuit.state = CircuitState.OPEN
                     circuit.last_failure_time = time.monotonic()
+                    # SESSION-169: Print red crash banner to stderr
+                    sys.stderr.write(
+                        "\n\033[1;41;37m"
+                        "[\u274c AI \u70bc\u4e39\u7089\u8282\u70b9\u5d29\u6e83] "
+                        "\u8fdc\u7aef GPU \u629b\u51fa\u81f4\u547d\u9519\u8bef\uff01"
+                        "\u5df2\u89e6\u53d1\u5168\u5c40\u65ad\u8def\u5668\uff0c"
+                        "\u5f3a\u5236\u64a4\u9500\u5269\u4f59\u6240\u6709\u89d2\u8272\u7684\u6e32\u67d3\u961f\u5217"
+                        "\u4ee5\u9632\u6b7b\u9501\uff01"
+                        "\u7269\u7406\u5e95\u56fe\u5df2\u5b89\u5168\u4fdd\u7559\u3002"
+                        "\u8bf7\u67e5\u770b ComfyUI \u540e\u53f0\u7ec8\u7aef\u7684\u8be6\u7ec6\u62a5\u9519\u3002"
+                        "\033[0m\n"
+                    )
+                    sys.stderr.flush()
                     action_results.append(ActionRenderResult(
                         action_name=action_name,
                         success=False,
@@ -635,7 +673,8 @@ class AIRenderStreamBackend:
                         elapsed_seconds=time.monotonic() - action_t0,
                     ))
                     total_degraded += 1
-                    # Re-raise so the CLI wizard can display the crash banner
+                    # Re-raise so the PDG scheduler can trigger global abort
+                    # and the CLI wizard can display the crash banner.
                     raise
                 except Exception as e:
                     logger.error(

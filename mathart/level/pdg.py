@@ -1,4 +1,19 @@
-"""PDG v2 runtime for lightweight procedural graphs.
+"""PDG v2 runtime — Houdini-inspired Procedural Dependency Graph.
+
+SESSION-169 (P0-SESSION-169-EXCEPTION-PIERCING-AND-GLOBAL-ABORT)
+-----------------------------------------------------------------
+Enhanced ``_execute_task_invocations_concurrently`` with **Global Circuit
+Breaker** for fatal exceptions.  When any invocation raises a non-
+``EarlyRejectionError`` exception (e.g., ``ComfyUIExecutionError``), the
+scheduler now immediately stops submitting new invocations, calls
+``future.cancel()`` on all pending futures, drains in-flight futures to
+release GPU semaphores, and re-raises the fatal exception.  This prevents
+the catastrophic "Retry Storm" where remaining characters are queued into
+a dead GPU.
+
+Research grounding (SESSION-169):
+- Concurrent Futures Global Cancellation (Python docs)
+- Circuit Breaker Pattern (Michael Nygard, "Release It!" 2007)
 
 This module upgrades the repository's compact DAG executor with a stronger
 runtime contract inspired by Houdini PDG/TOPs, Bazel remote caching, and
@@ -978,6 +993,30 @@ class _PDGv2RuntimeFacade:
         node: PDGNode,
         invocations: list[_Invocation],
     ) -> list[_InvocationResult]:
+        """Execute mapped invocations concurrently with global abort support.
+
+        SESSION-169 (P0-SESSION-169-EXCEPTION-PIERCING-AND-GLOBAL-ABORT)
+        ----------------------------------------------------------------
+        Enhanced with **Global Circuit Breaker** for fatal exceptions.
+        When any invocation raises a non-``EarlyRejectionError`` exception
+        (e.g., ``ComfyUIExecutionError`` propagated from the AI render
+        backend), the scheduler now:
+
+        1. Immediately stops submitting new invocations.
+        2. Calls ``future.cancel()`` on ALL pending (not-yet-running) futures.
+        3. Drains in-flight futures to release GPU semaphores.
+        4. Re-raises the fatal exception to the caller.
+
+        This prevents the catastrophic "Retry Storm" where 19 remaining
+        characters are queued into a dead GPU after one character's render
+        crashes.
+
+        Research grounding (SESSION-169):
+        - Concurrent Futures Global Cancellation: ``future.cancel()`` for
+          pending tasks (Python docs, concurrent.futures).
+        - Circuit Breaker Pattern (Michael Nygard, "Release It!" 2007).
+        - Targeted Exception Handling: fatal errors MUST propagate.
+        """
         if self.graph.scheduler_backend != "thread":
             raise PDGError(f"Unsupported scheduler_backend '{self.graph.scheduler_backend}'")
 
@@ -986,11 +1025,14 @@ class _PDGv2RuntimeFacade:
         next_index = 0
         max_workers = min(self.graph.max_workers, max(1, len(invocations)))
         pending_rejection: Optional[EarlyRejectionError] = None
+        # SESSION-169: Track fatal (non-rejection) exceptions for global abort
+        fatal_exception: Optional[Exception] = None
 
         with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix=f"pdg-{node.name}") as executor:
             try:
                 while next_index < len(invocations) or in_flight:
-                    if pending_rejection is None:
+                    # SESSION-169: Stop submitting if fatal abort or rejection
+                    if pending_rejection is None and fatal_exception is None:
                         while (
                             next_index < len(invocations)
                             and len(in_flight) < max_workers
@@ -1019,22 +1061,39 @@ class _PDGv2RuntimeFacade:
                             # released via their own finally: blocks.
                             if pending_rejection is None:
                                 pending_rejection = rejection
+                        except Exception as exc:
+                            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                            # SESSION-169: GLOBAL CIRCUIT BREAK
+                            # A fatal exception (e.g. ComfyUIExecutionError,
+                            # GPU crash) from one invocation.  Cancel ALL
+                            # pending futures and abort the entire batch.
+                            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                            if fatal_exception is None:
+                                fatal_exception = exc
+                                # Cancel all pending (not-yet-running) futures
+                                for pending_future in list(in_flight.keys()):
+                                    pending_future.cancel()
             finally:
-                if pending_rejection is not None:
+                if pending_rejection is not None or fatal_exception is not None:
                     # Drain remaining in-flight futures to guarantee resource
                     # release; ignore their outcomes because the node is now
-                    # semantically cancelled.
+                    # semantically cancelled / fatally aborted.
                     for future in list(in_flight.keys()):
                         try:
                             future.result()
                         except EarlyRejectionError:
                             pass
                         except Exception:
-                            # Re-raise unexpected bugs after draining.
-                            raise
+                            # Swallow secondary exceptions during drain;
+                            # the primary fatal_exception takes precedence.
+                            if fatal_exception is None:
+                                raise
                         finally:
                             in_flight.pop(future, None)
 
+        # SESSION-169: Fatal exceptions take priority over rejections
+        if fatal_exception is not None:
+            raise fatal_exception
         if pending_rejection is not None:
             raise pending_rejection
         return [ordered_results[index] for index in range(len(invocations))]

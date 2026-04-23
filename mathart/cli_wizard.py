@@ -807,14 +807,21 @@ def _dispatch_mass_production(
         "纯 CPU 解算高精度工业级贴图动作序列...\033[0m"
     )
     output_fn("\033[1;36m" + "═" * 60 + "\033[0m")
-    # ── SESSION-168: UX 防腐蚀 — 断路器状态行 ──────────────────────────
+    # ── SESSION-169: UX 防腐蚀 — 断路器状态行 (升级版) ────────────────
     # [UX 防腐蚀红线] 每次进入烘焙/渲染网关前，在终端打印断路器当前状态，
     # 让用户在进入渲染前就知道系统的安全阀是否就绪。
+    # SESSION-169: 新增异常穿透和全局 Future 撤销状态提示。
     if not skip_ai_render:
         output_fn(
-            "\033[90m    [⚡ SESSION-168 断路器] "
+            "\033[90m    [⚡ SESSION-169 断路器] "
             "AI 推流断路器已就绪 (CLOSED) — "
             "若 ComfyUI 节点崩溃将自动熔断并弹出雪崩告警\033[0m"
+        )
+        output_fn(
+            "\033[90m    [⚡ SESSION-169 全局撤销] "
+            "异常穿透已启用 — "
+            "致命错误将击穿网络降级层，"
+            "并自动撤销剩余所有并发渲染任务\033[0m"
         )
 
     # ── SESSION-164: Dynamic Progress Telemetry bound to Registry ──────────
@@ -927,37 +934,47 @@ def _dispatch_mass_production(
             "\033[90m    ↳ 已安全拦截质量防线异常，返回黄金连招菜单。\033[0m"
         )
 
-    # Layer 1.5 (SESSION-168): ComfyUI Execution Error — Poison Pill Circuit Breaker
-    # This catches the FATAL execution_error raised by the WebSocket client
-    # when ComfyUI reports an unrecoverable crash (e.g., PyTorch Half/Float).
-    # This is the "global brake pedal" — it cancels all pending AI tasks.
+    # Layer 1.5 (SESSION-169): ComfyUI Execution Error — Poison Pill + Global Abort
+    # SESSION-169 升级: 致命异常现在已穿透 comfy_client.py 的网络降级层，
+    # 并通过 PDG 调度器的全局 Future 撤销机制传播到此处。
+    # 这是"全局刹车踏板" — 它取消所有待处理的 AI 任务。
     except ComfyUIExecutionError as exc:
         logger.critical(
             "[CLI] ComfyUIExecutionError CAUGHT — Circuit Breaker OPEN! "
+            "SESSION-169 Exception Piercing + Global Abort active. "
             "(skip_ai_render=%s, node=%s): %s",
             skip_ai_render,
             getattr(exc, 'node_id', '?'),
             exc,
         )
         output_fn("")
-        output_fn("[1;31m" + "=" * 60 + "[0m")
+        output_fn("\033[1;41;37m" + "=" * 60 + "\033[0m")
         output_fn(
-            "[1;31m[❌ AI 炼丹炉异常挂起] "
-            "ComfyUI 内部节点执行崩溃！"
-            "为防死锁，已强行熔断并撤销后续所有 AI 推流任务！[0m"
-        )
-        output_fn("[1;31m" + "=" * 60 + "[0m")
-        output_fn(
-            "[1;33m[💡 提示] 您的纯物理高清底图已全部安全落盘！"
-            "远端发生 PyTorch FP16/FP32 精度冲突。"
-            "请检查 ComfyUI 后台，更新 ControlNet 插件"
-            "或在启动命令中加上 --fp16 统一精度后再重试。[0m"
+            "\033[1;41;37m[\u274c AI \u70bc\u4e39\u7089\u8282\u70b9\u5d29\u6e83 \u2014 SESSION-169 \u5168\u5c40\u7194\u65ad\u5df2\u89e6\u53d1]\033[0m"
         )
         output_fn(
-            f"[90m    ↓ 崩溃节点: {getattr(exc, 'node_id', '?')}[0m"
+            "\033[1;41;37m"
+            "ComfyUI \u5185\u90e8\u8282\u70b9\u6267\u884c\u5d29\u6e83\uff01"
+            "\u4e3a\u9632\u6b7b\u9501\uff0c\u5df2\u5f3a\u884c\u7194\u65ad\u5e76\u64a4\u9500\u540e\u7eed\u6240\u6709 AI \u63a8\u6d41\u4efb\u52a1\uff01"
+            "\033[0m"
+        )
+        output_fn("\033[1;41;37m" + "=" * 60 + "\033[0m")
+        output_fn(
+            "\033[1;33m[\U0001f4a1 \u63d0\u793a] \u60a8\u7684\u7eaf\u7269\u7406\u9ad8\u6e05\u5e95\u56fe\u5df2\u5168\u90e8\u5b89\u5168\u843d\u76d8\uff01"
+            "\u8fdc\u7aef\u53d1\u751f PyTorch FP16/FP32 \u7cbe\u5ea6\u51b2\u7a81\u3002"
+            "\u8bf7\u68c0\u67e5 ComfyUI \u540e\u53f0\uff0c\u66f4\u65b0 ControlNet \u63d2\u4ef6"
+            "\u6216\u5728\u542f\u52a8\u547d\u4ee4\u4e2d\u52a0\u4e0a --fp16 \u7edf\u4e00\u7cbe\u5ea6\u540e\u518d\u91cd\u8bd5\u3002\033[0m"
         )
         output_fn(
-            f"[90m    ↓ 异常详情: {exc}[0m"
+            f"\033[90m    \u2193 \u5d29\u6e83\u8282\u70b9: {getattr(exc, 'node_id', '?')}\033[0m"
+        )
+        output_fn(
+            f"\033[90m    \u2193 \u5f02\u5e38\u8be6\u60c5: {exc}\033[0m"
+        )
+        output_fn(
+            "\033[90m    \u2193 SESSION-169: \u5f02\u5e38\u7a7f\u900f\u8def\u5f84: "
+            "ComfyUI WS \u2192 comfy_client.wait_for_completion() \u2192 "
+            "ai_render_stream_backend \u2192 PDG \u5168\u5c40\u64a4\u9500 \u2192 CLI \u7194\u65ad\033[0m"
         )
     # Layer 2: ComfyUI network exceptions (SESSION-161 precise binding)
     except ConnectionRefusedError as exc:

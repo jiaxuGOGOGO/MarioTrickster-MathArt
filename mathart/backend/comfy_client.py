@@ -1,5 +1,20 @@
 """ComfyUI High-Availability API Client — Ephemeral Upload + Headless Render + VRAM GC.
 
+SESSION-169 (P0-SESSION-169-EXCEPTION-PIERCING-AND-GLOBAL-ABORT)
+-----------------------------------------------------------------
+Critical fix: ``wait_for_completion()`` now has a **precision exception
+ladder** that re-raises ``ComfyUIExecutionError`` *before* the generic
+``except Exception`` fallback.  Previously the greedy catch-all swallowed
+the SESSION-168 Poison Pill and erroneously fell back to HTTP polling,
+causing the catastrophic deadlock where 19 remaining characters were
+queued into a dead GPU.  The exception now pierces the network degradation
+layer and propagates directly to the PDG scheduler for global abort.
+
+Research grounding (SESSION-169):
+- Targeted Exception Handling: transient vs fatal exception discrimination.
+- Exception Bubbling: fatal errors MUST propagate through all retry layers.
+- Anti-pattern: "Greedy Catch-All" (Souza et al., 2024).
+
 SESSION-168 (P0-SESSION-168-COMFYUI-CLIENT-DEADLOCK-BREAKER)
 -------------------------------------------------------------
 Critical fix: ``_ws_wait()`` now raises ``ComfyUIExecutionError`` on
@@ -422,6 +437,25 @@ class ComfyAPIClient:
         Attempts WebSocket monitoring first.  Falls back to HTTP polling
         with ``time.sleep()`` intervals and a hard timeout circuit breaker.
 
+        SESSION-169 (P0-SESSION-169-EXCEPTION-PIERCING-AND-GLOBAL-ABORT)
+        ----------------------------------------------------------------
+        Critical fix: ``ComfyUIExecutionError`` is now **explicitly re-raised**
+        before the generic ``except Exception`` fallback.  Previously, the
+        greedy catch-all swallowed the fatal Poison Pill exception and
+        erroneously fell back to HTTP polling, causing the log sequence:
+            ``FATAL execution_error in node 16`` → ``Falling back to HTTP polling``
+        which triggered a catastrophic deadlock where 19 remaining characters
+        were queued into a dead GPU.  Now the fatal exception pierces the
+        network degradation layer and propagates directly to the PDG
+        scheduler / CLI wizard for global circuit-breaker action.
+
+        Research grounding (SESSION-169):
+        - Targeted Exception Handling: distinguish transient network errors
+          from fatal domain errors.  Fatal errors MUST bubble up.
+        - Python Exception Hierarchy: precise ``except`` ordering ensures
+          subclass exceptions are caught before generic ``Exception``.
+        - Anti-pattern: "Greedy Catch-All" (Souza et al., 2024).
+
         Returns
         -------
         dict
@@ -430,13 +464,30 @@ class ComfyAPIClient:
 
         Raises
         ------
+        ComfyUIExecutionError
+            If the remote ComfyUI server reports a fatal execution crash.
+            This exception MUST NOT be caught by the HTTP fallback layer.
         RenderTimeoutError
             If execution exceeds ``self.render_timeout``.
         """
         # Try WebSocket first
         try:
             return self._ws_wait(prompt_id, client_id)
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # SESSION-169: EXCEPTION PIERCING — Fatal business errors MUST NOT
+        # be swallowed by the network degradation fallback.  Re-raise
+        # immediately so the PDG scheduler can trigger global abort.
+        # [防假死红线] FATAL execution_error 之后绝不许出现
+        # "Falling back to HTTP polling" 的字样！
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        except ComfyUIExecutionError:
+            # 致命业务错误（远端 GPU 炸膛），绝不允许降级轮询，直接向上冒泡！
+            raise
+        except RenderTimeoutError:
+            # 渲染超时也是致命的，不应降级到 HTTP 轮询
+            raise
         except Exception as ws_err:
+            # 仅真正的网络瞬态故障才允许降级到 HTTP 轮询
             logger.warning(
                 "[ComfyAPIClient] WebSocket unavailable (%s), "
                 "falling back to HTTP polling.",

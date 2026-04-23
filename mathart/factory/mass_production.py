@@ -1123,7 +1123,7 @@ def _node_guide_baking(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
     stage_dir = _ensure_dir(character_dir / "guide_baking")
     archive_dir = _ensure_dir(character_dir / "archive")
 
-    # ── UX: Sci-fi gateway banner (SESSION-167: enhanced hydration + mesh composition) ─
+    # ── UX: Sci-fi gateway banner (SESSION-169: exception piercing + global abort) ─
     _ux_msg = (
         f"\033[1;36m[\u2699\ufe0f  \u5de5\u4e1a\u70d8\u7119\u7f51\u5173] "
         f"\u6b63\u5728\u901a\u8fc7 Catmull-Rom \u6837\u6761\u63d2\u503c\uff0c"
@@ -1133,9 +1133,12 @@ def _node_guide_baking(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
         f"\033[1;35m    \u251c\u2500 SESSION-166 Per-Frame State Hydration: "
         f"Bone\u2192Joint \u6620\u5c04\u5df2\u6fc0\u6d3b\uff0c"
         f"\u9010\u5e27\u53d8\u5f62\u9876\u70b9\u5b9e\u65f6\u6ce8\u5165\u5149\u6805\u5316\u5668\033[0m\n"
-        f"\033[1;35m    \u2514\u2500 SESSION-167 Composed Mesh Hydration: "
+        f"\033[1;35m    \u251c\u2500 SESSION-167 Composed Mesh Hydration: "
         f"\u7ec4\u5408\u7f51\u683c\u9010\u5e27\u9876\u70b9\u5207\u7247\u540c\u6b65\u5df2\u8d2f\u901a\uff0c"
-        f"\u65f6\u5e8f\u5f20\u91cf\u5df2\u6301\u4e45\u5316\033[0m"
+        f"\u65f6\u5e8f\u5f20\u91cf\u5df2\u6301\u4e45\u5316\033[0m\n"
+        f"\033[1;35m    \u2514\u2500 SESSION-169 Exception Piercing + Global Abort: "
+        f"\u81f4\u547d\u5f02\u5e38\u5df2\u542f\u7528\u7a7f\u900f\u6a21\u5f0f\uff0c"
+        f"GPU \u5d29\u6e83\u5c06\u81ea\u52a8\u64a4\u9500\u5269\u4f59\u5e76\u53d1\u4efb\u52a1\033[0m"
     )
     sys.stderr.write(_ux_msg + "\n")
     sys.stderr.flush()
