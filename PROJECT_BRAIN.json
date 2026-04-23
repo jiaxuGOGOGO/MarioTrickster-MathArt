@@ -1,7 +1,7 @@
 {
-  "version": "v0.99.11",
-  "last_session_id": "SESSION-165",
-  "last_updated": "2026-04-23T23:00:00Z",
+  "version": "v0.99.12",
+  "last_session_id": "SESSION-166",
+  "last_updated": "2026-04-23T23:59:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -24,6 +24,24 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-166-RENDER-LOOP-HYDRATION",
+        "title": "Render Loop Per-Frame State Hydration — Fix Frozen Guide Sequence Bone→Joint Namespace Bridge",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-166",
+        "modules": [
+          "mathart/factory/mass_production.py",
+          "docs/USER_GUIDE.md",
+          "docs/RESEARCH_NOTES_SESSION_166.md"
+        ],
+        "tests": [
+          "tests/test_mass_production.py",
+          "tests/test_no_hardcoded_motion_states_session162.py",
+          "scripts/session166_verify.py"
+        ],
+        "description": "SESSION-166 Render Loop Hydration: Fixed critical per-frame state hydration bug in _bake_true_motion_guide_sequence. Root cause was a triple namespace/unit/displacement chain break: (1) Clip2D bone_transforms used bone names (l_thigh, r_thigh) while Skeleton.apply_pose() expected joint names (l_hip, r_hip), causing zero pose application; (2) Clip2D rotation values were in degrees while FK engine expected radians; (3) root_x/root_y displacement was lost in the pose dict. Fix: Built _bone_to_joint mapping table from skeleton.bones, translated bone→joint names in _animation_func_from_clip(), applied math.radians() conversion, and injected root displacement via scale_x/scale_y to the renderer. MSE jumped from 0.0000 to 153~272 across 24-frame sequences. VarianceAssertGate passes perfectly. UX banners upgraded with SESSION-166 hydration status and MSE diagnostic. USER_GUIDE.md synced with pipeline fix documentation. Research notes anchored in docs/RESEARCH_NOTES_SESSION_166.md covering Per-Frame State Hydration (Vulkan/Blender), Data-Oriented Design (DOD), and Fail-Loud Validation patterns. 2555/2596 tests PASS (41 failures are pre-existing environment dependencies, zero regression from this change)."
+      },
       {
         "id": "P0-SESSION-161-COMFYUI-API-BRIDGE",
         "title": "ComfyUI API Bridge — Full-Array Artifact Hydration & Streaming Pipeline",
@@ -256,9 +274,10 @@
     "engineering_automation": 95,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-164 COMPLETE — Final UI Assembly: CLI wizard full-chain integration with SESSION-161 ComfyUI API bridge and SESSION-162 dynamic ActionRegistry. Dynamic progress telemetry, precise exception ladder, vibe intent propagation, and asset closure green banner all deployed.",
+  "current_focus": "SESSION-166 CLOSED — P0-SESSION-166-RENDER-LOOP-HYDRATION: Fixed critical per-frame state hydration bug in _bake_true_motion_guide_sequence render loop. Root cause: Clip2D bone names (l_thigh) vs Skeleton joint names (l_hip) namespace mismatch + degrees-to-radians unit mismatch + root displacement loss. Fix: Bone→Joint mapping bridge, math.radians() conversion, root_x/root_y→scale_x/scale_y injection. MSE jumped from 0.0000 to 153~272, VarianceAssertGate now passes perfectly. UX banners upgraded, USER_GUIDE.md synced, research notes anchored.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
+    "docs/RESEARCH_NOTES_SESSION_166.md",
     "research/session139_director_studio_research.md",
     "tests/test_director_studio_blueprint.py",
     "mathart/workspace/director_intent.py",

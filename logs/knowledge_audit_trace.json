@@ -1,11 +1,11 @@
 {
   "audit_version": "1.0.0",
   "session_id": "TEST-009",
-  "run_id": "5ddec046-b32",
-  "timestamp": "2026-04-23T01:28:52",
+  "run_id": "89e71227-a35",
+  "timestamp": "2026-04-23T09:26:25",
   "generator": "ProvenanceReportGenerator (SESSION-152)",
   "knowledge_snapshot": {
-    "snapshot_time": "2026-04-23T01:28:52",
+    "snapshot_time": "2026-04-23T09:26:25",
     "knowledge_dir": "/home/ubuntu/MarioTrickster-MathArt/knowledge",
     "knowledge_files_found": [
       "anatomy.md",
@@ -2071,8 +2071,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "physics.mass": {
       "param_key": "physics.mass",
@@ -2094,8 +2094,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "physics.stiffness": {
       "param_key": "physics.stiffness",
@@ -2117,8 +2117,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "physics.damping": {
       "param_key": "physics.damping",
@@ -2140,8 +2140,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "physics.bounce": {
       "param_key": "physics.bounce",
@@ -2163,8 +2163,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "physics.friction": {
       "param_key": "physics.friction",
@@ -2186,8 +2186,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "proportions.head_ratio": {
       "param_key": "proportions.head_ratio",
@@ -2209,8 +2209,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "proportions.body_ratio": {
       "param_key": "proportions.body_ratio",
@@ -2232,8 +2232,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "proportions.limb_ratio": {
       "param_key": "proportions.limb_ratio",
@@ -2255,8 +2255,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "proportions.scale": {
       "param_key": "proportions.scale",
@@ -2278,8 +2278,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "proportions.squash_stretch": {
       "param_key": "proportions.squash_stretch",
@@ -2301,8 +2301,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "animation.frame_rate": {
       "param_key": "animation.frame_rate",
@@ -2324,8 +2324,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "animation.anticipation": {
       "param_key": "animation.anticipation",
@@ -2347,8 +2347,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "animation.follow_through": {
       "param_key": "animation.follow_through",
@@ -2370,8 +2370,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "animation.exaggeration": {
       "param_key": "animation.exaggeration",
@@ -2393,8 +2393,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "animation.ease_in": {
       "param_key": "animation.ease_in",
@@ -2416,8 +2416,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "animation.ease_out": {
       "param_key": "animation.ease_out",
@@ -2439,8 +2439,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     },
     "animation.cycle_frames": {
       "param_key": "animation.cycle_frames",
@@ -2462,8 +2462,8 @@
       "seen_at_gate": false,
       "seen_at_backend": false,
       "consumed_by_backend": "",
-      "audit_timestamp": "2026-04-23T01:28:52",
-      "run_id": "5ddec046-b32"
+      "audit_timestamp": "2026-04-23T09:26:25",
+      "run_id": "89e71227-a35"
     }
   },
   "summary": {

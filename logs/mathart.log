@@ -243,3 +243,426 @@ Traceback (most recent call last):
 mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
 2026-04-23 01:30:50 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
 2026-04-23 01:30:55 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:22:42 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:22:42 | INFO     | mathart.core.builtin_backends | UnifiedMotionBackend: generated 47 frames for state=idle → /tmp/pytest-of-ubuntu/pytest-0/test_cli_mass_produce_dry_run_0/mass_production_batch_20260423_092242/character_000/unified_motion/character_000_idle.umr.json
+2026-04-23 09:22:42 | INFO     | mathart.core.pipeline_bridge | Backend pseudo_3d_shell config: No base_mesh or base_vertices provided; will generate demo cylinder mesh
+2026-04-23 09:22:42 | DEBUG    | mathart.core.pseudo3d_shell_backend | [pseudo_3d_shell] No base_mesh or base_vertices provided; will generate demo cylinder mesh
+2026-04-23 09:22:42 | INFO     | mathart.core.pseudo3d_shell_backend | [pseudo_3d_shell] Deformed 352 vertices x 47 frames in 0.014s (1144932.4 verts/sec) [procedural math-driven]
+2026-04-23 09:22:42 | INFO     | mathart.animation.physical_ribbon_extractor | [PhysicalRibbonExtractor] Generated ribbon 'cape_chain': 12 input pts → 45 interpolated → 90 verts, 176 tris, arc_length=1.0156, bbox={'min_x': -0.05886720637339582, 'max_x': 0.2548833342196738, 'min_y': -0.548865747164907, 'max_y': 0.461603965433938, 'min_z': -0.15, 'max_z': -0.09999999999999999}
+2026-04-23 09:22:42 | INFO     | mathart.core.orthographic_pixel_backend | [orthographic_pixel_render] Mesh3D contract satisfied: 496 vertices, 912 triangles (real composed mesh, NOT fallback)
+2026-04-23 09:22:42 | INFO     | mathart.animation.unity_2d_anim | Unity 2D anim export complete: 18 bones, 47 frames, 2538 keyframes in 28.1 ms
+2026-04-23 09:22:42 | INFO     | mathart.core.unity_2d_anim_backend | Unity2DAnimBackend: exported 18 bones, 47 frames → ['/tmp/pytest-of-ubuntu/pytest-0/test_cli_mass_produce_dry_run_0/mass_production_batch_20260423_092242/character_000/unity_2d_anim/quadruped_trot.anim']
+2026-04-23 09:22:42 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 391, in main
+    return _command_mass_produce(args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 350, in _command_mass_produce
+    payload = run_mass_production_factory(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/factory/mass_production.py", line 1573, in run_mass_production_factory
+    runtime = graph.run(
+              ^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/level/pdg.py", line 1418, in run
+    return facade.run(targets, initial_context=initial_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/level/pdg.py", line 592, in run
+    self._results[name] = self._execute_task_node(node)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/level/pdg.py", line 810, in _execute_task_node
+    execution_results = [
+                        ^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/level/pdg.py", line 811, in <listcomp>
+    self._execute_invocation(node, invocation, invocation_index=index)
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/level/pdg.py", line 1190, in _execute_invocation
+    output, duration_ms, resource_wait_ms = self._execute_operation(
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/level/pdg.py", line 967, in _execute_operation
+    output = node.operation(invocation_context, deps_payload)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/factory/mass_production.py", line 971, in _node_final_delivery
+    preview_manifest = pipeline_preview.run_backend(
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 209, in run_backend
+    manifest = instance.execute(context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/spine_preview_backend.py", line 118, in execute
+    render_result = renderer.render(
+                    ^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/animation/spine_preview.py", line 492, in render
+    frames = self._draw_frames(clip, screen_origins, screen_tips)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/animation/spine_preview.py", line 562, in _draw_frames
+    import cv2  # SESSION-145: lazy import — heavy C++ extension
+    ^^^^^^^^^^
+ModuleNotFoundError: No module named 'cv2'
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: motion_2d (v2.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: industrial_sprite (v3.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: urp2d_bundle (v2.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: dimension_uplift_mesh (v2.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: anti_flicker_render (v5.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: physics_vfx (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: cel_shading (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: knowledge_distill (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: unified_motion (v1.0.0)
+2026-04-23 09:22:42 | WARNING  | mathart.core.niche_registry | Niche 'smooth_morphology' already registered, overwriting.
+2026-04-23 09:22:42 | DEBUG    | mathart.core.niche_registry | Registered niche: smooth_morphology
+2026-04-23 09:22:42 | WARNING  | mathart.core.niche_registry | Niche 'constraint_wfc' already registered, overwriting.
+2026-04-23 09:22:42 | DEBUG    | mathart.core.niche_registry | Registered niche: constraint_wfc
+2026-04-23 09:22:42 | WARNING  | mathart.core.niche_registry | Niche 'motion_2d_pipeline' already registered, overwriting.
+2026-04-23 09:22:42 | DEBUG    | mathart.core.niche_registry | Registered niche: motion_2d_pipeline
+2026-04-23 09:22:42 | WARNING  | mathart.core.niche_registry | Niche 'dimension_uplift' already registered, overwriting.
+2026-04-23 09:22:42 | DEBUG    | mathart.core.niche_registry | Registered niche: dimension_uplift
+2026-04-23 09:22:42 | WARNING  | mathart.core.niche_registry | Niche 'phase3_physics' already registered, overwriting.
+2026-04-23 09:22:42 | DEBUG    | mathart.core.niche_registry | Registered niche: phase3_physics
+2026-04-23 09:22:42 | WARNING  | mathart.core.niche_registry | Niche 'unity_urp_2d' already registered, overwriting.
+2026-04-23 09:22:42 | DEBUG    | mathart.core.niche_registry | Registered niche: unity_urp_2d
+2026-04-23 09:22:42 | WARNING  | mathart.core.niche_registry | Niche 'env_closedloop' already registered, overwriting.
+2026-04-23 09:22:42 | DEBUG    | mathart.core.niche_registry | Registered niche: env_closedloop
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: physics_3d (v1.1.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: taichi_xpbd (v2.1.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_xpbd (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_fluid_vfx (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_breakwall (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_morphology (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_wfc (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_motion_2d (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_dim_uplift (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_gait_blend (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_jakobsen (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_terrain (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_neural_render (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_visual_regression (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_urp2d (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_phase3_physics (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_industrial_skin (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_locomotion_cns (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_state_machine (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_runtime_distill (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_contract (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_env_closedloop (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_research (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_physics_gait_distill (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_cognitive_distill (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: rl_training (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: orthographic_pixel_render (v2.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: pseudo_3d_shell (v1.1.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: unity_2d_anim (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: spine_preview (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: physical_ribbon (v1.0.0)
+2026-04-23 09:22:42 | DEBUG    | mathart.core.backend_registry | Registered backend: archive_delivery (v1.0.0)
+2026-04-23 09:23:00 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:23:00 | INFO     | mathart.core.builtin_backends | UnifiedMotionBackend: generated 24 frames for state=run → /tmp/pytest-of-ubuntu/pytest-1/test_cli_mass_produce_dry_run_0/mass_production_batch_20260423_092300/character_000/unified_motion/character_000_run.umr.json
+2026-04-23 09:23:00 | INFO     | mathart.core.pipeline_bridge | Backend pseudo_3d_shell config: No base_mesh or base_vertices provided; will generate demo cylinder mesh
+2026-04-23 09:23:00 | DEBUG    | mathart.core.pseudo3d_shell_backend | [pseudo_3d_shell] No base_mesh or base_vertices provided; will generate demo cylinder mesh
+2026-04-23 09:23:00 | INFO     | mathart.core.pseudo3d_shell_backend | [pseudo_3d_shell] Deformed 352 vertices x 24 frames in 0.007s (1199802.5 verts/sec) [procedural math-driven]
+2026-04-23 09:23:00 | INFO     | mathart.animation.physical_ribbon_extractor | [PhysicalRibbonExtractor] Generated ribbon 'cape_chain': 12 input pts → 45 interpolated → 90 verts, 176 tris, arc_length=1.0156, bbox={'min_x': -0.05886720637339582, 'max_x': 0.2548833342196738, 'min_y': -0.548865747164907, 'max_y': 0.461603965433938, 'min_z': -0.15, 'max_z': -0.09999999999999999}
+2026-04-23 09:23:00 | INFO     | mathart.core.orthographic_pixel_backend | [orthographic_pixel_render] Mesh3D contract satisfied: 503 vertices, 904 triangles (real composed mesh, NOT fallback)
+2026-04-23 09:23:00 | INFO     | mathart.animation.unity_2d_anim | Unity 2D anim export complete: 18 bones, 24 frames, 1296 keyframes in 18.5 ms
+2026-04-23 09:23:00 | INFO     | mathart.core.unity_2d_anim_backend | Unity2DAnimBackend: exported 18 bones, 24 frames → ['/tmp/pytest-of-ubuntu/pytest-1/test_cli_mass_produce_dry_run_0/mass_production_batch_20260423_092300/character_000/unity_2d_anim/quadruped_trot.anim']
+2026-04-23 09:23:01 | INFO     | mathart.core.spine_preview_backend | SpinePreviewBackend: solved 18 bones / 24 frames from /tmp/pytest-of-ubuntu/pytest-1/test_cli_mass_produce_dry_run_0/mass_production_batch_20260423_092300/character_000/motion2d/character_000_spine.json
+2026-04-23 09:23:01 | DEBUG    | mathart.factory.mass_production | [SESSION-160] RenderContext hydrated: motion_state=run, fps=24, character_id=character_000, frame_count=24, render=192x192
+2026-04-23 09:23:01 | DEBUG    | mathart.factory.mass_production | [SESSION-166] Bone→Joint mapping: {'spine_lower': 'hip', 'spine_upper': 'spine', 'neck_bone': 'chest', 'head_bone': 'neck', 'l_upper_arm': 'l_shoulder', 'l_forearm': 'l_elbow', 'r_upper_arm': 'r_shoulder', 'r_forearm': 'r_elbow', 'l_thigh': 'l_hip', 'l_shin': 'l_knee', 'r_thigh': 'r_hip', 'r_shin': 'r_knee'}
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: motion_2d (v2.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: industrial_sprite (v3.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: urp2d_bundle (v2.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: dimension_uplift_mesh (v2.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: anti_flicker_render (v5.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: physics_vfx (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: cel_shading (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: knowledge_distill (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: unified_motion (v1.0.0)
+2026-04-23 09:23:05 | WARNING  | mathart.core.niche_registry | Niche 'smooth_morphology' already registered, overwriting.
+2026-04-23 09:23:05 | DEBUG    | mathart.core.niche_registry | Registered niche: smooth_morphology
+2026-04-23 09:23:05 | WARNING  | mathart.core.niche_registry | Niche 'constraint_wfc' already registered, overwriting.
+2026-04-23 09:23:05 | DEBUG    | mathart.core.niche_registry | Registered niche: constraint_wfc
+2026-04-23 09:23:05 | WARNING  | mathart.core.niche_registry | Niche 'motion_2d_pipeline' already registered, overwriting.
+2026-04-23 09:23:05 | DEBUG    | mathart.core.niche_registry | Registered niche: motion_2d_pipeline
+2026-04-23 09:23:05 | WARNING  | mathart.core.niche_registry | Niche 'dimension_uplift' already registered, overwriting.
+2026-04-23 09:23:05 | DEBUG    | mathart.core.niche_registry | Registered niche: dimension_uplift
+2026-04-23 09:23:05 | WARNING  | mathart.core.niche_registry | Niche 'phase3_physics' already registered, overwriting.
+2026-04-23 09:23:05 | DEBUG    | mathart.core.niche_registry | Registered niche: phase3_physics
+2026-04-23 09:23:05 | WARNING  | mathart.core.niche_registry | Niche 'unity_urp_2d' already registered, overwriting.
+2026-04-23 09:23:05 | DEBUG    | mathart.core.niche_registry | Registered niche: unity_urp_2d
+2026-04-23 09:23:05 | WARNING  | mathart.core.niche_registry | Niche 'env_closedloop' already registered, overwriting.
+2026-04-23 09:23:05 | DEBUG    | mathart.core.niche_registry | Registered niche: env_closedloop
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: physics_3d (v1.1.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: taichi_xpbd (v2.1.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_xpbd (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_fluid_vfx (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_breakwall (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_morphology (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_wfc (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_motion_2d (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_dim_uplift (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_gait_blend (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_jakobsen (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_terrain (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_neural_render (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_visual_regression (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_urp2d (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_phase3_physics (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_industrial_skin (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_locomotion_cns (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_state_machine (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_runtime_distill (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_contract (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_env_closedloop (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_research (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_physics_gait_distill (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_cognitive_distill (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: rl_training (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: orthographic_pixel_render (v2.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: pseudo_3d_shell (v1.1.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: unity_2d_anim (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: spine_preview (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: physical_ribbon (v1.0.0)
+2026-04-23 09:23:05 | DEBUG    | mathart.core.backend_registry | Registered backend: archive_delivery (v1.0.0)
+2026-04-23 09:25:17 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:25:20 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:25:20 | WARNING  | mathart.core.builtin_backends | [industrial_sprite] config warning: render.height=7 too small; clamping to 8
+2026-04-23 09:26:35 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:26:39 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:26:42 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:26:46 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:26:49 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:26:52 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:26:56 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:26:59 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:27:00 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 801, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-23 09:27:03 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:27:03 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 801, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-23 09:27:06 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:27:07 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 801, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-23 09:27:10 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:27:10 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 801, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-23 09:27:13 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:27:13 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 801, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-23 09:27:17 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:27:17 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 801, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-23 09:27:20 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:27:20 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 801, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-23 09:27:24 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:27:24 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 801, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-23 09:27:27 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:27:28 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 801, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-23 09:27:31 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:27:35 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:27:35 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 801, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-23 09:27:38 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:27:42 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:27:42 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 801, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-23 09:27:46 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-23 09:27:49 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days

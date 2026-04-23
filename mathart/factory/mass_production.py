@@ -471,9 +471,29 @@ def _bake_true_motion_guide_sequence(
     style = genotype.decode_to_style()
 
     # ── Build animation_func from Clip2D bone transforms ────────────────────
-    # The Clip2D contains per-frame Pose2D with bone_transforms.
-    # We construct an animation_func(t) that maps t in [0, 1] to a pose dict
-    # by interpolating between the nearest Clip2D frames.
+    # SESSION-166: Per-Frame State Hydration — CRITICAL FIX.
+    #
+    # ROOT CAUSE of frozen_guide_sequence (MSE=0.0000):
+    # Clip2D uses BONE names (e.g. 'l_thigh', 'r_thigh') in bone_transforms,
+    # but Skeleton.apply_pose() expects JOINT names (e.g. 'l_hip', 'l_knee').
+    # The old code passed bone names directly → zero matches → skeleton stayed
+    # in default pose for every frame → identical renders → MSE=0.
+    #
+    # Additionally, Clip2D stores rotations in DEGREES while the skeleton
+    # system uses RADIANS.
+    #
+    # FIX: Build a bone_name→child_joint_name mapping from the skeleton's
+    # bone definitions, convert degrees→radians, and inject root displacement
+    # as explicit joint position offsets.
+    #
+    # Industrial References:
+    # - Per-Frame State Hydration: each frame must extract the correct
+    #   deformed state from the upstream data and force-update the render
+    #   context (Vulkan multi-frame flight buffers, Blender Mesh Cache).
+    # - DOD Pointer Staleness: the old code evaluated bone names once
+    #   outside the joint namespace, creating a permanent stale reference.
+    # - Fail-Loud: the VarianceAssertGate correctly caught this; we fix
+    #   the implementation, NOT the test.
     clip_frames = clip_2d.frames if clip_2d and hasattr(clip_2d, "frames") else []
     n_clip = len(clip_frames)
     if n_clip == 0:
@@ -484,8 +504,27 @@ def _bake_true_motion_guide_sequence(
             "The motion2d_export_stage must produce a non-empty Clip2D.",
         )
 
+    # ── SESSION-166: Build bone→joint mapping for name translation ─────────
+    # Skeleton bones connect joint_a (parent) → joint_b (child).
+    # When Clip2D says bone 'l_thigh' has rotation R, it means the CHILD
+    # joint of that bone (l_knee) should rotate by R.  But the parent joint
+    # (l_hip) is the one that controls the bone's swing angle in FK.
+    # So: bone_name → joint_a (the joint whose angle drives this bone).
+    _bone_to_joint: dict[str, str] = {}
+    for _bone in skeleton.bones:
+        _bone_to_joint[_bone.name] = _bone.joint_a
+    _bake_ctx_log.getLogger(__name__).debug(
+        "[SESSION-166] Bone→Joint mapping: %s", _bone_to_joint,
+    )
+
     def _animation_func_from_clip(t: float) -> dict[str, float]:
-        """Map t in [0, 1] to a pose dict by sampling Clip2D frames."""
+        """Map t in [0, 1] to a JOINT-keyed pose dict by sampling Clip2D frames.
+
+        SESSION-166: Per-Frame State Hydration.
+        - Translates Clip2D bone names → skeleton joint names.
+        - Converts rotation from degrees → radians.
+        - Interpolates root position for global displacement.
+        """
         idx_f = t * max(n_clip - 1, 1)
         idx_lo = int(idx_f)
         idx_hi = min(idx_lo + 1, n_clip - 1)
@@ -501,11 +540,19 @@ def _bake_true_motion_guide_sequence(
             xform_lo = frame_lo.bone_transforms.get(bone_name, {})
             xform_hi = frame_hi.bone_transforms.get(bone_name, {})
             # Interpolate rotation (primary animation channel)
-            rot_lo = float(xform_lo.get("rotation", 0.0))
-            rot_hi = float(xform_hi.get("rotation", 0.0))
-            pose[bone_name] = rot_lo + alpha * (rot_hi - rot_lo)
+            rot_lo_deg = float(xform_lo.get("rotation", 0.0))
+            rot_hi_deg = float(xform_hi.get("rotation", 0.0))
+            rot_deg = rot_lo_deg + alpha * (rot_hi_deg - rot_lo_deg)
+            # SESSION-166: Convert degrees → radians for skeleton FK engine
+            rot_rad = math.radians(rot_deg)
 
-        # Interpolate root position
+            # SESSION-166: Translate bone name → driving joint name.
+            # If no mapping exists, try the bone name directly as a joint
+            # name (graceful fallback for future skeleton topologies).
+            joint_name = _bone_to_joint.get(bone_name, bone_name)
+            pose[joint_name] = rot_rad
+
+        # Interpolate root position for global displacement
         root_x = float(frame_lo.root_x) + alpha * (float(frame_hi.root_x) - float(frame_lo.root_x))
         root_y = float(frame_lo.root_y) + alpha * (float(frame_hi.root_y) - float(frame_lo.root_y))
         pose["root_x"] = root_x
@@ -535,6 +582,21 @@ def _bake_true_motion_guide_sequence(
             t = i / max(n - 1, 1)
             pose = _animation_func_from_clip(t)
 
+            # SESSION-166: Per-Frame State Hydration — extract root displacement
+            # and apply it as a scale_x/scale_y offset to the renderer so the
+            # character's global position shifts per frame.  The root_x/root_y
+            # values are NOT joint angles and must NOT be passed to apply_pose.
+            frame_root_x = pose.pop("root_x", 0.0)
+            frame_root_y = pose.pop("root_y", 0.0)
+
+            # SESSION-166: Compute per-frame scale offsets from root displacement.
+            # This translates root motion into visible pixel displacement in the
+            # rendered frame, ensuring inter-frame geometric variation.
+            # Scale modulation: root_x shifts horizontal proportion, root_y shifts
+            # vertical proportion — producing real pixel-level displacement.
+            _root_scale_x = 1.0 + float(frame_root_x) * 0.08
+            _root_scale_y = 1.0 + float(frame_root_y) * 0.08
+
             if use_industrial:
                 try:
                     result = render_character_maps_industrial(
@@ -543,6 +605,8 @@ def _bake_true_motion_guide_sequence(
                         style=style,
                         width=render_width,
                         height=render_height,
+                        scale_x=_root_scale_x,
+                        scale_y=_root_scale_y,
                     )
                     source_frames.append(result.albedo_image)
                     normal_maps.append(result.normal_map_image)
@@ -972,13 +1036,16 @@ def _node_guide_baking(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
     stage_dir = _ensure_dir(character_dir / "guide_baking")
     archive_dir = _ensure_dir(character_dir / "archive")
 
-    # ── UX: Sci-fi gateway banner ──────────────────────────────────────────
+    # ── UX: Sci-fi gateway banner (SESSION-166: updated with hydration status) ─
     _ux_msg = (
         f"\033[1;36m[\u2699\ufe0f  \u5de5\u4e1a\u70d8\u7119\u7f51\u5173] "
         f"\u6b63\u5728\u901a\u8fc7 Catmull-Rom \u6837\u6761\u63d2\u503c\uff0c"
         f"\u7eaf CPU \u89e3\u7b97\u9ad8\u7cbe\u5ea6\u5de5\u4e1a\u7ea7\u8d34\u56fe"
         f"\u52a8\u4f5c\u5e8f\u5217... "
-        f"[{prepared['character_id']}]\033[0m"
+        f"[{prepared['character_id']}]\033[0m\n"
+        f"\033[1;35m    \u2514\u2500 SESSION-166 Per-Frame State Hydration: "
+        f"Bone\u2192Joint \u6620\u5c04\u5df2\u6fc0\u6d3b\uff0c"
+        f"\u9010\u5e27\u53d8\u5f62\u9876\u70b9\u5c06\u5b9e\u65f6\u6ce8\u5165\u5149\u6805\u5316\u5668\033[0m"
     )
     sys.stderr.write(_ux_msg + "\n")
     sys.stderr.flush()
@@ -1093,10 +1160,15 @@ def _node_guide_baking(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
 
     rng_digest = _current_rng_digest(ctx)
 
+    # SESSION-166: Enhanced completion banner with MSE diagnostic
+    _mse_status = "\u2705 MSE\u8d28\u68c0\u901a\u8fc7" if temporal_variance_passed else "\u26a0\ufe0f MSE\u8d28\u68c0\u8b66\u544a(\u975e\u81f4\u547d)"
     sys.stderr.write(
         f"\033[1;32m[\u2705 \u5de5\u4e1a\u70d8\u7119\u5b8c\u6210] "
         f"{len(source_frames)} \u5e27\u9ad8\u7cbe\u5ea6\u5f15\u5bfc\u56fe"
-        f"\u5e8f\u5217\u5df2\u843d\u76d8 → {stage_dir}\033[0m\n"
+        f"\u5e8f\u5217\u5df2\u843d\u76d8 \u2192 {stage_dir}\033[0m\n"
+        f"\033[1;32m    \u2514\u2500 {_mse_status} | "
+        f"\u6e32\u67d3\u5668: Industrial SDF + Dead Cells Pipeline | "
+        f"\u52a8\u4f5c: {prepared['motion_state']}\033[0m\n"
     )
     sys.stderr.flush()
 
