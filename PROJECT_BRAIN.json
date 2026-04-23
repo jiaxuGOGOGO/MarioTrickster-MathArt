@@ -1,7 +1,7 @@
 {
   "version": "v0.99.17",
-  "last_session_id": "SESSION-173",
-  "last_updated": "2026-04-24T14:30:00Z",
+  "last_session_id": "SESSION-174",
+  "last_updated": "2026-04-23T13:15:51",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -359,7 +359,7 @@
     "engineering_automation": 95,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-166 CLOSED — P0-SESSION-166-RENDER-LOOP-HYDRATION: Fixed critical per-frame state hydration bug in _bake_true_motion_guide_sequence render loop. Root cause: Clip2D bone names (l_thigh) vs Skeleton joint names (l_hip) namespace mismatch + degrees-to-radians unit mismatch + root displacement loss. Fix: Bone→Joint mapping bridge, math.radians() conversion, root_x/root_y→scale_x/scale_y injection. MSE jumped from 0.0000 to 153~272, VarianceAssertGate now passes perfectly. UX banners upgraded, USER_GUIDE.md synced, research notes anchored.",
+  "current_focus": "SESSION-174: Asset Governance & Vault Extraction deployed. Storage Radar, Smart GC, and Gold Master Vault Extraction are now live in the Golden Handoff V2 menu.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "docs/RESEARCH_NOTES_SESSION_166.md",
@@ -1747,6 +1747,25 @@
         "README.md",
         "scripts/session153_smoke.py"
       ]
+    },
+    {
+      "id": "P0-SESSION-174-ASSET-GOVERNANCE-AND-VAULT",
+      "title": "Asset Governance & Vault Extraction — Storage Radar, Smart GC, Gold Master Flat Copy",
+      "priority": "P0",
+      "status": "CLOSED",
+      "session_landed": "SESSION-174",
+      "modules": [
+        "mathart/factory/asset_governance.py",
+        "mathart/cli_wizard.py",
+        "docs/USER_GUIDE.md",
+        "docs/RESEARCH_NOTES_SESSION_174.md",
+        "tests/test_session174_asset_governance.py",
+        "SESSION_HANDOFF.md"
+      ],
+      "tests": [
+        "tests/test_session174_asset_governance.py"
+      ],
+      "description": "SESSION-174 Asset Governance & Vault Extraction: Deployed industrial-grade asset governance system to solve post-production storage bloat and deliverable extraction pain points. (1) Asset Radar & Triage Engine: scans output/production/ for all mass_production_batch_* directories, reads batch_summary.json metadata and probes for final *.mp4/*.png deliverables to classify batches as Golden (complete) or Junk (aborted/interrupted), with recursive disk usage calculation in MB/GB. (2) Interactive GC Dashboard: replaces old [3] provenance audit in Golden Handoff V2 menu with a powerful storage management terminal featuring health report, one-click junk cleanup, and vault extraction. (3) Safe Nuke with Blast Radius Containment: assert path contains 'output/', Y/N confirmation with red highlighting, PermissionError resilience via shutil.rmtree onerror handler. (4) Gold Master Vault Extraction: flat-copies final MP4/PNG from golden batches into output/export_vault/<batch_id>/ using shutil.copy2 + os.makedirs(exist_ok=True). 22 unit tests added. Research grounding: JFrog Artifactory GC (2022), Schlegel & Sattler 'ML Lifecycle Artifacts' (ACM SIGMOD 2023), Autodesk Vault Flat Copy, Blast Radius Containment (Medium 2026), Michael Nygard 'Release It!' Circuit Breaker. All red lines strictly observed: zero modification to rendering/physics/network code, zero Evolution code touched, path sandbox isolation enforced."
     }
   ],
   "completed_tasks": [
@@ -2897,7 +2916,8 @@
         "PROJECT_BRAIN.json"
       ],
       "research_anchors": "docs/RESEARCH_NOTES_SESSION_164.md"
-    }
+    },
+    "P0-SESSION-174-ASSET-GOVERNANCE-AND-VAULT"
   ],
   "capability_gaps": [
     "RESOLVED-S018: Evaluator too lenient -> 12-metric evaluator with strict thresholds",
@@ -3949,6 +3969,12 @@
       "session_id": "SESSION-164",
       "date": "2026-04-23",
       "task": "P0-SESSION-163-FINAL-UI-ASSEMBLY",
+      "status": "CLOSED"
+    },
+    {
+      "id": "SESSION-174",
+      "date": "2026-04-23",
+      "title": "Asset Governance & Vault Extraction",
       "status": "CLOSED"
     }
   ],
@@ -5217,6 +5243,12 @@
       "status": "CLOSED",
       "date": "2026-04-23",
       "summary": "Completed full-chain integration of CLI wizard with SESSION-161 ComfyUI API bridge and SESSION-162 dynamic ActionRegistry. Four key upgrades: (1) Dynamic progress telemetry bound to MotionStateLaneRegistry, (2) Precise exception ladder with 4-layer catching, (3) Vibe intent full-chain propagation, (4) Asset closure green banner. All changes confined to cli_wizard.py frontend layer — zero backend modification."
+    },
+    {
+      "session_id": "SESSION-174",
+      "date": "2026-04-23",
+      "task_id": "P0-SESSION-174-ASSET-GOVERNANCE-AND-VAULT",
+      "summary": "Asset Governance & Vault Extraction: Storage Radar, Smart GC, Gold Master Flat Copy"
     }
   ],
   "resolved_issues": [
@@ -5551,7 +5583,7 @@
       "implication": "This classification schema provides the exact granularity needed for targeted fix campaigns. Each dead-zone parameter has a clear remediation path: add the corresponding constraint to the knowledge directory and verify via re-running the audit. The six-level schema is extensible — future sources (e.g., A/B test results, user analytics) can be added as new ProvenanceSourceType enum values without breaking existing records."
     }
   ],
-  "current_session": "SESSION-165",
+  "current_session": "SESSION-174",
   "red_lines": [
     "SESSION-162: NEVER use hardcoded string lists for motion states; ALWAYS query unified_gait_blender.get_motion_lane_registry().names().",
     "SESSION-162: NEVER bypass assert_nonzero_temporal_variance in guide baking; fail fast on frozen sequences.",

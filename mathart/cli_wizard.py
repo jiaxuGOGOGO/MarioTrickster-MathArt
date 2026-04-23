@@ -16,7 +16,7 @@ quality circuit boundary:
    a genotype (``GateDecision.APPROVED`` / ``BLUEPRINT_SAVED``) the wizard
    intercepts the original "direct return" and offers three smooth handoffs:
        [1] 🚀 趁热打铁：立刻将当前参数发往后台 ComfyUI 渲染最终大片！
-       [2] 🔍 真理查账：打印【全链路知识血统溯源审计表】
+       [2] 🔍 资产大管家：智能存储雷达 · 垃圾回收 · 金库提纯 (SESSION-174)
        [0] 🏠 暂存并退回主菜单
    Option [1] physically reuses the approved ``final_genotype`` in-memory,
    threading it straight into ``ProductionStrategy`` without asking the user
@@ -49,7 +49,7 @@ capability unlocked by SESSION-158 (Pipeline Decoupling) and SESSION-160
 
     [1] 🏭 阵列量产：纯 CPU 算力，一键遍历烘焙全套动作阵列
     [2] 🎨 终极降维：烘焙全套阵列贴图后推流 ComfyUI AI 批量渲染
-    [3] 🔍 真理查账：打印全链路溯源体检表
+    [3] 🔍 资产大管家：智能存储雷达 · 垃圾回收 · 金库提纯 (SESSION-174)
     [0] 🏠 暂存并退回主菜单
 
 Key UX upgrades:
@@ -171,7 +171,7 @@ GOLDEN_HANDOFF_OPTION_FULL_RENDER = (
     "进行 3A 级 AI 批量渲染。(需后台就绪显卡)"
 )
 GOLDEN_HANDOFF_OPTION_AUDIT = (
-    "[3] 🔍 真理查账：打印全链路溯源体检表。"
+    "[3] 🔍 资产大管家：智能存储雷达 · 垃圾回收 · 金库提纯"
 )
 GOLDEN_HANDOFF_OPTION_HOME = (
     "[0] 🏠 暂存并退回主菜单"
@@ -647,7 +647,7 @@ def _golden_handoff_menu(
     SESSION-159 upgrade:
     - Option [1]: Pure CPU full-array baking (skip_ai_render=True)
     - Option [2]: Full-array baking + AI render (skip_ai_render=False)
-    - Option [3]: Provenance audit table
+    - Option [3]: Asset Governance Dashboard (SESSION-174: Storage Radar + GC + Vault Extraction)
     - Option [0]: Return to main menu
     """
     while True:
@@ -723,37 +723,19 @@ def _golden_handoff_menu(
             )
             continue
 
-        # --- [3] 真理查账：打印全链路审计表 ----------------------------
-        if choice in {"3", "audit", "provenance"}:
-            logger.info("[CLI] Golden Handoff V2: user chose [3] provenance audit")
+        # --- [3] 资产大管家：SESSION-174 存储雷达 + GC + 金库提纯 ------
+        if choice in {"3", "audit", "provenance", "gc", "vault", "governance"}:
+            logger.info("[CLI] Golden Handoff V2: user chose [3] Asset Governance Dashboard (SESSION-174)")
             try:
-                from mathart.core.provenance_audit_backend import ProvenanceAuditBackend
-
-                output_fn("")
-                output_fn("─" * 60)
-                output_fn("🔍 【全链路知识血统溯源审计表】")
-                output_fn("─" * 60)
-
-                backend = ProvenanceAuditBackend(project_root=project_root)
-                artifact = backend.execute(
-                    knowledge_bus=knowledge_bus,
-                    intent_spec=spec,
-                    raw_vibe=getattr(spec, "raw_vibe", ""),
-                    vibe_adjustments=_extract_vibe_adjustments(
-                        getattr(spec, "raw_vibe", "")
-                    ),
+                from mathart.factory.asset_governance import run_asset_governance_dashboard
+                run_asset_governance_dashboard(
+                    project_root=project_root,
+                    input_fn=input_fn,
                     output_fn=output_fn,
-                    session_id="SESSION-159-GOLDEN-HANDOFF-V2",
-                )
-                output_fn("")
-                output_fn(
-                    f"[✓] 审计完成 — verdict={artifact.health_verdict}, "
-                    f"硬编码死区={len(artifact.dead_zone_params)} 项, "
-                    f"JSON 日志：{artifact.json_log_path}"
                 )
             except Exception as exc:
                 logger.warning(
-                    "[CLI] Golden Handoff V2 provenance audit FAILED",
+                    "[CLI] Golden Handoff V2 asset governance FAILED",
                     exc_info=True,
                 )
                 output_fn(f"\n\033[1;31m[❌ 系统阻断] 引擎底层发生严重故障：{exc}\033[0m"); output_fn("\033[90m    ↳ [💡 提示] 已安全拦截异常避免闪退，详细追踪栈请查看 logs 目录。\033[0m"); output_fn(json.dumps({
