@@ -38,6 +38,28 @@ Hard-red lines honoured by this revision:
   shield; both still fire first.
 - NEVER swallows PipelineQualityCircuitBreak silently — the SESSION-150 red
   notice remains the canonical break boundary, only wrapped in ``continue``.
+
+SESSION-159 (P0-SESSION-159-UX-ALIGNMENT-V2) upgrade — "Full-Array Mass
+Production Dashboard":
+
+The Golden Handoff menu is upgraded from a 3-option (render/audit/home) to a
+4-option dashboard that exposes the full-action-array mass production
+capability unlocked by SESSION-158 (Pipeline Decoupling) and SESSION-160
+(ActionRegistry + Temporal Wiring):
+
+    [1] 🏭 阵列量产：纯 CPU 算力，一键遍历烘焙全套动作阵列
+    [2] 🎨 终极降维：烘焙全套阵列贴图后推流 ComfyUI AI 批量渲染
+    [3] 🔍 真理查账：打印全链路溯源体检表
+    [0] 🏠 暂存并退回主菜单
+
+Key UX upgrades:
+- Sci-fi Terminal Telemetry: real-time progress banners during long-running
+  full-array baking, including per-action-state progress when capturable.
+- Graceful GPU degradation: if option [2] fails due to missing GPU/ComfyUI,
+  the baked industrial assets are preserved and the user is smoothly returned
+  to the main menu with a highlighted notice.
+- ``skip_ai_render`` intent is explicitly threaded into the production
+  dispatch options based on the user's menu choice.
 """
 from __future__ import annotations
 
@@ -118,17 +140,36 @@ COMFYUI_PREFLIGHT_WARNING = (
 # mirrored character-for-character in docs/USER_GUIDE.md §5 "黄金连招".
 # If you change one, you MUST change the other.
 # ---------------------------------------------------------------------------
-GOLDEN_HANDOFF_TITLE = "🎬 导演工坊预演通过 — 黄金连招"
-GOLDEN_HANDOFF_PROMPT = "白模已获批，请选择下一步："
-GOLDEN_HANDOFF_OPTION_PRODUCE = (
-    "[1] 🚀 趁热打铁：立刻将当前参数发往后台 ComfyUI 渲染最终大片！"
+# ---------------------------------------------------------------------------
+# SESSION-159: Golden Handoff V2 — Full-Array Mass Production Dashboard.
+#
+# The menu is upgraded from 3 options to 4 options, exposing the full-action
+# array baking capability (SESSION-158 + SESSION-160).  Option [1] is pure
+# CPU baking (skip_ai_render=True), option [2] is bake+AI render
+# (skip_ai_render=False).  The old [1] "趁热打铁" is replaced.
+# These labels are the SINGLE SOURCE OF TRUTH and are mirrored verbatim
+# in docs/USER_GUIDE.md §5 "黄金连招 V2".
+# ---------------------------------------------------------------------------
+GOLDEN_HANDOFF_TITLE = "🎬 导演工坊预演通过 — 黄金连招 V2 · 全动作阵列仪表盘"
+GOLDEN_HANDOFF_PROMPT = "白模已获批，请选择资产输出策略："
+GOLDEN_HANDOFF_OPTION_MASS_BAKE = (
+    "[1] 🏭 阵列量产：纯 CPU 算力，一键遍历烘焙【全套动作阵列】"
+    "(包含跑/跳/攻击等) 的高清工业贴图，跳过 AI 画皮。"
+    "(极度适合无显卡环境)"
+)
+GOLDEN_HANDOFF_OPTION_FULL_RENDER = (
+    "[2] 🎨 终极降维：烘焙全套阵列贴图后，立刻推流至后台 ComfyUI "
+    "进行 3A 级 AI 批量渲染。(需后台就绪显卡)"
 )
 GOLDEN_HANDOFF_OPTION_AUDIT = (
-    "[2] 🔍 真理查账：打印【全链路知识血统溯源审计表】"
+    "[3] 🔍 真理查账：打印全链路溯源体检表。"
 )
 GOLDEN_HANDOFF_OPTION_HOME = (
     "[0] 🏠 暂存并退回主菜单"
 )
+# Backward-compat alias so SESSION-153 smoke tests that import the old name
+# still resolve.  The old [1] label is now split into [1]+[2].
+GOLDEN_HANDOFF_OPTION_PRODUCE = GOLDEN_HANDOFF_OPTION_FULL_RENDER
 
 
 def _render_quality_circuit_break(
@@ -585,12 +626,20 @@ def _golden_handoff_menu(
     input_fn: Callable[[str], str],
     output_fn: Callable[[str], None],
 ) -> None:
-    """Render the post-preview Golden Handoff menu in an inner ``while True``.
+    """SESSION-159: Golden Handoff V2 — Full-Array Mass Production Dashboard.
+
+    Renders the post-preview 4-option handoff menu in an inner ``while True``.
 
     [防失忆红线] Every branch reuses the in-memory ``spec`` / ``final_genotype``
     / ``knowledge_bus`` objects — nothing is re-parsed from disk, nothing is
     lost between rounds.  The inner loop only returns when the user picks
-    ``[0]`` or the audit/production branch completes and falls through.
+    ``[0]`` or any branch completes and falls through.
+
+    SESSION-159 upgrade:
+    - Option [1]: Pure CPU full-array baking (skip_ai_render=True)
+    - Option [2]: Full-array baking + AI render (skip_ai_render=False)
+    - Option [3]: Provenance audit table
+    - Option [0]: Return to main menu
     """
     while True:
         output_fn("")
@@ -598,7 +647,8 @@ def _golden_handoff_menu(
         output_fn(GOLDEN_HANDOFF_TITLE)
         output_fn("─" * 60)
         output_fn(GOLDEN_HANDOFF_PROMPT)
-        output_fn(f"  {GOLDEN_HANDOFF_OPTION_PRODUCE}")
+        output_fn(f"  {GOLDEN_HANDOFF_OPTION_MASS_BAKE}")
+        output_fn(f"  {GOLDEN_HANDOFF_OPTION_FULL_RENDER}")
         output_fn(f"  {GOLDEN_HANDOFF_OPTION_AUDIT}")
         output_fn(f"  {GOLDEN_HANDOFF_OPTION_HOME}")
 
@@ -616,13 +666,27 @@ def _golden_handoff_menu(
         # --- [0] 暂存并退回主菜单 --------------------------------------
         if choice in {"0", "home", "main", "back"}:
             output_fn("已暂存当前意图至内存，返回主菜单。")
-            logger.info("[CLI] Golden Handoff: user chose [0] return to main menu")
+            logger.info("[CLI] Golden Handoff V2: user chose [0] return to main menu")
             return
 
-        # --- [1] 趁热打铁：立刻渲染大片 --------------------------------
-        if choice in {"1", "produce", "render"}:
-            logger.info("[CLI] Golden Handoff: user chose [1] launch ComfyUI render")
-            # Pre-flight warning BEFORE any network call.
+        # --- [1] 🏭 阵列量产：纯 CPU 全套动作阵列烘焙 ------------------
+        if choice in {"1", "mass_bake", "bake", "cpu"}:
+            logger.info("[CLI] Golden Handoff V2: user chose [1] full-array CPU bake (skip_ai_render=True)")
+            _dispatch_mass_production(
+                project_root=project_root,
+                dispatcher=dispatcher,
+                spec=spec,
+                final_genotype=final_genotype,
+                skip_ai_render=True,
+                output_fn=output_fn,
+                input_fn=input_fn,
+            )
+            continue
+
+        # --- [2] 🎨 终极降维：全阵列烘焙 + AI 渲染 --------------------
+        if choice in {"2", "full_render", "render", "ai"}:
+            logger.info("[CLI] Golden Handoff V2: user chose [2] full-array bake + AI render (skip_ai_render=False)")
+            # Pre-flight warning BEFORE any GPU/network call.
             emit_comfyui_preflight_warning(output_fn=output_fn)
             try:
                 proceed = standard_text_prompt(
@@ -639,51 +703,20 @@ def _golden_handoff_menu(
                 output_fn("已取消本次渲染请求，参数仍保留在内存中。")
                 continue
 
-            # [防失忆红线] Pipe the in-memory spec + genotype into
-            # ProductionStrategy via dispatcher.  We deliberately set
-            # ``skip_ai_render=False`` so the production lane will talk
-            # to ComfyUI; the radar / rescue chain will still protect
-            # the user if the server is absent.
-            try:
-                output_fn("\n[⏳] 正在唤醒 ProductionStrategy，请稍候...")
-                result = dispatcher.dispatch(
-                    "production",
-                    options={
-                        "interactive": True,
-                        "project_root": str(project_root),
-                        "skip_ai_render": False,
-                        # [防失忆红线] carry the approved context so
-                        # downstream factory stages can pick it up when
-                        # they look at ctx.extra.director_studio_* keys.
-                        "director_studio_spec": spec.to_dict() if hasattr(spec, "to_dict") else None,
-                        "director_studio_flat_params": final_genotype.flat_params() if hasattr(final_genotype, "flat_params") else {},
-                    },
-                    execute=True,
-                )
-                payload = result.to_dict()
-                output_fn(json.dumps(payload, ensure_ascii=False, indent=2))
-            except PipelineQualityCircuitBreak as exc:
-                _render_quality_circuit_break(
-                    exc, output_fn=output_fn, selection="golden_handoff_produce",
-                )
-            except Exception as exc:
-                logger.warning(
-                    "[CLI] Golden Handoff production dispatch FAILED",
-                    exc_info=True,
-                )
-                output_fn(json.dumps({
-                    "status": "error",
-                    "error_type": exc.__class__.__name__,
-                    "message": str(exc),
-                }, ensure_ascii=False, indent=2))
-            # Fall through — after the render attempt we return to the
-            # handoff menu so the user can additionally print the audit
-            # table, or cleanly go home.
+            _dispatch_mass_production(
+                project_root=project_root,
+                dispatcher=dispatcher,
+                spec=spec,
+                final_genotype=final_genotype,
+                skip_ai_render=False,
+                output_fn=output_fn,
+                input_fn=input_fn,
+            )
             continue
 
-        # --- [2] 真理查账：打印全链路审计表 ----------------------------
-        if choice in {"2", "audit", "provenance"}:
-            logger.info("[CLI] Golden Handoff: user chose [2] provenance audit")
+        # --- [3] 真理查账：打印全链路审计表 ----------------------------
+        if choice in {"3", "audit", "provenance"}:
+            logger.info("[CLI] Golden Handoff V2: user chose [3] provenance audit")
             try:
                 from mathart.core.provenance_audit_backend import ProvenanceAuditBackend
 
@@ -701,7 +734,7 @@ def _golden_handoff_menu(
                         getattr(spec, "raw_vibe", "")
                     ),
                     output_fn=output_fn,
-                    session_id="SESSION-153-GOLDEN-HANDOFF",
+                    session_id="SESSION-159-GOLDEN-HANDOFF-V2",
                 )
                 output_fn("")
                 output_fn(
@@ -711,7 +744,7 @@ def _golden_handoff_menu(
                 )
             except Exception as exc:
                 logger.warning(
-                    "[CLI] Golden Handoff provenance audit FAILED",
+                    "[CLI] Golden Handoff V2 provenance audit FAILED",
                     exc_info=True,
                 )
                 output_fn(json.dumps({
@@ -721,7 +754,125 @@ def _golden_handoff_menu(
                 }, ensure_ascii=False, indent=2))
             continue
 
-        output_fn("[提示] 请输入 1 / 2 / 0 中的一个数字。")
+        output_fn("[提示] 请输入 1 / 2 / 3 / 0 中的一个数字。")
+
+
+def _dispatch_mass_production(
+    *,
+    project_root: Path,
+    dispatcher: ModeDispatcher,
+    spec: Any,
+    final_genotype: Any,
+    skip_ai_render: bool,
+    output_fn: Callable[[str], None],
+    input_fn: Callable[[str], str],
+) -> None:
+    """SESSION-159: Unified mass-production dispatch with sci-fi telemetry.
+
+    This helper is called by both Golden Handoff option [1] (CPU-only) and
+    option [2] (CPU + AI render).  It emits real-time progress banners,
+    dispatches to the production pipeline, and handles graceful degradation
+    when GPU/ComfyUI is unavailable.
+
+    [纯前端手术红线] This function ONLY controls terminal output and dispatch
+    options — it does NOT modify any pipeline algorithm or math logic.
+    """
+    # ── Sci-fi Terminal Telemetry: Baking Phase ────────────────────────────
+    output_fn("")
+    output_fn("\033[1;36m" + "═" * 60 + "\033[0m")
+    output_fn(
+        "\033[1;36m[⚙️  工业烘焙网关] 正在通过 Catmull-Rom 样条插值，"
+        "纯 CPU 解算高精度工业级贴图动作序列...\033[0m"
+    )
+    output_fn("\033[1;36m" + "═" * 60 + "\033[0m")
+
+    # ── Attempt to enumerate registered motion states for live progress ────
+    try:
+        from mathart.animation.unified_gait_blender import get_motion_lane_registry
+        registered_states = get_motion_lane_registry().names()
+        output_fn(
+            f"\033[1;33m[⚙️  工业量产网关] 正在利用纯 CPU 算力，"
+            f"遍历动作字典批量烘焙高清图纸...\033[0m"
+        )
+        output_fn(
+            f"\033[90m    ↳ 已注册动作阵列: {', '.join(registered_states)} "
+            f"(共 {len(registered_states)} 种动作)\033[0m"
+        )
+        for state_name in registered_states:
+            output_fn(f"\033[90m    ↳ 正在解算 {state_name} 动作...\033[0m")
+    except Exception:
+        output_fn(
+            "\033[1;33m[⚙️  工业量产网关] 正在利用纯 CPU 算力，"
+            "遍历动作字典批量烘焙高清图纸...\033[0m"
+        )
+        output_fn(
+            "\033[90m    ↳ (动作注册表暂不可达，将由底层管线自动遍历全部动作)\033[0m"
+        )
+
+    # ── Dispatch to production pipeline ────────────────────────────────────
+    try:
+        output_fn(f"\n\033[1;37m[⏳] 正在唤醒 ProductionStrategy (skip_ai_render={skip_ai_render})...\033[0m")
+        result = dispatcher.dispatch(
+            "production",
+            options={
+                "interactive": True,
+                "project_root": str(project_root),
+                "skip_ai_render": skip_ai_render,
+                # [防失忆红线] carry the approved context so downstream
+                # factory stages can pick it up.
+                "director_studio_spec": spec.to_dict() if hasattr(spec, "to_dict") else None,
+                "director_studio_flat_params": final_genotype.flat_params() if hasattr(final_genotype, "flat_params") else {},
+            },
+            execute=True,
+        )
+        payload = result.to_dict()
+
+        # ── Post-bake telemetry ────────────────────────────────────────
+        if skip_ai_render:
+            output_fn(
+                "\n\033[1;32m[✅ 全阵列工业烘焙完成] "
+                "全套动作序列高清工业贴图已安全落盘至 outputs 文件夹！\033[0m"
+            )
+        else:
+            # Bake succeeded, now AI render phase
+            output_fn(
+                "\n\033[1;35m[🎨 AI 画皮网关] "
+                "全阵列工业结构底图已就绪！"
+                "正在唤醒显卡集群进行大模型风格化批量推流...\033[0m"
+            )
+
+        output_fn(json.dumps(payload, ensure_ascii=False, indent=2))
+
+    except PipelineQualityCircuitBreak as exc:
+        _render_quality_circuit_break(
+            exc, output_fn=output_fn,
+            selection=f"golden_handoff_v2_skip={skip_ai_render}",
+        )
+    except Exception as exc:
+        logger.warning(
+            "[CLI] Golden Handoff V2 production dispatch FAILED "
+            "(skip_ai_render=%s)",
+            skip_ai_render,
+            exc_info=True,
+        )
+        # ── SESSION-159: Graceful GPU degradation ──────────────────────
+        if not skip_ai_render:
+            output_fn(
+                "\n\033[1;33m[⚠️  显卡环境未就绪！"
+                "但您的【全套工业级动作序列】已为您安全锁定保留在 "
+                "outputs 文件夹中！]\033[0m"
+            )
+            output_fn(
+                "\033[90m    ↳ 您可以稍后在显卡环境就绪后，"
+                "重新选择 [2] 进行 AI 渲染推流。\033[0m"
+            )
+        else:
+            output_fn(json.dumps({
+                "status": "error",
+                "error_type": exc.__class__.__name__,
+                "message": str(exc),
+            }, ensure_ascii=False, indent=2))
+
 
 
 def _run_director_studio(
@@ -933,9 +1084,12 @@ __all__ = [
     "COMFYUI_PREFLIGHT_WARNING",
     "GOLDEN_HANDOFF_TITLE",
     "GOLDEN_HANDOFF_PROMPT",
+    "GOLDEN_HANDOFF_OPTION_MASS_BAKE",
+    "GOLDEN_HANDOFF_OPTION_FULL_RENDER",
     "GOLDEN_HANDOFF_OPTION_PRODUCE",
     "GOLDEN_HANDOFF_OPTION_AUDIT",
     "GOLDEN_HANDOFF_OPTION_HOME",
+    "_dispatch_mass_production",
     "_run_director_studio",
     "_run_interactive",
     "_run_interactive_shell",

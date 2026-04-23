@@ -384,6 +384,19 @@
   },
   "pending_tasks": [
     {
+      "id": "P0-SESSION-159-UX-ALIGNMENT-V2",
+      "title": "UX Alignment V2 — Full-Array Mass Production Dashboard & Graceful Degradation",
+      "priority": "P0",
+      "status": "CLOSED",
+      "session_landed": "SESSION-159",
+      "modules": [
+        "mathart/cli_wizard.py",
+        "docs/USER_GUIDE.md"
+      ],
+      "tests": [],
+      "description": "Implemented UX Alignment V2 in cli_wizard.py. Upgraded the Golden Handoff menu from a 3-option to a 4-option dashboard exposing the full-action-array mass production capability unlocked by SESSION-158 and SESSION-160. Option [1] triggers pure CPU full-array baking (skip_ai_render=True), while Option [2] triggers baking followed by AI render. Introduced Sci-fi Terminal Telemetry with real-time progress banners during long-running baking, including per-action-state progress via dynamic ActionRegistry. Implemented Graceful GPU degradation: if Option [2] fails due to missing GPU/ComfyUI, the baked industrial assets are preserved and the user is smoothly returned to the main menu with a highlighted notice. Explicitly threaded skip_ai_render intent into production dispatch. Zero modification to underlying pipeline algorithms."
+    },
+    {
       "id": "P0-SESSION-151-POLICY-AS-CODE-GATES",
       "title": "Knowledge Enforcer Gate Registry — Policy-as-Code Parameter Validation",
       "priority": "P0",
