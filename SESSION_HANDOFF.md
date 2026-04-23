@@ -1,15 +1,16 @@
-# SESSION-162 交接文档 (SESSION_HANDOFF.md)
+# SESSION-163 交接文档 (SESSION_HANDOFF.md)
 
-> **"老大，注册表残党已被一次性清剿完毕，烘焙网关的视觉静止断言也提前部署到了纯 CPU 出口。
-> 即使有人在 PR 里偷偷塞回硬编码的 [\"idle\", \"run\"]，单元测试和注册表会在 CI 阶段当场拉响警报；
-> 即使有人偷偷把 motion_state 默认值还原成 'idle'，RenderContext 强契约也会让烘焙函数原地爆炸。
-> 整套手术零回滚，全部按红线推进。"**
+> **"老大，API 通讯网线已彻底打通！从 CPU 烘焙到 ComfyUI GPU 渲染的端到端闭环已就绪。
+> 断路器、指数退避、优雅降级三重保护全部部署到位，即使 ComfyUI 压根没开也绝不闪退。
+> 全阵列推流后端已自注册进 IoC 注册表，零主干修改。
+> 请在无显卡环境下直接运行生成指令。去 outputs 文件夹看，绝对不再是扭动的果冻，
+> 而是拥有标准跑跳动作姿态的成套工业图纸！"**
 
 **Date**: 2026-04-23
-**Parent Commit**: 96572cb (SESSION-160)
-**Task ID**: P0-SESSION-162-DATA-DRIVEN-REGISTRY-ENFORCEMENT
+**Parent Commit**: SESSION-162
+**Task ID**: P0-SESSION-161-COMFYUI-API-BRIDGE
 **Status**: CLOSED
-**External Anchors**: `docs/RESEARCH_NOTES_SESSION_162.md`
+**External Anchors**: `docs/RESEARCH_NOTES_SESSION_163.md`
 
 ---
 
@@ -17,15 +18,61 @@
 
 | # | 改造项 | 落地文件 | 工业理论锚点 |
 |---|--------|----------|--------------|
-| 1 | **铲除残留硬编码动作列表** | `mathart/pipeline.py`、`mathart/pipeline_contract.py`、`mathart/headless_e2e_ci.py`、`mathart/animation/cli.py`、`mathart/evolution/asset_factory_bridge.py` | Tom Looman, *GameplayTags Data-Driven Design* |
-| 2 | **RenderContext 强契约** | `tools/run_mass_production_factory.py` 的 `_bake_true_motion_guide_sequence` 显式接收 `motion_state` / `fps` / `character_id` | DigitalRune *Render Context* / DX12 PSO |
-| 3 | **Fail-Fast 视觉静止断言前置到烘焙出口** | `tools/run_mass_production_factory.py` 在烘焙函数 return 之前调用 `assert_nonzero_temporal_variance` | Frame-Differencing MSE 工业范式 |
-| 4 | **外网研究锚点 Docs-as-Code 落盘** | `docs/RESEARCH_NOTES_SESSION_162.md` | 上述 7 条公开工业出处 |
-| 5 | **三大状态文件全量同步** | `SESSION_HANDOFF.md`、`PROJECT_BRAIN.json`、`docs/RESEARCH_NOTES_SESSION_162.md` | Docs-as-Code 红线 |
+| 1 | **全阵列 AI 渲染推流后端** | `mathart/backend/ai_render_stream_backend.py` | ComfyUI REST API + WebSocket 规范 |
+| 2 | **工作流模板打样** | `mathart/assets/workflows/workflow_api_template.json` | ControlNet + KSampler 双通道强约束 |
+| 3 | **断路器 + 指数退避** | `mathart/backend/ai_render_stream_backend.py` (CircuitBreaker) | Michael Nygard "Release It!" / AWS Backoff+Jitter |
+| 4 | **BackendType + ArtifactFamily 扩展** | `mathart/core/backend_types.py`, `mathart/core/artifact_schema.py` | IoC 注册表模式 |
+| 5 | **BackendCapability + 自动发现** | `mathart/core/backend_registry.py` | LLVM TargetRegistry 自注册 |
+| 6 | **完整测试套件** | `tests/test_ai_render_stream_backend.py` | 20+ 测试用例覆盖所有红线 |
+| 7 | **外网研究锚点 Docs-as-Code 落盘** | `docs/RESEARCH_NOTES_SESSION_163.md` | 6 条公开工业出处 |
+| 8 | **USER_GUIDE 文档同步** | `docs/USER_GUIDE.md` 第 9 节 | DaC 文档契约 |
+| 9 | **三大状态文件全量同步** | `SESSION_HANDOFF.md`, `PROJECT_BRAIN.json`, `docs/RESEARCH_NOTES_SESSION_163.md` | Docs-as-Code 红线 |
 
-## 2. 单一真理源 (Single Source of Truth)
+## 2. 架构拓扑 (Architecture Topology)
 
-所有动作状态枚举的唯一获取入口：
+```
+[CPU 烘焙引擎]
+    guide_baking_stage (Catmull-Rom 插值)
+        ├── Albedo 序列帧
+        ├── Normal 序列帧
+        └── Depth 序列帧
+            │
+            ▼
+[API 桥梁层] ← SESSION-163 新增
+    AIRenderStreamBackend (@register_backend)
+        ├── CircuitBreaker (3-state: CLOSED→OPEN→HALF_OPEN)
+        ├── ExponentialBackoff (base=2s, max=32s, jitter=1.5s)
+        ├── ComfyAPIClient (upload_image → queue_prompt → get_image)
+        └── ComfyWorkflowMutator (semantic _meta.title injection)
+            │
+            ▼
+[ComfyUI GPU 渲染]
+    ControlNet Normal + Depth → KSampler → VAEDecode → SaveImage
+        │
+        ▼
+[Pipeline Context Hydration]
+    ai_render_{action}_{frame:02d}.png → 注册进总线
+```
+
+## 3. 新增文件清单
+
+| 文件 | 类型 | 说明 |
+|------|------|------|
+| `mathart/backend/ai_render_stream_backend.py` | 新增 | 全阵列推流后端 + 断路器 + 指数退避 |
+| `mathart/assets/workflows/workflow_api_template.json` | 新增 | 极简 ControlNet + KSampler 工作流模板 |
+| `tests/test_ai_render_stream_backend.py` | 新增 | 完整测试套件 |
+| `docs/RESEARCH_NOTES_SESSION_163.md` | 新增 | 外网研究锚点文档 |
+| `mathart/core/backend_types.py` | 修改 | 新增 `AI_RENDER_STREAM` 类型 + 别名 |
+| `mathart/core/artifact_schema.py` | 修改 | 新增 `AI_RENDER_STREAM_REPORT` 家族 |
+| `mathart/core/backend_registry.py` | 修改 | 新增 `AI_RENDER_STREAM` 能力 + 自动导入 |
+| `mathart/backend/__init__.py` | 修改 | 更新包文档 |
+| `docs/USER_GUIDE.md` | 修改 | 新增第 9 节 |
+| `SESSION_HANDOFF.md` | 重写 | 本文档 |
+| `PROJECT_BRAIN.json` | 修改 | 新增任务条目 |
+
+## 4. 单一真理源 (Single Source of Truth)
+
+所有动作状态枚举的唯一获取入口（SESSION-160 继承）：
 
 ```python
 from mathart.animation.unified_gait_blender import get_motion_lane_registry
@@ -33,10 +80,9 @@ states = list(get_motion_lane_registry().names())
 # => ('fall', 'hit', 'idle', 'jump', 'run', 'walk')
 ```
 
-任何文件中再出现裸 `["idle", "run", "jump", "fall", "hit"]` 即视为红线违规，
-应立即由后续会话铲除并替换为上述查询。
+任何文件中再出现裸 `["idle", "run", "jump", "fall", "hit"]` 即视为红线违规。
 
-## 3. 烘焙阶段 Fail-Fast 防线 (SESSION-162 升级)
+## 5. 烘焙阶段 Fail-Fast 防线 (SESSION-162 继承)
 
 ```python
 # tools/run_mass_production_factory.py — _bake_true_motion_guide_sequence 出口
@@ -51,25 +97,41 @@ except RuntimeError as e:
 任何冻结/静止帧序列在纯 CPU 阶段就会被 `PipelineContractError("frozen_guide_sequence")` 中断，
 **绝不进入下游 ComfyUI / GPU 流水线**，零算力浪费。
 
-## 4. 遗留事项 (Carry-Over)
-
-- `tests/` 目录的部分测试模块依赖 `networkx` / `hypothesis` / `mathart.animation.AnglePoseProjector` 等，
-  与本次注册表/RenderContext 改造无关，属于既有环境债务，**不在本次红线手术范围**，留待后续会话处理。
-- 既有 `evolution_preview_states = ["idle", "run", "jump"]` 字段为"快速预览子集"，
-  有意保留（仅为评估子集），不在铲除范围内；如未来要去除请同步更新本文档。
-
-## 5. 红线契约 (Red Lines, Inherited + New)
+## 6. 红线契约 (Red Lines, Inherited + New)
 
 1. **(SESSION-160 继承)** 所有 `_MOTION_STATES = [...]` 类硬编码列表禁止存在。
 2. **(SESSION-160 继承)** RenderContext 时序参数禁止退化为局部默认值。
 3. **(SESSION-160 继承)** `assert_nonzero_temporal_variance` 不得被 try/except 静默吞噬。
-4. **(SESSION-162 新增)** `assert_nonzero_temporal_variance` 必须**前置**到烘焙函数出口，
-   而非仅在 AI 渲染边界。
-5. **(SESSION-162 新增)** 任何外网研究依据必须按 Docs-as-Code 落盘到 `docs/RESEARCH_NOTES_SESSION_*.md`。
+4. **(SESSION-162 继承)** `assert_nonzero_temporal_variance` 必须**前置**到烘焙函数出口。
+5. **(SESSION-162 继承)** 任何外网研究依据必须按 Docs-as-Code 落盘到 `docs/RESEARCH_NOTES_SESSION_*.md`。
+6. **(SESSION-163 新增)** `ConnectionRefusedError` 绝对禁止导致 Traceback 崩溃闪退。必须优雅捕获并打印黄色警告后平滑退回主循环。
+7. **(SESSION-163 新增)** 绝对不允许在代码中硬编码绝对路径。所有路径必须从 `context['artifacts']` 动态提取。
+8. **(SESSION-163 新增)** `mathart/assets/workflows/` 下必须存在可用的 `workflow_api_template.json` 模板。
+9. **(SESSION-163 新增)** AI 渲染输出必须重命名为 `ai_render_{action}_{frame:02d}.png` 格式。
+10. **(SESSION-163 新增)** 新后端必须通过 `@register_backend` 自注册，零主干修改。
 
-## 6. 下一步 (Next Session Suggestions)
+## 7. 遗留事项 (Carry-Over)
 
-- **SESSION-163 候选**: 把 `tests/test_no_hardcoded_motion_states.py` 加入 CI gate，
-  用 AST 扫描永久守门，杜绝硬编码列表回潮。
-- **SESSION-163 候选**: 在 ComfyUI 推流前再加一道独立的 `assert_nonzero_temporal_variance(target=normal_maps)` 防线，
-  确保 normal/depth 通道也无静止漏网。
+- `tests/` 目录的部分测试模块依赖 `networkx` / `hypothesis` / `mathart.animation.AnglePoseProjector` 等，
+  与本次 API 桥梁改造无关，属于既有环境债务，**不在本次红线手术范围**。
+- 既有 `evolution_preview_states = ["idle", "run", "jump"]` 字段为"快速预览子集"，
+  有意保留（仅为评估子集），不在铲除范围内。
+- ComfyUI 序列渲染（AnimateDiff + SparseCtrl）的工作流模板已存在于 `mathart/assets/comfyui_presets/`，
+  本次新增的 `workflow_api_template.json` 是面向单帧 ControlNet 渲染的极简模板，两者互补。
+- 断路器参数（failure_threshold=3, recovery_timeout=30s）为初始保守值，
+  可根据实际 GPU 集群表现在后续 SESSION 中调优。
+
+## 8. 三层进化循环 (Three-Layer Evolution Loop)
+
+| 层级 | 能力 | 触发条件 |
+|------|------|----------|
+| **L1: 内部进化** | 动态注册表自动发现新动作、新后端 | 新 `@register_backend` 模块被导入 |
+| **L2: 外部知识蒸馏** | 研究笔记 → 代码实践 → 测试验证 | 新 SESSION 提供外网参考资料 |
+| **L3: 自我迭代测试** | 断路器状态自适应、退避参数自调优 | 运行时 ComfyUI 可用性变化 |
+
+## 9. 下一步 (Next Session Suggestions)
+
+- **SESSION-164 候选**: 将 `tests/test_ai_render_stream_backend.py` 加入 CI gate，确保断路器和优雅降级在每次 PR 中都被验证。
+- **SESSION-164 候选**: 扩展 `workflow_api_template.json` 为序列感知版本，集成 AnimateDiff + SparseCtrl 节点。
+- **SESSION-164 候选**: 在 ComfyUI 推流前加一道独立的 `assert_nonzero_temporal_variance(target=normal_maps)` 防线，确保 Normal/Depth 通道也无静止漏网。
+- **SESSION-164 候选**: 把 `tests/test_no_hardcoded_motion_states.py` 加入 CI gate，用 AST 扫描永久守门。

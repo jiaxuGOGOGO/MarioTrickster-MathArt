@@ -140,6 +140,11 @@ class ArtifactFamily(Enum):
     # paths, mutation ledger, VRAM GC status, and production telemetry for
     # the end-to-end BFF dynamic payload injection render lane.
     COMFYUI_RENDER_REPORT = "comfyui_render_report"
+    # SESSION-163 (P0-SESSION-161-COMFYUI-API-BRIDGE): Full-array AI render
+    # stream report.  Carries per-action render status, hydrated output paths,
+    # circuit breaker telemetry, and completion ratio for the streaming
+    # artifact hydration pipeline.
+    AI_RENDER_STREAM_REPORT = "ai_render_stream_report"
 
     @classmethod
     def required_metadata_keys(cls, family_value: str) -> frozenset[str]:
@@ -264,6 +269,16 @@ class ArtifactFamily(Enum):
                 "vram_freed",
                 "mutation_count",
                 "blueprint_name",
+            }),
+            # SESSION-163 (P0-SESSION-161-COMFYUI-API-BRIDGE):
+            # Mandatory metadata for AI render stream reports.
+            cls.AI_RENDER_STREAM_REPORT.value: frozenset({
+                "session_id",
+                "server_address",
+                "total_actions",
+                "total_rendered",
+                "total_degraded",
+                "render_elapsed_seconds",
             }),
         }
         return _FAMILY_REQUIRED_METADATA.get(family_value, frozenset())

@@ -117,6 +117,12 @@ class BackendCapability(Enum):
     # end-to-end BFF payload mutation, ephemeral upload, WebSocket
     # telemetry, and VRAM garbage collection for production AI rendering.
     COMFYUI_RENDER = auto()
+    # SESSION-163 (P0-SESSION-161-COMFYUI-API-BRIDGE): Full-array AI render
+    # streaming capability.  Backends declaring this flag iterate all motion
+    # actions from the dynamic registry, stream baked guides to ComfyUI with
+    # circuit breaker protection, and hydrate the pipeline context with
+    # renamed AI-rendered outputs.
+    AI_RENDER_STREAM = auto()
 
 
 # ---------------------------------------------------------------------------
@@ -772,6 +778,13 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.provenance_audit_backend")
         except Exception as e:
             logger.debug("Failed to auto-load provenance audit backend: %s", e)
+        # SESSION-163 (P0-SESSION-161-COMFYUI-API-BRIDGE):
+        # auto-register the full-array AI render stream backend so the pipeline
+        # can discover artifact hydration streaming without trunk modification.
+        try:
+            importlib.import_module("mathart.backend.ai_render_stream_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load AI render stream backend: %s", e)
     return registry
 
 

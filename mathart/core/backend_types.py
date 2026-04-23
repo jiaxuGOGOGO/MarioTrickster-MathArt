@@ -115,6 +115,12 @@ class BackendType(str, Enum):
     # Design: OpenLineage-aligned lineage events + XAI audit trail.
     PROVENANCE_AUDIT = "provenance_audit"
 
+    # SESSION-163 (P0-SESSION-161-COMFYUI-API-BRIDGE): Full-array AI render
+    # streaming backend.  Iterates all motion actions from the dynamic registry,
+    # streams baked guide sequences to ComfyUI with circuit breaker protection,
+    # and hydrates the pipeline context with renamed AI-rendered outputs.
+    AI_RENDER_STREAM = "ai_render_stream"
+
 
 _BACKEND_ALIASES: dict[str, str] = {
     # Canonical values
@@ -263,6 +269,12 @@ _BACKEND_ALIASES: dict[str, str] = {
     "knowledge_audit": BackendType.PROVENANCE_AUDIT.value,
     "provenance_tracker": BackendType.PROVENANCE_AUDIT.value,
     "lineage_audit": BackendType.PROVENANCE_AUDIT.value,
+    # SESSION-163 (P0-SESSION-161-COMFYUI-API-BRIDGE): AI render stream backend aliases
+    BackendType.AI_RENDER_STREAM.value: BackendType.AI_RENDER_STREAM.value,
+    "ai_render_hydration": BackendType.AI_RENDER_STREAM.value,
+    "render_stream": BackendType.AI_RENDER_STREAM.value,
+    "artifact_hydration": BackendType.AI_RENDER_STREAM.value,
+    "full_array_render": BackendType.AI_RENDER_STREAM.value,
 }
 
 

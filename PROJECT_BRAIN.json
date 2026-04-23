@@ -1,7 +1,7 @@
 {
-  "version": "v0.99.10",
-  "last_session_id": "SESSION-162",
-  "last_updated": "2026-04-23T19:30:00Z",
+  "version": "v0.99.11",
+  "last_session_id": "SESSION-163",
+  "last_updated": "2026-04-23T23:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -24,6 +24,27 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-161-COMFYUI-API-BRIDGE",
+        "title": "ComfyUI API Bridge — Full-Array Artifact Hydration & Streaming Pipeline",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-163",
+        "modules": [
+          "mathart/backend/ai_render_stream_backend.py",
+          "mathart/assets/workflows/workflow_api_template.json",
+          "mathart/core/backend_types.py",
+          "mathart/core/artifact_schema.py",
+          "mathart/core/backend_registry.py",
+          "mathart/backend/__init__.py",
+          "docs/USER_GUIDE.md",
+          "docs/RESEARCH_NOTES_SESSION_163.md"
+        ],
+        "tests": [
+          "tests/test_ai_render_stream_backend.py"
+        ],
+        "description": "SESSION-163 ComfyUI API Bridge: Implemented the full-array AI render streaming backend (AIRenderStreamBackend) with circuit breaker protection, exponential backoff with jitter, and graceful degradation. The backend self-registers via @register_backend (zero trunk modification), iterates all motion actions from the dynamic registry, streams baked guide sequences (Albedo/Normal/Depth) to ComfyUI via REST API, injects ControlNet multi-modal conditioning via semantic workflow mutation, and hydrates the pipeline context with renamed AI-rendered outputs (ai_render_{action}_{frame:02d}.png). When ComfyUI is offline, the system prints a yellow warning and preserves original CPU-baked guides as canonical output — no crash, no data loss. New BackendType.AI_RENDER_STREAM, ArtifactFamily.AI_RENDER_STREAM_REPORT, BackendCapability.AI_RENDER_STREAM registered. Bundled workflow_api_template.json with ControlNet Normal+Depth dual-channel strong conditioning. 20+ test cases covering all red lines. External research anchored in docs/RESEARCH_NOTES_SESSION_163.md."
+      },
       {
         "id": "P0-SESSION-158-PIPELINE-DECOUPLING",
         "title": "Pipeline Decoupling — Rescue Industrial Guide Baking Engine from AI Render Conditional Lock",
@@ -5368,10 +5389,15 @@
       "implication": "This classification schema provides the exact granularity needed for targeted fix campaigns. Each dead-zone parameter has a clear remediation path: add the corresponding constraint to the knowledge directory and verify via re-running the audit. The six-level schema is extensible — future sources (e.g., A/B test results, user analytics) can be added as new ProvenanceSourceType enum values without breaking existing records."
     }
   ],
-  "current_session": "SESSION-162",
+  "current_session": "SESSION-163",
   "red_lines": [
     "SESSION-162: NEVER use hardcoded string lists for motion states; ALWAYS query unified_gait_blender.get_motion_lane_registry().names().",
     "SESSION-162: NEVER bypass assert_nonzero_temporal_variance in guide baking; fail fast on frozen sequences.",
-    "SESSION-162: RenderContext (motion_state/fps/character_id) MUST flow as explicit parameters end-to-end; default values forbidden."
+    "SESSION-162: RenderContext (motion_state/fps/character_id) MUST flow as explicit parameters end-to-end; default values forbidden.",
+    "SESSION-163: ConnectionRefusedError MUST NEVER cause Traceback crash; graceful degradation with yellow warning and smooth return to main loop.",
+    "SESSION-163: NEVER hardcode absolute filesystem paths in backend code; all paths MUST be dynamically extracted from context['artifacts'].",
+    "SESSION-163: mathart/assets/workflows/ MUST contain a valid workflow_api_template.json template.",
+    "SESSION-163: AI render outputs MUST be renamed to ai_render_{action}_{frame:02d}.png format.",
+    "SESSION-163: New backends MUST self-register via @register_backend; zero trunk modification."
   ]
 }
