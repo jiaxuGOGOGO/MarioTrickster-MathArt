@@ -32,7 +32,7 @@ import textwrap
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 
 @dataclass
@@ -88,6 +88,10 @@ class DistillResult:
         Rules that conflicted with existing knowledge.
     log_entry : str
         Formatted log entry for DISTILL_LOG.md.
+    enforcer_plugins_generated : list[str]
+        Paths to auto-generated enforcer plugins.
+    ast_validation_errors : list[str]
+        Errors encountered during AST validation of generated code.
     """
     session_id: str
     source_name: str
@@ -96,13 +100,20 @@ class DistillResult:
     knowledge_files_updated: list[str] = field(default_factory=list)
     conflicts_detected: list[str] = field(default_factory=list)
     log_entry: str = ""
+    enforcer_plugins_generated: list[str] = field(default_factory=list)
+    ast_validation_errors: list[str] = field(default_factory=list)
 
     def summary(self) -> str:
-        return (
-            f"[{self.session_id}] {self.source_name}: "
-            f"{self.rules_integrated}/{self.rules_extracted} rules integrated, "
-            f"{len(self.conflicts_detected)} conflicts"
+        base = (
+            f"Session {self.session_id}: Extracted {self.rules_extracted} rules, "
+            f"integrated {self.rules_integrated}. "
+            f"Updated {len(self.knowledge_files_updated)} files."
         )
+        if self.enforcer_plugins_generated:
+            base += f" Generated {len(self.enforcer_plugins_generated)} enforcer plugins."
+        if self.ast_validation_errors:
+            base += f" Encountered {len(self.ast_validation_errors)} AST validation errors."
+        return base
 
 
 # ── Domain → knowledge file mapping ──
@@ -179,6 +190,7 @@ class OuterLoopDistiller:
         self.llm_model = llm_model
         self.verbose = verbose
         self._next_session_id = self._get_next_session_id()
+        self._auto_generated_dir = self.project_root / "mathart" / "quality" / "gates" / "auto_generated"
 
     def distill_text(
         self,
@@ -219,9 +231,28 @@ class OuterLoopDistiller:
         # Integrate rules into knowledge files
         updated_files, conflicts = self._integrate_rules(rules, source_name, page_ref)
 
+        # SESSION-155: Autonomous Knowledge Compiler - Enforcer Synthesis
+        generated_plugins = []
+        ast_errors = []
+        if self.use_llm and os.environ.get("OPENAI_API_KEY") and rules:
+            if self.verbose:
+                print(f"\033[36m  [4/5] 🛠️  Enforcer code synthesis ............\033[0m")
+            
+            plugin_path, errors = self._synthesize_enforcer_plugin(session_id, source_name, rules)
+            if errors:
+                ast_errors.extend(errors)
+                if self.verbose:
+                    print(f"\033[31m  [5/5] 🔬 AST guardian validation FAILED ......\033[0m")
+                    for err in errors:
+                        print(f"         - {err}")
+            elif plugin_path:
+                generated_plugins.append(str(plugin_path))
+                if self.verbose:
+                    print(f"\033[32m  [5/5] 🔬 AST guardian validation PASSED ......\033[0m")
+
         # Generate log entry
         log_entry = self._format_log_entry(
-            session_id, source_name, rules, updated_files, conflicts
+            session_id, source_name, rules, updated_files, conflicts, generated_plugins
         )
 
         # Append to DISTILL_LOG.md
@@ -235,6 +266,8 @@ class OuterLoopDistiller:
             knowledge_files_updated=updated_files,
             conflicts_detected=conflicts,
             log_entry=log_entry,
+            enforcer_plugins_generated=generated_plugins,
+            ast_validation_errors=ast_errors,
         )
 
         if self.verbose:
@@ -507,6 +540,136 @@ class OuterLoopDistiller:
 
         return sorted(updated_files), conflicts
 
+    def _synthesize_enforcer_plugin(
+        self,
+        session_id: str,
+        source_name: str,
+        rules: list[DistillRule],
+    ) -> tuple[Optional[Path], list[str]]:
+        """Synthesize an Enforcer plugin from distilled rules using LLM."""
+        try:
+            from openai import OpenAI
+            from mathart.quality.gates.ast_sanitizer import validate_enforcer_code
+            client = OpenAI()
+
+            # Group rules by domain to pick the primary domain
+            domains = {}
+            for r in rules:
+                domains[r.domain] = domains.get(r.domain, 0) + 1
+            primary_domain = max(domains.items(), key=lambda x: x[1])[0] if domains else "general"
+            
+            # Clean domain name for class/file naming
+            clean_domain = re.sub(r'[^a-zA-Z0-9_]', '', primary_domain.lower())
+            if not clean_domain:
+                clean_domain = "general"
+                
+            class_name = "".join(word.capitalize() for word in clean_domain.split("_")) + "Enforcer"
+            file_name = f"{clean_domain}_enforcer.py"
+            
+            # Prepare rules text for prompt
+            rules_text = "\n".join(f"- {r.rule_text} (Params: {r.params})" for r in rules if r.rule_text)
+            
+            prompt = f"""You are an expert Python developer writing a Knowledge Enforcer plugin for MarioTrickster-MathArt.
+Your task is to synthesize a complete, valid Python module that implements an EnforcerBase subclass.
+
+Source Document: {source_name}
+Primary Domain: {primary_domain}
+Class Name: {class_name}
+
+Rules to enforce:
+{rules_text}
+
+REQUIREMENTS:
+1. The code MUST be valid Python 3.10+.
+2. The class MUST inherit from `EnforcerBase`.
+3. You MUST use the `@register_enforcer` decorator.
+4. You MUST implement `name` (property), `source_docs` (property), and `validate(self, params: Dict[str, Any]) -> EnforcerResult`.
+5. The `validate` method MUST follow the Clamp-Not-Reject principle: auto-correct invalid parameters and append an `EnforcerViolation` with `severity=EnforcerSeverity.CLAMPED`.
+6. DO NOT include any `import` statements inside the class body.
+7. DO NOT use `exec`, `eval`, `open`, or other unsafe functions.
+8. Return ONLY the raw Python code. Do not wrap it in markdown code blocks (no ```python ... ```).
+
+TEMPLATE:
+from typing import Any, Dict
+from mathart.quality.gates import EnforcerBase, register_enforcer, EnforcerResult, EnforcerViolation, EnforcerSeverity
+
+@register_enforcer
+class {class_name}(EnforcerBase):
+    @property
+    def name(self) -> str:
+        return "{clean_domain}_enforcer"
+
+    @property
+    def source_docs(self) -> list[str]:
+        return ["{source_name}"]
+
+    def validate(self, params: Dict[str, Any]) -> EnforcerResult:
+        violations = []
+        corrected = dict(params)
+        
+        # Implement rule checks here
+        # Example:
+        # if "some_param" in corrected and corrected["some_param"] > 10:
+        #     original = corrected["some_param"]
+        #     corrected["some_param"] = 10
+        #     violations.append(EnforcerViolation(
+        #         rule_id="rule_name",
+        #         message="Explanation",
+        #         severity=EnforcerSeverity.CLAMPED,
+        #         source_doc=self.source_docs[0],
+        #         field_name="some_param",
+        #         original_value=original,
+        #         corrected_value=10
+        #     ))
+            
+        return EnforcerResult(
+            enforcer_name=self.name,
+            params=corrected,
+            violations=violations,
+        )
+"""
+            response = client.chat.completions.create(
+                model=self.llm_model,
+                messages=[
+                    {"role": "system", "content": "You are an autonomous code synthesizer. Output ONLY raw Python code. No markdown formatting, no explanations."},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.1,
+                max_tokens=2000,
+            )
+            
+            code = response.choices[0].message.content.strip()
+            
+            # Strip markdown blocks if the LLM ignored instructions
+            if code.startswith("```python"):
+                code = code[9:]
+            if code.startswith("```"):
+                code = code[3:]
+            if code.endswith("```"):
+                code = code[:-3]
+            code = code.strip()
+            
+            # Validate AST
+            is_valid, errors = validate_enforcer_code(code)
+            if not is_valid:
+                return None, errors
+                
+            # Write to auto_generated directory
+            self._auto_generated_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Ensure __init__.py exists
+            init_path = self._auto_generated_dir / "__init__.py"
+            if not init_path.exists():
+                init_path.write_text('"""Auto-generated enforcers."""\n')
+                
+            plugin_path = self._auto_generated_dir / file_name
+            plugin_path.write_text(code, encoding="utf-8")
+            
+            return plugin_path, []
+            
+        except Exception as e:
+            return None, [f"Synthesis failed: {str(e)}"]
+
     def _format_log_entry(
         self,
         session_id: str,
@@ -514,6 +677,7 @@ class OuterLoopDistiller:
         rules: list[DistillRule],
         updated_files: list[str],
         conflicts: list[str],
+        generated_plugins: list[str] = None,
     ) -> str:
         """Format a DISTILL_LOG.md entry."""
         date_str = datetime.now().strftime("%Y-%m-%d")
@@ -528,6 +692,11 @@ class OuterLoopDistiller:
         ]
         for f in updated_files:
             lines.append(f"- `{f}` — 追加新规则")
+
+        if generated_plugins:
+            lines.append("**自动生成插件**：")
+            for p in generated_plugins:
+                lines.append(f"- `{p}` — AST 校验通过")
 
         if conflicts:
             lines.append("**冲突检测**：")

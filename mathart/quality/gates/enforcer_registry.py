@@ -292,11 +292,21 @@ def _auto_load_enforcers() -> None:
     """
     import importlib
     import sys as _sys
+    from pathlib import Path
 
     modules = [
         "mathart.quality.gates.pixel_art_enforcer",
         "mathart.quality.gates.color_harmony_enforcer",
     ]
+    
+    # SESSION-155: Auto-discover generated enforcers
+    auto_dir = Path(__file__).parent / "auto_generated"
+    if auto_dir.is_dir():
+        for py_file in sorted(auto_dir.glob("*_enforcer.py")):
+            module_name = f"mathart.quality.gates.auto_generated.{py_file.stem}"
+            if module_name not in modules:
+                modules.append(module_name)
+
     registry = KnowledgeEnforcerRegistry.get_instance()
     for mod_name in modules:
         try:

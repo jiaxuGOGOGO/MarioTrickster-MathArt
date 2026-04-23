@@ -31,6 +31,10 @@ from mathart.quality.gates.enforcer_registry import (
     get_enforcer_registry,
     run_all_enforcers,
 )
+from mathart.quality.gates.ast_sanitizer import (
+    AstValidationError,
+    validate_enforcer_code,
+)
 
 __all__ = [
     "EnforcerBase",
@@ -41,4 +45,6 @@ __all__ = [
     "register_enforcer",
     "get_enforcer_registry",
     "run_all_enforcers",
+    "AstValidationError",
+    "validate_enforcer_code",
 ]
