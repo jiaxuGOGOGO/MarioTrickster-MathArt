@@ -1,4 +1,12 @@
-"""AI Render Stream Backend — Full-Array Artifact Streaming to ComfyUI.
+"""AI Render Stream Backend — Full-Array Streaming Pipeline.
+
+SESSION-173 (P0-SESSION-173-OFFLINE-SEMANTIC-TRANSLATOR)
+-----------------------------------------------------------------
+Deployed lightweight offline Chinese-to-English vibe translation dictionary
+(VIBE_TRANSLATION_MAP) at the Prompt Armor boundary.  All Chinese vibe
+tokens are now silently translated to high-quality English prompt fragments
+before entering _armor_prompt(), ensuring CLIP receives pure English input.
+Zero external dependencies, zero network calls, zero user config changes.
 
 SESSION-172 (P0-SESSION-172-LATENT-SPACE-RESCUE)
 -----------------------------------------------------------------
@@ -151,6 +159,126 @@ _BASE_NEGATIVE_PROMPT = (
     "messy background, text, watermark"
 )
 
+# ---------------------------------------------------------------------------
+# SESSION-173: Offline Semantic Translator — Hardcoded i18n Vibe Dictionary
+# ---------------------------------------------------------------------------
+# CLIP ViT-L/14 (SD1.5) has near-zero Chinese comprehension.  Pure Chinese
+# vibe tokens (e.g. "活泼的跳跃") become garbage tokens that produce semantic
+# noise.  This static dictionary translates common Chinese vibe phrases to
+# high-quality English prompt fragments BEFORE they enter _armor_prompt().
+#
+# Design Principles (Prompt Engineering i18n Mapping):
+# 1. Purely offline — zero network calls, zero external dependencies.
+# 2. Graceful Fallback — dict.get(key, original_key) ensures unknown vibes
+#    pass through unmodified; never raises KeyError.
+# 3. Immutable User Config — user YAML stays pure Chinese; translation
+#    happens only at the API payload boundary.
+#
+# References:
+# - Prompt Translator for SD (ParisNeo, GitHub): offline dict-based approach
+# - Chain-of-Dictionary Prompting (EMNLP 2024): offline dictionary lookup
+#   for multilingual LLM translation
+# - AltCLIP (ACL Findings 2023): CLIP ViT-L/14 Chinese token degradation
+# ---------------------------------------------------------------------------
+VIBE_TRANSLATION_MAP: dict[str, str] = {
+    # ── Composite vibe phrases (复合意图短语) ──
+    "活泼的跳跃": "lively jumping, dynamic energetic motion, vivid, (bouncy:1.2)",
+    "夸张的弹性": "exaggerated squash and stretch, extremely bouncy, cartoonish physics, elastic deformation",
+    "沉重的落地": "heavy landing, massive impact, rigid weight, dramatic pose",
+    "轻盈的跳跃": "light graceful jump, floating motion, featherweight, airy pose",
+    "厚重的打击": "heavy powerful strike, massive impact, crushing blow, weighty attack",
+    "活泼的弹性": "lively bouncy motion, springy elastic, energetic squash and stretch",
+    "沉稳的待机": "calm steady idle, composed standing pose, subtle breathing",
+    "夸张的跳跃": "exaggerated dramatic jump, over-the-top leap, extreme hang time",
+    "轻盈的跑步": "light graceful running, nimble sprint, effortless forward motion",
+    "厚重的落地": "heavy landing, ground-shaking impact, massive weight drop",
+    # ── Single-word action vibes (单词动作意图) ──
+    "受击": "getting hit, damaged, impact, recoiling, pain expression",
+    "跑": "running fast, sprinting pose, intense forward motion",
+    "走": "smooth walking, rhythmic walk cycle, calm pacing",
+    "待机": "idle pose, subtle breathing motion, standing still",
+    "跳": "jumping, leaping upward, aerial pose, dynamic takeoff",
+    "跳跃": "jumping, leaping upward, dynamic takeoff, hang time",
+    "攻击": "attacking, combat strike, offensive action, dynamic swing",
+    "落地": "landing, touching down, impact absorption, recovery pose",
+    "死亡": "death, collapsing, falling down, defeated pose",
+    "击飞": "knocked back, launched airborne, ragdoll, tumbling",
+    "冲刺": "dashing forward, lunging, charge attack, rapid thrust",
+    "翻滚": "rolling, dodge roll, tumbling evasion, acrobatic",
+    "格挡": "blocking, defensive guard, shield stance, parry",
+    "施法": "casting spell, magic channeling, arcane gesture, glowing",
+    "投掷": "throwing, projectile toss, overhand launch",
+    "滑行": "sliding, ground slide, low profile dash",
+    "攀爬": "climbing, scaling wall, grip and pull, vertical motion",
+    "游泳": "swimming, water motion, breaststroke, aquatic pose",
+    # ── Single-word style vibes (单词风格意图) ──
+    "活泼": "lively, energetic, dynamic, vivid motion",
+    "夸张": "exaggerated, over-the-top, dramatic, cartoonish",
+    "沉稳": "calm, steady, composed, grounded, deliberate",
+    "轻盈": "light, airy, graceful, featherweight, nimble",
+    "厚重": "heavy, weighty, massive, powerful, grounded",
+    "弹性": "bouncy, elastic, springy, squash and stretch",
+    "沉重": "heavy, weighty, massive, ponderous, slow",
+    "可爱": "cute, adorable, chibi-style, round features, kawaii",
+    "帅气": "cool, stylish, sharp features, confident pose",
+    "狂野": "wild, feral, untamed, aggressive, fierce",
+    "优雅": "elegant, graceful, refined, flowing motion",
+    "爆裂": "explosive, burst, shockwave, high energy impact",
+    "流畅": "fluid, smooth, seamless motion, flowing",
+    "精致": "exquisite, finely detailed, polished, premium quality",
+    "可怕": "scary, menacing, intimidating, dark aura",
+    "神秘": "mysterious, enigmatic, arcane, ethereal glow",
+    "机械": "mechanical, robotic, metallic, industrial, mecha",
+}
+
+
+def _translate_vibe(raw_vibe: str) -> str:
+    """Offline Chinese-to-English vibe translation via static dictionary.
+
+    SESSION-173 (P0-SESSION-173-OFFLINE-SEMANTIC-TRANSLATOR)
+    --------------------------------------------------------
+    Translates Chinese vibe phrases to high-quality English prompt fragments
+    using a hardcoded dictionary.  Operates in two passes:
+
+    1. **Exact match**: Try the full string against VIBE_TRANSLATION_MAP.
+    2. **Token-level fallback**: Split by common Chinese delimiters and
+       translate each token individually, preserving already-English tokens.
+
+    Graceful Fallback: ``dict.get(key, key)`` ensures unknown tokens pass
+    through unmodified — never raises ``KeyError``.
+
+    Parameters
+    ----------
+    raw_vibe : str
+        The user's vibe string, potentially in Chinese.
+
+    Returns
+    -------
+    str
+        Translated English vibe string, or original if no translation found.
+    """
+    if not raw_vibe or not raw_vibe.strip():
+        return ""
+
+    cleaned = raw_vibe.strip()
+
+    # Pass 1: Exact full-string match (covers composite phrases like "活泼的跳跃")
+    if cleaned in VIBE_TRANSLATION_MAP:
+        return VIBE_TRANSLATION_MAP[cleaned]
+
+    # Pass 2: Token-level translation for compound vibes
+    import re
+    tokens = re.split(r"[,;，；\s的]+", cleaned)
+    translated_tokens = []
+    for token in tokens:
+        token = token.strip()
+        if not token:
+            continue
+        translated_tokens.append(VIBE_TRANSLATION_MAP.get(token, token))
+
+    return ", ".join(translated_tokens) if translated_tokens else cleaned
+
+
 
 def _jit_upscale_image(image_path: str | Path, *, is_mask: bool = False) -> bytes:
     """JIT in-memory upscale of a baked guide image to AI_TARGET_RES.
@@ -206,11 +334,22 @@ def _armor_prompt(user_vibe: str) -> str:
     tokens.  Pure Chinese prompts produce semantic noise.  We prepend
     high-quality English base tags to anchor the generation.
 
+    SESSION-173: Before merging with the base prompt, the raw vibe is now
+    routed through ``_translate_vibe()`` to convert Chinese tokens to
+    English.  This ensures CLIP receives pure English input.
+
     References:
     - AltCLIP (ACL Findings 2023): standard CLIP has near-zero Chinese capability.
     - MuLan (OpenReview 2025): SD1.5 has strong English language bias.
+    - Chain-of-Dictionary Prompting (EMNLP 2024): offline dict lookup.
     """
-    return f"{_BASE_POSITIVE_PROMPT}, {user_vibe}"
+    # SESSION-173: Translate Chinese vibe to English before armor wrapping
+    english_vibe = _translate_vibe(user_vibe)
+
+    # Null-safe assembly: avoid ", , masterpiece" residual comma artifacts
+    if english_vibe:
+        return f"{_BASE_POSITIVE_PROMPT}, {english_vibe}"
+    return _BASE_POSITIVE_PROMPT
 
 
 def _force_latent_canvas_512(workflow: dict) -> None:

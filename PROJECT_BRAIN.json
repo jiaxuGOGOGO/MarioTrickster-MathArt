@@ -1,7 +1,7 @@
 {
-  "version": "v0.99.16",
-  "last_session_id": "SESSION-172",
-  "last_updated": "2026-04-24T12:45:00Z",
+  "version": "v0.99.17",
+  "last_session_id": "SESSION-173",
+  "last_updated": "2026-04-24T14:30:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -24,6 +24,24 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-173-OFFLINE-SEMANTIC-TRANSLATOR",
+        "title": "Offline Semantic Translator — Prompt Engineering i18n Mapping & Graceful Fallback",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-173",
+        "modules": [
+          "mathart/backend/ai_render_stream_backend.py",
+          "mathart/backend/comfyui_render_backend.py",
+          "tests/test_session173_vibe_translator.py",
+          "docs/USER_GUIDE.md",
+          "SESSION_HANDOFF.md"
+        ],
+        "tests": [
+          "tests/test_session173_vibe_translator.py"
+        ],
+        "description": "SESSION-173 Offline Semantic Translator: Fixed CLIP semantic black hole caused by Chinese vibe inputs. Implemented VIBE_TRANSLATION_MAP in ai_render_stream_backend.py as a lightweight offline Chinese-to-English dictionary. Added _translate_vibe() interceptor before _armor_prompt() to convert user's pure Chinese intents into high-quality English prompt fragments (e.g., '活泼的跳跃' -> 'lively jumping...'). Designed with Graceful Fallback (dict.get) to prevent KeyErrors on unknown tokens, and Null-Safe Assembly to avoid residual comma artifacts. Zero external dependencies, zero network calls, zero user config changes. 13 unit tests added. Research grounding: Prompt Engineering i18n Mapping, Graceful Fallback in Key-Value Stores, Chain-of-Dictionary Prompting (EMNLP 2024). All red lines strictly observed."
+      },
       {
         "id": "P0-SESSION-172-LATENT-SPACE-RESCUE",
         "title": "Latent Space Nyquist Rescue & Prompt Armor Injection — JIT Resolution Hydration",

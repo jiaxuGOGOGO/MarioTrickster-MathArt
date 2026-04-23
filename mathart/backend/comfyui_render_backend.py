@@ -1,5 +1,11 @@
 """ComfyUI Headless Render Backend — Registry-Native Production Plugin.
 
+SESSION-173 (P0-SESSION-173-OFFLINE-SEMANTIC-TRANSLATOR)
+-----------------------------------------------------------------
+Inherits SESSION-172 JIT upscale + Prompt Armor.  _armor_prompt() now
+internally translates Chinese vibe tokens to English via the hardcoded
+VIBE_TRANSLATION_MAP before wrapping with base prompt anchors.
+
 SESSION-172 (P0-SESSION-172-LATENT-SPACE-RESCUE)
 -----------------------------------------------------------------
 Integrated JIT Resolution Hydration and Prompt Armor Injection into the
@@ -54,7 +60,9 @@ from mathart.core.backend_registry import (
 from mathart.core.artifact_schema import ArtifactFamily, ArtifactManifest
 from mathart.core.backend_types import BackendType
 
-# SESSION-172: Import JIT upscale helpers from ai_render_stream_backend
+# SESSION-172/173: Import JIT upscale + Prompt Armor (with built-in vibe
+# translation) from ai_render_stream_backend.  _armor_prompt() now
+# internally calls _translate_vibe() — no additional import needed.
 from mathart.backend.ai_render_stream_backend import (
     _jit_upscale_image,
     _armor_prompt,
