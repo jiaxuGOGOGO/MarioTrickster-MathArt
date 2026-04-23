@@ -1,5 +1,35 @@
 """AI Render Stream Backend — Full-Array Artifact Streaming to ComfyUI.
 
+SESSION-172 (P0-SESSION-172-LATENT-SPACE-RESCUE)
+-----------------------------------------------------------------
+Critical fix: **JIT Resolution Hydration + Prompt Armor Injection**.
+
+1. **Pre-Upload 512x512 Upscaling**: All 192x192 baked guide images
+   (Albedo/Normal/Depth) are JIT-upscaled to 512x512 in-memory via
+   ``PIL.Image.resize()`` before uploading to ComfyUI.  This rescues
+   the latent space from the Nyquist collapse (24x24 latent → 64x64).
+   Original on-disk 192x192 assets are NEVER modified (Immutable Source
+   Data Principle).
+
+2. **EmptyLatentImage 512x512 Override**: The workflow mutator now
+   force-overrides all ``EmptyLatentImage`` nodes to 512x512, ensuring
+   ControlNet condition images and latent canvas are resolution-aligned
+   (prevents Tensor Shape Mismatch).
+
+3. **Prompt Armor Injection**: User-provided vibe prompts are wrapped
+   with high-quality English anchor tags (``masterpiece, best quality,
+   highly detailed, 3d game character asset, ...``) to compensate for
+   CLIP's inability to parse non-English (e.g., Chinese) tokens.
+   Negative prompt is hardened with industry-standard avoidance terms.
+
+Research grounding (SESSION-172):
+- Latent Space Nyquist Limit: SD1.5 VAE 8x → 192px input = 24x24 latent
+  (below U-Net minimum receptive field of 64x64 = 512px).
+- JIT Resolution Hydration: upscale at network IO boundary only.
+- Prompt Anchoring for Multilingual Intents: CLIP ViT-L/14 is English-only.
+- AltCLIP (ACL Findings 2023): standard CLIP cannot process Chinese.
+- Noise Re-sampling (ICLR 2025): VAE compression induces latent errors.
+
 SESSION-169 (P0-SESSION-169-EXCEPTION-PIERCING-AND-GLOBAL-ABORT)
 -----------------------------------------------------------------
 Critical fix: The ``ComfyUIExecutionError`` catch in the render retry loop
@@ -74,6 +104,7 @@ Architecture Red Lines (SESSION-163)
 """
 from __future__ import annotations
 
+import io
 import json
 import logging
 import os
@@ -92,6 +123,117 @@ from mathart.core.backend_registry import (
 )
 from mathart.core.artifact_schema import ArtifactFamily, ArtifactManifest
 from mathart.core.backend_types import BackendType
+
+# ---------------------------------------------------------------------------
+# SESSION-172: JIT Resolution Hydration Constants & Helpers
+# ---------------------------------------------------------------------------
+# The upstream CPU physics engine bakes guide sequences at 192x192 for
+# throughput.  The SD1.5 VAE has 8x spatial compression, so 192px input
+# produces a 24x24 latent — far below the U-Net's minimum receptive field
+# of 64x64 (= 512px).  We MUST upscale to at least 512x512 at the network
+# boundary before uploading to ComfyUI.
+#
+# RED LINE: This upscale ONLY happens in-memory (BytesIO).  The original
+# 192x192 on-disk assets in outputs/guide_baking are NEVER overwritten.
+# ---------------------------------------------------------------------------
+
+AI_TARGET_RES = 512  # Minimum safe resolution for SD1.5 latent space
+
+# Prompt Armor — English anchor tags for CLIP semantic grounding
+_BASE_POSITIVE_PROMPT = (
+    "masterpiece, best quality, highly detailed, "
+    "3d game character asset, clean white background, "
+    "vibrant colors, clear outlines, (masterpiece:1.2)"
+)
+_BASE_NEGATIVE_PROMPT = (
+    "nsfw, worst quality, low quality, bad anatomy, "
+    "blurry, noisy, ugly, deformed, extra limbs, "
+    "messy background, text, watermark"
+)
+
+
+def _jit_upscale_image(image_path: str | Path, *, is_mask: bool = False) -> bytes:
+    """JIT in-memory upscale of a baked guide image to AI_TARGET_RES.
+
+    SESSION-172 (P0-SESSION-172-LATENT-SPACE-RESCUE)
+    -------------------------------------------------
+    Reads the original 192x192 image from disk, resizes it to
+    ``AI_TARGET_RES x AI_TARGET_RES`` in-memory using PIL, and returns
+    the PNG-encoded bytes.  The original file is NEVER modified.
+
+    Interpolation Contract:
+    - Albedo / Normal / Depth: ``Image.LANCZOS`` (high-quality sinc-based)
+    - Mask: ``Image.NEAREST`` (prevents edge softening / anti-aliasing)
+
+    Parameters
+    ----------
+    image_path : str | Path
+        Path to the original baked guide image (e.g., 192x192 PNG).
+    is_mask : bool
+        If True, use NEAREST interpolation to preserve hard mask edges.
+
+    Returns
+    -------
+    bytes
+        PNG-encoded image data at AI_TARGET_RES x AI_TARGET_RES.
+    """
+    from PIL import Image as PILImage
+
+    img = PILImage.open(str(image_path))
+    original_size = img.size
+    resample = PILImage.NEAREST if is_mask else PILImage.LANCZOS
+    img_upscaled = img.resize((AI_TARGET_RES, AI_TARGET_RES), resample=resample)
+
+    buf = io.BytesIO()
+    img_upscaled.save(buf, format="PNG")
+    png_bytes = buf.getvalue()
+
+    logger.info(
+        "[JIT-Upscale] %s: %s → %dx%d (%s, %d bytes)",
+        Path(image_path).name,
+        f"{original_size[0]}x{original_size[1]}",
+        AI_TARGET_RES, AI_TARGET_RES,
+        "NEAREST" if is_mask else "LANCZOS",
+        len(png_bytes),
+    )
+    return png_bytes
+
+
+def _armor_prompt(user_vibe: str) -> str:
+    """Wrap user vibe prompt with English anchor tags for CLIP grounding.
+
+    SESSION-172: CLIP ViT-L/14 (used by SD1.5) cannot parse non-English
+    tokens.  Pure Chinese prompts produce semantic noise.  We prepend
+    high-quality English base tags to anchor the generation.
+
+    References:
+    - AltCLIP (ACL Findings 2023): standard CLIP has near-zero Chinese capability.
+    - MuLan (OpenReview 2025): SD1.5 has strong English language bias.
+    """
+    return f"{_BASE_POSITIVE_PROMPT}, {user_vibe}"
+
+
+def _force_latent_canvas_512(workflow: dict) -> None:
+    """Force all EmptyLatentImage nodes in the workflow to 512x512.
+
+    SESSION-172: ControlNet condition images are JIT-upscaled to 512x512.
+    The EmptyLatentImage canvas MUST match to prevent Tensor Shape Mismatch.
+    This mutates the workflow dict in-place.
+    """
+    for node_id, node_data in workflow.items():
+        if not isinstance(node_data, dict):
+            continue
+        if node_data.get("class_type") == "EmptyLatentImage":
+            inputs = node_data.get("inputs", {})
+            old_w = inputs.get("width", "?")
+            old_h = inputs.get("height", "?")
+            inputs["width"] = AI_TARGET_RES
+            inputs["height"] = AI_TARGET_RES
+            logger.info(
+                "[SESSION-172] EmptyLatentImage node %s: %sx%s → %dx%d",
+                node_id, old_w, old_h, AI_TARGET_RES, AI_TARGET_RES,
+            )
+
 
 # SESSION-168: Import the Poison Pill exception for immediate circuit-breaker
 # trip on fatal ComfyUI execution errors (e.g., PyTorch Half/Float conflict).
@@ -513,12 +655,23 @@ class AIRenderStreamBackend:
                 ))
                 continue
 
-            # ── Upload images with exponential backoff ───────────────
+            # ── Upload images with JIT 512 upscale + exponential backoff ───
+            # SESSION-172: JIT Resolution Hydration — upscale 192→512 in-memory
+            # before uploading.  Original on-disk assets are NEVER modified.
             uploaded_albedo = ""
             for attempt in range(_MAX_RETRY_ATTEMPTS):
                 try:
                     if Path(albedo_path).exists():
-                        uploaded_albedo = client.upload_image(albedo_path)
+                        albedo_bytes = _jit_upscale_image(albedo_path, is_mask=False)
+                        uploaded_albedo = client.upload_image_bytes(
+                            albedo_bytes,
+                            f"jit512_{Path(albedo_path).name}",
+                        )
+                        logger.info(
+                            "[SESSION-172] JIT Upscale Albedo: %s → %dx%d → uploaded as %s",
+                            Path(albedo_path).name, AI_TARGET_RES, AI_TARGET_RES,
+                            uploaded_albedo,
+                        )
                     break
                 except (ConnectionRefusedError, OSError) as e:
                     delay = _backoff_delay(attempt)
@@ -549,22 +702,51 @@ class AIRenderStreamBackend:
                 continue
 
             # Upload normal and depth maps (optional, non-fatal)
+            # SESSION-172: JIT upscale normal/depth to 512x512 as well
             uploaded_normal = ""
             uploaded_depth = ""
             try:
                 if normal_path and Path(normal_path).exists():
-                    uploaded_normal = client.upload_image(normal_path)
+                    normal_bytes = _jit_upscale_image(normal_path, is_mask=False)
+                    uploaded_normal = client.upload_image_bytes(
+                        normal_bytes,
+                        f"jit512_{Path(normal_path).name}",
+                    )
+                    logger.info(
+                        "[SESSION-172] JIT Upscale Normal: %s → %dx%d",
+                        Path(normal_path).name, AI_TARGET_RES, AI_TARGET_RES,
+                    )
             except Exception as e:
                 logger.warning("[AIRenderStreamBackend] Normal map upload failed: %s", e)
 
             try:
                 if depth_path and Path(depth_path).exists():
-                    uploaded_depth = client.upload_image(depth_path)
+                    depth_bytes = _jit_upscale_image(depth_path, is_mask=False)
+                    uploaded_depth = client.upload_image_bytes(
+                        depth_bytes,
+                        f"jit512_{Path(depth_path).name}",
+                    )
+                    logger.info(
+                        "[SESSION-172] JIT Upscale Depth: %s → %dx%d",
+                        Path(depth_path).name, AI_TARGET_RES, AI_TARGET_RES,
+                    )
             except Exception as e:
                 logger.warning("[AIRenderStreamBackend] Depth map upload failed: %s", e)
 
-            # ── Build mutated payload with dynamic injection ─────────
-            action_prompt = f"{prompt}, {action_name} pose, game sprite animation frame"
+            # ── Build mutated payload with Prompt Armor + 512 Latent ───
+            # SESSION-172: Prompt Armor Injection — wrap user vibe with
+            # English anchor tags for CLIP semantic grounding.
+            armored_prompt = _armor_prompt(f"{prompt}, {action_name} pose, game sprite animation frame")
+            armored_negative = _BASE_NEGATIVE_PROMPT
+            # Merge user negative with base negative (user additions preserved)
+            if negative_prompt and negative_prompt.strip():
+                armored_negative = f"{_BASE_NEGATIVE_PROMPT}, {negative_prompt}"
+
+            logger.info(
+                "[SESSION-172] Prompt Armor: positive=%s... | negative=%s...",
+                armored_prompt[:80], armored_negative[:60],
+            )
+
             try:
                 from mathart.backend.comfy_mutator import SemanticMarker
 
@@ -583,13 +765,18 @@ class AIRenderStreamBackend:
 
                 payload = mutator.build_payload(
                     image_filename=uploaded_albedo,
-                    prompt=action_prompt,
-                    negative_prompt=negative_prompt,
+                    prompt=armored_prompt,
+                    negative_prompt=armored_negative,
                     seed=-1,
                     output_prefix=f"ai_render_{action_name}",
                     extra_injections=extra_injections if extra_injections else None,
                     extra_markers=tuple(extra_markers) if extra_markers else None,
                 )
+
+                # SESSION-172: Force EmptyLatentImage canvas to 512x512
+                # to align with JIT-upscaled ControlNet condition images.
+                if "prompt" in payload and isinstance(payload["prompt"], dict):
+                    _force_latent_canvas_512(payload["prompt"])
             except Exception as e:
                 logger.error(
                     "[AIRenderStreamBackend] Payload mutation failed for '%s': %s",

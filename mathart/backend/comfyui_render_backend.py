@@ -1,5 +1,13 @@
 """ComfyUI Headless Render Backend — Registry-Native Production Plugin.
 
+SESSION-172 (P0-SESSION-172-LATENT-SPACE-RESCUE)
+-----------------------------------------------------------------
+Integrated JIT Resolution Hydration and Prompt Armor Injection into the
+registry-native render backend.  Image uploads are now JIT-upscaled to
+512x512 in-memory before upload.  Prompts are wrapped with English anchor
+tags for CLIP semantic grounding.  EmptyLatentImage nodes are forced to
+512x512 to align with ControlNet condition images.
+
 SESSION-151 (P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH)
 ----------------------------------------------------------
 This module implements the **@register_backend** plugin for the ComfyUI
@@ -45,6 +53,15 @@ from mathart.core.backend_registry import (
 )
 from mathart.core.artifact_schema import ArtifactFamily, ArtifactManifest
 from mathart.core.backend_types import BackendType
+
+# SESSION-172: Import JIT upscale helpers from ai_render_stream_backend
+from mathart.backend.ai_render_stream_backend import (
+    _jit_upscale_image,
+    _armor_prompt,
+    _BASE_NEGATIVE_PROMPT,
+    _force_latent_canvas_512,
+    AI_TARGET_RES,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -260,11 +277,20 @@ class ComfyUIRenderBackend:
                 elapsed=time.monotonic() - t0,
             )
 
-        # --- Upload proxy image ---
+        # --- Upload proxy image (SESSION-172: JIT 512 upscale) ---
         uploaded_filename = ""
         if image_path:
             try:
-                uploaded_filename = client.upload_image(image_path)
+                img_bytes = _jit_upscale_image(image_path, is_mask=False)
+                uploaded_filename = client.upload_image_bytes(
+                    img_bytes,
+                    f"jit512_{Path(image_path).name}",
+                )
+                logger.info(
+                    "[SESSION-172] JIT Upscale: %s → %dx%d → %s",
+                    Path(image_path).name, AI_TARGET_RES, AI_TARGET_RES,
+                    uploaded_filename,
+                )
             except Exception as e:
                 logger.error(
                     "[ComfyUIRenderBackend] Image upload failed: %s", e
@@ -276,17 +302,26 @@ class ComfyUIRenderBackend:
                     elapsed=time.monotonic() - t0,
                 )
 
-        # --- Build mutated payload ---
+        # --- Build mutated payload (SESSION-172: Prompt Armor + 512 Latent) ---
+        # Prompt Armor: wrap user prompt with English anchor tags
+        armored_prompt = _armor_prompt(prompt)
+        armored_negative = _BASE_NEGATIVE_PROMPT
+        if negative_prompt and negative_prompt.strip():
+            armored_negative = f"{_BASE_NEGATIVE_PROMPT}, {negative_prompt}"
+
         mutator = ComfyWorkflowMutator(blueprint_path=blueprint_path if blueprint_path else None)
 
         try:
             payload = mutator.build_payload(
                 image_filename=uploaded_filename,
-                prompt=prompt,
-                negative_prompt=negative_prompt,
+                prompt=armored_prompt,
+                negative_prompt=armored_negative,
                 seed=seed,
                 output_prefix=output_prefix,
             )
+            # SESSION-172: Force EmptyLatentImage to 512x512
+            if "prompt" in payload and isinstance(payload["prompt"], dict):
+                _force_latent_canvas_512(payload["prompt"])
         except Exception as e:
             logger.error(
                 "[ComfyUIRenderBackend] Payload mutation failed: %s", e

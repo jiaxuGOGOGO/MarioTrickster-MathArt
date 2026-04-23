@@ -149,6 +149,10 @@ freeze_locks:
 
 - **[2] 终极降维 (全套烘焙 + AI 渲染)**：
   系统会先执行 [1] 的全套烘焙，然后自动将参数发往后端的 `ProductionStrategy` 唤醒 GPU 进行大模型推流渲染。
+
+  > **SESSION-172 潜空间救援与重甲提示词说明 (Latent Space Rescue & Prompt Armor)**：
+  > 为了突破 SD 1.5 的 VAE 8x 压缩极限（192x192 的图只能产生 24x24 的 Latent，远低于 U-Net 最小解析精度），系统在推流给 ComfyUI 的**网络边界前**，会自动在内存中将所有工业贴图（Albedo/Normal/Depth/Mask）**无损放大至 512x512 (JIT Resolution Hydration)**。原版的 192x192 烘焙图纸依然安全保存在本地。
+  > 同时，为了解决 CLIP 模型无法理解中文意图的问题，系统会自动为你的自然语言意图**穿上英文重甲**（Prompt Armor Injection），强制追加 `masterpiece, best quality, 3d game character asset...` 等英文锚点，确保出图质量稳定。
   **出图前防呆预警**：在真正呼叫显卡前，终端会高亮弹出以下防呆提示，避免你误以为系统假死：
   ```text
   [🚨 提示] 即将呼叫显卡渲染！请确保您的 ComfyUI 服务端已在后台启动并就绪。

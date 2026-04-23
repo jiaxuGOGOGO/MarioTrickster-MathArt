@@ -1,5 +1,20 @@
 """ComfyUI High-Availability API Client — Ephemeral Upload + Headless Render + VRAM GC.
 
+SESSION-172 (P0-SESSION-172-LATENT-SPACE-RESCUE)
+-----------------------------------------------------------------
+New method ``upload_image_bytes()`` enables **JIT (Just-In-Time) Resolution
+Hydration** at the network boundary.  The upstream CPU engine bakes guide
+sequences at 192x192 for throughput; this method accepts pre-upscaled
+in-memory ``bytes`` (512x512 via ``PIL.Image.resize()``) and uploads them
+to ComfyUI without ever touching the original on-disk baked assets.
+
+Research grounding (SESSION-172):
+- Latent Space Nyquist Limit: SD1.5 VAE 8x compression requires >= 512px
+  input to produce a 64x64 latent that the U-Net can resolve.
+- JIT Resolution Hydration: upscale at the network IO boundary, not in
+  the physics engine.
+- Immutable Source Data Principle: never overwrite 192x192 originals.
+
 SESSION-169 (P0-SESSION-169-EXCEPTION-PIERCING-AND-GLOBAL-ABORT)
 -----------------------------------------------------------------
 Critical fix: ``wait_for_completion()`` now has a **precision exception
@@ -351,6 +366,124 @@ class ComfyAPIClient:
             ) from e
         except (ConnectionRefusedError, urllib.error.URLError, OSError, TimeoutError) as e:
             raise UploadError(f"Upload failed: {e}") from e
+
+    def upload_image_bytes(
+        self,
+        image_data: bytes,
+        filename: str,
+        *,
+        subfolder: str = "",
+        overwrite: bool = True,
+        upload_type: str = "input",
+    ) -> str:
+        """Upload raw image bytes to ComfyUI via ``POST /upload/image`` multipart.
+
+        SESSION-172 (P0-SESSION-172-LATENT-SPACE-RESCUE)
+        -------------------------------------------------
+        This is the **JIT Resolution Hydration** entry point.  It accepts
+        pre-upscaled image bytes (e.g., 512x512 PNG produced by
+        ``PIL.Image.resize()``) and uploads them directly to ComfyUI
+        without writing to disk or overwriting the original 192x192 baked
+        guide assets.
+
+        Parameters
+        ----------
+        image_data : bytes
+            Raw image bytes (e.g., PNG-encoded).
+        filename : str
+            The filename to use on the ComfyUI server.
+        subfolder : str
+            Optional subfolder on the ComfyUI server.
+        overwrite : bool
+            Whether to overwrite existing files with the same name.
+        upload_type : str
+            Upload type: ``"input"`` (default) or ``"temp"``.
+
+        Returns
+        -------
+        str
+            The server-side filename.
+
+        Raises
+        ------
+        UploadError
+            If the upload fails.
+        """
+        boundary = f"----MathArtBoundary{uuid.uuid4().hex[:16]}"
+        body = io.BytesIO()
+
+        # File part
+        body.write(f"--{boundary}\r\n".encode())
+        body.write(
+            f'Content-Disposition: form-data; name="image"; '
+            f'filename="{filename}"\r\n'.encode()
+        )
+        content_type = self._guess_content_type(filename)
+        body.write(f"Content-Type: {content_type}\r\n\r\n".encode())
+        body.write(image_data)
+        body.write(b"\r\n")
+
+        # Overwrite flag
+        body.write(f"--{boundary}\r\n".encode())
+        body.write(
+            b'Content-Disposition: form-data; name="overwrite"\r\n\r\n'
+        )
+        body.write(str(overwrite).lower().encode())
+        body.write(b"\r\n")
+
+        # Type field
+        body.write(f"--{boundary}\r\n".encode())
+        body.write(
+            b'Content-Disposition: form-data; name="type"\r\n\r\n'
+        )
+        body.write(upload_type.encode())
+        body.write(b"\r\n")
+
+        # Subfolder (if provided)
+        if subfolder:
+            body.write(f"--{boundary}\r\n".encode())
+            body.write(
+                b'Content-Disposition: form-data; name="subfolder"\r\n\r\n'
+            )
+            body.write(subfolder.encode())
+            body.write(b"\r\n")
+
+        # End boundary
+        body.write(f"--{boundary}--\r\n".encode())
+
+        body_bytes = body.getvalue()
+
+        try:
+            url = f"{self.base_url}/upload/image"
+            req = urllib.request.Request(
+                url,
+                data=body_bytes,
+                headers={
+                    "Content-Type": f"multipart/form-data; boundary={boundary}",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=self.connect_timeout) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+                server_filename = result.get("name", filename)
+                logger.info(
+                    "[ComfyAPIClient] Uploaded bytes as %s → server filename: %s "
+                    "(JIT Resolution Hydration, SESSION-172)",
+                    filename, server_filename,
+                )
+                return server_filename
+
+        except urllib.error.HTTPError as e:
+            error_body = ""
+            try:
+                error_body = e.read().decode("utf-8", errors="replace")[:500]
+            except Exception:
+                pass
+            raise UploadError(
+                f"Upload (bytes) failed: HTTP {e.code} {e.reason}. Body: {error_body}"
+            ) from e
+        except (ConnectionRefusedError, urllib.error.URLError, OSError, TimeoutError) as e:
+            raise UploadError(f"Upload (bytes) failed: {e}") from e
 
     # ==================================================================
     # 3. Submit Prompt (POST /prompt)

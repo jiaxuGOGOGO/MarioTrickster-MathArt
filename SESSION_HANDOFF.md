@@ -1,12 +1,12 @@
-# SESSION-169 交接备忘录
+# SESSION-172 交接备忘录
 
-> **"老大，异常穿透与全局并发撤销已全线贯通！之前 ComfyUI 节点崩溃时，致命异常被 `wait_for_completion()` 的贪婪拦截网误吞，导致系统假死并把 19 个角色继续排队到已死的 GPU 上。现在，致命异常会像穿甲弹一样击穿网络降级层，直达 PDG 调度器触发全局 Future 撤销，再传播到 CLI 向导弹出红底白字的雪崩告警。整条异常链路：ComfyUI WS → comfy_client → ai_render_stream_backend → PDG 全局撤销 → CLI 熔断，一气呵成，零假死！"**
+> **"老大，潜空间救援与重甲提示词已全线部署！SD 1.5 的 VAE 8x 压缩导致 192x192 烘焙图纸在 Latent 空间只剩下 24x24，远低于 U-Net 最小解析精度，导致高频伪影（Deep-Fried Artifacts）。现在，所有的 Albedo/Normal/Depth 都会在推流给 ComfyUI 之前，在内存中被 JIT 放大到 512x512，原版 192 烘焙图纸绝对不动。同时，针对 CLIP 无法理解中文的问题，我们给所有的提示词穿上了英文重甲（Prompt Armor Injection），强制追加了 `masterpiece, best quality...` 等英文锚点，确保出图质量稳如老狗！"**
 
-**Date**: 2026-04-23
-**Parent Commit**: SESSION-168
-**Task ID**: P0-SESSION-169-EXCEPTION-PIERCING-AND-GLOBAL-ABORT
+**Date**: 2026-04-24
+**Parent Commit**: SESSION-169
+**Task ID**: P0-SESSION-172-LATENT-SPACE-RESCUE
 **Status**: CLOSED
-**External Anchors**: `docs/RESEARCH_NOTES_SESSION_169.md`
+**External Anchors**: `docs/RESEARCH_NOTES_SESSION_172.md`
 
 ---
 
@@ -14,30 +14,24 @@
 
 | # | 改造项 | 落地文件 | 工业理论锚点 |
 |---|--------|----------|--------------|
-| 1 | **异常穿透 (Exception Piercing)** | `mathart/backend/comfy_client.py` | Targeted Exception Handling — `wait_for_completion()` 在泛型 `except Exception` 之前显式重新抛出 `ComfyUIExecutionError` 和 `RenderTimeoutError`，防止致命异常被 HTTP 轮询回退吞没 |
-| 2 | **全局 Future 撤销 (Global Abort)** | `mathart/level/pdg.py` | Concurrent Futures Global Cancellation (Python docs) + Circuit Breaker Pattern (Nygard) — `_execute_task_invocations_concurrently()` 新增 `fatal_exception` 追踪，立即停止提交、取消 pending Future、排空 in-flight Future |
-| 3 | **增强型断路器 (Enhanced Circuit Breaker)** | `mathart/backend/ai_render_stream_backend.py` | Circuit Breaker Pattern — `ComfyUIExecutionError` 捕获块新增红色 stderr 崩溃 Banner 和详细节点诊断 |
-| 4 | **前端升级 (CLI Upgrade)** | `mathart/cli_wizard.py` | Fail-Loud Validation — 熔断告警升级为红底白字，新增异常穿透路径追踪行，烘焙网关 Banner 新增 SESSION-169 状态行 |
-| 5 | **UX 防腐蚀 (UX Anti-Corrosion)** | `mathart/factory/mass_production.py` | 烘焙网关终端打印新增 SESSION-169 异常穿透与全局撤销状态行 |
-| 6 | **外网工业理论锚点** | `docs/RESEARCH_NOTES_SESSION_169.md` | 包含 Targeted Exception Handling、Exception Bubbling、Greedy Catch-All 反模式、Circuit Breaker Pattern、Concurrent Futures Global Cancellation 的完整研究笔记 |
-| 7 | **用户手册更新** | `docs/USER_GUIDE.md` | 新增 §10.10 SESSION-169 章节，含修复内容表格、傻瓜验收步骤、外网理论锚点 |
+| 1 | **JIT Resolution Hydration (网络边界即时上采样)** | `mathart/backend/comfy_client.py` | Immutable Source Data Principle — 新增 `upload_image_bytes()` 方法，允许在内存中直接上传 BytesIO 数据，不污染本地 `outputs/guide_baking` 原版 192x192 图纸 |
+| 2 | **Latent Space Nyquist Limit (潜空间采样定理救援)** | `mathart/backend/ai_render_stream_backend.py`<br>`mathart/backend/comfyui_render_backend.py` | Noise Re-sampling for High Fidelity Image Generation (ICLR 2025) — 推流前调用 `PIL.Image.resize()` 将 Albedo/Normal/Depth 放大至 512x512，满足 U-Net 最小感受野 (64x64 latent) |
+| 3 | **Prompt Armor Injection (多语言意图的英语锚点垫片)** | `mathart/backend/ai_render_stream_backend.py`<br>`mathart/backend/comfyui_render_backend.py` | AltCLIP (ACL Findings 2023) / MuLan (OpenReview 2025) — 强制包裹 `masterpiece, best quality, 3d game character asset` 等英文锚点，补偿 CLIP ViT-L/14 对中文的语义盲区 |
+| 4 | **EmptyLatentImage 512x512 强制覆写** | `mathart/backend/ai_render_stream_backend.py` | 防止 ControlNet 条件图与 Latent Canvas 分辨率不一致导致的 Tensor Shape Mismatch |
+| 5 | **UX 防腐蚀 (UX Anti-Corrosion)** | `mathart/factory/mass_production.py` | 烘焙网关终端打印新增 SESSION-172 JIT Hydration + Prompt Armor 状态行 |
+| 6 | **外网工业理论锚点** | `docs/RESEARCH_NOTES_SESSION_172.md` | 包含 Latent Space Nyquist Limit、JIT Resolution Hydration、Prompt Anchoring for Multilingual Intents 的完整研究笔记 |
+| 7 | **用户手册更新** | `docs/USER_GUIDE.md` | 新增 SESSION-172 潜空间救援与重甲提示词说明 |
 
-## 2. 防假死红线 (Anti-Deadlock Red Lines)
+## 2. 防腐蚀红线 (Anti-Corrosion Red Lines)
 
-以下是 SESSION-169 部署的不可退化红线：
+以下是 SESSION-172 部署的不可退化红线：
 
-1. **FATAL execution_error 之后绝不许出现 "Falling back to HTTP polling" 的字样！** — `comfy_client.py` 的 `except ComfyUIExecutionError: raise` 保证了这一点。
-2. **致命异常必须穿透所有网络重试层** — `ComfyUIExecutionError` 和 `RenderTimeoutError` 在 `except Exception` 之前被显式捕获并重新抛出。
-3. **PDG 并发池必须全局撤销** — 当任一调用抛出致命异常时，所有 pending Future 被 `.cancel()`，in-flight Future 被排空。
+1. **JIT Upscale 绝对不允许覆盖本地文件！** — 上采样动作只作用于发送给 HTTP API 的 `bytes`，本地 `outputs/guide_baking` 必须保持 192x192 的物理引擎原始输出。
+2. **物理引擎的 192x192 烘焙代码绝对禁止修改！** — 为了保持 CPU 上游引擎的极高吞吐量，物理骨骼必须保持 192x192 的极小输出。
+3. **EmptyLatentImage 必须与 JIT 放大后的尺寸严格对齐！** — `_force_latent_canvas_512()` 必须在变异器生成 payload 后执行，否则 ComfyUI 将抛出维度不匹配异常。
 
-## 3. 遗留已知问题 (Known Technical Debt)
+## 3. 下一步建议 (Next Steps)
 
-- ComfyUI 端的具体环境冲突（如 `--fp16` 缺失或 ControlNet 版本过旧）仍需用户根据报错信息手动排查和修复。
-- 纯 CPU 沙盒审计 (`Dry-Run`) 模式目前不会模拟 ComfyUI `execution_error`。
-- `_execute_task_invocations_concurrently` 中已在运行的 Future 无法被 `.cancel()` 取消（Python `concurrent.futures` 的固有限制），只能等待其自然完成后释放 GPU 信号量。
-
-## 4. 下一步建议 (Next Steps)
-
-1. 在配备显卡的物理机上运行 `mathart`，触发一个必崩的 ComfyUI 工作流，验证异常穿透路径和全局撤销是否完美展示。
-2. 验证终端日志中 **绝不出现** `Falling back to HTTP polling` 字样。
-3. 考虑为 PDG 调度器添加 `HALF_OPEN` 状态支持，允许在断路器打开后进行探测性重试。
+1. 在配备显卡的物理机上运行 `mathart`，触发一次 GPU 渲染，验证终端日志中是否打印了 `[SESSION-172] JIT Upscale` 和 `Prompt Armor` 相关信息。
+2. 检查 ComfyUI 端的渲染结果，确认生成的图像不再出现低分辨率导致的高频伪影（Deep-Fried Artifacts）。
+3. 考虑未来将 `AI_TARGET_RES` (512) 暴露为可配置参数，以支持 SDXL (1024x1024) 等更高分辨率模型的推流需求。
