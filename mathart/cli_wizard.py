@@ -101,6 +101,15 @@ if sys.platform == "win32":
 from mathart.workspace.hitl_boundary import ManualInterventionRequiredError, ManualOption
 from mathart.workspace.mode_dispatcher import ModeDispatcher, PipelineQualityCircuitBreak
 
+# SESSION-168: Import the Poison Pill exception for precise circuit-breaker
+# interception.  If the comfy_client module is not available (e.g., stripped
+# deployment), we define a local sentinel so the except clause still compiles.
+try:
+    from mathart.comfy_client.comfyui_ws_client import ComfyUIExecutionError
+except ImportError:
+    class ComfyUIExecutionError(RuntimeError):  # type: ignore[no-redef]
+        pass
+
 logger = logging.getLogger(__name__)
 
 
@@ -798,6 +807,15 @@ def _dispatch_mass_production(
         "纯 CPU 解算高精度工业级贴图动作序列...\033[0m"
     )
     output_fn("\033[1;36m" + "═" * 60 + "\033[0m")
+    # ── SESSION-168: UX 防腐蚀 — 断路器状态行 ──────────────────────────
+    # [UX 防腐蚀红线] 每次进入烘焙/渲染网关前，在终端打印断路器当前状态，
+    # 让用户在进入渲染前就知道系统的安全阀是否就绪。
+    if not skip_ai_render:
+        output_fn(
+            "\033[90m    [⚡ SESSION-168 断路器] "
+            "AI 推流断路器已就绪 (CLOSED) — "
+            "若 ComfyUI 节点崩溃将自动熔断并弹出雪崩告警\033[0m"
+        )
 
     # ── SESSION-164: Dynamic Progress Telemetry bound to Registry ──────────
     # [进度播报与 Registry 动态绑定] 彻底废除硬编码动作字符串，
@@ -909,6 +927,38 @@ def _dispatch_mass_production(
             "\033[90m    ↳ 已安全拦截质量防线异常，返回黄金连招菜单。\033[0m"
         )
 
+    # Layer 1.5 (SESSION-168): ComfyUI Execution Error — Poison Pill Circuit Breaker
+    # This catches the FATAL execution_error raised by the WebSocket client
+    # when ComfyUI reports an unrecoverable crash (e.g., PyTorch Half/Float).
+    # This is the "global brake pedal" — it cancels all pending AI tasks.
+    except ComfyUIExecutionError as exc:
+        logger.critical(
+            "[CLI] ComfyUIExecutionError CAUGHT — Circuit Breaker OPEN! "
+            "(skip_ai_render=%s, node=%s): %s",
+            skip_ai_render,
+            getattr(exc, 'node_id', '?'),
+            exc,
+        )
+        output_fn("")
+        output_fn("[1;31m" + "=" * 60 + "[0m")
+        output_fn(
+            "[1;31m[❌ AI 炼丹炉异常挂起] "
+            "ComfyUI 内部节点执行崩溃！"
+            "为防死锁，已强行熔断并撤销后续所有 AI 推流任务！[0m"
+        )
+        output_fn("[1;31m" + "=" * 60 + "[0m")
+        output_fn(
+            "[1;33m[💡 提示] 您的纯物理高清底图已全部安全落盘！"
+            "远端发生 PyTorch FP16/FP32 精度冲突。"
+            "请检查 ComfyUI 后台，更新 ControlNet 插件"
+            "或在启动命令中加上 --fp16 统一精度后再重试。[0m"
+        )
+        output_fn(
+            f"[90m    ↓ 崩溃节点: {getattr(exc, 'node_id', '?')}[0m"
+        )
+        output_fn(
+            f"[90m    ↓ 异常详情: {exc}[0m"
+        )
     # Layer 2: ComfyUI network exceptions (SESSION-161 precise binding)
     except ConnectionRefusedError as exc:
         # [精准捕获] ComfyUI 服务未启动 / 端口拒绝连接

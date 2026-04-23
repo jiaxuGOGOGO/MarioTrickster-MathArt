@@ -1,5 +1,12 @@
 """ComfyUI High-Availability API Client — Ephemeral Upload + Headless Render + VRAM GC.
 
+SESSION-168 (P0-SESSION-168-COMFYUI-CLIENT-DEADLOCK-BREAKER)
+-------------------------------------------------------------
+Critical fix: ``_ws_wait()`` now raises ``ComfyUIExecutionError`` on
+``execution_error`` WebSocket events instead of returning a dict.  This
+prevents the catastrophic deadlock where the caller never checks the
+error dict and blocks forever in the next ``ws.recv()``.
+
 SESSION-151 (P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH)
 ----------------------------------------------------------
 Implements the **industrial-grade** ComfyUI API client with four pillars:
@@ -79,6 +86,19 @@ class UploadError(IOError):
 
 class VRAMFreeError(RuntimeError):
     """Raised when VRAM garbage collection fails (non-fatal warning)."""
+
+
+# SESSION-168: Import the canonical Poison Pill exception from the WS client
+# module.  If unavailable (circular import edge case), define a local fallback.
+try:
+    from mathart.comfy_client.comfyui_ws_client import ComfyUIExecutionError
+except ImportError:
+    class ComfyUIExecutionError(RuntimeError):  # type: ignore[no-redef]
+        """Fallback: Fatal ComfyUI remote execution error."""
+        def __init__(self, message: str, *, node_id: str = "?", details: str = ""):
+            super().__init__(message)
+            self.node_id = node_id
+            self.details = details
 
 
 # ---------------------------------------------------------------------------
@@ -484,9 +504,26 @@ class ComfyAPIClient:
                     progress["last_progress"] = {"value": value, "max": max_val}
 
                 elif event_type == "execution_error":
+                    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                    # SESSION-168: FAIL-FAST POISON PILL — raise, don't return
+                    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                     error_msg = data.get("exception_message", "Unknown error")
-                    ws.close()
-                    return {"error": f"Execution error: {error_msg}"}
+                    error_node = data.get("node_id", "?")
+                    error_traceback = data.get("traceback", "")
+                    logger.critical(
+                        "[ComfyAPIClient] \u26a0\ufe0f FATAL execution_error in "
+                        "node %s: %s",
+                        error_node, error_msg,
+                    )
+                    try:
+                        ws.close()
+                    except Exception:
+                        pass
+                    raise ComfyUIExecutionError(
+                        f"ComfyUI \u7aef\u70b9\u6e32\u67d3\u5d29\u6e83 (node={error_node}): {error_msg}",
+                        node_id=error_node,
+                        details=error_traceback[:2000] if error_traceback else error_msg,
+                    )
 
         finally:
             try:

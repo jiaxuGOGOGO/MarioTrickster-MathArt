@@ -1,7 +1,16 @@
-"""AI Render Stream Backend — Full-Array Artifact Hydration & Streaming Pipeline.
+"""AI Render Stream Backend — Full-Array Artifact Streaming to ComfyUI.
+
+SESSION-168 (P0-SESSION-168-COMFYUI-CLIENT-DEADLOCK-BREAKER)
+-------------------------------------------------------------
+Critical fix: Added ``ComfyUIExecutionError`` precision catch in the render
+retry loop.  When ComfyUI broadcasts a fatal ``execution_error`` (Poison Pill),
+the circuit breaker is FORCE-OPENED and the exception re-raised to the CLI
+wizard for loud crash-banner display.  This prevents the old behavior where
+a non-retryable error was silently swallowed by the generic ``Exception``
+catch and the next action would still attempt to render against a dead server.
 
 SESSION-163 (P0-SESSION-161-COMFYUI-API-BRIDGE)
--------------------------------------------------
+-----------------------------------------------------------
 This module implements the **registry-native** AI render stream backend that
 bridges the upstream CPU-bound guide baking engine with the downstream ComfyUI
 headless render pipeline.  It is the missing "API communication wire" that
@@ -68,6 +77,18 @@ from mathart.core.backend_registry import (
 )
 from mathart.core.artifact_schema import ArtifactFamily, ArtifactManifest
 from mathart.core.backend_types import BackendType
+
+# SESSION-168: Import the Poison Pill exception for immediate circuit-breaker
+# trip on fatal ComfyUI execution errors (e.g., PyTorch Half/Float conflict).
+try:
+    from mathart.comfy_client.comfyui_ws_client import ComfyUIExecutionError
+except ImportError:
+    class ComfyUIExecutionError(RuntimeError):  # type: ignore[no-redef]
+        """Fallback sentinel for environments without the WS client."""
+        def __init__(self, message: str, *, node_id: str = "?", details: str = ""):
+            super().__init__(message)
+            self.node_id = node_id
+            self.details = details
 
 logger = logging.getLogger(__name__)
 
@@ -593,6 +614,29 @@ class AIRenderStreamBackend:
                     if not circuit.allow_request():
                         break
                     time.sleep(delay)
+                except ComfyUIExecutionError as e:
+                    # SESSION-168: POISON PILL — ComfyUI reported a fatal
+                    # execution crash.  Immediately open the circuit breaker
+                    # and abort ALL remaining actions.  Do NOT retry.
+                    logger.critical(
+                        "[AIRenderStreamBackend] \u26a0\ufe0f FATAL ComfyUIExecutionError "
+                        "for '%s' (node=%s): %s.  "
+                        "Circuit breaker FORCE-OPENED, aborting remaining actions.",
+                        action_name, getattr(e, 'node_id', '?'), e,
+                    )
+                    circuit.failure_count = circuit.failure_threshold
+                    circuit.state = CircuitState.OPEN
+                    circuit.last_failure_time = time.monotonic()
+                    action_results.append(ActionRenderResult(
+                        action_name=action_name,
+                        success=False,
+                        degraded=True,
+                        error_message=f"FATAL: {e}",
+                        elapsed_seconds=time.monotonic() - action_t0,
+                    ))
+                    total_degraded += 1
+                    # Re-raise so the CLI wizard can display the crash banner
+                    raise
                 except Exception as e:
                     logger.error(
                         "[AIRenderStreamBackend] Non-retryable render error for '%s': %s",

@@ -1,5 +1,23 @@
 """ComfyUI WebSocket execution client for production-grade async workflow execution.
 
+SESSION-168 (P0-SESSION-168-COMFYUI-CLIENT-DEADLOCK-BREAKER)
+-------------------------------------------------------------
+Critical fix: Deploy Fail-Fast exception propagation for ``execution_error``
+WebSocket events.  Previously the client logged the error but continued
+blocking in ``ws.recv()``, causing catastrophic deadlock when ComfyUI
+reported a fatal PyTorch precision conflict (``Half and Float``).
+
+Now ``ComfyUIExecutionError`` is raised immediately upon receiving
+``execution_error``, tearing the WebSocket listen loop and propagating
+the failure to the calling orchestrator for circuit-breaker action.
+
+Research grounding (SESSION-168):
+- WebSocket Poison Pill Pattern: ``execution_error`` = deterministic crash
+  signal from ComfyUI.  Client MUST raise, not just log.
+- Circuit Breaker Pattern (Michael Nygard, "Release It!" 2007):
+  Outer orchestrator catches the exception and cancels all pending tasks.
+- ComfyUI Official Docs: https://docs.comfy.org/development/comfyui-server/comms_messages
+
 SESSION-087 (P1-AI-2D-SPARSECTRL endpoint closure)
 ----------------------------------------------------
 This module implements the **industrial-standard** ComfyUI execution paradigm:
@@ -18,6 +36,9 @@ Anti-pattern guards (SESSION-087 red lines):
   ``ConnectionRefusedError`` → graceful degradation, never crash.
 - 🚫 Orphan Output Trap: MUST download images via ``/view`` API
   into the project's own ``outputs/comfyui_renders/`` directory.
+- 🚫 Silent Deadlock Trap (SESSION-168): When ``execution_error`` is
+  received, MUST ``raise ComfyUIExecutionError`` to tear the listen loop.
+  NEVER just ``logger.error()`` — that causes infinite ``ws.recv()`` hang.
 
 Research grounding:
 - ComfyUI WebSocket Events (Official Docs): ``status``, ``executing``,
@@ -43,6 +64,38 @@ from typing import Any
 
 
 ProgressCallback = Any
+
+
+# ---------------------------------------------------------------------------
+# SESSION-168: Dedicated exception for ComfyUI remote execution failures.
+# This is the "Poison Pill" signal — when the remote ComfyUI server reports
+# an execution_error (e.g., PyTorch dtype mismatch Half/Float), this
+# exception MUST be raised to tear the WebSocket listen loop immediately.
+# Outer orchestrators (PDG dispatcher, CLI wizard) catch this to trigger
+# global circuit-breaker cancellation of all pending AI render tasks.
+# ---------------------------------------------------------------------------
+
+class ComfyUIExecutionError(RuntimeError):
+    """Fatal ComfyUI remote execution error — Poison Pill signal.
+
+    Raised when the ComfyUI WebSocket broadcasts an ``execution_error``
+    event, indicating an unrecoverable crash in the remote render pipeline
+    (e.g., PyTorch precision conflict ``mat1 and mat2 must have the same
+    dtype, but got Half and Float``).
+
+    This exception is designed to:
+    1. **Tear the WebSocket listen loop** — prevent infinite ``ws.recv()`` hang.
+    2. **Propagate to the orchestrator** — trigger circuit-breaker cancellation.
+    3. **Carry diagnostic context** — node_id, exception_message, traceback.
+
+    NEVER catch this silently.  The outer CLI wizard must display a loud
+    crash banner and return to the main menu.
+    """
+
+    def __init__(self, message: str, *, node_id: str = "?", details: str = ""):
+        super().__init__(message)
+        self.node_id = node_id
+        self.details = details
 
 
 def _emit_progress(progress_callback: ProgressCallback | None, event: dict[str, Any]) -> None:
@@ -611,12 +664,33 @@ class ComfyUIClient:
                     })
 
                 elif event_type == "execution_error":
+                    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                    # SESSION-168 CRITICAL FIX: FAIL-FAST POISON PILL
+                    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                    # The remote ComfyUI server has broadcast a DETERMINISTIC
+                    # execution crash.  This is NOT a transient network error
+                    # — it means the workflow environment has a hard conflict
+                    # (e.g., PyTorch Half/Float dtype mismatch).
+                    #
+                    # OLD BEHAVIOR (BUG): logger.error() + return dict
+                    #   → caller might not check, ws.recv() hangs forever
+                    #
+                    # NEW BEHAVIOR (FIX): raise ComfyUIExecutionError
+                    #   → tears the listen loop, propagates to orchestrator
+                    #   → orchestrator triggers circuit-breaker cancellation
+                    #
+                    # RED LINE: NEVER retry on execution_error.  NEVER
+                    # swallow this into a dict return.  MUST raise.
+                    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                     error_msg = data.get("exception_message", "Unknown error")
                     error_node = data.get("node_id", "?")
-                    logger.error(
-                        "[ComfyUIClient] Execution error in node %s: %s",
+                    error_traceback = data.get("traceback", "")
+                    logger.critical(
+                        "[ComfyUIClient] ⚠️  FATAL execution_error in node %s: %s\n"
+                        "Traceback from ComfyUI: %s",
                         error_node,
                         error_msg,
+                        error_traceback[:2000] if error_traceback else "(none)",
                     )
                     _emit_progress(progress_callback, {
                         "event_type": "execution_error",
@@ -624,10 +698,16 @@ class ComfyUIClient:
                         "node": error_node,
                         "message": error_msg,
                     })
-                    ws.close()
-                    return {
-                        "error": f"Execution error in node {error_node}: {error_msg}"
-                    }
+                    try:
+                        ws.close()
+                    except Exception:
+                        pass
+                    # SESSION-168: RAISE — tear the loop, propagate to caller
+                    raise ComfyUIExecutionError(
+                        f"ComfyUI 端点渲染崩溃 (node={error_node}): {error_msg}",
+                        node_id=error_node,
+                        details=error_traceback[:2000] if error_traceback else error_msg,
+                    )
 
             # Deadline exceeded
             _emit_progress(progress_callback, {
@@ -863,4 +943,4 @@ class ComfyUIClient:
             return None
 
 
-__all__ = ["ComfyUIClient", "ExecutionResult"]
+__all__ = ["ComfyUIClient", "ComfyUIExecutionError", "ExecutionResult"]
