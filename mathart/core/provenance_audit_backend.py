@@ -123,23 +123,26 @@ class ProvenanceAuditBackend:
 
     def execute(
         self,
-        *,
-        knowledge_bus: Optional["RuntimeDistillationBus"] = None,
-        intent_spec: Optional["CreatorIntentSpec"] = None,
-        genotype_flat: Optional[Dict[str, float]] = None,
-        raw_vibe: str = "",
-        vibe_adjustments: Optional[Dict[str, Dict[str, float]]] = None,
-        user_overrides: Optional[Dict[str, float]] = None,
-        base_blueprint_path: str = "",
-        backend_consumed_params: Optional[Dict[str, float]] = None,
-        backend_name: str = "",
-        output_fn: Optional[callable] = None,
-        session_id: str = "SESSION-152",
+        context: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
     ) -> ProvenanceAuditArtifact:
         """Execute the provenance audit.
 
+        This method accepts a unified ``context`` dict as a positional argument
+        (LSP-compliant with the pipeline bus contract in ``pipeline_bridge.py``),
+        **or** individual keyword arguments for standalone / test invocations.
+
         Parameters
         ----------
+        context : dict, optional
+            Unified execution context dict dispatched by the pipeline bus.
+            Keys are extracted safely with ``.get()``.
+        **kwargs
+            Legacy keyword arguments for backward-compatible standalone calls
+            (e.g. ``run_standalone_audit``).
+
+        Supported context / kwarg keys
+        ------------------------------
         knowledge_bus : optional
             The RuntimeDistillationBus instance (for knowledge state snapshot).
         intent_spec : optional
@@ -169,6 +172,28 @@ class ProvenanceAuditBackend:
         ProvenanceAuditArtifact
             Summary artifact with audit results.
         """
+        # ── LSP-compliant context unpacking ──────────────────────────
+        # The pipeline bus dispatches `instance.execute(context)` where
+        # `context` is a plain dict.  Standalone callers may still pass
+        # keyword arguments directly.  Merge both sources safely.
+        if context is None:
+            context = {}
+        elif not isinstance(context, dict):
+            context = {}
+        ctx_merged: Dict[str, Any] = {**context, **kwargs}
+
+        knowledge_bus = ctx_merged.get("knowledge_bus", None)
+        intent_spec = ctx_merged.get("intent_spec", None)
+        genotype_flat = ctx_merged.get("genotype_flat", None)
+        raw_vibe = ctx_merged.get("raw_vibe", "")
+        vibe_adjustments = ctx_merged.get("vibe_adjustments", None)
+        user_overrides = ctx_merged.get("user_overrides", None)
+        base_blueprint_path = ctx_merged.get("base_blueprint_path", "")
+        backend_consumed_params = ctx_merged.get("backend_consumed_params", None)
+        backend_name = ctx_merged.get("backend_name", "")
+        output_fn = ctx_merged.get("output_fn", None)
+        session_id = ctx_merged.get("session_id", "SESSION-152")
+
         tracker = KnowledgeLineageTracker.instance()
 
         # Phase 1: Begin audit (snapshot knowledge state)

@@ -11,6 +11,7 @@ from .noise import (
     perlin_2d, simplex_2d, fbm, ridged_noise, turbulence, domain_warp,
     render_noise_texture, generate_texture, TEXTURE_PRESETS,
 )
+from .lsystem import LSystem, PlantPresets
 
 __all__ = [
     "circle", "box", "segment", "triangle", "star", "ring",
@@ -21,4 +22,5 @@ __all__ = [
     "flame_sdf", "electric_arc_sdf", "glow_sdf", "spike_sdf", "saw_blade_sdf",
     "perlin_2d", "simplex_2d", "fbm", "ridged_noise", "turbulence", "domain_warp",
     "render_noise_texture", "generate_texture", "TEXTURE_PRESETS",
+    "LSystem", "PlantPresets",
 ]

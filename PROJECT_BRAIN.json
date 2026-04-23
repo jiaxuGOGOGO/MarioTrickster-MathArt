@@ -1,7 +1,7 @@
 {
-  "version": "v0.99.7",
-  "last_session_id": "SESSION-156",
-  "last_updated": "2026-04-23",
+  "version": "v0.99.8",
+  "last_session_id": "SESSION-157",
+  "last_updated": "2026-04-23T07:14:15Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -219,7 +219,7 @@
     "engineering_automation": 95,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-152: P0-SESSION-148-KNOWLEDGE-PROVENANCE-AUDIT — Full-chain knowledge provenance audit system. Non-intrusive sidecar pattern (OpenLineage + XAI + Interceptor). Three modules: provenance_tracker.py (singleton + thread-safe + 6-level classification), provenance_report.py (terminal audit table + JSON log), provenance_audit_backend.py (Registry-native @register_backend plugin). Audit result: 18 params traced, 4 knowledge-driven (22.2%), 9 heuristic fallback (50.0%), 5 vibe heuristic (27.8%). Verdict: PARTIAL. 9 dead-zone params exposed for targeted fix campaigns. 9/9 tests PASS.",
+  "current_focus": "SESSION-157 COMPLETE — Tech Debt Eradicated. Next: Game Engine Export Pipeline",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research/session139_director_studio_research.md",
@@ -2704,6 +2704,24 @@
         "tests/test_pseudo_3d_shell.py"
       ],
       "test_results": "45/45 PASS"
+    },
+    {
+      "id": "P0-SESSION-155-TECH-DEBT-ERADICATION",
+      "title": "Full Regression Test Residual Bug Eradication & Remote API Contract Ratification",
+      "priority": "P0",
+      "status": "CLOSED",
+      "session_landed": "SESSION-157",
+      "modules": [
+        "mathart/core/provenance_audit_backend.py",
+        "mathart/evolution/cli.py",
+        "mathart/sdf/__init__.py",
+        "docs/USER_GUIDE.md"
+      ],
+      "tests": [
+        "tests/test_provenance_audit.py",
+        "tests/test_lsystem.py"
+      ],
+      "description": "Precision hot-fix of 3 pipeline-blocking bugs discovered during full regression testing. (1) ProvenanceAuditBackend.execute() signature refactored from keyword-only (*) to LSP-compliant positional context dict + **kwargs, aligning with pipeline_bridge.py bus contract (Liskov Substitution Principle). (2) Graduate CLI print logic synchronized with refactored GraduationReport/GraduationResult DTO fields: total_checked→total, promoted→succeeded, new_status→to_status, message→notes (API Contract Evolution & View-Model Decoupling). (3) PlantPresets and LSystem officially exposed in mathart/sdf/__init__.py, completing the Facade Pattern migration from deprecated LSystemPlantGenerator to static factory PlantPresets. docs/USER_GUIDE.md updated with Chapter 8 covering L-System API. All fixes are skin-deep (variable rename, signature adaptation, import path) — zero core algorithm modification. Red lines enforced: no pipeline_bridge.py changes, no core logic changes, no UX degradation."
     }
   ],
   "capability_gaps": [
@@ -3726,6 +3744,11 @@
         "UPD pyproject.toml — add matplotlib>=3.7 and PyYAML>=6.0 to core dependencies",
         "UPD docs/TROUBLESHOOTING.md — new section 4: Proxy Renderer Dependencies (headless Agg)"
       ]
+    },
+    {
+      "id": "SESSION-157",
+      "title": "Tech Debt Eradication — LSP + DTO Sync + Facade Exposure",
+      "status": "COMPLETE"
     }
   ],
   "closed_tasks_archive": [
@@ -4890,6 +4913,20 @@
         "防知识真空优雅降级红线: No bus → heuristic fallback, unknown vibes → no exception",
         "防血统数据膨胀红线: Only actually-activated rules in provenance, never full KB",
         "全链路知识大一统: Intent → Preview → Evolution → Manifest all connected via knowledge bus"
+      ]
+    },
+    {
+      "session": "SESSION-157",
+      "date": "2026-04-23",
+      "focus": "P0-SESSION-155-TECH-DEBT-ERADICATION",
+      "summary": "Precision hot-fix of 3 P0 bugs: (1) Provenance Audit Backend LSP signature alignment, (2) Graduate CLI DTO field synchronization, (3) L-System PlantPresets Facade exposure. All fixes are non-invasive skin-deep repairs. Zero core algorithm modification. docs/USER_GUIDE.md updated with L-System Chapter 8.",
+      "files_changed": [
+        "mathart/core/provenance_audit_backend.py",
+        "mathart/evolution/cli.py",
+        "mathart/sdf/__init__.py",
+        "docs/USER_GUIDE.md",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
       ]
     }
   ],

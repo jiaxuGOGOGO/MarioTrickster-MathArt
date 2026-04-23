@@ -1198,14 +1198,14 @@ def _cmd_graduate(args):
             report = graduator.audit_all()
             for r in report.results:
                 if r.model_name == args.model:
-                    print(f"  Status: {r.new_status or 'no change'}")
+                    print(f"  Status: {r.to_status or 'no change'}")
                     print(f"  Success: {r.success}")
                     if r.checks_passed:
                         print(f"  Checks passed: {', '.join(r.checks_passed)}")
                     if r.checks_failed:
                         print(f"  Checks failed: {', '.join(r.checks_failed)}")
-                    if r.message:
-                        print(f"  Message: {r.message}")
+                    if r.notes:
+                        print(f"  Notes: {', '.join(r.notes)}")
                     break
             else:
                 print(f"  Model '{args.model}' not found in audit results.")
@@ -1213,35 +1213,35 @@ def _cmd_graduate(args):
             print(f"Graduating model: {args.model}")
             result = graduator.graduate_candidate(args.model)
             print(f"  Success: {result.success}")
-            print(f"  New status: {result.new_status or 'unchanged'}")
+            print(f"  New status: {result.to_status or 'unchanged'}")
             if result.checks_passed:
                 print(f"  Checks passed: {', '.join(result.checks_passed)}")
             if result.checks_failed:
                 print(f"  Checks failed: {', '.join(result.checks_failed)}")
-            if result.message:
-                print(f"  Message: {result.message}")
+            if result.notes:
+                print(f"  Notes: {', '.join(result.notes)}")
     elif args.batch:
         # Graduate all ready candidates
         print("Batch graduating all ready candidates...")
         report = graduator.graduate_all_ready()
         print("\nGraduation Report:")
-        print(f"  Total checked: {report.total_checked}")
-        print(f"  Promoted: {report.promoted}")
+        print(f"  Total checked: {report.total}")
+        print(f"  Promoted: {report.succeeded}")
         print(f"  Failed: {report.failed}")
-        print(f"  Skipped: {report.skipped}")
+        print(f"  Skipped: {report.total - report.succeeded - report.failed}")
         for r in report.results:
             status = "PROMOTED" if r.success else "FAILED"
-            print(f"  [{status}] {r.model_name}: {r.message}")
+            print(f"  [{status}] {r.model_name}: {r.summary()}")
     else:
         # Default: audit all models
         print("Auditing all registered models...")
         report = graduator.audit_all()
         print("\nAudit Report:")
-        print(f"  Total checked: {report.total_checked}")
-        print(f"  Ready for promotion: {report.promoted}")
+        print(f"  Total checked: {report.total}")
+        print(f"  Ready for promotion: {report.succeeded}")
         print(f"  Not ready: {report.failed}")
         for r in report.results:
-            status_str = r.new_status or "no change"
+            status_str = r.to_status or "no change"
             ready = "READY" if r.success else "NOT READY"
             print(f"  [{ready}] {r.model_name} ({status_str})")
             if r.checks_failed:

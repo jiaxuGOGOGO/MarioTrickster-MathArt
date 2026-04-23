@@ -340,3 +340,63 @@ result2 = distiller.distill_text(
 
 **预期结果**：终端会显示 `[⚖️ 知识分诊] 判定为【微观约束 Actionable-Rule】，送入 Python 编译引擎...`，规则会正常进入编译流程。
 
+
+---
+
+## 8. L-System 程序化植物生成 (PlantPresets 静态工厂)
+
+### 这是什么？
+
+L-System（Lindenmayer System）是一种基于形式文法的程序化生成系统，本项目用它来生成像素风格的植物结构（树木、灌木、草丛、藤蔓）。生成的植物由 SDF 图元组成，可通过现有的 SDF 渲染器渲染并自动配色。
+
+### API 使用方式（SESSION-157 官方转正）
+
+自 SESSION-157 起，植物生成统一通过 `PlantPresets` 静态工厂类调用。旧的 `LSystemPlantGenerator` 类已废弃，请勿使用。
+
+```python
+from mathart.sdf.lsystem import LSystem, PlantPresets
+
+# 生成一棵橡树
+oak = PlantPresets.oak_tree(seed=42)
+segments = oak.generate(iterations=4)
+img = oak.render(32, 32)
+
+# 生成灌木
+bush = PlantPresets.bush(seed=123)
+bush_img = bush.render(32, 32)
+
+# 生成草丛
+grass = PlantPresets.grass(seed=7)
+grass_img = grass.render(16, 16)
+
+# 生成藤蔓
+vine = PlantPresets.vine(seed=99)
+vine_img = vine.render(32, 64)
+```
+
+也可以通过顶层 `mathart.sdf` 包直接导入：
+
+```python
+from mathart.sdf import PlantPresets
+
+tree = PlantPresets.oak_tree()
+```
+
+### 傻瓜验收：如何测试植物生成是否畅通？
+
+在终端运行：
+
+```bash
+python -m pytest tests/test_lsystem.py -v
+```
+
+或在 Python 交互模式中：
+
+```python
+from mathart.sdf.lsystem import PlantPresets
+tree = PlantPresets.oak_tree(seed=42)
+segments = tree.generate(iterations=3)
+print(f"生成了 {len(segments)} 个植物片段")  # 应输出正整数
+img = tree.render(32, 32)
+print(f"渲染尺寸: {img.size}")  # 应输出 (32, 32)
+```
