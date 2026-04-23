@@ -767,7 +767,13 @@ def _dispatch_mass_production(
     output_fn: Callable[[str], None],
     input_fn: Callable[[str], str],
 ) -> None:
-    """SESSION-159: Unified mass-production dispatch with sci-fi telemetry.
+    """SESSION-164: Unified mass-production dispatch with sci-fi telemetry.
+
+    Upgraded from SESSION-159 with:
+    - Dynamic progress telemetry bound to the real ActionRegistry (SESSION-162)
+    - Precise exception catching for ComfyUI domain exceptions (SESSION-161)
+    - Vibe intent full-chain propagation to workflow Prompt node
+    - Green completion banner for asset closure
 
     This helper is called by both Golden Handoff option [1] (CPU-only) and
     option [2] (CPU + AI render).  It emits real-time progress banners,
@@ -776,8 +782,15 @@ def _dispatch_mass_production(
 
     [纯前端手术红线] This function ONLY controls terminal output and dispatch
     options — it does NOT modify any pipeline algorithm or math logic.
+
+    Industrial References (SESSION-164):
+    - End-to-End UI/Backend Impedance Matching: Integration Pass after backend refactor
+    - Dynamic UI Hydration: LLVM TargetRegistry self-registration → zero hardcoded names
+    - Precise Exception Catching: Michael Nygard "Release It!" Circuit Breaker
+    - AWS Exponential Backoff + Jitter (2015): thundering herd prevention
     """
-    # ── Sci-fi Terminal Telemetry: Baking Phase ────────────────────────────
+    # ── SESSION-164: Sci-fi Terminal Telemetry — Baking Phase ──────────────
+    # [UX 零退化与科幻流转展示] 强制高亮打印工业烘焙网关 banner
     output_fn("")
     output_fn("\033[1;36m" + "═" * 60 + "\033[0m")
     output_fn(
@@ -786,21 +799,33 @@ def _dispatch_mass_production(
     )
     output_fn("\033[1;36m" + "═" * 60 + "\033[0m")
 
-    # ── Attempt to enumerate registered motion states for live progress ────
+    # ── SESSION-164: Dynamic Progress Telemetry bound to Registry ──────────
+    # [进度播报与 Registry 动态绑定] 彻底废除硬编码动作字符串，
+    # 通过读取 SESSION-162 创建的动态动作字典 MotionStateLaneRegistry
+    # 真实获取正在烘焙的动作名称并逐行打印。
     try:
         from mathart.animation.unified_gait_blender import get_motion_lane_registry
-        registered_states = get_motion_lane_registry().names()
+        registry = get_motion_lane_registry()
+        registered_states = registry.names()
         output_fn(
-            f"\033[1;33m[⚙️  工业量产网关] 正在利用纯 CPU 算力，"
-            f"遍历动作字典批量烘焙高清图纸...\033[0m"
+            f"\033[1;33m[⚙️  工业量产] 动态注册表已就绪 — "
+            f"共发现 {len(registered_states)} 种已注册动作\033[0m"
         )
         output_fn(
-            f"\033[90m    ↳ 已注册动作阵列: {', '.join(registered_states)} "
-            f"(共 {len(registered_states)} 种动作)\033[0m"
+            f"\033[90m    ↳ 已注册动作阵列: "
+            f"{', '.join(registered_states)}\033[0m"
         )
         for state_name in registered_states:
-            output_fn(f"\033[90m    ↳ 正在解算 {state_name} 动作...\033[0m")
-    except Exception:
+            output_fn(
+                f"\033[90m    [⚙️  工业量产] "
+                f"正在解算 {state_name} 序列贴图...\033[0m"
+            )
+    except Exception as _reg_err:
+        # Registry unreachable — degrade gracefully but NEVER crash
+        logger.debug(
+            "[CLI] Motion registry unreachable during telemetry: %s",
+            _reg_err,
+        )
         output_fn(
             "\033[1;33m[⚙️  工业量产网关] 正在利用纯 CPU 算力，"
             "遍历动作字典批量烘焙高清图纸...\033[0m"
@@ -809,9 +834,23 @@ def _dispatch_mass_production(
             "\033[90m    ↳ (动作注册表暂不可达，将由底层管线自动遍历全部动作)\033[0m"
         )
 
-    # ── Dispatch to production pipeline ────────────────────────────────────
+    # ── SESSION-164: Vibe Intent Propagation ───────────────────────────────
+    # [意图与参数全链路穿透] 确保 vibe 从 UI 菜单 → 穿过 162 的动作阶段
+    # → 最终原封不动地注入到 161 的 workflow_api.json 的 Prompt 节点中。
+    _vibe_str = ""
+    if hasattr(spec, "raw_vibe"):
+        _vibe_str = str(spec.raw_vibe or "")
+    elif hasattr(spec, "to_dict"):
+        _vibe_str = str(spec.to_dict().get("raw_vibe", ""))
+
+    # ── SESSION-164: Precise Exception Catching ────────────────────────────
+    # [精准化容灾拦截对接] 将宽泛的 try...except 精准绑定到 SESSION-161
+    # ComfyUIClient 真实抛出的网络异常和 SESSION-162 的 MSE 自爆异常。
     try:
-        output_fn(f"\n\033[1;37m[⏳] 正在唤醒 ProductionStrategy (skip_ai_render={skip_ai_render})...\033[0m")
+        output_fn(
+            f"\n\033[1;37m[⏳] 正在唤醒 ProductionStrategy "
+            f"(skip_ai_render={skip_ai_render})...\033[0m"
+        )
         result = dispatcher.dispatch(
             "production",
             options={
@@ -821,7 +860,12 @@ def _dispatch_mass_production(
                 # [防失忆红线] carry the approved context so downstream
                 # factory stages can pick it up.
                 "director_studio_spec": spec.to_dict() if hasattr(spec, "to_dict") else None,
-                "director_studio_flat_params": final_genotype.flat_params() if hasattr(final_genotype, "flat_params") else {},
+                "director_studio_flat_params": (
+                    final_genotype.flat_params()
+                    if hasattr(final_genotype, "flat_params") else {}
+                ),
+                # [SESSION-164 意图穿透] vibe 原封不动注入
+                "vibe": _vibe_str,
             },
             execute=True,
         )
@@ -830,7 +874,7 @@ def _dispatch_mass_production(
         # ── Post-bake telemetry ────────────────────────────────────────
         if skip_ai_render:
             output_fn(
-                "\n\033[1;32m[✅ 全阵列工业烘焙完成] "
+                "\n\033[1;32m[✅ 资产闭环] 流程完美结束！"
                 "全套动作序列高清工业贴图已安全落盘至 outputs 文件夹！\033[0m"
             )
         else:
@@ -842,38 +886,103 @@ def _dispatch_mass_production(
             )
 
         output_fn(json.dumps(payload, ensure_ascii=False, indent=2))
+        # ── SESSION-164: Final green completion banner ─────────────────
+        output_fn(
+            "\n\033[1;32m[✅ 资产闭环] 流程完美结束！\033[0m"
+        )
 
+    # ── SESSION-164: Precise exception ladder ──────────────────────────────
+    # Layer 1: Quality circuit breaker (SESSION-162 MSE variance assert)
     except PipelineQualityCircuitBreak as exc:
+        # [精准捕获] SESSION-162 部署的"静止帧 MSE 自爆异常"
+        logger.warning(
+            "[CLI] Quality circuit break caught in Golden Handoff V2 "
+            "(skip_ai_render=%s, violation=%s)",
+            skip_ai_render,
+            getattr(exc, "violation_type", "unknown"),
+        )
         _render_quality_circuit_break(
             exc, output_fn=output_fn,
             selection=f"golden_handoff_v2_skip={skip_ai_render}",
         )
-    except Exception as exc:
-        logger.warning(
-            "[CLI] Golden Handoff V2 production dispatch FAILED "
-            "(skip_ai_render=%s)",
-            skip_ai_render,
-            exc_info=True,
+        output_fn(
+            "\033[90m    ↳ 已安全拦截质量防线异常，返回黄金连招菜单。\033[0m"
         )
-        # ── SESSION-159: Graceful GPU degradation ──────────────────────
-        if not skip_ai_render:
-            output_fn(
-                "\n\033[1;33m[⚠️  显卡环境未就绪！"
-                "但您的【全套工业级动作序列】已为您安全锁定保留在 "
-                "outputs 文件夹中！]\033[0m"
+
+    # Layer 2: ComfyUI network exceptions (SESSION-161 precise binding)
+    except ConnectionRefusedError as exc:
+        # [精准捕获] ComfyUI 服务未启动 / 端口拒绝连接
+        logger.warning(
+            "[CLI] ConnectionRefusedError caught — ComfyUI offline "
+            "(skip_ai_render=%s): %s",
+            skip_ai_render, exc,
+        )
+        output_fn(
+            "\n\033[1;33m[⚠️  ComfyUI 炼丹炉未响应/未启动！"
+            "但您的全阵列物理底图已为您安全落盘保留。]\033[0m"
+        )
+        output_fn(
+            "\033[90m    ↳ 请确保 ComfyUI 服务端已在后台启动 "
+            "(默认 http://localhost:8188)，然后重新选择 [2]。\033[0m"
+        )
+
+    except OSError as exc:
+        # [精准捕获] 网络层异常 (ConnectionError, TimeoutError 等 OSError 子类)
+        logger.warning(
+            "[CLI] OSError caught — network issue "
+            "(skip_ai_render=%s): %s",
+            skip_ai_render, exc,
+        )
+        output_fn(
+            "\n\033[1;33m[⚠️  网络通讯异常！"
+            "但您的全阵列物理底图已为您安全落盘保留。]\033[0m"
+        )
+        output_fn(
+            f"\033[90m    ↳ 异常详情: {exc.__class__.__name__}: {exc}\033[0m"
+        )
+
+    # Layer 3: Catch-all with PipelineContractError detection
+    except Exception as exc:
+        # Check if it's a PipelineContractError wrapped in a generic raise
+        _is_contract = getattr(exc, "violation_type", None) is not None
+        if _is_contract:
+            logger.warning(
+                "[CLI] PipelineContractError caught in dispatch "
+                "(violation=%s): %s",
+                getattr(exc, "violation_type", "unknown"),
+                getattr(exc, "detail", str(exc)),
             )
             output_fn(
-                "\033[90m    ↳ 您可以稍后在显卡环境就绪后，"
-                "重新选择 [2] 进行 AI 渲染推流。\033[0m"
+                f"\n\033[1;31m[🛑 管线契约违规] "
+                f"{getattr(exc, 'violation_type', 'unknown')}: "
+                f"{getattr(exc, 'detail', str(exc))}\033[0m"
+            )
+            output_fn(
+                "\033[90m    ↳ 已安全拦截，返回黄金连招菜单。\033[0m"
             )
         else:
-            output_fn(json.dumps({
-                "status": "error",
-                "error_type": exc.__class__.__name__,
-                "message": str(exc),
-            }, ensure_ascii=False, indent=2))
-
-
+            logger.warning(
+                "[CLI] Golden Handoff V2 production dispatch FAILED "
+                "(skip_ai_render=%s)",
+                skip_ai_render,
+                exc_info=True,
+            )
+            # ── Graceful GPU degradation ──────────────────────────────
+            if not skip_ai_render:
+                output_fn(
+                    "\n\033[1;33m[⚠️  ComfyUI 炼丹炉未响应/未启动！"
+                    "但您的全阵列物理底图已为您安全落盘保留。]\033[0m"
+                )
+                output_fn(
+                    "\033[90m    ↳ 您可以稍后在显卡环境就绪后，"
+                    "重新选择 [2] 进行 AI 渲染推流。\033[0m"
+                )
+            else:
+                output_fn(json.dumps({
+                    "status": "error",
+                    "error_type": exc.__class__.__name__,
+                    "message": str(exc),
+                }, ensure_ascii=False, indent=2))
 
 def _run_director_studio(
     *,

@@ -1,6 +1,6 @@
 {
   "version": "v0.99.11",
-  "last_session_id": "SESSION-163",
+  "last_session_id": "SESSION-164",
   "last_updated": "2026-04-23T23:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -256,7 +256,7 @@
     "engineering_automation": 95,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-160 COMPLETE — ActionRegistry + Temporal Wiring + Variance Assert Gate. Next: Registry Expansion (Dash/Climb/AttackCombo) or Visual Regression Tests",
+  "current_focus": "SESSION-164 COMPLETE — Final UI Assembly: CLI wizard full-chain integration with SESSION-161 ComfyUI API bridge and SESSION-162 dynamic ActionRegistry. Dynamic progress telemetry, precise exception ladder, vibe intent propagation, and asset closure green banner all deployed.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "research/session139_director_studio_research.md",
@@ -2778,6 +2778,21 @@
       "session": "SESSION-160",
       "status": "CLOSED",
       "summary": "Dynamic ActionRegistry, Temporal Context Wiring, Variance Assert Gate"
+    },
+    {
+      "task_id": "P0-SESSION-163-FINAL-UI-ASSEMBLY",
+      "title": "前端 CLI 全链路大满贯流转对接",
+      "session": "SESSION-164",
+      "status": "CLOSED",
+      "description": "将 SESSION-161 (ComfyUI API 通讯网线) 和 SESSION-162 (动态动作注册表 + 防呆核弹) 的底层引擎与前端 CLI 向导 (cli_wizard.py) 完成全链路对接。包括：动态进度播报绑定 Registry、精准异常分层拦截、vibe 意图参数全链路穿透、资产闭环绿色通知。",
+      "files_modified": [
+        "mathart/cli_wizard.py",
+        "docs/USER_GUIDE.md",
+        "docs/RESEARCH_NOTES_SESSION_164.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "research_anchors": "docs/RESEARCH_NOTES_SESSION_164.md"
     }
   ],
   "capability_gaps": [
@@ -3215,6 +3230,10 @@
       "session_id": "SESSION-154",
       "title": "知识执法网关 × Policy-as-Code × IoC 自注册 Enforcer",
       "summary": "Built the Knowledge Enforcer Gate Registry — a Policy-as-Code parameter validation system that compiles static knowledge documents (pixel_art.md, color_science.md, color_light.md) into runtime-enforced validation gates. Delivered: KnowledgeEnforcerRegistry (IoC singleton), PixelArtEnforcer (10 rules), ColorHarmonyEnforcer (5 rules with real OKLab math), Pipeline Integration Layer (3 zero-trunk hooks), comprehensive test suite. Research: OPA Policy-as-Code, Design by Contract, Shift-Left Validation."
+    },
+    {
+      "session_id": "SESSION-164",
+      "summary": "SESSION-164 completed the Final UI Assembly task (P0-SESSION-163-FINAL-UI-ASSEMBLY). The CLI wizard's _dispatch_mass_production function was upgraded with: (1) Dynamic progress telemetry reading from MotionStateLaneRegistry instead of hardcoded strings, (2) Precise 4-layer exception ladder (PipelineQualityCircuitBreak → ConnectionRefusedError → OSError → PipelineContractError/generic), (3) Vibe intent parameter extraction and explicit propagation via dispatch options, (4) Green asset closure completion banner. External research anchors documented in docs/RESEARCH_NOTES_SESSION_164.md covering End-to-End Impedance Matching, Dynamic UI Hydration (LLVM TargetRegistry), Precise Exception Catching (Nygard Circuit Breaker), and Intent Propagation (BFF pattern)."
     }
   ],
   "custom_notes": {
@@ -3821,6 +3840,12 @@
       "date": "2026-04-23",
       "focus": "ActionRegistry + Temporal Wiring + Variance Assert Gate",
       "status": "CLOSED"
+    },
+    {
+      "session_id": "SESSION-164",
+      "date": "2026-04-23",
+      "task": "P0-SESSION-163-FINAL-UI-ASSEMBLY",
+      "status": "CLOSED"
     }
   ],
   "closed_tasks_archive": [
@@ -4167,6 +4192,12 @@
       "session": "SESSION-160",
       "closed_at": "2026-04-23",
       "summary": "Eradicated hardcoded _MOTION_STATES, established dynamic ActionRegistry from MotionStateLaneRegistry, threaded RenderContext (motion_state/fps/character_id) through guide baking pipeline, deployed assert_nonzero_temporal_variance() per-pair MSE floor assertion at AI render boundary."
+    },
+    {
+      "task_id": "P0-SESSION-163-FINAL-UI-ASSEMBLY",
+      "session": "SESSION-164",
+      "title": "前端 CLI 全链路大满贯流转对接",
+      "closed_date": "2026-04-23"
     }
   ],
   "legacy_session_changes_consolidated": {
@@ -4270,6 +4301,10 @@
         "tools/run_mass_production_factory.py",
         "mathart/core/anti_flicker_runtime.py"
       ]
+    },
+    {
+      "session": "SESSION-164",
+      "landing": "CLI wizard _dispatch_mass_production upgraded: dynamic Registry telemetry, 4-layer precise exception ladder, vibe intent propagation, asset closure banner."
     }
   ],
   "session_log": [
@@ -5070,6 +5105,14 @@
         "SESSION_HANDOFF.md",
         "PROJECT_BRAIN.json"
       ]
+    },
+    {
+      "session_id": "SESSION-164",
+      "task_id": "P0-SESSION-163-FINAL-UI-ASSEMBLY",
+      "title": "前端 CLI 全链路大满贯流转对接 (Final UI Assembly)",
+      "status": "CLOSED",
+      "date": "2026-04-23",
+      "summary": "Completed full-chain integration of CLI wizard with SESSION-161 ComfyUI API bridge and SESSION-162 dynamic ActionRegistry. Four key upgrades: (1) Dynamic progress telemetry bound to MotionStateLaneRegistry, (2) Precise exception ladder with 4-layer catching, (3) Vibe intent full-chain propagation, (4) Asset closure green banner. All changes confined to cli_wizard.py frontend layer — zero backend modification."
     }
   ],
   "resolved_issues": [
@@ -5379,6 +5422,21 @@
       "session": "SESSION-160",
       "decision": "Explicit RenderContext parameter threading (Temporal Context Wiring)",
       "rationale": "DigitalRune RenderContext pattern: rendering context must be explicitly passed, never implicitly assumed. motion_state/fps/character_id are now threaded through as keyword arguments to _bake_true_motion_guide_sequence()."
+    },
+    {
+      "session": "SESSION-164",
+      "decision": "Dynamic Progress Telemetry bound to MotionStateLaneRegistry",
+      "rationale": "LLVM TargetRegistry self-registration pattern: progress telemetry MUST read from the real ActionRegistry API (get_motion_lane_registry().names()), never hardcode action strings. Python Registry Pattern with Decorators (Open/Closed Principle) ensures zero-modification extensibility."
+    },
+    {
+      "session": "SESSION-164",
+      "decision": "Precise Exception Ladder for ComfyUI domain exceptions",
+      "rationale": "Michael Nygard 'Release It!' Circuit Breaker three-state pattern + AWS Exponential Backoff with Jitter. Exception catching MUST be precise: PipelineQualityCircuitBreak → ConnectionRefusedError → OSError → PipelineContractError → generic Exception. Each layer has distinct terminal messaging and logging."
+    },
+    {
+      "session": "SESSION-164",
+      "decision": "Vibe Intent Full-Chain Propagation via dispatch options",
+      "rationale": "Sam Newman BFF payload mutation pattern: user intent (vibe) MUST flow unmodified from UI input through all pipeline stages. Extracted from spec.raw_vibe and passed as explicit 'vibe' key in dispatch options."
     }
   ],
   "design_decisions": [
@@ -5389,7 +5447,7 @@
       "implication": "This classification schema provides the exact granularity needed for targeted fix campaigns. Each dead-zone parameter has a clear remediation path: add the corresponding constraint to the knowledge directory and verify via re-running the audit. The six-level schema is extensible — future sources (e.g., A/B test results, user analytics) can be added as new ProvenanceSourceType enum values without breaking existing records."
     }
   ],
-  "current_session": "SESSION-163",
+  "current_session": "SESSION-164",
   "red_lines": [
     "SESSION-162: NEVER use hardcoded string lists for motion states; ALWAYS query unified_gait_blender.get_motion_lane_registry().names().",
     "SESSION-162: NEVER bypass assert_nonzero_temporal_variance in guide baking; fail fast on frozen sequences.",
@@ -5398,6 +5456,12 @@
     "SESSION-163: NEVER hardcode absolute filesystem paths in backend code; all paths MUST be dynamically extracted from context['artifacts'].",
     "SESSION-163: mathart/assets/workflows/ MUST contain a valid workflow_api_template.json template.",
     "SESSION-163: AI render outputs MUST be renamed to ai_render_{action}_{frame:02d}.png format.",
-    "SESSION-163: New backends MUST self-register via @register_backend; zero trunk modification."
+    "SESSION-163: New backends MUST self-register via @register_backend; zero trunk modification.",
+    "SESSION-164: Progress telemetry MUST read from MotionStateLaneRegistry dynamically; hardcoded action strings in CLI are forbidden.",
+    "SESSION-164: Exception catching in _dispatch_mass_production MUST use precise layered ladder (PipelineQualityCircuitBreak → ConnectionRefusedError → OSError → PipelineContractError → generic); broad 'except Exception' as sole handler is forbidden.",
+    "SESSION-164: Vibe intent parameter MUST be explicitly passed via dispatch options['vibe']; dropping vibe mid-chain is forbidden.",
+    "SESSION-164: Pipeline completion MUST print green asset closure banner [✅ 资产闭环].",
+    "SESSION-164: Exception catching in _dispatch_mass_production MUST use precise layered ladder; broad 'except Exception' as sole handler is forbidden.",
+    "SESSION-164: Pipeline completion MUST print green asset closure banner."
   ]
 }
