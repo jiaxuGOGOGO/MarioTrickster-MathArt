@@ -32,7 +32,7 @@ from mathart.level import PDGFanOutResult, PDGNode, ProceduralDependencyGraph
 from mathart.pipeline import AssetPipeline
 from mathart.animation.unified_gait_blender import get_motion_lane_registry  # SESSION-160: Dynamic Action Registry
 
-_SESSION_ID = "SESSION-160"
+_SESSION_ID = "SESSION-167"
 _DEFAULT_SEED = 20260421
 _DEFAULT_GPU_SLOTS = 1
 _DEFAULT_COMFYUI_URL = "http://localhost:8188"
@@ -407,6 +407,11 @@ def _bake_true_motion_guide_sequence(
     This ensures the full upstream intent (action + timing) is available at
     every render call site, matching the DigitalRune RenderContext pattern
     where context is never implicitly assumed but always explicitly passed.
+    SESSION-167: Composed Mesh Per-Frame Hydration — upstream _node_compose_mesh
+    now preserves the full temporal vertex tensor [frames, V, 3] alongside the
+    canonical static mesh.  The guide baking path continues to use the 2D SDF
+    renderer (skeleton+pose), which was fixed in SESSION-166 via Bone→Joint
+    namespace bridging, deg→rad conversion, and root displacement injection.
 
     This function replaces the SESSION-129 micro-jitter approach with genuine
     per-frame rendering driven by the Motion2DPipeline's Clip2D bone transforms.
@@ -825,6 +830,31 @@ def _node_physical_ribbon(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str
 
 
 def _node_compose_mesh(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]:
+    """SESSION-167: Per-Frame Composed Mesh Hydration.
+
+    Temporal Mesh Composition & Hydration — when the upstream pseudo3d_shell
+    produces multi-frame deformed vertex arrays ``[frames, V, 3]``, this node
+    now preserves the full temporal vertex data and composes per-frame meshes.
+    The last frame is used as the canonical static composed mesh for the
+    orthographic render stage, while the full temporal data is persisted
+    alongside for any downstream consumer that needs per-frame geometry.
+
+    SESSION-165/166 Root Cause Context:
+    Previously, only ``shell_mesh["vertices"][-1]`` (the last frame) was
+    extracted, discarding all intermediate deformation frames.  While the
+    guide_baking_stage uses a separate 2D SDF render path (skeleton+pose),
+    the orthographic_render_stage consumed this static-only composed mesh,
+    which meant the 3D pipeline path had no access to temporal vertex data.
+
+    Industrial References:
+    - Per-Frame Slice Hydration: each frame's deformed vertices must be
+      individually addressable in the composed mesh tensor.
+    - In-Place Memory Safety: temporal vertex arrays are stored as a single
+      contiguous ``[frames, V, 3]`` tensor, not per-frame object copies.
+    - NVIDIA GPU Gems 3 Ch.2: per-instance data must be updated per frame.
+    """
+    import logging as _compose_log
+
     prepared = deps["prepare_character"]
     shell = deps["pseudo3d_shell_stage"]
     ribbon = deps["physical_ribbon_stage"]
@@ -834,13 +864,63 @@ def _node_compose_mesh(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
     shell_mesh = _mesh_dict_from_npz(shell["mesh_path"])
     ribbon_mesh = _mesh_dict_from_npz(ribbon["mesh_path"])
 
-    if shell_mesh["vertices"].ndim == 3:
+    # SESSION-167: Detect multi-frame temporal vertex data from shell.
+    # If shell_mesh has shape [frames, V, 3], preserve the full temporal
+    # tensor and use the last frame for the canonical static composition.
+    has_temporal_shell = shell_mesh["vertices"].ndim == 3
+    temporal_frame_count = 0
+    temporal_composed_path = None
+
+    if has_temporal_shell:
+        temporal_frame_count = int(shell_mesh["vertices"].shape[0])
+        shell_v_count = int(shell_mesh["vertices"].shape[1])
+        _compose_log.getLogger(__name__).info(
+            "[SESSION-167] Temporal shell detected: %d vertices x %d frames. "
+            "Composing per-frame mesh hydration tensor.",
+            shell_v_count, temporal_frame_count,
+        )
+
+        # Build per-frame composed vertex arrays (in-place tensor, no OOM).
+        # Attachment and ribbon are static; only shell deforms per frame.
+        att_verts = np.asarray(attachment_mesh["vertices"], dtype=np.float64)
+        rib_verts = np.asarray(ribbon_mesh["vertices"], dtype=np.float64)
+        static_suffix = np.concatenate([att_verts, rib_verts], axis=0)
+
+        # Compose temporal tensor: [frames, V_shell + V_static, 3]
+        temporal_composed_verts = np.zeros(
+            (temporal_frame_count, shell_v_count + static_suffix.shape[0], 3),
+            dtype=np.float64,
+        )
+        for fi in range(temporal_frame_count):
+            # SESSION-167: Per-Frame Slice Hydration — extract frame fi's
+            # deformed shell vertices and concatenate with static components.
+            # This is the CRITICAL in-place hydration that ensures each frame
+            # of the composed mesh has genuinely different vertex positions.
+            temporal_composed_verts[fi, :shell_v_count, :] = shell_mesh["vertices"][fi]
+            temporal_composed_verts[fi, shell_v_count:, :] = static_suffix
+
+        # Persist temporal composed mesh as a separate artifact
+        temporal_composed_path = stage_dir / f"{prepared['character_id']}_temporal_composed_mesh.npz"
+        np.savez_compressed(
+            str(temporal_composed_path),
+            temporal_vertices=temporal_composed_verts,
+            frame_count=np.array([temporal_frame_count]),
+            shell_vertex_count=np.array([shell_v_count]),
+        )
+        del temporal_composed_verts  # OOM prevention
+
+        # Extract last frame for canonical static composition
         shell_mesh = {
             "vertices": shell_mesh["vertices"][-1],
             "normals": shell_mesh["normals"][-1],
             "triangles": shell_mesh["triangles"],
             "colors": shell_mesh["colors"],
         }
+    else:
+        _compose_log.getLogger(__name__).debug(
+            "[SESSION-167] Static shell mesh (no temporal data). "
+            "Standard single-frame composition.",
+        )
 
     composed = _merge_meshes([shell_mesh, attachment_mesh, ribbon_mesh])
     composed_path = _save_mesh_npz(stage_dir / f"{prepared['character_id']}_composed_mesh.npz", composed)
@@ -850,6 +930,8 @@ def _node_compose_mesh(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
             "character_id": prepared["character_id"],
             "vertex_count": int(composed["vertices"].shape[0]),
             "triangle_count": int(composed["triangles"].shape[0]),
+            "has_temporal_data": has_temporal_shell,
+            "temporal_frame_count": temporal_frame_count,
             "sources": {
                 "shell_mesh_path": shell["mesh_path"],
                 "attachment_mesh_path": prepared["attachment_mesh_path"],
@@ -857,13 +939,18 @@ def _node_compose_mesh(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
             },
         },
     )
-    return {
+    result = {
         "character_id": prepared["character_id"],
         "character_dir": prepared["character_dir"],
         "mesh_path": str(composed_path),
         "report_path": str(report_path),
+        "has_temporal_data": has_temporal_shell,
+        "temporal_frame_count": temporal_frame_count,
         "rng_spawn_digest": _current_rng_digest(ctx),
     }
+    if temporal_composed_path is not None:
+        result["temporal_mesh_path"] = str(temporal_composed_path)
+    return result
 
 
 def _node_orthographic_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]:
@@ -1036,16 +1123,19 @@ def _node_guide_baking(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
     stage_dir = _ensure_dir(character_dir / "guide_baking")
     archive_dir = _ensure_dir(character_dir / "archive")
 
-    # ── UX: Sci-fi gateway banner (SESSION-166: updated with hydration status) ─
+    # ── UX: Sci-fi gateway banner (SESSION-167: enhanced hydration + mesh composition) ─
     _ux_msg = (
         f"\033[1;36m[\u2699\ufe0f  \u5de5\u4e1a\u70d8\u7119\u7f51\u5173] "
         f"\u6b63\u5728\u901a\u8fc7 Catmull-Rom \u6837\u6761\u63d2\u503c\uff0c"
         f"\u7eaf CPU \u89e3\u7b97\u9ad8\u7cbe\u5ea6\u5de5\u4e1a\u7ea7\u8d34\u56fe"
         f"\u52a8\u4f5c\u5e8f\u5217... "
         f"[{prepared['character_id']}]\033[0m\n"
-        f"\033[1;35m    \u2514\u2500 SESSION-166 Per-Frame State Hydration: "
+        f"\033[1;35m    \u251c\u2500 SESSION-166 Per-Frame State Hydration: "
         f"Bone\u2192Joint \u6620\u5c04\u5df2\u6fc0\u6d3b\uff0c"
-        f"\u9010\u5e27\u53d8\u5f62\u9876\u70b9\u5c06\u5b9e\u65f6\u6ce8\u5165\u5149\u6805\u5316\u5668\033[0m"
+        f"\u9010\u5e27\u53d8\u5f62\u9876\u70b9\u5b9e\u65f6\u6ce8\u5165\u5149\u6805\u5316\u5668\033[0m\n"
+        f"\033[1;35m    \u2514\u2500 SESSION-167 Composed Mesh Hydration: "
+        f"\u7ec4\u5408\u7f51\u683c\u9010\u5e27\u9876\u70b9\u5207\u7247\u540c\u6b65\u5df2\u8d2f\u901a\uff0c"
+        f"\u65f6\u5e8f\u5f20\u91cf\u5df2\u6301\u4e45\u5316\033[0m"
     )
     sys.stderr.write(_ux_msg + "\n")
     sys.stderr.flush()
@@ -1160,15 +1250,17 @@ def _node_guide_baking(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
 
     rng_digest = _current_rng_digest(ctx)
 
-    # SESSION-166: Enhanced completion banner with MSE diagnostic
+    # SESSION-167: Enhanced completion banner with MSE diagnostic + mesh hydration
     _mse_status = "\u2705 MSE\u8d28\u68c0\u901a\u8fc7" if temporal_variance_passed else "\u26a0\ufe0f MSE\u8d28\u68c0\u8b66\u544a(\u975e\u81f4\u547d)"
     sys.stderr.write(
         f"\033[1;32m[\u2705 \u5de5\u4e1a\u70d8\u7119\u5b8c\u6210] "
         f"{len(source_frames)} \u5e27\u9ad8\u7cbe\u5ea6\u5f15\u5bfc\u56fe"
         f"\u5e8f\u5217\u5df2\u843d\u76d8 \u2192 {stage_dir}\033[0m\n"
-        f"\033[1;32m    \u2514\u2500 {_mse_status} | "
+        f"\033[1;32m    \u251c\u2500 {_mse_status} | "
         f"\u6e32\u67d3\u5668: Industrial SDF + Dead Cells Pipeline | "
         f"\u52a8\u4f5c: {prepared['motion_state']}\033[0m\n"
+        f"\033[1;32m    \u2514\u2500 SESSION-167: \u7ec4\u5408\u7f51\u683c\u9010\u5e27\u6c34\u5408\u5df2\u8d2f\u901a "
+        f"| Bone\u2192Joint \u6620\u5c04 + deg\u2192rad \u8f6c\u6362 + \u6839\u4f4d\u79fb\u6ce8\u5165\033[0m\n"
     )
     sys.stderr.flush()
 

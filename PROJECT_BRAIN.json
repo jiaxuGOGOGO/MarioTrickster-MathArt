@@ -1,6 +1,6 @@
 {
-  "version": "v0.99.12",
-  "last_session_id": "SESSION-166",
+  "version": "v0.99.13",
+  "last_session_id": "SESSION-167",
   "last_updated": "2026-04-23T23:59:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -24,6 +24,23 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-167-COMPOSED-MESH-HYDRATION",
+        "title": "Composed Mesh Per-Frame Slice Hydration — Preserve Temporal Vertex Tensor in compose_mesh_stage",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-167",
+        "modules": [
+          "mathart/factory/mass_production.py",
+          "docs/USER_GUIDE.md",
+          "docs/RESEARCH_NOTES_SESSION_167.md"
+        ],
+        "tests": [
+          "tests/test_mass_production.py",
+          "scripts/session166_verify.py"
+        ],
+        "description": "SESSION-167 Composed Mesh Per-Frame Hydration: Enhanced _node_compose_mesh() to preserve full temporal vertex data when upstream pseudo3d_shell produces multi-frame deformed vertices [frames, V, 3]. Previously only the last frame [-1] was extracted, discarding all intermediate deformation frames. Now composes a per-frame temporal vertex tensor by concatenating each frame's deformed shell vertices with static attachment/ribbon vertices, persists as _temporal_composed_mesh.npz alongside the canonical static _composed_mesh.npz for backward compatibility. Composition report enhanced with has_temporal_data and temporal_frame_count fields. UX banners upgraded with SESSION-167 Composed Mesh Hydration status line in both gateway and completion banners. _SESSION_ID upgraded to SESSION-167. _bake_true_motion_guide_sequence docstring updated with SESSION-167 context. USER_GUIDE.md synced with SESSION-167 documentation including new section 10.8. Research notes anchored in docs/RESEARCH_NOTES_SESSION_167.md covering Per-Frame Slice Hydration, Render Loop Context Mutability, Fail-Loud Validation, NVIDIA GPU Gems 3 Ch.2, and Catmull-Rom Spline Interpolation. All red lines strictly observed: VarianceAssertGate untouched, MSE quality gate preserved, DaC documentation contract fulfilled."
+      },
       {
         "id": "P0-SESSION-166-RENDER-LOOP-HYDRATION",
         "title": "Render Loop Per-Frame State Hydration — Fix Frozen Guide Sequence Bone→Joint Namespace Bridge",
