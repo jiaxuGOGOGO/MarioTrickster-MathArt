@@ -26,7 +26,18 @@ from ..pipeline import AssetPipeline, CharacterSpec
 from ..pipeline_contract import UMR_Context, PipelineContractError
 
 
-VALID_STATES = {"idle", "run", "jump", "fall", "hit"}
+# SESSION-162: 单一真理源来自 MotionStateLaneRegistry；包装为函数避免模块导入阶段反依赖。
+def _valid_states():
+    from mathart.animation.unified_gait_blender import get_motion_lane_registry
+    return set(get_motion_lane_registry().names())
+
+
+def __getattr__(name):
+    if name == "VALID_STATES":
+        value = _valid_states()
+        globals()["VALID_STATES"] = value
+        return value
+    raise AttributeError(f"module 'mathart.animation.cli' has no attribute {name!r}")
 
 
 def main(argv=None):

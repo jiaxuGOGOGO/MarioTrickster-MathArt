@@ -531,3 +531,74 @@ print(f"生成了 {len(segments)} 个植物片段")  # 应输出正整数
 img = tree.render(32, 32)
 print(f"渲染尺寸: {img.size}")  # 应输出 (32, 32)
 ```
+
+---
+
+## 8.2 注册表残党清剿 + 烘焙阶段 Fail-Fast 静止断言 (SESSION-162)
+
+> **SESSION-162 新增** — 在 SESSION-160 的基础上完成"最后一公里"清剿，并把视觉静止断言**前置**到纯 CPU 烘焙出口，让冻结序列在到达 GPU 之前就被原地击落。
+
+### 8.2.1 残留硬编码动作列表的彻底铲除
+
+SESSION-160 已经在工厂主文件 `tools/run_mass_production_factory.py` 中拆掉了 `_MOTION_STATES = ["idle", "walk", ...]` 的硬编码，但全仓搜索发现仍有 5 个文件残留同样模式的字符串列表。SESSION-162 一次性收尾如下：
+
+| 文件 | 旧值 | 新值 |
+|------|------|------|
+| `mathart/pipeline.py` (`states` 字段) | `["idle", "run", "jump", "fall", "hit"]` | `list(get_motion_lane_registry().names())` |
+| `mathart/pipeline.py` (`states=` kwarg) | `["idle", "run", "jump", "fall", "hit"]` | `list(get_motion_lane_registry().names())` |
+| `mathart/pipeline_contract.py` (`UMR_Context.states`) | `("idle", "run", "jump", "fall", "hit")` | `tuple(get_motion_lane_registry().names())` |
+| `mathart/headless_e2e_ci.py` (`GOLDEN_STATES`) | `("idle", "run", "jump", "fall", "hit")` | `tuple(get_motion_lane_registry().names())` |
+| `mathart/animation/cli.py` (`VALID_STATES`) | `{"idle", "run", "jump", "fall", "hit"}` | `set(get_motion_lane_registry().names())` |
+| `mathart/evolution/asset_factory_bridge.py` (`states`) | `["idle", "walk", "run", "jump"]` | `list(get_motion_lane_registry().names())` |
+
+> **设计说明**：`evolution_preview_states = ["idle", "run", "jump"]` 字段为有意保留的"快速预览子集"，仅在进化预览阶段使用，不属于"全集"枚举，因此**不在铲除范围**。
+
+### 8.2.2 烘焙阶段 Fail-Fast 视觉静止断言（前置防线）
+
+SESSION-160 已经在 AI 渲染边界（`_node_ai_render`）部署了 `assert_nonzero_temporal_variance` 防止冻结序列污染 ComfyUI。SESSION-162 把同一道断言**前置**到 `tools/run_mass_production_factory.py::_bake_true_motion_guide_sequence` 的 return 之前：
+
+```python
+# tools/run_mass_production_factory.py — _bake_true_motion_guide_sequence 出口
+from mathart.core.anti_flicker_runtime import assert_nonzero_temporal_variance
+try:
+    assert_nonzero_temporal_variance(source_frames, channel="source")
+except RuntimeError as e:
+    from mathart.pipeline_contract import PipelineContractError
+    raise PipelineContractError("frozen_guide_sequence", str(e))
+```
+
+这意味着任何"冻结的烘焙序列"将在**纯 CPU 阶段就被 `PipelineContractError("frozen_guide_sequence")` 中断**，绝不浪费任何 GPU 算力。
+
+### 8.2.3 傻瓜验收：如何确认 SESSION-162 改造生效？
+
+1. **残留硬编码扫描**（应只剩注释/文档/有意保留的 `evolution_preview_states`）：
+
+```bash
+grep -rn '"idle", "run", "jump", "fall", "hit"' mathart/ tools/
+# 期望输出：仅有少量注释/字符串字面量，无 = [...] 赋值
+```
+
+2. **注册表一致性**（所有铲除点都从同一个真理源拉取）：
+
+```python
+from mathart.animation.unified_gait_blender import get_motion_lane_registry
+from mathart.pipeline_contract import UMR_Context
+from mathart.headless_e2e_ci import GOLDEN_STATES
+from mathart.animation.cli import VALID_STATES
+print(set(get_motion_lane_registry().names()))   # 真理源
+print(set(UMR_Context().states))                  # 应一致
+print(set(GOLDEN_STATES))                          # 应一致
+print(VALID_STATES)                                # 应一致
+```
+
+3. **烘焙阶段静止断言**：构造一段 6 帧全等图像，调用 `_bake_true_motion_guide_sequence` 应在 return 前抛 `PipelineContractError("frozen_guide_sequence")`。
+
+### 8.2.4 外网工业理论锚点（Docs-as-Code）
+
+SESSION-162 的三大改造均有公开工业出处可离线复核，详见仓库内归档：
+
+> 见 [`docs/RESEARCH_NOTES_SESSION_162.md`](RESEARCH_NOTES_SESSION_162.md)，包括：
+>
+> - Tom Looman, *Why you should be using GameplayTags in Unreal Engine*（数据驱动注册表替代硬编码）
+> - DigitalRune, *Render Context*（强类型上下文显式传播）
+> - Isaac Berrios, *Introduction to Motion Detection: Part 1 - Frame Differencing*（MSE 帧差检测静止）

@@ -129,7 +129,11 @@ class UMR_Context:
     random_seed: int = 42
     character_name: str = ""
     preset: str = "mario"
-    states: tuple[str, ...] = ("idle", "run", "jump", "fall", "hit")
+    # SESSION-162: 单一真理源来自 MotionStateLaneRegistry；用 default_factory 推迟到实例化时再求值，
+    # 避免 dataclass 装饰器在模块导入阶段被 mathart.animation.__init__ 的可选依赖（如 networkx）误伤。
+    states: tuple[str, ...] = field(default_factory=lambda: tuple(
+        __import__("mathart.animation.unified_gait_blender", fromlist=["get_motion_lane_registry"]).get_motion_lane_registry().names()
+    ))
     frame_width: int = 32
     frame_height: int = 32
     fps: int = 12

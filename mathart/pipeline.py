@@ -205,7 +205,7 @@ class CharacterSpec:
     fps: int = 12
     head_units: float = 3.0
     frames_per_state: int = 8
-    states: list[str] = field(default_factory=lambda: ["idle", "run", "jump", "fall", "hit"])
+    states: list[str] = field(default_factory=lambda: list(__import__("mathart.animation.unified_gait_blender", fromlist=["get_motion_lane_registry"]).get_motion_lane_registry().names()))
     state_frames: dict[str, int] = field(default_factory=dict)
     loop_overrides: dict[str, bool] = field(default_factory=lambda: {
         "idle": True,
@@ -221,7 +221,7 @@ class CharacterSpec:
     evolution_iterations: int = 0
     evolution_population: int = 6
     evolution_variation_strength: float = 0.18
-    evolution_preview_states: list[str] = field(default_factory=lambda: ["idle", "run", "jump"])
+    evolution_preview_states: list[str] = field(default_factory=lambda: ["idle", "run", "jump"]) # keeping subset for fast preview # keeping subset for fast preview
     evolution_elite_size: int = 3
     evolution_stagnation_patience: int = 2
     enable_cns_locomotion: bool = True
@@ -2643,7 +2643,7 @@ class AssetPipeline:
                     name="mario_character",
                     preset="mario",
                     frames_per_state=6,
-                    states=["idle", "run", "jump", "fall", "hit"],
+                    states=list(__import__("mathart.animation.unified_gait_blender", fromlist=["get_motion_lane_registry"]).get_motion_lane_registry().names()),
                 ),
                 CharacterSpec(
                     name="trickster_character",

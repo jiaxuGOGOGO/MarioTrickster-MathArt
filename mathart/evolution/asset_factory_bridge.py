@@ -234,7 +234,7 @@ class AssetFactory:
         Covers all presets × all animation states for comprehensive coverage.
         """
         presets = ["mario"]  # Expandable to more presets
-        states = ["idle", "walk", "run", "jump"]
+        states = list(__import__("mathart.animation.unified_gait_blender", fromlist=["get_motion_lane_registry"]).get_motion_lane_registry().names())
         specs: list[AssetSpec] = []
 
         for preset in presets:

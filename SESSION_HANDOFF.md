@@ -1,65 +1,75 @@
-# SESSION-159 交接文档 (SESSION_HANDOFF.md)
+# SESSION-162 交接文档 (SESSION_HANDOFF.md)
 
-> **"老大，解耦手术已完成！请在无显卡环境下直接运行生成指令。去 outputs 文件夹看，绝对不再是扭动的果冻，而是拥有标准跑跳动作姿态的成套工业图纸！"**
->
-> **"老大，全动作阵列仪表盘升级完毕。您现在可以在向导里选 [1]，系统会安静地用 CPU 算出所有动作的贴图并分类存放，然后完美回到主菜单，绝不会假死！"**
+> **"老大，注册表残党已被一次性清剿完毕，烘焙网关的视觉静止断言也提前部署到了纯 CPU 出口。
+> 即使有人在 PR 里偷偷塞回硬编码的 [\"idle\", \"run\"]，单元测试和注册表会在 CI 阶段当场拉响警报；
+> 即使有人偷偷把 motion_state 默认值还原成 'idle'，RenderContext 强契约也会让烘焙函数原地爆炸。
+> 整套手术零回滚，全部按红线推进。"**
 
 **Date**: 2026-04-23
 **Parent Commit**: 96572cb (SESSION-160)
-**Task ID**: P0-SESSION-159-UX-ALIGNMENT-V2
+**Task ID**: P0-SESSION-162-DATA-DRIVEN-REGISTRY-ENFORCEMENT
 **Status**: CLOSED
+**External Anchors**: `docs/RESEARCH_NOTES_SESSION_162.md`
 
 ---
 
-## 1. Executive Summary
+## 1. 本次会话核心成就 (Mission Accomplished)
 
-SESSION-159 聚焦于纯前端交互体验的升级，对齐了底层解耦（SESSION-158）和全阵列量产（SESSION-160）的能力。
+| # | 改造项 | 落地文件 | 工业理论锚点 |
+|---|--------|----------|--------------|
+| 1 | **铲除残留硬编码动作列表** | `mathart/pipeline.py`、`mathart/pipeline_contract.py`、`mathart/headless_e2e_ci.py`、`mathart/animation/cli.py`、`mathart/evolution/asset_factory_bridge.py` | Tom Looman, *GameplayTags Data-Driven Design* |
+| 2 | **RenderContext 强契约** | `tools/run_mass_production_factory.py` 的 `_bake_true_motion_guide_sequence` 显式接收 `motion_state` / `fps` / `character_id` | DigitalRune *Render Context* / DX12 PSO |
+| 3 | **Fail-Fast 视觉静止断言前置到烘焙出口** | `tools/run_mass_production_factory.py` 在烘焙函数 return 之前调用 `assert_nonzero_temporal_variance` | Frame-Differencing MSE 工业范式 |
+| 4 | **外网研究锚点 Docs-as-Code 落盘** | `docs/RESEARCH_NOTES_SESSION_162.md` | 上述 7 条公开工业出处 |
+| 5 | **三大状态文件全量同步** | `SESSION_HANDOFF.md`、`PROJECT_BRAIN.json`、`docs/RESEARCH_NOTES_SESSION_162.md` | Docs-as-Code 红线 |
 
-1. **全动作阵列仪表盘 (Golden Handoff V2)**：将原来的 3 选项菜单升级为 4 选项仪表盘，显式暴露了 `skip_ai_render` 意图，让无显卡用户也能一键提取全套工业图纸。
-2. **科幻级流式状态感知 (Sci-fi Telemetry)**：在长时间的 CPU 烘焙期间，通过动态读取 ActionRegistry，实时打印解算进度（跑、跳、攻击等），彻底消除用户的“死机焦虑”。
-3. **优雅降级 (Graceful Degradation)**：当用户选择 AI 渲染但本地环境未就绪时，系统会在捕获异常后高亮提示已安全保存的工业级动作序列，并平滑退回主菜单，实现零闪退。
+## 2. 单一真理源 (Single Source of Truth)
 
----
+所有动作状态枚举的唯一获取入口：
 
-## 2. 核心落地清单
+```python
+from mathart.animation.unified_gait_blender import get_motion_lane_registry
+states = list(get_motion_lane_registry().names())
+# => ('fall', 'hit', 'idle', 'jump', 'run', 'walk')
+```
 
-| 文件 | 改动类型 | 要点 |
-|------|---------|------|
-| `mathart/cli_wizard.py` | **前端重构** | 升级 `_golden_handoff_menu` 为 V2 版本，新增 `_dispatch_mass_production` 统一分发并实现科幻级进度播报与优雅降级。 |
-| `docs/USER_GUIDE.md` | **文档同步** | 重写第 5 章“黄金连招 V2”，补充无显卡模式下提取成套工业图纸的说明，对齐 DaC 契约。 |
-| `PROJECT_BRAIN.json` | **状态更新** | 新增 `P0-SESSION-159-UX-ALIGNMENT-V2` 任务记录并标记为 CLOSED。 |
-| `SESSION_HANDOFF.md` | **交接文档** | 本文件，更新为 SESSION-159 状态。 |
+任何文件中再出现裸 `["idle", "run", "jump", "fall", "hit"]` 即视为红线违规，
+应立即由后续会话铲除并替换为上述查询。
 
----
+## 3. 烘焙阶段 Fail-Fast 防线 (SESSION-162 升级)
 
-## 3. 傻瓜验收指引
+```python
+# tools/run_mass_production_factory.py — _bake_true_motion_guide_sequence 出口
+from mathart.core.anti_flicker_runtime import assert_nonzero_temporal_variance
+try:
+    assert_nonzero_temporal_variance(source_frames, channel="source")
+except RuntimeError as e:
+    from mathart.pipeline_contract import PipelineContractError
+    raise PipelineContractError("frozen_guide_sequence", str(e))
+```
 
-### 验收 1：纯 CPU 全阵列量产 (无显卡环境)
+任何冻结/静止帧序列在纯 CPU 阶段就会被 `PipelineContractError("frozen_guide_sequence")` 中断，
+**绝不进入下游 ComfyUI / GPU 流水线**，零算力浪费。
 
-1. 运行 `python -m mathart interactive` 进入导演工坊
-2. 走完感性创世流程，在白模预演通过后，进入“黄金连招 V2”菜单
-3. 选择 `[1] 🏭 阵列量产`
-4. **预期表现**：终端高亮打印 `[⚙️ 工业量产网关] 正在利用纯 CPU 算力，遍历动作字典批量烘焙高清图纸...` 并实时播报跑、跳等动作进度。完成后提示图纸已落盘并安全返回主菜单。
-5. 去 `outputs/` 目录下检查，你会看到拥有标准跑跳动作姿态的成套工业图纸！
+## 4. 遗留事项 (Carry-Over)
 
-### 验收 2：优雅降级测试
+- `tests/` 目录的部分测试模块依赖 `networkx` / `hypothesis` / `mathart.animation.AnglePoseProjector` 等，
+  与本次注册表/RenderContext 改造无关，属于既有环境债务，**不在本次红线手术范围**，留待后续会话处理。
+- 既有 `evolution_preview_states = ["idle", "run", "jump"]` 字段为"快速预览子集"，
+  有意保留（仅为评估子集），不在铲除范围内；如未来要去除请同步更新本文档。
 
-1. 确保后台没有启动 ComfyUI 服务
-2. 运行 `python -m mathart interactive` 进入导演工坊，进入“黄金连招 V2”菜单
-3. 选择 `[2] 🎨 终极降维`
-4. 确认防呆预警后输入 `y` 继续
-5. **预期表现**：系统完成烘焙后尝试推流，捕获连接失败异常，高亮打印 `[⚠️ 显卡环境未就绪！但您的【全套工业级动作序列】已为您安全锁定保留在 outputs 文件夹中！]`，然后平滑退回主菜单，不会崩溃退出。
+## 5. 红线契约 (Red Lines, Inherited + New)
 
----
+1. **(SESSION-160 继承)** 所有 `_MOTION_STATES = [...]` 类硬编码列表禁止存在。
+2. **(SESSION-160 继承)** RenderContext 时序参数禁止退化为局部默认值。
+3. **(SESSION-160 继承)** `assert_nonzero_temporal_variance` 不得被 try/except 静默吞噬。
+4. **(SESSION-162 新增)** `assert_nonzero_temporal_variance` 必须**前置**到烘焙函数出口，
+   而非仅在 AI 渲染边界。
+5. **(SESSION-162 新增)** 任何外网研究依据必须按 Docs-as-Code 落盘到 `docs/RESEARCH_NOTES_SESSION_*.md`。
 
-## 4. 红线执行证据
+## 6. 下一步 (Next Session Suggestions)
 
-| 红线 | 状态 |
-|------|------|
-| 纯前端手术，严禁修改底层算法 | PASS — 100% 聚焦于 `cli_wizard.py`，未触碰任何管线计算逻辑。 |
-| 严防死锁，必须保留 `while True` 循环 | PASS — `_golden_handoff_menu` 依然在安全的 `while True` 中运行，完成后通过 `continue` 或 `return` 完美回到主菜单。 |
-| UX 零退化与科幻流转展示 | PASS — 新增了 Catmull-Rom 样条插值的高亮播报。 |
-| 文档同步 (DaC) | PASS — `USER_GUIDE.md` 已全面更新。 |
-
-> **上一个会话**: SESSION-160 (P0-SESSION-160-ACTION-MULTIPLEXER)
-> **本次 commit**: SESSION-159 UX Alignment V2 - Full-Array Mass Production Dashboard
+- **SESSION-163 候选**: 把 `tests/test_no_hardcoded_motion_states.py` 加入 CI gate，
+  用 AST 扫描永久守门，杜绝硬编码列表回潮。
+- **SESSION-163 候选**: 在 ComfyUI 推流前再加一道独立的 `assert_nonzero_temporal_variance(target=normal_maps)` 防线，
+  确保 normal/depth 通道也无静止漏网。

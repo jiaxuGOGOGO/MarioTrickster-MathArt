@@ -83,7 +83,15 @@ HERMETIC_SEED = 42
 
 # Default character spec for golden baseline
 GOLDEN_PRESET = "mario"
-GOLDEN_STATES = ("idle", "run", "jump", "fall", "hit")
+# SESSION-162: 单一真理源来自 MotionStateLaneRegistry；用 module-level __getattr__ 推迟到访问时再求值，
+# 避免模块导入阶段被 mathart.animation.__init__ 的可选依赖（如 networkx）误伤。
+def __getattr__(name):  # noqa: D401
+    if name == "GOLDEN_STATES":
+        from mathart.animation.unified_gait_blender import get_motion_lane_registry
+        value = tuple(get_motion_lane_registry().names())
+        globals()["GOLDEN_STATES"] = value  # cache after first access
+        return value
+    raise AttributeError(f"module 'mathart.headless_e2e_ci' has no attribute {name!r}")
 GOLDEN_FRAME_WIDTH = 32
 GOLDEN_FRAME_HEIGHT = 32
 

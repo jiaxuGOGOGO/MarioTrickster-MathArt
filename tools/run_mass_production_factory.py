@@ -572,6 +572,14 @@ def _bake_true_motion_guide_sequence(
             mask_maps.append(Image.fromarray(alpha, mode="L"))
             del alpha, frame_rgba  # OOM prevention
 
+    # SESSION-162: Fail-Fast Variance Assert
+    from mathart.core.anti_flicker_runtime import assert_nonzero_temporal_variance
+    try:
+        assert_nonzero_temporal_variance(source_frames, channel="source")
+    except RuntimeError as e:
+        from mathart.pipeline_contract import PipelineContractError
+        raise PipelineContractError("frozen_guide_sequence", str(e))
+        
     return source_frames, normal_maps, depth_maps, mask_maps
 
 

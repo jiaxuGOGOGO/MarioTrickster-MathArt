@@ -1,7 +1,7 @@
 {
   "version": "v0.99.10",
-  "last_session_id": "SESSION-160",
-  "last_updated": "2026-04-23T18:00:00Z",
+  "last_session_id": "SESSION-162",
+  "last_updated": "2026-04-23T19:30:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -5032,6 +5032,23 @@
         "DigitalRune RenderContext pattern",
         "MSE frame differencing for motion detection"
       ]
+    },
+    {
+      "session_id": "SESSION-162",
+      "date": "2026-04-23",
+      "title": "Data-Driven Motion Registry Enforcement & Bake-Stage Variance Assert",
+      "summary": "Eradicated the last residual hardcoded motion-state string lists across mathart/pipeline.py, mathart/pipeline_contract.py, mathart/headless_e2e_ci.py, mathart/animation/cli.py and mathart/evolution/asset_factory_bridge.py — all now consume MotionStateLaneRegistry.names() as the single source of truth. Promoted assert_nonzero_temporal_variance from the AI-render boundary to the end of _bake_true_motion_guide_sequence so frozen guide sequences are killed before any GPU spend. External anchors (Tom Looman GameplayTags, DigitalRune RenderContext, Frame-Differencing MSE) archived to docs/RESEARCH_NOTES_SESSION_162.md.",
+      "files_touched": [
+        "mathart/pipeline.py",
+        "mathart/pipeline_contract.py",
+        "mathart/headless_e2e_ci.py",
+        "mathart/animation/cli.py",
+        "mathart/evolution/asset_factory_bridge.py",
+        "tools/run_mass_production_factory.py",
+        "docs/RESEARCH_NOTES_SESSION_162.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ]
     }
   ],
   "resolved_issues": [
@@ -5350,5 +5367,11 @@
       "decision": "Parameter provenance classification uses exactly six levels: (1) KNOWLEDGE_DRIVEN — value within knowledge bus constraint range; (2) KNOWLEDGE_CLAMPED — value was clamped by knowledge constraint; (3) VIBE_HEURISTIC — adjusted by SEMANTIC_VIBE_MAP without knowledge validation; (4) USER_OVERRIDE — explicitly set by user in intent declaration; (5) BLUEPRINT_INHERITED — inherited from a base blueprint file; (6) HEURISTIC_FALLBACK — dataclass default with no external knowledge source. The audit report MUST display HEURISTIC_FALLBACK parameters with red warning markers and list them in a dedicated 'Dead Zone Inventory' section.",
       "implication": "This classification schema provides the exact granularity needed for targeted fix campaigns. Each dead-zone parameter has a clear remediation path: add the corresponding constraint to the knowledge directory and verify via re-running the audit. The six-level schema is extensible — future sources (e.g., A/B test results, user analytics) can be added as new ProvenanceSourceType enum values without breaking existing records."
     }
+  ],
+  "current_session": "SESSION-162",
+  "red_lines": [
+    "SESSION-162: NEVER use hardcoded string lists for motion states; ALWAYS query unified_gait_blender.get_motion_lane_registry().names().",
+    "SESSION-162: NEVER bypass assert_nonzero_temporal_variance in guide baking; fail fast on frozen sequences.",
+    "SESSION-162: RenderContext (motion_state/fps/character_id) MUST flow as explicit parameters end-to-end; default values forbidden."
   ]
 }
