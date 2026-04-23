@@ -252,8 +252,8 @@ class IndustrialSpriteBackend:
             render = {}
             warnings.append("render config must be a dict; using defaults")
 
-        width = int(render.get("width", validated.get("width", 64)))
-        height = int(render.get("height", validated.get("height", 64)))
+        width = int(render.get("width", validated.get("width", 192)))
+        height = int(render.get("height", validated.get("height", 192)))
         if width < 8:
             warnings.append(f"render.width={width} too small; clamping to 8")
             width = 8
@@ -322,8 +322,8 @@ class IndustrialSpriteBackend:
         bundle_dir = output_dir / f"{stem}_bundle"
 
         render_cfg = validated.get("render", {})
-        width = int(render_cfg.get("width", 64))
-        height = int(render_cfg.get("height", 64))
+        width = int(render_cfg.get("width", 192))
+        height = int(render_cfg.get("height", 192))
 
         # Build skeleton + style + pose (use defaults for lightweight execution)
         skeleton = Skeleton.create_humanoid()
@@ -854,8 +854,8 @@ class AntiFlickerRenderBackend:
         comfyui_cfg = validated.get("comfyui", {})
         identity_cfg = validated.get("identity_lock", {})
         preset_cfg = validated.get("preset", {})
-        render_width = int(validated.get("width", 64))
-        render_height = int(validated.get("height", 64))
+        render_width = int(validated.get("width", 192))
+        render_height = int(validated.get("height", 192))
 
         preset_manager = ComfyUIPresetManager(preset_cfg.get("root"))
         preset_name = str(preset_cfg.get("name", "dual_controlnet_ipadapter"))
@@ -1081,8 +1081,8 @@ class AntiFlickerRenderBackend:
         frame_count = int(temporal.get("frame_count", 8))
         fps = int(temporal.get("fps", 12))
         chunk_size = int(temporal.get("chunk_size", self.MAX_SAFE_CONTEXT_WINDOW))
-        render_width = int(validated.get("width", 64))
-        render_height = int(validated.get("height", 64))
+        render_width = int(validated.get("width", 192))
+        render_height = int(validated.get("height", 192))
         progress_callback = validated.get("_progress_callback")
 
         def emit_backend_progress(event: dict[str, Any]) -> None:

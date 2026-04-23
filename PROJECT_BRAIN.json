@@ -1,6 +1,6 @@
 {
   "version": "v0.99.11",
-  "last_session_id": "SESSION-164",
+  "last_session_id": "SESSION-165",
   "last_updated": "2026-04-23T23:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -52,7 +52,7 @@
         "status": "CLOSED",
         "session_landed": "SESSION-158",
         "modules": [
-          "tools/run_mass_production_factory.py",
+          "mathart/factory/mass_production.py",
           "tests/test_mass_production.py",
           "docs/USER_GUIDE.md"
         ],
@@ -1651,7 +1651,7 @@
       "title": "Production benchmark asset suite",
       "completed_in": "SESSION-126",
       "priority": "P1",
-      "result": "SESSION-126 closed P1-NEW-10 by landing an industrial PDG-v2 mass production factory: tools/run_mass_production_factory.py fans out deterministic equipped CharacterGenotype work items, executes unified_motion -> pseudo_3d_shell -> physical_ribbon CPU lanes in parallel, marks orthographic_pixel_render and anti_flicker_render as requires_gpu for gpu_slots-governed VRAM safety, then packages unity_2d_anim + spine_preview deliverables into outputs/mass_production_batch_<timestamp>/ by character id. SESSION-127 audited and corrected the closure by passing the composed Mesh3D into orthographic rendering, archiving orthographic and skipped-AI outputs under each character archive, and extending white-box tests to assert real-mesh rendering plus per-stage SeedSequence RNG digests."
+      "result": "SESSION-126 closed P1-NEW-10 by landing an industrial PDG-v2 mass production factory: mathart/factory/mass_production.py fans out deterministic equipped CharacterGenotype work items, executes unified_motion -> pseudo_3d_shell -> physical_ribbon CPU lanes in parallel, marks orthographic_pixel_render and anti_flicker_render as requires_gpu for gpu_slots-governed VRAM safety, then packages unity_2d_anim + spine_preview deliverables into outputs/mass_production_batch_<timestamp>/ by character id. SESSION-127 audited and corrected the closure by passing the composed Mesh3D into orthographic rendering, archiving orthographic and skipped-AI outputs under each character archive, and extending white-box tests to assert real-mesh rendering plus per-stage SeedSequence RNG digests."
     },
     {
       "id": "HIGH-2.7-FOLLOWUP-PDG-SEEDSEQUENCE-RNG",
@@ -4298,7 +4298,7 @@
       "session": "SESSION-160",
       "landing": "Dynamic ActionRegistry + Temporal Context Wiring + Variance Assert Gate",
       "files": [
-        "tools/run_mass_production_factory.py",
+        "mathart/factory/mass_production.py",
         "mathart/core/anti_flicker_runtime.py"
       ]
     },
@@ -4808,14 +4808,14 @@
       "status": "COMPLETE",
       "summary": "Closed P1-NEW-10 by wiring a PDG v2 industrial mass production factory that fans out deterministic equipped character orders, runs CPU-heavy motion/shell/ribbon lanes concurrently, gates orthographic + anti-flicker GPU stages through requires_gpu/gpu_slots, and archives unity_2d_anim plus spine_preview deliverables per character under a batch root.",
       "changes": [
-        "NEW tools/run_mass_production_factory.py — PDG-v2 batch factory, deterministic fan-out, GPU-throttled render nodes, per-character archive packaging, and CLI-ready main() entrypoint",
+        "NEW mathart/factory/mass_production.py — PDG-v2 batch factory, deterministic fan-out, GPU-throttled render nodes, per-character archive packaging, and CLI-ready main() entrypoint",
         "UPD mathart/cli.py — add mass-produce subcommand with batch-size / pdg-workers / gpu-slots / skip-ai-render / comfyui-url controls",
         "NEW tests/test_mass_production.py — dry-run topology liveness, GPU-node tagging, artifact packaging, and CLI smoke validation",
         "UPD PROJECT_BRAIN.json — mark P1-NEW-10 CLOSED and append SESSION-126 state / resolution metadata",
         "UPD SESSION_HANDOFF.md — document local RTX 4070 production command lines and ComfyUI preparation steps for live batch runs"
       ],
       "files_touched": [
-        "tools/run_mass_production_factory.py",
+        "mathart/factory/mass_production.py",
         "mathart/cli.py",
         "tests/test_mass_production.py",
         "PROJECT_BRAIN.json",
@@ -4837,13 +4837,13 @@
       "status": "COMPLETE",
       "summary": "Audited the P1-NEW-10 mass production closure against the original brief and fixed the remaining compliance gaps: orthographic rendering now consumes the assembled character Mesh3D instead of the fallback sphere, orthographic and skipped-AI artifacts are archived under each character, and the dry-run suite now proves per-stage SeedSequence RNG splitting as well as archive integrity.",
       "changes": [
-        "UPD tools/run_mass_production_factory.py — pass Mesh3D into orthographic_pixel_render, archive orthographic and skipped anti_flicker outputs, and expose per-stage rng_spawn_digest metadata in batch summaries",
+        "UPD mathart/factory/mass_production.py — pass Mesh3D into orthographic_pixel_render, archive orthographic and skipped anti_flicker outputs, and expose per-stage rng_spawn_digest metadata in batch summaries",
         "UPD tests/test_mass_production.py — assert real composed-mesh rendering, nested archive delivery completeness, and per-stage SeedSequence RNG digests in dry-run mode",
         "UPD PROJECT_BRAIN.json — record SESSION-127 audit hardening and refresh validation snapshot",
         "UPD SESSION_HANDOFF.md — document the audit corrections and tighten local operator guidance around archive inspection and mesh-backed orthographic rendering"
       ],
       "files_touched": [
-        "tools/run_mass_production_factory.py",
+        "mathart/factory/mass_production.py",
         "tests/test_mass_production.py",
         "PROJECT_BRAIN.json",
         "SESSION_HANDOFF.md"
@@ -4866,7 +4866,7 @@
         "UPD mathart/core/orthographic_pixel_backend.py — complete rewrite with Fail-Fast Mesh3D Consumption Contract (PipelineContractError on missing/None/empty mesh, zero fallback sphere)",
         "NEW mathart/core/archive_delivery_backend.py — centralized archive delivery backend plugin with @register_backend, META_REPORT manifest, inventory collection, RNG digest aggregation",
         "UPD mathart/core/backend_types.py — add BackendType.ARCHIVE_DELIVERY enum and aliases",
-        "UPD tools/run_mass_production_factory.py — inject rng_spawn_digest into all stage ArtifactManifest metadata, import archive_delivery_backend for registry side-effect, bump to SESSION-128",
+        "UPD mathart/factory/mass_production.py — inject rng_spawn_digest into all stage ArtifactManifest metadata, import archive_delivery_backend for registry side-effect, bump to SESSION-128",
         "UPD tests/test_orthographic_pixel_render.py — add test_backend_execute_fail_fast_no_mesh, test_backend_execute_fail_fast_empty_mesh, update test_backend_execute_returns_artifact_manifest with real Mesh3D",
         "UPD tests/test_ci_backend_schemas.py — backend-specific fixture overrides for orthographic_pixel_render (real Mesh3D) and archive_delivery (archive_sources)",
         "NEW research/research_session128_industrial_references.md — consolidated research notes on Pixar USD, Bazel, Data Mesh, Jim Gray Fail-Fast",
@@ -4877,7 +4877,7 @@
         "mathart/core/orthographic_pixel_backend.py",
         "mathart/core/archive_delivery_backend.py",
         "mathart/core/backend_types.py",
-        "tools/run_mass_production_factory.py",
+        "mathart/factory/mass_production.py",
         "tests/test_orthographic_pixel_render.py",
         "tests/test_ci_backend_schemas.py",
         "research/research_session128_industrial_references.md",
@@ -4903,7 +4903,7 @@
       "changes": [
         "UPD mathart/animation/motion_2d_pipeline.py — add QUADRUPED_NSM_TO_BONE_MAP, quadruped bone mapping in _nsm_to_3d_pose, post-export topology validation with PipelineContractError",
         "UPD mathart/core/builtin_backends.py — Fail-Fast dimension contract in validate_config (missing_render_dimensions, render_dimensions_too_small), external guide bypass in execute",
-        "UPD tools/run_mass_production_factory.py — rewrite _image_sequence_from_render_manifest with deterministic per-frame micro-variation, pass width/height to anti_flicker_render, bump to SESSION-129",
+        "UPD mathart/factory/mass_production.py — rewrite _image_sequence_from_render_manifest with deterministic per-frame micro-variation, pass width/height to anti_flicker_render, bump to SESSION-129",
         "UPD tests/test_motion_2d_pipeline.py — 4 new TestSession129BoneTopologyContract tests (bone consistency, fl/fr/hl/hr presence, no semantic limb names, biped consistency)",
         "UPD tests/test_p1_ai_2c_anti_flicker_live_cli.py — 3 new Fail-Fast dimension tests (missing dims, tiny dims, external guide bypass), all existing tests updated with explicit width/height",
         "UPD tests/test_ci_backend_schemas.py — anti_flicker_render fixture now includes width/height",
@@ -4915,7 +4915,7 @@
       "files_touched": [
         "mathart/animation/motion_2d_pipeline.py",
         "mathart/core/builtin_backends.py",
-        "tools/run_mass_production_factory.py",
+        "mathart/factory/mass_production.py",
         "tests/test_motion_2d_pipeline.py",
         "tests/test_p1_ai_2c_anti_flicker_live_cli.py",
         "tests/test_ci_backend_schemas.py",
@@ -4944,7 +4944,7 @@
       "summary": "Executed the P0-SESSION-128-TRUE-MOTION-GUIDE attack plan grounded in three industrial/academic references (AnimateDiff/SparseCtrl Temporal Conditioning, GDC Data-Driven Animation Pipelines, Jim Gray Fail-Fast Data Integrity). Three core deliverables: (1) Factory guide sequence pipeline completely rewritten — _image_sequence_from_render_manifest replaced by _bake_true_motion_guide_sequence that reconstructs CharacterGenotype from serialized JSON, builds animation_func from Clip2D bone transforms with frame-accurate interpolation, and renders genuine per-frame guide sequences (source/normal/depth/mask) with real geometric variation from actual skeletal animation. OOM-safe chunked rendering (CHUNK_SIZE=8) with explicit numpy array deletion. (2) Temporal Variance Circuit Breaker implemented in anti_flicker_runtime.py — validate_temporal_variance() computes inter-frame MSE for consecutive pairs, rejects sequences where fewer than 50% of pairs exceed MSE threshold 1.0 (catches both static forgery and SESSION-129 micro-jitter). compute_frame_hashes() provides SHA-256 per-frame pixel audit trail. (3) PDG topology updated — ai_render_stage now depends on motion2d_export_stage (in addition to prepare_character and orthographic_render_stage), establishing the true data-driven pipeline from bone animation to AI rendering. Nine new tests added: 5 temporal variance circuit breaker tests (static rejection, animated pass, single-frame rejection, micro-jitter rejection, diagnostic completeness) + 4 anti-forgery frame hash tests (distinct hashes, identical hashes, determinism, Base64 payload end-to-end).",
       "changes": [
         "UPD mathart/core/anti_flicker_runtime.py — add TemporalVarianceReport, validate_temporal_variance() circuit breaker, compute_frame_hashes() anti-forgery audit",
-        "UPD tools/run_mass_production_factory.py — replace _image_sequence_from_render_manifest with _bake_true_motion_guide_sequence (real bone-driven per-frame rendering), add motion2d_export_stage dependency to ai_render_stage PDG node, bump to SESSION-130",
+        "UPD mathart/factory/mass_production.py — replace _image_sequence_from_render_manifest with _bake_true_motion_guide_sequence (real bone-driven per-frame rendering), add motion2d_export_stage dependency to ai_render_stage PDG node, bump to SESSION-130",
         "UPD tests/test_p1_ai_2c_anti_flicker_live_cli.py — 9 new SESSION-130 tests (5 temporal variance + 4 anti-forgery frame hashes)",
         "NEW research/research_session130_industrial_references.md — consolidated research on AnimateDiff/SparseCtrl temporal conditioning, GDC data-driven animation, Fail-Fast data integrity",
         "NEW research/session130_code_analysis.md — factory data flow analysis, guide sequence forgery root cause",
@@ -4953,7 +4953,7 @@
       ],
       "files_touched": [
         "mathart/core/anti_flicker_runtime.py",
-        "tools/run_mass_production_factory.py",
+        "mathart/factory/mass_production.py",
         "tests/test_p1_ai_2c_anti_flicker_live_cli.py",
         "research/research_session130_industrial_references.md",
         "research/session130_code_analysis.md",
@@ -4983,7 +4983,7 @@
         "UPD mathart/quality/__init__.py — export temporal_quality_gate symbols",
         "UPD mathart/quality/controller.py — add post_sequence_generation() method integrating TemporalQualityGate",
         "UPD mathart/evolution/neural_rendering_bridge.py — add min_warp_ssim/per_pair_warp_ssim/worst_frame_pair_index to TemporalConsistencyMetrics, Min-SSIM secondary pass criterion, catastrophic frame fitness penalty",
-        "UPD tools/run_mass_production_factory.py — integrate TemporalQualityGate in _node_ai_render, inject temporal_quality_gate report into manifest metadata, bump to SESSION-131",
+        "UPD mathart/factory/mass_production.py — integrate TemporalQualityGate in _node_ai_render, inject temporal_quality_gate report into manifest metadata, bump to SESSION-131",
         "UPD tests/conftest.py — add physical_ribbon_backend and archive_delivery_backend to _BUILTIN_BACKEND_MODULES for registry stability",
         "NEW tests/test_temporal_quality_gate.py — 28 comprehensive tests (warp-SSIM, sliding window, flicker injection, circuit breaker state machine, fitness penalty, contract validation, OOM prevention, bridge integration, serialization)",
         "NEW research/research_session131_industrial_references.md — consolidated research on Warping Error, Circuit Breaker Pattern, Fitness Landscapes",
@@ -4996,7 +4996,7 @@
         "mathart/quality/__init__.py",
         "mathart/quality/controller.py",
         "mathart/evolution/neural_rendering_bridge.py",
-        "tools/run_mass_production_factory.py",
+        "mathart/factory/mass_production.py",
         "tests/conftest.py",
         "tests/test_temporal_quality_gate.py",
         "research/research_session131_industrial_references.md",
@@ -5056,7 +5056,7 @@
       "focus": "P0-SESSION-158-PIPELINE-DECOUPLING",
       "summary": "Pipeline Decoupling Surgery: Rescued _bake_true_motion_guide_sequence() from the --skip-ai-render conditional lock inside _node_ai_render(). Created new independent guide_baking_stage PDG node (requires_gpu=False, ALWAYS executes). Baked Catmull-Rom interpolated guide sequences (Albedo/Normal/Depth/Mask) now persist as first-class IR assets. ai_render_stage refactored to consume pre-baked guides. Temporal Variance Circuit Breaker repositioned: diagnostic in bake stage, hard gate at AI render boundary. UX sci-fi gateway banner. docs/USER_GUIDE.md updated with Chapter 8 (Pipeline Decoupling). 193 core tests PASS, zero regression.",
       "files_changed": [
-        "tools/run_mass_production_factory.py (major: +guide_baking_stage, refactored _node_ai_render, updated _node_collect_batch, PDG graph topology)",
+        "mathart/factory/mass_production.py (major: +guide_baking_stage, refactored _node_ai_render, updated _node_collect_batch, PDG graph topology)",
         "tests/test_mass_production.py (updated: guide_baking_stage assertions)",
         "docs/USER_GUIDE.md (new Chapter 8: Pipeline Decoupling)",
         "PROJECT_BRAIN.json (updated)",
@@ -5076,7 +5076,7 @@
       "status": "CLOSED",
       "summary": "Three core refactors: (1) Dynamic ActionRegistry replacing hardcoded _MOTION_STATES, (2) Temporal Context Wiring threading motion_state/fps/character_id through RenderContext, (3) Variance Assert Gate deploying per-pair MSE floor assertion at AI render boundary.",
       "files_changed": [
-        "tools/run_mass_production_factory.py",
+        "mathart/factory/mass_production.py",
         "mathart/core/anti_flicker_runtime.py",
         "tests/test_mass_production.py",
         "docs/USER_GUIDE.md",
@@ -5100,7 +5100,7 @@
         "mathart/headless_e2e_ci.py",
         "mathart/animation/cli.py",
         "mathart/evolution/asset_factory_bridge.py",
-        "tools/run_mass_production_factory.py",
+        "mathart/factory/mass_production.py",
         "docs/RESEARCH_NOTES_SESSION_162.md",
         "SESSION_HANDOFF.md",
         "PROJECT_BRAIN.json"
@@ -5447,7 +5447,7 @@
       "implication": "This classification schema provides the exact granularity needed for targeted fix campaigns. Each dead-zone parameter has a clear remediation path: add the corresponding constraint to the knowledge directory and verify via re-running the audit. The six-level schema is extensible — future sources (e.g., A/B test results, user analytics) can be added as new ProvenanceSourceType enum values without breaking existing records."
     }
   ],
-  "current_session": "SESSION-164",
+  "current_session": "SESSION-165",
   "red_lines": [
     "SESSION-162: NEVER use hardcoded string lists for motion states; ALWAYS query unified_gait_blender.get_motion_lane_registry().names().",
     "SESSION-162: NEVER bypass assert_nonzero_temporal_variance in guide baking; fail fast on frozen sequences.",

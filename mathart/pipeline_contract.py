@@ -134,8 +134,8 @@ class UMR_Context:
     states: tuple[str, ...] = field(default_factory=lambda: tuple(
         __import__("mathart.animation.unified_gait_blender", fromlist=["get_motion_lane_registry"]).get_motion_lane_registry().names()
     ))
-    frame_width: int = 32
-    frame_height: int = 32
+    frame_width: int = 192
+    frame_height: int = 192
     fps: int = 12
     head_units: float = 3.0
     frames_per_state: int = 8

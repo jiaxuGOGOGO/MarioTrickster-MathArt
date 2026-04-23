@@ -345,7 +345,7 @@ def _command_anti_flicker_render(args: argparse.Namespace) -> int:
 
 
 def _command_mass_produce(args: argparse.Namespace) -> int:
-    from tools.run_mass_production_factory import run_mass_production_factory
+    from mathart.factory.mass_production import run_mass_production_factory
 
     payload = run_mass_production_factory(
         output_root=Path(args.output_dir).resolve(),

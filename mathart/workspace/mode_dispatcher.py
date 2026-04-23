@@ -266,7 +266,7 @@ class ProductionStrategy(SessionStrategy):
                         return payload
                 else:
                     return payload
-        from tools.run_mass_production_factory import run_mass_production_factory
+        from mathart.factory.mass_production import run_mass_production_factory
 
         output_root = Path(context.output_dir or self.project_root / "output" / "production")
         output_root.mkdir(parents=True, exist_ok=True)

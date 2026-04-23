@@ -5,7 +5,7 @@ from pathlib import Path
 
 from mathart.cli import main as cli_main
 from mathart.core.artifact_schema import ArtifactManifest
-from tools.run_mass_production_factory import run_mass_production_factory
+from mathart.factory.mass_production import run_mass_production_factory
 
 
 def test_mass_production_factory_dry_run_skip_ai_render(tmp_path: Path) -> None:

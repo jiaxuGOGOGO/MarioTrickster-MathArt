@@ -135,15 +135,15 @@ def test_motion_state_lane_registry_is_truth_source() -> None:
 
 def test_assert_nonzero_temporal_variance_is_imported_in_factory() -> None:
     """红线：工业烘焙网关必须前置部署 assert_nonzero_temporal_variance。"""
-    factory_path = REPO_ROOT / "tools" / "run_mass_production_factory.py"
+    factory_path = REPO_ROOT / "mathart" / "factory" / "mass_production.py"
     source = factory_path.read_text(encoding="utf-8")
 
     # 必须出现在 _bake_true_motion_guide_sequence 内部（return 之前）
     assert "assert_nonzero_temporal_variance" in source, (
-        "tools/run_mass_production_factory.py 必须导入并调用 assert_nonzero_temporal_variance。"
+        "mathart.factory.mass_production.py 必须导入并调用 assert_nonzero_temporal_variance。"
     )
     assert "frozen_guide_sequence" in source, (
-        "tools/run_mass_production_factory.py 必须在烘焙函数捕获 RuntimeError 后抛出 "
+        "mathart.factory.mass_production.py 必须在烘焙函数捕获 RuntimeError 后抛出 "
         "PipelineContractError('frozen_guide_sequence', ...)。"
     )
 

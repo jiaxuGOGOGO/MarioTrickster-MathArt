@@ -200,8 +200,8 @@ class CharacterSpec:
     """
     name: str
     preset: str = "mario"
-    frame_width: int = 32
-    frame_height: int = 32
+    frame_width: int = 192
+    frame_height: int = 192
     fps: int = 12
     head_units: float = 3.0
     frames_per_state: int = 8

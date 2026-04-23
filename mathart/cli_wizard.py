@@ -489,7 +489,7 @@ def _run_interactive_shell(
                     logger.warning(
                         "[CLI] Director Studio sub-flow FAILED", exc_info=True,
                     )
-                    output_fn(json.dumps({
+                    output_fn(f"\n\033[1;31m[❌ 系统阻断] 引擎底层发生严重故障：{exc}\033[0m"); output_fn("\033[90m    ↳ [💡 提示] 已安全拦截异常避免闪退，详细追踪栈请查看 logs 目录。\033[0m"); output_fn(json.dumps({
                         "status": "error",
                         "error_type": exc.__class__.__name__,
                         "message": str(exc),
@@ -550,7 +550,7 @@ def _run_interactive_shell(
                     selection,
                     exc_info=True,
                 )
-                output_fn(json.dumps({
+                output_fn(f"\n\033[1;31m[❌ 系统阻断] 引擎底层发生严重故障：{exc}\033[0m"); output_fn("\033[90m    ↳ [💡 提示] 已安全拦截异常避免闪退，详细追踪栈请查看 logs 目录。\033[0m"); output_fn(json.dumps({
                     "status": "error",
                     "error_type": exc.__class__.__name__,
                     "message": str(exc),
@@ -747,7 +747,7 @@ def _golden_handoff_menu(
                     "[CLI] Golden Handoff V2 provenance audit FAILED",
                     exc_info=True,
                 )
-                output_fn(json.dumps({
+                output_fn(f"\n\033[1;31m[❌ 系统阻断] 引擎底层发生严重故障：{exc}\033[0m"); output_fn("\033[90m    ↳ [💡 提示] 已安全拦截异常避免闪退，详细追踪栈请查看 logs 目录。\033[0m"); output_fn(json.dumps({
                     "status": "error",
                     "error_type": exc.__class__.__name__,
                     "message": str(exc),
@@ -978,7 +978,7 @@ def _dispatch_mass_production(
                     "重新选择 [2] 进行 AI 渲染推流。\033[0m"
                 )
             else:
-                output_fn(json.dumps({
+                output_fn(f"\n\033[1;31m[❌ 系统阻断] 引擎底层发生严重故障：{exc}\033[0m"); output_fn("\033[90m    ↳ [💡 提示] 已安全拦截异常避免闪退，详细追踪栈请查看 logs 目录。\033[0m"); output_fn(json.dumps({
                     "status": "error",
                     "error_type": exc.__class__.__name__,
                     "message": str(exc),
@@ -1092,7 +1092,7 @@ def _run_director_studio(
         )
     except Exception as exc:
         logger.warning("[CLI] Director intent parse FAILED", exc_info=True)
-        output_fn(json.dumps({
+        output_fn(f"\n\033[1;31m[❌ 系统阻断] 引擎底层发生严重故障：{exc}\033[0m"); output_fn("\033[90m    ↳ [💡 提示] 已安全拦截异常避免闪退，详细追踪栈请查看 logs 目录。\033[0m"); output_fn(json.dumps({
             "status": "error",
             "error_type": exc.__class__.__name__,
             "message": str(exc),
