@@ -1,185 +1,180 @@
-# SESSION HANDOFF — SESSION-151
+# SESSION-152: Knowledge Provenance Audit — 全链路知识血统溯源与参数贯通审计
 
-> **"ComfyUI 的节点 ID 是沙上之塔，唯有语义标记才是磐石。" —— 贯通 BFF 动态载荷变异 + 无头渲染闭环，打通纯数学→AI 视觉抛光的最后一公里。**
+> **"每一个浮点数都必须交代自己的来历。不是来自蒸馏知识，就必须诚实标红为'代码硬编码死区'。" —— 打通知识总线→参数推演→渲染管线的全链路可解释性闭环。**
 
 **Date**: 2026-04-23
-**Status**: COMPLETE — 29/29 tests PASS
-**Parent Commit**: `ebd00bd` (SESSION-150)
-**Task ID**: P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH
-**Smoke**: `tests/test_comfyui_render_backend.py` → 29/29 PASSED（Mutator 9 + Client 8 + Backend 7 + Integration 3 + Red-Line Guards 2）
+**Status**: COMPLETE — 9/9 tests PASS
+**Parent Commit**: `fd90026` (SESSION-151)
+**Task ID**: P0-SESSION-148-KNOWLEDGE-PROVENANCE-AUDIT
+**Smoke**: `tests/test_provenance_audit.py` → 9/9 PASSED（Singleton 1 + Snapshot 1 + Classification 1 + Dangling 1 + Report 1 + Sidecar 1 + Registry 1 + E2E 1 + Integration 1）
 
 ---
 
 ## 1. Executive Summary
 
-SESSION-151 实现了**完整的端到端 ComfyUI 无头渲染后端** —— 这是上游纯数学动画管线与下游 AI 视觉抛光层之间的关键缺失环节。三个工业级模块落地于 `mathart/backend/`，通过 `@register_backend` 完全融入现有 Registry Pattern：
+SESSION-152 实现了**完整的端到端知识血统溯源与参数贯通审计系统** —— 这是 MarioTrickster-MathArt 项目中首次对"知识总线到底有没有真正驱动参数推演"进行全链路可解释性审计。三个工业级模块落地于 `mathart/core/`，严格遵循**非侵入式旁路拦截器 (Sidecar/Interceptor Pattern)** 原则，通过 `@register_backend` 完全融入现有 Registry Pattern：
 
-1. **ComfyWorkflowMutator** (`comfy_mutator.py`) — BFF 动态 JSON 树遍历变异器
-2. **ComfyAPIClient** (`comfy_client.py`) — 高可用 HTTP+WebSocket 渲染客户端
-3. **ComfyUIRenderBackend** (`comfyui_render_backend.py`) — Registry-native 后端插件
+1. **KnowledgeLineageTracker** (`provenance_tracker.py`) — 知识血统追踪器（单例 + 线程安全）
+2. **ProvenanceReportGenerator** (`provenance_report.py`) — 终极审计报告生成器（终端体检表 + JSON 落盘）
+3. **ProvenanceAuditBackend** (`provenance_audit_backend.py`) — Registry-native 审计后端插件
 
-所有三条 **SESSION-151 反模式红线** 均已强制执行并通过测试：
+所有三条 **SESSION-152 反模式红线** 均已强制执行并通过测试：
 
 | 红线 | 防护机制 | 测试用例 |
 |---|---|---|
-| 严禁硬编码 ComfyUI 节点 ID | `_meta.title` 语义匹配 | `test_red_line_no_hardcoded_node_ids` |
-| API 轮询死锁屏障 | `time.sleep()` + `RenderTimeoutError` | `test_red_line_poll_has_sleep` |
-| 输出资产统一落盘 | 全部渲染 → `outputs/production/` | `test_red_line_output_repatriation` |
+| [防假账红线] 严禁伪造知识来源 | 实际查询 RuntimeDistillationBus 状态 | `test_lineage_classification` |
+| [防破坏红线] 严禁修改任何浮点计算 | 只读旁路观测，原始 dict 不变 | `test_non_intrusive_sidecar` |
+| [防断流红线] 检测悬空未使用参数 | Backend 消费检查点 + 差集检测 | `test_dangling_detection` |
+
+### 审计结果摘要（诚实暴露）
+
+| 指标 | 数值 | 占比 |
+|---|---|---|
+| 总追踪参数 | 18 | 100% |
+| **知识驱动** (Knowledge-Driven) | 4 | 22.2% |
+| **硬编码死区** (Heuristic Fallback) | **9** | **50.0%** |
+| 语义启发式 (Vibe Heuristic) | 5 | 27.8% |
+| 用户覆写 (User Override) | 0 | 0.0% |
+| 蓝图继承 (Blueprint Inherited) | 0 | 0.0% |
+| 悬空参数 (Dangling) | 0 | 0.0% |
+| **健康判定** | **PARTIAL** | — |
 
 ---
 
 ## 2. What Was Built
 
-### 2.1 ComfyWorkflowMutator (`mathart/backend/comfy_mutator.py`)
+### 2.1 KnowledgeLineageTracker (`mathart/core/provenance_tracker.py`)
 
-**架构**: BFF (Backend for Frontend) 载荷变异引擎
+**架构**: OpenLineage-aligned 知识血统追踪器
 
-变异器实现了**语义 JSON 树遍历**策略，通过 `_meta.title` 字段中的标记（如 `[MathArt_Prompt]`、`[MathArt_Input_Image]`）查找 ComfyUI 节点，**绝不**使用数字节点 ID。这一点至关重要，因为 ComfyUI 在每次工作流编辑时都会重新生成节点 ID。
+追踪器实现了**全链路参数溯源**策略，通过三阶段审计协议追踪每个参数的来源：
 
 **核心设计决策**：
 
-- **不可变蓝图模式 (Immutable Blueprint Pattern)**：原始工作流 JSON 在变异前进行深拷贝。蓝图永远不会被原地修改。
-- **标记注入 (Marker-Based Injection)**：每个可注入节点在 `_meta.title` 中携带 `[MathArt_*]` 标记。变异器扫描所有节点，根据 `class_type` 语义将值注入正确的 `inputs` 字段。
-- **变异审计账本 (Mutation Audit Ledger)**：每次注入都记录为 `MutationRecord`，包含 `marker`、`node_id`、`class_type`、`input_key`、`old_value`、`new_value` 和 `timestamp`。为调试和 GA 适应度溯源提供完整审计轨迹。
-- **歧义检测 (Ambiguity Detection)**：如果多个节点匹配同一标记，立即抛出 `MutationError` —— 绝不静默损坏。
+- **单例 + 线程安全 (Singleton + Thread-Local)**：使用 `threading.local()` 确保每个会话有独立的审计上下文，同时全局共享追踪器实例。
+- **知识总线快照 (Knowledge Bus Snapshot)**：在审计开始时对 `RuntimeDistillationBus` 做只读快照，记录编译模块数、约束总数、知识文件列表。
+- **六级溯源分类 (Six-Level Provenance Classification)**：
 
-**支持的标记**：
-
-| 标记 | Class Type | Input Key | 注入内容 |
-|---|---|---|---|
-| `[MathArt_Input_Image]` | `LoadImage` | `image` | 上传后的文件名 |
-| `[MathArt_Prompt]` | `CLIPTextEncode` | `text` | 正向提示词 |
-| `[MathArt_Negative]` | `CLIPTextEncode` | `text` | 负向提示词 |
-| `[MathArt_Seed]` | `KSampler` | `seed` | 随机种子 |
-| `[MathArt_Output]` | `SaveImage` | `filename_prefix` | 输出前缀 |
-
-### 2.2 ComfyAPIClient (`mathart/backend/comfy_client.py`)
-
-**架构**: 高可用无头 API 客户端
-
-客户端实现了完整的 ComfyUI HTTP+WebSocket API 生命周期，具备工业级错误处理：
-
-**临时资产推流 (Ephemeral Asset Upload)** — `upload_image()`：
-- 通过 `POST /upload/image` multipart 表单上传代理图片
-- 返回服务器端文件名用于工作流注入
-- 绝不在工作流节点中引用本地文件系统路径
-
-**渲染执行 (Render Execution)** — `render()`：
-- 通过 `POST /prompt` 提交变异后的载荷
-- 主通道：WebSocket 遥测 (`ws://{server}/ws?clientId={id}`)
-- 备用通道：HTTP 轮询 `GET /history/{prompt_id}`
-- 熔断器：可配置超时后抛出 `RenderTimeoutError`
-- 轮询循环：`time.sleep(poll_interval)` 防止 CPU 空转
-
-**输出回收 (Output Repatriation)** — `_download_outputs()`：
-- 通过 `GET /view?filename=...&subfolder=...&type=output` 下载渲染图
-- 保存至 `outputs/production/final_render_{timestamp}_{idx}.png`
-- 绝不将资产遗留在 ComfyUI 内部 output 文件夹
-
-**显存垃圾回收 (VRAM Garbage Collection)** — `free_vram()`：
-- 调用 `POST /free`，参数 `{"unload_models": true, "free_memory": true}`
-- 防止批量渲染时 OOM 崩溃
-
-**优雅降级 (Graceful Degradation)**：
-- 每次渲染前执行 `is_server_online()` 健康检查
-- 服务器离线时返回 `RenderResult(degraded=True)` —— 绝不崩溃
-
-### 2.3 ComfyUIRenderBackend (`mathart/backend/comfyui_render_backend.py`)
-
-**架构**: Registry-Native `@register_backend` 插件
-
-注册为 `BackendType.COMFYUI_RENDER`，声明 `COMFYUI_RENDER` 和 `GPU_ACCELERATED` 能力。产出 `ArtifactFamily.COMFYUI_RENDER_REPORT` 清单。
-
-**执行管线**：
-1. `validate_config()` — 后端拥有的参数规范化（六边形架构）
-2. 健康检查 → 离线时优雅降级
-3. 上传代理图片 → 临时推流
-4. 构建变异载荷 → 语义注入
-5. 提交渲染 → WebSocket/HTTP 轮询
-6. 下载输出 → 回收至 `outputs/production/`
-7. 释放显存 → 垃圾回收
-8. 返回 `ArtifactManifest` 携带完整溯源元数据
-
-**清单元数据契约** (`ArtifactFamily.COMFYUI_RENDER_REPORT` 必填字段)：
-
-| 键 | 类型 | 描述 |
+| 溯源类型 | 含义 | 标记 |
 |---|---|---|
-| `prompt_id` | `str` | ComfyUI 执行 ID |
-| `server_address` | `str` | ComfyUI 服务器地址 |
-| `render_elapsed_seconds` | `float` | 总渲染耗时 |
-| `images_downloaded` | `int` | 输出图片数量 |
-| `vram_freed` | `bool` | 是否已释放显存 |
-| `mutation_count` | `int` | 应用的变异数量 |
-| `blueprint_name` | `str` | 工作流蓝图文件名 |
+| `KNOWLEDGE_DRIVEN` | 知识总线约束范围内 + 有对应规则 | 合规 |
+| `KNOWLEDGE_CLAMPED` | 被知识总线钳位修正 | 合规（已修正） |
+| `VIBE_HEURISTIC` | 语义氛围词启发式调整 | ⚠️ 未经知识验证 |
+| `USER_OVERRIDE` | 用户显式覆写 | 用户意图 |
+| `BLUEPRINT_INHERITED` | 从蓝图文件继承 | 蓝图溯源 |
+| `HEURISTIC_FALLBACK` | **代码硬编码死区** | **⚠️ AI偷懒断点** |
+
+- **悬空参数检测 (Dangling Parameter Detection)**：比较 Intent 阶段的参数集与 Backend 消费的参数集，差集即为"半路丢失"的废弃参数。
+
+### 2.2 ProvenanceReportGenerator (`mathart/core/provenance_report.py`)
+
+**架构**: XAI-aligned 可解释性审计报告生成器
+
+报告生成器消费 `ProvenanceAuditContext` 并产出两种格式：
+
+1. **终端体检表**：使用 `tabulate` 库生成 CJK 对齐的四列审计表格
+2. **JSON 审计日志**：落盘至 `logs/knowledge_audit_trace.json`，包含完整的知识快照、血统记录、摘要统计和死区清单
+
+**报告列定义**：
+
+| 列 | 含义 |
+|---|---|
+| 最终应用参数 | 参数键名（如 `physics.bounce`） |
+| 实际推演数值 | 最终浮点值 |
+| 驱动该值的知识来源 | 溯源分类 + 知识文件路径 |
+| 具体推演原由 | 人类可读的推演原因 |
+
+**[防假账红线]** 硬编码死区参数以 `⚠️ [Heuristic Fallback / 代码硬编码死区]` 标红显示，报告末尾单独列出完整死区清单。
+
+### 2.3 ProvenanceAuditBackend (`mathart/core/provenance_audit_backend.py`)
+
+**架构**: Registry-native 旁路审计后端
+
+后端通过 `@register_backend(BackendType.PROVENANCE_AUDIT)` 自注册，可被 `BackendRegistry` 自动发现。支持两种运行模式：
+
+1. **管线内模式**：作为管线最后一步执行，消费上游 Intent + Backend 状态
+2. **独立模式**：`run_standalone_audit()` 函数可直接从 CLI 调用
 
 ---
 
-## 3. Registry Integration Points
+## 3. 审计发现：诚实暴露的偷懒断点
 
-### BackendType 枚举 (`mathart/core/backend_types.py`)
-```python
-COMFYUI_RENDER = "comfyui_render"
-```
-别名: `comfyui_api_render`, `comfy_render`, `comfyui_headless`, `bff_render`
+### 3.1 硬编码死区清单（AI偷懒真凶）
 
-### BackendCapability 枚举 (`mathart/core/backend_registry.py`)
-```python
-COMFYUI_RENDER = auto()
-```
+以下 **9 个参数** 完全由代码 `dataclass` 默认值驱动，未接通任何外部蒸馏知识：
 
-### ArtifactFamily 枚举 (`mathart/core/artifact_schema.py`)
-```python
-COMFYUI_RENDER_REPORT = "comfyui_render_report"
-```
+| 参数 | 硬编码值 | 所属模块 | 诊断 |
+|---|---|---|---|
+| `physics.gravity` | 9.81 | physics | 经典物理常数，但游戏物理应由知识规则定制 |
+| `proportions.head_ratio` | 0.25 | proportions | 角色比例应由解剖学知识驱动 |
+| `proportions.body_ratio` | 0.50 | proportions | 角色比例应由解剖学知识驱动 |
+| `proportions.limb_ratio` | 0.25 | proportions | 角色比例应由解剖学知识驱动 |
+| `proportions.scale` | 1.00 | proportions | 缩放因子应由游戏设计知识驱动 |
+| `animation.frame_rate` | 12.0 | animation | 帧率应由动画原则知识驱动 |
+| `animation.ease_in` | 0.30 | animation | 缓入曲线应由动画原则知识驱动 |
+| `animation.ease_out` | 0.30 | animation | 缓出曲线应由动画原则知识驱动 |
+| `animation.cycle_frames` | 24.0 | animation | 循环帧数应由动画原则知识驱动 |
 
-### 自动导入钩子 (`mathart/core/backend_registry.py`)
-```python
-importlib.import_module("mathart.backend.comfyui_render_backend")
-```
+### 3.2 知识驱动参数（合规区）
+
+以下 **4 个参数** 确认由知识总线约束验证：
+
+| 参数 | 值 | 知识模块 | 约束范围 |
+|---|---|---|---|
+| `physics.bounce` | 0.9 | physics | [0.0, 1.0] |
+| `physics.mass` | 1.0 | physics | [0.1, 5.0] |
+| `physics.stiffness` | 75.0 | physics | [10.0, 500.0] |
+| `physics.damping` | 0.3 | physics | [0.0, 1.0] |
+
+### 3.3 语义启发式参数（部分合规区）
+
+以下 **5 个参数** 由 `SEMANTIC_VIBE_MAP` 启发式表调整，但**未经知识总线验证**：
+
+| 参数 | 值 | 氛围词 | Delta |
+|---|---|---|---|
+| `animation.exaggeration` | 0.7 | 活泼 | +0.3 |
+| `physics.elasticity` | 0.8 | 弹性 | +0.3 |
+| `proportions.squash_stretch` | 1.5 | 弹性 | +0.5 |
+| `animation.anticipation` | 0.7 | 活泼 | +0.3 |
+| `animation.follow_through` | 0.7 | 活泼 | +0.3 |
 
 ---
 
 ## 4. Test Results
 
 ```
-tests/test_comfyui_render_backend.py — 29/29 PASSED
+tests/test_provenance_audit.py — 9/9 PASSED
 
-TestComfyWorkflowMutator (9 tests):
-  ✓ test_find_nodes_by_title
-  ✓ test_find_node_by_title_unique
-  ✓ test_find_node_by_title_missing_raises
-  ✓ test_find_node_by_title_ambiguous_raises
-  ✓ test_mutate_injects_values
-  ✓ test_mutate_optional_marker_skipped
-  ✓ test_build_payload
-  ✓ test_red_line_no_hardcoded_node_ids
-  ✓ test_mutation_ledger_audit_trail
+test_tracker_singleton:
+  ✓ KnowledgeLineageTracker is a proper singleton
 
-TestComfyAPIClient (8 tests):
-  ✓ test_client_initialization
-  ✓ test_client_custom_config
-  ✓ test_server_offline_graceful_degradation
-  ✓ test_render_timeout_error_type
-  ✓ test_upload_error_type
-  ✓ test_render_result_to_dict
-  ✓ test_red_line_poll_has_sleep
-  ✓ test_red_line_output_repatriation
+test_knowledge_snapshot:
+  ✓ No-bus graceful degradation
+  ✓ With bus: 18 modules, 323 constraints, 42 knowledge files
 
-TestComfyUIRenderBackend (7 tests):
-  ✓ test_backend_registered
-  ✓ test_backend_type_enum
-  ✓ test_artifact_family_enum
-  ✓ test_required_metadata_keys
-  ✓ test_validate_config
-  ✓ test_validate_config_strips_protocol
-  ✓ test_validate_config_clamps_timeout
-  ✓ test_execute_offline_degraded
-  ✓ test_backend_type_aliases
+test_lineage_classification:
+  ✓ USER_OVERRIDE correctly classified
+  ✓ VIBE_HEURISTIC correctly classified
+  ✓ HEURISTIC_FALLBACK correctly classified
 
-TestIntegration (3 tests):
-  ✓ test_mutator_to_client_payload_contract
-  ✓ test_blueprint_file_loading
-  ✓ test_end_to_end_offline_graceful
+test_dangling_detection:
+  ✓ Dangling parameter correctly detected
+
+test_report_generation:
+  ✓ Terminal report produced
+  ✓ JSON log dumped to logs/knowledge_audit_trace.json
+
+test_non_intrusive_sidecar:
+  ✓ Original float values unchanged after tracking
+
+test_registry_auto_discovery:
+  ✓ ProvenanceAuditBackend discovered via BackendRegistry
+
+test_standalone_audit_e2e:
+  ✓ Full standalone audit: 18 params, 4 knowledge, 9 fallback, verdict=PARTIAL
+
+test_director_studio_integration:
+  ✓ Director Studio → Audit integration: 18 params, 4 knowledge, 14 fallback
 ```
 
 ---
@@ -188,109 +183,99 @@ TestIntegration (3 tests):
 
 | 文件 | 操作 | 描述 |
 |---|---|---|
-| `mathart/backend/__init__.py` | **新增** | 包初始化，导出公共 API |
-| `mathart/backend/comfy_mutator.py` | **新增** | BFF 动态 JSON 树遍历变异器 |
-| `mathart/backend/comfy_client.py` | **新增** | 高可用 HTTP+WebSocket 客户端 |
-| `mathart/backend/comfyui_render_backend.py` | **新增** | Registry-native 后端插件 |
-| `mathart/core/backend_types.py` | **修改** | 新增 `COMFYUI_RENDER` 枚举 + 别名 |
-| `mathart/core/backend_registry.py` | **修改** | 新增 `COMFYUI_RENDER` 能力 + 自动导入 |
-| `mathart/core/artifact_schema.py` | **修改** | 新增 `COMFYUI_RENDER_REPORT` 族 + 元数据 |
-| `tests/test_comfyui_render_backend.py` | **新增** | 29 项全面测试 |
-| `outputs/production/.gitkeep` | **新增** | 生产输出目录 |
-| `scripts/update_brain_session151.py` | **新增** | PROJECT_BRAIN.json 更新脚本 |
-| `SESSION_HANDOFF.md` | **改写** | 本文档 |
-| `PROJECT_BRAIN.json` | **更新** | v0.99.3, SESSION-151 |
+| `mathart/core/provenance_tracker.py` | **新增** | 知识血统追踪器（单例 + 线程安全 + 六级溯源） |
+| `mathart/core/provenance_report.py` | **新增** | 审计报告生成器（终端体检表 + JSON 落盘） |
+| `mathart/core/provenance_audit_backend.py` | **新增** | Registry-native 审计后端插件 |
+| `mathart/core/__init__.py` | **修改** | 导出 provenance 模块公共 API |
+| `mathart/core/backend_types.py` | **修改** | 新增 `PROVENANCE_AUDIT` 枚举 + 别名 |
+| `mathart/core/backend_registry.py` | **修改** | 新增 provenance_audit_backend 自动导入 |
+| `tests/test_provenance_audit.py` | **新增** | 9 项全面测试 |
+| `docs/SESSION-152-PROVENANCE-AUDIT-DESIGN.md` | **新增** | 架构设计文档 |
+| `logs/knowledge_audit_trace.json` | **生成** | 审计 JSON 日志（运行时生成） |
 
 ---
 
-## 6. 接下来：无缝接入遗传算法 (GA) 内环的架构微调路线图
+## 6. 接下来：根据体检报告暴露的"代码硬编码死区"和"参数断流区"逐个派发靶向修复战役
 
-### 6.1 当前后端为 GA 适应度评估器提供了什么
+### 6.1 当前审计系统为靶向修复提供了什么
 
-`COMFYUI_RENDER_REPORT` 清单专门设计用于喂给**遗传算法 (Genetic Algorithm) 内环** —— 自动化评分与突变管线。清单元数据包含 GA 适应度评估所需的全部信息，无需检查图像文件本身。
+`ProvenanceAuditBackend` 的 JSON 审计日志精确定位了每个参数的来源类型和缺失的知识绑定。后续修复战役可以直接消费 `logs/knowledge_audit_trace.json` 中的 `dead_zones` 数组，逐个为硬编码参数编写知识规则并接通知识总线。
 
 ### 6.2 需要的微调准备
 
-#### 微调 1: GA 适应度评分函数 (`P1-SESSION-151-GA-FITNESS-EVALUATOR`)
+#### 靶向修复战役 1: `P1-SESSION-152-PROPORTIONS-KNOWLEDGE-BIND` — 角色比例知识绑定
 
-**当前状态**: `COMFYUI_RENDER_REPORT` 清单携带了适应度评估所需的全部元数据。
+**死区参数**: `proportions.head_ratio`, `proportions.body_ratio`, `proportions.limb_ratio`, `proportions.scale`
+
+**当前状态**: 这 4 个参数使用 `dataclass` 硬编码默认值，知识目录中已有 `anatomy.md` 但其约束未覆盖 `proportions.*` 命名空间。
 
 **需要构建**:
-```
-mathart/evolution/comfyui_fitness_evaluator.py
-```
+1. 在 `knowledge/anatomy.md` 中补充 `proportions.*` 参数的约束规则（参考 Andrew Loomis 人体比例理论）
+2. 在 `mathart/distill/parser.py` 中确认 `proportions` 模块的编译路径
+3. 运行审计验证 `proportions.*` 参数从 `HEURISTIC_FALLBACK` 升级为 `KNOWLEDGE_DRIVEN`
 
-适应度函数应消费 `ArtifactManifest` 并计算多维适应度分数：
+**架构微调**: 需要在 `RuntimeDistillationBus` 的 `CompiledParameterSpace` 中为 `proportions` 命名空间注册约束映射。当前知识总线的 18 个编译模块中没有 `proportions` 模块 —— 这是根因。
 
-| 维度 | 范围 | 数据来源 |
-|---|---|---|
-| 渲染成功分 | 0/1 | `quality_metrics.render_success` |
-| 时序一致性分 | 0-1 | `mutation_ledger` + 帧间 SSIM |
-| 提示词遵从分 | 0-1 | CLIP 相似度（prompt vs 渲染图） |
-| 风格一致性分 | 0-1 | 感知哈希距离（vs 参考风格） |
-| 显存效率分 | 0-1 | `metadata.vram_freed` 惩罚项 |
+#### 靶向修复战役 2: `P1-SESSION-152-ANIMATION-KNOWLEDGE-BIND` — 动画参数知识绑定
 
-评估器应实现 `EvolutionBridge` 协议，以便 `EvolutionOrchestrator` 通过 `BackendCapability.EVOLUTION_DOMAIN` 发现它。
+**死区参数**: `animation.frame_rate`, `animation.ease_in`, `animation.ease_out`, `animation.cycle_frames`
 
-#### 微调 2: 基因型→工作流映射 (`P1-SESSION-151-GENOTYPE-WORKFLOW-MAP`)
+**当前状态**: 知识目录中已有 `animation.md`，且 `animation` 模块已在知识总线的 18 个编译模块中。但这 4 个参数的命名空间与知识约束的键名不匹配（知识约束可能使用了不同的参数名）。
 
-**当前状态**: 变异器接受显式注入字典。GA 需要将基因型向量映射为注入字典。
+**需要构建**:
+1. 审计 `knowledge/animation.md` 中的约束键名与 `CreatorIntentSpec.genotype.flat_params()` 的键名映射
+2. 补充缺失的约束规则（参考 Disney 12 Principles of Animation、Richard Williams "The Animator's Survival Kit"）
+3. 确保 `_apply_knowledge_grounding()` 中的键名匹配逻辑能正确关联
 
-**需要构建**: `GenotypeWorkflowMapper` 将基因型（浮点向量）转换为：
+**架构微调**: `DirectorIntentParser._apply_knowledge_grounding()` 当前使用 `param_key.split('.')[0]` 提取模块名。如果知识约束的键名格式与 `flat_params()` 不一致（如 `frame_rate` vs `animation.frame_rate`），需要在知识解析器中添加命名空间前缀映射。
 
-| 基因维度 | 映射目标 | 范围 |
-|---|---|---|
-| dim[0:N] | `prompt` | 从提示词库索引选择 |
-| dim[N] | `cfg_scale` | [5.0, 15.0] |
-| dim[N+1] | `denoise_strength` | [0.3, 1.0] |
-| dim[N+2] | `seed` | 基因型哈希确定性派生 |
-| dim[N+3] | `sampler_name` | 分类选择（euler/dpmpp_2m/...） |
+#### 靶向修复战役 3: `P1-SESSION-152-PHYSICS-GRAVITY-KNOWLEDGE-BIND` — 物理重力知识绑定
 
-此映射器应为纯函数，无副作用。
+**死区参数**: `physics.gravity`
 
-#### 微调 3: PDG 批量渲染车道 (`P1-SESSION-151-BATCH-RENDER-LANE`)
+**当前状态**: `physics` 模块已在知识总线中，且 `physics.bounce`, `physics.mass`, `physics.stiffness`, `physics.damping` 均已知识驱动。但 `physics.gravity` 仍为硬编码 `9.81`。
 
-**当前状态**: `run_mass_production_factory.py` 有 `ai_render_stage` 占位符。
+**需要构建**:
+1. 在 `knowledge/physics_sim.md` 中补充 `gravity` 约束（游戏物理中重力通常在 5.0-30.0 范围内，参考 Celeste/Hollow Knight 的重力调参经验）
+2. 运行审计验证 `physics.gravity` 从 `HEURISTIC_FALLBACK` 升级为 `KNOWLEDGE_DRIVEN`
 
-**需要构建**: 将 `ComfyUIRenderBackend.execute()` 接入 PDG `ai_render_stage`：
+**架构微调**: 无需架构修改，仅需补充知识规则。
 
-```python
-def ai_render_stage(context):
-    backend = ComfyUIRenderBackend()
-    manifest = backend.execute(context)
-    return manifest
-```
+#### 靶向修复战役 4: `P1-SESSION-152-VIBE-KNOWLEDGE-VALIDATION` — 语义启发式知识验证
 
-PDG 应扇出 N 个基因型 → N 个渲染任务 → N 个适应度分数 → 选择 + 交叉 + 突变。
+**死区参数**: `animation.exaggeration`, `physics.elasticity`, `proportions.squash_stretch`, `animation.anticipation`, `animation.follow_through`
 
-#### 微调 4: 种群管理器 (`P2-SESSION-151-GA-POPULATION-MANAGER`)
+**当前状态**: 这 5 个参数由 `SEMANTIC_VIBE_MAP` 启发式表调整，但调整后的值未经知识总线验证。
 
-**当前状态**: 项目已有 `evolution_loop.py` 中的 `InternalEvolver`。
+**需要构建**:
+1. 在 `DirectorIntentParser._apply_knowledge_grounding()` 中添加"vibe 后验证"步骤：vibe 调整完成后，再次查询知识总线确认调整后的值是否在约束范围内
+2. 如果 vibe 调整后的值超出知识约束，记录为 `KNOWLEDGE_CLAMPED` 而非 `VIBE_HEURISTIC`
 
-**需要构建**: 扩展 `InternalEvolver` 为 `ComfyUIPopulationManager`：
-- 维护 N 个基因型的种群（工作流参数向量）
-- 通过批量渲染 + 适应度评估器评估适应度
-- 应用锦标赛选择、交叉和突变
-- 将精英基因型持久化至 `outputs/evolution/generation_{N}/`
-- 发出 `EVOLUTION_COMFYUI_RENDER` 制品供知识蒸馏器消费
+**架构微调**: 需要在 `_apply_knowledge_grounding()` 中调整调用顺序 —— 当前是先 knowledge grounding 再 vibe adjustment，应改为 vibe adjustment 后再做一次 knowledge validation pass。
 
-#### 微调 5: WebSocket 进度条 (`P1-SESSION-151-WEBSOCKET-PROGRESS-BAR`)
+#### 靶向修复战役 5: `P2-SESSION-152-BACKEND-CONSUMPTION-AUDIT` — 后端消费审计
 
-**当前状态**: `ComfyAPIClient` 接收 WebSocket 进度事件但仅记录日志。
+**当前状态**: 审计系统已实现 `checkpoint_backend()` 方法，但当前管线中没有后端主动调用此方法。因此 `dangling_count` 始终为 0（因为没有后端消费检查点）。
 
-**需要构建**: 将进度事件浮现到 CLI 向导 TUI：
-- `progress` 事件 → 进度条百分比
-- `status` 事件 → 状态行更新
-- `error` 事件 → 即时错误显示
+**需要构建**:
+1. 在每个 `@register_backend` 的 `execute()` 方法中添加一行旁路调用：`get_tracker().checkpoint_backend(self.name, consumed_params)`
+2. 这样审计系统就能检测"Intent 阶段有但 Backend 没用"的悬空参数
+
+**架构微调**: 需要在 `BackendRegistry` 的 `execute_backend()` 包装器中添加自动检查点钩子，而非要求每个后端手动调用。这是一个 AOP (Aspect-Oriented Programming) 切面。
 
 ---
 
 ## 7. Updated Todo List
 
 ### P0 (立即)
+- [x] ~~P0-SESSION-148-KNOWLEDGE-PROVENANCE-AUDIT~~ — **已关闭** (SESSION-152)
 - [x] ~~P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH~~ — **已关闭** (SESSION-151)
 
-### P1 (下一冲刺)
+### P1 (下一冲刺 — 靶向修复战役)
+- [ ] P1-SESSION-152-PROPORTIONS-KNOWLEDGE-BIND — 角色比例 4 参数接通知识总线
+- [ ] P1-SESSION-152-ANIMATION-KNOWLEDGE-BIND — 动画 4 参数接通知识总线
+- [ ] P1-SESSION-152-PHYSICS-GRAVITY-KNOWLEDGE-BIND — 物理重力接通知识总线
+- [ ] P1-SESSION-152-VIBE-KNOWLEDGE-VALIDATION — 语义启发式后验证
 - [ ] P1-SESSION-151-GA-FITNESS-EVALUATOR — 将 COMFYUI_RENDER_REPORT 接入 GA 适应度评分
 - [ ] P1-SESSION-151-BATCH-RENDER-LANE — 在 PDG ai_render_stage 中添加批量渲染
 - [ ] P1-SESSION-151-WEBSOCKET-PROGRESS-BAR — 将 WS 进度浮现到 CLI 向导 TUI
@@ -299,7 +284,8 @@ PDG 应扇出 N 个基因型 → N 个渲染任务 → N 个适应度分数 → 
 - [ ] P1-SESSION-149-QUALITY-BOUNDARY-TESTS — 将烟测断言固化到 tests/
 
 ### P2 (积压)
-- [ ] P2-SESSION-151-MULTI-WORKFLOW-STRATEGY — 每批渲染支持多个工作流蓝图（风格 A/B 测试）
+- [ ] P2-SESSION-152-BACKEND-CONSUMPTION-AUDIT — 后端消费检查点 AOP 切面
+- [ ] P2-SESSION-151-MULTI-WORKFLOW-STRATEGY — 每批渲染支持多个工作流蓝图
 - [ ] P2-SESSION-151-COMFYUI-MODEL-CACHE — 批量渲染前预热模型缓存
 - [ ] P2-SESSION-151-GA-POPULATION-MANAGER — 完整种群管理器 + 精英持久化
 - [ ] P2-SESSION-149-DEMO-VIBE-PARAMS — 接通 vibe parser NL → intent params 自动映射
@@ -308,13 +294,22 @@ PDG 应扇出 N 个基因型 → N 个渲染任务 → N 个适应度分数 → 
 
 ## 8. Architecture Decision Record
 
-### ADR-SESSION-151: ComfyUI BFF 载荷变异与无头渲染架构
+### ADR-SESSION-152: 知识血统溯源与非侵入式审计架构
 
-**上下文**: ComfyUI 工作流是 JSON 图，节点 ID 是自动生成的整数，每次工作流编辑都会改变。之前的方法硬编码节点 ID，导致艺术家修改工作流时立即崩溃。
+**上下文**: 项目的知识蒸馏管线 (`RuntimeDistillationBus`) 已经建立，但缺乏对"知识是否真正驱动了参数推演"的可解释性审计。大量参数可能使用了 `dataclass` 硬编码默认值而非蒸馏知识，但这一事实在之前的管线中是不可见的。
 
-**决策**: 所有节点发现必须使用语义 `_meta.title` 标记匹配。节点 ID 被视为运行时发现的不透明句柄，绝不在源代码中引用。图像资产必须通过临时 multipart 推流上传，绝不引用本地路径。HTTP 轮询循环必须包含 `time.sleep()` 和可配置超时的 `RenderTimeoutError` 熔断器。所有渲染输出必须从 ComfyUI 内部 output 文件夹回收到 `outputs/production/`。每次渲染批次后必须通过 `POST /free` 释放显存。
+**决策**: 实现 OpenLineage-aligned 的知识血统追踪系统，作为非侵入式旁路拦截器 (Sidecar Pattern) 挂载到现有管线。追踪器 NEVER 修改任何浮点计算值，仅读取知识总线状态和参数推演路径，生成可解释的审计报告。每个参数被分类为六级溯源类型之一。硬编码死区参数必须诚实标红显示。审计后端通过 `@register_backend` 自注册，遵循 Registry Pattern。
 
-**影响**: BFF 变异架构使渲染管线对工作流编辑具有弹性 —— 艺术家可以自由修改 ComfyUI 工作流而不破坏自动化。临时上传模式消除了跨平台路径问题。超时熔断器防止长渲染时的终端死锁。输出回收确保所有生产资产可版本控制和可发现。显存 GC 防止批量渲染时的 OOM 崩溃。强类型 `COMFYUI_RENDER_REPORT` 清单提供了即将到来的 GA 适应度评估器所需的精确元数据契约。
+**影响**: 审计系统首次暴露了项目中 50% 的参数处于硬编码死区的事实。这为后续靶向修复战役提供了精确的攻击目标清单。审计 JSON 日志可被 CI/CD 管线消费，实现持续知识覆盖率监控。非侵入式设计确保审计系统的加入不会破坏任何现有功能。
+
+### 工业界/学术界参考对齐
+
+| 参考 | 对齐点 | 落地模块 |
+|---|---|---|
+| OpenLineage (Marquez/DataHub) | `run_id` + `source_type` + `source_file` 血统事件 | `provenance_tracker.py` |
+| XAI in Procedural Generation | 可解释知识映射审计轨迹 | `provenance_report.py` |
+| Sidecar/Interceptor Pattern (Envoy) | 非侵入式旁路观测 | 全部三个模块 |
+| Data Provenance & Lineage Tracking | 参数值包裹来源上下文 | `ParameterLineageRecord` |
 
 ---
 
@@ -322,28 +317,27 @@ PDG 应扇出 N 个基因型 → N 个渲染任务 → N 个适应度分数 → 
 
 | Session | 主线 | Commit |
 |---------|------|--------|
-| SESSION-151 (当前) | ComfyUI BFF 动态载荷变异 + 无头渲染后端 | (this push) |
+| SESSION-152 (当前) | 知识血统溯源审计 + 全链路参数贯通体检 | (this push) |
+| SESSION-151 | ComfyUI BFF 动态载荷变异 + 无头渲染后端 | `fd90026` |
 | SESSION-150 | 纯数学驱动动画 + 增强优雅错误边界 | `ebd00bd` |
 | SESSION-149 | 动态 demo 网格 + 优雅质量熔断边界 | `c2436e5` |
 | SESSION-148 | Windows 终端编码崩溃护盾 + ASCII-safe 救援 UI | `ccc5067` |
 | SESSION-147 | 知识总线大一统 + ComfyUI 交互式自愈救援网关 | `0f6da73` |
-| SESSION-146-B | 雷达广域探测网 + 深度审计轨迹 | `b9cdf05` |
 
 ---
 
 ## 10. Handoff Checklist
 
 - [x] 所有新代码遵循 Registry Pattern (`@register_backend`)
-- [x] 所有新代码遵循六边形架构 (`validate_config()` 在 Adapter 中)
-- [x] 所有新代码遵循不可变蓝图模式（变异前深拷贝）
-- [x] 代码库中无硬编码 ComfyUI 节点 ID
-- [x] 工作流节点中无本地文件系统路径引用
-- [x] 轮询循环有 `time.sleep()` 和超时熔断器
-- [x] 所有输出回收至 `outputs/production/`
-- [x] 每次渲染批次后释放显存
-- [x] 29/29 测试通过
-- [x] PROJECT_BRAIN.json 更新至 v0.99.3
+- [x] 所有新代码遵循 Sidecar Pattern（非侵入式旁路观测）
+- [x] 所有新代码遵循 OpenLineage 血统事件规范
+- [x] 审计报告诚实暴露硬编码死区（50% 参数标红）
+- [x] 悬空参数检测机制已实现（`checkpoint_backend` + 差集检测）
+- [x] 知识总线快照包含完整的编译模块和约束统计
+- [x] JSON 审计日志落盘至 `logs/knowledge_audit_trace.json`
+- [x] 9/9 测试通过
+- [x] PROJECT_BRAIN.json 更新至 v0.99.4, SESSION-152
 - [x] SESSION_HANDOFF.md 更新完整上下文
 - [x] 所有变更推送至 GitHub
 
-*Signed off by Manus AI · SESSION-151*
+*Signed off by Manus AI · SESSION-152*

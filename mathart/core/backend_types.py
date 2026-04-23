@@ -109,6 +109,12 @@ class BackendType(str, Enum):
     # and VRAM garbage collection for production AI rendering.
     COMFYUI_RENDER = "comfyui_render"
 
+    # SESSION-152 (P0-SESSION-148-KNOWLEDGE-PROVENANCE-AUDIT): Non-intrusive
+    # sidecar audit backend.  Reads the knowledge bus state and pipeline
+    # parameter flow to produce a full-chain provenance audit trail.
+    # Design: OpenLineage-aligned lineage events + XAI audit trail.
+    PROVENANCE_AUDIT = "provenance_audit"
+
 
 _BACKEND_ALIASES: dict[str, str] = {
     # Canonical values
@@ -252,6 +258,11 @@ _BACKEND_ALIASES: dict[str, str] = {
     "comfy_render": BackendType.COMFYUI_RENDER.value,
     "comfyui_headless": BackendType.COMFYUI_RENDER.value,
     "bff_render": BackendType.COMFYUI_RENDER.value,
+    # SESSION-152 (P0-SESSION-148-KNOWLEDGE-PROVENANCE-AUDIT): Provenance audit backend aliases
+    BackendType.PROVENANCE_AUDIT.value: BackendType.PROVENANCE_AUDIT.value,
+    "knowledge_audit": BackendType.PROVENANCE_AUDIT.value,
+    "provenance_tracker": BackendType.PROVENANCE_AUDIT.value,
+    "lineage_audit": BackendType.PROVENANCE_AUDIT.value,
 }
 
 

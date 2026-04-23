@@ -764,6 +764,14 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.backend.comfyui_render_backend")
         except Exception as e:
             logger.debug("Failed to auto-load ComfyUI render backend: %s", e)
+        # SESSION-152 (P0-SESSION-148-KNOWLEDGE-PROVENANCE-AUDIT):
+        # auto-register the non-intrusive provenance audit sidecar backend
+        # so the pipeline can discover knowledge lineage tracking without
+        # any trunk modification.  Design: OpenLineage + XAI audit trail.
+        try:
+            importlib.import_module("mathart.core.provenance_audit_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load provenance audit backend: %s", e)
     return registry
 
 

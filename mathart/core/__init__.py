@@ -70,6 +70,18 @@ from mathart.core.settings import (
     Settings,
     get_settings,
 )
+# SESSION-152: Knowledge Provenance Audit (Non-Intrusive Sidecar)
+from mathart.core.provenance_tracker import (
+    KnowledgeLineageTracker,
+    ParameterLineageRecord,
+    ProvenanceAuditContext,
+    ProvenanceSourceType,
+    get_tracker,
+)
+from mathart.core.provenance_report import (
+    ProvenanceReportGenerator,
+    generate_provenance_report,
+)
 
 __all__ = [
     # Backend Registry
@@ -105,4 +117,12 @@ __all__ = [
     # SESSION-141: Centralized Settings
     "Settings",
     "get_settings",
+    # SESSION-152: Knowledge Provenance Audit
+    "KnowledgeLineageTracker",
+    "ParameterLineageRecord",
+    "ProvenanceAuditContext",
+    "ProvenanceSourceType",
+    "get_tracker",
+    "ProvenanceReportGenerator",
+    "generate_provenance_report",
 ]
