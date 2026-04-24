@@ -1,7 +1,7 @@
 {
   "version": "v0.99.18",
-  "last_session_id": "SESSION-178",
-  "last_updated": "2026-04-23T23:00:00",
+  "last_session_id": "SESSION-179",
+  "last_updated": "2026-04-24 00:14:30",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -351,7 +351,7 @@
   },
   "best_quality_score": 0.892,
   "validation_pass_rate": "SESSION-138 audit: 100% PASS across tests/test_sandbox_validator.py. Landed P0-SESSION-135-KNOWLEDGE-QA-GATE four-dimensional anti-hallucination funnel: source_quote provenance contract, AST-safe expression firewall, canonical math fuzzing, and 100-step physics dry-run with hard timeout. Implemented quarantine/active dual-track directory discipline and GitOps proposal-branch enforcement (refusing direct push to main/master).",
-  "total_iterations": 750,
+  "total_iterations": 751,
   "total_code_lines": 168500,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
@@ -2954,7 +2954,25 @@
       ],
       "research_anchors": "docs/RESEARCH_NOTES_SESSION_164.md"
     },
-    "P0-SESSION-174-ASSET-GOVERNANCE-AND-VAULT"
+    "P0-SESSION-174-ASSET-GOVERNANCE-AND-VAULT",
+    {
+      "id": "SESSION-179-VISUAL-DISTILLATION-RESKINNING",
+      "title": "Visual Distillation & Reskinning + SESSION-176 Research Full Landing",
+      "session_landed": "SESSION-179",
+      "date": "2026-04-24",
+      "status": "COMPLETED",
+      "modules": [
+        "mathart/backend/ai_render_stream_backend.py",
+        "mathart/level/pdg.py",
+        "mathart/factory/mass_production.py",
+        "mathart/cli_wizard.py",
+        "mathart/quality/interactive_gate.py",
+        "mathart/workspace/visual_distillation.py"
+      ],
+      "tests": [
+        "tests/test_session179_visual_distillation_and_reskinning.py"
+      ]
+    }
   ],
   "capability_gaps": [
     "RESOLVED-S018: Evaluator too lenient -> 12-metric evaluator with strict thresholds",
@@ -3495,441 +3513,6 @@
   },
   "recent_sessions": [
     {
-      "session_id": "SESSION-151",
-      "focus": "ComfyUI BFF dynamic payload injection & headless render backend",
-      "status": "COMPLETE",
-      "date": "2026-04-23",
-      "summary": "Implemented the complete end-to-end ComfyUI headless render backend as a registry-native @register_backend plugin. Three core modules landed in mathart/backend/: (1) ComfyWorkflowMutator — BFF dynamic JSON tree traversal mutator that finds nodes by semantic _meta.title markers (NEVER hardcoded node IDs), performs immutable-blueprint deep-copy mutation with full audit ledger tracking every injection; (2) ComfyAPIClient — high-availability HTTP+WebSocket client with ephemeral /upload/image multipart push (no local path dependency), WebSocket execution telemetry with HTTP poll fallback, RenderTimeoutError circuit breaker (configurable timeout + poll_interval), VRAM garbage collection via POST /free, and mandatory output repatriation to outputs/production/ with timestamped filenames; (3) ComfyUIRenderBackend — @register_backend(BackendType.COMFYUI_RENDER) plugin with validate_config() backend-owned parameter normalization, graceful degradation manifests when ComfyUI is offline, and strongly-typed COMFYUI_RENDER_REPORT ArtifactManifest carrying prompt_id, mutation_count, render_elapsed_seconds, vram_freed, and blueprint_name for downstream GA fitness evaluation. Extended BackendType enum, BackendCapability enum, ArtifactFamily enum, and backend_registry auto-import chain. All three SESSION-151 anti-pattern red lines enforced and tested: (a) no hardcoded ComfyUI node IDs — source code audit confirms _meta.title semantic matching only; (b) poll loop deadlock prevention — time.sleep() + RenderTimeoutError verified by test; (c) output repatriation — all renders saved to outputs/production/. 29/29 tests PASS.",
-      "files_touched": [
-        "mathart/backend/__init__.py",
-        "mathart/backend/comfy_mutator.py",
-        "mathart/backend/comfy_client.py",
-        "mathart/backend/comfyui_render_backend.py",
-        "mathart/core/backend_types.py",
-        "mathart/core/backend_registry.py",
-        "mathart/core/artifact_schema.py",
-        "tests/test_comfyui_render_backend.py",
-        "outputs/production/.gitkeep",
-        "scripts/update_brain_session151.py",
-        "SESSION_HANDOFF.md",
-        "PROJECT_BRAIN.json"
-      ],
-      "validation": "tests/test_comfyui_render_backend.py -> 29/29 PASSED (mutator 9, client 8, backend 7, integration 3, red-line guards 2)",
-      "next_gaps": [
-        "P1-SESSION-151-GA-FITNESS-EVALUATOR: Wire COMFYUI_RENDER_REPORT metadata into GeneticAlgorithm fitness scoring function",
-        "P1-SESSION-151-BATCH-RENDER-LANE: Add batch render support to PDG mass_production_factory ai_render_stage",
-        "P1-SESSION-151-WEBSOCKET-PROGRESS-BAR: Surface WebSocket progress events to CLI wizard TUI",
-        "P2-SESSION-151-MULTI-WORKFLOW-STRATEGY: Support multiple workflow blueprints per render batch (style A/B testing)",
-        "P2-SESSION-151-COMFYUI-MODEL-CACHE: Pre-warm model cache before batch render to avoid cold-start latency"
-      ]
-    },
-    {
-      "session_id": "SESSION-150",
-      "focus": "Procedural math-driven animation dynamics + enhanced graceful error boundary",
-      "status": "COMPLETE",
-      "date": "2026-04-23",
-      "summary": "Architectural deep-dive triggered by the question: 'MathArt should be purely math-driven — why depend on external models?' Upgraded the SESSION-149 demo cylinder fix into a full four-motion procedural animation system: (1) parabolic bounce y(t)=A*|sin(pi*freq*t)|, (2) volume-preserving squash/stretch Sy=1+I*sin(2pi*freq*t) Sx=1/Sy (Disney Principle #1), (3) continuous Y-axis spin theta=2pi*R*t, (4) secondary bone phase offset (pi/3 + halved amplitude). Added intent parameter passthrough from CreatorIntentSpec (bounce_amplitude, squash_stretch_intensity, elasticity, spin_revolutions). Replaced per-frame WARNING spam with single-shot INFO banner. Upgraded quality circuit break notice to RED ANSI bold with improved Chinese messaging. scripts/session150_smoke.py: ALL 3 ASSERTIONS PASSED (procedural animation safe, intent amplified, RED notice rendered).",
-      "files_touched": [
-        "mathart/core/pseudo3d_shell_backend.py",
-        "mathart/workspace/mode_dispatcher.py",
-        "mathart/cli_wizard.py",
-        "scripts/session150_smoke.py",
-        "SESSION_HANDOFF.md",
-        "PROJECT_BRAIN.json"
-      ],
-      "validation": "scripts/session150_smoke.py -> ALL SESSION-150 SMOKE ASSERTIONS PASSED (3/3 phases green)",
-      "next_gaps": [
-        "P1-SESSION-149-LOG-THROTTLE-EXTRACT: promote _emit_demo_warning to mathart.core.log_throttle",
-        "P1-SESSION-149-QUALITY-BOUNDARY-TESTS: pin smoke assertions into tests/",
-        "P2-SESSION-149-DEMO-VIBE-PARAMS: wire vibe parser NL output to intent params (passthrough already landed)"
-      ]
-    },
-    {
-      "session_id": "SESSION-149",
-      "focus": "Dynamic demo mesh + graceful PipelineContractError boundary",
-      "status": "COMPLETE",
-      "date": "2026-04-23",
-      "summary": "After SESSION-148 unblocked the PDG mass-production node, the TemporalVarianceCircuitBreaker tripped with 'Mean MSE = 0.0000' because the pseudo3d_shell demo-fallback path generated a static 10-frame ramp for the requested 43-frame batch. Closed two issues: (1) replaced the demo bone-DQS sequence with a Y-axis bounce ty(f)=A*sin(2pi*f/period) plus Y-axis spin theta(f)=2pi*revs*f/(N-1) (bone 1 carries a phase-shifted DQS) and made n_frames honour upstream frame_count; (2) introduced PipelineQualityCircuitBreak as a typed wrapper around PipelineContractError, translated at ModeDispatcher.dispatch and absorbed by cli_wizard with an ANSI-highlighted single-line notice (interactive: rc=0 + back to main menu; non-interactive: rc=3 + structured JSON envelope). Side fixes: throttled the validate_config demo warnings to first-emission-only (logger.warning -> logger.debug afterwards) and made LocomotionRLEnv tolerant of missing gymnasium so mathart.animation no longer poisons consumers. Smoke test scripts/session149_smoke.py: ALL ASSERTIONS PASSED (min_pair_max_vertex_shift=0.1121, mean=0.1623; dispatch wraps; wizard friendly notice present; no traceback leaked).",
-      "files_touched": [
-        "mathart/core/pseudo3d_shell_backend.py",
-        "mathart/workspace/mode_dispatcher.py",
-        "mathart/cli_wizard.py",
-        "mathart/animation/rl_gym_env.py",
-        "scripts/session149_smoke.py",
-        "SESSION_HANDOFF.md",
-        "PROJECT_BRAIN.json"
-      ],
-      "validation": "scripts/session149_smoke.py -> ALL SESSION-149 SMOKE ASSERTIONS PASSED (2/2 phases green)",
-      "next_gaps": [
-        "P1-SESSION-149-LOG-THROTTLE-EXTRACT: promote _emit_demo_warning to mathart.core.log_throttle",
-        "P1-SESSION-149-QUALITY-BOUNDARY-TESTS: pin smoke assertions into tests/test_session149_quality_boundary.py",
-        "P2-SESSION-149-RECOVERY-HINT: per-violation_type recovery_hint in PipelineQualityCircuitBreak"
-      ]
-    },
-    {
-      "session_id": "SESSION-148",
-      "focus": "Windows terminal encoding crash shield + ASCII-safe rescue UI",
-      "status": "COMPLETE",
-      "date": "2026-04-22",
-      "summary": "Under Windows CMD/PowerShell with cp936 (GBK) or cp437 code pages, the SESSION-147 rescue prompt's high-range Emoji raised UnicodeEncodeError 'surrogates not allowed' and tore down the entire wizard process mid-rescue. Fix: stripped all high-range Emoji from comfyui_rescue prompt strings (replaced with ASCII-safe tags [!] / [OK] / [WARNING] / [INFO]) and installed a global stdout/stderr safe-encoding shield in cli_wizard.py and cli.py so any future rogue glyph degrades to '?' instead of crashing. Chinese business copy preserved unchanged so all SESSION-147 regression assertions still pass.",
-      "files_touched": [
-        "mathart/workspace/comfyui_rescue.py",
-        "mathart/cli_wizard.py",
-        "mathart/cli.py"
-      ],
-      "validation": "SESSION-147 168/168 regression matrix unchanged; manual Windows CMD smoke test passed",
-      "next_gaps": [
-        "P2-SESSION-147-RESCUE-WINDOWS-UNC: extend _looks_like_comfyui_root to handle Windows UNC and 8.3 short names"
-      ]
-    },
-    {
-      "session_id": "SESSION-147",
-      "focus": "Knowledge-bus through-wiring + ComfyUI interactive path rescue gateway",
-      "status": "COMPLETE",
-      "date": "2026-04-22",
-      "summary": "Two-pronged repair surfaced by the SESSION-146 blackbox: (1) the project-level RuntimeDistillationBus (18 modules, 323 parameters) was never being injected into DirectorIntentParser by either the interactive wizard or the non-interactive dispatcher, leaving Director Studio in heuristic-only fallback. Introduced mathart.workspace.knowledge_bus_factory.build_project_knowledge_bus() and wired it into both entrypoints. (2) A comfyui_not_found radar verdict used to terminate the wizard with no recovery; landed mathart/workspace/comfyui_rescue.py which prompts the user for the engine path, validates it (main.py + custom_nodes/), persists COMFYUI_HOME via dotenv.set_key with native fallback, hot-injects into os.environ, and re-runs PreflightRadar().scan() to wake the production pipeline. ProductionStrategy and ModeDispatcher now accept input_fn/output_fn hooks. python-dotenv>=1.0 added to core deps. 24/24 SESSION-147 targeted + 144/144 cross-suite regression = 168/168 PASS.",
-      "files_touched": [
-        "mathart/workspace/knowledge_bus_factory.py",
-        "mathart/workspace/comfyui_rescue.py",
-        "mathart/workspace/mode_dispatcher.py",
-        "mathart/workspace/__init__.py",
-        "mathart/cli_wizard.py",
-        "pyproject.toml",
-        "tests/test_session147_rescue_and_bus.py",
-        "scripts/session147_smoke.py"
-      ],
-      "validation": "168/168 PASS (24 SESSION-147 targeted + 144 cross-suite regression)",
-      "next_gaps": [
-        "P0-SESSION-148-WINDOWS-ENCODING-CRASH-SHIELD: shield wizard against Windows terminal Unicode errors",
-        "P2-SESSION-147-RESCUE-WINDOWS-UNC",
-        "P2-SESSION-147-KBUS-CACHE"
-      ]
-    },
-    {
-      "session_id": "SESSION-137",
-      "focus": "Bounded-autonomy HITL boundary gateways and novice-safe manual degradation UX",
-      "status": "COMPLETE",
-      "date": "2026-04-22",
-      "summary": "Closed the HITL boundary-gateway hardening pass by adding a typed ManualInterventionRequiredError contract, Windows symlink privilege guard that refuses to silently copy large assets after WinError 1314, bounded download timeout escalation with proxy/mirror recovery via the standard wizard menu, GPU/CUDA preflight blocking before production launch, and a first-run Defender whitelist warning for Windows users. Targeted verification reached 45/45 PASS across the touched wizard, radar, surgeon, and new boundary-regression suites.",
-      "files_touched": [
-        "mathart/cli_wizard.py",
-        "mathart/workspace/hitl_boundary.py",
-        "mathart/workspace/config_manager.py",
-        "mathart/workspace/asset_injector.py",
-        "mathart/workspace/atomic_downloader.py",
-        "mathart/workspace/idempotent_surgeon.py",
-        "mathart/workspace/preflight_radar.py",
-        "mathart/workspace/mode_dispatcher.py",
-        "tests/test_hitl_boundary_gateway.py",
-        "docs/research/SESSION-137-HITL-BOUNDARY-RESEARCH.md",
-        "PROJECT_BRAIN.json",
-        "SESSION_HANDOFF.md"
-      ],
-      "next_gaps": [
-        "P0-SESSION-138-NOVICE-FIRST-RUN-STUDIO: translate technical mode selection into plain artist outcomes",
-        "P0-SESSION-138-ENV-DOCTOR-BUNDLE: produce a one-click support bundle for GPU/driver/network triage",
-        "P1-SESSION-138-MANUAL-RECOVERY-CHECKLISTS: convert OS/network handoff branches into visual checklists"
-      ]
-    },
-    {
-      "session_id": "SESSION-123",
-      "focus": "PDG v2 SeedSequence fan-out determinism and WFC RNG injection",
-      "status": "COMPLETE",
-      "date": "2026-04-21",
-      "summary": "Closed the PDG v2 deterministic-RNG follow-through by adding SeedSequence-based per-invocation stream derivation, explicit ctx['_pdg']['rng'] injection, hermetic rng_contract metadata for cache-safe work-item execution, and deep WFC lane alignment so level generation can consume injected NumPy Generators instead of thread-order-sensitive implicit randomness. Targeted validation reached 69/69 PASS across test_level_pdg, test_level, and test_constraint_wfc.",
-      "files_touched": [
-        "mathart/level/pdg.py",
-        "mathart/level/wfc.py",
-        "mathart/level/constraint_wfc.py",
-        "mathart/pipeline.py",
-        "tests/test_level.py",
-        "tests/test_level_pdg.py",
-        "research/session123_rng_determinism_research.md",
-        "PROJECT_BRAIN.json",
-        "SESSION_HANDOFF.md"
-      ]
-    },
-    {
-      "session_id": "SESSION-122",
-      "focus": "P1-2 Per-frame SDF parameter animation, tensorized parameter tracks, and 4D SDF verification",
-      "status": "COMPLETE",
-      "date": "2026-04-21",
-      "summary": "Closed P1-2 by adding a new mathart/animation/parameter_track.py module with vectorized sparse-keyframe→dense-tensor sampling, TimeAwareMorphologyEvaluator for streamed per-frame context decoding, runtime parameter_context support in smooth_morphology.py, OpenUSD TimeSamples-compatible export maps, and 6 new white-box tests in tests/test_sdf_animation.py. Existing smooth morphology coverage remained green (46 legacy tests), bringing touched-lane validation to 52/52 PASS. External research alignment covered IQ smooth-min constraints, OpenUSD time codes/time samples, OpenUSD spline animation, Catmull-Rom C1 interpolation, and Disney-style volume preservation.",
-      "files_touched": [
-        "mathart/animation/parameter_track.py",
-        "mathart/animation/smooth_morphology.py",
-        "tests/test_sdf_animation.py",
-        "research/session122_external_reference_notes.md",
-        "PROJECT_BRAIN.json",
-        "SESSION_HANDOFF.md"
-      ],
-      "next_gaps": [
-        "P1-ARCH-5: promote the new TimeSamples-compatible parameter contract into stable prim-path animated scene interchange",
-        "P2-DIM-UPLIFT-13: move animated SDF sampling / mesh extraction hot paths onto GPU",
-        "P1-AI-1: consume animated SDF parameter tracks in downstream render/control pipelines"
-      ]
-    },
-    {
-      "session_id": "SESSION-121",
-      "focus": "P1-NEW-9C Character Evolution 3.0: multi-slot equipment library + tensorized bone-socket mounter",
-      "status": "COMPLETE",
-      "date": "2026-04-21",
-      "summary": "Closed P1-NEW-9C by extending CharacterGenotype with three new equipment slots (torso_overlay / hand_item / foot_accessory) backed by 11 new PART_REGISTRY entries, shipping a new 3D primitive library in mathart/animation/parts3d.py (SDF-derived rounded-box / elongated-capsule / disc factories), a tensorized TensorSocketMounter (UE5-aligned SocketSpec, np.einsum 4x4 broadcast, sub-millisecond warm-cache), and 32 new white-box regression tests in tests/test_character_parts.py. Anti Z-fighting is enforced by strictly positive inflate_radius on every shell. Backward-compatible JSON deserialisation verified on legacy archives. Full repo regression: 2128 PASS / 8 SKIP / 20 FAIL — all 20 failures pre-exist on the baseline commit 0c9a84e and are unrelated to this work (verified via git stash). Zero new regressions.",
-      "files_touched": [
-        "mathart/animation/genotype.py",
-        "mathart/animation/parts3d.py",
-        "tests/test_character_parts.py",
-        "docs/research/P1_NEW_9C_research_alignment.md",
-        "PROJECT_BRAIN.json",
-        "SESSION_HANDOFF.md"
-      ],
-      "next_priorities": [
-        "P1-NEW-9D: Multi-pass character composition driver consuming MountedAttachment lists",
-        "P1-AI-1: Wire mounted attachment z-coords into the orthographic Z-buffer ControlNet pipeline",
-        "P1-NEW-10: Telemetry aggregation for pruning_report and fitness_penalty"
-      ]
-    },
-    {
-      "session_id": "SESSION-105",
-      "focus": "P3-GPU-BENCH-1 production integration: PDG GPU semaphore scheduling, strict CUDA lane semantics, and Taichi VRAM cleanup",
-      "status": "COMPLETE",
-      "date": "2026-04-21",
-      "summary": "Integrated GPU-aware scheduling into PDG v2 and upgraded TaichiXPBDBackend into a strict, PDG-work-item-consumable benchmark lane with explicit sync+reset cleanup and lineage/hardware evidence fields. Full suite reached 1729 PASS / 7 SKIP / 0 FAIL.",
-      "files_touched": [
-        "mathart/level/pdg.py",
-        "mathart/core/taichi_xpbd_backend.py",
-        "mathart/animation/xpbd_taichi.py",
-        "tests/test_level_pdg.py",
-        "tests/test_taichi_benchmark_backend.py",
-        "tools/run_session085_gpu_benchmark.py",
-        "PROJECT_BRAIN.json",
-        "SESSION_HANDOFF.md"
-      ],
-      "next_priorities": [
-        "P3-GPU-BENCH-1: rerun strict-GPU benchmark on RTX 4070 and archive the real CUDA summary/report set",
-        "P1-B1-1: connect file-backed cloth/secondary-chain outputs into visible ribbon or mesh rendering",
-        "P1-ARCH-5: extend PDG/GPU artifact flow into OpenUSD-compatible scene interchange"
-      ]
-    },
-    {
-      "session_id": "SESSION-104",
-      "focus": "P1-ARCH-4 follow-through (bounded local scheduler closure)",
-      "status": "COMPLETE",
-      "date": "2026-04-20",
-      "summary": "Audited the PDG v2 runtime already landed in SESSION-103 and found one residual architecture gap: mapped fan-out was still executed sequentially. Closed that gap by adding a bounded local scheduler with configurable max_workers, ordered main-thread aggregation, and atomic disk-cache writes. Added a new white-box test proving bounded 1→N dispatch and clean N→1 collect. Full suite reached 1726 PASS / 7 SKIP / 0 FAIL.",
-      "files_touched": [
-        "mathart/level/pdg.py",
-        "tests/test_level_pdg.py",
-        "research_notes_p1_arch4_session104.md",
-        "SESSION_HANDOFF.md",
-        "PROJECT_BRAIN.json"
-      ],
-      "validation": "1726 PASS / 7 SKIP / 0 FAIL (python3.11 -m pytest tests/ -p no:cov)"
-    },
-    {
-      "session_id": "SESSION-103",
-      "focus": "P1-ARCH-4 (PDG v2 runtime semantics closure)",
-      "status": "COMPLETE",
-      "date": "2026-04-20",
-      "summary": "Closed P1-ARCH-4 by upgrading mathart/level/pdg.py from a linear dict-passing DAG into a PDG v2 runtime: immutable WorkItem contract, Bazel-style hermetic SHA-256 disk cache (AC + CAS), explicit fan-out/fan-in runtime semantics, and facade-preserved backward compatibility for existing level pipelines. Added white-box cache/fan-out/collect tests. Full suite reached 1725 PASS / 7 SKIP / 0 FAIL.",
-      "files_touched": [
-        "mathart/level/pdg.py",
-        "mathart/level/__init__.py",
-        "mathart/pipeline.py",
-        "tests/test_level_pdg.py",
-        "research_notes_p1_arch4_session103.md",
-        "SESSION_HANDOFF.md",
-        "PROJECT_BRAIN.json"
-      ],
-      "validation": "1725 PASS / 7 SKIP / 0 FAIL (python3.11 -m pytest tests/ -p no:cov)"
-    },
-    {
-      "session_id": "SESSION-102",
-      "focus": "HIGH-ArchitectureDeception (terrain_sensor 3-phase pipeline closure)",
-      "status": "COMPLETE",
-      "date": "2026-04-20",
-      "summary": "Closed the remaining terrain_sensor Architecture Deception by refactoring scene_aware_fall_pose() into an explicit 3-phase pipeline: _phase1_query_geometry() -> _phase2_evaluate_clearance() -> _phase3_apply_kinematic_adaptation(). Added frozen dataclass artifacts, strengthened test_batch_query/test_slope_compensation, and landed white-box phase-level assertions. Full suite reached 1722 PASS / 7 SKIP / 0 FAIL.",
-      "files_touched": [
-        "mathart/animation/terrain_sensor.py",
-        "tests/test_terrain_sensor.py",
-        "research_notes_architecture_deception_session102.md",
-        "SESSION_HANDOFF.md",
-        "PROJECT_BRAIN.json"
-      ],
-      "validation": "1722 PASS / 7 SKIP / 0 FAIL (python3.11 -m pytest tests/ -p no:cov)"
-    },
-    {
-      "session_id": "SESSION-101",
-      "focus": "HIGH-TestBlindSpot (math deepwater coverage)",
-      "status": "COMPLETE",
-      "date": "2026-04-20",
-      "summary": "Landed 42 new industrial-grade blind-spot tests covering fluid_vfx, unified_motion, nsm_gait and terrain_ik_2d. Followed NASA JPL Power of Ten, Hypothesis property-based testing and Pixar/Disney fluid-QA philosophy. Full suite 1719 PASS / 7 SKIP / 0 FAIL (+73 vs SESSION-100 baseline 1646). Zero production code touched.",
-      "files_touched": [
-        "tests/test_session101_math_blind_spots.py",
-        "research_notes_session101.md",
-        "SESSION_HANDOFF.md",
-        "PROJECT_BRAIN.json",
-        "scripts/sync_project_brain_session101.py"
-      ],
-      "validation": "1719 PASS / 7 SKIP / 0 FAIL (pytest tests/ -p no:cov)"
-    },
-    {
-      "id": "SESSION-061",
-      "version": "0.52.0",
-      "date": "2026-04-18",
-      "title": "Motion Cognitive Dimensionality Reduction & 2D IK Closed Loop",
-      "summary": "Complete 3D→2D orthographic projection pipeline with FABRIK terrain-adaptive IK, Spine JSON export, animation 12-principles quantification, and three-layer evolution bridge. 40/40 tests PASS. Closes P3-QUAD-IK-1 and 5 new P3-MOTION2D tasks."
-    },
-    {
-      "session_id": "SESSION-080",
-      "date": "2026-04-19",
-      "focus": "P1-B3-2: UMR→RL Reference Motion Asset Closed Loop (DeepMimic Imitation)",
-      "changes": [
-        "NEW mathart/animation/umr_rl_adapter.py — UMR→RL tensorized adapter with DeepMimic reward",
-        "NEW tests/test_p1_b3_2_rl_reference.py — 30 E2E tests (6 test classes)",
-        "NEW research/session080_deepmimic_notes.md — DeepMimic/Isaac Gym/Frostbite research notes",
-        "UPD mathart/animation/__init__.py — export umr_rl_adapter symbols",
-        "UPD PROJECT_BRAIN.json — P1-B3-2 → completed",
-        "UPD SESSION_HANDOFF.md — P1-B3-2 closure + next-step guidance"
-      ],
-      "test_results": "30/30 new tests pass, 22/22 regression tests pass",
-      "tasks_closed": [
-        "P1-B3-2"
-      ],
-      "next_priorities": [
-        "P1-XPBD-1: Fix XPBD free-fall precision optimization",
-        "P3-GPU-BENCH-1: Run real Taichi GPU CUDA performance benchmark",
-        "P1-B4-1: RL policy training loop with pre-baked reference buffers"
-      ]
-    },
-    {
-      "session_id": "SESSION-081",
-      "date": "2026-04-19",
-      "focus": "P1-XPBD-1: XPBD gravity/damping decoupling and analytical free-fall closure",
-      "changes": [
-        "UPD mathart/animation/xpbd_solver.py — constant-acceleration gravity predictor + component-relative damping in 2D",
-        "UPD mathart/animation/xpbd_solver_3d.py — synchronized 3D gravity/damping contract with 2D solver",
-        "UPD mathart/animation/xpbd_evolution.py — PhysicsTestHarness free-fall upgraded to analytical 1e-6 guard",
-        "NEW tests/test_xpbd_free_fall_regression.py — strict 2D/3D analytical free-fall and constrained-component invariance tests",
-        "NEW research/session081_xpbd_reference_notes.md — XPBD / Box2D / NASA verification rationale",
-        "UPD PROJECT_BRAIN.json — P1-XPBD-1 closed and next priorities reordered",
-        "UPD SESSION_HANDOFF.md — SESSION-081 closure + next-step preparation for GPU benchmark and RL loop"
-      ],
-      "test_results": "104 PASS, 1 SKIP, 0 FAIL across analytical XPBD, CCD, Taichi, distillation, and CI schema suites",
-      "tasks_closed": [
-        "P1-XPBD-1"
-      ],
-      "next_priorities": [
-        "P3-GPU-BENCH-1: Run formal Taichi GPU benchmark and sparse-cloth validation on CUDA hardware",
-        "P1-B4-1: RL policy training loop with pre-baked reference buffers",
-        "P1-MIGRATE-4: continue registry and migration closure work"
-      ]
-    },
-    {
-      "session_id": "SESSION-082",
-      "date": "2026-04-19",
-      "focus": "P3-GPU-BENCH-1: correctness-aware Taichi benchmark harness with truthful fallback and NumPy parity metrics",
-      "changes": [
-        "UPD mathart/animation/xpbd_taichi.py — exact free-fall predictor, constraint-relative finalize damping, disable-constraints benchmark mode, and truthful active-arch detection",
-        "REWRITE mathart/core/taichi_xpbd_backend.py — warm-up exclusion, repeated median timing, NumPy A/B parity metrics, graceful fallback, and richer BENCHMARK_REPORT metadata",
-        "UPD mathart/core/artifact_schema.py + mathart/distill/runtime_bus.py — benchmark schema/normalization now preserve gpu_device_name, speedup_ratio, and cpu_gpu_max_drift",
-        "REWRITE tests/test_taichi_benchmark_backend.py + NEW tests/test_gpu_benchmark_realism.py — lock benchmark contract, parity fields, fallback path, and analytical Taichi free-fall realism",
-        "NEW tools/run_session082_gpu_benchmark.py + reports/session082_gpu_benchmark/session082_benchmark_summary.json — reproducible local benchmark artifact generation and environment evidence",
-        "NEW research/session082_gpu_benchmark_reference_notes.md — Google Benchmark / CUDA / Taichi / NASA implementation rules",
-        "UPD PROJECT_BRAIN.json + SESSION_HANDOFF.md — refreshed session metadata, task notes, and next-step guidance for CUDA benchmark completion and RL loop prep"
-      ],
-      "test_results": "40 PASS, 2 SKIP, 0 FAIL across Taichi XPBD, benchmark realism, CI schema, and distillation suites; local benchmark summary confirms CPU fallback with parity pass in this non-CUDA sandbox",
-      "tasks_closed": [],
-      "next_priorities": [
-        "P3-GPU-BENCH-1: run the new benchmark harness on real CUDA hardware and extend it to sparse topology validation",
-        "P1-B4-1: start the RL policy training loop with rollout-health telemetry and deterministic reset/provenance contracts",
-        "P1-MIGRATE-4: continue registry/migration closure work"
-      ]
-    },
-    {
-      "session_id": "SESSION-083",
-      "date": "2026-04-19",
-      "focus": "P1-B4-1: Gymnasium RL environment, registry-native training backend, and typed training reports",
-      "changes": [
-        "NEW mathart/animation/rl_gym_env.py — Gymnasium-compatible LocomotionRLEnv with RSI reset, early termination, truncation horizon, and rollout telemetry",
-        "NEW mathart/core/rl_training_backend.py — registry-native rl_training backend emitting TRAINING_REPORT manifests with Stable-Baselines3 auto-detect and random-actor fallback",
-        "UPD mathart/core/backend_types.py + mathart/core/backend_registry.py + mathart/core/artifact_schema.py — RL backend type/capability plus TRAINING_REPORT family schema closure",
-        "UPD mathart/animation/__init__.py + pyproject.toml — export RL env symbols and declare gymnasium dependency",
-        "NEW tests/test_p1_b4_1_rl_training.py + UPD tests/test_ci_backend_schemas.py — enforce Gymnasium API, terminated/truncated semantics, registry discovery, and training report schema",
-        "NEW research/session083_rl_reference_notes.md — Gymnasium / DeepMimic / Farama termination semantics distilled for implementation",
-        "UPD PROJECT_BRAIN.json + SESSION_HANDOFF.md — close P1-B4-1 and refresh next-step guidance"
-      ],
-      "test_results": "18 PASS, 0 FAIL across tests/test_p1_b4_1_rl_training.py and tests/test_ci_backend_schemas.py; rl_training manifest validation passes with random-actor fallback in this sandbox",
-      "tasks_closed": [
-        "P1-B4-1"
-      ],
-      "next_priorities": [
-        "P3-GPU-BENCH-1: run the CUDA benchmark harness on real hardware and add sparse-topology validation",
-        "P1-MIGRATE-4: continue hot-reload and registry closure work",
-        "P1-AI-2D: ship real ComfyUI preset packs for anti-flicker production jobs"
-      ]
-    },
-    {
-      "session_id": "SESSION-084",
-      "date": "2026-04-19",
-      "focus": "P1-AI-2D: production-grade ComfyUI preset assets, semantic injection, and typed anti-flicker report closure",
-      "changes": [
-        "NEW mathart/animation/comfyui_preset_manager.py — external preset loader and semantic selector injector for workflow_api assets",
-        "NEW mathart/assets/comfyui_presets/dual_controlnet_ipadapter.json — production anti-flicker workflow_api preset asset for dual ControlNet + IP-Adapter identity lock",
-        "UPD mathart/animation/headless_comfy_ebsynth.py — runtime now references workflow_preset_name and preserves preset provenance in pipeline metadata",
-        "UPD mathart/core/builtin_backends.py + mathart/core/artifact_schema.py — anti_flicker_render now exports typed ANTI_FLICKER_REPORT manifests with preset_asset and workflow_payload outputs",
-        "UPD pyproject.toml — include JSON preset assets as package data",
-        "NEW tests/test_p1_ai_2d_preset_injection.py + UPD tests/test_session068_e2e.py + tests/test_ci_backend_schemas.py — lock semantic injection, offline execution, and schema closure",
-        "NEW research/session084_ai2d_preset_research.md — ComfyUI workflow file semantics, ControlNet/IP-Adapter split, and data-driven asset principles distilled for implementation",
-        "UPD PROJECT_BRAIN.json + SESSION_HANDOFF.md — close P1-AI-2D and refresh next-step guidance"
-      ],
-      "test_results": "37 PASS, 0 FAIL across tests/test_p1_ai_2d_preset_injection.py, tests/test_session068_e2e.py, and tests/test_ci_backend_schemas.py",
-      "tasks_closed": [
-        "P1-AI-2D"
-      ],
-      "next_priorities": [
-        "P3-GPU-BENCH-1: run the CUDA benchmark harness on real hardware and add sparse-topology validation",
-        "P1-MIGRATE-4: continue hot-reload and registry closure work",
-        "P1-AI-2D-SPARSECTRL: execute full ComfyUI workflows with real SparseCtrl/AnimateDiff weights"
-      ]
-    },
-    {
-      "session_id": "SESSION-085",
-      "date": "2026-04-19",
-      "focus": "P3-GPU-BENCH-1: sparse-cloth topology benchmark, sequential NumPy XPBD reference solver, and NASA-STD-7009B physical-equivalence parity closure",
-      "changes": [
-        "REWRITE mathart/core/taichi_xpbd_backend.py — TaichiXPBDBackend v2.0.0 with sparse_cloth scenario, full constraint topology build, sequential NumPy XPBD reference solver, and relaxed f32 parity tolerances",
-        "REWRITE tests/test_gpu_benchmark_realism.py — sparse_cloth nonzero-constraint guard, CPU parity tolerance test, and anti-illusion constraint_count assertion",
-        "REWRITE tests/test_taichi_benchmark_backend.py — sparse_cloth scenario validation, degraded report constraint field, and real Taichi sparse_cloth CPU smoke test",
-        "NEW tools/run_session085_gpu_benchmark.py — end-to-end ignition script with auto-CUDA detection, 4-case benchmark matrix (free_fall_cloud + sparse_cloth × CPU + GPU), and structured JSON summary",
-        "NEW research/session085_sparse_cloth_benchmark_research.md — Taichi sparse SNode, Google Benchmark discipline, NASA-STD-7009B credibility, XPBD race condition mitigation research notes",
-        "UPD PROJECT_BRAIN.json + SESSION_HANDOFF.md — P3-GPU-BENCH-1 → SUBSTANTIALLY-CLOSED, session metadata, and next-step guidance"
-      ],
-      "test_results": "13 PASS, 2 SKIP, 0 FAIL across tests/test_taichi_benchmark_backend.py and tests/test_gpu_benchmark_realism.py; CUDA ignition verified on RTX 4070 (Mode: real_cuda, free_fall_cloud CPU+GPU completed)",
-      "tasks_closed": [
-        "P3-GPU-BENCH-1 (SUBSTANTIALLY-CLOSED, CUDA ignition verified)"
-      ],
-      "next_priorities": [
-        "P3-GPU-BENCH-1: complete full sparse_cloth benchmark run on RTX 4070 (use --particle-budget 4096 for faster evidence)",
-        "P1-MIGRATE-4: continue hot-reload and registry closure work",
-        "P1-AI-2D-SPARSECTRL: execute full ComfyUI workflows with real SparseCtrl/AnimateDiff weights"
-      ]
-    },
-    {
-      "id": "SESSION-094",
-      "version": "0.84.0",
-      "date": "2026-04-20",
-      "title": "WFC Locked-Tile Absolute Survival & Explicit Conflict Closure",
-      "summary": "Closed CRITICAL-2.2 by refactoring WFC propagation into a queue-based lock-immunity kernel with explicit contradiction signaling, removing silent fallback on lock conflicts, and adding deterministic dead-end tests plus tilemap-exporter regressions."
-    },
-    {
-      "id": "SESSION-095",
-      "version": "0.85.0",
-      "date": "2026-04-20",
-      "title": "Genotype Hard-Clipping Boundary Closure & Extreme Mutation Stress Validation",
-      "summary": "Closed HIGH-2.3 by refactoring mathart/animation/genotype.py around a declared continuous-domain contract, a unified enforce_genotype_bounds() hard-clipping pass, and deterministic extreme-strength mutation tests that assert every continuous gene remains inside bounds under ±1e6 mutation pressure. Verified downstream AssetPipeline genotype E2E regressions."
-    },
-    {
       "session_id": "SESSION-108",
       "date": "2026-04-21",
       "focus": "P1-AI-2C: live anti_flicker_render runtime, 16-frame chunking, fast-fail probing, and stdout-safe CLI adapter",
@@ -4013,6 +3596,11 @@
       "date": "2026-04-23",
       "title": "Asset Governance & Vault Extraction",
       "status": "CLOSED"
+    },
+    {
+      "id": "SESSION-179",
+      "date": "2026-04-24",
+      "title": "Visual Distillation & Reskinning + SESSION-176 Research Landing"
     }
   ],
   "closed_tasks_archive": [
@@ -4472,6 +4060,36 @@
     {
       "session": "SESSION-164",
       "landing": "CLI wizard _dispatch_mass_production upgraded: dynamic Registry telemetry, 4-layer precise exception ladder, vibe intent propagation, asset closure banner."
+    },
+    {
+      "session": "SESSION-179",
+      "feature": "SparseCtrl-RGB Time-Window Clamping",
+      "module": "ai_render_stream_backend.py",
+      "description": "end_percent clamped to 0.55, strength to 0.825~0.9 sweet spot for SparseCtrl nodes"
+    },
+    {
+      "session": "SESSION-179",
+      "feature": "cancel_futures Global Meltdown",
+      "module": "pdg.py",
+      "description": "executor.shutdown(wait=False, cancel_futures=True) on fatal exception"
+    },
+    {
+      "session": "SESSION-179",
+      "feature": "Visual Distillation Gateway",
+      "module": "visual_distillation.py + cli_wizard.py",
+      "description": "GIF-to-Physics reverse engineering via Vision LLM (gpt-4o-mini)"
+    },
+    {
+      "session": "SESSION-179",
+      "feature": "Style Retargeting",
+      "module": "cli_wizard.py",
+      "description": "Motion skeleton reuse with vibe override in Blueprint Derivation mode"
+    },
+    {
+      "session": "SESSION-179",
+      "feature": "Blueprint Vault",
+      "module": "interactive_gate.py",
+      "description": "Custom naming with timestamp fallback for blueprint saves"
     }
   ],
   "session_log": [
@@ -5286,6 +4904,25 @@
       "date": "2026-04-23",
       "task_id": "P0-SESSION-174-ASSET-GOVERNANCE-AND-VAULT",
       "summary": "Asset Governance & Vault Extraction: Storage Radar, Smart GC, Gold Master Flat Copy"
+    },
+    {
+      "session_id": "SESSION-179",
+      "date": "2026-04-24",
+      "title": "Visual Distillation & Reskinning + SESSION-176 Research Landing",
+      "summary": "Full landing of SESSION-176 research findings: (1) SparseCtrl-RGB end_percent time-window clamping (0.4~0.6, strength 0.825~0.9) to eliminate long-shot flashing and color drift; (2) Normal Map encoding formula (image*127.5+127.5) with (128,128,255) base pad verified; (3) cancel_futures global meltdown via executor.shutdown(cancel_futures=True); (4) Dynamic batch_size safety bounds [1, 128]. Additionally deployed three new creative paradigms in the Director Studio: [D] Visual Distillation Gateway (GIF-to-Physics reverse engineering via Vision LLM), Style Retargeting (motion skeleton reuse with vibe override), and Blueprint Vault (custom naming with timestamp fallback). UX banner upgraded with SESSION-179 status lines. USER_GUIDE.md updated with pipeline unclamping declaration. 24/24 tests passing.",
+      "files_modified": [
+        "mathart/backend/ai_render_stream_backend.py",
+        "mathart/level/pdg.py",
+        "mathart/factory/mass_production.py",
+        "mathart/cli_wizard.py",
+        "mathart/quality/interactive_gate.py",
+        "mathart/workspace/visual_distillation.py (NEW)",
+        "tests/test_session179_visual_distillation_and_reskinning.py (NEW)",
+        "tests/test_session178_full_sync_and_true_abort.py",
+        "docs/USER_GUIDE.md"
+      ],
+      "tests_added": 15,
+      "tests_total_passing": 24
     }
   ],
   "resolved_issues": [
@@ -5610,6 +5247,21 @@
       "session": "SESSION-164",
       "decision": "Vibe Intent Full-Chain Propagation via dispatch options",
       "rationale": "Sam Newman BFF payload mutation pattern: user intent (vibe) MUST flow unmodified from UI input through all pipeline stages. Extracted from spec.raw_vibe and passed as explicit 'vibe' key in dispatch options."
+    },
+    {
+      "session": "SESSION-179",
+      "decision": "SparseCtrl nodes (strength >= 0.8) are classified as RGB temporal controllers and clamped to 0.825~0.9 sweet spot with end_percent <= 0.55",
+      "rationale": "SESSION-176 research: GitHub #476 confirms end_percent 0.4~0.6 eliminates long-shot flashing"
+    },
+    {
+      "session": "SESSION-179",
+      "decision": "Vision LLM (gpt-4o-mini) used for GIF-to-Physics reverse engineering with graceful fallback to DEFAULT_PHYSICS_PARAMS",
+      "rationale": "Zero-crash guarantee: API failure returns safe defaults, never blocks pipeline"
+    },
+    {
+      "session": "SESSION-179",
+      "decision": "cv2 is FORBIDDEN in visual_distillation.py — PIL.ImageSequence only",
+      "rationale": "Prevent OpenCV DLL hell on Windows; PIL is already a dependency"
     }
   ],
   "design_decisions": [
@@ -5620,7 +5272,7 @@
       "implication": "This classification schema provides the exact granularity needed for targeted fix campaigns. Each dead-zone parameter has a clear remediation path: add the corresponding constraint to the knowledge directory and verify via re-running the audit. The six-level schema is extensible — future sources (e.g., A/B test results, user analytics) can be added as new ProvenanceSourceType enum values without breaking existing records."
     }
   ],
-  "current_session": "SESSION-174",
+  "current_session": "SESSION-179",
   "red_lines": [
     "SESSION-162: NEVER use hardcoded string lists for motion states; ALWAYS query unified_gait_blender.get_motion_lane_registry().names().",
     "SESSION-162: NEVER bypass assert_nonzero_temporal_variance in guide baking; fail fast on frozen sequences.",
@@ -5635,6 +5287,11 @@
     "SESSION-164: Vibe intent parameter MUST be explicitly passed via dispatch options['vibe']; dropping vibe mid-chain is forbidden.",
     "SESSION-164: Pipeline completion MUST print green asset closure banner [✅ 资产闭环].",
     "SESSION-164: Exception catching in _dispatch_mass_production MUST use precise layered ladder; broad 'except Exception' as sole handler is forbidden.",
-    "SESSION-164: Pipeline completion MUST print green asset closure banner."
+    "SESSION-164: Pipeline completion MUST print green asset closure banner.",
+    {
+      "session": "SESSION-179",
+      "rule": "visual_distillation.py must NEVER import cv2 — PIL.ImageSequence only",
+      "enforced_by": "test_no_cv2_import in test_session179"
+    }
   ]
 }

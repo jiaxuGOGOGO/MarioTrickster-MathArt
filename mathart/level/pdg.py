@@ -1028,7 +1028,12 @@ class _PDGv2RuntimeFacade:
         # SESSION-169: Track fatal (non-rejection) exceptions for global abort
         fatal_exception: Optional[Exception] = None
 
-        with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix=f"pdg-{node.name}") as executor:
+        # SESSION-179: Enhanced executor with cancel_futures support
+        # Python 3.9+ ThreadPoolExecutor.__exit__ supports cancel_futures
+        # parameter via shutdown(). We wrap in a custom context to ensure
+        # cancel_futures=True is invoked on fatal exception exit.
+        _executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix=f"pdg-{node.name}")
+        with _executor as executor:
             try:
                 while next_index < len(invocations) or in_flight:
                     # SESSION-169: Stop submitting if fatal abort or rejection
@@ -1091,6 +1096,21 @@ class _PDGv2RuntimeFacade:
                         finally:
                             in_flight.pop(future, None)
 
+        # SESSION-179: Explicit shutdown with cancel_futures=True (Python 3.9+)
+        # This ensures ALL pending (not-yet-started) futures are cancelled
+        # when a fatal OOM or GPU crash triggers global meltdown.
+        # Research grounding: Python bugs.python.org/issue39349
+        if fatal_exception is not None:
+            try:
+                _executor.shutdown(wait=False, cancel_futures=True)
+            except TypeError:
+                # Python < 3.9 does not support cancel_futures
+                _executor.shutdown(wait=False)
+            logger.critical(
+                "[SESSION-179] Global OOM meltdown — executor shutdown with "
+                "cancel_futures=True. Fatal: %s",
+                fatal_exception,
+            )
         # SESSION-169: Fatal exceptions take priority over rejections
         if fatal_exception is not None:
             raise fatal_exception

@@ -39,6 +39,16 @@ Hard-red lines honoured by this revision:
 - NEVER swallows PipelineQualityCircuitBreak silently — the SESSION-150 red
   notice remains the canonical break boundary, only wrapped in ``continue``.
 
+SESSION-179 (P0-SESSION-179-VISUAL-DISTILLATION-AND-RESKINNING) upgrade:
+The Director Studio creation menu is expanded with three new capabilities:
+    [D] 👁️ 视觉临摹 — GIF/Image-Sequence to Physics reverse-engineering
+    Blueprint Vault — Custom naming with timestamp fallback on save
+    Style Retargeting — Override vibe prompt in Blueprint Derivation mode
+Key constraints:
+- ZERO cv2 dependency — uses ONLY PIL.ImageSequence for GIF processing
+- Graceful fallback on API failure — never crashes, returns safe defaults
+- Style Retargeting preserves motion skeleton, only replaces vibe/style
+
 SESSION-159 (P0-SESSION-159-UX-ALIGNMENT-V2) upgrade — "Full-Array Mass
 Production Dashboard":
 
@@ -1106,16 +1116,57 @@ def _run_director_studio(
     )
 
     # Step 1: Gather intent
+    # SESSION-179: Added [D] Visual Distillation gateway
     output_fn("请选择创作方式：")
     output_fn("  [A] 感性创世 — 用自然语言描述你想要的风格")
     output_fn("  [B] 蓝图派生 — 基于已有蓝图进行控制变量繁衍")
     output_fn("  [C] 混合模式 — 在蓝图基础上叠加感性描述")
+    output_fn("  [D] 👁️ 视觉临摹 — 丢入参考动图，让 AI 逆向推导物理参数！")
     creation_mode = standard_text_prompt(
         "选择模式", input_fn=input_fn, output_fn=output_fn, default="A",
     ).strip().upper()
     logger.info("[CLI] Director Studio creation mode: %s", creation_mode)
 
     raw_intent: dict = {}
+    # ── SESSION-179: Visual Distillation Gateway (GIF to Physics) ──────────
+    # [核心约束] 绝对禁止引入 cv2 库！强制使用 PIL.ImageSequence 处理 GIF。
+    if creation_mode == "D":
+        try:
+            from mathart.workspace.visual_distillation import distill_physics_from_reference
+            ref_path = standard_text_prompt(
+                "请输入参考动图路径 (GIF 文件或图片文件夹)",
+                input_fn=input_fn, output_fn=output_fn,
+            )
+            output_fn("")
+            output_fn("[1;36m" + "═" * 60 + "[0m")
+            output_fn(
+                "[1;36m[👁️ 视觉临摹中枢] 正在启动 AI 视觉逆向推导引擎...[0m"
+            )
+            output_fn("[1;36m" + "═" * 60 + "[0m")
+            distilled_params = distill_physics_from_reference(
+                ref_path,
+                output_fn=output_fn,
+            )
+            # Inject distilled params into raw_intent as physics overrides
+            raw_intent["vibe"] = "AI 视觉临摹逆向推导"
+            raw_intent["_distilled_physics"] = distilled_params
+            output_fn("")
+            output_fn("[1;32m[✅ 视觉临摹] 逆向推导参数预览：[0m")
+            for k, v in distilled_params.items():
+                output_fn(f"[90m    {k}: {v}[0m")
+            output_fn("")
+            add_vibe = standard_text_prompt(
+                "是否叠加额外的风格描述？(留空跳过)",
+                input_fn=input_fn, output_fn=output_fn, allow_empty=True,
+            )
+            if add_vibe:
+                raw_intent["vibe"] = add_vibe
+        except Exception as _distill_err:
+            logger.warning("[CLI] Visual Distillation FAILED", exc_info=True)
+            output_fn(
+                f"[1;33m[⚠️ 视觉临摹] 处理失败: {_distill_err}\n"
+                "将使用默认参数继续。[0m"
+            )
 
     if creation_mode in ("B", "C"):
         bp_path = standard_text_prompt(
@@ -1123,6 +1174,22 @@ def _run_director_studio(
             input_fn=input_fn, output_fn=output_fn,
         )
         raw_intent["base_blueprint"] = bp_path
+        # ── SESSION-179: Style Retargeting (无缝动静解耦换皮) ──────────
+        # 加载已有动作骨架后，允许用户输入全新的画风 Prompt，
+        # 覆盖上下文原有的 vibe 参数，实现"动作骨架完美复用，画风自由剥离与替换"。
+        reskin_vibe = standard_text_prompt(
+            "🎨 换皮模式：输入全新画风 Prompt (如: 赛博朋克风格, 水墨画风; 留空=保留原蓝图风格)",
+            input_fn=input_fn, output_fn=output_fn, allow_empty=True,
+        )
+        if reskin_vibe:
+            raw_intent["vibe"] = reskin_vibe
+            output_fn(
+                f"\033[1;35m[🎨 风格换皮] 已注入全新画风: {reskin_vibe}\033[0m"
+            )
+            output_fn(
+                "\033[90m    ↳ 动作骨架将从蓝图完美复用，仅画风被替换。\033[0m"
+            )
+            logger.info("[CLI] Style Retargeting: vibe overridden to '%s'", reskin_vibe)
 
         variants_str = standard_text_prompt(
             "派生变种数量 (0=不派生)",
@@ -1143,6 +1210,11 @@ def _run_director_studio(
             input_fn=input_fn, output_fn=output_fn,
         )
         raw_intent["vibe"] = vibe
+    # SESSION-179: For mode D, apply distilled physics to the genotype
+    if creation_mode == "D" and "_distilled_physics" in raw_intent:
+        _dp = raw_intent.pop("_distilled_physics")
+        # These will be applied after parse_dict creates the spec
+        raw_intent["_physics_override"] = _dp
 
     # Parse intent
     try:
@@ -1160,6 +1232,30 @@ def _run_director_studio(
         }, ensure_ascii=False, indent=2))
         return 1
 
+    # SESSION-179: Apply distilled physics override from Visual Distillation
+    if "_physics_override" in raw_intent:
+        _po = raw_intent["_physics_override"]
+        try:
+            if hasattr(spec, "genotype") and hasattr(spec.genotype, "physics"):
+                for attr in ("gravity", "mass", "stiffness", "damping", "bounce", "friction"):
+                    if attr in _po:
+                        setattr(spec.genotype.physics, attr, float(_po[attr]))
+            if hasattr(spec, "genotype") and hasattr(spec.genotype, "proportions"):
+                for attr in ("head_ratio", "body_ratio", "limb_ratio", "scale", "squash_stretch"):
+                    if attr in _po:
+                        setattr(spec.genotype.proportions, attr, float(_po[attr]))
+            if hasattr(spec, "genotype") and hasattr(spec.genotype, "animation"):
+                for attr in ("frame_rate", "anticipation", "follow_through", "exaggeration",
+                             "ease_in", "ease_out", "cycle_frames"):
+                    if attr in _po:
+                        val = _po[attr]
+                        if attr in ("frame_rate", "cycle_frames"):
+                            setattr(spec.genotype.animation, attr, int(val))
+                        else:
+                            setattr(spec.genotype.animation, attr, float(val))
+            logger.info("[CLI] Visual Distillation physics override applied to spec")
+        except Exception as _override_err:
+            logger.warning("[CLI] Physics override application failed: %s", _override_err)
     output_fn("")
     output_fn("✅ 意图解析完成，进入白模预演...")
 
@@ -1263,4 +1359,11 @@ __all__ = [
     "_run_director_studio",
     "_run_interactive",
     "_run_interactive_shell",
+    # SESSION-179: Visual Distillation & Style Retargeting
+    "VISUAL_DISTILLATION_OPTION",
 ]
+
+# SESSION-179: Visual Distillation menu option label (DaC contract)
+VISUAL_DISTILLATION_OPTION = (
+    "[D] 👁️ 视觉临摹 — 丢入参考动图，让 AI 逆向推导物理参数！"
+)

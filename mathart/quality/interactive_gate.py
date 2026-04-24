@@ -673,9 +673,15 @@ class InteractivePreviewGate:
         if save_choice not in ("Y", "YES"):
             return None
 
-        name = self.input_fn("请为蓝图命名 (英文, 如 hero_v1): ").strip()
+        # SESSION-179: Blueprint Vault — Custom Naming with Timestamp Fallback
+        name = self.input_fn(
+            "请为蓝图命名 (如 heavy_jump_v1, 留空则使用时间戳自动生成): "
+        ).strip()
         if not name:
-            name = "unnamed_blueprint"
+            import datetime
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            name = f"blueprint_{ts}"
+            self.output_fn(f"\033[90m    ↳ 自动生成蓝图名: {name}\033[0m")
 
         # Sanitize name
         name = "".join(c if c.isalnum() or c in ("_", "-") else "_" for c in name)

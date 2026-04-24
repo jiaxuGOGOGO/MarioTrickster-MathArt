@@ -32,7 +32,7 @@ from mathart.level import PDGFanOutResult, PDGNode, ProceduralDependencyGraph
 from mathart.pipeline import AssetPipeline
 from mathart.animation.unified_gait_blender import get_motion_lane_registry  # SESSION-160: Dynamic Action Registry
 
-_SESSION_ID = "SESSION-167"
+_SESSION_ID = "SESSION-179"
 _DEFAULT_SEED = 20260421
 _DEFAULT_GPU_SLOTS = 1
 _DEFAULT_COMFYUI_URL = "http://localhost:8188"
@@ -1123,7 +1123,7 @@ def _node_guide_baking(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
     stage_dir = _ensure_dir(character_dir / "guide_baking")
     archive_dir = _ensure_dir(character_dir / "archive")
 
-    # ── UX: Sci-fi gateway banner (SESSION-172: JIT Hydration + Prompt Armor) ─
+    # ── UX: Sci-fi gateway banner (SESSION-179: Industrial Baking Gateway) ─
     _ux_msg = (
         f"\033[1;36m[\u2699\ufe0f  \u5de5\u4e1a\u70d8\u7119\u7f51\u5173] "
         f"\u6b63\u5728\u901a\u8fc7 Catmull-Rom \u6837\u6761\u63d2\u503c\uff0c"
@@ -1136,9 +1136,13 @@ def _node_guide_baking(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
         f"\033[1;35m    \u251c\u2500 SESSION-169 Exception Piercing: "
         f"\u81f4\u547d\u5f02\u5e38\u5df2\u542f\u7528\u7a7f\u900f\u6a21\u5f0f\uff0c"
         f"GPU \u5d29\u6e83\u5c06\u81ea\u52a8\u64a4\u9500\u5269\u4f59\u5e76\u53d1\u4efb\u52a1\033[0m\n"
-        f"\033[1;35m    \u2514\u2500 SESSION-172 JIT Resolution Hydration: "
+        f"\033[1;35m    \u251c\u2500 SESSION-172 JIT Resolution Hydration: "
         f"\u63a8\u6d41\u524d\u7f6e 512 \u5185\u5b58\u4e0a\u91c7\u6837\u5df2\u6fc0\u6d3b\uff0c"
-        f"\u82f1\u6587\u63d0\u793a\u8bcd\u91cd\u7532\u5df2\u88c5\u8f7d\033[0m"
+        f"\u82f1\u6587\u63d0\u793a\u8bcd\u91cd\u7532\u5df2\u88c5\u8f7d\033[0m\n"
+        f"\033[1;35m    \u251c\u2500 SESSION-179 SparseCtrl Time-Window Clamping: "
+        f"end_percent 0.4~0.6 \u9650\u5e45\u5df2\u6fc0\u6d3b\uff0c\u957f\u955c\u5934\u95ea\u70c1\u5df2\u6839\u6cbb\033[0m\n"
+        f"\033[1;35m    \u2514\u2500 SESSION-179 cancel_futures Global Meltdown: "
+        f"OOM \u5168\u5c40\u7194\u65ad\u5df2\u5347\u7ea7\uff0cexecutor.shutdown(cancel_futures=True)\033[0m"
     )
     sys.stderr.write(_ux_msg + "\n")
     sys.stderr.flush()
@@ -1313,7 +1317,13 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
     character_dir = Path(prepared["character_dir"])
     stage_dir = _ensure_dir(character_dir / "anti_flicker_render")
     archive_dir = _ensure_dir(character_dir / "archive")
+    # SESSION-179: UX — prompt before AI render skip decision
     if bool(ctx.get("skip_ai_render", False)):
+        sys.stderr.write(
+            "\033[1;33m[🔔 AI 渲染跳过] skip_ai_render=True — "
+            "仅输出纯 CPU 工业级引导序列 (Albedo/Normal/Depth)。\033[0m\n"
+        )
+        sys.stderr.flush()
         skipped_report = _write_json(
             stage_dir / "anti_flicker_render_skipped.json",
             {

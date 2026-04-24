@@ -60,7 +60,8 @@ class TestDynamicLatentBatchAlignment:
             "3": {"class_type": "ControlNetApplyAdvanced", "inputs": {"strength": 1.0}},
         }
         _force_latent_canvas_512(workflow, actual_frames=40, fps=12)
-        assert workflow["3"]["inputs"]["strength"] == 0.8
+        # SESSION-179: SparseCtrl sweet spot is 0.825~0.9
+        assert 0.825 <= workflow["3"]["inputs"]["strength"] <= 0.9
 
     def test_no_override_when_actual_frames_is_none(self):
         from mathart.backend.ai_render_stream_backend import _force_latent_canvas_512

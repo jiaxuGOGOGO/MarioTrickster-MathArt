@@ -295,6 +295,16 @@ def _jit_upscale_image(image_path: str | Path, *, is_mask: bool = False, matting
     onto a solid background of `matting_color` to eliminate the alpha channel.
     This is critical for ControlNet Normal (requires 128,128,255) and Depth (0,0,0).
 
+    SESSION-179 (SESSION-176 Research §2 — Normal Map Encoding Formula):
+    In tangent-space normal maps, the encoding formula is:
+        N_rgb = (N_vec + 1) * 127.5
+    A flat surface pointing directly at the camera has normal vector (0, 0, 1),
+    which encodes to RGB (128, 128, 255) — the characteristic purple-blue.
+    If transparent backgrounds are erroneously filled with black (0, 0, 0),
+    this represents an extreme tangent-space tilt, causing catastrophic
+    ControlNet light inference errors. The matting_color parameter ensures
+    transparent regions are filled with the correct neutral encoding.
+
     Interpolation Contract:
     - Albedo / Normal / Depth: ``Image.LANCZOS`` (high-quality sinc-based)
     - Mask: ``Image.NEAREST`` (prevents edge softening / anti-aliasing)
@@ -396,7 +406,15 @@ def _force_latent_canvas_512(workflow: dict, actual_frames: int | None = None, f
             inputs["width"] = AI_TARGET_RES
             inputs["height"] = AI_TARGET_RES
             if actual_frames is not None:
-                inputs["batch_size"] = actual_frames
+                # SESSION-179: Safety bounds — prevent degenerate latent configs
+                # Min 1 frame (avoid zero-dim tensor), max 128 (VRAM safety)
+                clamped_frames = max(1, min(128, actual_frames))
+                inputs["batch_size"] = clamped_frames
+                if clamped_frames != actual_frames:
+                    logger.warning(
+                        "[SESSION-179] batch_size clamped: %d → %d (safety bounds [1, 128])",
+                        actual_frames, clamped_frames,
+                    )
             logger.info(
                 "[SESSION-178] EmptyLatentImage node %s: %sx%s (batch %s) → %dx%d (batch %s)",
                 node_id, old_w, old_h, old_b, AI_TARGET_RES, AI_TARGET_RES, inputs.get("batch_size", "?"),
@@ -410,15 +428,45 @@ def _force_latent_canvas_512(workflow: dict, actual_frames: int | None = None, f
                 node_id, old_fps, fps,
             )
         elif class_type == "ControlNetApplyAdvanced":
-            # SESSION-178: Cap ControlNet strengths to prevent overfit/flashing
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # SESSION-179: SparseCtrl-RGB Time-Window Clamping (SESSION-176 Research)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # Research grounding (RESEARCH_NOTES_SESSION_176.md §1):
+            # - SparseCtrl-RGB with full-range (0.0~1.0) end_percent causes
+            #   long-shot flashing and color drift (GitHub #476).
+            # - Clamping end_percent to 0.4~0.6 restricts the temporal
+            #   influence window, preventing late-frame overfit.
+            # - Scale (strength) for SparseCtrl: 0.825~0.9 sweet spot.
+            # - Normal/Depth ControlNets: 0.45 to avoid shadow burn.
             inputs = node_data.get("inputs", {})
-            # If it's SparseCtrl (usually strength 1.0), cap to 0.8
-            # If it's Normal/Depth, cap to 0.45
-            # We infer based on current strength or just apply a safe cap
             current_strength = inputs.get("strength", 1.0)
-            if current_strength > 0.8:
-                inputs["strength"] = 0.8
-                logger.info("[SESSION-178] ControlNetApplyAdvanced node %s: capped strength to 0.8", node_id)
+            current_end_percent = inputs.get("end_percent", 1.0)
+            current_start_percent = inputs.get("start_percent", 0.0)
+            # Heuristic: SparseCtrl nodes typically have strength >= 0.8
+            # and no start_percent offset. Normal/Depth have lower defaults.
+            is_likely_sparsectrl = current_strength >= 0.8 and current_start_percent < 0.1
+            if is_likely_sparsectrl:
+                # SESSION-176: SparseCtrl-RGB sweet spot
+                clamped_strength = max(0.825, min(0.9, current_strength))
+                inputs["strength"] = clamped_strength
+                # Clamp end_percent to 0.4~0.6 to prevent late-frame flashing
+                if current_end_percent > 0.6:
+                    inputs["end_percent"] = 0.55
+                logger.info(
+                    "[SESSION-179] SparseCtrl node %s: strength %.3f→%.3f, "
+                    "end_percent %.2f→%.2f (time-window clamped)",
+                    node_id, current_strength, clamped_strength,
+                    current_end_percent, inputs.get("end_percent", current_end_percent),
+                )
+            else:
+                # Normal / Depth ControlNet — cap to 0.45
+                if current_strength > 0.45:
+                    inputs["strength"] = 0.45
+                    logger.info(
+                        "[SESSION-179] Normal/Depth ControlNet node %s: "
+                        "strength %.3f→0.45",
+                        node_id, current_strength,
+                    )
 
 
 # SESSION-168: Import the Poison Pill exception for immediate circuit-breaker
