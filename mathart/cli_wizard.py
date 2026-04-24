@@ -435,12 +435,10 @@ def _print_main_menu(
     output_fn("=" * 60)
     output_fn("  MarioTrickster-MathArt · 顶层交互向导主菜单")
     output_fn("=" * 60)
-    output_fn("请选择当前工作模式：")
-    for item in dispatcher.available_modes():
+    output_fn("请选择当前工    for item in dispatcher.available_modes():
         output_fn(f"  [{item['index']}] {item['label']}")
-    output_fn("  [0] 🚪 退出系统")
-
-
+    output_fn("  [6] \U0001f52c 黑科技实验室 (Microkernel Hub)")
+    output_fn("  [0] \U0001f6aa 退出系统")
 def _run_interactive_shell(
     *,
     input_fn: Callable[[str], str],
@@ -490,6 +488,26 @@ def _run_interactive_shell(
                 logger.info("[CLI] Interactive shell exiting via menu [0]")
                 return 0
 
+            # --- [6] Laboratory Hub — Microkernel Dynamic Dispatch ----
+            # SESSION-183: Reflection-based dynamic backend discovery hub.
+            # ZERO hardcoded if/else — all routing is via BackendRegistry
+            # introspection inside laboratory_hub.run_laboratory_hub().
+            if selection in {"6", "lab", "laboratory", "microkernel", "hub"}:
+                logger.info("[CLI] Routing to Laboratory Hub (Microkernel Dispatch)")
+                try:
+                    from mathart.laboratory_hub import run_laboratory_hub
+                    run_laboratory_hub(
+                        project_root=project_root,
+                        input_fn=input_fn,
+                        output_fn=output_fn,
+                    )
+                except Exception as exc:  # [防假死红线] catch-all
+                    logger.warning(
+                        "[CLI] Laboratory Hub sub-flow FAILED", exc_info=True,
+                    )
+                    output_fn(f"\n\033[1;31m[❌ 系统阻断] 实验室底层发生故障：{exc}\033[0m")
+                    output_fn("\033[90m    ↳ [💡 提示] 已安全拦截异常，生产金库未受影响。\033[0m")
+                continue
             # --- [5] Director Studio shortcut — Golden Handoff owner ----
             if selection in {"5", "director_studio", "director", "studio"}:
                 logger.info("[CLI] Routing to Director Studio (with Golden Handoff)")

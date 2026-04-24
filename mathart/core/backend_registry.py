@@ -261,6 +261,7 @@ class BackendRegistry:
     def reset(cls) -> None:
         """Reset the registry (for testing)."""
         cls._backends = {}
+        cls._builtins_loaded = False
 
     def register(self, meta: BackendMeta, backend_class: Type) -> None:
         """Register a backend class with its metadata.
@@ -785,6 +786,15 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.backend.ai_render_stream_backend")
         except Exception as e:
             logger.debug("Failed to auto-load AI render stream backend: %s", e)
+        # SESSION-183 (P0-SESSION-183-MICROKERNEL-HUB-AND-VAT-INTEGRATION):
+        # auto-register the high-precision float VAT baking backend so the
+        # microkernel can discover the industrial-grade HDR VAT export lane
+        # without any trunk modification.  Design: SideFX Houdini VAT 3.0
+        # float precision specification + Global Bounding Box Quantization.
+        try:
+            importlib.import_module("mathart.core.high_precision_vat_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load high precision VAT backend: %s", e)
     return registry
 
 

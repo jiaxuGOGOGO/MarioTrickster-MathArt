@@ -1,7 +1,7 @@
 {
-  "version": "v0.99.20",
-  "last_session_id": "SESSION-182",
-  "last_updated": "2026-04-24 01:17:06",
+  "version": "v0.99.21",
+  "last_session_id": "SESSION-183",
+  "last_updated": "2026-04-24 02:07:26",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -24,6 +24,27 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-183-MICROKERNEL-HUB-AND-VAT-INTEGRATION",
+        "title": "Microkernel Dynamic Dispatch Hub & High-Precision Float VAT Pipeline Integration",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-183",
+        "modules": [
+          "mathart/laboratory_hub.py",
+          "mathart/core/high_precision_vat_backend.py",
+          "mathart/core/backend_registry.py",
+          "mathart/cli_wizard.py",
+          "docs/USER_GUIDE.md",
+          "docs/RESEARCH_NOTES_SESSION_183.md",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [
+          "tests/test_session183_laboratory_hub.py"
+        ],
+        "description": "SESSION-183 Microkernel Hub & VAT Integration: (1) Built Laboratory Hub CLI — reflection-based dynamic microkernel dispatch center accessible via [6] in main menu. Uses BackendRegistry.all_backends() + Python __doc__ introspection to dynamically enumerate all registered backends as interactive numbered menu. ZERO hardcoded if/else routing. Circuit Breaker pattern for fail-safe execution. All experimental outputs sandboxed to workspace/laboratory/<backend_name>/. (2) Revived 978-line dormant high_precision_vat.py via Adapter pattern — high_precision_vat_backend.py wraps the existing HDR float VAT baking module as a registered backend (BackendType: high_precision_vat, ArtifactFamily: VAT_BUNDLE, Capability: VAT_EXPORT). Auto-discovered via importlib.import_module in get_registry(). Full Float32 precision pipeline: global bounding-box normalization, .npy + .hdr + Hi-Lo PNG triple export, Catmull-Rom spline synthetic physics when no upstream data. (3) UX anti-corrosion: Sci-fi baking banner '[⚙️ 工业烘焙网关] 正在通过 Catmull-Rom 样条插值...' printed during execution. (4) DaC compliance: USER_GUIDE.md Section 13 added. (5) BackendRegistry.reset() fixed to also reset _builtins_loaded for test isolation. Research grounding: Martin Fowler Feature Toggles, SideFX Houdini VAT 3.0 spec, Microkernel Architecture (POSA Vol.1). 9 tests, all passing. All red lines strictly observed: zero internal math modification, zero production vault pollution, zero hardcoded routing."
+      },
       {
         "id": "P0-SESSION-182-ORPHANED-ASSET-AUDIT",
         "title": "全域雪藏资产勘探与静态评估 — Dormant Feature Archaeology",
@@ -625,6 +646,27 @@
     ]
   },
   "pending_tasks": [
+    {
+      "id": "P0-SESSION-183-MICROKERNEL-HUB-AND-VAT-INTEGRATION",
+      "title": "Microkernel Dynamic Dispatch Hub & High-Precision Float VAT Pipeline Integration",
+      "priority": "P0",
+      "status": "CLOSED",
+      "session_landed": "SESSION-183",
+      "modules": [
+        "mathart/laboratory_hub.py",
+        "mathart/core/high_precision_vat_backend.py",
+        "mathart/core/backend_registry.py",
+        "mathart/cli_wizard.py",
+        "docs/USER_GUIDE.md",
+        "docs/RESEARCH_NOTES_SESSION_183.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "tests": [
+        "tests/test_session183_laboratory_hub.py"
+      ],
+      "description": "SESSION-183 Microkernel Hub & VAT Integration: (1) Built Laboratory Hub CLI — reflection-based dynamic microkernel dispatch center accessible via [6] in main menu. Uses BackendRegistry.all_backends() + Python __doc__ introspection to dynamically enumerate all registered backends as interactive numbered menu. ZERO hardcoded if/else routing. Circuit Breaker pattern for fail-safe execution. All experimental outputs sandboxed to workspace/laboratory/<backend_name>/. (2) Revived 978-line dormant high_precision_vat.py via Adapter pattern — high_precision_vat_backend.py wraps the existing HDR float VAT baking module as a registered backend (BackendType: high_precision_vat, ArtifactFamily: VAT_BUNDLE, Capability: VAT_EXPORT). Auto-discovered via importlib.import_module in get_registry(). Full Float32 precision pipeline: global bounding-box normalization, .npy + .hdr + Hi-Lo PNG triple export, Catmull-Rom spline synthetic physics when no upstream data. (3) UX anti-corrosion: Sci-fi baking banner '[⚙️ 工业烘焙网关] 正在通过 Catmull-Rom 样条插值...' printed during execution. (4) DaC compliance: USER_GUIDE.md Section 13 added. (5) BackendRegistry.reset() fixed to also reset _builtins_loaded for test isolation. Research grounding: Martin Fowler Feature Toggles, SideFX Houdini VAT 3.0 spec, Microkernel Architecture (POSA Vol.1). 9 tests, all passing. All red lines strictly observed: zero internal math modification, zero production vault pollution, zero hardcoded routing."
+    },
     {
       "id": "P0-SESSION-159-UX-ALIGNMENT-V2",
       "title": "UX Alignment V2 — Full-Array Mass Production Dashboard & Graceful Degradation",
