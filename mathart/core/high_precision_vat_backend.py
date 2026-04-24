@@ -1,11 +1,21 @@
 """High-Precision Float VAT Backend — Adapter & Pipeline Wiring.
 
 SESSION-183: P0-SESSION-183-MICROKERNEL-HUB-AND-VAT-INTEGRATION
+SESSION-188: P0-SESSION-188-QUADRUPED-AWAKENING-AND-VAT-BRIDGE
 
 This module is the **Adapter layer** that wraps the dormant 978-line
 ``mathart.animation.high_precision_vat`` module as a first-class
 ``@register_backend`` plugin, making it discoverable by the microkernel
 orchestrator and invocable through the Laboratory Hub CLI.
+
+SESSION-188 Enhancement: Real Physics Data Bridge
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+When ``context["positions"]`` is provided (from upstream quadruped or
+biped physics solvers), the backend now consumes the REAL physics-distilled
+data directly.  The Catmull-Rom synthetic generator is retained ONLY as
+a fallback for standalone testing.  Dynamic reshape logic handles
+quadruped (4-limb) vs biped (2-limb) vertex count mismatches via
+linear interpolation.
 
 Research Foundations
 --------------------
@@ -42,6 +52,11 @@ Red-Line Enforcement
   the Laboratory Hub, outputs go to ``workspace/laboratory/`` sandbox.
 - 🔴 **Strong-Typed Contract**: Returns a proper ``ArtifactManifest``
   with ``artifact_family=VAT_BUNDLE`` and all required metadata.
+- 🔴 **Real Data Priority Red Line (SESSION-188)**: When ``positions``
+  is present in context, ALWAYS consume it.  Catmull-Rom fallback is
+  ONLY for standalone testing (positions=None).
+- 🔴 **Dimension Alignment Red Line (SESSION-188)**: Dynamic reshape
+  for cross-topology feeding — never crash on shape mismatch.
 """
 from __future__ import annotations
 
@@ -220,10 +235,40 @@ class HighPrecisionVATBackend:
             "纯 CPU 解算高精度工业级贴图动作序列...\033[0m"
         )
 
-        # ── Resolve input positions ──────────────────────────────
+        # ── SESSION-188: Resolve input positions (Real Data Priority) ──
+        # [真实数据优先红线] When upstream physics solver provides real
+        # positions, consume them directly.  Catmull-Rom is ONLY fallback.
         positions = context.get("positions", None)
-        if positions is None:
-            # Generate synthetic physics sequence for standalone testing
+        skeleton_topology = context.get("skeleton_topology", "biped")
+        _data_source = "real_physics"
+
+        if positions is not None:
+            positions = np.asarray(positions, dtype=np.float64)
+            logger.info(
+                "[VAT Backend] Consuming REAL physics data: shape=%s, "
+                "topology=%s",
+                positions.shape, skeleton_topology,
+            )
+            # Dynamic reshape for cross-topology dimension alignment
+            target_verts = int(context.get("num_vertices", positions.shape[1] if positions.ndim >= 2 else 64))
+            target_channels = int(context.get("channels", positions.shape[2] if positions.ndim >= 3 else 3))
+            if positions.ndim == 3 and (
+                positions.shape[1] != target_verts or
+                positions.shape[2] != target_channels
+            ):
+                from mathart.core.quadruped_physics_backend import reshape_positions_for_vat
+                positions = reshape_positions_for_vat(
+                    positions,
+                    target_vertices=target_verts,
+                    target_channels=target_channels,
+                )
+                logger.info(
+                    "[VAT Backend] Reshaped to (%d, %d, %d) for VAT baking",
+                    positions.shape[0], positions.shape[1], positions.shape[2],
+                )
+        else:
+            # Fallback: Generate synthetic physics sequence for standalone testing
+            _data_source = "synthetic_catmull_rom"
             if verbose:
                 logger.info(
                     "[VAT Backend] No input positions provided. "
@@ -296,7 +341,9 @@ class HighPrecisionVATBackend:
             "bake_elapsed_s": round(t_elapsed, 3),
             "backend_type": _VAT_BACKEND_TYPE,
             "artifact_family": ArtifactFamily.VAT_BUNDLE.value,
-            "session_origin": "SESSION-183",
+            "session_origin": "SESSION-183/SESSION-188",
+            "data_source": _data_source,
+            "skeleton_topology": skeleton_topology,
         }
 
         # Include diagnostics if available
@@ -315,7 +362,7 @@ class HighPrecisionVATBackend:
         report_data = {
             "status": "success",
             "backend": _VAT_BACKEND_TYPE,
-            "session": "SESSION-183",
+            "session": "SESSION-183/SESSION-188",
             "elapsed_s": round(t_elapsed, 3),
             "config": {
                 "asset_name": config.asset_name,

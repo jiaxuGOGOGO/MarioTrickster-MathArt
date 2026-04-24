@@ -1,12 +1,20 @@
 """Semantic VFX Orchestrator — LLM-Driven Plugin Activation via Intent Parsing.
 
 SESSION-187: P0-SESSION-187-SEMANTIC-ORCHESTRATOR-AND-GRAND-UNIFICATION
+SESSION-188: P0-SESSION-188-QUADRUPED-AWAKENING-AND-VAT-BRIDGE
 
 This module implements the **Semantic VFX Orchestrator**, the bridge between
 the Director Studio's natural-language intent and the BackendRegistry's
 microkernel plugins.  It enables the LLM to act as an **Orchestrator**
 (DAG-based tool-use pattern) that dynamically activates VFX plugins based
 on user descriptions.
+
+SESSION-188 Enhancement: Skeleton Topology Inference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The orchestrator now infers ``skeleton_topology`` from user intent,
+enabling dynamic dispatch to either the biped or quadruped physics engine.
+This is implemented via keyword detection in the vibe text, with the
+result propagated to downstream backends via the intent spec.
 
 Research Foundations
 --------------------
@@ -48,6 +56,9 @@ Red-Line Enforcement
 - 🔴 **Zero-Trunk-Modification Red Line**: This module does NOT import
   or modify ``AssetPipeline``, ``MicrokernelOrchestrator``, or any
   production pipeline code.
+- 🔴 **Implicit Switching Red Line (SESSION-188)**: Topology inference
+  is additive — ZERO modification to existing biped dispatch logic.
+  Quadruped engine is activated ONLY when topology is explicitly inferred.
 """
 from __future__ import annotations
 
@@ -104,10 +115,30 @@ SEMANTIC_VFX_TRIGGER_MAP: Dict[str, List[str]] = {
     "引擎": ["high_precision_vat"],
     "工业导出": ["high_precision_vat"],
     "engine_export": ["high_precision_vat"],
+    # Quadruped Physics triggers (SESSION-188)
+    "四足": ["quadruped_physics"],
+    "机械狗": ["quadruped_physics"],
+    "赛博狗": ["quadruped_physics"],
+    "机械犬": ["quadruped_physics"],
+    "四足兽": ["quadruped_physics"],
+    "狗": ["quadruped_physics"],
+    "犬": ["quadruped_physics"],
+    "马": ["quadruped_physics"],
+    "狼": ["quadruped_physics"],
+    "虎": ["quadruped_physics"],
+    "quadruped": ["quadruped_physics"],
+    "four-legged": ["quadruped_physics"],
+    "dog": ["quadruped_physics"],
+    "horse": ["quadruped_physics"],
+    "wolf": ["quadruped_physics"],
+    "beast": ["quadruped_physics"],
+    "creature": ["quadruped_physics"],
+    "mech dog": ["quadruped_physics"],
+    "cyber dog": ["quadruped_physics"],
     # Combined triggers
-    "全特效": ["cppn_texture_evolution", "fluid_momentum_controller", "high_precision_vat"],
-    "黑科技全开": ["cppn_texture_evolution", "fluid_momentum_controller", "high_precision_vat"],
-    "max_vfx": ["cppn_texture_evolution", "fluid_momentum_controller", "high_precision_vat"],
+    "全特效": ["cppn_texture_evolution", "fluid_momentum_controller", "high_precision_vat", "quadruped_physics"],
+    "黑科技全开": ["cppn_texture_evolution", "fluid_momentum_controller", "high_precision_vat", "quadruped_physics"],
+    "max_vfx": ["cppn_texture_evolution", "fluid_momentum_controller", "high_precision_vat", "quadruped_physics"],
 }
 
 
@@ -143,6 +174,17 @@ VFX_PLUGIN_CAPABILITIES: Dict[str, Dict[str, str]] = {
             "Activate when user mentions: 导出, 引擎导出, 高精度, VAT, HDR, engine export."
         ),
         "artifact_type": "VAT_BUNDLE (Float32 HDR textures)",
+    },
+    "quadruped_physics": {
+        "display_name": "Quadruped Physics Engine (SESSION-188)",
+        "description": (
+            "Four-legged creature physics simulation with NSM gait solver. "
+            "Generates quadruped locomotion data (trot/pace gaits) with diagonal-pair "
+            "contact sequences. Feeds real physics data to VAT pipeline. "
+            "Activate when user mentions: 四足, 机械狗, 赛博狗, quadruped, dog, horse, "
+            "wolf, beast, creature, four-legged."
+        ),
+        "artifact_type": "QUADRUPED_MOTION (positions + contact sequence)",
     },
 }
 
@@ -353,18 +395,59 @@ def resolve_active_vfx_plugins(
 
 
 class SemanticOrchestrator:
-    """Class-based API for VFX plugin resolution as expected by tests."""
-    
+    """Class-based API for VFX plugin resolution as expected by tests.
+
+    SESSION-188 Enhancement: Now also infers ``skeleton_topology`` from
+    the vibe text, returning it alongside the VFX plugin list.
+    """
+
     def resolve_vfx_plugins(self, raw_intent: dict, vibe: str, registry) -> list[str]:
+        """Resolve VFX plugins from intent + vibe."""
         registered_keys = set(registry.all_backends().keys())
         llm_suggested = raw_intent.get("active_vfx_plugins", None)
-        
+
         if llm_suggested:
             validated = validate_llm_vfx_plugins(llm_suggested, registered_keys)
             if validated:
                 return validated
-                
+
         return resolve_vfx_plugins_from_vibe(vibe, registered_keys)
+
+    def infer_skeleton_topology(self, vibe: str) -> str:
+        """Infer skeleton topology from natural language vibe text.
+
+        Returns 'quadruped' if any quadruped keyword is detected,
+        otherwise returns 'biped' (the default).
+
+        Parameters
+        ----------
+        vibe : str
+            The user's natural-language description.
+
+        Returns
+        -------
+        str
+            Either 'biped' or 'quadruped'.
+        """
+        from mathart.core.quadruped_physics_backend import infer_skeleton_topology
+        return infer_skeleton_topology(vibe)
+
+    def resolve_full_intent(
+        self,
+        raw_intent: dict,
+        vibe: str,
+        registry,
+    ) -> dict:
+        """Resolve both VFX plugins and skeleton topology.
+
+        Returns a dict with 'active_vfx_plugins' and 'skeleton_topology'.
+        """
+        plugins = self.resolve_vfx_plugins(raw_intent, vibe, registry)
+        topology = self.infer_skeleton_topology(vibe)
+        return {
+            "active_vfx_plugins": plugins,
+            "skeleton_topology": topology,
+        }
 
 __all__ = [
     "SemanticOrchestrator",

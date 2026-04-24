@@ -472,6 +472,12 @@ class CreatorIntentSpec:
     # [幻觉防呆红线] Only contains names validated against BackendRegistry.
     active_vfx_plugins: List[str] = field(default_factory=list)
 
+    # SESSION-188: Skeleton Topology — inferred by SemanticOrchestrator.
+    # Determines whether the downstream physics engine uses biped or quadruped
+    # skeleton topology.  Default is "biped" for backward compatibility.
+    # [隐式切换红线] This field is additive — ZERO modification to biped logic.
+    skeleton_topology: str = "biped"
+
     def to_dict(self) -> dict:
         _genotype = getattr(self, "genotype", None)
         _rules = getattr(self, "applied_knowledge_rules", None) or []
@@ -489,6 +495,7 @@ class CreatorIntentSpec:
             "knowledge_conflicts": [c.to_dict() for c in _conflicts],
             "knowledge_grounded": getattr(self, "knowledge_grounded", False),
             "active_vfx_plugins": list(_vfx),
+            "skeleton_topology": getattr(self, "skeleton_topology", "biped"),
         }
 
     @classmethod
@@ -507,6 +514,7 @@ class CreatorIntentSpec:
             knowledge_conflicts=conflicts,
             knowledge_grounded=d.get("knowledge_grounded", False),
             active_vfx_plugins=list(d.get("active_vfx_plugins", [])),
+            skeleton_topology=d.get("skeleton_topology", "biped"),
         )
 
 

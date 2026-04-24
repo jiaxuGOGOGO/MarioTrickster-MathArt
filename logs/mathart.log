@@ -666,3 +666,271 @@ Traceback (most recent call last):
 mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
 2026-04-23 09:27:46 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
 2026-04-23 09:27:49 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:02:05 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:02:09 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:02:09 | WARNING  | mathart.core.builtin_backends | [industrial_sprite] config warning: render.height=7 too small; clamping to 8
+2026-04-24 06:05:51 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:05:55 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:05:55 | WARNING  | mathart.core.builtin_backends | [industrial_sprite] config warning: render.height=7 too small; clamping to 8
+2026-04-24 06:08:19 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:08:23 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:08:23 | WARNING  | mathart.core.builtin_backends | [industrial_sprite] config warning: render.height=7 too small; clamping to 8
+2026-04-24 06:10:50 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:10:54 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:10:54 | WARNING  | mathart.core.builtin_backends | [industrial_sprite] config warning: render.height=7 too small; clamping to 8
+2026-04-24 06:12:25 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:12:30 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:12:35 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:12:40 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:12:45 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:12:50 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:12:55 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:13:00 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:13:00 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 804, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-24 06:13:05 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:13:05 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 804, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-24 06:13:10 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:13:11 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 804, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-24 06:13:16 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:13:17 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 804, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-24 06:13:22 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:13:22 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 804, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-24 06:13:27 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:13:27 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 804, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-24 06:13:32 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:13:33 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 804, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-24 06:13:38 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:13:39 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 804, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-24 06:13:43 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:13:44 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 804, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-24 06:13:48 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:13:53 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:13:53 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 804, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-24 06:13:59 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:14:08 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:14:13 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:15:39 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:15:43 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:15:44 | WARNING  | mathart.core.builtin_backends | [industrial_sprite] config warning: render.height=7 too small; clamping to 8
+2026-04-24 06:17:08 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:17:14 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:17:19 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:17:23 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:17:28 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:17:33 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:17:37 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:17:48 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:17:48 | ERROR    | mathart.cli | CLI execution failed
+Traceback (most recent call last):
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 387, in main
+    return _command_run(args)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 333, in _command_run
+    return _run_backend_and_emit(args.backend, context, output_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/cli.py", line 317, in _run_backend_and_emit
+    manifest = pipeline.run_backend(backend_name, runtime_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/pipeline.py", line 388, in run_backend
+    manifest = self._microkernel_bridge.run_backend(canonical_name, merged_context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/pipeline_bridge.py", line 204, in run_backend
+    validated_ctx, config_warnings = instance.validate_config(context)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/MarioTrickster-MathArt/mathart/core/builtin_backends.py", line 804, in validate_config
+    raise PipelineContractError(
+mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_dimensions_too_small] Render dimensions 32x32 are below the minimum 64x64 threshold. This would produce unusable color blocks that destroy downstream AI temporal attention. Provide dimensions >= 64x64.
+2026-04-24 06:18:45 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:19:44 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:19:48 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 06:19:49 | WARNING  | mathart.core.builtin_backends | [industrial_sprite] config warning: render.height=7 too small; clamping to 8

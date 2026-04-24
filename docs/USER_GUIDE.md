@@ -1670,3 +1670,127 @@ python3 -m pytest \
 - SESSION-186 `BackendRegistry.get_meta()` 已可直接调用；
 - SESSION-187 编排器与缝合器全部 19 个 contract test 通过；
 - 量产链在 spec 携带 `active_vfx_plugins` 时会真实执行 VFX 解算，并把产物随 `vfx_artifacts` 注入推流。
+
+
+---
+
+## 18. SESSION-188: 四足演化引擎唤醒与 VAT 真实物理桥接
+
+> **SESSION-188 核心交付**: 将休眠的四足骨架拓扑解算器唤醒为 BackendRegistry 一等公民，并切断 VAT 后端的 Mock 数据依赖，接通真实物理蒸馏产物。
+
+### 18.1 四足物理引擎 (Quadruped Physics Backend)
+
+`mathart/core/quadruped_physics_backend.py` 是 SESSION-188 的核心新增模块。它将四足运动学仿真封装为 `@register_backend` 插件，可通过语义编排器自动激活。
+
+**核心能力**：
+
+- **NSM 步态解算**: 调用 `DistilledNeuralStateMachine` 的 `QUADRUPED_TROT_PROFILE`（对角步态）和 `QUADRUPED_PACE_PROFILE`（同侧步态），产出真实的四足运动学数据。
+- **对角步态质量度量**: `diagonal_error` 指标衡量前左-后右 vs 前右-后左的接触概率差异，用于评估 trot 步态的对称性。
+- **动态顶点映射**: 将四肢步态数据映射到任意顶点数的网格上，支持 VAT 烘焙。
+- **完整产物输出**: `positions.npy` + `physics_report.json` + `contact_sequence`。
+
+**使用方式**：
+
+```python
+from mathart.core.quadruped_physics_backend import solve_quadruped_physics
+
+result = solve_quadruped_physics(
+    num_frames=24,
+    num_vertices=64,
+    channels=3,
+    gait_profile_name="quadruped_trot",
+    speed=1.0,
+)
+print(f"Shape: {result.positions.shape}")  # (24, 64, 3)
+print(f"Diagonal Error: {result.diagonal_error:.6f}")
+```
+
+### 18.2 VAT 真实数据桥接
+
+`HighPrecisionVATBackend` 现在遵循**真实数据优先红线**：
+
+| 场景 | `context["positions"]` | 数据源 | `data_source` |
+|------|------------------------|--------|---------------|
+| 上游物理解算器提供数据 | ✅ 存在 | 真实物理数据 | `real_physics` |
+| 独立测试 / 无上游 | ❌ 不存在 | Catmull-Rom 合成 | `synthetic_catmull_rom` |
+
+**跨拓扑维度对齐**: `reshape_positions_for_vat()` 自动处理四足（多顶点）→ VAT（目标顶点）的线性插值重采样，确保不同拓扑的物理数据可以无缝喂入 VAT 烘焙管线。
+
+```python
+from mathart.core.quadruped_physics_backend import reshape_positions_for_vat
+
+# 四足解算产出 24 顶点，VAT 需要 64 顶点
+reshaped = reshape_positions_for_vat(
+    positions,  # shape: (frames, 24, 3)
+    target_vertices=64,
+    target_channels=3,
+)
+# reshaped.shape: (frames, 64, 3)
+```
+
+### 18.3 编排器 V2 — 骨架拓扑推断
+
+`SemanticOrchestrator` 新增两个方法：
+
+- `infer_skeleton_topology(vibe)`: 从自然语言中检测四足关键词，返回 `"biped"` 或 `"quadruped"`。
+- `resolve_full_intent(raw_intent, vibe, registry)`: 一站式返回 `active_vfx_plugins` + `skeleton_topology`。
+
+**支持的四足关键词**（中英文双语）：
+
+| 中文 | 英文 |
+|------|------|
+| 四足、机械狗、赛博狗、机械犬 | quadruped, four-legged, mech dog, cyber dog |
+| 狗、犬、马、狼、虎、四足兽 | dog, horse, wolf, beast, creature |
+
+```python
+from mathart.workspace.semantic_orchestrator import SemanticOrchestrator
+
+orch = SemanticOrchestrator()
+print(orch.infer_skeleton_topology("四足机械狗"))  # → "quadruped"
+print(orch.infer_skeleton_topology("活泼角色"))    # → "biped"
+```
+
+### 18.4 CreatorIntentSpec 扩展
+
+`CreatorIntentSpec` 新增 `skeleton_topology` 字段（默认值 `"biped"`），支持完整的序列化/反序列化 round-trip。旧版 dict 反序列化时自动兜底为 `"biped"`，保证向后兼容。
+
+### 18.5 端到端流程
+
+完整的四足 → VAT 端到端流程：
+
+```
+用户输入 vibe: "四足机械狗 高精度导出"
+    ↓
+SemanticOrchestrator.resolve_full_intent()
+    → skeleton_topology = "quadruped"
+    → active_vfx_plugins = ["quadruped_physics", "high_precision_vat"]
+    ↓
+QuadrupedPhysicsBackend.execute()
+    → positions.npy (24, 64, 3)
+    → contact_sequence
+    ↓
+reshape_positions_for_vat()
+    → positions (24, target_verts, 3)
+    ↓
+HighPrecisionVATBackend.execute(positions=real_data)
+    → HDR + Hi-Lo PNG + .npy + manifest
+    → data_source = "real_physics"
+    → skeleton_topology = "quadruped"
+```
+
+### 18.6 外网参考研究
+
+| 参考资料 | 核心思想 | 落地方式 |
+|---------|---------|---------|
+| AnyTop (Gat et al., 2025) | 拓扑感知骨架分发 | `infer_skeleton_topology()` 关键词推断 |
+| Dog Code (Egan et al., 2024) | 共享码本重定向 | `reshape_positions_for_vat()` 线性插值 |
+| SideFX Houdini VAT 3.0 | Float32 精度保持 | HDR + Global Bounding Box Quantization |
+
+### 18.7 测试验收
+
+```bash
+# 运行 SESSION-188 全部 32 个测试
+python -m pytest tests/test_session188_quadruped_and_vat_bridge.py -v
+
+# 预期结果：32 passed
+```

@@ -847,6 +847,16 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.auto_enforcer_synth_backend")
         except Exception as e:
             logger.debug("Failed to auto-load auto enforcer synth backend: %s", e)
+        # SESSION-188 (P0-SESSION-188-QUADRUPED-AWAKENING-AND-VAT-BRIDGE):
+        # auto-register the Quadruped Physics Engine backend so the
+        # microkernel can discover the four-legged creature physics
+        # simulation lane without any trunk modification.  Design:
+        # AnyTop (Gat et al., 2025) topology-aware skeleton dispatch,
+        # Dog Code (Egan et al., 2024) shared codebook retargeting.
+        try:
+            importlib.import_module("mathart.core.quadruped_physics_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load quadruped physics backend: %s", e)
     return registry
 
 
