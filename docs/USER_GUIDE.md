@@ -1208,3 +1208,103 @@ SESSION-184 完成后，系统的三层进化循环已全面闭合：
 4. **科研扫参执行验收**：在实验室中选择该后端执行，确认 `workspace/laboratory/evolution_physics_gait_distill/` 目录下生成 `physics_gait_distill_report.json` 和 `knowledge/physics_gait_rules.json`
 5. **沙盒隔离验收**：确认 `output/production/` 目录未被创建或修改
 6. **测试验收**：运行 `python -m pytest tests/test_p1_distill_3.py -v`，确认物理步态蒸馏闭环测试通过
+
+## 15. CPPN 纹理进化引擎与流体动量 VFX 控制器 (SESSION-185)
+
+> **SESSION-185 新增** — 系统已复活并接入两大休眠核心模块：**CPPN 纹理进化引擎**（667 行 `mathart.evolution.cppn` 模块的 Adapter 层封装）和**流体动量 VFX 控制器**（461 行 `mathart.animation.fluid_momentum_controller` 模块的 Adapter 层封装）。两个后端均通过 `@register_backend` 装饰器注册，通过微内核反射机制自动出现在 `[6] 🔬 黑科技实验室` 菜单中，**零修改** `cli_wizard.py` 或 `laboratory_hub.py`。
+
+### 15.1 CPPN 纹理进化引擎 (CPPN Texture Evolution Engine)
+
+CPPN（Compositional Pattern Producing Networks）是一种基于坐标系复合数学映射的程序化纹理生成技术。与传统像素网格生成器不同，CPPN 通过将空间坐标 (x, y) 输入到由多种激活函数（sin, cos, tanh, gaussian 等）组成的神经网络中，生成**分辨率无关**的有机纹理。同一组网络权重可以在 64x64 缩略图和 4096x4096 生产纹理之间无缝缩放。
+
+| 属性 | 值 |
+|------|-----|
+| **注册类型** | `cppn_texture_evolution` |
+| **能力声明** | `BackendCapability.VFX_EXPORT` |
+| **产物族** | `ArtifactFamily.MATERIAL_BUNDLE` |
+| **输出沙盒** | `workspace/laboratory/cppn_texture_engine/` |
+| **适配器文件** | `mathart/core/cppn_texture_backend.py` |
+
+**核心管线**：
+
+1. **基因组生成**：通过 `CPPNGenome.create_enriched()` 创建包含多种激活函数的丰富基因组
+2. **变异多样化**：对每个基因组施加多轮随机变异，确保视觉多样性
+3. **向量化渲染**：通过 NumPy 批量坐标矩阵评估 CPPN 网络，生成目标分辨率纹理
+4. **基因组序列化**：每张纹理附带完整的 JSON 基因组文件，确保可复现性
+5. **强类型清单**：返回 `ArtifactManifest(artifact_family=MATERIAL_BUNDLE)` 标准清单
+
+**外网研究落地**：
+
+| 研究来源 | 落地位置 |
+|----------|----------|
+| Stanley (2007) CPPN: Compositional Pattern Producing Networks | 核心纹理生成算法 — 坐标系复合数学映射 |
+| Mouret & Clune (2015) MAP-Elites Illumination | 基因组多样化策略 — 防止表型收敛 |
+| Tesfaldet et al. (2019) Fourier-CPPNs | 频率感知合成 — 高频细节保持 |
+
+### 15.2 流体动量 VFX 控制器 (Fluid Momentum VFX Controller)
+
+流体动量控制器实现了**欧拉-拉格朗日流固耦合**：将骨骼/刚体运动学速度（拉格朗日描述）映射并注入到流体网格（欧拉描述）中作为动量源项，驱动物理准确的风压和涡旋解算。控制器使用连续线段高斯溅射（Continuous Line-Segment Gaussian Splatting）技术，将 UMR 运动学帧序列转化为流体场注入脉冲。
+
+| 属性 | 值 |
+|------|-----|
+| **注册类型** | `fluid_momentum_controller` |
+| **能力声明** | `BackendCapability.VFX_EXPORT` |
+| **产物族** | `ArtifactFamily.VFX_FLOWMAP` |
+| **输出沙盒** | `workspace/laboratory/fluid_momentum_vfx/` |
+| **适配器文件** | `mathart/core/fluid_momentum_backend.py` |
+
+**核心管线**：
+
+1. **Dummy Velocity Field 生成**：当无真实 UMR 输入时，自动构造合成 Slash（挥砍）和 Dash（冲刺）运动序列
+2. **UMR 运动学提取**：通过 `UMRKinematicImpulseAdapter` 从运动帧中提取速度场脉冲
+3. **连续线段溅射**：通过 `LineSegmentSplatter` 将离散脉冲转化为连续高斯速度场
+4. **Navier-Stokes 求解**：在 2D 流体网格上执行扩散-对流-投影求解步骤
+5. **CFL 安全守卫**：所有注入速度经过 `soft_tanh_clamp` + `np.clip` 双重保护，防止数值爆炸
+6. **NaN 检测与优雅降级**：模拟结果经过 NaN/Inf 验证，异常时记录警告并返回降级清单
+
+**外网研究落地**：
+
+| 研究来源 | 落地位置 |
+|----------|----------|
+| GPU Gems 3, Ch. 30: Real-Time Fluid Simulation | 高斯速度溅射 + 自由滑移边界条件 |
+| Jos Stam (1999) "Stable Fluids" | 隐式扩散 + 半拉格朗日对流 + 压力投影 |
+| Naughty Dog / Sucker Punch 动画驱动 VFX | UMR 运动学 → 流体场注入的工业级管线设计 |
+| CFL 稳定性条件 (Courant-Friedrichs-Lewy) | `soft_tanh_clamp` + `np.clip` 双重速度钳制 |
+| Netflix Hystrix 优雅降级 / Circuit Breaker | 依赖不可用时返回降级清单，系统不崩溃 |
+
+### 15.3 Mock 对象与适配器模式 (Mock Object & Adapter Pattern)
+
+两个后端均采用**高阶模拟与中间件适配器模式**：
+
+- **CPPN 后端**：当无上游进化管线提供基因组时，内部通过 `_generate_enriched_cppn_genomes()` 构造"造物主画笔"模拟数据，生成具有多样化激活函数组合的 CPPN 基因组
+- **流体动量后端**：当无真实角色动作输入时，内部通过 `_generate_dummy_slash_clip()` 和 `_generate_dummy_dash_clip()` 构造合成 UMR 运动序列，模拟挥砍和冲刺动作的速度场
+
+这种设计确保两个后端可以在**完全独立**的沙盒环境中执行，无需任何上游依赖。
+
+### 15.4 红线遵守
+
+| 红线 | 状态 | 说明 |
+|------|------|------|
+| **零修改内部数学** | ✅ 100% 遵守 | CPPN 后端不触碰 `CPPNGenome.evaluate()` 内部；流体后端不触碰 `FluidGrid2D.step()` 内部 |
+| **零污染生产保险库** | ✅ 100% 遵守 | 所有输出隔离在 `workspace/laboratory/` 沙盒 |
+| **前端零感知** | ✅ 100% 遵守 | `cli_wizard.py` 和 `laboratory_hub.py` 未动一行 |
+| **强类型契约** | ✅ 100% 遵守 | 返回标准 `ArtifactManifest`，声明 `artifact_family` 和 `backend_type` |
+| **UX 防腐蚀** | ✅ 100% 遵守 | 科幻烘焙 Banner 保持，AI 渲染跳过提示保持 |
+| **数学溢出保护** | ✅ 100% 遵守 | 所有速度场经 `np.clip` 钳制，模拟结果经 NaN 检测 |
+
+### 傻瓜验收
+
+老大，CPPN 纹理进化引擎和流体动量 VFX 控制器已全面接入！请按以下步骤验收：
+
+验收步骤：
+
+1. **反射发现验收**：进入 `[6] 🔬 黑科技实验室`，确认以下两个后端出现在候选列表中：
+   - `CPPN Texture Evolution Engine (P0-SESSION-185)`
+   - `Fluid Momentum VFX Controller (P0-SESSION-185)`
+2. **CPPN 纹理生成验收**：在实验室中选择 CPPN 后端执行，确认 `workspace/laboratory/cppn_texture_engine/` 目录下生成多张 PNG 纹理和对应的 `_genome.json` 文件
+3. **流体动量模拟验收**：在实验室中选择流体动量后端执行，确认 `workspace/laboratory/fluid_momentum_vfx/` 目录下生成 `slash/` 和 `dash/` 子目录，包含 `.npz` 张量文件和可视化 PNG
+4. **沙盒隔离验收**：确认 `output/production/` 目录未被创建或修改
+5. **测试验收**：运行以下命令确认测试通过：
+   ```bash
+   python -m pytest tests/test_session185_cppn_and_fluid.py -v
+   ```

@@ -1,112 +1,117 @@
 # SESSION HANDOFF
 
-**Current Session:** SESSION-184
+**Current Session:** SESSION-185
 **Date:** 2026-04-24
 **Status:** CLOSED
 **Priority:** P0
 
 ## 1. 核心目标 (Core Objectives)
 
-- [x] **P0-SESSION-184-SANDBOX-VALIDATOR-AND-GAIT-DISTILLATION**: 部署知识总线海关防爆门，并热插拔激活物理步态科研引擎。
-- [x] **部署 Sandbox Validator Pre-Mount Interceptor**: 在 `knowledge_preloader.py` 中集成四维反幻觉漏斗，作为中间件拦截器在知识装载入 `RuntimeDistillationBus` 之前强制执行验证。
-- [x] **激活 Physics-Gait Distillation Backend**: 确认 `PhysicsGaitDistillationBackend` 已通过 `@register_backend` 注册，并能被 `laboratory_hub._discover_lab_backends()` 反射自动发现。
-- [x] **外网参考研究**: AST 白名单沙盒执行、中间件拦截器模式、优雅降级策略、自动化运动学扫参。
-- [x] **UX 防腐蚀**: 科幻烘焙 Banner 保持、USER_GUIDE.md Section 14 同步更新。
+- [x] **P0-SESSION-185-PROCEDURAL-VFX-AND-TEXTURE-REVIVAL**: 复活并接入两大休眠核心模块 — CPPN 纹理进化引擎与流体动量 VFX 控制器。
+- [x] **复活 CPPN 纹理进化引擎**: 为 667 行的 `mathart.evolution.cppn` 模块编写 Adapter 层 `cppn_texture_backend.py`，通过 `@register_backend` 注册，实现微内核反射自动发现。
+- [x] **接入流体动量 VFX 控制器**: 为 461 行的 `mathart.animation.fluid_momentum_controller` 模块编写 Adapter 层 `fluid_momentum_backend.py`，通过 `@register_backend` 注册，实现微内核反射自动发现。
+- [x] **外网参考研究**: CPPN 程序化纹理生成、欧拉-拉格朗日流固耦合、Mock 对象与适配器模式、CFL 稳定性条件。
+- [x] **UX 防腐蚀**: 科幻烘焙 Banner 保持、AI 渲染跳过提示保持、USER_GUIDE.md Section 15 同步更新。
 - [x] **DaC 文档契约**: 全量文档更新，傻瓜验收指引编写。
 
-## 2. 大白话汇报：老大，知识总线海关防爆门和物理步态科研引擎已全面部署！
+## 2. 大白话汇报：老大，CPPN 造物主画笔和流体动量控制器已全面复活！
 
-### 🛡️ 知识总线海关防爆门 (Sandbox Validator Pre-Mount Interceptor)
+### 🎨 CPPN 纹理进化引擎 (CPPN Texture Evolution Engine)
 
-老大，解耦手术已完成！现在系统在加载任何外部知识规则之前，会先过一道**四维反幻觉漏斗**：
+老大，解耦手术已完成！现在系统可以通过坐标系复合数学映射，纯 CPU 生成分辨率无关的程序化有机纹理。
 
-1. **溯源验证** — 没有证据链的规则？直接拒绝，视为 LLM 幻觉！
-2. **AST 白名单防火墙** — 想偷偷塞 `eval()` 或 `__import__`？门都没有！只允许纯数学运算通过！
-3. **数学模糊测试** — 8 组边界值轰炸（0, -1, 1e6, NaN, Inf...），任何数学毒素无所遁形！
-4. **物理稳定性空跑** — 100 步弹簧积分 + 3 秒看门狗，动能爆炸的规则直接枪毙！
+CPPN 纹理进化引擎已经通过 SESSION-183 的反射机制**自动出现**在 `[6] 🔬 黑科技实验室` 的候选项中。我们**没有动 cli_wizard.py 或 laboratory_hub.py 一行代码**！纯靠微内核反射自动感知。
 
-**最关键的**：即使拦截到脏数据，系统**绝不会崩溃**！只会打印黄字警告，丢掉坏规则，放行好规则，继续正常启动。
+进入实验室后，选择 `CPPN Texture Evolution Engine (P0-SESSION-185)` 即可执行：
+- 通过 `CPPNGenome.create_enriched()` 创建多样化基因组
+- 向量化 NumPy 坐标矩阵评估生成高分辨率纹理
+- 每张纹理附带完整 JSON 基因组文件（可复现性保证）
+- 所有实验输出隔离在 `workspace/laboratory/cppn_texture_engine/`
 
-### ⚙️ 物理步态科研引擎 (Physics-Gait Distillation Backend)
+### 🌊 流体动量 VFX 控制器 (Fluid Momentum VFX Controller)
 
-老大，解耦手术已完成！请在无显卡环境下直接运行生成指令。去 outputs 文件夹看，绝对不再是扭动的果冻，而是拥有标准跑跳动作姿态的成套工业图纸！
+老大，解耦手术已完成！现在系统可以通过欧拉-拉格朗日流固耦合，将骨骼运动学速度注入 Navier-Stokes 流体网格，驱动物理准确的风压和涡旋解算。
 
-物理步态科研引擎已经通过 SESSION-183 的反射机制**自动出现**在 `[6] 🔬 黑科技实验室` 的候选项中。我们**没有动 cli_wizard.py 或 laboratory_hub.py 一行代码**！纯靠微内核反射自动感知。
+流体动量 VFX 控制器同样通过反射机制**自动出现**在实验室菜单中。当无真实角色动作输入时，后端会自动构造合成 Slash（挥砍）和 Dash（冲刺）Dummy Velocity Field 进行独立测试。
 
-进入实验室后，选择 `Physics–Gait Distillation (P1-DISTILL-3)` 即可执行全量扫参：
-- 对 XPBD 物理参数和步态参数进行网格搜索
-- 多目标适应度评估 + Pareto 前沿提取
-- 蒸馏出的最优配置写入 `knowledge/physics_gait_rules.json`
-- 所有实验输出隔离在 `workspace/laboratory/evolution_physics_gait_distill/`
+进入实验室后，选择 `Fluid Momentum VFX Controller (P0-SESSION-185)` 即可执行：
+- 自动生成合成 UMR Slash/Dash 运动序列
+- 通过 UMR 运动学提取 + 连续线段高斯溅射注入流体场
+- 在 64x64 网格上执行 24 帧 Navier-Stokes 求解
+- CFL 安全守卫 + NaN 检测 + 优雅降级
+- 所有实验输出隔离在 `workspace/laboratory/fluid_momentum_vfx/`
 
 ## 3. 本次修改的全部文件清单
 
 | 文件 | 操作 | 说明 |
 |------|------|------|
-| `mathart/distill/knowledge_preloader.py` | **修改** | 集成 SandboxValidator 作为 Pre-Mount Interceptor 中间件 |
-| `docs/USER_GUIDE.md` | **修改** | 新增 Section 14 (SESSION-184) |
-| `docs/RESEARCH_NOTES_SESSION_184.md` | **新增** | 外网参考研究笔记（AST 沙盒、中间件拦截器、优雅降级、运动学扫参） |
+| `mathart/core/cppn_texture_backend.py` | **新增** | CPPN 纹理进化引擎 Adapter 层 |
+| `mathart/core/fluid_momentum_backend.py` | **新增** | 流体动量 VFX 控制器 Adapter 层 |
+| `mathart/core/backend_registry.py` | **修改** | 在 `get_registry()` 中新增两个后端的 auto-load 入口 |
+| `docs/USER_GUIDE.md` | **修改** | 新增 Section 15 (SESSION-185) |
+| `docs/RESEARCH_NOTES_SESSION_185.md` | **新增** | 外网参考研究笔记（CPPN、流体耦合、Mock 模式、CFL） |
+| `tests/test_session185_cppn_and_fluid.py` | **新增** | SESSION-185 闭环测试套件 |
 | `SESSION_HANDOFF.md` | **覆写** | 本文档 |
-| `PROJECT_BRAIN.json` | **修改** | 追加 SESSION-184 记录，版本升至 v0.99.22 |
+| `PROJECT_BRAIN.json` | **修改** | 追加 SESSION-185 记录，版本升至 v0.99.23 |
 
 ## 4. 严格红线遵守情况
 
 | 红线 | 状态 | 说明 |
 |------|------|------|
-| **防毒药代码逃逸** | ✅ 100% 遵守 | ZERO `eval()`/`exec()` 在外部数据上，全部走 AST 白名单 |
-| **无声阻断与 UI 假死防线** | ✅ 100% 遵守 | Validator 拦截只报 WARNING，不阻断主线；Gait Distill 有日志进度 |
+| **零修改内部数学** | ✅ 100% 遵守 | CPPN 后端不触碰 `CPPNGenome.evaluate()` 内部；流体后端不触碰 `FluidGrid2D.step()` 内部 |
+| **无声阻断与 UI 假死防线** | ✅ 100% 遵守 | 两个后端均有完整日志进度播报，优雅降级不崩溃 |
 | **前端零感知** | ✅ 100% 遵守 | `cli_wizard.py` 和 `laboratory_hub.py` 未动一行，纯反射自动发现 |
 | **严禁越权修改主干** | ✅ 100% 遵守 | 未修改 AssetPipeline/Orchestrator 任何代码 |
-| **独立封装挂载** | ✅ 100% 遵守 | SandboxValidator 作为中间件挂载，Gait Backend 通过 @register_backend 注册 |
+| **独立封装挂载** | ✅ 100% 遵守 | 两个后端均通过 `@register_backend` 独立注册 |
 | **强类型契约** | ✅ 100% 遵守 | 返回标准 `ArtifactManifest`，声明 `artifact_family` 和 `backend_type` |
-| **UX 防腐蚀** | ✅ 100% 遵守 | 科幻烘焙 Banner 保持，优雅降级黄字警告 |
-| **DaC 文档契约** | ✅ 100% 遵守 | USER_GUIDE.md Section 14 已同步 |
+| **UX 防腐蚀** | ✅ 100% 遵守 | 科幻烘焙 Banner 保持，AI 渲染跳过提示保持 |
+| **DaC 文档契约** | ✅ 100% 遵守 | USER_GUIDE.md Section 15 已同步 |
+| **数学溢出保护** | ✅ 100% 遵守 | 所有速度场经 `np.clip` 钳制，模拟结果经 NaN 检测 |
 
 ## 5. 外网参考研究落地情况
 
 | 参考资料 | 落地方式 |
 |---------|---------|
-| **TwoSix Labs — AST 白名单沙盒执行** | Gate 2: `safe_parse_expression()` 使用 `ast.parse(mode='eval')` + 节点类型白名单 |
-| **Express.js / Django 中间件拦截器模式** | `knowledge_preloader.py` 的 `_validate_quarantine_rules()` 预检中间件 |
-| **Netflix Hystrix 优雅降级 / Circuit Breaker** | 验证失败时丢弃异常规则、放行健康知识、`logger.warning` 黄字警告 |
-| **NVIDIA Isaac Gym 运动学扫参** | Gate 4: `physics_dry_run()` 弹簧-阻尼器积分 + 看门狗超时 |
+| **Stanley (2007) CPPN: Compositional Pattern Producing Networks** | CPPN 后端核心算法 — 坐标系复合数学映射生成分辨率无关纹理 |
+| **Mouret & Clune (2015) MAP-Elites Illumination** | 基因组多样化策略 — 多轮变异防止表型收敛 |
+| **Tesfaldet et al. (2019) Fourier-CPPNs** | 频率感知合成参考 — 高频细节保持 |
+| **GPU Gems 3, Ch. 30: Real-Time Fluid Simulation** | 流体后端高斯速度溅射 + 自由滑移边界条件 |
+| **Jos Stam (1999) "Stable Fluids"** | 隐式扩散 + 半拉格朗日对流 + 压力投影 |
+| **Naughty Dog / Sucker Punch 动画驱动 VFX** | UMR 运动学 → 流体场注入的工业级管线设计 |
+| **CFL 稳定性条件 (Courant-Friedrichs-Lewy)** | `soft_tanh_clamp` + `np.clip` 双重速度钳制 |
+| **Netflix Hystrix 优雅降级 / Circuit Breaker** | 依赖不可用时返回降级清单，系统不崩溃 |
+| **Mock Object Pattern (xUnit Test Patterns)** | Dummy Velocity Field 生成 — 合成 Slash/Dash UMR 序列 |
 
 ## 6. 测试验收
 
 ```bash
-$ python3 -m pytest tests/test_sandbox_validator.py -v
-# 全部通过 — 四维反幻觉漏斗验证
-
-$ python3 -m pytest tests/test_p1_distill_3.py -v
-# 全部通过 — 物理步态蒸馏闭环测试
+$ python3 -m pytest tests/test_session185_cppn_and_fluid.py -v
+# 全部通过 — CPPN 纹理生成 + 流体动量模拟闭环测试
 ```
 
-## 7. 下一步建议：无缝接入 CPPN 纹理进化引擎与流体动量控制器
+## 7. 下一步建议
 
-打通知识总线海关防爆门和物理步态科研引擎后，若要无缝接入 **CPPN 纹理进化引擎 (Texture Evolution)** 与 **流体动量控制器 (Fluid Momentum)**，当前架构还需要做以下微调准备：
+打通 CPPN 纹理进化引擎和流体动量 VFX 控制器后，系统的程序化生成和物理 VFX 能力已大幅提升。以下是建议的后续工作：
 
-### 7.1 CPPN 纹理进化引擎 (Texture Evolution) 挂载准备
-
-| 微调项 | 说明 |
-|--------|------|
-| **Adapter 层编写** | 参照 `high_precision_vat_backend.py` 的 Adapter 模式，为 667 行的 CPPN 模块编写 `cppn_texture_backend.py` |
-| **注册类型定义** | 在 `BackendType` 中新增 `CPPN_TEXTURE_EVOLUTION`，在 `ArtifactFamily` 中新增 `TEXTURE_EVOLUTION_REPORT` |
-| **能力声明** | 声明 `BackendCapability.TEXTURE_GENERATION`（可能需要新增此枚举值） |
-| **输出沙盒** | 输出路由到 `workspace/laboratory/cppn_texture_evolution/` |
-| **知识回灌** | 纹理进化的最优参数可写入 `knowledge/texture_evolution_rules.json`，通过 `knowledge_preloader.py` 回灌到总线 |
-
-### 7.2 流体动量控制器 (Fluid Momentum) 挂载准备
+### 7.1 纹理进化知识回灌
 
 | 微调项 | 说明 |
 |--------|------|
-| **Adapter 层编写** | 为 461 行的流体动量模块编写 `fluid_momentum_backend.py` |
-| **注册类型定义** | 在 `BackendType` 中新增 `FLUID_MOMENTUM_CONTROLLER` |
-| **VFX 管线联动** | 流体动量输出需要与现有的 `fluid_vfx_bridge.py` 对接，形成 Fluid Momentum → VFX → Render 的完整管线 |
-| **物理参数共享** | 流体动量控制器可消费 Physics-Gait Distillation 蒸馏出的物理参数（如 damping、compliance），实现跨模块参数共享 |
+| **知识回灌通道** | 纹理进化的最优参数可写入 `knowledge/texture_evolution_rules.json`，通过 `knowledge_preloader.py` 回灌到总线 |
+| **MAP-Elites 存档** | 实现完整的 MAP-Elites 存档机制，维护纹理表型多样性 |
+| **PBR 材质导出** | 从 CPPN 纹理派生 Albedo/Normal/Roughness PBR 材质通道 |
+
+### 7.2 流体动量管线联动
+
+| 微调项 | 说明 |
+|--------|------|
+| **VFX 管线对接** | 流体动量输出与现有 `fluid_vfx_bridge.py` 对接，形成 Fluid Momentum → VFX → Render 完整管线 |
+| **物理参数共享** | 流体动量控制器消费 Physics-Gait Distillation 蒸馏出的物理参数（damping、compliance） |
+| **实时预览** | 在导演工坊中实时预览流体 VFX 效果 |
 
 ### 7.3 架构就绪度评估
 
-当前架构已具备以下基础设施，两个模块的挂载工作量预估为 **0.5-1 SESSION 每个**：
+当前架构已具备以下基础设施：
 
 - ✅ BackendRegistry IoC 容器已就绪
 - ✅ Laboratory Hub 反射式菜单已就绪（SESSION-183）
@@ -115,31 +120,33 @@ $ python3 -m pytest tests/test_p1_distill_3.py -v
 - ✅ ArtifactManifest 强类型契约已就绪
 - ✅ SandboxValidator 知识质量网关已就绪（SESSION-184）
 - ✅ Physics-Gait 蒸馏参数已可消费（SESSION-184）
-- ⬜ CPPN Adapter 层待编写
-- ⬜ Fluid Momentum Adapter 层待编写
-- ⬜ `BackendCapability.TEXTURE_GENERATION` 枚举值待新增
-- ⬜ 纹理/流体知识回灌 `knowledge_preloader.py` 通道待扩展
+- ✅ CPPN Texture Evolution Engine 已接入（SESSION-185）
+- ✅ Fluid Momentum VFX Controller 已接入（SESSION-185）
+- ⬜ 纹理知识回灌 `knowledge_preloader.py` 通道待扩展
+- ⬜ Fluid Momentum → VFX Bridge 联动待实现
+- ⬜ MAP-Elites 纹理存档机制待实现
 
 | 优先级 | 建议 | 预估工作量 |
 |-------|------|-----------|
-| P1 | 复活 CPPN 纹理进化引擎，Adapter 模式接入实验室 | 0.5 SESSION |
-| P1 | 接入流体动量控制器到现有 VFX 管线 | 0.5-1 SESSION |
 | P1 | 打通 Distill → VAT 数据桥（蒸馏物理时序替代合成 Catmull-Rom） | 0.5 SESSION |
+| P1 | 纹理进化知识回灌通道 | 0.5 SESSION |
+| P1 | 流体动量 → VFX Bridge 联动 | 0.5 SESSION |
 | P2 | 标准化 ValidationReport 协议，CI 批量验证 | 0.5 SESSION |
 | P2 | 重新激活 9 个孤儿进化桥 | 2-3 SESSION |
+| P2 | MAP-Elites 纹理存档机制 | 1 SESSION |
 
 ### 7.4 三层进化循环现状
 
-SESSION-184 完成后，三层进化循环的闭合状态：
+SESSION-185 完成后，三层进化循环的闭合状态：
 
 | 层级 | 状态 | 说明 |
 |------|------|------|
-| **内层：参数进化** | ✅ 已闭合 | 遗传算法 + 蓝图繁衍 + Physics-Gait 最优参数种子 |
+| **内层：参数进化** | ✅ 已闭合 | 遗传算法 + 蓝图繁衍 + Physics-Gait 最优参数种子 + CPPN 基因组变异 |
 | **中层：知识蒸馏** | ✅ 已闭合 | 外部文献 → 规则 → SandboxValidator 防爆门 → CompiledParameterSpace |
-| **外层：架构自省** | ✅ 已闭合 | 微内核反射 + 注册表自发现 + 零代码挂载 |
+| **外层：架构自省** | ✅ 已闭合 | 微内核反射 + 注册表自发现 + 零代码挂载（CPPN + Fluid Momentum 验证） |
 
 ---
 
-**执行者**: Manus AI (SESSION-184)
-**研究笔记**: `docs/RESEARCH_NOTES_SESSION_184.md`
+**执行者**: Manus AI (SESSION-185)
+**研究笔记**: `docs/RESEARCH_NOTES_SESSION_185.md`
 **审计报告**: `docs/DORMANT_FEATURES_AUDIT.md`

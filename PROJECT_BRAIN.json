@@ -1,7 +1,7 @@
 {
-  "version": "v0.99.22",
-  "last_session_id": "SESSION-184",
-  "last_updated": "2026-04-24 02:49:42",
+  "version": "v0.99.23",
+  "last_session_id": "SESSION-185",
+  "last_updated": "2026-04-24 04:05:14",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -24,6 +24,27 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-185-PROCEDURAL-VFX-AND-TEXTURE-REVIVAL",
+        "title": "CPPN Texture Evolution Engine & Fluid Momentum VFX Controller Revival",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-185",
+        "modules": [
+          "mathart/core/cppn_texture_backend.py",
+          "mathart/core/fluid_momentum_backend.py",
+          "mathart/core/backend_registry.py",
+          "docs/USER_GUIDE.md",
+          "docs/RESEARCH_NOTES_SESSION_185.md",
+          "tests/test_session185_cppn_and_fluid.py",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [
+          "tests/test_session185_cppn_and_fluid.py"
+        ],
+        "description": "SESSION-185 Procedural VFX & Texture Revival: (1) Revived 667-line dormant CPPN Texture Evolution Engine (mathart.evolution.cppn) via Adapter pattern — cppn_texture_backend.py wraps CPPNGenome.create_enriched() + vectorized NumPy coordinate matrix evaluation as a registered backend (BackendType: cppn_texture_evolution, ArtifactFamily: MATERIAL_BUNDLE, Capability: VFX_EXPORT). Generates resolution-independent organic textures via compositional coordinate-based mathematical mapping. Each texture accompanied by full JSON genome file for reproducibility. Multi-round mutation ensures phenotypic diversity (MAP-Elites inspired). (2) Revived 461-line dormant Fluid Momentum VFX Controller (mathart.animation.fluid_momentum_controller) via Adapter pattern — fluid_momentum_backend.py wraps Euler-Lagrangian fluid-solid coupling pipeline as a registered backend (BackendType: fluid_momentum_controller, ArtifactFamily: VFX_FLOWMAP, Capability: VFX_EXPORT). Implements continuous line-segment Gaussian splatting for UMR kinematic-to-fluid injection, Navier-Stokes solve on 64x64 grid, CFL safety guard (soft_tanh_clamp + np.clip dual clamping), NaN/Inf detection with graceful degradation. Dummy velocity fields (Slash + Dash) auto-generated when no upstream UMR input available. (3) Both backends auto-discovered via @register_backend + importlib reflection — ZERO modification to cli_wizard.py or laboratory_hub.py. (4) Mock Object & Adapter Pattern: CPPN backend generates enriched genomes internally; Fluid backend generates synthetic UMR motion clips internally — both operate independently without upstream dependencies. (5) Research grounding: Stanley 2007 CPPN, Mouret & Clune 2015 MAP-Elites, Tesfaldet 2019 Fourier-CPPNs, GPU Gems 3 Ch.30 Real-Time Fluid Simulation, Jos Stam 1999 Stable Fluids, Naughty Dog animation-driven VFX, CFL stability condition, Netflix Hystrix graceful degradation, xUnit Mock Object Pattern. (6) UX anti-corrosion: Sci-fi baking banner preserved, AI render skip prompt preserved, USER_GUIDE.md Section 15 added with full SESSION-185 documentation. All red lines strictly observed: zero internal math modification, zero production vault pollution, zero hardcoded routing, zero frontend modification, strong-typed ArtifactManifest contract, math overflow protection via np.clip clamping and NaN detection."
+      },
       {
         "id": "P0-SESSION-184-SANDBOX-VALIDATOR-AND-GAIT-DISTILLATION",
         "title": "Sandbox Validator Pre-Mount Interceptor & Physics-Gait Distillation Backend Activation",
@@ -3115,6 +3136,13 @@
       "tests": [
         "tests/test_session179_visual_distillation_and_reskinning.py"
       ]
+    },
+    {
+      "id": "SESSION-185-PROCEDURAL-VFX-AND-TEXTURE-REVIVAL",
+      "title": "CPPN Texture Evolution Engine & Fluid Momentum VFX Controller Revival",
+      "session": "SESSION-185",
+      "date": "2026-04-24",
+      "description": "Revived two dormant core modules: CPPN Texture Evolution Engine (667-line cppn.py adapter) and Fluid Momentum VFX Controller (461-line fluid_momentum_controller.py adapter). Both registered via @register_backend, auto-discovered by laboratory_hub reflection. Research grounded in Stanley 2007 CPPN, Jos Stam 1999 Stable Fluids, GPU Gems 3 Ch.30, CFL stability, Netflix Hystrix degradation."
     }
   ],
   "capability_gaps": [
@@ -3229,7 +3257,9 @@
     "REMAINING-S096: Global regression coverage still contains dispersed RNG setup and unseeded random masking risk -> HIGH-2.5-CI-RANDOM-MASKING-DETERMINISM",
     "RESOLVED-S098: Full-suite CI failed on optional dependency drift (Taichi/watchdog), registry bootstrap pollution after reset(), manifest schema non-compliance, and stale bridge key names -> session-scoped conftest.py registry safety net, importorskip/skipif gating, orthographic_pixel manifest fix, and evolution_ bridge key alignment",
     "REMAINING-S098: Production code (mathart/) still contains 39 bare np.random calls without dependency injection -> HIGH-2.7-PRODUCTION-CODE-RNG-DEPENDENCY-INJECTION",
-    "RESOLVED-S121: CharacterGenotype lacked first-class torso/hand/foot equipment slots and a tensorized 3D socket mounter -> implemented parts3d.py + SocketSpec + TensorSocketMounter aligned with UE5 / IQ SDF / OpenUSD references, with 32 regression tests guaranteeing legacy JSON compatibility and Z-fighting-free SDF offsets."
+    "RESOLVED-S121: CharacterGenotype lacked first-class torso/hand/foot equipment slots and a tensorized 3D socket mounter -> implemented parts3d.py + SocketSpec + TensorSocketMounter aligned with UE5 / IQ SDF / OpenUSD references, with 32 regression tests guaranteeing legacy JSON compatibility and Z-fighting-free SDF offsets.",
+    "RESOLVED-S185: CPPN Texture Evolution Engine was dormant (667 lines, zero CLI entry) — now revived via cppn_texture_backend.py Adapter + @register_backend auto-discovery",
+    "RESOLVED-S185: Fluid Momentum Controller was dormant (461 lines, zero cross-references) — now revived via fluid_momentum_backend.py Adapter + @register_backend auto-discovery"
   ],
   "recent_audit": {
     "session": "SESSION-182",
@@ -3548,6 +3578,10 @@
     {
       "session_id": "SESSION-164",
       "summary": "SESSION-164 completed the Final UI Assembly task (P0-SESSION-163-FINAL-UI-ASSEMBLY). The CLI wizard's _dispatch_mass_production function was upgraded with: (1) Dynamic progress telemetry reading from MotionStateLaneRegistry instead of hardcoded strings, (2) Precise 4-layer exception ladder (PipelineQualityCircuitBreak → ConnectionRefusedError → OSError → PipelineContractError/generic), (3) Vibe intent parameter extraction and explicit propagation via dispatch options, (4) Green asset closure completion banner. External research anchors documented in docs/RESEARCH_NOTES_SESSION_164.md covering End-to-End Impedance Matching, Dynamic UI Hydration (LLVM TargetRegistry), Precise Exception Catching (Nygard Circuit Breaker), and Intent Propagation (BFF pattern)."
+    },
+    {
+      "session_id": "SESSION-185",
+      "summary": "SESSION-185 revived two dormant core modules: (1) CPPN Texture Evolution Engine — 667-line cppn.py wrapped via Adapter pattern, generates resolution-independent organic textures via coordinate-based CPPN mapping with genome serialization for reproducibility; (2) Fluid Momentum VFX Controller — 461-line fluid_momentum_controller.py wrapped via Adapter pattern, implements Euler-Lagrangian fluid-solid coupling with UMR kinematic injection, Navier-Stokes solve, CFL safety guard, NaN detection, and graceful degradation. Both backends auto-discovered via @register_backend reflection. Mock Object Pattern enables independent execution. Research grounded in Stanley 2007, Stam 1999, GPU Gems 3, CFL condition, Netflix Hystrix."
     }
   ],
   "custom_notes": {
@@ -3740,6 +3774,12 @@
       "session_id": "SESSION-164",
       "date": "2026-04-23",
       "task": "P0-SESSION-163-FINAL-UI-ASSEMBLY",
+      "status": "CLOSED"
+    },
+    {
+      "session_id": "SESSION-185",
+      "date": "2026-04-24",
+      "task": "P0-SESSION-185-PROCEDURAL-VFX-AND-TEXTURE-REVIVAL",
       "status": "CLOSED"
     }
   ],
@@ -4093,6 +4133,12 @@
       "session": "SESSION-164",
       "title": "前端 CLI 全链路大满贯流转对接",
       "closed_date": "2026-04-23"
+    },
+    {
+      "task_id": "P0-SESSION-185-PROCEDURAL-VFX-AND-TEXTURE-REVIVAL",
+      "session": "SESSION-185",
+      "title": "CPPN Texture Evolution Engine & Fluid Momentum VFX Controller Revival",
+      "closed_date": "2026-04-24"
     }
   ],
   "legacy_session_changes_consolidated": {
@@ -4230,6 +4276,18 @@
       "feature": "Blueprint Vault",
       "module": "interactive_gate.py",
       "description": "Custom naming with timestamp fallback for blueprint saves"
+    },
+    {
+      "session": "SESSION-185",
+      "feature": "CPPN Texture Evolution Engine",
+      "module": "cppn_texture_backend.py",
+      "description": "Adapter layer wrapping 667-line CPPNGenome module for resolution-independent procedural texture generation via coordinate-based compositional mathematical mapping."
+    },
+    {
+      "session": "SESSION-185",
+      "feature": "Fluid Momentum VFX Controller",
+      "module": "fluid_momentum_backend.py",
+      "description": "Adapter layer wrapping 461-line FluidMomentumController module for Euler-Lagrangian fluid-solid coupling with UMR kinematic injection, Navier-Stokes solve, and CFL safety guard."
     }
   ],
   "session_log": [
@@ -5093,6 +5151,22 @@
         "ZERO production vault pollution",
         "Graceful degradation — NEVER crash on validation failure"
       ]
+    },
+    {
+      "session_id": "SESSION-185",
+      "date": "2026-04-24",
+      "title": "CPPN Texture Evolution Engine & Fluid Momentum VFX Controller Revival",
+      "status": "CLOSED",
+      "files_changed": [
+        "mathart/core/cppn_texture_backend.py",
+        "mathart/core/fluid_momentum_backend.py",
+        "mathart/core/backend_registry.py",
+        "docs/USER_GUIDE.md",
+        "docs/RESEARCH_NOTES_SESSION_185.md",
+        "tests/test_session185_cppn_and_fluid.py",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ]
     }
   ],
   "resolved_issues": [
@@ -5229,6 +5303,16 @@
       "issue": "Frozen animation frames could leak to AI rendering",
       "session": "SESSION-160",
       "resolution": "assert_nonzero_temporal_variance() per-pair MSE floor assertion deployed"
+    },
+    {
+      "issue": "CPPN Texture Evolution Engine (667 lines) was dormant with zero CLI entry point",
+      "session": "SESSION-185",
+      "resolution": "Created cppn_texture_backend.py Adapter layer with @register_backend, auto-discovered by laboratory_hub reflection"
+    },
+    {
+      "issue": "Fluid Momentum Controller (461 lines) was dormant with zero cross-references",
+      "session": "SESSION-185",
+      "resolution": "Created fluid_momentum_backend.py Adapter layer with @register_backend, auto-discovered by laboratory_hub reflection"
     }
   ],
   "backlog": [],
@@ -5432,6 +5516,11 @@
       "session": "SESSION-179",
       "decision": "cv2 is FORBIDDEN in visual_distillation.py — PIL.ImageSequence only",
       "rationale": "Prevent OpenCV DLL hell on Windows; PIL is already a dependency"
+    },
+    {
+      "session": "SESSION-185",
+      "decision": "CPPN and Fluid Momentum backends use Mock Object + Adapter Pattern for independent sandbox execution",
+      "rationale": "When no upstream evolution pipeline or UMR motion input is available, backends generate enriched genomes / synthetic motion clips internally, enabling fully independent laboratory execution without any upstream dependencies."
     }
   ],
   "design_decisions": [
@@ -5473,6 +5562,31 @@
       "session": "SESSION-179",
       "rule": "visual_distillation.py must NEVER import cv2 — PIL.ImageSequence only",
       "enforced_by": "test_no_cv2_import in test_session179"
+    },
+    {
+      "session": "SESSION-185",
+      "rule": "CPPN texture backend MUST use CPPNGenome.create_enriched() for genome creation; direct genome construction is forbidden.",
+      "enforced_by": "cppn_texture_backend.py"
+    },
+    {
+      "session": "SESSION-185",
+      "rule": "Fluid momentum backend MUST apply soft_tanh_clamp + np.clip dual velocity clamping before injection; raw velocity injection is forbidden.",
+      "enforced_by": "fluid_momentum_backend.py"
+    },
+    {
+      "session": "SESSION-185",
+      "rule": "Fluid momentum backend MUST validate simulation results for NaN/Inf and return degraded manifest on detection; silent NaN propagation is forbidden.",
+      "enforced_by": "fluid_momentum_backend.py"
+    },
+    {
+      "session": "SESSION-185",
+      "rule": "New laboratory backends MUST output to workspace/laboratory/<backend_name>/ sandbox; writing to output/production/ is forbidden.",
+      "enforced_by": "cppn_texture_backend.py, fluid_momentum_backend.py"
+    },
+    {
+      "session": "SESSION-185",
+      "rule": "CPPN texture backend MUST serialize genome JSON alongside each rendered texture PNG for reproducibility.",
+      "enforced_by": "cppn_texture_backend.py"
     }
   ]
 }

@@ -795,6 +795,24 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.high_precision_vat_backend")
         except Exception as e:
             logger.debug("Failed to auto-load high precision VAT backend: %s", e)
+        # SESSION-185 (P0-SESSION-185-PROCEDURAL-VFX-AND-TEXTURE-REVIVAL):
+        # auto-register the CPPN Texture Evolution Engine backend so the
+        # microkernel can discover the procedural texture generation lane
+        # without any trunk modification.  Design: Stanley (2007) CPPN,
+        # resolution-independent coordinate-based texture synthesis.
+        try:
+            importlib.import_module("mathart.core.cppn_texture_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load CPPN texture backend: %s", e)
+        # SESSION-185 (P0-SESSION-185-PROCEDURAL-VFX-AND-TEXTURE-REVIVAL):
+        # auto-register the Fluid Momentum VFX Controller backend so the
+        # microkernel can discover the Eulerian-Lagrangian fluid coupling
+        # lane without any trunk modification.  Design: GPU Gems 3 Ch. 30,
+        # Jos Stam Stable Fluids, CFL stability guard.
+        try:
+            importlib.import_module("mathart.core.fluid_momentum_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load fluid momentum backend: %s", e)
     return registry
 
 
