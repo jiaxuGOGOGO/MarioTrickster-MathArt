@@ -1789,8 +1789,80 @@ HighPrecisionVATBackend.execute(positions=real_data)
 ### 18.7 测试验收
 
 ```bash
-# 运行 SESSION-188 全部 32 个测试
+## 运行 SESSION-188 全部 32 个测试
 python -m pytest tests/test_session188_quadruped_and_vat_bridge.py -v
-
 # 预期结果：32 passed
 ```
+
+---
+
+## 19. SESSION-189：潜空间治愈 + 日式作画节奏抽帧锁（Latent Healing & Anime-Rhythm Subsampler）
+
+### 19.1 任务全貌
+
+SESSION-189 的 P0 使命是把 AntiFlickerRender 管线里最后一块「信仰瓷砖」落地：**所有外部引导序列在交付 ComfyUI 前必须被治愈为 SD1.5 训练域的合法输入**。拆成三件硬核小事：
+
+1. **日式节奏抽帧**：`N > 16` 的物理帧序列改用 `0.5 − 0.5 · cos(π · phase)` 余弦 S 曲线（緩急 / Kan-Kyu）抽帧，**严格输出 16 帧**、强升序、去重回填。
+2. **潜空间治愈**：所有 `source / normal / depth` 通道在内存中 LANCZOS 上采样到 **512×512**，`RGBA` 帧使用通道专属底板进行 alpha matting（**Normal = (128, 128, 255)**、Depth = (0, 0, 0)、Source = (0, 0, 0)）。
+3. **ComfyUI Workflow 最后防线**：在 `ComfyUIPresetManager.assemble_sequence_payload()` 返回前对 workflow 做一次**纯语义 `class_type` 扫描**，硬压 `EmptyLatentImage → 512`、`KSampler*.cfg ≤ 4.5`、`ControlNetApply*/ACN_SparseCtrl*.strength ≤ 0.55`、`VHS_VideoCombine.frame_rate = frame_rate`。全过程不准用任何节点 ID 硬编码。
+
+### 19.2 三条硬锚常量
+
+```python
+from mathart.core.anti_flicker_runtime import MAX_FRAMES, LATENT_EDGE, NORMAL_MATTE_RGB
+assert MAX_FRAMES        == 16              # RTX 4070 12GB 的 AnimateDiff 安全上限
+assert LATENT_EDGE       == 512             # SD1.5 U-Net 感受野的绝对下限
+assert NORMAL_MATTE_RGB  == (128, 128, 255) # 法线切线空间零向量 → RGB
+```
+
+### 19.3 API 一览
+
+```python
+from mathart.core.anti_flicker_runtime import (
+    anime_rhythmic_subsample,          # int  -> list[int]，强升序唯一
+    jit_matte_and_upscale,             # PIL.Image -> PIL.Image (RGB, 512×512)
+    heal_guide_sequences,              # {source,normal,depth[,mask]} 一站式治愈
+    force_override_workflow_payload,   # 对 ComfyUI 工作流做最后防线覆写
+)
+```
+
+### 19.4 UX 科幻打印示例
+
+当 `AntiFlickerRenderBackend` 检测到 `context.source_frames` 进入外部引导旁路，就会打印：
+
+```text
+╔══ [ANTI_FLICKER_RENDER] SESSION-189 LATENT HEALING ACTIVE ══╗
+║ Kan-Kyu rhythmic subsample : 40 → 16 (max=16)
+║ Canvas forced to 512×512 (SD1.5 U-Net floor)
+║ Normal matte : (128,128,255) • Depth matte : (0,0,0)
+╠══ indices : [0, 2, 4, 6, 10, 13, 17, 19, 22, 26, 29, 31, 33, 35, 37, 39]
+╚══ All guide channels upscaled via LANCZOS. ════
+```
+
+### 19.5 外网参考研究
+
+| 参考 | 用途 |
+|---|---|
+| iD Tech (2021) *Ones/Twos/Threes* | 一拍一/二/三定义与帧率映射 |
+| Richard Williams *Animator's Survival Kit* Disc 12 | Anticipation / Hold / Impact 节奏 |
+| animetudes (2020) *Framerate Modulation Theory* | 非均匀抽帧的美学正当性 |
+| HuggingFace `stable-diffusion-v1-5` Model Card | SD 1.5 训练分辨率 512 |
+| stable-diffusion-art.com *AnimateDiff* | CFG 4–5、分辨率 512 推荐 |
+| GitHub `sd-webui-animatediff#178` | 低分辨率潜空间坡塌典型噪声图 |
+| HuggingFace `lllyasviel/sd-controlnet-normal` | 法线 RGB 编码 `(128, 128, 255)` |
+
+完整论证见 `docs/RESEARCH_NOTES_SESSION_189.md`，知识入库见 `knowledge/anime_frame_rhythm.md`。
+
+### 19.6 测试验收
+
+```bash
+PYTHONPATH=. python3.11 -m pytest tests/test_session189_latent_healing_and_anime_rhythm.py -v
+# 预期结果：28 passed
+```
+
+### 19.7 红线
+
+- **不碰代理环境变量**：`HTTP_PROXY / HTTPS_PROXY / NO_PROXY` 永远不准在 `anti_flicker_runtime.py` 中出现；`test_module_source_never_touches_proxy_env` 会兜底监守。
+- **不用节点 ID 硬编码**：所有 ComfyUI workflow 编辑必须通过 `class_type` 语义扫描。
+- **不破坏三条硬锚常量**：`MAX_FRAMES / LATENT_EDGE / NORMAL_MATTE_RGB` 若需调整，必须同步测试文件并在 `SESSION_HANDOFF.md` 以新 SESSION 条目公告。
+

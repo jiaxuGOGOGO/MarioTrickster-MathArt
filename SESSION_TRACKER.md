@@ -132,3 +132,33 @@ Integration and validation session that discovered and fixed a systemic SDF para
 2. P0-NEW-5: Large-scale evolution (100+ iterations)
 3. P0-NEW-6: VFX evaluator tuning
 
+
+## SESSION-189 (2026-04-24) — Latent Healing & Anime-Rhythm Subsampler
+
+### Summary
+Closed **P0-SESSION-189-LATENT-HEALING-AND-ANIME-RHYTHM**. Added a cosine Kan-Kyu rhythmic subsampler (16-frame cap), JIT tangent-space matte + LANCZOS upscale to 512×512, and a `class_type`-only force override for the ComfyUI workflow. Integrated into `AntiFlickerRenderBackend` and `ComfyUIPresetManager.assemble_sequence_payload`. Notable: zero references to proxy env vars and zero node-id hardcoding.
+
+### Hard Anchors Locked
+- `MAX_FRAMES = 16`, `LATENT_EDGE = 512`, `NORMAL_MATTE_RGB = (128, 128, 255)`
+- CFG ceiling = 4.5; ControlNet strength ceiling = 0.55
+
+### New Public API (`mathart.core.anti_flicker_runtime`)
+- `anime_rhythmic_subsample(total, max_frames=16) -> list[int]`
+- `jit_matte_and_upscale(img, matte_rgb, target_edge=512) -> PIL.Image`
+- `heal_guide_sequences(source_frames, normal_maps, depth_maps, mask_maps=None) -> dict`
+- `force_override_workflow_payload(workflow, *, target_edge, max_frames, cfg_ceiling, controlnet_strength, actual_batch_size, video_frame_rate) -> dict`
+
+### Test Results
+- `tests/test_session189_latent_healing_and_anime_rhythm.py` — **28 / 28 PASS**
+
+### Artifacts
+- `knowledge/anime_frame_rhythm.md` (knowledge base)
+- `docs/RESEARCH_NOTES_SESSION_189.md` (external reference notes)
+- `docs/USER_GUIDE.md` §19 (operator-facing docs)
+- `SESSION_HANDOFF.md` (closed)
+- `PROJECT_BRAIN.json` (version → v0.99.26, red_lines +4, session_log +1)
+
+### Next Priorities
+1. Surface `session189_*_report` in ArtifactManifest + 资产大管家 真理查账 view.
+2. Add `rhythm_profile` ("kan_kyu" | "linear" | "on_threes") to `CreatorIntentSpec`.
+3. Extend matte-and-upscale to `mask_maps` once rim-light ControlNet is wired.

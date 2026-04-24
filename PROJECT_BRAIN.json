@@ -1,6 +1,6 @@
 {
-  "version": "v0.99.25",
-  "last_session_id": "SESSION-188",
+  "version": "v0.99.26",
+  "last_session_id": "SESSION-189",
   "last_updated": "2026-04-24",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -585,7 +585,7 @@
     "engineering_automation": 95,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-184 CLOSED: Sandbox Validator Pre-Mount Interceptor deployed, Physics-Gait Distillation Backend hot-plugged. Next candidates: CPPN Texture Evolution Engine activation, Fluid Momentum Controller integration.",
+  "current_focus": "Latent healing (512x512 LANCZOS + tangent-space matte) and cosine Kan-Kyu anime-rhythm subsampling for AnimateDiff/SD1.5 pipeline.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "docs/RESEARCH_NOTES_SESSION_166.md",
@@ -5295,6 +5295,25 @@
         "Dog Code (Egan et al., 2024)",
         "SideFX Houdini VAT 3.0"
       ]
+    },
+    {
+      "session": "SESSION-189",
+      "date": "2026-04-24",
+      "priority": "P0",
+      "title": "Latent Healing & Anime-Rhythm Subsampler",
+      "summary": "Added anime_rhythmic_subsample (cosine Kan-Kyu curve, 16-frame cap), jit_matte_and_upscale (LANCZOS to 512x512 with per-channel mattes: normal=(128,128,255), depth=(0,0,0), source=(0,0,0)), heal_guide_sequences and force_override_workflow_payload (class_type-only scan; no node-id hardcoding). Integrated into AntiFlickerRenderBackend external-guide bypass and ComfyUIPresetManager.assemble_sequence_payload. 28/28 tests pass.",
+      "artifacts": [
+        "mathart/core/anti_flicker_runtime.py",
+        "mathart/core/builtin_backends.py",
+        "mathart/animation/comfyui_preset_manager.py",
+        "tests/test_session189_latent_healing_and_anime_rhythm.py",
+        "knowledge/anime_frame_rhythm.md",
+        "docs/RESEARCH_NOTES_SESSION_189.md",
+        "docs/USER_GUIDE.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json",
+        "SESSION_TRACKER.md"
+      ]
     }
   ],
   "resolved_issues": [
@@ -5660,15 +5679,7 @@
       "implication": "This classification schema provides the exact granularity needed for targeted fix campaigns. Each dead-zone parameter has a clear remediation path: add the corresponding constraint to the knowledge directory and verify via re-running the audit. The six-level schema is extensible — future sources (e.g., A/B test results, user analytics) can be added as new ProvenanceSourceType enum values without breaking existing records."
     }
   ],
-  "current_session": {
-    "id": "SESSION-188",
-    "status": "CLOSED",
-    "priority": "P0",
-    "title": "Quadruped Physics Engine Awakening & VAT Real-Data Bridge",
-    "objectives": [
-      "P0-SESSION-188-QUADRUPED-AWAKENING-AND-VAT-BRIDGE"
-    ]
-  },
+  "current_session": "SESSION-189",
   "red_lines": [
     "SESSION-162: NEVER use hardcoded string lists for motion states; ALWAYS query unified_gait_blender.get_motion_lane_registry().names().",
     "SESSION-162: NEVER bypass assert_nonzero_temporal_variance in guide baking; fail fast on frozen sequences.",
@@ -5713,6 +5724,65 @@
       "session": "SESSION-185",
       "rule": "CPPN texture backend MUST serialize genome JSON alongside each rendered texture PNG for reproducibility.",
       "enforced_by": "cppn_texture_backend.py"
+    },
+    {
+      "session": "SESSION-189",
+      "rule": "anti_flicker_runtime.py MUST NOT reference HTTP_PROXY/HTTPS_PROXY/NO_PROXY.",
+      "enforced_by": "tests/test_session189_latent_healing_and_anime_rhythm.py::test_module_source_never_touches_proxy_env"
+    },
+    {
+      "session": "SESSION-189",
+      "rule": "ComfyUI workflow post-processing MUST identify nodes by class_type; numeric node-id hardcoding is forbidden.",
+      "enforced_by": "force_override_workflow_payload + test_latent_forced_to_512 / test_cfg_capped_across_all_samplers"
+    },
+    {
+      "session": "SESSION-189",
+      "rule": "External normal/depth/source guide frames MUST be alpha-composited onto the correct tangent-space matte BEFORE LANCZOS upscale to 512x512.",
+      "enforced_by": "heal_guide_sequences + test_transparent_normal_gets_purple_blue_matte"
+    },
+    {
+      "session": "SESSION-189",
+      "rule": "anime_rhythmic_subsample MUST return a strictly ascending, duplicate-free index list with exactly min(total, MAX_FRAMES) entries.",
+      "enforced_by": "test_exact_length_when_oversupply + test_strictly_ascending_unique + test_endpoints_locked"
     }
-  ]
+  ],
+  "latent_healing_contract": {
+    "session": "SESSION-189",
+    "module": "mathart.core.anti_flicker_runtime",
+    "hard_anchors": {
+      "MAX_FRAMES": 16,
+      "LATENT_EDGE": 512,
+      "NORMAL_MATTE_RGB": [
+        128,
+        128,
+        255
+      ],
+      "DEPTH_MATTE_RGB": [
+        0,
+        0,
+        0
+      ],
+      "SOURCE_MATTE_RGB": [
+        0,
+        0,
+        0
+      ],
+      "CFG_CEILING": 4.5,
+      "CONTROLNET_STRENGTH_CEILING": 0.55
+    },
+    "public_api": [
+      "anime_rhythmic_subsample",
+      "jit_matte_and_upscale",
+      "heal_guide_sequences",
+      "force_override_workflow_payload"
+    ],
+    "invariants": [
+      "Selector-based (class_type) scanning of ComfyUI workflow only; node-id hardcoding is forbidden.",
+      "No read/write of HTTP_PROXY/HTTPS_PROXY/NO_PROXY env vars.",
+      "Disk-side bakes are never mutated; healing happens in-memory on PIL.Image objects."
+    ],
+    "reference_notes": "docs/RESEARCH_NOTES_SESSION_189.md",
+    "knowledge_doc": "knowledge/anime_frame_rhythm.md",
+    "tests": "tests/test_session189_latent_healing_and_anime_rhythm.py"
+  }
 }

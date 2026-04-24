@@ -1531,12 +1531,59 @@ class AntiFlickerRenderBackend:
         external_normal = context.get("normal_maps")
         external_depth = context.get("depth_maps")
         if external_source is not None and len(external_source) > 0:
+            # SESSION-189: Latent Healing & Anime-Rhythm Subsampler.
+            # Before stashing the external guide triplets, run them through
+            # the cosine-curve (Kan-Kyu) subsampler and JIT alpha-matting +
+            # LANCZOS upscale to 512×512 so the downstream ComfyUI payload
+            # never ingests a sub-latent canvas or a transparent normal map.
+            try:
+                from mathart.core.anti_flicker_runtime import (
+                    heal_guide_sequences as _heal_guide_sequences,
+                    LATENT_EDGE as _LATENT_EDGE,
+                    MAX_FRAMES as _MAX_FRAMES,
+                )
+                _healed = _heal_guide_sequences(
+                    source_frames=external_source,
+                    normal_maps=external_normal or external_source,
+                    depth_maps=external_depth or external_source,
+                    mask_maps=context.get("mask_maps"),
+                )
+                external_source = _healed["source_frames"]
+                external_normal = _healed["normal_maps"]
+                external_depth = _healed["depth_maps"]
+                _healed_masks = _healed["mask_maps"]
+                validated["_session189_healing_report"] = _healed["report"]
+                # Industrial UX banner — mirrors the science-fiction style
+                # used across other backends so the operator can confirm at
+                # a glance that the P0-SESSION-189 contract is enforced.
+                logger.info(
+                    "\n\u2554\u2550\u2550 [ANTI_FLICKER_RENDER] SESSION-189 LATENT HEALING ACTIVE \u2550\u2550\u2557\n"
+                    "\u2551 Kan-Kyu rhythmic subsample : %d \u2192 %d (max=%d)\n"
+                    "\u2551 Canvas forced to %d\u00d7%d (SD1.5 U-Net floor)\n"
+                    "\u2551 Normal matte : (128,128,255) \u2022 Depth matte : (0,0,0)\n"
+                    "\u2560\u2550\u2550 indices : %s\n"
+                    "\u255a\u2550\u2550 All guide channels upscaled via LANCZOS. \u2550\u2550\u2550\u2550",
+                    _healed["report"]["input_frame_count"],
+                    _healed["report"]["output_frame_count"],
+                    _MAX_FRAMES,
+                    _LATENT_EDGE,
+                    _LATENT_EDGE,
+                    _healed["report"]["selected_indices"],
+                )
+            except Exception as _heal_exc:
+                logger.warning(
+                    "[anti_flicker_render] SESSION-189 latent healing fell back to "
+                    "passthrough due to: %s", _heal_exc,
+                )
+                _healed_masks = context.get("mask_maps")
+
             validated["_external_source_frames"] = external_source
             validated["_external_normal_maps"] = external_normal or external_source
             validated["_external_depth_maps"] = external_depth or external_source
-            validated["_external_mask_maps"] = context.get("mask_maps", external_source)
+            validated["_external_mask_maps"] = _healed_masks or context.get("mask_maps", external_source)
             validated["_idle_bake_bypassed"] = True
-            # Inherit resolution from external guides (DbC postcondition)
+            # Inherit resolution from external guides (DbC postcondition).
+            # After SESSION-189 healing, the guide canvas is always 512×512.
             first_frame = external_source[0]
             if hasattr(first_frame, "size"):
                 validated["width"] = first_frame.size[0]

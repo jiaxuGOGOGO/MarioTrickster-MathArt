@@ -576,6 +576,39 @@ class ComfyUIPresetManager:
             },
         }
 
+        # ------------------------------------------------------------------
+        # SESSION-189: Last-line-of-defence force override.
+        # Even though semantic selectors above already set CFG / latent size /
+        # frame rate, a stray upstream override (or a future preset edit)
+        # could still slip in values that violate the P0-SESSION-189
+        # contract. Scan the assembled workflow one more time by
+        # ``class_type`` (NEVER by numeric node id) and enforce the
+        # following hard ceilings:
+        #   - EmptyLatentImage.width/height    = 512
+        #   - EmptyLatentImage.batch_size      = min(frame_count, MAX_FRAMES=16)
+        #   - KSampler*.cfg / cfg_scale        ≤ 4.5
+        #   - ControlNetApply*/ACN_SparseCtrl* strength / motion_strength ≤ 0.55
+        #   - VHS_VideoCombine.frame_rate      = frame_rate
+        # ------------------------------------------------------------------
+        try:
+            from mathart.core.anti_flicker_runtime import (
+                force_override_workflow_payload as _force_override,
+                MAX_FRAMES as _MAX_FRAMES,
+                LATENT_EDGE as _LATENT_EDGE,
+            )
+            _override_report = _force_override(
+                workflow,
+                target_edge=_LATENT_EDGE,
+                max_frames=_MAX_FRAMES,
+                cfg_ceiling=4.5,
+                controlnet_strength=0.55,
+                actual_batch_size=int(frame_count),
+                video_frame_rate=int(frame_rate),
+            )
+            lock_manifest["session189_override_report"] = _override_report
+        except Exception as _override_exc:  # pragma: no cover
+            lock_manifest["session189_override_error"] = str(_override_exc)
+
         return {
             "client_id": client_id or str(uuid.uuid4()),
             "prompt": workflow,

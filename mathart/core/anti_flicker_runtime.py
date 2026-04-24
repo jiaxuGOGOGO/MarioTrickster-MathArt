@@ -449,6 +449,340 @@ def compute_frame_hashes(frames: Sequence[Image.Image]) -> list[str]:
     return hashes
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  SESSION-189: Anime Rhythmic Subsampler + Latent Healing JIT Matting
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Industrial References:
+#    - iD Tech (2021) — Animating on Ones / Twos / Threes (anime 常用 on 3s)
+#    - Richard Williams — Animator's Survival Kit, Disc 12
+#      (Anticipation → Impact → Hold 非均匀节奏)
+#    - animetudes (2020) — Framerate Modulation Theory
+#    - HuggingFace stable-diffusion-v1-5 — 训练分辨率 512×512
+#    - stable-diffusion-art.com — AnimateDiff recommended CFG 4-5 @ 512×512
+#    - HuggingFace lllyasviel/sd-controlnet-normal — 法线中性 (128, 128, 255)
+#
+#  Three hard constants (do not monkey-patch):
+#    MAX_FRAMES = 16    → RTX 4070 12GB safe batch for AnimateDiff+SparseCtrl
+#    LATENT_EDGE = 512  → SD1.5 U-Net 感受野的绝对下限
+#    NORMAL_MATTE_RGB = (128, 128, 255)  → 法线切线空间零向量 → RGB
+# ═══════════════════════════════════════════════════════════════════════════
+
+MAX_FRAMES: int = 16
+LATENT_EDGE: int = 512
+NORMAL_MATTE_RGB: tuple[int, int, int] = (128, 128, 255)
+DEPTH_MATTE_RGB: tuple[int, int, int] = (0, 0, 0)
+SOURCE_MATTE_RGB: tuple[int, int, int] = (0, 0, 0)
+
+
+def anime_rhythmic_subsample(total_frames: int, *, max_frames: int = MAX_FRAMES) -> list[int]:
+    """Select at most ``max_frames`` indices from ``[0, total_frames)`` using a
+    non-linear Ease-In/Ease-Out cosine curve (緩急 / Kan-Kyu).
+
+    Rationale
+    ---------
+    Uniform ``np.linspace`` gives flat, lifeless timing and wastes precious
+    frames on the mid-swing. Anime timing concentrates drawings at the
+    *Anticipation* and *Hold* ends (on 2s / 3s) while stretching the
+    *Impact* middle to a single sharp 1s-beat. We realise this with a
+    cosine S-curve:
+
+        phase        ∈ [0, 1]  (i / (max_frames - 1))
+        ease_weight  = 0.5 - 0.5 * cos(π * phase)
+        source_index = round(ease_weight * (total_frames - 1))
+
+    Then we deduplicate indices (cosine curve can collide at the
+    extremities) and back-fill the sparsest gap(s) so that the returned
+    list contains **exactly** ``min(total_frames, max_frames)`` unique,
+    strictly ascending indices.
+
+    Parameters
+    ----------
+    total_frames :
+        Length of the upstream physics-baked sequence.
+    max_frames :
+        VRAM-safe ceiling. Defaults to :data:`MAX_FRAMES` (16).
+
+    Returns
+    -------
+    list[int]
+        Strictly ascending, unique indices; length ≤ ``max_frames``.
+    """
+    if total_frames < 1:
+        raise ValueError("total_frames must be >= 1")
+    if max_frames < 1:
+        raise ValueError("max_frames must be >= 1")
+
+    target = min(int(total_frames), int(max_frames))
+    if total_frames <= max_frames:
+        return list(range(total_frames))
+
+    import math
+
+    raw_indices: list[int] = []
+    for i in range(target):
+        phase = i / max(target - 1, 1)
+        ease_weight = 0.5 - 0.5 * math.cos(math.pi * phase)
+        source_index = int(round(ease_weight * (total_frames - 1)))
+        raw_indices.append(max(0, min(total_frames - 1, source_index)))
+
+    unique_sorted: list[int] = sorted(set(raw_indices))
+    # Back-fill the sparsest gap(s) to restore exactly ``target`` frames.
+    while len(unique_sorted) < target:
+        gaps = [
+            (unique_sorted[k + 1] - unique_sorted[k], k)
+            for k in range(len(unique_sorted) - 1)
+        ]
+        if not gaps:
+            break
+        gaps.sort(reverse=True)
+        _, insert_after = gaps[0]
+        lo = unique_sorted[insert_after]
+        hi = unique_sorted[insert_after + 1]
+        candidate = (lo + hi) // 2
+        if candidate in unique_sorted or candidate <= lo or candidate >= hi:
+            # No room to grow; bail out and return the de-duplicated list.
+            break
+        unique_sorted.append(candidate)
+        unique_sorted.sort()
+
+    return unique_sorted[:target]
+
+
+def jit_matte_and_upscale(
+    frame: Image.Image,
+    *,
+    matte_rgb: tuple[int, int, int],
+    target_edge: int = LATENT_EDGE,
+) -> Image.Image:
+    """In-memory alpha matting + LANCZOS upscale to ``target_edge``×``target_edge``.
+
+    - If the frame carries an alpha channel, the transparent region is
+      composited onto a solid ``matte_rgb`` canvas (prevents ControlNet
+      from interpreting alpha-zero pixels as severely distorted tangent
+      vectors, e.g. ``(0, 0, 0)`` in normal space).
+    - The final RGB image is then resized to the SD 1.5 training square
+      (512×512 by default) using LANCZOS to preserve high-frequency detail.
+    - Output is guaranteed to be ``mode="RGB"`` so downstream ComfyUI
+      LoadImage nodes never receive an alpha channel.
+    """
+    if target_edge < 16:
+        raise ValueError("target_edge must be >= 16 (SD latent canvas floor)")
+
+    working = frame
+    if working.mode == "RGBA":
+        alpha = working.getchannel("A")
+        rgb = working.convert("RGB")
+        canvas = Image.new("RGB", working.size, matte_rgb)
+        canvas.paste(rgb, (0, 0), mask=alpha)
+        working = canvas
+    elif working.mode != "RGB":
+        working = working.convert("RGB")
+
+    if working.size != (target_edge, target_edge):
+        working = working.resize((target_edge, target_edge), resample=Image.Resampling.LANCZOS)
+    return working
+
+
+def heal_guide_sequences(
+    *,
+    source_frames: Sequence[Image.Image],
+    normal_maps: Sequence[Image.Image],
+    depth_maps: Sequence[Image.Image],
+    mask_maps: Sequence[Image.Image] | None = None,
+    target_edge: int = LATENT_EDGE,
+    max_frames: int = MAX_FRAMES,
+) -> dict[str, Any]:
+    """One-shot SESSION-189 healing applied to every guide channel.
+
+    Steps:
+    1. ``anime_rhythmic_subsample`` selects up to ``max_frames`` indices using
+       the non-linear Kan-Kyu curve.
+    2. Each selected frame is mattes + upscaled to ``target_edge`` via
+       :func:`jit_matte_and_upscale` using the channel-appropriate floor:
+
+       - Normal  → ``(128, 128, 255)`` (tangent-space zero vector)
+       - Depth   → ``(0, 0, 0)``       (far plane)
+       - Source  → ``(0, 0, 0)``       (safe default)
+       - Mask    → ``(0, 0, 0)``       (kept as L mode)
+
+    Returns a dict with healed lists and a ``report`` describing the
+    timing decisions for transparent auditing.
+    """
+    total = len(source_frames)
+    if total == 0:
+        raise ValueError("source_frames must not be empty")
+    if len(normal_maps) != total or len(depth_maps) != total:
+        raise ValueError(
+            "source_frames, normal_maps, and depth_maps must share length; "
+            f"got {len(source_frames)} / {len(normal_maps)} / {len(depth_maps)}"
+        )
+    if mask_maps is not None and len(mask_maps) != total:
+        raise ValueError(
+            f"mask_maps length {len(mask_maps)} does not match source length {total}"
+        )
+
+    indices = anime_rhythmic_subsample(total, max_frames=max_frames)
+
+    healed_source = [
+        jit_matte_and_upscale(source_frames[i], matte_rgb=SOURCE_MATTE_RGB, target_edge=target_edge)
+        for i in indices
+    ]
+    healed_normal = [
+        jit_matte_and_upscale(normal_maps[i], matte_rgb=NORMAL_MATTE_RGB, target_edge=target_edge)
+        for i in indices
+    ]
+    healed_depth = [
+        jit_matte_and_upscale(depth_maps[i], matte_rgb=DEPTH_MATTE_RGB, target_edge=target_edge)
+        for i in indices
+    ]
+
+    healed_mask: list[Image.Image] | None = None
+    if mask_maps is not None:
+        healed_mask = []
+        for i in indices:
+            raw = mask_maps[i]
+            lmode = raw.convert("L") if raw.mode != "L" else raw
+            if lmode.size != (target_edge, target_edge):
+                lmode = lmode.resize((target_edge, target_edge), resample=Image.Resampling.LANCZOS)
+            healed_mask.append(lmode)
+
+    report = {
+        "session": "SESSION-189",
+        "feature": "anime_rhythmic_subsample + jit_matte_and_upscale",
+        "input_frame_count": int(total),
+        "output_frame_count": len(indices),
+        "max_frames": int(max_frames),
+        "target_edge": int(target_edge),
+        "selected_indices": list(indices),
+        "rhythm_curve": "ease_in_out_cosine",
+        "matte_normal_rgb": list(NORMAL_MATTE_RGB),
+        "matte_depth_rgb": list(DEPTH_MATTE_RGB),
+        "matte_source_rgb": list(SOURCE_MATTE_RGB),
+    }
+
+    return {
+        "indices": list(indices),
+        "source_frames": healed_source,
+        "normal_maps": healed_normal,
+        "depth_maps": healed_depth,
+        "mask_maps": healed_mask,
+        "report": report,
+    }
+
+
+def force_override_workflow_payload(
+    workflow: dict[str, Any],
+    *,
+    target_edge: int = LATENT_EDGE,
+    max_frames: int = MAX_FRAMES,
+    cfg_ceiling: float = 4.5,
+    controlnet_strength: float = 0.55,
+    actual_batch_size: int | None = None,
+    video_frame_rate: int | None = None,
+) -> dict[str, Any]:
+    """Scan ``workflow`` by ``class_type`` (never by numeric node id) and
+    enforce the SESSION-189 latent-healing contract as a last line of
+    defence regardless of what the upstream preset produced.
+
+    Operations (all optional per node, all idempotent):
+
+    - ``EmptyLatentImage``  → ``width = height = target_edge`` and, if
+      ``actual_batch_size`` is given, ``batch_size = min(actual_batch_size,
+      max_frames)``.
+    - ``KSampler`` / ``KSamplerAdvanced`` / ``SamplerCustomAdvanced`` →
+      ``cfg = min(cfg, cfg_ceiling)`` (also ``cfg_scale`` if present).
+    - ``ControlNetApply*`` / ``ACN_SparseCtrl*`` →
+      ``strength = min(strength, controlnet_strength)`` /
+      ``motion_strength = min(motion_strength, controlnet_strength)``.
+    - ``VHS_VideoCombine`` / ``VideoCombine`` → ``frame_rate =
+      video_frame_rate`` (when supplied, e.g. 8 or 10 for anime feel).
+
+    The function returns a ``report`` dict describing every node it
+    touched so the caller can log or persist an audit trail.
+    """
+    if not isinstance(workflow, dict):
+        raise TypeError("workflow must be a dict (ComfyUI workflow_api_json).")
+
+    touched: list[dict[str, Any]] = []
+
+    for node_id, node in workflow.items():
+        if not isinstance(node, dict):
+            continue
+        class_type = str(node.get("class_type", ""))
+        inputs = node.get("inputs")
+        if not isinstance(inputs, dict):
+            continue
+
+        if class_type == "EmptyLatentImage":
+            prev_w = inputs.get("width")
+            prev_h = inputs.get("height")
+            inputs["width"] = int(target_edge)
+            inputs["height"] = int(target_edge)
+            entry = {
+                "node_id": node_id,
+                "class_type": class_type,
+                "width": [prev_w, int(target_edge)],
+                "height": [prev_h, int(target_edge)],
+            }
+            if actual_batch_size is not None:
+                prev_bs = inputs.get("batch_size")
+                inputs["batch_size"] = int(min(int(actual_batch_size), int(max_frames)))
+                entry["batch_size"] = [prev_bs, inputs["batch_size"]]
+            touched.append(entry)
+
+        elif class_type in ("KSampler", "KSamplerAdvanced", "SamplerCustomAdvanced"):
+            changed = {"node_id": node_id, "class_type": class_type}
+            for key in ("cfg", "cfg_scale"):
+                if key in inputs:
+                    try:
+                        prev = float(inputs[key])
+                    except (TypeError, ValueError):
+                        continue
+                    capped = min(prev, float(cfg_ceiling))
+                    if capped != prev:
+                        inputs[key] = capped
+                        changed[key] = [prev, capped]
+            if len(changed) > 2:
+                touched.append(changed)
+
+        elif class_type.startswith("ControlNetApply") or class_type.startswith("ACN_SparseCtrl"):
+            changed = {"node_id": node_id, "class_type": class_type}
+            for key in ("strength", "motion_strength"):
+                if key in inputs:
+                    try:
+                        prev = float(inputs[key])
+                    except (TypeError, ValueError):
+                        continue
+                    capped = min(prev, float(controlnet_strength))
+                    if capped != prev:
+                        inputs[key] = capped
+                        changed[key] = [prev, capped]
+            if len(changed) > 2:
+                touched.append(changed)
+
+        elif class_type in ("VHS_VideoCombine", "VideoCombine"):
+            if video_frame_rate is not None and "frame_rate" in inputs:
+                prev = inputs["frame_rate"]
+                inputs["frame_rate"] = int(video_frame_rate)
+                touched.append({
+                    "node_id": node_id,
+                    "class_type": class_type,
+                    "frame_rate": [prev, int(video_frame_rate)],
+                })
+
+    return {
+        "session": "SESSION-189",
+        "feature": "force_override_workflow_payload",
+        "target_edge": int(target_edge),
+        "max_frames": int(max_frames),
+        "cfg_ceiling": float(cfg_ceiling),
+        "controlnet_strength_ceiling": float(controlnet_strength),
+        "video_frame_rate": (int(video_frame_rate) if video_frame_rate is not None else None),
+        "touched_nodes": touched,
+    }
+
+
 __all__ = [
     "AntiFlickerChunk",
     "RGBSequenceExportResult",
@@ -464,4 +798,14 @@ __all__ = [
     "validate_temporal_variance",
     "assert_nonzero_temporal_variance",
     "compute_frame_hashes",
+    # SESSION-189 additions
+    "MAX_FRAMES",
+    "LATENT_EDGE",
+    "NORMAL_MATTE_RGB",
+    "DEPTH_MATTE_RGB",
+    "SOURCE_MATTE_RGB",
+    "anime_rhythmic_subsample",
+    "jit_matte_and_upscale",
+    "heal_guide_sequences",
+    "force_override_workflow_payload",
 ]
