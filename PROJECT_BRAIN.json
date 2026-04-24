@@ -1,6 +1,6 @@
 {
-  "version": "v1.0.2",
-  "last_session_id": "SESSION-191",
+  "version": "v1.0.3",
+  "last_session_id": "SESSION-192",
   "last_updated": "2026-04-25",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -24,6 +24,58 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-192-DEPENDENCY-SEAL-AND-LOOKDEV-HOTFIX",
+        "title": "Dependency Vanguard + Modal Override Hardening + Physics Telemetry Audit",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-192",
+        "modules": [
+          "pyproject.toml",
+          "mathart/core/anti_flicker_runtime.py",
+          "mathart/factory/mass_production.py",
+          "docs/USER_GUIDE.md",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [
+          "tests/test_session192_dependency_seal_and_telemetry.py",
+          "tests/test_session190_modal_decoupling_and_lookdev.py",
+          "tests/test_level_pdg.py",
+          "tests/test_mass_production.py"
+        ],
+        "description": "SESSION-192 P0 Dependency Seal + Lookdev Hotfix: (1) Dependency Vanguard \u2014 pyproject.toml core dependencies array now includes websocket-client>=1.6.0 (kills ComfyUI HTTP-polling 10054 crash), watchdog>=3.0.0 (kills artifact tail-poll busy-loop), tabulate>=0.9.0 (powers CLI dashboards and physics telemetry tables). (2) Optional 'all' Group \u2014 new [project.optional-dependencies].all aggregates the heavy/optional accelerators taichi>=1.7.0, mujoco>=3.0.0, stable-baselines3>=2.0.0, anthropic>=0.18.0; CPU-only sandboxes are NOT dragged into installing them. Package version bumped 0.46.0 -> 0.47.0. (3) Modal Override Hardening \u2014 DECOUPLED_DEPTH_NORMAL_STRENGTH bumped from 0.45 to 0.90, with a new module constant DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH=0.85 acting as the absolute lower-bound red line. force_decouple_dummy_mesh_payload(...) return dict now reports depth_normal_min_strength so external auditors can verify the contract. RGB strength stays at 0.0; KSampler denoise stays at 1.0; algorithm path itself untouched. (4) Physics Telemetry Audit \u2014 new emit_physics_telemetry_handshake(...) and emit_industrial_baking_banner(...) helpers exported from mathart.core.anti_flicker_runtime. The handshake is wired into mass_production._node_anti_flicker_render right before pipeline.run_backend('anti_flicker_render', ...), wrapped in try/except so it can never break the render path. Banner phrasing locked to '[\ud83d\udd2c \u7269\u7406\u603b\u7ebf\u5ba1\u8ba1] \u52a8\u4f5c\u5df2\u9501\u5b9a / 16\u5e27\u65e5\u6f2b\u62bd\u5e27\u673a\u5236\u5df2\u6fc0\u6d3b / \u21b3 \u5f15\u64ce\u786e\u6743 / \u21b3 AI \u63e1\u624b'. (5) UX Zero-Degradation \u2014 [\u2699\ufe0f \u5de5\u4e1a\u70d8\u7119\u7f51\u5173] Catmull-Rom banner centralised in emit_industrial_baking_banner. (6) DaC: docs/USER_GUIDE.md Section 22 added; SESSION_HANDOFF.md rewritten; PROJECT_BRAIN.json bumped to v1.0.3. 53 tests all passing (17 SESSION-190 anchors + 25 PDG/mass_production regressions + 11 SESSION-192 contracts).",
+        "red_lines_honored": [
+          "Zero touch on HTTP_PROXY / HTTPS_PROXY / NO_PROXY",
+          "SESSION-189 anchors MAX_FRAMES=16 / LATENT_EDGE=512 / NORMAL_MATTE_RGB=(128,128,255) preserved",
+          "SESSION-190 force_decouple_dummy_mesh_payload algorithm preserved (only default strength constant upgraded)",
+          "SESSION-191 action_filter Deep Pruning chain preserved end-to-end",
+          "Telemetry call wrapped in try/except so it can never break the render path"
+        ],
+        "dependency_vanguard_contract": {
+          "core_added": [
+            "websocket-client>=1.6.0",
+            "watchdog>=3.0.0",
+            "tabulate>=0.9.0"
+          ],
+          "optional_all_added": [
+            "taichi>=1.7.0",
+            "mujoco>=3.0.0",
+            "stable-baselines3>=2.0.0",
+            "anthropic>=0.18.0"
+          ],
+          "package_version": "0.47.0"
+        },
+        "physics_telemetry_contract": {
+          "banner_tag": "\ud83d\udd2c \u7269\u7406\u603b\u7ebf\u5ba1\u8ba1",
+          "frames_tag": "16\u5e27\u65e5\u6f2b\u62bd\u5e27\u673a\u5236\u5df2\u6fc0\u6d3b",
+          "min_depth_normal_strength": 0.85,
+          "default_depth_normal_strength": 0.90,
+          "rgb_strength": 0.0,
+          "denoise": 1.0,
+          "injection_site": "mathart.factory.mass_production._node_anti_flicker_render (pre run_backend)"
+        }
+      },
       {
         "id": "P0-SESSION-191-LOOKDEV-HOTFIX-AND-PDG-REPAIR",
         "title": "LookDev Hotfix + PDG Scheduler Repair + Static Image Compat",

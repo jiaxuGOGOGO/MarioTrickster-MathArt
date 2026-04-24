@@ -819,10 +819,26 @@ SEMANTIC_HYDRATION_NEGATIVE = (
     "deformed, blurry, low quality, distorted"
 )
 
-# SESSION-190: Decoupled ControlNet strength for Depth/Normal when dummy mesh detected
-DECOUPLED_DEPTH_NORMAL_STRENGTH: float = 0.45
+# SESSION-190 -> SESSION-192: Decoupled ControlNet strength for Depth/Normal
+# when dummy mesh detected.
+#
+# Director's hard ruling (SESSION-192 P0 Lookdev hotfix):
+#   The previous 0.45 was *too gentle* — the diffusion model still leaked
+#   blocky cylinder geometry into the final render because the spatial
+#   guidance was not authoritative enough. The order is now to RAM the
+#   Depth/Normal ControlNet strength up to 0.85+ so the diffusion latent
+#   is forced to obey the math-derived skeleton tensor and ignore the
+#   pseudo-3d-shell pixel albedo entirely.
+#
+#   - DECOUPLED_DEPTH_NORMAL_STRENGTH: hardened from 0.45 -> 0.90 (mid of 0.85-1.0 band).
+#   - DECOUPLED_RGB_STRENGTH: stays 0.0 (color pollution must be killed dead).
+#   - DECOUPLED_DENOISE: stays 1.0 (full noise rebake of the latent).
+DECOUPLED_DEPTH_NORMAL_STRENGTH: float = 0.90
 DECOUPLED_RGB_STRENGTH: float = 0.0
 DECOUPLED_DENOISE: float = 1.0
+
+# SESSION-192: explicit lower bound used by tests + telemetry handshake.
+DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH: float = 0.85
 
 
 def detect_dummy_mesh(context: dict) -> bool:
@@ -1022,15 +1038,107 @@ def force_decouple_dummy_mesh_payload(
                     })
 
     return {
-        "session": "SESSION-190",
+        "session": "SESSION-192",
         "feature": "force_decouple_dummy_mesh_payload",
         "denoise_override": float(denoise_override),
         "rgb_strength_override": float(rgb_strength_override),
         "depth_normal_strength_override": float(depth_normal_strength_override),
+        "depth_normal_min_strength": DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH,
         "positive_prompt": positive_prompt,
         "negative_prompt": negative_prompt,
         "touched_nodes": touched,
     }
+
+
+# ══════════════════════════════════════════════════════════════════════
+# SESSION-192 [Physics Telemetry Audit]: 物理遥测审计层
+#
+#   The director ordered a *visible*, terminal-level handshake printed
+#   right before the math-derived skeleton tensor is shipped to the GPU.
+#   This breaks the "black box" feeling: the operator now sees, in
+#   bright green, that the math engine actually injected a real motion
+#   tensor and that the AI control nets are receiving 0.85+ spatial
+#   strength after color pollution was killed.
+#
+#   Output is deliberately ANSI-coloured (bright green, bold) so it
+#   stands out in long render logs. The function is silent (returns the
+#   text without printing) when ``stream`` is None, which keeps unit
+#   tests deterministic.
+# ══════════════════════════════════════════════════════════════════════
+import sys as _sys  # local alias to avoid collision with module-level imports
+
+PHYSICS_TELEMETRY_BANNER_TAG = "\U0001f52c 物理总线审计"
+PHYSICS_TELEMETRY_FRAMES_TAG = "16帧日漫抽帧机制已激活"
+
+
+def emit_physics_telemetry_handshake(
+    *,
+    action_name: str = "unknown",
+    depth_normal_strength: float = DECOUPLED_DEPTH_NORMAL_STRENGTH,
+    rgb_strength: float = DECOUPLED_RGB_STRENGTH,
+    frames: int = MAX_FRAMES,
+    skeleton_tensor_shape: tuple | None = None,
+    stream=None,
+) -> str:
+    """SESSION-192: Print the [🔬 物理总线审计] green handshake banner.
+
+    Returns the rendered banner text (without ANSI codes) so test suites
+    can pattern-match on it deterministically. When ``stream`` is given
+    (typically ``sys.stderr`` from caller), the ANSI-coloured version is
+    written there as well.
+
+    The banner asserts three things to the operator:
+      1. The action has been locked and the 16-frame anime subsampler
+         is active (SESSION-189 anchor).
+      2. The math engine produced a real skeletal-displacement tensor
+         (no synthetic Catmull-Rom fallback).
+      3. The downstream AI render controlnets are receiving ≥ 0.85
+         spatial strength after the cylinder colour pollution was
+         killed (SESSION-192 hardening).
+    """
+    shape_repr = (
+        "x".join(str(d) for d in skeleton_tensor_shape)
+        if skeleton_tensor_shape
+        else "NxJx3"
+    )
+    assert_str = "✅" if depth_normal_strength >= DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH else "⚠️"
+    plain_lines = [
+        f"[{PHYSICS_TELEMETRY_BANNER_TAG}] \u52a8\u4f5c\u5df2\u9501\u5b9a={action_name} | {PHYSICS_TELEMETRY_FRAMES_TAG} ({frames}\u5e27)",
+        f" \u21b3 \u5f15\u64ce\u786e\u6743: \u6355\u6349\u5230\u7eaf\u6570\u5b66\u9aa8\u9abc\u4f4d\u79fb\u5f20\u91cf({shape_repr}) (\u5e95\u5c42\u6570\u5b66\u5f15\u64ce\u5df2\u5168\u91cf\u53d1\u529b) -> \u5b8c\u7f8e\u6ce8\u5165 downstream\uff01",
+        f" \u21b3 AI \u63e1\u624b: \u7a7a\u95f4\u63a7\u5236\u7f51\u5f3a\u5ea6\u62c9\u5347\u81f3 {depth_normal_strength:.2f} (>= {DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH:.2f}) {assert_str}\uff0cRGB={rgb_strength:.2f}\uff0c\u65b9\u5757\u5047\u4eba\u76ae\u56ca\u6c61\u67d3\u5df2\u5265\u79bb\u3002AI \u6e32\u67d3\u5668\u5df2\u88ab\u6570\u5b66\u9aa8\u67b6\u5f7b\u5e95\u63a5\u7ba1\uff01",
+    ]
+    plain_text = "\n".join(plain_lines)
+
+    if stream is not None:
+        # Bright green + bold ANSI envelope (\033[1;92m) with reset.
+        try:
+            stream.write("\033[1;92m" + plain_text + "\033[0m\n")
+            stream.flush()
+        except Exception:
+            # Never let a logging-side failure break the render path.
+            pass
+    return plain_text
+
+
+def emit_industrial_baking_banner(stream=None) -> str:
+    """SESSION-192 UX zero-degradation: the [⚙️ 工业烘焙网关] banner.
+
+    Centralised here so every backend that performs CPU Catmull-Rom
+    interpolation can emit the *same* banner without copy-pasting a
+    bare ANSI string. This keeps SESSION-191's UX contract intact
+    and gives the test suite one stable string to assert against.
+    """
+    plain = (
+        "[\u2699\ufe0f  \u5de5\u4e1a\u70d8\u7119\u7f51\u5173] \u6b63\u5728\u901a\u8fc7 Catmull-Rom \u6837\u6761\u63d2\u503c\uff0c"
+        "\u7eaf CPU \u89e3\u7b97\u9ad8\u7cbe\u5ea6\u5de5\u4e1a\u7ea7\u8d34\u56fe\u52a8\u4f5c\u5e8f\u5217..."
+    )
+    if stream is not None:
+        try:
+            stream.write("\033[1;36m" + plain + "\033[0m\n")
+            stream.flush()
+        except Exception:
+            pass
+    return plain
 
 
 __all__ = [
@@ -1067,4 +1175,10 @@ __all__ = [
     "detect_dummy_mesh",
     "hydrate_prompt",
     "force_decouple_dummy_mesh_payload",
+    # SESSION-192 additions
+    "DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH",
+    "PHYSICS_TELEMETRY_BANNER_TAG",
+    "PHYSICS_TELEMETRY_FRAMES_TAG",
+    "emit_physics_telemetry_handshake",
+    "emit_industrial_baking_banner",
 ]

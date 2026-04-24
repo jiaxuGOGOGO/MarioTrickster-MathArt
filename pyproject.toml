@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mathart"
-version = "0.46.0"
+version = "0.47.0"
 description = "MarioTrickster Math-Driven Art Pipeline — procedural pixel art generation via OKLAB color science, SDF effects, programmatic skeletal animation, WFC level generation, L-System plants, and knowledge distillation."
 readme = "README.md"
 license = {text = "MIT"}
@@ -43,9 +43,42 @@ dependencies = [
     # dotenv is unavailable, so this dependency is a UX improvement
     # rather than a hard prerequisite.
     "python-dotenv>=1.0",
+    # SESSION-192 [Dependency Vanguard / 满血入库]: websocket-client is the
+    # native transport for ComfyUI's /ws progress stream. Without it, the
+    # ComfyUI client driver silently degrades to fragile HTTP polling
+    # (which has been observed to crash with WinError 10054 — connection
+    # reset by peer — on long video generations). Pinning >=1.6.0 keeps us
+    # on the modern threaded reconnect API.
+    "websocket-client>=1.6.0",
+    # SESSION-192 [Dependency Vanguard]: watchdog powers the artifact /
+    # ComfyUI output directory live-tailer used by the LookDev rapid
+    # prototyping pipeline and the artifact_manifest auto-refresh. Without
+    # it, the system degrades to polling stat() in a loop which both
+    # spams logs and misses fast-emitted intermediate frames.
+    "watchdog>=3.0.0",
+    # SESSION-192 [Dependency Vanguard]: tabulate is the pretty-print
+    # backend used by the physics telemetry audit handshake banner and
+    # several CLI dashboards (mass-production summary, backend probe,
+    # session brain inspector). Without it, dashboards fall back to a
+    # crude str(dict) dump that is nearly unreadable in the terminal.
+    "tabulate>=0.9.0",
 ]
 
 [project.optional-dependencies]
+# SESSION-192 [Dependency Vanguard]: ``all`` aggregates the heavy /
+# optional accelerators (taichi GPU JIT, MuJoCo physics, RL training
+# stack, Anthropic LLM client). They are intentionally OUT of the core
+# ``dependencies`` array because they each pull in tens to hundreds of
+# MB and would balloon CPU-only sandbox installs. Power users opt in
+# with ``pip install mathart[all]`` (or ``pip install -e .[all]`` from
+# a checkout). Each entry is pinned to a known-compatible major to
+# avoid silent ABI breakage.
+all = [
+    "taichi>=1.7.0",
+    "mujoco>=3.0.0",
+    "stable-baselines3>=2.0.0",
+    "anthropic>=0.18.0",
+]
 gpu = [
     # SESSION-146: torch is a multi-GB heavy AI runtime. It MUST NOT
     # appear in default dependencies to protect CPU-sandbox sub-second

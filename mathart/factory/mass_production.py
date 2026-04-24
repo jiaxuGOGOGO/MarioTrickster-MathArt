@@ -1388,6 +1388,41 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
         source_frames, channel="source", mse_floor=0.0001,
     )
 
+    # ── SESSION-192 [Physics Telemetry Audit] ─────────────────────────
+    # Right before we hand the math-derived skeleton tensor over to the
+    # GPU diffusion render, emit the bright-green [🔬 物理总线审计] handshake
+    # banner so the operator can confirm:
+    #   1. The action lock matches what the user asked for.
+    #   2. The 16-frame anime subsampler is alive (SESSION-189 anchor).
+    #   3. The downstream ControlNets will receive >= 0.85 spatial guidance
+    #      after the cylinder colour pollution was killed.
+    try:
+        from mathart.core.anti_flicker_runtime import (
+            emit_physics_telemetry_handshake,
+            DECOUPLED_DEPTH_NORMAL_STRENGTH,
+            DECOUPLED_RGB_STRENGTH,
+        )
+        _telemetry_action = str(prepared.get("motion_state", "unknown"))
+        try:
+            _tensor_shape = tuple(np.asarray(source_frames[0]).shape) if len(source_frames) else None
+            if _tensor_shape is not None:
+                _tensor_shape = (len(source_frames),) + _tensor_shape
+        except Exception:
+            _tensor_shape = None
+        emit_physics_telemetry_handshake(
+            action_name=_telemetry_action,
+            depth_normal_strength=DECOUPLED_DEPTH_NORMAL_STRENGTH,
+            rgb_strength=DECOUPLED_RGB_STRENGTH,
+            frames=int(prepared.get("frame_count", 16)),
+            skeleton_tensor_shape=_tensor_shape,
+            stream=sys.stderr,
+        )
+    except Exception:
+        # Telemetry must never break the render path. If anything goes
+        # wrong we silently skip — the SESSION-189 hard anchors and the
+        # SESSION-190 decoupling are still in force regardless.
+        pass
+
     pipeline = AssetPipeline(output_dir=str(stage_dir), verbose=False)
     manifest = pipeline.run_backend(
         "anti_flicker_render",
