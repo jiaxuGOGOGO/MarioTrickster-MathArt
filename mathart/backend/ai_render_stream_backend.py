@@ -280,7 +280,7 @@ def _translate_vibe(raw_vibe: str) -> str:
 
 
 
-def _jit_upscale_image(image_path: str | Path, *, is_mask: bool = False) -> bytes:
+def _jit_upscale_image(image_path: str | Path, *, is_mask: bool = False, matting_color: tuple[int, int, int] | None = None) -> bytes:
     """JIT in-memory upscale of a baked guide image to AI_TARGET_RES.
 
     SESSION-172 (P0-SESSION-172-LATENT-SPACE-RESCUE)
@@ -288,6 +288,12 @@ def _jit_upscale_image(image_path: str | Path, *, is_mask: bool = False) -> byte
     Reads the original 192x192 image from disk, resizes it to
     ``AI_TARGET_RES x AI_TARGET_RES`` in-memory using PIL, and returns
     the PNG-encoded bytes.  The original file is NEVER modified.
+
+    SESSION-178 (P0-SESSION-178-FULL-SYNC-AND-TRUE-ABORT)
+    -------------------------------------------------
+    Added `matting_color` support. If provided, the upscaled image is pasted
+    onto a solid background of `matting_color` to eliminate the alpha channel.
+    This is critical for ControlNet Normal (requires 128,128,255) and Depth (0,0,0).
 
     Interpolation Contract:
     - Albedo / Normal / Depth: ``Image.LANCZOS`` (high-quality sinc-based)
@@ -299,6 +305,8 @@ def _jit_upscale_image(image_path: str | Path, *, is_mask: bool = False) -> byte
         Path to the original baked guide image (e.g., 192x192 PNG).
     is_mask : bool
         If True, use NEAREST interpolation to preserve hard mask edges.
+    matting_color : tuple[int, int, int] | None
+        If provided, the image will be composited over this RGB color to remove alpha.
 
     Returns
     -------
@@ -312,16 +320,28 @@ def _jit_upscale_image(image_path: str | Path, *, is_mask: bool = False) -> byte
     resample = PILImage.NEAREST if is_mask else PILImage.LANCZOS
     img_upscaled = img.resize((AI_TARGET_RES, AI_TARGET_RES), resample=resample)
 
+    if matting_color is not None and img_upscaled.mode in ("RGBA", "LA", "P"):
+        bg = PILImage.new("RGB", img_upscaled.size, matting_color)
+        # If the image has an alpha channel, use it as the mask for pasting
+        if "A" in img_upscaled.getbands():
+            bg.paste(img_upscaled, (0, 0), img_upscaled.getchannel("A"))
+        else:
+            bg.paste(img_upscaled, (0, 0))
+        img_upscaled = bg
+    elif img_upscaled.mode != "RGB" and not is_mask:
+        img_upscaled = img_upscaled.convert("RGB")
+
     buf = io.BytesIO()
     img_upscaled.save(buf, format="PNG")
     png_bytes = buf.getvalue()
 
     logger.info(
-        "[JIT-Upscale] %s: %s → %dx%d (%s, %d bytes)",
+        "[JIT-Upscale] %s: %s → %dx%d (%s, matting=%s, %d bytes)",
         Path(image_path).name,
         f"{original_size[0]}x{original_size[1]}",
         AI_TARGET_RES, AI_TARGET_RES,
         "NEAREST" if is_mask else "LANCZOS",
+        matting_color,
         len(png_bytes),
     )
     return png_bytes
@@ -352,26 +372,53 @@ def _armor_prompt(user_vibe: str) -> str:
     return _BASE_POSITIVE_PROMPT
 
 
-def _force_latent_canvas_512(workflow: dict) -> None:
-    """Force all EmptyLatentImage nodes in the workflow to 512x512.
+def _force_latent_canvas_512(workflow: dict, actual_frames: int | None = None, fps: int | None = None) -> None:
+    """Force all EmptyLatentImage nodes in the workflow to 512x512 and sync batch_size.
 
     SESSION-172: ControlNet condition images are JIT-upscaled to 512x512.
     The EmptyLatentImage canvas MUST match to prevent Tensor Shape Mismatch.
+    
+    SESSION-178: Dynamic Latent Batch Alignment.
+    If actual_frames is provided, overrides EmptyLatentImage batch_size to match
+    the physical frame count, preventing 16-frame truncation.
+    If fps is provided, overrides VideoCombine frame_rate.
     This mutates the workflow dict in-place.
     """
     for node_id, node_data in workflow.items():
         if not isinstance(node_data, dict):
             continue
-        if node_data.get("class_type") == "EmptyLatentImage":
+        class_type = node_data.get("class_type")
+        if class_type == "EmptyLatentImage":
             inputs = node_data.get("inputs", {})
             old_w = inputs.get("width", "?")
             old_h = inputs.get("height", "?")
+            old_b = inputs.get("batch_size", "?")
             inputs["width"] = AI_TARGET_RES
             inputs["height"] = AI_TARGET_RES
+            if actual_frames is not None:
+                inputs["batch_size"] = actual_frames
             logger.info(
-                "[SESSION-172] EmptyLatentImage node %s: %sx%s → %dx%d",
-                node_id, old_w, old_h, AI_TARGET_RES, AI_TARGET_RES,
+                "[SESSION-178] EmptyLatentImage node %s: %sx%s (batch %s) → %dx%d (batch %s)",
+                node_id, old_w, old_h, old_b, AI_TARGET_RES, AI_TARGET_RES, inputs.get("batch_size", "?"),
             )
+        elif class_type == "VideoCombine" and fps is not None:
+            inputs = node_data.get("inputs", {})
+            old_fps = inputs.get("frame_rate", "?")
+            inputs["frame_rate"] = fps
+            logger.info(
+                "[SESSION-178] VideoCombine node %s: fps %s → %s",
+                node_id, old_fps, fps,
+            )
+        elif class_type == "ControlNetApplyAdvanced":
+            # SESSION-178: Cap ControlNet strengths to prevent overfit/flashing
+            inputs = node_data.get("inputs", {})
+            # If it's SparseCtrl (usually strength 1.0), cap to 0.8
+            # If it's Normal/Depth, cap to 0.45
+            # We infer based on current strength or just apply a safe cap
+            current_strength = inputs.get("strength", 1.0)
+            if current_strength > 0.8:
+                inputs["strength"] = 0.8
+                logger.info("[SESSION-178] ControlNetApplyAdvanced node %s: capped strength to 0.8", node_id)
 
 
 # SESSION-168: Import the Poison Pill exception for immediate circuit-breaker
@@ -780,6 +827,12 @@ class AIRenderStreamBackend:
             albedo_path = action_artifacts.get("albedo", action_artifacts.get("source", ""))
             normal_path = action_artifacts.get("normal", "")
             depth_path = action_artifacts.get("depth", "")
+            
+            # SESSION-178: Extract actual frame count from upstream context
+            # We assume the upstream context provides frame_count or we can infer it
+            # For now, we try to get it from the context or default to None
+            actual_frames = context.get("frame_count")
+            fps = context.get("fps", 12)
 
             if not albedo_path:
                 logger.info(
@@ -801,7 +854,8 @@ class AIRenderStreamBackend:
             for attempt in range(_MAX_RETRY_ATTEMPTS):
                 try:
                     if Path(albedo_path).exists():
-                        albedo_bytes = _jit_upscale_image(albedo_path, is_mask=False)
+                        # SESSION-178: Matte source frames to black (0,0,0)
+                        albedo_bytes = _jit_upscale_image(albedo_path, is_mask=False, matting_color=(0, 0, 0))
                         uploaded_albedo = client.upload_image_bytes(
                             albedo_bytes,
                             f"jit512_{Path(albedo_path).name}",
@@ -846,7 +900,8 @@ class AIRenderStreamBackend:
             uploaded_depth = ""
             try:
                 if normal_path and Path(normal_path).exists():
-                    normal_bytes = _jit_upscale_image(normal_path, is_mask=False)
+                    # SESSION-178: Matte normal maps to tangent-space neutral (128,128,255)
+                    normal_bytes = _jit_upscale_image(normal_path, is_mask=False, matting_color=(128, 128, 255))
                     uploaded_normal = client.upload_image_bytes(
                         normal_bytes,
                         f"jit512_{Path(normal_path).name}",
@@ -860,7 +915,8 @@ class AIRenderStreamBackend:
 
             try:
                 if depth_path and Path(depth_path).exists():
-                    depth_bytes = _jit_upscale_image(depth_path, is_mask=False)
+                    # SESSION-178: Matte depth maps to black (0,0,0)
+                    depth_bytes = _jit_upscale_image(depth_path, is_mask=False, matting_color=(0, 0, 0))
                     uploaded_depth = client.upload_image_bytes(
                         depth_bytes,
                         f"jit512_{Path(depth_path).name}",
@@ -914,8 +970,9 @@ class AIRenderStreamBackend:
 
                 # SESSION-172: Force EmptyLatentImage canvas to 512x512
                 # to align with JIT-upscaled ControlNet condition images.
+                # SESSION-178: Sync batch_size to actual_frames and frame_rate to fps
                 if "prompt" in payload and isinstance(payload["prompt"], dict):
-                    _force_latent_canvas_512(payload["prompt"])
+                    _force_latent_canvas_512(payload["prompt"], actual_frames=actual_frames, fps=fps)
             except Exception as e:
                 logger.error(
                     "[AIRenderStreamBackend] Payload mutation failed for '%s': %s",

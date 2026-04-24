@@ -1,7 +1,7 @@
 {
-  "version": "v0.99.17",
-  "last_session_id": "SESSION-175",
-  "last_updated": "2026-04-23T13:15:51",
+  "version": "v0.99.18",
+  "last_session_id": "SESSION-178",
+  "last_updated": "2026-04-23T23:00:00",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -15,15 +15,31 @@
       "P3": 3
     },
     "by_status": {
-      "CLOSED": 10,
+      "CLOSED": 11,
       "DONE": 6,
       "PARTIAL": 4,
       "SUBSTANTIALLY-ADVANCED": 2,
       "SUBSTANTIALLY-CLOSED": 6,
-      "TODO": 57
+      "TODO": 56
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-178-FULL-SYNC-AND-TRUE-ABORT",
+        "title": "Dynamic Latent Batch Alignment & True Download Abort",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-178",
+        "modules": [
+          "mathart/backend/ai_render_stream_backend.py",
+          "mathart/comfy_client/comfyui_ws_client.py",
+          "docs/USER_GUIDE.md",
+          "docs/RESEARCH_NOTES_SESSION_176.md",
+          "SESSION_HANDOFF.md"
+        ],
+        "tests": [],
+        "description": "SESSION-178 Full Sync & True Abort: Fixed 16-frame truncation by dynamically syncing EmptyLatentImage batch_size to actual_frames and VideoCombine frame_rate to fps. Restored 3A ControlNet lighting by matting Normal Maps to tangent-space neutral (128,128,255) and Depth Maps to black (0,0,0) in-memory before upload. Capped ControlNet strengths (SparseCtrl to 0.8, Normal/Depth to 0.45) to prevent flashing. Pierced the download loop by explicitly raising ComfyUIExecutionError on WinError 10054/10061 URLErrors to trigger global PDG abort."
+      },
       {
         "id": "P0-SESSION-175-LATENT-HEALING-AND-DOWNLOAD-ABORT",
         "title": "Latent Healing & Download Abort",

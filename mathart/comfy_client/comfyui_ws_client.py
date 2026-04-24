@@ -991,6 +991,23 @@ class ComfyUIClient:
                     node_id="download:/view",
                     details=f"filename={filename}, subfolder={subfolder}, type={file_type}",
                 ) from e
+            
+            # SESSION-178: Pierce the Download Loop
+            # If the URLError contains 10054 or 10061 in its string representation,
+            # we must also treat it as a hard drop and raise ComfyUIExecutionError.
+            err_str = str(e)
+            if "10054" in err_str or "10061" in err_str:
+                logger.error(
+                    "[ComfyUIClient] URLError(hard-drop string match) while downloading %s: %s. "
+                    "Tripping circuit breaker (Poison Pill).",
+                    filename, e,
+                )
+                raise ComfyUIExecutionError(
+                    f"远端宿主下载期宕机断开: {e}",
+                    node_id="download:/view",
+                    details=f"filename={filename}, subfolder={subfolder}, type={file_type}",
+                ) from e
+
             logger.warning(
                 "[ComfyUIClient] Soft URL error downloading %s: %s", filename, e
             )
