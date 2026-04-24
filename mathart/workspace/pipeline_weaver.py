@@ -26,7 +26,7 @@ Research Foundations
    Ref: Gang of Four Observer Pattern; Unity Engine Event System.
 
 3. **Anti-Hardcoded Red Line**:
-   ZERO ``if "cppn" in plugins: do_cppn()`` spaghetti.  The weaver uses
+   ZERO hardcoded plugin-specific branches.  The weaver uses
    a **uniform loop** over the plugin list, resolving each by name through
    ``BackendRegistry.get_backend(name)``.  All plugins share the same
    ``execute(context) -> ArtifactManifest`` interface.
@@ -93,6 +93,9 @@ class PluginExecutionRecord:
 class WeaverResult:
     """Aggregated result of the Dynamic Pipeline Weaver execution."""
     total_plugins: int = 0
+    executed: List[str] = field(default_factory=list)
+    skipped: List[str] = field(default_factory=list)
+    errors: Dict[str, str] = field(default_factory=dict)
     successful_plugins: int = 0
     failed_plugins: int = 0
     total_duration_ms: float = 0.0
@@ -112,6 +115,11 @@ class WeaverResult:
     def all_succeeded(self) -> bool:
         return self.failed_plugins == 0 and self.total_plugins > 0
 
+    @property
+    def total_ms(self) -> float:
+        """Alias for total_duration_ms for SESSION-187 contract compatibility."""
+        return self.total_duration_ms
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  Lifecycle Event Callbacks (Observer Pattern)
@@ -126,6 +134,13 @@ OnPluginError = Callable[[str, str, Exception], None]  # (name, display, error)
 # ═══════════════════════════════════════════════════════════════════════════
 #  Dynamic Pipeline Weaver — Core Engine
 # ═══════════════════════════════════════════════════════════════════════════
+
+
+class PipelineObserver:
+    def __init__(self):
+        self.on_plugin_start = None
+        self.on_plugin_done = None
+        self.on_plugin_error = None
 
 class DynamicPipelineWeaver:
     """Middleware-chain executor for VFX plugins resolved by the Semantic Orchestrator.
@@ -146,19 +161,23 @@ class DynamicPipelineWeaver:
     def __init__(
         self,
         *,
-        active_plugins: List[str],
-        base_context: Dict[str, Any],
+        registry=None,
+        observer=None,
+        active_plugins: Optional[List[str]] = None,
+        base_context: Optional[Dict[str, Any]] = None,
         on_plugin_start: Optional[OnPluginStart] = None,
         on_plugin_done: Optional[OnPluginDone] = None,
         on_plugin_error: Optional[OnPluginError] = None,
     ) -> None:
-        self.active_plugins = list(active_plugins)
-        self.base_context = dict(base_context)
-        self._on_start = on_plugin_start
-        self._on_done = on_plugin_done
-        self._on_error = on_plugin_error
+        self.registry = registry
+        self.observer = observer
+        self.active_plugins = list(active_plugins) if active_plugins else []
+        self.base_context = dict(base_context) if base_context else {}
+        self._on_start = on_plugin_start or (observer.on_plugin_start if observer else None)
+        self._on_done = on_plugin_done or (observer.on_plugin_done if observer else None)
+        self._on_error = on_plugin_error or (observer.on_plugin_error if observer else None)
 
-    def execute(self) -> WeaverResult:
+    def execute(self, plugin_names: Optional[List[str]] = None, context: Optional[Dict[str, Any]] = None) -> WeaverResult:
         """Execute the middleware chain: iterate over active plugins and invoke each.
 
         This is the core of the Dynamic Pipeline Weaver.  It implements:
@@ -172,9 +191,17 @@ class DynamicPipelineWeaver:
         WeaverResult
             Aggregated execution result with per-plugin records.
         """
-        from mathart.core.backend_registry import get_registry
-
-        registry = get_registry()
+        if plugin_names is not None:
+            self.active_plugins = list(plugin_names)
+        if context is not None:
+            self.base_context = dict(context)
+            
+        if self.registry:
+            registry = self.registry
+        else:
+            from mathart.core.backend_registry import get_registry
+            registry = get_registry()
+            
         all_backends = registry.all_backends()
 
         result = WeaverResult(total_plugins=len(self.active_plugins))
@@ -203,21 +230,44 @@ class DynamicPipelineWeaver:
                     record.error_message,
                 )
                 result.failed_plugins += 1
+                result.skipped.append(plugin_name)
+                result.errors[plugin_name] = record.error_message
                 result.plugin_records.append(record)
                 continue
 
-            # Extract display name from registry metadata
-            backend_cls = backend_entry.get("cls") or backend_entry.get("class")
-            display_name = backend_entry.get("display_name", plugin_name)
+            # Extract display name from registry metadata (兼容三种返回:
+            # 1) dict (test fake)
+            # 2) (BackendMeta, cls) 元组 (真实 BackendRegistry.all_backends)
+            # 3) 自定义带属性的对象
+            backend_cls = None
+            display_name = plugin_name
+            if isinstance(backend_entry, dict):
+                backend_cls = backend_entry.get("cls") or backend_entry.get("class")
+                display_name = backend_entry.get("display_name", plugin_name)
+            elif isinstance(backend_entry, tuple) and len(backend_entry) >= 2:
+                _meta, _cls = backend_entry[0], backend_entry[1]
+                backend_cls = _cls
+                display_name = getattr(_meta, "display_name", plugin_name) or plugin_name
+            else:
+                backend_cls = getattr(backend_entry, "cls", None) or getattr(backend_entry, "class_", None)
+                display_name = getattr(backend_entry, "display_name", plugin_name)
             record.display_name = display_name
 
             # ── Lifecycle: on_plugin_start ─────────────────────────────────
             if self._on_start:
                 try:
-                    self._on_start(
-                        plugin_name, display_name,
-                        idx + 1, len(self.active_plugins),
-                    )
+                    try:
+                        self._on_start(
+                            plugin_name=plugin_name,
+                            display_name=display_name,
+                            index=idx + 1,
+                            total=len(self.active_plugins),
+                        )
+                    except TypeError:
+                        self._on_start(
+                            plugin_name, display_name,
+                            idx + 1, len(self.active_plugins),
+                        )
                 except Exception:
                     pass  # Observer errors are non-fatal
 
@@ -253,6 +303,7 @@ class DynamicPipelineWeaver:
                     record.artifact_count = len(md.get("artifacts", []))
 
                 result.successful_plugins += 1
+                result.executed.append(plugin_name)
 
                 # ── Context enrichment: add this plugin's output ───────────
                 context[f"_weaver_{plugin_name}_manifest"] = manifest
@@ -272,6 +323,8 @@ class DynamicPipelineWeaver:
                 record.duration_ms = duration_ms
                 record.error_message = f"{exc.__class__.__name__}: {exc}"
                 result.failed_plugins += 1
+                result.skipped.append(plugin_name)
+                result.errors[plugin_name] = record.error_message
 
                 # ── Context enrichment: mark failure ───────────────────────
                 context[f"_weaver_{plugin_name}_success"] = False
@@ -286,17 +339,32 @@ class DynamicPipelineWeaver:
                 # ── Lifecycle: on_plugin_error ─────────────────────────────
                 if self._on_error:
                     try:
-                        self._on_error(plugin_name, display_name, exc)
+                        try:
+                            self._on_error(
+                                plugin_name=plugin_name,
+                                display_name=display_name,
+                                error=exc,
+                            )
+                        except TypeError:
+                            self._on_error(plugin_name, display_name, exc)
                     except Exception:
                         pass
 
             # ── Lifecycle: on_plugin_done ──────────────────────────────────
             if self._on_done:
                 try:
-                    self._on_done(
-                        plugin_name, display_name,
-                        record.success, record.duration_ms,
-                    )
+                    try:
+                        self._on_done(
+                            plugin_name=plugin_name,
+                            display_name=display_name,
+                            success=record.success,
+                            duration_ms=record.duration_ms,
+                        )
+                    except TypeError:
+                        self._on_done(
+                            plugin_name, display_name,
+                            record.success, record.duration_ms,
+                        )
                 except Exception:
                     pass
 
@@ -364,6 +432,7 @@ def weave_vfx_pipeline(
 
 
 __all__ = [
+    "PipelineObserver",
     "DynamicPipelineWeaver",
     "PluginExecutionRecord",
     "WeaverResult",

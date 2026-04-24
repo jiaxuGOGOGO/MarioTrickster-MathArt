@@ -351,7 +351,23 @@ def resolve_active_vfx_plugins(
     return resolve_vfx_plugins_from_vibe(raw_vibe, registered_keys)
 
 
+
+class SemanticOrchestrator:
+    """Class-based API for VFX plugin resolution as expected by tests."""
+    
+    def resolve_vfx_plugins(self, raw_intent: dict, vibe: str, registry) -> list[str]:
+        registered_keys = set(registry.all_backends().keys())
+        llm_suggested = raw_intent.get("active_vfx_plugins", None)
+        
+        if llm_suggested:
+            validated = validate_llm_vfx_plugins(llm_suggested, registered_keys)
+            if validated:
+                return validated
+                
+        return resolve_vfx_plugins_from_vibe(vibe, registered_keys)
+
 __all__ = [
+    "SemanticOrchestrator",
     "SEMANTIC_VFX_TRIGGER_MAP",
     "VFX_PLUGIN_CAPABILITIES",
     "build_vfx_system_prompt_injection",

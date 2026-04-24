@@ -501,7 +501,14 @@ def _print_main_menu(
 
     if _backend_names:
         output_fn(f"\033[90m    \u2514\u2500 \u53ef\u7528\u9ed1\u79d1\u6280\u7b97\u5b50: {', '.join(_backend_names[:8])}{'...' if len(_backend_names) > 8 else ''}\033[0m")
-
+    # ── SESSION-187: 工业中枢震撼播报 ─────────────────────────
+    _arsenal = ', '.join(_vfx_plugins) if _vfx_plugins else 'CPPN, Fluid, VAT (默认)'
+    output_fn("")
+    output_fn("\033[1;35m  [\U0001f6e1\ufe0f \u5de5\u4e1a\u4e2d\u67a2 \u00b7 \u9632\u7206\u6c99\u76d2 \u00b7 \u9ed1\u79d1\u6280\u6302\u8f7d]\033[0m")
+    output_fn(f"\033[90m    \u251c\u2500 \u77e5\u8bc6\u603b\u7ebf\u5df2\u8f7d\u5165 {_kb_constraints} \u6761\u8d28\u91cf\u7ea2\u7ebf\u4e0e\u7ea6\u675f\u89c4\u5219\033[0m")
+    output_fn(f"\033[90m    \u251c\u2500 \u9632\u7206\u6c99\u76d2\uff1a{_enforcer_count} \u4e2a\u6267\u6cd5\u5668 + {_backend_count} \u4e2a\u63d2\u4ef6 \u00b7 \u4e8b\u4ef6\u5fea\u8857\u7ec4\u88c5\u5f85\u547d\033[0m")
+    output_fn(f"\033[90m    \u2514\u2500 \u9ed1\u79d1\u6280\u63d2\u4ef6\u5e93\uff1a{_arsenal}\033[0m")
+    output_fn("\033[1;35m  [\U0001f680 \u5f15\u64ce\u5c31\u7eea] \u652f\u6301\u5168\u81ea\u7136\u8bed\u8a00\u8bed\u4e49\u63a8\u6f14\u3001GIF \u89c6\u89c9\u4e34\u6479\u53ca VFX \u52a8\u6001\u7f1d\u5408\uff01\033[0m")
     output_fn("")
     output_fn("\u8bf7\u9009\u62e9\u5f53\u524d\u5de5\u4f5c\u6a21\u5f0f\uff1a")
     for item in dispatcher.available_modes():
@@ -960,6 +967,51 @@ def _dispatch_mass_production(
     elif hasattr(spec, "to_dict"):
         _vibe_str = str(spec.to_dict().get("raw_vibe", ""))
 
+    # ── SESSION-187: Dynamic Pipeline Weaver (VFX Stitching) ───────────────
+    # [动态渲染总线无缝缝合] 拦截系统确认预演后，进入真实投喂给渲染后端的核心流水线。
+    # 读取 LLM 吐出的 active_vfx_plugins 列表，触发解算，将特效作为特征并入推流。
+    _vfx_artifacts = {}
+    if hasattr(spec, "active_vfx_plugins") and spec.active_vfx_plugins:
+        output_fn(
+            f"\n\033[1;35m[🎬 SESSION-187 动态缝合器] 正在执行 {len(spec.active_vfx_plugins)} 个 VFX 插件...\033[0m"
+        )
+        try:
+            from mathart.workspace.pipeline_weaver import weave_vfx_pipeline
+            
+            def _on_vfx_start(plugin_name, display_name, index, total):
+                output_fn(f"\033[90m    ↳ [{index}/{total}] 启动 {display_name} ({plugin_name})...\033[0m")
+                
+            def _on_vfx_done(plugin_name, display_name, success, duration_ms):
+                status = "\033[1;32m成功\033[0m" if success else "\033[1;31m失败(已跳过)\033[0m"
+                output_fn(f"\033[90m    ↳ 完成 {display_name} — {status} ({duration_ms:.1f}ms)\033[0m")
+                
+            def _on_vfx_error(plugin_name, display_name, error):
+                output_fn(f"\033[1;33m    ↳ [Warning] {display_name} 异常: {error} (管线继续)\033[0m")
+
+            weaver_result = weave_vfx_pipeline(
+                active_plugins=spec.active_vfx_plugins,
+                output_dir=project_root / "outputs" / "production" / "vfx_cache",
+                extra_context={
+                    "vibe": _vibe_str,
+                    "flat_params": final_genotype.flat_params() if hasattr(final_genotype, "flat_params") else {}
+                },
+                on_plugin_start=_on_vfx_start,
+                on_plugin_done=_on_vfx_done,
+                on_plugin_error=_on_vfx_error,
+            )
+            
+            if weaver_result.executed:
+                output_fn(f"\033[1;32m[✅ VFX 缝合完毕] 成功执行 {len(weaver_result.executed)} 个插件，耗时 {weaver_result.total_ms:.1f}ms\033[0m")
+            if weaver_result.skipped:
+                output_fn(f"\033[1;33m[⚠️ VFX 降级] 跳过 {len(weaver_result.skipped)} 个失败插件\033[0m")
+                
+            # 将 VFX 产物注入到后续的 production context 中
+            _vfx_artifacts = weaver_result.to_dict() if hasattr(weaver_result, "to_dict") else {}
+            
+        except Exception as _vfx_err:
+            logger.warning("[CLI] VFX Weaver failed entirely: %s", _vfx_err, exc_info=True)
+            output_fn(f"\033[1;33m[⚠️ VFX 缝合器异常] {_vfx_err} (主渲染管线将携基础数据继续执行)\033[0m")
+
     # ── SESSION-164: Precise Exception Catching ────────────────────────────
     # [精准化容灾拦截对接] 将宽泛的 try...except 精准绑定到 SESSION-161
     # ComfyUIClient 真实抛出的网络异常和 SESSION-162 的 MSE 自爆异常。
@@ -983,6 +1035,8 @@ def _dispatch_mass_production(
                 ),
                 # [SESSION-164 意图穿透] vibe 原封不动注入
                 "vibe": _vibe_str,
+                # [SESSION-187 VFX 缝合] 注入 VFX 产物
+                "vfx_artifacts": _vfx_artifacts,
             },
             execute=True,
         )
@@ -1266,7 +1320,7 @@ def _run_director_studio(
         # 加载已有动作骨架后，允许用户输入全新的画风 Prompt，
         # 覆盖上下文原有的 vibe 参数，实现"动作骨架完美复用，画风自由剥离与替换"。
         reskin_vibe = standard_text_prompt(
-            "🎨 骨架已加载！请输入全新画风描述 (Prompt Vibe，如"赛博朋克风"，回车沿用旧设定): ",
+            '🎨 骨架已加载！请输入全新画风描述 (Prompt Vibe，如"赛博朋克风"，回车沿用旧设定): ',
             input_fn=input_fn, output_fn=output_fn, allow_empty=True,
         )
         if reskin_vibe:

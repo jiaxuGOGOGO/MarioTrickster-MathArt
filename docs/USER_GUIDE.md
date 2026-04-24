@@ -1602,3 +1602,71 @@ active_vfx_plugins:
    ```bash
    python -m pytest tests/test_session187_semantic_orchestrator.py -v
    ```
+
+### 17.9 SESSION-187+：量产链 VFX 缝合闭环 (Mass-Production VFX Stitch Closure)
+
+> **本节是 SESSION-187 的真实闭环补丁**，回应"拦截系统确认预演后真实投喂"的诉求。
+
+#### 17.9.1 缝合切入点
+
+`mathart/cli_wizard.py::_dispatch_mass_production` 在唤醒 `ProductionStrategy` **之前**新增一段 SESSION-187 VFX 缝合循环：
+
+1. 读取 `spec.active_vfx_plugins`（来自 SESSION-187 语义编排器）；
+2. 调用 `mathart.workspace.pipeline_weaver.weave_vfx_pipeline(...)` 执行**统一中间件链**；
+3. 三个 lifecycle 回调 (`on_plugin_start/done/error`) 实时打印科幻终端遥测；
+4. 把 `WeaverResult.to_dict()` 作为 `vfx_artifacts` 注入到 `dispatcher.dispatch("production", options=...)` 的 options 字典；
+5. ProductionStrategy 与下游 ComfyUIClient 可以从 options 中拿到 `vfx_artifacts`，作为推流前置特征。
+
+```python
+weaver_result = weave_vfx_pipeline(
+    active_plugins=spec.active_vfx_plugins,
+    output_dir=project_root / "outputs" / "production" / "vfx_cache",
+    extra_context={"vibe": _vibe_str, "flat_params": ...},
+    on_plugin_start=_on_vfx_start,
+    on_plugin_done=_on_vfx_done,
+    on_plugin_error=_on_vfx_error,
+)
+options["vfx_artifacts"] = weaver_result.to_dict()
+```
+
+#### 17.9.2 BackendRegistry 兼容协议
+
+为了让 `weaver` 既能在测试中用 dict-fake registry，也能在生产中用真实 `BackendRegistry`（其 `all_backends()` 返回 `dict[str, tuple[BackendMeta, Type]]`），weaver 现支持三种 backend 条目格式自动识别：
+
+| 条目类型 | 来源 | 解析方式 |
+|---|---|---|
+| `dict` | 测试 fake | `entry["cls"]` / `entry["display_name"]` |
+| `tuple(BackendMeta, Type)` | 真实 BackendRegistry | `entry[1]` / `entry[0].display_name` |
+| 自定义对象 | 第三方扩展 | `getattr(entry, "cls"/"display_name", ...)` |
+
+同时 `BackendRegistry` 新增了 `get_meta(name) -> BackendMeta | None` 兼容方法，供 SESSION-186 学术挖矿/合成 backend 测试与诊断脚本调用。
+
+#### 17.9.3 工业中枢震撼播报 (Startup Banner Upgrade)
+
+主菜单的健康仪表盘后追加一段 SESSION-187 工业中枢震撼播报：
+
+```
+  [🛡️ 工业中枢 · 防爆沙盒 · 黑科技挂载]
+    ├─ 知识总线已载入 N 条质量红线与约束规则
+    ├─ 防爆沙盒：M 个执法器 + K 个插件 · 事件飓街组装待命
+    └─ 黑科技插件库：cppn_texture, fluid_momentum, vat_high_precision...
+  [🚀 引擎就绪] 支持全自然语言语义推演、GIF 视觉临摹及 VFX 动态缝合！
+```
+
+#### 17.9.4 验收清单 (Closed-Loop Acceptance)
+
+```bash
+# 测试 SESSION-185/186/187 + Director Studio Blueprint 全部通过
+python3 -m pytest \
+  tests/test_session185_cppn_and_fluid.py \
+  tests/test_session186_miner_and_synth.py \
+  tests/test_session187_semantic_orchestrator.py \
+  tests/test_director_studio_blueprint.py -q
+# Expected: 94 passed
+```
+
+预期：
+- SESSION-185 文档断言已升级为 `last_session_id ≥ SESSION-185` 的渐进性约束（不再硬编码版本号）；
+- SESSION-186 `BackendRegistry.get_meta()` 已可直接调用；
+- SESSION-187 编排器与缝合器全部 19 个 contract test 通过；
+- 量产链在 spec 携带 `active_vfx_plugins` 时会真实执行 VFX 解算，并把产物随 `vfx_artifacts` 注入推流。

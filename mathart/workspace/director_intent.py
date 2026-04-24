@@ -473,18 +473,22 @@ class CreatorIntentSpec:
     active_vfx_plugins: List[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
+        _genotype = getattr(self, "genotype", None)
+        _rules = getattr(self, "applied_knowledge_rules", None) or []
+        _conflicts = getattr(self, "knowledge_conflicts", None) or []
+        _vfx = getattr(self, "active_vfx_plugins", None) or []
         return {
-            "genotype": self.genotype.to_dict(),
-            "base_blueprint_path": self.base_blueprint_path,
-            "evolve_variants": self.evolve_variants,
-            "freeze_locks": list(self.freeze_locks),
-            "raw_vibe": self.raw_vibe,
-            "raw_description": self.raw_description,
-            "intent_id": self.intent_id,
-            "applied_knowledge_rules": [r.to_dict() for r in self.applied_knowledge_rules],
-            "knowledge_conflicts": [c.to_dict() for c in self.knowledge_conflicts],
-            "knowledge_grounded": self.knowledge_grounded,
-            "active_vfx_plugins": list(self.active_vfx_plugins),
+            "genotype": _genotype.to_dict() if _genotype else {},
+            "base_blueprint_path": getattr(self, "base_blueprint_path", ""),
+            "evolve_variants": getattr(self, "evolve_variants", 0),
+            "freeze_locks": list(getattr(self, "freeze_locks", []) or []),
+            "raw_vibe": getattr(self, "raw_vibe", getattr(self, "vibe", "")),
+            "raw_description": getattr(self, "raw_description", getattr(self, "description", "")),
+            "intent_id": getattr(self, "intent_id", ""),
+            "applied_knowledge_rules": [r.to_dict() for r in _rules],
+            "knowledge_conflicts": [c.to_dict() for c in _conflicts],
+            "knowledge_grounded": getattr(self, "knowledge_grounded", False),
+            "active_vfx_plugins": list(_vfx),
         }
 
     @classmethod

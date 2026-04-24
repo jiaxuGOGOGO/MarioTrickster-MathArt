@@ -342,6 +342,22 @@ class BackendRegistry:
         """Return a copy of all registered backends."""
         return dict(self._backends)
 
+    def get_meta(self, name: str) -> BackendMeta | None:
+        """SESSION-186 兼容接口：返回指定 backend 的 BackendMeta。
+
+        Returns ``None`` if the backend is not registered (no exception),
+        keeping the API friendlier for diagnostic / introspection callers.
+        """
+        try:
+            canonical_name = backend_type_value(name)
+        except Exception:
+            canonical_name = str(name)
+        entry = self._backends.get(canonical_name)
+        if entry is None:
+            return None
+        meta, _cls = entry
+        return meta
+
     def resolve_dependencies(self, name: str) -> list[str]:
         """Topological sort of backend dependencies (BFS).
 
