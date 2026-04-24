@@ -465,6 +465,13 @@ class CreatorIntentSpec:
     knowledge_conflicts: List[KnowledgeConflict] = field(default_factory=list)
     knowledge_grounded: bool = False
 
+    # SESSION-187: Semantic Orchestrator — LLM-driven VFX plugin activation.
+    # This list contains validated backend type names that should be activated
+    # during the rendering pipeline.  Populated by the SemanticOrchestrator
+    # after intent parsing (heuristic or LLM-based resolution).
+    # [幻觉防呆红线] Only contains names validated against BackendRegistry.
+    active_vfx_plugins: List[str] = field(default_factory=list)
+
     def to_dict(self) -> dict:
         return {
             "genotype": self.genotype.to_dict(),
@@ -477,6 +484,7 @@ class CreatorIntentSpec:
             "applied_knowledge_rules": [r.to_dict() for r in self.applied_knowledge_rules],
             "knowledge_conflicts": [c.to_dict() for c in self.knowledge_conflicts],
             "knowledge_grounded": self.knowledge_grounded,
+            "active_vfx_plugins": list(self.active_vfx_plugins),
         }
 
     @classmethod
@@ -494,6 +502,7 @@ class CreatorIntentSpec:
             applied_knowledge_rules=rules,
             knowledge_conflicts=conflicts,
             knowledge_grounded=d.get("knowledge_grounded", False),
+            active_vfx_plugins=list(d.get("active_vfx_plugins", [])),
         )
 
 
@@ -565,6 +574,31 @@ class DirectorIntentParser:
         # Step 5: Derivation controls
         spec.evolve_variants = int(raw.get("evolve_variants", 0))
         spec.freeze_locks = list(raw.get("freeze_locks", []))
+
+        # Step 6 (SESSION-187): Semantic VFX Plugin Resolution
+        # Resolve which VFX plugins should be activated based on the user's
+        # natural-language vibe.  Uses the SemanticOrchestrator which performs
+        # heuristic keyword matching with hallucination guard filtering.
+        try:
+            from .semantic_orchestrator import resolve_active_vfx_plugins
+            llm_suggested = raw.get("active_vfx_plugins", None)
+            spec.active_vfx_plugins = resolve_active_vfx_plugins(
+                raw_vibe=spec.raw_vibe,
+                llm_suggested=llm_suggested,
+            )
+            if spec.active_vfx_plugins:
+                logger.info(
+                    "[DirectorIntent] SESSION-187 VFX plugins resolved: %s",
+                    spec.active_vfx_plugins,
+                )
+        except Exception as _vfx_err:
+            # Graceful degradation: VFX resolution failure is non-fatal
+            logger.warning(
+                "[DirectorIntent] SESSION-187 VFX plugin resolution failed "
+                "(graceful degradation): %s",
+                _vfx_err,
+            )
+            spec.active_vfx_plugins = []
 
         return spec
 

@@ -1,135 +1,130 @@
 # SESSION HANDOFF
 
-**Current Session:** SESSION-186
+**Current Session:** SESSION-187
 **Date:** 2026-04-24
 **Status:** CLOSED
 **Priority:** P0
 
 ## 1. 核心目标 (Core Objectives)
 
-- [x] **P0-SESSION-186-AUTONOMOUS-MINER-AND-POLICY-SYNTHESIZER**: 实现自主学术矿工、策略执法者自动合成器与零信任沙盒动态加载三大子系统。
-- [x] **唤醒学术矿工 Academic Miner Backend**: 为 `paper_miner.py` 及 `community_sources.py` 编写 Adapter 层 `academic_miner_backend.py`，通过 `@register_backend` 注册，实现微内核反射自动发现。
-- [x] **自动化策略执法者生成器 Auto-Enforcer Synthesizer**: 读取学术 JSON → 调用 LLM API → 生成 `EnforcerBase` 子类 → AST 校验 → 落盘 `auto_generated/`。
-- [x] **沙盒防爆与隐式动态加载**: 实现 `sandbox_enforcer_loader.py`，SHA-256 完整性指纹 + AST 预校验 + 隔离机制。
-- [x] **外网参考研究**: Agentic RAG for Scientific Literature、Policy-as-Code Auto-Synthesis、Zero-Trust Dynamic Loading。
-- [x] **UX 防腐蚀**: 科幻烘焙 Banner 保持、知识网关高亮信息保持、USER_GUIDE.md Section 16 同步更新。
-- [x] **DaC 文档契约**: 全量文档更新，傻瓜验收指引编写。
+- [x] **P0-SESSION-187-SEMANTIC-ORCHESTRATOR-UNIFICATION**: 语义编排器大一统 — 将 LLM 意图解析、VFX 插件动态缝合、工业级 CLI 仪表盘三大子系统统一为完整的语义编排管线。
+- [x] **升级 Director Studio 意图解析器**: 为 `CreatorIntentSpec` 新增 `active_vfx_plugins` 字段，在 `parse_dict()` 中新增 Step 6 VFX Plugin Resolution。
+- [x] **新建语义编排器 (Semantic Orchestrator)**: 实现 LLM 路径 + 启发式路径双轨 VFX 插件解析，含幻觉防呆集合交集过滤。
+- [x] **新建动态管线缝合器 (Dynamic Pipeline Weaver)**: 中间件链模式执行 VFX 插件序列，零硬编码分支，含 Observer 生命周期事件。
+- [x] **CLI 主控台仪表盘重构**: `_print_main_menu()` 升级为系统健康仪表盘，启动时扫描知识总线、执法者、微内核插件、VFX 算子。
+- [x] **外网参考研究**: LLM Orchestrator Patterns、Pipeline Middleware Architecture、CLI Dashboard UX、Hallucination Guard。
+- [x] **UX 防腐蚀**: VFX 缝合 Banner 显示、菜单标注更新、科幻烘焙 Banner 保持。
+- [x] **DaC 文档契约**: USER_GUIDE.md Section 17、DaC_CONTRACT_SESSION_187.md、研究笔记。
 
-## 2. 大白话汇报：老大，学术矿工、策略执法者合成器和沙盒防爆加载器已全面接入！
+## 2. 大白话汇报：老大，语义编排器大一统已全面落地！
 
-### 📚 学术矿工 (Academic Paper Miner)
+### 🎬 语义编排器 (Semantic Orchestrator)
 
-老大，解耦手术已完成！现在系统可以自主检索 arXiv、PapersWithCode、GitHub 等学术源，提取物理/动画相关论文并序列化为结构化 JSON。
+老大，解耦手术已完成！现在系统可以根据用户的自然语言描述（vibe），**自动识别并激活**对应的 VFX 特效插件。不需要用户手动选择后端，也不需要硬编码 `if "cppn"` 分支。
 
-学术矿工已经通过 SESSION-183 的反射机制**自动出现**在 `[6] 🔬 黑科技实验室` 的候选项中。我们**没有动 cli_wizard.py 或 laboratory_hub.py 一行代码**！纯靠微内核反射自动感知。
+语义编排器实现了**双轨解析**：
+- **LLM 路径**：如果 LLM 在意图解析时建议了 `active_vfx_plugins` 数组，编排器会通过**集合交集**过滤掉幻觉名称，只保留 BackendRegistry 中真实存在的插件。
+- **启发式路径**：如果没有 LLM 建议，编排器会扫描 vibe 关键词（如"纹理"→ CPPN、"水花"→ Fluid、"VAT"→ VAT），自动匹配对应插件。
 
-进入实验室后，选择 `Academic Paper Miner (P0-SESSION-186)` 即可执行：
-- 通过 `MathPaperMiner.mine()` 检索学术论文
-- 通过 `CommunitySourceRegistry.search_all()` 聚合社区资源
-- 指数退避策略 (base=1s, multiplier=2x, jitter=random, max=30s) 应对 API 限流
-- 断路器模式：持续失败后自动切换 Mock 保底数据 (3 篇预设物理论文)
-- 所有实验输出隔离在 `workspace/laboratory/academic_miner/`
+### 🔗 动态管线缝合器 (Dynamic Pipeline Weaver)
 
-### 🤖 策略执法者合成器 (Auto-Enforcer Synthesizer)
+老大，管线已缝合！`DynamicPipelineWeaver` 采用**中间件链模式**执行 VFX 插件序列：
+- 统一 `for` 循环遍历 `active_vfx_plugins`，**零 if/elif 硬编码分支**
+- 通过 `BackendRegistry.get_backend(name)` 反射获取插件实例
+- 每个插件独立执行，失败的插件被记录并**跳过**，不中断管线
+- Observer 模式提供 `on_plugin_start` / `on_plugin_done` / `on_plugin_error` 生命周期事件
 
-老大，解耦手术已完成！现在系统可以读取学术 JSON，调用 LLM API (gpt-4.1-mini) 自动生成 `EnforcerBase` 子类。
+### 📊 CLI 主控台仪表盘
 
-策略执法者合成器同样通过反射机制**自动出现**在实验室菜单中。当 LLM API 不可用时，后端会自动使用确定性 AST 模板生成保底 Enforcer。
-
-进入实验室后，选择 `Auto-Enforcer Synthesizer (P0-SESSION-186)` 即可执行：
-- 读取学术论文 JSON，提取物理约束和方程
-- 调用 LLM API 生成 Policy-as-Code Python 代码
-- 严格 AST 校验：禁止 `import os/sys/eval/exec/open`
-- 结构完整性校验：必须包含 `name/source_docs/validate` 方法
-- 校验通过后写入 `mathart/quality/gates/auto_generated/`
-- 所有实验报告隔离在 `workspace/laboratory/auto_enforcer_synth/`
-
-### 🔒 沙盒防爆加载器 (Zero-Trust Sandbox Loader)
-
-老大，防线已部署！`sandbox_enforcer_loader.py` 实现了三重安全机制：
-1. **AST 预校验**：每个 `.py` 文件在 `importlib.import_module()` 之前必须通过 `ast_sanitizer.validate_enforcer_code()` 校验
-2. **SHA-256 完整性指纹**：记录每个成功加载文件的哈希值，后续加载时检测篡改
-3. **隔离机制**：校验失败的文件移入 `quarantine/` 子目录，永不导入
-4. **加载清单**：每次加载循环后写入 `load_manifest.json`，记录加载/隔离/跳过统计
+老大，仪表盘已上线！主菜单不再是简单的选项列表，而是一个**工业级系统健康仪表盘**：
+- 启动时自动扫描知识总线容量、活跃执法者数量、微内核插件数量、VFX 特效算子
+- `[5]` 标注为 `(全自动生产模式 + VFX 缝合)`
+- `[6]` 标注为 `(独立沙盒空跑测试)`
 
 ## 3. 本次修改的全部文件清单
 
 | 文件 | 操作 | 说明 |
 |------|------|------|
-| `mathart/core/academic_miner_backend.py` | **新增** | 学术矿工 Adapter 层 (~400行) |
-| `mathart/core/auto_enforcer_synth_backend.py` | **新增** | 策略执法者合成器 Adapter 层 (~500行) |
-| `mathart/core/backend_types.py` | **修改** | 新增 `ACADEMIC_MINER` 和 `AUTO_ENFORCER_SYNTH` 枚举值及别名 |
-| `mathart/core/backend_registry.py` | **修改** | 在 `get_registry()` 中新增两个后端的 auto-load 入口 |
-| `mathart/quality/gates/sandbox_enforcer_loader.py` | **新增** | Zero-Trust 动态加载器 (~250行) |
-| `docs/USER_GUIDE.md` | **修改** | 新增 Section 16 (SESSION-186) |
-| `docs/RESEARCH_NOTES_SESSION_186.md` | **新增** | 外网参考研究笔记 (Agentic RAG, Policy-as-Code, Zero-Trust) |
-| `tests/test_session186_miner_and_synth.py` | **新增** | SESSION-186 闭环测试套件 |
+| `mathart/workspace/semantic_orchestrator.py` | **新增** | 语义编排器：LLM/启发式双轨 VFX 插件解析 (~250行) |
+| `mathart/workspace/pipeline_weaver.py` | **新增** | 动态管线缝合器：中间件链模式执行 VFX 插件 (~300行) |
+| `mathart/workspace/director_intent.py` | **修改** | CreatorIntentSpec 新增 `active_vfx_plugins` 字段 + parse_dict Step 6 |
+| `mathart/cli_wizard.py` | **修改** | `_print_main_menu()` 升级为系统健康仪表盘 + VFX 缝合 Banner |
+| `docs/USER_GUIDE.md` | **修改** | 新增 Section 17 (SESSION-187 语义编排器大一统) |
+| `docs/DaC_CONTRACT_SESSION_187.md` | **新增** | DaC 文档契约 |
+| `docs/RESEARCH_NOTES_SESSION_187.md` | **新增** | 外网参考研究笔记 (LLM Orchestrator, Pipeline Middleware, Dashboard UX, Hallucination Guard) |
+| `tests/test_session187_semantic_orchestrator.py` | **新增** | SESSION-187 闭环测试套件 (~300行) |
 | `SESSION_HANDOFF.md` | **覆写** | 本文档 |
-| `PROJECT_BRAIN.json` | **修改** | 追加 SESSION-186 记录 |
+| `PROJECT_BRAIN.json` | **修改** | 追加 SESSION-187 记录 |
 
 ## 4. 严格红线遵守情况
 
 | 红线 | 状态 | 说明 |
 |------|------|------|
-| **防恶意投毒** | ✅ 100% 遵守 | 禁止 `import os/sys/eval/exec/open`，AST 校验 100% 拦截，黑名单函数全覆盖 |
-| **网络限流与断网降级** | ✅ 100% 遵守 | 指数退避 Retry Backoff + Mock 保底逻辑，系统永不死锁 |
-| **隐式动态加载** | ✅ 100% 遵守 | 禁止修改 `cli_wizard.py` 硬编码，纯反射自动发现 |
-| **零修改内部逻辑** | ✅ 100% 遵守 | 不触碰 `MathPaperMiner._search_arxiv()` 或 `CommunitySourceRegistry.search_all()` 内部 |
-| **零污染生产保险库** | ✅ 100% 遵守 | 所有输出隔离在 `workspace/laboratory/` 沙盒 |
-| **前端零感知** | ✅ 100% 遵守 | `cli_wizard.py` 和 `laboratory_hub.py` 未动一行 |
-| **强类型契约** | ✅ 100% 遵守 | 返回标准 `ArtifactManifest`，声明 `artifact_family` 和 `backend_type` |
-| **UX 防腐蚀** | ✅ 100% 遵守 | 科幻烘焙 Banner 保持，知识网关高亮信息保持 |
-| **DaC 文档契约** | ✅ 100% 遵守 | USER_GUIDE.md Section 16 已同步 |
+| **Anti-Hardcoded** | ✅ 100% 遵守 | 统一循环 + 注册表反射，零 `if "cppn"` 分支 |
+| **幻觉防呆** | ✅ 100% 遵守 | `set intersection` + WARNING 日志，LLM 幻觉名称被丢弃 |
+| **Graceful Degradation** | ✅ 100% 遵守 | 失败插件跳过，管线不中断，Observer 记录错误 |
+| **Zero-Trunk-Modification** | ✅ 100% 遵守 | 新模块独立注入，不修改 `microkernel_orchestrator.py` |
+| **UX 零退化** | ✅ 100% 遵守 | 仪表盘增强，不删除任何已有功能，科幻烘焙 Banner 保持 |
+| **DaC 文档契约** | ✅ 100% 遵守 | USER_GUIDE.md Section 17 + DaC_CONTRACT_SESSION_187.md |
+| **前端零感知** | ✅ 100% 遵守 | `laboratory_hub.py` 未动一行 |
+| **强类型契约** | ✅ 100% 遵守 | `WeaverResult` 数据类返回执行/跳过/错误统计 |
 
 ## 5. 外网参考研究落地情况
 
 | 参考资料 | 落地方式 |
 |---------|---------|
-| **Singh et al. (2025) "Agentic RAG" arXiv:2501.09136** | 学术矿工自主检索 + 多源聚合 + 相关性评分架构 |
-| **AWS Builder's Library: Exponential Backoff and Jitter** | 指数退避策略 (base=1s, multiplier=2x, jitter=random, max=30s) |
-| **Netflix Hystrix Circuit Breaker** | 持续失败后自动切换 Mock 保底数据 |
-| **OPA (Open Policy Agent) Policy-as-Code** | 结构化知识 → 可执行 Python Enforcer 自动合成 |
-| **Sîrbu (2025) "Code Generation with LLMs"** | LLM 生成代码 → AST 语法树校验 → 黑名单拦截 |
-| **TwoSixTech (2022) "Hijacking the AST to Safely Handle Untrusted Python"** | AST 节点遍历 + 黑名单函数拦截 + 结构完整性校验 |
-| **NIST SP 800-204B Zero-Trust Architecture** | 预导入 AST 校验 + SHA-256 完整性指纹 + 隔离机制 |
+| **Xu et al. (2026) "LLM as Orchestrator" arXiv:2603.22862** | LLM 输出 `active_vfx_plugins` 数组 → 集合交集过滤 |
+| **Azure AI Agent Patterns (2026)** | 编排器 → 插件选择 → 执行的三阶段模式 |
+| **ASP.NET Core Middleware Pipeline (2026)** | 中间件链模式：`for plugin in chain: plugin.execute(context)` |
+| **Martin Fowler IoC / Dependency Injection (2004)** | BackendRegistry 作为 IoC 容器，反射获取插件实例 |
+| **Google SRE "Four Golden Signals" (2024)** | 系统健康仪表盘：延迟/流量/错误/饱和度 → 知识总线/执法者/插件/VFX |
+| **DEV Community "Manage CLI Health" (2026)** | 启动时全域扫描 + 状态树形展示 |
+| **Dex CLI TUI Mode (Mintlify, 2026)** | 终端仪表盘 UI 设计参考 |
+| **LangDAG (GitHub) Hallucination Guard** | DAG 结构化输出 + 集合交集验证 |
+| **Daunis (2025) arXiv:2512.19769** | LLM 幻觉检测与缓解策略 |
 
 ## 6. 傻瓜验收指引
 
-老大，学术矿工、策略执法者合成器和沙盒防爆加载器已全面接入！请按以下步骤验收：
+老大，语义编排器大一统已全面落地！请按以下步骤验收：
 
 ### 验收步骤
 
-1. **反射发现验收**：进入 `[6] 🔬 黑科技实验室`，确认以下两个后端出现在候选列表中：
-   - `Academic Paper Miner (P0-SESSION-186)`
-   - `Auto-Enforcer Synthesizer (P0-SESSION-186)`
+1. **仪表盘验收**：运行 `mathart`，确认主菜单显示系统健康仪表盘：
+   - 知识总线容量（模块数 / 约束条目数）
+   - 活跃执法者数量
+   - 微内核插件数量
+   - VFX 特效算子列表
 
-2. **学术矿工验收**：在实验室中选择 Academic Miner 后端执行，确认 `workspace/laboratory/academic_miner/` 目录下生成：
-   - `academic_papers.json` — 结构化学术论文数据
-   - `mining_session.json` — 挖矿会话元数据
-   - `academic_miner_execution_report.json` — 执行报告
+2. **VFX 解析验收**：在导演工坊中输入 vibe `"赛博朋克风，挥刀水花"`，确认终端显示：
+   ```
+   [🎬 SESSION-187 语义缝合器] 已激活 VFX 特效插件链：
+       [1] cppn_texture_evolution
+       [2] fluid_momentum_controller
+   ```
 
-3. **策略合成器验收**：在实验室中选择 Auto-Enforcer Synthesizer 后端执行，确认：
-   - `mathart/quality/gates/auto_generated/` 目录下生成 `*_enforcer.py` 文件
-   - `workspace/laboratory/auto_enforcer_synth/enforcer_synthesis_report.json` 生成
+3. **菜单标注验收**：确认 `[5]` 标注为 `(全自动生产模式 + VFX 缝合)`，`[6]` 标注为 `(独立沙盒空跑测试)`
 
-4. **AST 安全验收**：确认生成的 Enforcer 文件不包含 `import os`、`eval()`、`exec()` 等危险调用
+4. **新增文件验收**：确认以下文件存在：
+   - `mathart/workspace/semantic_orchestrator.py`
+   - `mathart/workspace/pipeline_weaver.py`
+   - `docs/RESEARCH_NOTES_SESSION_187.md`
+   - `docs/DaC_CONTRACT_SESSION_187.md`
 
-5. **沙盒隔离验收**：确认 `output/production/` 目录未被创建或修改
-
-6. **测试验收**：运行以下命令确认测试通过：
+5. **测试验收**：运行以下命令确认测试通过：
    ```bash
-   python -m pytest tests/test_session186_miner_and_synth.py -v
+   python -m pytest tests/test_session187_semantic_orchestrator.py -v
    ```
 
 ## 7. 下一步建议 (Next Session Recommendations)
 
 | 优先级 | 建议 | 说明 |
 |--------|------|------|
-| P1 | 端到端全链路集成测试 | 学术矿工 → 合成器 → 加载器 → 执法网关全链路自动化 |
-| P1 | LLM API 真实调用测试 | 在有 API Key 的环境下测试 gpt-4.1-mini 真实生成效果 |
-| P2 | 学术矿工真实网络测试 | 在有网络的环境下测试 arXiv/GitHub 真实检索 |
-| P2 | 生成 Enforcer 质量评估 | 对比 LLM 生成 vs 模板生成的 Enforcer 质量差异 |
-| P3 | 知识蒸馏闭环集成 | 将学术矿工输出接入 OuterLoopDistiller 实现全自动知识蒸馏 |
+| P0 | VFX 管线端到端集成测试 | 从 vibe 输入 → VFX 解析 → 插件执行 → 产物落盘全链路验证 |
+| P1 | LLM 真实调用 VFX 建议测试 | 在有 API Key 环境下测试 LLM 路径的 VFX 插件建议质量 |
+| P1 | 管线缝合器与量产系统集成 | 将 `DynamicPipelineWeaver` 接入 `_dispatch_mass_production` 流程 |
+| P2 | VFX 插件热加载 | 支持运行时动态注册新 VFX 插件，无需重启 |
+| P2 | 仪表盘实时刷新 | 在子流程执行期间实时更新仪表盘状态 |
+| P3 | VFX 插件依赖图 | 支持插件间依赖声明，自动拓扑排序执行顺序 |
 
 ### 7.1 架构就绪度评估
 
@@ -147,22 +142,25 @@
 - ✅ Academic Paper Miner 已接入（SESSION-186）
 - ✅ Auto-Enforcer Synthesizer 已接入（SESSION-186）
 - ✅ Zero-Trust Sandbox Loader 已部署（SESSION-186）
-- ⬜ 端到端全链路集成测试待实现
-- ⬜ LLM 真实调用效果待验证
-- ⬜ 知识蒸馏闭环集成待实现
+- ✅ Semantic Orchestrator 已接入（SESSION-187）
+- ✅ Dynamic Pipeline Weaver 已接入（SESSION-187）
+- ✅ CLI System Health Dashboard 已上线（SESSION-187）
+- ⬜ VFX 管线端到端集成测试待实现
+- ⬜ LLM 真实调用 VFX 建议待验证
+- ⬜ 管线缝合器与量产系统集成待实现
 
 ### 7.2 三层进化循环现状
 
-SESSION-186 完成后，三层进化循环的闭合状态：
+SESSION-187 完成后，三层进化循环的闭合状态：
 
 | 层级 | 状态 | 说明 |
 |------|------|------|
 | **内层：参数进化** | ✅ 已闭合 | 遗传算法 + 蓝图繁衍 + Physics-Gait 最优参数种子 + CPPN 基因组变异 |
 | **中层：知识蒸馏** | ✅ 已闭合 | 外部文献 → 规则 → SandboxValidator 防爆门 → CompiledParameterSpace |
-| **外层：架构自省** | ✅ 已闭合 | 微内核反射 + 注册表自发现 + 零代码挂载 + 学术矿工自主检索 + 策略执法者自动合成 |
+| **外层：架构自省** | ✅ 已闭合 | 微内核反射 + 注册表自发现 + 零代码挂载 + 语义编排器 + VFX 动态缝合 |
 
 ---
 
-**执行者**: Manus AI (SESSION-186)
-**研究笔记**: `docs/RESEARCH_NOTES_SESSION_186.md`
-**审计报告**: `docs/DORMANT_FEATURES_AUDIT.md`
+**执行者**: Manus AI (SESSION-187)
+**研究笔记**: `docs/RESEARCH_NOTES_SESSION_187.md`
+**DaC 契约**: `docs/DaC_CONTRACT_SESSION_187.md`

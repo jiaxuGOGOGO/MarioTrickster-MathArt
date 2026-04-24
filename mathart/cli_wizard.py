@@ -431,14 +431,84 @@ def _print_main_menu(
     *,
     output_fn: Callable[[str], None],
 ) -> None:
+    """SESSION-187: System Health & Arsenal Audit Dashboard.
+
+    Upgraded from a simple menu to an industrial-grade startup dashboard
+    that performs a full-domain asset scan before presenting the menu.
+
+    Research: Google SRE "Four Golden Signals" dashboard pattern;
+    DEV Community (2026) "Manage the health of your CLI tools at scale";
+    Dex CLI TUI Mode (Mintlify, 2026) terminal dashboard design.
+    """
+    # ── SESSION-187: System Health & Arsenal Audit ─────────────────────────
+    # Perform a lightweight scan of knowledge bus, enforcer registry, and
+    # backend registry to display system health at startup.
+    _kb_modules = 0
+    _kb_constraints = 0
+    _enforcer_count = 0
+    _backend_count = 0
+    _backend_names: list = []
+    _vfx_plugins: list = []
+
+    # Knowledge Bus capacity
+    try:
+        from mathart.workspace.knowledge_bus_factory import build_project_knowledge_bus
+        from pathlib import Path as _P
+        _bus = build_project_knowledge_bus(project_root=_P.cwd())
+        if _bus is not None:
+            _summary = _bus.refresh() if hasattr(_bus, "refresh") else {}
+            _kb_modules = _summary.get("module_count", len(getattr(_bus, "compiled_spaces", {}) or {}))
+            _kb_constraints = _summary.get("constraint_count", 0)
+    except Exception:
+        pass
+
+    # Active enforcers
+    try:
+        from mathart.quality.gates.enforcer_registry import get_enforcer_registry
+        _reg = get_enforcer_registry()
+        _enforcer_count = len(_reg.list_all())
+    except Exception:
+        pass
+
+    # Backend registry (microkernel plugins)
+    try:
+        from mathart.core.backend_registry import get_registry
+        _br = get_registry()
+        _all = _br.all_backends()
+        _backend_count = len(_all)
+        _backend_names = sorted(_all.keys())
+        # Identify VFX-capable plugins
+        from mathart.workspace.semantic_orchestrator import VFX_PLUGIN_CAPABILITIES
+        _vfx_plugins = [n for n in VFX_PLUGIN_CAPABILITIES if n in _all]
+    except Exception:
+        pass
+
     output_fn("")
-    output_fn("=" * 60)
-    output_fn("  MarioTrickster-MathArt · 顶层交互向导主菜单")
-    output_fn("=" * 60)
-    output_fn("请选择当前工    for item in dispatcher.available_modes():
+    output_fn("\033[1;36m" + "\u2550" * 60 + "\033[0m")
+    output_fn("\033[1;36m  MarioTrickster-MathArt \u00b7 \u5de5\u4e1a\u7ea7\u4ea4\u4e92\u5411\u5bfc\u4e3b\u63a7\u53f0\033[0m")
+    output_fn("\033[1;36m" + "\u2550" * 60 + "\033[0m")
+
+    # System Health Dashboard
+    output_fn("")
+    output_fn("\033[1;33m  [\u2699\ufe0f  \u7cfb\u7edf\u5065\u5eb7\u4eea\u8868\u76d8]\033[0m")
+    output_fn(f"\033[90m    \u251c\u2500 \u77e5\u8bc6\u603b\u7ebf\u5bb9\u91cf: {_kb_modules} \u6a21\u5757 / {_kb_constraints} \u7ea6\u675f\u6761\u76ee\033[0m")
+    output_fn(f"\033[90m    \u251c\u2500 \u6d3b\u8dc3\u6267\u6cd5\u8005: {_enforcer_count} \u4e2a\u77e5\u8bc6\u6267\u6cd5\u5668\u5df2\u52a0\u8f7d\033[0m")
+    output_fn(f"\033[90m    \u251c\u2500 \u5fae\u5185\u6838\u63d2\u4ef6: {_backend_count} \u4e2a\u540e\u7aef\u5df2\u6ce8\u518c\033[0m")
+    if _vfx_plugins:
+        output_fn(f"\033[90m    \u2514\u2500 VFX \u7279\u6548\u7b97\u5b50: {', '.join(_vfx_plugins)}\033[0m")
+    else:
+        output_fn("\033[90m    \u2514\u2500 VFX \u7279\u6548\u7b97\u5b50: (\u672a\u68c0\u6d4b\u5230)\033[0m")
+
+    if _backend_names:
+        output_fn(f"\033[90m    \u2514\u2500 \u53ef\u7528\u9ed1\u79d1\u6280\u7b97\u5b50: {', '.join(_backend_names[:8])}{'...' if len(_backend_names) > 8 else ''}\033[0m")
+
+    output_fn("")
+    output_fn("\u8bf7\u9009\u62e9\u5f53\u524d\u5de5\u4f5c\u6a21\u5f0f\uff1a")
+    for item in dispatcher.available_modes():
         output_fn(f"  [{item['index']}] {item['label']}")
-    output_fn("  [6] \U0001f52c 黑科技实验室 (Microkernel Hub)")
-    output_fn("  [0] \U0001f6aa 退出系统")
+    output_fn("  [5] \U0001f3ac \u8bed\u4e49\u5bfc\u6f14\u5de5\u574a (\u5168\u81ea\u52a8\u751f\u4ea7\u6a21\u5f0f + VFX \u7f1d\u5408)")
+    output_fn("  [6] \U0001f52c \u9ed1\u79d1\u6280\u5b9e\u9a8c\u5ba4 (\u72ec\u7acb\u6c99\u76d2\u7a7a\u8dd1\u6d4b\u8bd5)")
+    output_fn("  [0] \U0001f6aa \u9000\u51fa\u7cfb\u7edf")
 def _run_interactive_shell(
     *,
     input_fn: Callable[[str], str],
@@ -1274,8 +1344,31 @@ def _run_director_studio(
             logger.info("[CLI] Visual Distillation physics override applied to spec")
         except Exception as _override_err:
             logger.warning("[CLI] Physics override application failed: %s", _override_err)
+    # ── SESSION-187: VFX Plugin Resolution Banner ───────────────────────────
+    # After intent parsing, display which VFX plugins were activated by the
+    # Semantic Orchestrator.  This is the user-facing confirmation of the
+    # LLM/heuristic plugin selection.
+    if hasattr(spec, "active_vfx_plugins") and spec.active_vfx_plugins:
+        output_fn("")
+        output_fn("\033[1;35m" + "\u2550" * 60 + "\033[0m")
+        output_fn(
+            "\033[1;35m[\U0001f3ac SESSION-187 \u8bed\u4e49\u7f1d\u5408\u5668] "
+            "\u5df2\u6fc0\u6d3b VFX \u7279\u6548\u63d2\u4ef6\u94fe\uff1a\033[0m"
+        )
+        for _vfx_idx, _vfx_name in enumerate(spec.active_vfx_plugins, 1):
+            output_fn(
+                f"\033[90m    [{_vfx_idx}] {_vfx_name}\033[0m"
+            )
+        output_fn("\033[1;35m" + "\u2550" * 60 + "\033[0m")
+    else:
+        output_fn("")
+        output_fn(
+            "\033[90m[SESSION-187 \u8bed\u4e49\u7f1d\u5408\u5668] "
+            "\u672c\u6b21\u610f\u56fe\u672a\u89e6\u53d1\u4efb\u4f55 VFX \u7279\u6548\u63d2\u4ef6\033[0m"
+        )
+
     output_fn("")
-    output_fn("✅ 意图解析完成，进入白模预演...")
+    output_fn("\u2705 \u610f\u56fe\u89e3\u6790\u5b8c\u6210\uff0c\u8fdb\u5165\u767d\u6a21\u9884\u6f14...")
 
     # Step 2: Interactive preview gate (reuse the same knowledge bus).
     gate = InteractivePreviewGate(

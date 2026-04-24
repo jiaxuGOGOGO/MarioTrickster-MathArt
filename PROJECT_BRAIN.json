@@ -1,6 +1,6 @@
 {
-  "version": "v0.99.23",
-  "last_session_id": "SESSION-186",
+  "version": "v0.99.24",
+  "last_session_id": "SESSION-187",
   "last_updated": "2026-04-24",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -24,6 +24,29 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-187-SEMANTIC-ORCHESTRATOR-UNIFICATION",
+        "title": "Semantic Orchestrator Unification — VFX Pipeline Weaving & Industrial Dashboard",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-187",
+        "modules": [
+          "mathart/workspace/semantic_orchestrator.py",
+          "mathart/workspace/pipeline_weaver.py",
+          "mathart/workspace/director_intent.py",
+          "mathart/cli_wizard.py",
+          "docs/USER_GUIDE.md",
+          "docs/DaC_CONTRACT_SESSION_187.md",
+          "docs/RESEARCH_NOTES_SESSION_187.md",
+          "tests/test_session187_semantic_orchestrator.py",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [
+          "tests/test_session187_semantic_orchestrator.py"
+        ],
+        "description": "SESSION-187 Semantic Orchestrator Unification: (1) New SemanticOrchestrator (mathart/workspace/semantic_orchestrator.py) — dual-track VFX plugin resolution via LLM path (set intersection hallucination guard) and heuristic path (SEMANTIC_VFX_TRIGGER_MAP keyword matching). VFX_PLUGIN_CAPABILITIES registry maps known VFX backends (cppn_texture_evolution, fluid_momentum_controller, high_precision_vat). Hallucination guard: all LLM-suggested plugin names validated against BackendRegistry.all_backends().keys() via strict set intersection. (2) New DynamicPipelineWeaver (mathart/workspace/pipeline_weaver.py) — Middleware Chain Pattern execution of VFX plugin sequences. ZERO if/elif hardcoded branches. Unified for-loop iterates active_vfx_plugins, reflectively fetches plugin instances from BackendRegistry, executes each with shared context dict. Failed plugins logged and skipped (Graceful Degradation). Observer Pattern lifecycle events: on_plugin_start, on_plugin_done, on_plugin_error. WeaverResult dataclass returns executed/skipped/errors/total_ms. (3) CreatorIntentSpec upgraded with active_vfx_plugins: list[str] field. DirectorIntentParser.parse_dict() Step 6 invokes SemanticOrchestrator.resolve_vfx_plugins(). to_dict()/from_dict() serialization round-trip verified. (4) CLI _print_main_menu() upgraded to industrial System Health Dashboard — startup scan of knowledge bus capacity, active enforcers, microkernel plugins, VFX operators. Menu labels updated: [5] Director Studio (全自动生产模式 + VFX 缝合), [6] Laboratory (独立沙盒空跑测试). (5) VFX Stitching Banner displayed after intent parsing when active_vfx_plugins non-empty. (6) Research grounding: Xu et al. 2026 LLM-as-Orchestrator arXiv:2603.22862, Azure AI Agent Patterns 2026, ASP.NET Core Middleware Pipeline, Martin Fowler IoC/DI 2004, Google SRE Four Golden Signals, DEV Community CLI Health 2026, Dex CLI TUI Mode Mintlify 2026, LangDAG hallucination guard, Daunis 2025 arXiv:2512.19769. (7) All red lines strictly observed: Anti-Hardcoded (zero if/elif plugin branches), Hallucination Guard (set intersection filtering), Graceful Degradation (failed plugins skipped), Zero-Trunk-Modification (no changes to microkernel_orchestrator.py), UX Zero-Regression (dashboard enhancement, no feature removal), DaC Contract (USER_GUIDE Section 17 + DaC_CONTRACT_SESSION_187.md)."
+      },
       {
         "id": "P0-SESSION-185-PROCEDURAL-VFX-AND-TEXTURE-REVIVAL",
         "title": "CPPN Texture Evolution Engine & Fluid Momentum VFX Controller Revival",
