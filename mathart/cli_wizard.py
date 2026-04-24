@@ -1174,11 +1174,11 @@ def _run_director_studio(
             input_fn=input_fn, output_fn=output_fn,
         )
         raw_intent["base_blueprint"] = bp_path
-        # ── SESSION-179: Style Retargeting (无缝动静解耦换皮) ──────────
+        # ── SESSION-179/180: Style Retargeting (无缝动静解耦换皮) ──────────
         # 加载已有动作骨架后，允许用户输入全新的画风 Prompt，
         # 覆盖上下文原有的 vibe 参数，实现"动作骨架完美复用，画风自由剥离与替换"。
         reskin_vibe = standard_text_prompt(
-            "🎨 换皮模式：输入全新画风 Prompt (如: 赛博朋克风格, 水墨画风; 留空=保留原蓝图风格)",
+            "🎨 骨架已加载！请输入全新画风描述 (Prompt Vibe，如"赛博朋克风"，回车沿用旧设定): ",
             input_fn=input_fn, output_fn=output_fn, allow_empty=True,
         )
         if reskin_vibe:

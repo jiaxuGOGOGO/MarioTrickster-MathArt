@@ -673,9 +673,9 @@ class InteractivePreviewGate:
         if save_choice not in ("Y", "YES"):
             return None
 
-        # SESSION-179: Blueprint Vault — Custom Naming with Timestamp Fallback
+        # SESSION-179/180: Blueprint Vault — Custom Naming with Timestamp Fallback
         name = self.input_fn(
-            "请为蓝图命名 (如 heavy_jump_v1, 留空则使用时间戳自动生成): "
+            "[💾] 请为这个动作命名: "
         ).strip()
         if not name:
             import datetime
