@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .state_vault import resolve_state_path
 from ..animation.unity_urp_native import (
     UnityURP2DNativePipelineGenerator,
     XPBDVATBakeConfig,
@@ -154,7 +155,7 @@ def collect_unity_urp_2d_status(project_root: str | Path) -> UnityURP2DStatus:
         root / "tests/test_unity_urp_native.py",
     ]
     knowledge_path = root / "knowledge/unity_urp_2d_rules.md"
-    state_path = root / ".unity_urp_2d_state.json"
+    state_path = resolve_state_path(root, ".unity_urp_2d_state.json")
 
     tracked_exports: list[str] = []
     if module_path.exists():
@@ -209,13 +210,13 @@ def collect_unity_urp_2d_status(project_root: str | Path) -> UnityURP2DStatus:
 class UnityURP2DEvolutionBridge:
     """Three-layer bridge for Unity URP 2D native sprite/VAT integration."""
 
-    STATE_FILE = ".unity_urp_2d_state.json"
+    STATE_FILE = "unity_urp_2d_state.json"
     KNOWLEDGE_FILE = "knowledge/unity_urp_2d_rules.md"
 
     def __init__(self, project_root: str | Path, verbose: bool = True) -> None:
         self.project_root = Path(project_root)
         self.verbose = verbose
-        self.state_path = self.project_root / self.STATE_FILE
+        self.state_path = resolve_state_path(self.project_root, self.STATE_FILE)
         self.knowledge_path = self.project_root / self.KNOWLEDGE_FILE
         self.state = self._load_state()
 

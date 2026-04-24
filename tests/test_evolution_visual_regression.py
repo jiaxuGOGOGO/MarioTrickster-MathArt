@@ -256,7 +256,7 @@ class TestPersistence:
 
     def test_state_file_created(self, bridge, passing_audit_report, project_root):
         bridge.evaluate_visual_regression(passing_audit_report)
-        state_file = project_root / ".visual_regression_state.json"
+        state_file = project_root / "workspace" / "evolution_states" / "visual_regression_state.json"
         assert state_file.exists()
         data = json.loads(state_file.read_text())
         assert data["total_audit_cycles"] == 1

@@ -12,6 +12,7 @@ The public class and report fields remain stable so older callers continue to
 work, but the implementation no longer centralizes hard-coded business logic.
 """
 from __future__ import annotations
+from .state_vault import resolve_state_path
 
 import json
 import time
@@ -175,7 +176,7 @@ class EvolutionState:
 class EvolutionOrchestrator:
     """Compatibility facade for the Golden Path federated evolution stack."""
 
-    STATE_FILE = ".evolution_orchestrator_state.json"
+    STATE_FILE = "evolution_orchestrator_state.json"
 
     def __init__(
         self,
@@ -185,7 +186,7 @@ class EvolutionOrchestrator:
     ) -> None:
         self.root = Path(project_root) if project_root else Path.cwd()
         self.verbose = verbose
-        self.state_path = self.root / self.STATE_FILE
+        self.state_path = resolve_state_path(self.root, self.STATE_FILE)
         self.state = self._load_state()
 
     def _load_state(self) -> EvolutionState:

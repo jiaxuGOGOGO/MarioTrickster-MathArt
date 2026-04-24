@@ -636,7 +636,7 @@ class TestTerrainSensorEvolutionBridge:
             }]
             bridge.evaluate_terrain_sensor(diagnostics)
 
-            state_path = os.path.join(tmpdir, ".terrain_sensor_state.json")
+            state_path = os.path.join(tmpdir, "workspace", "evolution_states", "terrain_sensor_state.json")
             assert os.path.exists(state_path)
 
             # Reload and verify

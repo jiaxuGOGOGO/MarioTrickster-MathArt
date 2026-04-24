@@ -1,4 +1,4 @@
-"""SESSION-050 — Runtime Distillation Bus for data-oriented rule execution.
+"""SESSION-050 / SESSION-177 — Runtime Distillation Bus for data-oriented rule execution.
 
 This module closes Gap A2 by turning the repository's existing knowledge
 pipeline — ``KnowledgeParser`` → ``KnowledgeRule`` → ``RuleCompiler`` →
@@ -11,11 +11,25 @@ The core idea is deliberately data-oriented:
 3. Lower those constraints into dense numeric vectors and generated evaluators.
 4. JIT-compile hot-path rule checks with Numba when available.
 
+SESSION-177 Dual-Track Bus Integration
+--------------------------------------
+The bus now implements a **Unified Persistence Bus** architecture:
+- **Track 1 (External LLM Knowledge)**: ``knowledge/*.md`` parsed through
+  ``KnowledgeParser`` → ``RuleCompiler`` → ``ParameterSpace`` (original path).
+- **Track 2 (Internal GA Evolution States)**: ``workspace/evolution_states/*.json``
+  loaded through ``StateVault.load_all_vault_states()`` and mounted as
+  ``evolution_states`` on the bus instance.
+
+Both tracks merge into a single in-memory bus, making it the Single Source of
+Truth for all downstream consumers. Legacy hidden state files in the project
+root are automatically migrated to the vault on bus initialization.
+
 This lets high-frequency loops consume compact arrays and compiled closures
 instead of repeatedly walking Python dictionaries and string keys.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
@@ -26,6 +40,8 @@ import numpy as np
 
 from .compiler import ParameterSpace, RuleCompiler
 from .parser import KnowledgeParser
+
+_logger = logging.getLogger(__name__)
 
 try:  # pragma: no cover - optional dependency path
     from numba import njit
@@ -571,6 +587,9 @@ class RuntimeDistillationBus:
         self.runtime_programs: dict[str, RuntimeRuleProgram] = {}
         self.benchmark_reports: list[dict[str, Any]] = []
         self.last_refresh_summary: dict[str, Any] = {}
+        # SESSION-177: Dual-Track — evolution state vault integration
+        self.evolution_states: dict[str, Any] = {}
+        self._migrate_and_mount_evolution_states()
 
     def _pick_backend(self) -> str:
         for backend in self.backend_preference:
@@ -618,6 +637,60 @@ class RuntimeDistillationBus:
         self.last_refresh_summary["benchmark_reports"] = list(self.benchmark_reports[-8:])
         return normalized
 
+    def _migrate_and_mount_evolution_states(self) -> None:
+        """SESSION-177: Auto-migrate legacy root state files and mount vault.
+
+        This method is called during ``__init__`` to:
+        1. Run the lossless hot migration (move hidden state files from root to vault).
+        2. Load all vault JSON states into ``self.evolution_states``.
+
+        The migration is idempotent — if the root is already clean, it's a no-op.
+        Any failure is caught and logged without crashing the bus.
+        """
+        try:
+            from mathart.evolution.state_vault import (
+                migrate_legacy_states,
+                load_all_vault_states,
+            )
+            # Phase 1: Migrate any remaining legacy files
+            manifest = migrate_legacy_states(self.project_root)
+            if manifest:
+                _logger.info(
+                    "[RuntimeDistillationBus] SESSION-177 hot migration: "
+                    "%d legacy state file(s) moved to vault.",
+                    len(manifest),
+                )
+            # Phase 2: Mount all vault states
+            self.evolution_states = load_all_vault_states(self.project_root)
+            if self.evolution_states:
+                _logger.info(
+                    "[RuntimeDistillationBus] SESSION-177 dual-track: "
+                    "mounted %d evolution state module(s) from vault.",
+                    len(self.evolution_states),
+                )
+        except Exception as exc:
+            _logger.warning(
+                "[RuntimeDistillationBus] SESSION-177 vault mount failed "
+                "(non-fatal, bus continues without evolution states): %s",
+                exc,
+            )
+            self.evolution_states = {}
+
+    def get_evolution_state(self, module_name: str) -> Optional[dict[str, Any]]:
+        """Retrieve a specific evolution state by module name.
+
+        Parameters
+        ----------
+        module_name:
+            The module name, e.g. ``"phase3_physics"`` or ``"gait_blend"``.
+
+        Returns
+        -------
+        dict | None
+            The deserialized JSON state, or ``None`` if not found.
+        """
+        return self.evolution_states.get(module_name)
+
     def refresh_from_knowledge(self) -> dict[str, Any]:
         if not self.knowledge_dir.exists():
             self.last_refresh_summary = {
@@ -631,12 +704,17 @@ class RuntimeDistillationBus:
         rules = self.parser.parse_directory(self.knowledge_dir)
         spaces = self.compiler.compile_by_module(rules)
         self.register_spaces(spaces)
+        # SESSION-177: Re-mount evolution states on refresh
+        self._migrate_and_mount_evolution_states()
         summary = {
             "knowledge_dir": str(self.knowledge_dir),
             "knowledge_files": len(list(self.knowledge_dir.glob("*.md"))) + len(list(self.knowledge_dir.glob("*.json"))),
             "module_count": len(self.compiled_spaces),
             "constraint_count": int(sum(space.dimensions for space in self.compiled_spaces.values())),
             "backend": self._pick_backend(),
+            # SESSION-177: Report dual-track status
+            "evolution_state_modules": len(self.evolution_states),
+            "evolution_state_keys": list(self.evolution_states.keys()),
         }
         self.last_refresh_summary = summary
         return dict(summary)
@@ -886,6 +964,9 @@ class RuntimeDistillationBus:
         return {
             **self.last_refresh_summary,
             "program_count": len(self.runtime_programs),
+            # SESSION-177: Dual-track status in summary
+            "evolution_state_modules": len(self.evolution_states),
+            "dual_track_active": len(self.evolution_states) > 0,
         }
 
 

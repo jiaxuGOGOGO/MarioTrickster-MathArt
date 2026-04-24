@@ -30,6 +30,7 @@ from typing import Any, Optional
 # SESSION-111 P1-B3-5: The legacy ``gait_blend`` shim has been physically
 # retired; the bridge now consumes the single-source ``unified_gait_blender``
 # motion core. See Research Alignment — Strangler Fig Pattern closure.
+from .state_vault import resolve_state_path
 from ..animation.unified_gait_blender import (
     GaitBlender,
     GaitMode,
@@ -157,7 +158,7 @@ def collect_gait_blend_status(project_root: str | Path) -> GaitBlendStatus:
     api_module = root / "mathart/animation/__init__.py"
     test_path = root / "tests/test_unified_gait_blender.py"
     notes_path = root / "docs/research/GAP_B3_GAIT_TRANSITION_PHASE_BLEND.md"
-    state_path = root / ".gait_blend_state.json"
+    state_path = resolve_state_path(root, ".gait_blend_state.json")
 
     tracked_exports: list[str] = []
     if module_path.exists():
@@ -460,7 +461,7 @@ class GaitBlendEvolutionBridge:
         }
 
     def _load_state(self) -> GaitBlendState:
-        state_path = self.project_root / ".gait_blend_state.json"
+        state_path = resolve_state_path(self.project_root, ".gait_blend_state.json")
         if state_path.exists():
             try:
                 data = json.loads(state_path.read_text(encoding="utf-8"))
@@ -470,7 +471,7 @@ class GaitBlendEvolutionBridge:
         return GaitBlendState()
 
     def _save_state(self) -> None:
-        state_path = self.project_root / ".gait_blend_state.json"
+        state_path = resolve_state_path(self.project_root, ".gait_blend_state.json")
         state_path.write_text(
             json.dumps(self.state.to_dict(), indent=2, ensure_ascii=False),
             encoding="utf-8",

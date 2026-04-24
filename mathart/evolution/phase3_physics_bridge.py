@@ -41,6 +41,7 @@ from ..animation.xpbd_taichi import (
     get_taichi_xpbd_backend_status,
 )
 from ..animation.skeleton import Skeleton
+from .state_vault import resolve_state_path
 
 
 @dataclass
@@ -167,7 +168,7 @@ def collect_phase3_physics_status(project_root: str | Path) -> Phase3PhysicsStat
         root / "tests/test_nsm_gait.py",
     ]
     knowledge_path = root / "knowledge/phase3_physics_rules.md"
-    state_path = root / ".phase3_physics_state.json"
+    state_path = resolve_state_path(root, ".phase3_physics_state.json")
 
     tracked_exports: list[str] = []
     if module_path.exists():
@@ -223,13 +224,13 @@ def collect_phase3_physics_status(project_root: str | Path) -> Phase3PhysicsStat
 class Phase3PhysicsEvolutionBridge:
     """Three-layer bridge for SESSION-058 Phase 3 systems."""
 
-    STATE_FILE = ".phase3_physics_state.json"
+    STATE_FILE = "phase3_physics_state.json"
     KNOWLEDGE_FILE = "knowledge/phase3_physics_rules.md"
 
     def __init__(self, project_root: str | Path, verbose: bool = True) -> None:
         self.project_root = Path(project_root)
         self.verbose = verbose
-        self.state_path = self.project_root / self.STATE_FILE
+        self.state_path = resolve_state_path(self.project_root, self.STATE_FILE)
         self.knowledge_path = self.project_root / self.KNOWLEDGE_FILE
         self.state = self._load_state()
 

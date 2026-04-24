@@ -1141,8 +1141,11 @@ def _node_guide_baking(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, A
         f"\u82f1\u6587\u63d0\u793a\u8bcd\u91cd\u7532\u5df2\u88c5\u8f7d\033[0m\n"
         f"\033[1;35m    \u251c\u2500 SESSION-179 SparseCtrl Time-Window Clamping: "
         f"end_percent 0.4~0.6 \u9650\u5e45\u5df2\u6fc0\u6d3b\uff0c\u957f\u955c\u5934\u95ea\u70c1\u5df2\u6839\u6cbb\033[0m\n"
-        f"\033[1;35m    \u2514\u2500 SESSION-179 cancel_futures Global Meltdown: "
-        f"OOM \u5168\u5c40\u7194\u65ad\u5df2\u5347\u7ea7\uff0cexecutor.shutdown(cancel_futures=True)\033[0m"
+        f"\033[1;35m    \u251c\u2500 SESSION-179 cancel_futures Global Meltdown: "
+        f"OOM \u5168\u5c40\u7194\u65ad\u5df2\u5347\u7ea7\uff0cexecutor.shutdown(cancel_futures=True)\033[0m\n"
+        f"\033[1;35m    \u2514\u2500 SESSION-177 State Vault Consolidation: "
+        f"\u8fdb\u5316\u72b6\u6001\u91d1\u5e93\u5df2\u5efa\u7acb\uff0c"
+        f"\u53cc\u8f68\u77e5\u8bc6\u603b\u7ebf\u5df2\u5e76\u8f68 (Markdown+JSON \u5408\u6d41)\033[0m"
     )
     sys.stderr.write(_ux_msg + "\n")
     sys.stderr.flush()

@@ -27,6 +27,7 @@ Research provenance:
   - Taichi AOT: Vulkan SPIR-V compilation for Unity GPU deployment
 """
 from __future__ import annotations
+from .state_vault import resolve_state_path
 
 import json
 import math
@@ -153,7 +154,7 @@ def collect_dimension_uplift_status(project_root: str | Path) -> DimensionUplift
     engine_path = root / "mathart" / "animation" / "dimension_uplift_engine.py"
     bridge_path = root / "mathart" / "evolution" / "dimension_uplift_bridge.py"
     test_path = root / "tests" / "test_dimension_uplift.py"
-    state_path = root / ".dimension_uplift_state.json"
+    state_path = resolve_state_path(root, ".dimension_uplift_state.json")
     knowledge_path = root / "knowledge" / "dimension_uplift_rules.md"
     research_path = root / "research" / "session063_phase5_dimension_uplift_research.md"
 
@@ -203,12 +204,12 @@ class DimensionUpliftEvolutionBridge:
             Compute fitness bonus, track trends, validate self-improvement.
     """
 
-    STATE_FILE = ".dimension_uplift_state.json"
+    STATE_FILE = "dimension_uplift_state.json"
     KNOWLEDGE_FILE = "knowledge/dimension_uplift_rules.md"
 
     def __init__(self, project_root: str | Path) -> None:
         self.root = Path(project_root)
-        self.state_path = self.root / self.STATE_FILE
+        self.state_path = resolve_state_path(self.root, self.STATE_FILE)
         self.knowledge_path = self.root / self.KNOWLEDGE_FILE
         self.state = self._load_state()
 

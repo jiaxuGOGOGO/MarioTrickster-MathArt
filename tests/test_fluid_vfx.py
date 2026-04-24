@@ -98,7 +98,7 @@ class TestFluidVFXEvolutionBridge:
         assert metrics.frame_count == 6
         assert len(rules) >= 1
         assert -0.20 <= bonus <= 0.20
-        assert (Path(tmp_path) / ".fluid_vfx_state.json").exists()
+        assert (Path(tmp_path) / "workspace" / "evolution_states" / "fluid_vfx_state.json").exists()
         assert (Path(tmp_path) / "knowledge" / "fluid_vfx_rules.md").exists()
         assert status.total_cycles >= 1
 

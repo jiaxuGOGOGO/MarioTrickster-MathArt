@@ -45,6 +45,7 @@ Usage::
     result = factory.run_production_cycle()
 """
 from __future__ import annotations
+from .state_vault import resolve_state_path
 
 import json
 import tempfile
@@ -193,7 +194,7 @@ class AssetFactory:
     Surviving assets are exported to the commercial asset directory.
     """
 
-    STATE_FILE = ".asset_factory_state.json"
+    STATE_FILE = "asset_factory_state.json"
     KNOWLEDGE_FILE = "asset_factory.md"
 
     # Quality thresholds
@@ -209,7 +210,7 @@ class AssetFactory:
     ) -> None:
         self.root = Path(project_root) if project_root else Path.cwd()
         self.verbose = verbose
-        self.state_path = self.root / self.STATE_FILE
+        self.state_path = resolve_state_path(self.root, self.STATE_FILE)
         self.knowledge_path = self.root / "knowledge" / self.KNOWLEDGE_FILE
         self.state = self._load_state()
 

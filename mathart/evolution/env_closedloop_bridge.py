@@ -20,6 +20,7 @@ Research provenance:
   - Unity VFX Graph: Flipbook Player + Velocity Inheritance
 """
 from __future__ import annotations
+from .state_vault import resolve_state_path
 
 import json
 import logging
@@ -236,7 +237,7 @@ def collect_env_closedloop_status(project_root: str | Path) -> EnvClosedLoopStat
         text = level_init.read_text(encoding="utf-8", errors="replace")
         status.wfc_public_api_exports = "WFCTilemapExporter" in text
 
-    wfc_state_path = root / ".wfc_tilemap_state.json"
+    wfc_state_path = resolve_state_path(root, ".wfc_tilemap_state.json")
     if wfc_state_path.exists():
         try:
             d = json.loads(wfc_state_path.read_text(encoding="utf-8"))
@@ -258,7 +259,7 @@ def collect_env_closedloop_status(project_root: str | Path) -> EnvClosedLoopStat
         text = anim_init.read_text(encoding="utf-8", errors="replace")
         status.fluid_seq_public_api_exports = "FluidSequenceExporter" in text
 
-    fluid_state_path = root / ".fluid_sequence_state.json"
+    fluid_state_path = resolve_state_path(root, ".fluid_sequence_state.json")
     if fluid_state_path.exists():
         try:
             d = json.loads(fluid_state_path.read_text(encoding="utf-8"))
@@ -463,7 +464,7 @@ class WFCTilemapEvolutionBridge:
         self.state.history.append(metrics.to_dict())
 
     def _load_state(self) -> WFCTilemapState:
-        state_path = self.project_root / ".wfc_tilemap_state.json"
+        state_path = resolve_state_path(self.project_root, ".wfc_tilemap_state.json")
         if state_path.exists():
             try:
                 return WFCTilemapState.from_dict(
@@ -475,7 +476,7 @@ class WFCTilemapEvolutionBridge:
         return WFCTilemapState()
 
     def _save_state(self) -> None:
-        state_path = self.project_root / ".wfc_tilemap_state.json"
+        state_path = resolve_state_path(self.project_root, ".wfc_tilemap_state.json")
         state_path.write_text(
             json.dumps(self.state.to_dict(), indent=2, ensure_ascii=False),
             encoding="utf-8",
@@ -662,7 +663,7 @@ class FluidSequenceEvolutionBridge:
         self.state.history.append(metrics.to_dict())
 
     def _load_state(self) -> FluidSequenceState:
-        state_path = self.project_root / ".fluid_sequence_state.json"
+        state_path = resolve_state_path(self.project_root, ".fluid_sequence_state.json")
         if state_path.exists():
             try:
                 return FluidSequenceState.from_dict(
@@ -674,7 +675,7 @@ class FluidSequenceEvolutionBridge:
         return FluidSequenceState()
 
     def _save_state(self) -> None:
-        state_path = self.project_root / ".fluid_sequence_state.json"
+        state_path = resolve_state_path(self.project_root, ".fluid_sequence_state.json")
         state_path.write_text(
             json.dumps(self.state.to_dict(), indent=2, ensure_ascii=False),
             encoding="utf-8",

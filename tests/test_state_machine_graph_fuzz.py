@@ -101,7 +101,7 @@ def test_state_machine_coverage_bridge_persists_cycle(tmp_path: Path):
     assert result["accepted"] is True
     assert result["metrics"]["edge_coverage"] == 1.0
     assert result["metrics"]["edges"] >= 4
-    assert (tmp_path / ".state_machine_coverage_state.json").exists()
+    assert (tmp_path / "workspace" / "evolution_states" / "state_machine_coverage_state.json").exists()
     assert (tmp_path / "knowledge" / "state_machine_graph_fuzzing.md").exists()
 
 

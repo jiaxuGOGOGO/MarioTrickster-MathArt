@@ -1027,3 +1027,47 @@ SESSION-179 通过动态 `batch_size` 对齐与安全边界保护，彻底消除
 3. **视觉临摹验收**：启动导演工坊，选择 `[D]` 模式，丢入任意 GIF，确认 AI 返回物理参数
 4. **风格换皮验收**：选择 `[B]` 模式加载蓝图，在换皮提示处输入新画风，确认 vibe 被覆盖
 5. **蓝图保存验收**：在蓝图保存对话框留空，确认自动生成时间戳命名
+
+
+## 12. 进化状态金库与双轨知识总线 (SESSION-177)
+
+> **SESSION-177 新增** — 系统已完成进化状态碎片化治理。所有内环寻优产生的 state 文件已从项目根目录统一引渡至 `workspace/evolution_states/` 金库，并剥离了隐藏文件前缀。RuntimeDistillationBus 知识总线已升级为双轨架构，能同时掌管 Markdown 硬规则和 JSON 进化状态。
+
+### 12.1 进化状态金库 (State Vault)
+
+在 SESSION-177 之前，各进化算法桥（GA、WFC、XPBD 等）在自我博弈时，直接在项目根目录散落了大量隐藏状态文件（如 `.phase3_physics_state.json`、`.breakwall_evolution_state.json` 等），导致：
+
+- 根目录被 17 个隐藏 JSON 文件污染
+- 本地进化知识脱离了知识总线的全盘管辖
+- 违反了 Root Directory Defouling 数据治理最佳实践
+
+SESSION-177 实施了以下治理措施：
+
+| 措施 | 说明 |
+|------|------|
+| **统一金库目录** | 所有进化状态文件统一存放于 `workspace/evolution_states/` |
+| **隐藏前缀剥离** | 文件名前置的 `.` 被强制去除（如 `.phase3_physics_state.json` → `phase3_physics_state.json`） |
+| **无损热迁移** | 系统启动时自动检测并迁移根目录残留的隐藏状态文件，零数据丢失 |
+| **I/O 路由拦截** | 所有 23 个进化桥文件的 58 处 I/O 路径已重定向至金库 |
+
+### 12.2 双轨知识总线 (Dual-Track Knowledge Bus)
+
+`RuntimeDistillationBus` 现在同时管辖两条知识轨道：
+
+- **Track 1 — 外部 LLM 知识 (Markdown)**：`knowledge/*.md` 文件通过 `KnowledgeParser` → `RuleCompiler` → `ParameterSpace` 编译为约束空间
+- **Track 2 — 内部 GA 进化状态 (JSON)**：`workspace/evolution_states/*.json` 通过 `StateVault` 自动挂载到总线的 `evolution_states` 属性
+
+两条轨道在内存中完美合流，实现了 Single Source of Truth 架构。
+
+### 12.3 管线解除截断声明
+
+系统已解除管线截断。现在即使在无显卡的纯 CPU 模式下，也能直接烘焙出拥有专业步态的高清工业级动画引导序列（Albedo/Normal/Depth）。在终端运行到烘焙阶段时，会高亮打印：`[⚙️ 工业烘焙网关] 正在通过 Catmull-Rom 样条插值，纯 CPU 解算高精度工业级贴图动作序列...`
+
+### 傻瓜验收
+
+老大，解耦手术已完成！请在无显卡环境下直接运行生成指令。去 outputs 文件夹看，绝对不再是扭动的果冻，而是拥有标准跑跳动作姿态的成套工业图纸！
+
+验收步骤：
+1. **根目录纯净验收**：在项目根目录执行 `ls -la .*_state*.json`，确认零结果（所有隐藏 state 文件已被引渡）
+2. **金库验收**：查看 `workspace/evolution_states/` 目录，确认 17 个 state 文件全部在此，且无隐藏前缀
+3. **双轨总线验收**：在 Python 中执行 `from mathart.distill.runtime_bus import RuntimeDistillationBus; bus = RuntimeDistillationBus('.'); print(bus.summary())`，确认 `evolution_state_modules` 和 `dual_track_active` 字段

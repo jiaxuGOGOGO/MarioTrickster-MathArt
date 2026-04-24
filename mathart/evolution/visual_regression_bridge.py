@@ -38,6 +38,7 @@ Industrial references:
     - Hermetic Builds (Bazel): deterministic, isolated execution
 """
 from __future__ import annotations
+from .state_vault import resolve_state_path
 
 import json
 import logging
@@ -494,7 +495,7 @@ class VisualRegressionEvolutionBridge:
 
     def _load_state(self) -> VisualRegressionState:
         """Load persistent state from disk."""
-        state_path = self.project_root / ".visual_regression_state.json"
+        state_path = resolve_state_path(self.project_root, ".visual_regression_state.json")
         if state_path.exists():
             try:
                 data = json.loads(state_path.read_text(encoding="utf-8"))
@@ -505,7 +506,7 @@ class VisualRegressionEvolutionBridge:
 
     def _save_state(self) -> None:
         """Save persistent state to disk."""
-        state_path = self.project_root / ".visual_regression_state.json"
+        state_path = resolve_state_path(self.project_root, ".visual_regression_state.json")
         state_path.write_text(
             json.dumps(self.state.to_dict(), indent=2, ensure_ascii=False),
             encoding="utf-8",

@@ -34,6 +34,7 @@ from .layer3_closed_loop import (
     TransitionTuningTarget,
     TransitionRuleStore,
 )
+from .state_vault import resolve_state_path
 
 
 # ── Data Structures ──────────────────────────────────────────────────────────
@@ -734,7 +735,7 @@ def count_test_functions(project_root: str | Path) -> dict[str, int]:
 def collect_closed_loop_status(project_root: str | Path) -> ClosedLoopStatus:
     """Collect the persisted state of the active Layer 3 runtime tuning loop."""
     root = Path(project_root)
-    state_path = root / ".layer3_closed_loop_state.json"
+    state_path = resolve_state_path(root, ".layer3_closed_loop_state.json")
     report_dir = root / "evolution_reports"
     bridge_path = root / "LAYER3_CONVERGENCE_BRIDGE.json"
     store = TransitionRuleStore(root)

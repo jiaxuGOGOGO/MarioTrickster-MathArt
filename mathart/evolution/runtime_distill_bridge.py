@@ -9,6 +9,7 @@ Layer 2 turns those findings into durable knowledge rules.
 Layer 3 persists trend data so future sessions can keep improving the bus.
 """
 from __future__ import annotations
+from .state_vault import resolve_state_path
 
 from dataclasses import dataclass, field
 import json
@@ -82,13 +83,13 @@ class RuntimeDistillState:
 class RuntimeDistillBridge:
     """Evaluate, distill, and persist the runtime distillation bus state."""
 
-    STATE_FILE = ".runtime_distill_state.json"
+    STATE_FILE = "runtime_distill_state.json"
     KNOWLEDGE_FILE = "runtime_distill_bus.md"
 
     def __init__(self, project_root: Optional[str | Path] = None, *, verbose: bool = False) -> None:
         self.root = Path(project_root) if project_root else Path.cwd()
         self.verbose = verbose
-        self.state_path = self.root / self.STATE_FILE
+        self.state_path = resolve_state_path(self.root, self.STATE_FILE)
         self.knowledge_path = self.root / "knowledge" / self.KNOWLEDGE_FILE
         self.state = self._load_state()
 

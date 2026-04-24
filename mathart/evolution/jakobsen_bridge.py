@@ -9,6 +9,7 @@ closed loop:
    better follow-through.
 """
 from __future__ import annotations
+from .state_vault import resolve_state_path
 
 import json
 from dataclasses import dataclass, field
@@ -128,7 +129,7 @@ def collect_jakobsen_chain_status(project_root: str | Path) -> JakobsenChainStat
     pipeline_module = root / "mathart/pipeline.py"
     test_path = root / "tests/test_jakobsen_chain.py"
     notes_path = root / "docs/research/GAP_B1_JAKOBSEN_SECONDARY_CHAINS.md"
-    state_path = root / ".jakobsen_chain_state.json"
+    state_path = resolve_state_path(root, ".jakobsen_chain_state.json")
 
     tracked_exports: list[str] = []
     if module_path.exists():
@@ -320,7 +321,7 @@ class JakobsenEvolutionBridge:
         return "\n".join(lines)
 
     def _state_path(self) -> Path:
-        return self.project_root / ".jakobsen_chain_state.json"
+        return resolve_state_path(self.project_root, ".jakobsen_chain_state.json")
 
     def _load_state(self) -> JakobsenChainState:
         path = self._state_path()

@@ -12,6 +12,7 @@ three-layer cycle:
    Track trends over time and convert them into a fitness bonus / penalty.
 """
 from __future__ import annotations
+from .state_vault import resolve_state_path
 
 import json
 import logging
@@ -137,7 +138,7 @@ def collect_fluid_vfx_status(project_root: str | Path) -> FluidVFXStatus:
     pipeline_module = root / "mathart/pipeline.py"
     test_path = root / "tests/test_fluid_vfx.py"
     notes_path = root / "docs/research/GAP_C2_STABLE_FLUIDS_VFX.md"
-    state_path = root / ".fluid_vfx_state.json"
+    state_path = resolve_state_path(root, ".fluid_vfx_state.json")
 
     tracked_exports: list[str] = []
     if fluid_module.exists():
@@ -346,7 +347,7 @@ class FluidVFXEvolutionBridge:
         self.state.history.append(metrics.to_dict())
 
     def _load_state(self) -> FluidVFXState:
-        state_path = self.project_root / ".fluid_vfx_state.json"
+        state_path = resolve_state_path(self.project_root, ".fluid_vfx_state.json")
         if state_path.exists():
             try:
                 return FluidVFXState.from_dict(json.loads(state_path.read_text(encoding="utf-8")))
@@ -356,7 +357,7 @@ class FluidVFXEvolutionBridge:
         return FluidVFXState()
 
     def _save_state(self) -> None:
-        state_path = self.project_root / ".fluid_vfx_state.json"
+        state_path = resolve_state_path(self.project_root, ".fluid_vfx_state.json")
         state_path.write_text(
             json.dumps(self.state.to_dict(), indent=2, ensure_ascii=False),
             encoding="utf-8",

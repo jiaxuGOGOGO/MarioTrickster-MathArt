@@ -32,6 +32,7 @@ Research Provenance:
     - FuouM/ReEzSynth, MIT License
 """
 from __future__ import annotations
+from .state_vault import resolve_state_path
 
 import json
 import logging
@@ -212,7 +213,7 @@ class BreakwallStatus:
 
 def collect_breakwall_status(project_root: Path) -> BreakwallStatus:
     """Collect current breakwall evolution status from persistent state."""
-    state_path = project_root / ".breakwall_evolution_state.json"
+    state_path = resolve_state_path(project_root, ".breakwall_evolution_state.json")
     status = BreakwallStatus()
     if state_path.exists():
         try:
@@ -944,7 +945,7 @@ class BreakwallEvolutionBridge:
 
     def _load_state(self) -> BreakwallState:
         """Load persistent state from disk."""
-        state_path = self.project_root / ".breakwall_evolution_state.json"
+        state_path = resolve_state_path(self.project_root, ".breakwall_evolution_state.json")
         if state_path.exists():
             try:
                 data = json.loads(state_path.read_text(encoding="utf-8"))
@@ -955,7 +956,7 @@ class BreakwallEvolutionBridge:
 
     def _save_state(self) -> None:
         """Save persistent state to disk."""
-        state_path = self.project_root / ".breakwall_evolution_state.json"
+        state_path = resolve_state_path(self.project_root, ".breakwall_evolution_state.json")
         state_path.write_text(
             json.dumps(self.state.to_dict(), indent=2, ensure_ascii=False),
             encoding="utf-8",

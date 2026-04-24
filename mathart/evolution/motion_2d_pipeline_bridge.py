@@ -26,6 +26,7 @@ Research foundations:
   - Aristidou & Lasenby — FABRIK (2011)
 """
 from __future__ import annotations
+from .state_vault import resolve_state_path
 
 import json
 import time
@@ -183,7 +184,7 @@ def collect_motion_2d_pipeline_status(
     except Exception:
         pass
 
-    state_path = root / ".motion_2d_pipeline_state.json"
+    state_path = resolve_state_path(root, ".motion_2d_pipeline_state.json")
     status.state_file_exists = state_path.exists()
 
     knowledge_path = root / "knowledge" / "motion_2d_pipeline_rules.md"
@@ -266,7 +267,7 @@ class Motion2DPipelineEvolutionBridge:
         ``run_full_cycle(**kwargs) → (metrics, knowledge_path, bonus)``
     """
 
-    STATE_FILE = ".motion_2d_pipeline_state.json"
+    STATE_FILE = "motion_2d_pipeline_state.json"
     KNOWLEDGE_FILE = "knowledge/motion_2d_pipeline_rules.md"
 
     def __init__(
@@ -276,7 +277,7 @@ class Motion2DPipelineEvolutionBridge:
     ) -> None:
         self.root = Path(project_root) if project_root else Path.cwd()
         self.verbose = verbose
-        self.state_path = self.root / self.STATE_FILE
+        self.state_path = resolve_state_path(self.root, self.STATE_FILE)
         self.knowledge_path = self.root / self.KNOWLEDGE_FILE
         self.state = self._load_state()
 

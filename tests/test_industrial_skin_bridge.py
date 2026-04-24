@@ -14,7 +14,7 @@ def test_industrial_skin_bridge_runs_closed_loop_cycle(tmp_path):
     assert result["metrics"]["export_success_ratio"] == 1.0
 
     knowledge_path = tmp_path / "knowledge" / "industrial_skin.md"
-    state_path = tmp_path / ".industrial_skin_state.json"
+    state_path = tmp_path / "workspace" / "evolution_states" / "industrial_skin_state.json"
     assert knowledge_path.exists()
     assert state_path.exists()
 

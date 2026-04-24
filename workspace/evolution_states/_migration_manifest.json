@@ -1,0 +1,121 @@
+[
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.breakwall_evolution_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/breakwall_evolution_state.json",
+    "original_name": ".breakwall_evolution_state.json",
+    "clean_name": "breakwall_evolution_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.constraint_wfc_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/constraint_wfc_state.json",
+    "original_name": ".constraint_wfc_state.json",
+    "clean_name": "constraint_wfc_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.dimension_uplift_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/dimension_uplift_state.json",
+    "original_name": ".dimension_uplift_state.json",
+    "clean_name": "dimension_uplift_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.evolution_orchestrator_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/evolution_orchestrator_state.json",
+    "original_name": ".evolution_orchestrator_state.json",
+    "clean_name": "evolution_orchestrator_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.fluid_sequence_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/fluid_sequence_state.json",
+    "original_name": ".fluid_sequence_state.json",
+    "clean_name": "fluid_sequence_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.fluid_vfx_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/fluid_vfx_state.json",
+    "original_name": ".fluid_vfx_state.json",
+    "clean_name": "fluid_vfx_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.gait_blend_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/gait_blend_state.json",
+    "original_name": ".gait_blend_state.json",
+    "clean_name": "gait_blend_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.industrial_skin_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/industrial_skin_state.json",
+    "original_name": ".industrial_skin_state.json",
+    "clean_name": "industrial_skin_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.jakobsen_chain_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/jakobsen_chain_state.json",
+    "original_name": ".jakobsen_chain_state.json",
+    "clean_name": "jakobsen_chain_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.layer3_closed_loop_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/layer3_closed_loop_state.json",
+    "original_name": ".layer3_closed_loop_state.json",
+    "clean_name": "layer3_closed_loop_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.locomotion_cns_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/locomotion_cns_state.json",
+    "original_name": ".locomotion_cns_state.json",
+    "clean_name": "locomotion_cns_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.phase3_physics_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/phase3_physics_state.json",
+    "original_name": ".phase3_physics_state.json",
+    "clean_name": "phase3_physics_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.runtime_distill_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/runtime_distill_state.json",
+    "original_name": ".runtime_distill_state.json",
+    "clean_name": "runtime_distill_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.smooth_morphology_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/smooth_morphology_state.json",
+    "original_name": ".smooth_morphology_state.json",
+    "clean_name": "smooth_morphology_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.state_machine_coverage_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/state_machine_coverage_state.json",
+    "original_name": ".state_machine_coverage_state.json",
+    "clean_name": "state_machine_coverage_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.unity_urp_2d_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/unity_urp_2d_state.json",
+    "original_name": ".unity_urp_2d_state.json",
+    "clean_name": "unity_urp_2d_state.json",
+    "status": "migrated"
+  },
+  {
+    "source": "/home/ubuntu/MarioTrickster-MathArt/.wfc_tilemap_state.json",
+    "destination": "/home/ubuntu/MarioTrickster-MathArt/workspace/evolution_states/wfc_tilemap_state.json",
+    "original_name": ".wfc_tilemap_state.json",
+    "clean_name": "wfc_tilemap_state.json",
+    "status": "migrated"
+  }
+]

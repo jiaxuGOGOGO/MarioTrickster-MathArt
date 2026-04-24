@@ -17,6 +17,7 @@ Research provenance:
   - Parametric morphology: genotype → phenotype decoding via SDF composition
 """
 from __future__ import annotations
+from .state_vault import resolve_state_path
 
 import json
 from dataclasses import dataclass, field
@@ -123,7 +124,7 @@ def collect_smooth_morphology_status(project_root: str | Path) -> SmoothMorpholo
     root = Path(project_root)
     module_path = root / "mathart" / "animation" / "smooth_morphology.py"
     test_path = root / "tests" / "test_smooth_morphology.py"
-    state_path = root / ".smooth_morphology_state.json"
+    state_path = resolve_state_path(root, ".smooth_morphology_state.json")
     knowledge_path = root / "knowledge" / "smooth_morphology_rules.md"
 
     tracked_exports: list[str] = []
@@ -159,12 +160,12 @@ class SmoothMorphologyEvolutionBridge:
     Follows the repository's standard bridge pattern (see terrain_sensor_bridge.py).
     """
 
-    STATE_FILE = ".smooth_morphology_state.json"
+    STATE_FILE = "smooth_morphology_state.json"
     KNOWLEDGE_FILE = "knowledge/smooth_morphology_rules.md"
 
     def __init__(self, project_root: str | Path) -> None:
         self.root = Path(project_root)
-        self.state_path = self.root / self.STATE_FILE
+        self.state_path = resolve_state_path(self.root, self.STATE_FILE)
         self.knowledge_path = self.root / self.KNOWLEDGE_FILE
         self.state = self._load_state()
 

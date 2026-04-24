@@ -8,6 +8,7 @@ persists trend data so future sessions can continue optimizing analytic gradient
 coverage, material contrast, and engine-ready export quality.
 """
 from __future__ import annotations
+from .state_vault import resolve_state_path
 
 from dataclasses import dataclass, field
 import json
@@ -83,13 +84,13 @@ class IndustrialSkinState:
 
 
 class IndustrialSkinBridge:
-    STATE_FILE = ".industrial_skin_state.json"
+    STATE_FILE = "industrial_skin_state.json"
     KNOWLEDGE_FILE = "industrial_skin.md"
 
     def __init__(self, project_root: Optional[str | Path] = None, *, verbose: bool = False) -> None:
         self.root = Path(project_root) if project_root else Path.cwd()
         self.verbose = verbose
-        self.state_path = self.root / self.STATE_FILE
+        self.state_path = resolve_state_path(self.root, self.STATE_FILE)
         self.knowledge_path = self.root / "knowledge" / self.KNOWLEDGE_FILE
         self.state = self._load_state()
 

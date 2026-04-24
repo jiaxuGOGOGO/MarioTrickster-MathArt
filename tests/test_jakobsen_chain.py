@@ -150,6 +150,6 @@ class TestJakobsenEvolutionBridge:
         assert metrics.chain_count == 2
         assert len(rules) >= 1
         assert -0.20 <= bonus <= 0.20
-        assert (Path(tmp_path) / ".jakobsen_chain_state.json").exists()
+        assert (Path(tmp_path) / "workspace" / "evolution_states" / "jakobsen_chain_state.json").exists()
         assert (Path(tmp_path) / "knowledge" / "jakobsen_secondary_chain_rules.md").exists()
         assert status.total_cycles >= 1

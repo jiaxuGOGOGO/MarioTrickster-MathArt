@@ -43,6 +43,7 @@ from ..animation.unified_gait_blender import (
     TransitionSynthesizer,
 )
 from ..animation.unified_motion import MotionContactState, UnifiedMotionFrame
+from .state_vault import resolve_state_path
 
 
 def _utcnow() -> str:
@@ -296,7 +297,7 @@ class Layer3ClosedLoopDistiller:
         self.verbose = bool(verbose)
         self.loss_weights = loss_weights or TransitionLossWeights()
         self.rule_store = TransitionRuleStore(self.project_root)
-        self.state_path = self.project_root / ".layer3_closed_loop_state.json"
+        self.state_path = resolve_state_path(self.project_root, ".layer3_closed_loop_state.json")
         self.report_dir = self.project_root / "evolution_reports"
         self.report_dir.mkdir(parents=True, exist_ok=True)
         self.state = self._load_state()

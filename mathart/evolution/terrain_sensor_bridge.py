@@ -18,6 +18,7 @@ Research provenance:
   - Falling and Landing Motion Control (Ha et al., SIGGRAPH Asia 2012)
 """
 from __future__ import annotations
+from .state_vault import resolve_state_path
 
 import json
 from dataclasses import dataclass, field
@@ -145,7 +146,7 @@ def collect_terrain_sensor_status(project_root: str | Path) -> TerrainSensorStat
     pipeline_module = root / "mathart/pipeline.py"
     test_path = root / "tests/test_terrain_sensor.py"
     notes_path = root / "docs/research/GAP_B2_TERRAIN_SENSOR_TTC.md"
-    state_path = root / ".terrain_sensor_state.json"
+    state_path = resolve_state_path(root, ".terrain_sensor_state.json")
 
     tracked_exports: list[str] = []
     if module_path.exists():
@@ -380,7 +381,7 @@ class TerrainSensorEvolutionBridge:
     # ── Private state management ──
 
     def _state_path(self) -> Path:
-        return self.project_root / ".terrain_sensor_state.json"
+        return resolve_state_path(self.project_root, ".terrain_sensor_state.json")
 
     def _load_state(self) -> TerrainSensorState:
         path = self._state_path()

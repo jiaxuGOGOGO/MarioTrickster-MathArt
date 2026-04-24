@@ -260,8 +260,30 @@ def preload_all_distilled_knowledge(
     bus: RuntimeDistillationBus,
     knowledge_dir: Path | str | None = None,
 ) -> dict[str, CompiledParameterSpace]:
+    """Preload all distilled knowledge assets and mount evolution states.
+
+    SESSION-177: This function now also triggers the State Vault migration
+    and mounts evolution states onto the bus as a defensive pre-heat step.
+    The bus ``__init__`` already does this, but running it here as well
+    ensures that any late-arriving legacy files are caught.
+    """
     kdir = Path(knowledge_dir) if knowledge_dir else bus.knowledge_dir
     loaded: dict[str, CompiledParameterSpace] = {}
+
+    # SESSION-177: Defensive hot migration at preload time
+    try:
+        from mathart.evolution.state_vault import migrate_legacy_states
+        manifest = migrate_legacy_states(bus.project_root)
+        if manifest:
+            logger.info(
+                "[KnowledgePreloader] SESSION-177 defensive migration: "
+                "%d legacy state file(s) moved to vault.",
+                len(manifest),
+            )
+    except Exception as exc:
+        logger.debug(
+            "[KnowledgePreloader] SESSION-177 vault migration skipped: %s", exc
+        )
 
     physics_gait_path = kdir / "physics_gait_rules.json"
     if physics_gait_path.exists():

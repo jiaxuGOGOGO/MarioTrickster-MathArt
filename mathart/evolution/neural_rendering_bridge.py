@@ -37,6 +37,8 @@ from typing import Any, Optional
 
 import numpy as np
 
+from .state_vault import resolve_state_path
+
 logger = logging.getLogger(__name__)
 
 
@@ -179,7 +181,7 @@ def collect_neural_rendering_status(project_root: str | Path) -> NeuralRendering
     api_module = root / "mathart/animation/__init__.py"
     test_path = root / "tests/test_motion_vector_baker.py"
     research_notes = root / "docs/research/GAP_C3_NEURAL_RENDERING_BRIDGE.md"
-    state_path = root / ".neural_rendering_state.json"
+    state_path = resolve_state_path(root, ".neural_rendering_state.json")
 
     tracked_exports: list[str] = []
     if mv_module.exists():
@@ -661,7 +663,7 @@ class NeuralRenderingEvolutionBridge:
 
     def _load_state(self) -> NeuralRenderingState:
         """Load persistent state from disk."""
-        state_path = self.project_root / ".neural_rendering_state.json"
+        state_path = resolve_state_path(self.project_root, ".neural_rendering_state.json")
         if state_path.exists():
             try:
                 data = json.loads(state_path.read_text(encoding="utf-8"))
@@ -672,7 +674,7 @@ class NeuralRenderingEvolutionBridge:
 
     def _save_state(self) -> None:
         """Save persistent state to disk."""
-        state_path = self.project_root / ".neural_rendering_state.json"
+        state_path = resolve_state_path(self.project_root, ".neural_rendering_state.json")
         state_path.write_text(
             json.dumps(self.state.to_dict(), indent=2, ensure_ascii=False),
             encoding="utf-8",

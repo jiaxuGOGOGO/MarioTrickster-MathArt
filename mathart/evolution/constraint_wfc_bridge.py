@@ -19,6 +19,7 @@ Research provenance:
   - Lee et al. (2020): Precomputing player movement for reachability guarantees
 """
 from __future__ import annotations
+from .state_vault import resolve_state_path
 
 import json
 from dataclasses import dataclass, field
@@ -123,7 +124,7 @@ def collect_constraint_wfc_status(project_root: str | Path) -> ConstraintWFCStat
     root = Path(project_root)
     module_path = root / "mathart" / "level" / "constraint_wfc.py"
     test_path = root / "tests" / "test_constraint_wfc.py"
-    state_path = root / ".constraint_wfc_state.json"
+    state_path = resolve_state_path(root, ".constraint_wfc_state.json")
     knowledge_path = root / "knowledge" / "constraint_wfc_rules.md"
 
     tracked_exports: list[str] = []
@@ -158,12 +159,12 @@ class ConstraintWFCEvolutionBridge:
     Follows the repository's standard bridge pattern (see terrain_sensor_bridge.py).
     """
 
-    STATE_FILE = ".constraint_wfc_state.json"
+    STATE_FILE = "constraint_wfc_state.json"
     KNOWLEDGE_FILE = "knowledge/constraint_wfc_rules.md"
 
     def __init__(self, project_root: str | Path) -> None:
         self.root = Path(project_root)
-        self.state_path = self.root / self.STATE_FILE
+        self.state_path = resolve_state_path(self.root, self.STATE_FILE)
         self.knowledge_path = self.root / self.KNOWLEDGE_FILE
         self.state = self._load_state()
 
