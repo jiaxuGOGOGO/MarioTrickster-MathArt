@@ -390,9 +390,22 @@ def distill_physics_from_reference(
                 "\033[1;36m[👁️ 视觉临摹] 正在从 GIF 动图提取关键帧...\033[0m"
             )
             keyframes = extract_keyframes_from_gif(ref, max_frames=max_frames)
+        elif ref.suffix.lower() in (".png", ".jpg", ".jpeg"):
+            # ── SESSION-191: 静态图参考兼容 ──────────────────────────────
+            # 允许用户输入单张静态图片作为外观参考。使用默认物理参数，
+            # 但将图片作为外观参考特征传入大模型进行视觉分析。
+            output_fn(
+                "\033[1;36m[👁️ 视觉临摹] 检测到静态图，将使用默认物理参数，"
+                "图片将作为外观参考特征传入 AI 分析。\033[0m"
+            )
+            from PIL import Image as _PILImage
+            _static_img = _PILImage.open(str(ref)).convert("RGB")
+            _static_buf = io.BytesIO()
+            _static_img.save(_static_buf, format="PNG")
+            keyframes = [_static_buf.getvalue()]
         else:
             output_fn(
-                "\033[1;33m[⚠️ 视觉临摹] 不支持的文件格式，仅支持 .gif 或图片文件夹。"
+                "\033[1;33m[⚠️ 视觉临摹] 不支持的文件格式，仅支持 .gif / .png / .jpg / .jpeg 或图片文件夹。"
                 "返回默认参数。\033[0m"
             )
             return dict(DEFAULT_PHYSICS_PARAMS)

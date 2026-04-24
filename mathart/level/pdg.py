@@ -34,6 +34,7 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
+import logging
 import os
 import threading
 import time
@@ -45,6 +46,8 @@ from types import MappingProxyType
 from typing import Any, Callable, Optional
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class PDGError(RuntimeError):

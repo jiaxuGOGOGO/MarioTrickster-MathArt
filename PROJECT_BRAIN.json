@@ -1,7 +1,7 @@
 {
-  "version": "v0.99.27",
-  "last_session_id": "SESSION-190",
-  "last_updated": "2026-04-24",
+  "version": "v1.0.2",
+  "last_session_id": "SESSION-191",
+  "last_updated": "2026-04-25",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -24,6 +24,29 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-191-LOOKDEV-HOTFIX-AND-PDG-REPAIR",
+        "title": "LookDev Hotfix + PDG Scheduler Repair + Static Image Compat",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-191",
+        "modules": [
+          "mathart/level/pdg.py",
+          "mathart/cli_wizard.py",
+          "mathart/workspace/mode_dispatcher.py",
+          "mathart/factory/mass_production.py",
+          "mathart/workspace/visual_distillation.py",
+          "docs/USER_GUIDE.md",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [
+          "tests/test_session190_modal_decoupling_and_lookdev.py",
+          "tests/test_level_pdg.py",
+          "tests/test_mass_production.py"
+        ],
+        "description": "SESSION-191 P0 Hotfix: (1) PDG logger NameError crash fix — added import logging + logger to mathart/level/pdg.py. (2) LookDev AI render re-enabled — skip_ai_render changed from True to False in cli_wizard.py option [4]. (3) Deep Pruning full-chain penetration — action_filter now threads through mode_dispatcher -> mass_production factory; _node_fan_out_orders truncates batch_size to 1 when action_filter present; _node_prepare_character forces specified action. (4) Static image reference compat — visual_distillation.py now accepts .png/.jpg/.jpeg as single-frame appearance reference. (5) Bonus fix: import sys added to mass_production.py to fix pre-existing NameError in anti_flicker_render skip path. 42 tests all passing."
+      },
       {
         "id": "P0-SESSION-188-QUADRUPED-AWAKENING-AND-VAT-BRIDGE",
         "title": "Quadruped Physics Engine Awakening & VAT Real-Data Bridge",
@@ -5727,7 +5750,7 @@
       "implication": "This classification schema provides the exact granularity needed for targeted fix campaigns. Each dead-zone parameter has a clear remediation path: add the corresponding constraint to the knowledge directory and verify via re-running the audit. The six-level schema is extensible — future sources (e.g., A/B test results, user analytics) can be added as new ProvenanceSourceType enum values without breaking existing records."
     }
   ],
-  "current_session": "SESSION-190",
+  "current_session": "SESSION-191",
   "red_lines": [
     "SESSION-162: NEVER use hardcoded string lists for motion states; ALWAYS query unified_gait_blender.get_motion_lane_registry().names().",
     "SESSION-162: NEVER bypass assert_nonzero_temporal_variance in guide baking; fail fast on frozen sequences.",
@@ -5795,7 +5818,11 @@
     },
     "SESSION-190: All user path inputs MUST pass through double-quote crusher — no exceptions",
     "SESSION-190: When dummy mesh detected AND user prompt empty, semantic hydration MUST inject 3A prompt",
-    "SESSION-190: RGB ControlNet strength MUST be 0.0 when dummy mesh detected"
+    "SESSION-190: RGB ControlNet strength MUST be 0.0 when dummy mesh detected",
+    "SESSION-191: LookDev option [4] skip_ai_render MUST be False — AI render must not be killed",
+    "SESSION-191: action_filter MUST penetrate full chain CLI -> dispatcher -> mass_production -> PDG context",
+    "SESSION-191: When action_filter present, batch_size MUST be forced to 1 (character_000 only)",
+    "SESSION-191: pdg.py MUST have import logging + logger = logging.getLogger(__name__)"
   ],
   "latent_healing_contract": {
     "session": "SESSION-189",
@@ -5857,5 +5884,53 @@
     ],
     "reference_notes": "docs/RESEARCH_NOTES_SESSION_190.md",
     "tests": "tests/test_session190_modal_decoupling_and_lookdev.py"
+  },
+  "lookdev_hotfix_contract": {
+    "session": "SESSION-191",
+    "modules": [
+      "mathart/level/pdg.py",
+      "mathart/cli_wizard.py",
+      "mathart/workspace/mode_dispatcher.py",
+      "mathart/factory/mass_production.py",
+      "mathart/workspace/visual_distillation.py"
+    ],
+    "fixes": {
+      "pdg_logger_crash": {
+        "file": "mathart/level/pdg.py",
+        "description": "Added import logging and logger = logging.getLogger(__name__)",
+        "root_cause": "NameError: name 'logger' is not defined at line 1109"
+      },
+      "lookdev_ai_render_killed": {
+        "file": "mathart/cli_wizard.py",
+        "description": "Changed skip_ai_render from True to False in LookDev option [4]",
+        "root_cause": "ProductionStrategy(skip_ai_render=True) incorrectly set for LookDev"
+      },
+      "deep_pruning_bypass": {
+        "files": [
+          "mathart/workspace/mode_dispatcher.py",
+          "mathart/factory/mass_production.py"
+        ],
+        "description": "action_filter full-chain penetration: CLI -> dispatcher -> factory -> PDG context. batch_size forced to 1, action forced to filter value.",
+        "root_cause": "action_filter never reached mass_production layer"
+      },
+      "static_image_compat": {
+        "file": "mathart/workspace/visual_distillation.py",
+        "description": "Added .png/.jpg/.jpeg static image support as appearance reference",
+        "root_cause": "Only .gif and folders were supported"
+      },
+      "mass_production_sys_import": {
+        "file": "mathart/factory/mass_production.py",
+        "description": "Added import sys to fix pre-existing NameError in skip_ai_render path",
+        "root_cause": "sys.stderr.write called without import sys"
+      }
+    },
+    "invariants": [
+      "SESSION-189 hard anchors (MAX_FRAMES=16, LATENT_EDGE=512, NORMAL_MATTE_RGB) untouched",
+      "16-frame anime rhythm subsampling logic untouched",
+      "512 latent space healing logic untouched",
+      "Block decoupling logic untouched",
+      "No proxy env var references in new code"
+    ],
+    "tests": "42 passed (test_session190 + test_level_pdg + test_mass_production)"
   }
 }

@@ -1970,3 +1970,66 @@ PYTHONPATH=. python3.11 -m pytest tests/test_session190_modal_decoupling_and_loo
 - **不用节点 ID 硬编码**：所有 ComfyUI workflow 编辑必须通过 `class_type` 语义扫描。
 - **路径净化不可绕过**：所有用户路径输入必须经过双引号粉碎机，无例外。
 - **语义兜底不可关闭**：当检测到假人白模且用户 Prompt 为空时，必须注入 3A 角色提示词。
+
+
+## 21. SESSION-191: LookDev Hotfix + PDG Scheduler Repair (P0-SESSION-191-LOOKDEV-HOTFIX-AND-PDG-REPAIR)
+
+### 21.1 Overview
+
+SESSION-191 is a concentrated P0-level hotfix targeting 4 fatal bugs discovered during post-deployment testing of SESSION-190:
+
+1. **PDG Scheduler NameError Crash**: `mathart/level/pdg.py` line 1109 used an unimported `logger`, causing the global scheduler to crash during OOM exception handling.
+2. **LookDev AI Render Killed**: `[4] Single Action Prototyping` mode incorrectly passed `skip_ai_render=True`, leaving users with only physics wireframe skeletons.
+3. **Deep Filtering Bypass**: `action_filter` parameter was injected at the frontend but never penetrated to the `mass_production` factory layer, causing all actions and 20 character variants to be computed.
+4. **Static Image Reference Error**: Visual distillation module only supported `.gif` and folders; `.png/.jpg` static images returned default parameters.
+
+### 21.2 Fix Manifest
+
+| File | Operation | Description |
+|------|-----------|-------------|
+| `mathart/level/pdg.py` | **Modified** | Added `import logging` and `logger = logging.getLogger(__name__)` to fix NameError |
+| `mathart/cli_wizard.py` | **Modified** | Changed LookDev option [4] `skip_ai_render` from `True` to `False` to re-enable AI rendering |
+| `mathart/workspace/mode_dispatcher.py` | **Modified** | Threaded `action_filter` through `ProductionStrategy.build_context` and `execute` |
+| `mathart/factory/mass_production.py` | **Modified** | Added `action_filter` param to `run_mass_production_factory`; character truncation in `_node_fan_out_orders`; forced action in `_node_prepare_character` |
+| `mathart/workspace/visual_distillation.py` | **Modified** | Added `.png/.jpg/.jpeg` static image support branch |
+| `docs/USER_GUIDE.md` | **Modified** | Added Section 21 (this document) |
+| `SESSION_HANDOFF.md` | **Overwritten** | SESSION-191 handoff document |
+| `PROJECT_BRAIN.json` | **Modified** | Version bumped to v1.0.2, added SESSION-191 entry |
+
+### 21.3 Pipeline Decoupling Declaration
+
+The system pipeline truncation has been resolved. Even in pure CPU mode without a GPU, the system can now directly bake professional-grade high-definition industrial animation guide sequences (Albedo/Normal/Depth). In LookDev mode, AI rendering has been re-enabled, allowing users to see the final rendered output from the large model during rapid prototyping.
+
+### 21.4 LookDev Deep Pruning Mechanism
+
+When users select `[4] Single Action Prototyping`, the system executes dual hard interception:
+
+1. **Action Filtering**: The `action_filter` parameter penetrates the full chain from CLI -> `mode_dispatcher` -> `run_mass_production_factory` -> PDG `initial_context`. `_node_prepare_character` detects `action_filter` and forces the specified action instead of random selection.
+2. **Character Truncation**: `_node_fan_out_orders` detects `action_filter` and forces `batch_size` to 1, retaining only `character_000` to avoid idle computation of 20 variants.
+
+### 21.5 Static Image Reference Compatibility
+
+The visual distillation module now supports the following input formats:
+
+| Format | Processing |
+|--------|-----------|
+| `.gif` animation | Keyframe extraction via `PIL.ImageSequence` |
+| Image folder | Iterates image files in folder |
+| `.png` / `.jpg` / `.jpeg` static image | **[SESSION-191 NEW]** Prints notice about using default physics params; image passed as appearance reference to AI visual analysis |
+
+### 21.6 Red Line Compliance
+
+| Red Line | Evidence |
+|----------|---------|
+| SESSION-189 three anchor constants untouched | `MAX_FRAMES=16` / `LATENT_EDGE=512` / `NORMAL_MATTE_RGB=(128,128,255)` unchanged |
+| 16-frame anime rhythm subsampling intact | `anime_rhythm_subsampler` code zero modifications |
+| 512 latent space healing intact | `latent_healing` code zero modifications |
+| Block decoupling logic intact | `force_decouple_dummy_mesh_payload` zero modifications |
+| Proxy env vars untouched | All new code has zero references to `HTTP_PROXY/HTTPS_PROXY/NO_PROXY` |
+
+### 21.7 Test Verification
+
+```bash
+PYTHONPATH=. python3.11 -m pytest tests/ -v
+# Expected: all tests pass
+```

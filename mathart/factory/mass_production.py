@@ -1,9 +1,9 @@
 from __future__ import annotations
-
 import argparse
 import json
 import math
 import shutil
+import sys
 import time
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
@@ -670,6 +670,12 @@ def _node_seed_orders(ctx: dict[str, Any], _deps: dict[str, Any]) -> dict[str, A
 
 def _node_fan_out_orders(_ctx: dict[str, Any], deps: dict[str, Any]) -> PDGFanOutResult:
     batch_size = int(deps["seed_orders"]["batch_size"])
+    # ── SESSION-191: LookDev Deep Pruning — 角色变异体截断 ──────────────
+    # 当 action_filter 存在时（LookDev 模式），强制将角色数量截断为 1，
+    # 只保留 character_000，避免 20 个繁衍体的算力空转。
+    _action_filter = _ctx.get("action_filter")
+    if _action_filter:
+        batch_size = 1
     payloads = []
     partition_keys = []
     labels = []
@@ -701,7 +707,13 @@ def _node_prepare_character(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[s
     genotype_path = _write_json(prep_dir / f"{character_id}_genotype.json", genotype.to_dict())
     attachment_path = _save_mesh_npz(prep_dir / f"{character_id}_attachments.npz", attachment_mesh)
 
-    state = _state_from_rng(rng)
+    # ── SESSION-191: LookDev Deep Pruning — 动作过滤器 ────────────────
+    # 当 action_filter 存在时，强制使用用户指定的动作，而非随机选择。
+    _action_filter = ctx.get("action_filter")
+    if _action_filter and len(_action_filter) > 0:
+        state = _action_filter[0]
+    else:
+        state = _state_from_rng(rng)
     frame_count = int(rng.integers(24, 49))
     fps = int(rng.choice(np.array([12, 15, 24], dtype=np.int64)))
     gait = _choose_motion2d_gait(genotype)
@@ -1677,6 +1689,7 @@ def run_mass_production_factory(
     seed: int = _DEFAULT_SEED,
     skip_ai_render: bool = False,
     comfyui_url: str = _DEFAULT_COMFYUI_URL,
+    action_filter: list[str] | None = None,
 ) -> dict[str, Any]:
     output_root = _ensure_dir(output_root)
     batch_dir = _ensure_dir(output_root / f"mass_production_batch_{_timestamp_slug()}")
@@ -1696,6 +1709,8 @@ def run_mass_production_factory(
             "gpu_slots": max(1, int(gpu_slots)),
             "skip_ai_render": bool(skip_ai_render),
             "comfyui_url": str(comfyui_url),
+            # [SESSION-191 LookDev Deep Pruning] action_filter 穿透到 PDG 节点
+            "action_filter": action_filter,
         },
     )
     trace_path = _write_json(batch_dir / "pdg_runtime_trace.json", runtime)

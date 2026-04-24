@@ -185,6 +185,8 @@ class ProductionStrategy(SessionStrategy):
                 "pdg_workers": int(options.get("pdg_workers", 16)),
                 "gpu_slots": int(options.get("gpu_slots", 1)),
                 "seed": int(options.get("seed", 20260422)),
+                # [SESSION-191 LookDev Deep Pruning] action_filter 穿透
+                "action_filter": options.get("action_filter"),
             },
         )
 
@@ -278,6 +280,8 @@ class ProductionStrategy(SessionStrategy):
             seed=int(context.extra["seed"]),
             skip_ai_render=bool(context.extra["skip_ai_render"]),
             comfyui_url=str(context.extra.get("comfyui_url", "http://localhost:8188")),
+            # [SESSION-191 LookDev Deep Pruning] action_filter 穿透到工厂层
+            action_filter=context.extra.get("action_filter"),
         )
         payload["knowledge_write_mode"] = "read_only"
         return payload

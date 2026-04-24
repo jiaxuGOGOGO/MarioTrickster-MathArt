@@ -933,7 +933,7 @@ def _golden_handoff_menu(
                 dispatcher=dispatcher,
                 spec=spec,
                 final_genotype=final_genotype,
-                skip_ai_render=True,
+                skip_ai_render=False,
                 output_fn=output_fn,
                 input_fn=input_fn,
                 action_filter=[_lookdev_action],
