@@ -6,6 +6,29 @@ and registers them into ``RuntimeDistillationBus`` as ``CompiledParameterSpace``
 instances, so downstream systems consume distilled parameters instead of
 hardcoded defaults.
 
+SESSION-184 Sandbox Validator Integration
+-----------------------------------------
+The preloader now implements the **Middleware Interceptor Pattern** (NestJS
+Request Lifecycle / ASP.NET Core Middleware Pipeline analogy): before any
+knowledge asset is mounted onto the ``RuntimeDistillationBus``, it MUST pass
+through the ``SandboxValidator`` anti-hallucination funnel.
+
+The integration follows the **Graceful Degradation** principle (Google Cloud
+Architecture Framework, CMU S3D-25-104): if the validator rejects a rule or
+encounters an error, the preloader logs a ``WARNING`` and **continues** loading
+healthy rules.  The system NEVER crashes or flash-exits due to a single
+poisoned knowledge entry.
+
+Research foundations:
+- AST-Based Sandboxing & Zero-Trust Execution (Two Six Technologies 2022):
+  ``ast.parse(mode='eval')`` + whitelist node walker prevents RCE.
+- Middleware Interceptor Pattern (Martin Fowler 2004, NestJS 2024):
+  Quality gates as pre-mount interceptors on the data loading pipeline.
+- Graceful Degradation in Policy Gateways (Google Cloud 2024):
+  Discard toxic rules, clamp outliers, log warnings, continue startup.
+- Automated Kinematic Sweeping (NVIDIA Isaac Gym 2021):
+  Distilled physics parameters are validated before bus consumption.
+
 Architecture discipline
 -----------------------
 - Follows the EA Frostbite data-driven configuration pattern: knowledge assets
@@ -14,7 +37,8 @@ Architecture discipline
   P1-DISTILL-3 and P1-DISTILL-4.
 - This closes the required write → read loop:
   ``distill backend`` writes → ``knowledge_preloader`` reads →
-  ``CompiledParameterSpace`` serves → runtime consumers resolve distilled values.
+  **SandboxValidator** validates → ``CompiledParameterSpace`` serves →
+  runtime consumers resolve distilled values.
 
 Red-line enforcement
 --------------------
@@ -22,6 +46,10 @@ Red-line enforcement
   and their values override defaults in the compiled parameter space.
 - Physics and cognitive namespaces coexist on the same runtime bus without
   overwriting one another.
+- SESSION-184: ZERO ``eval()`` or ``exec()`` on any external data. All
+  expression validation goes through the AST whitelist firewall.
+- SESSION-184: Validator failures NEVER crash the preloader. Graceful
+  degradation via ``logger.warning`` + ``continue``.
 """
 from __future__ import annotations
 
@@ -146,6 +174,220 @@ _TRANSIENT_MOTION_SYNONYMS: dict[str, tuple[str, ...]] = {
 }
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  SESSION-184: Sandbox Validator Pre-Mount Interceptor
+#
+#  This section implements the Middleware Interceptor Pattern: before any
+#  knowledge rule or JSON asset is mounted onto the RuntimeDistillationBus,
+#  it MUST pass through the SandboxValidator's four-dimensional anti-
+#  hallucination funnel (provenance → AST firewall → math fuzz → physics
+#  dry-run).
+#
+#  Graceful Degradation contract:
+#  - If the validator itself fails to import or initialize, the preloader
+#    logs a WARNING and proceeds WITHOUT validation (fail-open for startup).
+#  - If individual rules fail validation, they are SKIPPED with a WARNING
+#    log entry. Healthy rules continue to load.
+#  - The preloader NEVER raises a fatal exception due to validation failure.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _get_sandbox_validator(project_root: Path | str | None = None):
+    """Lazy-load the SandboxValidator with graceful fallback.
+
+    Returns a ``SandboxValidator`` instance if available, or ``None`` if the
+    module cannot be imported (e.g. circular import edge case). The caller
+    MUST handle the ``None`` case by skipping validation.
+    """
+    try:
+        from mathart.distill.sandbox_validator import SandboxValidator
+        root = Path(project_root) if project_root else Path.cwd()
+        return SandboxValidator(project_root=root)
+    except Exception as exc:
+        logger.warning(
+            "[SandboxValidator] Failed to initialize validator, "
+            "proceeding without pre-mount validation: %s", exc
+        )
+        return None
+
+
+def _validate_quarantine_rules(
+    project_root: Path | str | None = None,
+) -> dict[str, Any]:
+    """Run the SandboxValidator on all quarantined knowledge rules.
+
+    This is the **pre-mount interceptor** that runs BEFORE any knowledge
+    is loaded onto the RuntimeDistillationBus.
+
+    Returns a summary dict with counts and lists of passed/failed rule IDs.
+    On any error, returns a safe empty summary — NEVER crashes.
+
+    Graceful Degradation:
+    - Failed rules are logged as WARNING and skipped.
+    - Passed rules are promoted (or left for downstream consumption).
+    - The function NEVER raises an exception.
+    """
+    summary = {
+        "validator_available": False,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "failed_rule_ids": [],
+        "passed_rule_ids": [],
+    }
+
+    try:
+        validator = _get_sandbox_validator(project_root)
+        if validator is None:
+            logger.warning(
+                "[SandboxValidator] Validator unavailable; "
+                "quarantine scan skipped. System continues with "
+                "existing active knowledge."
+            )
+            return summary
+
+        summary["validator_available"] = True
+
+        # Scan quarantine directory for rules that need validation
+        batch_result = validator.validate_quarantine()
+        summary["total"] = batch_result.total
+        summary["passed"] = batch_result.passed
+        summary["failed"] = batch_result.failed
+
+        for report in batch_result.reports:
+            if report.passed:
+                summary["passed_rule_ids"].append(report.rule_id)
+            else:
+                summary["failed_rule_ids"].append(report.rule_id)
+                # Graceful Degradation: log WARNING, do NOT raise
+                logger.warning(
+                    "[SandboxValidator] Rule %r REJECTED by anti-hallucination "
+                    "funnel (reasons: %s). Skipping this rule — system continues "
+                    "with healthy knowledge.",
+                    report.rule_id,
+                    "; ".join(report.reasons),
+                )
+
+        if batch_result.total > 0:
+            logger.info(
+                "[SandboxValidator] Quarantine scan complete: "
+                "%d/%d rules passed, %d rejected.",
+                batch_result.passed,
+                batch_result.total,
+                batch_result.failed,
+            )
+        else:
+            logger.debug(
+                "[SandboxValidator] No quarantine rules found; "
+                "scan skipped."
+            )
+
+    except Exception as exc:
+        # Ultimate safety net: NEVER let validator errors crash the preloader
+        logger.warning(
+            "[SandboxValidator] Unexpected error during quarantine scan: %s. "
+            "Proceeding without validation — system continues normally.",
+            exc,
+        )
+
+    return summary
+
+
+def _validate_knowledge_json_expressions(
+    knowledge_data: dict[str, Any],
+    source_path: str = "<unknown>",
+) -> dict[str, Any]:
+    """Validate expressions embedded in a JSON knowledge asset.
+
+    SESSION-184: This function scans ``parameter_space_constraints`` for any
+    embedded ``expr`` fields and runs them through the AST whitelist firewall
+    and math fuzzing. This prevents poisoned expressions from reaching the
+    ``CompiledParameterSpace``.
+
+    Graceful Degradation:
+    - Invalid expressions are logged as WARNING and their constraints are
+      removed from the data dict (in-place mutation).
+    - The function NEVER raises an exception.
+    - Returns a summary of validation results.
+    """
+    summary = {"checked": 0, "passed": 0, "failed": 0, "failed_params": []}
+
+    try:
+        from mathart.distill.sandbox_validator import (
+            safe_parse_expression,
+            math_fuzz_expression,
+            UnsafeExpressionError,
+            MathToxinError,
+        )
+    except ImportError:
+        logger.debug(
+            "[SandboxValidator] Expression validator not available; "
+            "skipping JSON expression check for %s.",
+            source_path,
+        )
+        return summary
+
+    constraints = knowledge_data.get("parameter_space_constraints", {})
+    poisoned_keys: list[str] = []
+
+    for param_name, spec in constraints.items():
+        expr = spec.get("expr")
+        if not isinstance(expr, str) or not expr.strip():
+            continue
+
+        summary["checked"] += 1
+        try:
+            # Gate 1: AST whitelist check (ZERO eval/exec)
+            safe_parse_expression(expr)
+            # Gate 2: Math fuzz check (NaN/Inf/overflow detection)
+            math_fuzz_expression(expr)
+            summary["passed"] += 1
+        except (UnsafeExpressionError, MathToxinError) as exc:
+            summary["failed"] += 1
+            summary["failed_params"].append(param_name)
+            poisoned_keys.append(param_name)
+            logger.warning(
+                "[SandboxValidator] Expression in constraint %r from %s "
+                "REJECTED: %s. Removing this constraint — healthy "
+                "constraints continue loading.",
+                param_name,
+                source_path,
+                exc,
+            )
+        except Exception as exc:
+            summary["failed"] += 1
+            summary["failed_params"].append(param_name)
+            poisoned_keys.append(param_name)
+            logger.warning(
+                "[SandboxValidator] Unexpected error validating expression "
+                "in %r from %s: %s. Removing constraint defensively.",
+                param_name,
+                source_path,
+                exc,
+            )
+
+    # Remove poisoned constraints (Graceful Degradation: clamp/discard)
+    for key in poisoned_keys:
+        constraints.pop(key, None)
+
+    if summary["checked"] > 0:
+        logger.info(
+            "[SandboxValidator] JSON expression scan for %s: "
+            "%d checked, %d passed, %d rejected.",
+            source_path,
+            summary["checked"],
+            summary["passed"],
+            summary["failed"],
+        )
+
+    return summary
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Knowledge Asset Loading (original preloader logic, now with validator)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
 def _load_knowledge_asset(knowledge_path: Path | str) -> dict[str, Any]:
     path = Path(knowledge_path)
     if not path.exists():
@@ -156,6 +398,12 @@ def _load_knowledge_asset(knowledge_path: Path | str) -> dict[str, Any]:
     missing = required_fields - set(data.keys())
     if missing:
         raise ValueError(f"Knowledge file missing required fields: {missing}")
+
+    # SESSION-184: Validate expressions in the knowledge asset BEFORE
+    # it reaches the CompiledParameterSpace. This is the pre-mount
+    # interceptor for JSON-embedded expressions.
+    _validate_knowledge_json_expressions(data, source_path=str(path))
+
     return data
 
 
@@ -266,9 +514,30 @@ def preload_all_distilled_knowledge(
     and mounts evolution states onto the bus as a defensive pre-heat step.
     The bus ``__init__`` already does this, but running it here as well
     ensures that any late-arriving legacy files are caught.
+
+    SESSION-184: **Sandbox Validator Pre-Mount Interceptor** — before loading
+    any knowledge asset onto the bus, the quarantine directory is scanned by
+    ``SandboxValidator``. Failed rules are logged as WARNING and skipped.
+    JSON knowledge assets are also scanned for embedded expressions via the
+    AST whitelist firewall. The preloader NEVER crashes due to validation
+    failures (Graceful Degradation contract).
     """
     kdir = Path(knowledge_dir) if knowledge_dir else bus.knowledge_dir
     loaded: dict[str, CompiledParameterSpace] = {}
+
+    # ── SESSION-184: Pre-mount Sandbox Validator scan ─────────────────
+    # This is the Middleware Interceptor: validate quarantine rules BEFORE
+    # any knowledge is mounted onto the bus.
+    validator_summary = _validate_quarantine_rules(
+        project_root=bus.project_root,
+    )
+    if validator_summary.get("failed", 0) > 0:
+        logger.warning(
+            "[KnowledgePreloader] SESSION-184 Sandbox Validator rejected "
+            "%d rule(s). Rejected IDs: %s. Healthy rules continue loading.",
+            validator_summary["failed"],
+            validator_summary["failed_rule_ids"],
+        )
 
     # SESSION-177: Defensive hot migration at preload time
     try:

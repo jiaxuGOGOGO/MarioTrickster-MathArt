@@ -1128,3 +1128,83 @@ VAT 烘焙管线的技术规格（基于 SideFX Houdini VAT 3.0 研究）：
 3. **VAT 烘焙验收**：在实验室中选择 VAT 后端执行，确认 `workspace/laboratory/high_precision_vat/` 目录下生成 `.npy`、`.hdr`、Hi-Lo PNG、manifest JSON 等完整资产
 4. **沙盒隔离验收**：确认 `output/production/` 目录未被创建或修改
 5. **测试验收**：运行 `python -m pytest tests/test_session183_laboratory_hub.py -v`，确认全部 8 个测试通过
+
+## 14. 知识总线海关防爆门与物理步态科研引擎 (SESSION-184)
+
+> **SESSION-184 新增** — 系统已部署知识总线海关防爆门（Sandbox Validator Pre-Mount Interceptor），并热插拔激活物理步态科研引擎（Physics-Gait Distillation Backend）。知识预加载流现在在装载到 RuntimeDistillationBus 之前，会强制经过四维反幻觉漏斗验证，确保外部 LLM 生成的知识规则不携带恶意表达式或数学毒素。
+
+### 14.1 知识总线海关防爆门 (Sandbox Validator Pre-Mount Interceptor)
+
+在 SESSION-184 之前，外部 LLM 生成的知识规则或 JSON 知识资产在加载到 `RuntimeDistillationBus` 时，缺少统一的预检拦截层。理论上，一条携带恶意表达式（如 `__import__('os').system('rm -rf /')`）的规则可以在预热阶段被盲目加载。
+
+SESSION-184 实施了 **中间件拦截器模式（Middleware Interceptor Pattern）**，在知识资产装载入总线之前强制执行四维反幻觉漏斗验证：
+
+| 防线 | 机制 | 说明 |
+|------|------|------|
+| **Gate 1: 溯源验证** | `source_quote` 非空检查 | 无证据链的规则视为 LLM 幻觉，直接拒绝 |
+| **Gate 2: AST 白名单防火墙** | `ast.parse(mode='eval')` + 节点白名单 | 绝对禁止 `eval()`/`exec()`/`__import__`，仅允许纯数学运算 |
+| **Gate 3: 数学模糊测试** | 8 组边界值 Fuzz（0, -1, 1, 1e-6, 1e6, ±inf, nan） | 检测 NaN/Inf/除零/溢出等数学毒素 |
+| **Gate 4: 物理稳定性空跑** | 100 步弹簧-阻尼器积分 + 3 秒看门狗 | 检测动能爆炸、位置穿透、超时等物理不稳定性 |
+
+**优雅降级契约**：当验证器拦截到非法规则时，系统**绝不会崩溃或闪退**。采用"丢弃异常规则 + 记录黄字警告 + 放行健康知识点"的容错隔离策略。在终端中会看到类似以下的黄字警告：
+
+```
+[SandboxValidator] Rule 'xxx' REJECTED by anti-hallucination funnel (reasons: ast_firewall: ...). Skipping this rule — system continues with healthy knowledge.
+```
+
+**外网研究落地**：
+
+| 研究来源 | 落地位置 |
+|----------|----------|
+| TwoSix Labs — AST 白名单沙盒执行（Andrew Healey 2023） | Gate 2: `safe_parse_expression()` 使用 `ast.parse(mode='eval')` + 节点类型白名单 |
+| Express.js / Django 中间件拦截器模式 | `knowledge_preloader.py` 的 `_validate_quarantine_rules()` 预检中间件 |
+| Netflix Hystrix 优雅降级 / Circuit Breaker | 验证失败时丢弃异常规则、放行健康知识、黄字警告 |
+| NVIDIA Isaac Gym 运动学扫参 | Gate 4: `physics_dry_run()` 弹簧-阻尼器积分稳定性检测 |
+
+### 14.2 物理步态科研引擎 (Physics-Gait Distillation Backend)
+
+`PhysicsGaitDistillationBackend` 是一个完全独立的微内核插件，通过 `@register_backend` 装饰器注册，无需修改任何前端 CLI 或路由代码。它通过 SESSION-183 开发的反射机制自动出现在 `[6] 🔬 黑科技实验室` 的候选项中。
+
+| 属性 | 值 |
+|------|-----|
+| **注册类型** | `BackendType.EVOLUTION_PHYSICS_GAIT_DISTILL` |
+| **能力声明** | `BackendCapability.EVOLUTION_DOMAIN` |
+| **产物族** | `ArtifactFamily.EVOLUTION_REPORT` |
+| **输出沙盒** | `workspace/laboratory/evolution_physics_gait_distill/` |
+| **知识资产** | `knowledge/physics_gait_rules.json` |
+
+科研引擎的核心管线：
+
+1. **遥测采集**：从 `RuntimeDistillationBus` 收集 `wall_time_ms` 和 `ccd_sweep_count` 性能遥测
+2. **网格搜索**：对 XPBD 物理参数（compliance_distance, compliance_bending, damping, sub_steps）和步态参数（blend_time, phase_weight）进行全组合扫参
+3. **多目标适应度评估**：加权组合物理误差、步态滑动、计算成本、CCD 开销
+4. **Pareto 前沿提取**：NSGA-II 非支配排序，提取帕累托最优配置
+5. **知识资产写入**：输出符合 `CompiledParameterSpace` 预加载规范的 JSON 知识文件
+
+### 14.3 三层进化循环闭环
+
+SESSION-184 完成后，系统的三层进化循环已全面闭合：
+
+| 层级 | 机制 | SESSION-184 贡献 |
+|------|------|------------------|
+| **内层：参数进化** | 遗传算法 + 蓝图繁衍 | 物理步态科研引擎提供最优参数种子 |
+| **中层：知识蒸馏** | 外部文献 → 规则 → 编译参数空间 | Sandbox Validator 防爆门确保知识质量 |
+| **外层：架构自省** | 微内核反射 + 注册表自发现 | 零代码修改即可挂载新科研后端 |
+
+### 傻瓜验收
+
+老大，知识总线海关防爆门和物理步态科研引擎已全面部署！请按以下步骤验收：
+
+验收步骤：
+
+1. **Sandbox Validator 验收**：运行 `python -m pytest tests/test_sandbox_validator.py -v`，确认四维反幻觉漏斗全部测试通过
+2. **知识预加载验收**：在 Python 中执行以下代码，确认 Validator 拦截层正常工作：
+   ```python
+   from mathart.distill.knowledge_preloader import _validate_quarantine_rules
+   summary = _validate_quarantine_rules(".")
+   print(summary)
+   ```
+3. **物理步态科研引擎验收**：进入 `[6] 🔬 黑科技实验室`，确认 `Physics–Gait Distillation (P1-DISTILL-3)` 出现在候选列表中
+4. **科研扫参执行验收**：在实验室中选择该后端执行，确认 `workspace/laboratory/evolution_physics_gait_distill/` 目录下生成 `physics_gait_distill_report.json` 和 `knowledge/physics_gait_rules.json`
+5. **沙盒隔离验收**：确认 `output/production/` 目录未被创建或修改
+6. **测试验收**：运行 `python -m pytest tests/test_p1_distill_3.py -v`，确认物理步态蒸馏闭环测试通过

@@ -1,7 +1,7 @@
 {
-  "version": "v0.99.21",
-  "last_session_id": "SESSION-183",
-  "last_updated": "2026-04-24 02:07:26",
+  "version": "v0.99.22",
+  "last_session_id": "SESSION-184",
+  "last_updated": "2026-04-24 02:49:42",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -15,15 +15,36 @@
       "P3": 3
     },
     "by_status": {
-      "CLOSED": 11,
+      "CLOSED": 12,
       "DONE": 6,
       "PARTIAL": 4,
       "SUBSTANTIALLY-ADVANCED": 2,
       "SUBSTANTIALLY-CLOSED": 6,
-      "TODO": 56
+      "TODO": 55
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-184-SANDBOX-VALIDATOR-AND-GAIT-DISTILLATION",
+        "title": "Sandbox Validator Pre-Mount Interceptor & Physics-Gait Distillation Backend Activation",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-184",
+        "modules": [
+          "mathart/distill/knowledge_preloader.py",
+          "mathart/distill/sandbox_validator.py",
+          "mathart/core/physics_gait_distill_backend.py",
+          "docs/USER_GUIDE.md",
+          "docs/RESEARCH_NOTES_SESSION_184.md",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [
+          "tests/test_sandbox_validator.py",
+          "tests/test_p1_distill_3.py"
+        ],
+        "description": "SESSION-184 Sandbox Validator & Gait Distillation: (1) Deployed knowledge bus customs gate (Sandbox Validator Pre-Mount Interceptor) — integrated SandboxValidator into knowledge_preloader.py as a Middleware Interceptor Pattern. Before any knowledge asset is mounted onto RuntimeDistillationBus, quarantine rules are scanned through the four-dimensional anti-hallucination funnel: provenance check → AST whitelist firewall (ZERO eval/exec) → math fuzz (8 boundary values) → physics dry-run (100-step spring-damper integration + 3s watchdog). Graceful Degradation contract: failed rules are logged as WARNING and skipped, healthy rules continue loading, system NEVER crashes. JSON-embedded expressions also validated via AST whitelist before reaching CompiledParameterSpace. (2) Hot-plugged Physics-Gait Distillation Backend activation — confirmed PhysicsGaitDistillationBackend is correctly registered via @register_backend with BackendType.EVOLUTION_PHYSICS_GAIT_DISTILL, BackendCapability.EVOLUTION_DOMAIN, ArtifactFamily.EVOLUTION_REPORT. Auto-discovered by laboratory_hub._discover_lab_backends() via reflection — ZERO modification to cli_wizard.py or laboratory_hub.py. Output sandboxed to workspace/laboratory/evolution_physics_gait_distill/. Full grid-search pipeline: telemetry collection → XPBD/gait parameter sweep → multi-objective fitness → Pareto frontier extraction → knowledge asset write to knowledge/physics_gait_rules.json. (3) UX anti-corrosion: Sci-fi baking banner preserved, USER_GUIDE.md Section 14 added with full SESSION-184 documentation including research grounding table. (4) Research foundations: TwoSix Labs AST sandboxing, Express.js/Django middleware interceptor pattern, Netflix Hystrix graceful degradation, NVIDIA Isaac Gym kinematic sweeping. All red lines strictly observed: zero trunk modification, zero hardcoded routing, zero eval/exec on external data."
+      },
       {
         "id": "P0-SESSION-183-MICROKERNEL-HUB-AND-VAT-INTEGRATION",
         "title": "Microkernel Dynamic Dispatch Hub & High-Precision Float VAT Pipeline Integration",
@@ -497,7 +518,7 @@
     "engineering_automation": 95,
     "animation_physics_realism": 58
   },
-  "current_focus": "SESSION-174: Asset Governance & Vault Extraction deployed. Storage Radar, Smart GC, and Gold Master Vault Extraction are now live in the Golden Handoff V2 menu.",
+  "current_focus": "SESSION-184 CLOSED: Sandbox Validator Pre-Mount Interceptor deployed, Physics-Gait Distillation Backend hot-plugged. Next candidates: CPPN Texture Evolution Engine activation, Fluid Momentum Controller integration.",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "docs/RESEARCH_NOTES_SESSION_166.md",
@@ -3627,6 +3648,17 @@
   },
   "recent_sessions": [
     {
+      "id": "SESSION-184",
+      "title": "Sandbox Validator & Gait Distillation",
+      "status": "CLOSED",
+      "key_deliverables": [
+        "knowledge_preloader.py — SandboxValidator pre-mount interceptor",
+        "PhysicsGaitDistillationBackend — auto-discovered via reflection",
+        "USER_GUIDE.md Section 14",
+        "RESEARCH_NOTES_SESSION_184.md"
+      ]
+    },
+    {
       "id": "SESSION-182",
       "focus": "P0-SESSION-182-ORPHANED-ASSET-AUDIT — 全域雪藏资产勘探与静态评估",
       "status": "CLOSED"
@@ -3709,17 +3741,6 @@
       "date": "2026-04-23",
       "task": "P0-SESSION-163-FINAL-UI-ASSEMBLY",
       "status": "CLOSED"
-    },
-    {
-      "id": "SESSION-174",
-      "date": "2026-04-23",
-      "title": "Asset Governance & Vault Extraction",
-      "status": "CLOSED"
-    },
-    {
-      "id": "SESSION-179",
-      "date": "2026-04-24",
-      "title": "Visual Distillation & Reskinning + SESSION-176 Research Landing"
     }
   ],
   "closed_tasks_archive": [
@@ -5048,6 +5069,30 @@
       "task": "P0-SESSION-182-ORPHANED-ASSET-AUDIT",
       "status": "CLOSED",
       "summary": "Full-repository static code archaeology. Identified 7 major dormant asset categories across core/, animation/, evolution/, distill/, and quality/gates/. Key finds: CPPN Texture Engine, Fluid Momentum Controller, High-Precision VAT, Physics-Gait Distill Backend, FD Gradient Optimizer, Paper Miner, and 9 orphaned Evolution Bridges. Architectural gap between Backend Registry richness and CLI accessibility documented. Report: docs/DORMANT_FEATURES_AUDIT.md"
+    },
+    {
+      "session_id": "SESSION-184",
+      "date": "2026-04-24",
+      "title": "Sandbox Validator Pre-Mount Interceptor & Physics-Gait Distillation Backend Activation",
+      "summary": "Deployed knowledge bus customs gate (SandboxValidator as pre-mount middleware interceptor in knowledge_preloader.py). Four-dimensional anti-hallucination funnel: provenance → AST firewall → math fuzz → physics dry-run. Graceful degradation: failed rules logged as WARNING, healthy rules continue. Hot-plugged PhysicsGaitDistillationBackend — auto-discovered via reflection, zero CLI modification. Grid-search Pareto distillation pipeline activated. USER_GUIDE.md Section 14 added. Research: AST sandboxing, middleware interceptor, graceful degradation, kinematic sweeping.",
+      "files_changed": [
+        "mathart/distill/knowledge_preloader.py",
+        "docs/USER_GUIDE.md",
+        "docs/RESEARCH_NOTES_SESSION_184.md",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "tests_added": [
+        "tests/test_sandbox_validator.py (existing, verified)",
+        "tests/test_p1_distill_3.py (existing, verified)"
+      ],
+      "red_lines_observed": [
+        "ZERO eval/exec on external data",
+        "ZERO trunk modification (cli_wizard.py, laboratory_hub.py untouched)",
+        "ZERO hardcoded routing — pure reflection discovery",
+        "ZERO production vault pollution",
+        "Graceful degradation — NEVER crash on validation failure"
+      ]
     }
   ],
   "resolved_issues": [
@@ -5397,7 +5442,18 @@
       "implication": "This classification schema provides the exact granularity needed for targeted fix campaigns. Each dead-zone parameter has a clear remediation path: add the corresponding constraint to the knowledge directory and verify via re-running the audit. The six-level schema is extensible — future sources (e.g., A/B test results, user analytics) can be added as new ProvenanceSourceType enum values without breaking existing records."
     }
   ],
-  "current_session": "SESSION-182",
+  "current_session": {
+    "id": "SESSION-184",
+    "status": "CLOSED",
+    "focus": "Sandbox Validator Pre-Mount Interceptor & Physics-Gait Distillation Backend Activation",
+    "tasks_completed": [
+      "Deploy SandboxValidator as middleware interceptor in knowledge_preloader.py",
+      "Validate PhysicsGaitDistillationBackend registration and reflection discovery",
+      "Update USER_GUIDE.md with Section 14",
+      "Create RESEARCH_NOTES_SESSION_184.md",
+      "Full audit and verification"
+    ]
+  },
   "red_lines": [
     "SESSION-162: NEVER use hardcoded string lists for motion states; ALWAYS query unified_gait_blender.get_motion_lane_registry().names().",
     "SESSION-162: NEVER bypass assert_nonzero_temporal_variance in guide baking; fail fast on frozen sequences.",
