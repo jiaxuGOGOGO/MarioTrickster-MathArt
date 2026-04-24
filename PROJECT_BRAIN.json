@@ -1,7 +1,7 @@
 {
   "version": "v0.99.20",
-  "last_session_id": "SESSION-181",
-  "last_updated": "2026-04-24 18:00:00",
+  "last_session_id": "SESSION-182",
+  "last_updated": "2026-04-24 01:17:06",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -24,6 +24,20 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-182-ORPHANED-ASSET-AUDIT",
+        "title": "全域雪藏资产勘探与静态评估 — Dormant Feature Archaeology",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-182",
+        "modules": [
+          "docs/DORMANT_FEATURES_AUDIT.md",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [],
+        "description": "SESSION-182 Orphaned Asset Audit: Full-repository static code analysis using AST parsing and grep-based cross-reference scanning across 443 Python files. Identified 7 major dormant asset categories: (1) CPPN Texture Evolution Engine (667 lines, zero CLI entry); (2) Fluid Momentum Controller (461 lines, zero cross-references); (3) High-Precision Float VAT Baking (978 lines, zero cross-references); (4) Physics-Gait Distillation Backend (registered but unreachable from CLI); (5) FD Gradient Optimizer (conditionally called, default disabled); (6) Paper Miner & Community Sources (1836 lines, disconnected from main pipeline); (7) 9 orphaned Evolution Bridges (NOT_IN_ORCH). Key architectural finding: Backend Registry contains rich registered backends discoverable by MicrokernelOrchestrator, but CLI Wizard exposes only 5 macro modes — creating a systematic gap between registered capabilities and user-accessible features. Delivered DORMANT_FEATURES_AUDIT.md with per-module analysis including design intent, dormancy cause, fusion feasibility, and risk assessment. Strict read-only red line observed: ZERO .py/.json business logic files modified."
+      },
       {
         "id": "P0-SESSION-177-DISTILLATION-STATE-CONSOLIDATION",
         "title": "Distillation State Consolidation — State Vault, I/O Reroute, Dual-Track Bus Integration",
@@ -3155,19 +3169,11 @@
     "RESOLVED-S121: CharacterGenotype lacked first-class torso/hand/foot equipment slots and a tensorized 3D socket mounter -> implemented parts3d.py + SocketSpec + TensorSocketMounter aligned with UE5 / IQ SDF / OpenUSD references, with 32 regression tests guaranteeing legacy JSON compatibility and Z-fighting-free SDF offsets."
   ],
   "recent_audit": {
-    "session": "SESSION-036",
-    "summary": "SESSION-036 closed the motion-data architecture gap by introducing a Unified Motion Representation (UMR) inspired by OpenUSD UsdSkel, Houdini KineFX, and Unreal AnimGraph layering. UnifiedMotionFrame now forces time/phase/root/joint/contact fields through the trunk. AssetPipeline produces per-state .umr.json clips, manifest-level motion_contract metadata, and ordered audit trails. AnglePoseProjector and BiomechanicsProjector now operate as single-direction frame filters with strict layer guards; Layer 3 can read UMR context directly. Real export audit passed on idle/run/jump, compileall passed, and 73 targeted regression tests passed. Main remaining gaps: native phase-driven jump/fall/hit, non-bypass CLI/export entrypoints, and runtime UMR query/transition synthesis.",
-    "top_gaps": [
-      "Phase-driven completion for jump/fall/hit + non-bypass CLI trunk enforcement (P1-PHASE-35A)",
-      "End-to-end trunk reproducibility validation with UMR artifact assertions (P1-BENCH-35A)",
-      "Propagate UMR contract to CLI, exporters, and distillation bus (P1-UMR-36A)",
-      "Runtime motion matching query with UMR-native transition synthesis (P1-INDUSTRIAL-34B)",
-      "Industrial renderer not yet wired into AssetPipeline (P1-INDUSTRIAL-34A)",
-      "3D-to-2D mesh rendering path (P1-INDUSTRIAL-34C)",
-      "Gait transition blending walk/run/sneak (P1-PHASE-33A)",
-      "Terrain-adaptive phase modulation (P1-PHASE-33B)",
-      "Visual quality gap (SDF vs hand-drawn/AI)"
-    ]
+    "session": "SESSION-182",
+    "type": "orphaned_asset_audit",
+    "dormant_assets_found": 7,
+    "total_dormant_code_lines": 6126,
+    "report": "docs/DORMANT_FEATURES_AUDIT.md"
   },
   "completed_work": [
     {
@@ -3578,6 +3584,11 @@
     "updated_at": "2026-04-23T18:00:00Z"
   },
   "recent_sessions": [
+    {
+      "id": "SESSION-182",
+      "focus": "P0-SESSION-182-ORPHANED-ASSET-AUDIT — 全域雪藏资产勘探与静态评估",
+      "status": "CLOSED"
+    },
     {
       "session_id": "SESSION-108",
       "date": "2026-04-21",
@@ -4989,6 +5000,12 @@
       ],
       "tests_added": 15,
       "tests_total_passing": 24
+    },
+    {
+      "session": "SESSION-182",
+      "task": "P0-SESSION-182-ORPHANED-ASSET-AUDIT",
+      "status": "CLOSED",
+      "summary": "Full-repository static code archaeology. Identified 7 major dormant asset categories across core/, animation/, evolution/, distill/, and quality/gates/. Key finds: CPPN Texture Engine, Fluid Momentum Controller, High-Precision VAT, Physics-Gait Distill Backend, FD Gradient Optimizer, Paper Miner, and 9 orphaned Evolution Bridges. Architectural gap between Backend Registry richness and CLI accessibility documented. Report: docs/DORMANT_FEATURES_AUDIT.md"
     }
   ],
   "resolved_issues": [
@@ -5338,7 +5355,7 @@
       "implication": "This classification schema provides the exact granularity needed for targeted fix campaigns. Each dead-zone parameter has a clear remediation path: add the corresponding constraint to the knowledge directory and verify via re-running the audit. The six-level schema is extensible — future sources (e.g., A/B test results, user analytics) can be added as new ProvenanceSourceType enum values without breaking existing records."
     }
   ],
-  "current_session": "SESSION-179",
+  "current_session": "SESSION-182",
   "red_lines": [
     "SESSION-162: NEVER use hardcoded string lists for motion states; ALWAYS query unified_gait_blender.get_motion_lane_registry().names().",
     "SESSION-162: NEVER bypass assert_nonzero_temporal_variance in guide baking; fail fast on frozen sequences.",
