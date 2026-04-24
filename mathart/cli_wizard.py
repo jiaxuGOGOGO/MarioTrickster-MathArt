@@ -695,6 +695,18 @@ def _golden_handoff_menu(
         # --- [2] 🎨 终极降维：全阵列烘焙 + AI 渲染 --------------------
         if choice in {"2", "full_render", "render", "ai"}:
             logger.info("[CLI] Golden Handoff V2: user chose [2] full-array bake + AI render (skip_ai_render=False)")
+            # ── SESSION-175: UX 零退化与科幻流转展示（前置烘焙网关 banner） ──
+            # [UX 防腐蚀红线] 在弹出 “是否跳过 AI 渲染” 的最终决策提示前，
+            # 必须先把工业烘焙网关 banner 高亮打到终端，让用户在按 y/n 之前
+            # 就清楚地看到：底层是纯 CPU + Catmull-Rom 样条插值的工业级解算，
+            # 与上方 ComfyUI 预检告警形成视觉上的“双门校验”。
+            output_fn("")
+            output_fn("\033[1;36m" + "═" * 60 + "\033[0m")
+            output_fn(
+                "\033[1;36m[⚙️  工业烘焙网关] 正在通过 Catmull-Rom 样条插值，"
+                "纯 CPU 解算高精度工业级贴图动作序列...\033[0m"
+            )
+            output_fn("\033[1;36m" + "═" * 60 + "\033[0m")
             # Pre-flight warning BEFORE any GPU/network call.
             emit_comfyui_preflight_warning(output_fn=output_fn)
             try:

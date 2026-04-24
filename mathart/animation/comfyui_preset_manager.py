@@ -339,7 +339,8 @@ class ComfyUIPresetManager:
         depth_controlnet_name: str = "control_v11f1p_sd15_depth.pth",
         model_checkpoint: str = "sd_xl_base_1.0.safetensors",
         steps: int = 20,
-        cfg_scale: float = 7.5,
+        # SESSION-175: AnimateDiff CFG Burn Prevention
+        cfg_scale: float = 4.5,
         denoising_strength: float = 0.65,
         normal_weight: float = 1.0,
         depth_weight: float = 1.0,
@@ -376,7 +377,9 @@ class ComfyUIPresetManager:
             "ip_adapter_apply": float(ip_adapter_weight if use_ip_adapter else 0.0),
             "ksampler_seed": int(seed),
             "ksampler_steps": int(steps),
-            "ksampler_cfg": float(cfg_scale),
+            # SESSION-175 P0-LATENT-HEALING: hard-cap CFG ≤ 4.5 even when
+            # callers pass a legacy 7.5 (defence-in-depth against burn).
+            "ksampler_cfg": min(float(cfg_scale), 4.5),
             "ksampler_denoise": float(denoising_strength),
             "save_output": filename_prefix,
         }
@@ -447,7 +450,8 @@ class ComfyUIPresetManager:
         width: int = 512,
         height: int = 512,
         steps: int = 20,
-        cfg_scale: float = 7.5,
+        # SESSION-175: AnimateDiff CFG Burn Prevention
+        cfg_scale: float = 4.5,
         denoising_strength: float = 1.0,
         normal_weight: float = 1.0,
         depth_weight: float = 1.0,
@@ -492,7 +496,8 @@ class ComfyUIPresetManager:
             "latent_height": int(height),
             "ksampler_seed": int(seed),
             "ksampler_steps": int(steps),
-            "ksampler_cfg": float(cfg_scale),
+            # SESSION-175 P0-LATENT-HEALING: hard-cap CFG ≤ 4.5 (sequence path).
+            "ksampler_cfg": min(float(cfg_scale), 4.5),
             "ksampler_denoise": float(denoising_strength),
             "video_frame_rate": int(frame_rate),
             "video_filename": filename_prefix,

@@ -706,7 +706,10 @@ class AntiFlickerRenderBackend:
         comfyui.setdefault("controlnet_depth_weight", 1.0)
         comfyui.setdefault("denoising_strength", 0.65)
         comfyui.setdefault("steps", 20)
-        comfyui.setdefault("cfg_scale", 7.5)
+        # SESSION-175 P0-LATENT-HEALING: AnimateDiff CFG Burn Prevention
+        # Default CFG lowered from 7.5 → 4.5 to align with AnimateDiff V3 +
+        # SparseCtrl best practice (CFG > 5 produces over-saturated burns).
+        comfyui.setdefault("cfg_scale", 4.5)
         comfyui.setdefault("keyframe_interval", 4)
         comfyui.setdefault("normal_controlnet_model", "control_v11p_sd15_normalbae.pth")
         comfyui.setdefault("depth_controlnet_model", "control_v11f1p_sd15_depth.pth")
@@ -1059,6 +1062,7 @@ class AntiFlickerRenderBackend:
         from mathart.animation.presets import idle_animation
         from mathart.animation.comfyui_preset_manager import ComfyUIPresetManager
         from mathart.animation.skeleton import Skeleton
+        from mathart.animation.motion_vector_baker import MotionVectorSequence
         from mathart.comfy_client.comfyui_ws_client import ComfyUIClient
         from mathart.core.anti_flicker_runtime import (
             export_rgb_sequence,
@@ -1127,14 +1131,63 @@ class AntiFlickerRenderBackend:
         skeleton = Skeleton.create_humanoid()
         style = CharacterStyle()
         pipeline = HeadlessNeuralRenderPipeline(neural_config)
-        source_frames, normal_maps, depth_maps, mask_maps, mv_sequence = pipeline.bake_auxiliary_maps(
-            skeleton=skeleton,
-            animation_func=idle_animation,
-            style=style,
-            frames=frame_count,
-            width=render_width,
-            height=render_height,
-        )
+
+        # ────────────────────────────────────────────────────────────
+        # SESSION-175 P0-LATENT-HEALING: ControlNet Modal Alignment
+        #
+        # Root cause of "deep-fried artifacts":
+        #   The original code unconditionally re-baked an idle animation
+        #   via ``bake_auxiliary_maps`` and discarded the upstream
+        #   industrial baked guide sequence (Albedo / Normal / Depth /
+        #   Mask) that ``_node_guide_baking`` already produced from real
+        #   Clip2D motion. The resulting payload fed SparseCtrl (RGB
+        #   domain) with a re-baked idle albedo while keeping the
+        #   per-character normal/depth as conditioning, producing the
+        #   high-saturation acid noise reported in SESSION-175.
+        #
+        # Fix:
+        #   When upstream provides ``_external_source_frames``, treat
+        #   them as the canonical RGB domain payload for SparseCtrl and
+        #   reuse the matching normal/depth sequences as ControlNet
+        #   conditioning. We also bypass the in-process motion-vector
+        #   bake (which depends on ``idle_animation``) and synthesise an
+        #   empty MotionVectorSequence sized to the real guide width /
+        #   height so the downstream keyframe planner stays happy.
+        # ────────────────────────────────────────────────────────────
+        external_source = validated.get("_external_source_frames")
+        external_normal = validated.get("_external_normal_maps")
+        external_depth = validated.get("_external_depth_maps")
+        external_mask = validated.get("_external_mask_maps")
+        if external_source is not None and len(external_source) > 0:
+            logger.info(
+                "[anti_flicker_render] SESSION-175: ControlNet Modal Alignment "
+                "engaged \u2014 consuming %d upstream baked frames as canonical "
+                "SparseCtrl RGB payload (idle re-bake bypassed).",
+                len(external_source),
+            )
+            source_frames = list(external_source)
+            normal_maps = list(external_normal) if external_normal else list(external_source)
+            depth_maps = list(external_depth) if external_depth else list(external_source)
+            mask_maps = list(external_mask) if external_mask else list(external_source)
+            guide_w = source_frames[0].size[0] if hasattr(source_frames[0], "size") else render_width
+            guide_h = source_frames[0].size[1] if hasattr(source_frames[0], "size") else render_height
+            mv_sequence = MotionVectorSequence(
+                frame_count=len(source_frames),
+                width=guide_w,
+                height=guide_h,
+            )
+            # Inherit the real guide resolution so latent canvas matches.
+            render_width = guide_w
+            render_height = guide_h
+        else:
+            source_frames, normal_maps, depth_maps, mask_maps, mv_sequence = pipeline.bake_auxiliary_maps(
+                skeleton=skeleton,
+                animation_func=idle_animation,
+                style=style,
+                frames=frame_count,
+                width=render_width,
+                height=render_height,
+            )
         keyframe_plan = pipeline.plan_keyframes(source_frames, mask_maps, mv_sequence)
         keyframe_indices = list(getattr(keyframe_plan, "indices", []))
 
@@ -1232,7 +1285,13 @@ class AntiFlickerRenderBackend:
                 width=rgb_result.padded_width,
                 height=rgb_result.padded_height,
                 steps=int(comfyui_cfg.get("steps", 20)),
-                cfg_scale=float(comfyui_cfg.get("cfg_scale", 7.5)),
+                # SESSION-175 P0-LATENT-HEALING: AnimateDiff CFG Burn Prevention
+                # AnimateDiff V3 + SparseCtrl is extremely sensitive to CFG > 5.
+                # Empirically (and per AnimateDiff/ComfyUI community guidance)
+                # any value above ~4.5 with multi-modal conditioning causes
+                # "burned" / over-saturated frames. We hard-cap CFG at 4.5
+                # for the live sequence path, regardless of upstream config.
+                cfg_scale=min(float(comfyui_cfg.get("cfg_scale", 4.5)), 4.5),
                 denoising_strength=float(comfyui_cfg.get("denoising_strength", 1.0)),
                 normal_weight=float(comfyui_cfg.get("controlnet_normal_weight", 1.0)),
                 depth_weight=float(comfyui_cfg.get("controlnet_depth_weight", 1.0)),

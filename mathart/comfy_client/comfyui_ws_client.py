@@ -908,7 +908,26 @@ class ComfyUIClient:
     ) -> str | None:
         """Download a single file from ComfyUI via GET /view.
 
-        Returns the local file path on success, ``None`` on failure.
+        Returns the local file path on success, ``None`` on transient soft
+        failures.
+
+        SESSION-175 P0-DOWNLOAD-ABORT — Hard-Drop Download Circuit Breaker
+        ------------------------------------------------------------------
+        When the remote ComfyUI server *dies mid-download* (TCP RST seen as
+        ``WinError 10054`` / ``ConnectionResetError``, or refuses subsequent
+        connections with ``WinError 10061`` / ``ConnectionRefusedError``,
+        or yields an incomplete chunked response), there is **no point in**
+        continuing to queue the rest of the per-character render pipeline.
+        Returning ``None`` here used to be silently swallowed by the outer
+        loop, leaving every subsequent character to retry against a corpse.
+
+        We now raise :class:`ComfyUIExecutionError` (a Poison Pill) for the
+        "hard" socket-level disconnect class. The exception is intentionally
+        allowed to bubble through ``_download_outputs`` →
+        ``execute_workflow`` → the orchestrator, which already wires this
+        type into the global PDG Cancel mechanism. Soft failures (404, 500,
+        timeout) still log + return ``None`` so a single missing artifact
+        does not abort an otherwise-healthy render.
         """
         try:
             params = urllib.parse.urlencode({
@@ -931,14 +950,56 @@ class ComfyUIClient:
             )
             return str(local_path)
 
-        except (
-            ConnectionRefusedError,
-            urllib.error.URLError,
-            OSError,
-            TimeoutError,
-        ) as e:
+        except (ConnectionResetError, ConnectionAbortedError) as e:
+            # WinError 10054 / 10053 — remote peer slammed the socket shut
+            # mid-transfer. The ComfyUI process almost certainly crashed.
+            logger.error(
+                "[ComfyUIClient] Hard-drop while downloading %s: %s. "
+                "Tripping circuit breaker (Poison Pill).",
+                filename, e,
+            )
+            raise ComfyUIExecutionError(
+                f"远端 ComfyUI 服务器在下载期宕机 (hard reset): {e}",
+                node_id="download:/view",
+                details=f"filename={filename}, subfolder={subfolder}, type={file_type}",
+            ) from e
+        except ConnectionRefusedError as e:
+            # WinError 10061 — server is no longer accepting connections
+            # for follow-up GET /view calls. Identical fatality semantics.
+            logger.error(
+                "[ComfyUIClient] Connection refused while downloading %s: %s. "
+                "Tripping circuit breaker (Poison Pill).",
+                filename, e,
+            )
+            raise ComfyUIExecutionError(
+                f"远端 ComfyUI 服务器在下载期拒接连接: {e}",
+                node_id="download:/view",
+                details=f"filename={filename}, subfolder={subfolder}, type={file_type}",
+            ) from e
+        except urllib.error.URLError as e:
+            # urlopen wraps low-level socket errors in URLError; inspect the
+            # underlying ``reason`` to keep hard-drop semantics consistent.
+            reason = getattr(e, "reason", None)
+            if isinstance(reason, (ConnectionResetError, ConnectionAbortedError, ConnectionRefusedError)):
+                logger.error(
+                    "[ComfyUIClient] URLError(hard-drop) while downloading %s: %s. "
+                    "Tripping circuit breaker (Poison Pill).",
+                    filename, reason,
+                )
+                raise ComfyUIExecutionError(
+                    f"远端 ComfyUI 服务器在下载期宕机: {reason}",
+                    node_id="download:/view",
+                    details=f"filename={filename}, subfolder={subfolder}, type={file_type}",
+                ) from e
             logger.warning(
-                "[ComfyUIClient] Failed to download %s: %s", filename, e
+                "[ComfyUIClient] Soft URL error downloading %s: %s", filename, e
+            )
+            return None
+        except (OSError, TimeoutError) as e:
+            # Generic OSError catch-all for non-fatal transport faults
+            # (e.g. transient timeout, partial read). Keep legacy behaviour.
+            logger.warning(
+                "[ComfyUIClient] Failed to download %s (soft): %s", filename, e
             )
             return None
 

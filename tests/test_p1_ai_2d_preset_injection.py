@@ -105,7 +105,10 @@ class TestComfyUIPresetManager:
         assert _find_by_title(payload, "Apply IP-Adapter")["inputs"]["weight"] == pytest.approx(0.91)
         assert _find_by_title(payload, "KSampler")["inputs"]["seed"] == 123
         assert _find_by_title(payload, "KSampler")["inputs"]["steps"] == 32
-        assert _find_by_title(payload, "KSampler")["inputs"]["cfg"] == pytest.approx(8.25)
+        # SESSION-175 P0-LATENT-HEALING: AnimateDiff CFG Burn Prevention.
+        # Even when callers pass a legacy 8.25, the preset manager now
+        # hard-caps KSampler CFG at 4.5 to prevent SparseCtrl burn-in.
+        assert _find_by_title(payload, "KSampler")["inputs"]["cfg"] == pytest.approx(4.5)
         assert _find_by_title(payload, "KSampler")["inputs"]["denoise"] == pytest.approx(0.58)
         assert _find_by_title(payload, "Save Output")["inputs"]["filename_prefix"] == "hero_af"
 

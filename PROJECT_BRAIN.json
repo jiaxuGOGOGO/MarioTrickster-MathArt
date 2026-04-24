@@ -1,6 +1,6 @@
 {
   "version": "v0.99.17",
-  "last_session_id": "SESSION-174",
+  "last_session_id": "SESSION-175",
   "last_updated": "2026-04-23T13:15:51",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -24,6 +24,27 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-175-LATENT-HEALING-AND-DOWNLOAD-ABORT",
+        "title": "Latent Healing & Download Abort",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-175",
+        "modules": [
+          "mathart/core/builtin_backends.py",
+          "mathart/animation/comfyui_preset_manager.py",
+          "mathart/comfy_client/comfyui_ws_client.py",
+          "mathart/backend/comfy_client.py",
+          "mathart/cli_wizard.py",
+          "tests/test_p1_ai_2d_preset_injection.py",
+          "docs/USER_GUIDE.md",
+          "SESSION_HANDOFF.md"
+        ],
+        "tests": [
+          "tests/test_p1_ai_2d_preset_injection.py"
+        ],
+        "description": "SESSION-175 Latent Healing & Download Abort: Fixed SparseCtrl RGB modality mismatch by feeding source_frames instead of normal_maps to avoid deep-fried artifacts. Hard-capped AnimateDiff KSampler cfg_scale to 4.5 for burn prevention. Added hard-drop on WinError 10054/10061 during download polling, bubbling up as ComfyUIExecutionError to pierce PDG and trigger global abort. Pre-flight warning enhanced with CPU Catmull-Rom baking banner for UX zero degradation."
+      },
       {
         "id": "P0-SESSION-173-OFFLINE-SEMANTIC-TRANSLATOR",
         "title": "Offline Semantic Translator — Prompt Engineering i18n Mapping & Graceful Fallback",
@@ -321,7 +342,7 @@
   "sprite_count": 0,
   "knowledge_rule_count": 167,
   "math_model_count": 41,
-  "project_health_score": 10.0,
+  "project_health_score": 10,
   "commercial_benchmark": {
     "_MANDATORY": "Every upgrade MUST be measured against COMMERCIAL_BENCHMARK.md. If it does not shrink a gap below, it is cosmetic.",
     "reference_file": "COMMERCIAL_BENCHMARK.md",

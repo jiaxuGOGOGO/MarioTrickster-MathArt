@@ -899,7 +899,26 @@ class ComfyAPIClient:
         file_type: str,
         local_path: Path,
     ) -> bool:
-        """Download a single file from ComfyUI via ``GET /view``."""
+        """Download a single file from ComfyUI via ``GET /view``.
+
+        SESSION-175 P0-DOWNLOAD-ABORT — Hard-Drop Download Circuit Breaker
+        ------------------------------------------------------------------
+        Mirrors the protection in ``ComfyUIClient._download_file``: if the
+        socket is reset / refused mid-transfer (WinError 10054 / 10061),
+        we re-raise so the orchestrator can trip the global Cancel and
+        return cleanly to the main menu instead of swallowing the corpse
+        and re-trying every subsequent character against a dead server.
+        """
+        # Lazy import to avoid hard coupling between the two client modules.
+        try:
+            from mathart.comfy_client.comfyui_ws_client import ComfyUIExecutionError
+        except ImportError:  # pragma: no cover - extremely defensive
+            class ComfyUIExecutionError(RuntimeError):  # type: ignore[no-redef]
+                def __init__(self, message: str, *, node_id: str = "?", details: str = ""):
+                    super().__init__(message)
+                    self.node_id = node_id
+                    self.details = details
+
         try:
             params = urllib.parse.urlencode({
                 "filename": server_filename,
@@ -916,9 +935,49 @@ class ComfyAPIClient:
                 local_path.name, len(data),
             )
             return True
+        except (ConnectionResetError, ConnectionAbortedError) as e:
+            logger.error(
+                "[ComfyAPIClient] Hard-drop while downloading %s: %s. "
+                "Tripping circuit breaker (Poison Pill).",
+                server_filename, e,
+            )
+            raise ComfyUIExecutionError(
+                f"远端 ComfyUI 服务器在下载期宕机 (hard reset): {e}",
+                node_id="download:/view",
+                details=f"filename={server_filename}, subfolder={subfolder}, type={file_type}",
+            ) from e
+        except ConnectionRefusedError as e:
+            logger.error(
+                "[ComfyAPIClient] Connection refused while downloading %s: %s. "
+                "Tripping circuit breaker (Poison Pill).",
+                server_filename, e,
+            )
+            raise ComfyUIExecutionError(
+                f"远端 ComfyUI 服务器在下载期拒接连接: {e}",
+                node_id="download:/view",
+                details=f"filename={server_filename}, subfolder={subfolder}, type={file_type}",
+            ) from e
+        except urllib.error.URLError as e:
+            reason = getattr(e, "reason", None)
+            if isinstance(reason, (ConnectionResetError, ConnectionAbortedError, ConnectionRefusedError)):
+                logger.error(
+                    "[ComfyAPIClient] URLError(hard-drop) while downloading %s: %s. "
+                    "Tripping circuit breaker (Poison Pill).",
+                    server_filename, reason,
+                )
+                raise ComfyUIExecutionError(
+                    f"远端 ComfyUI 服务器在下载期宕机: {reason}",
+                    node_id="download:/view",
+                    details=f"filename={server_filename}, subfolder={subfolder}, type={file_type}",
+                ) from e
+            logger.warning(
+                "[ComfyAPIClient] Soft URL error downloading %s: %s",
+                server_filename, e,
+            )
+            return False
         except Exception as e:
             logger.warning(
-                "[ComfyAPIClient] Failed to download %s: %s",
+                "[ComfyAPIClient] Failed to download %s (soft): %s",
                 server_filename, e,
             )
             return False
