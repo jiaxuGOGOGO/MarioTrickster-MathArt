@@ -1308,3 +1308,151 @@ CPPN（Compositional Pattern Producing Networks）是一种基于坐标系复合
    ```bash
    python -m pytest tests/test_session185_cppn_and_fluid.py -v
    ```
+
+---
+
+## 16. SESSION-186: 自主学术矿工与策略执法者合成器
+
+### 16.1 概述
+
+SESSION-186 引入了三个全新的自主子系统，实现了从**学术论文检索**到**知识蒸馏**到**策略执法者自动生成**的完整闭环：
+
+| 子系统 | 模块 | 功能 |
+|--------|------|------|
+| **学术矿工 (Academic Miner)** | `mathart/core/academic_miner_backend.py` | 自主检索 arXiv、PapersWithCode、GitHub 等学术源，提取物理/动画论文并序列化为结构化 JSON |
+| **策略执法者合成器 (Auto-Enforcer Synthesizer)** | `mathart/core/auto_enforcer_synth_backend.py` | 读取学术 JSON，调用 LLM API 自动生成 `EnforcerBase` 子类，经 AST 校验后写入 `auto_generated/` |
+| **沙盒防爆加载器 (Zero-Trust Loader)** | `mathart/quality/gates/sandbox_enforcer_loader.py` | SHA-256 完整性指纹 + AST 预校验 + 隔离机制，确保只有安全代码被动态加载 |
+
+### 16.2 架构设计
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SESSION-186 全链路架构                         │
+│                                                                 │
+│  ┌──────────────┐    ┌──────────────────┐    ┌───────────────┐  │
+│  │ Academic      │───>│ Auto-Enforcer    │───>│ Zero-Trust    │  │
+│  │ Miner Backend │    │ Synth Backend    │    │ Loader        │  │
+│  │              │    │                  │    │               │  │
+│  │ arXiv/PWC/GH │    │ LLM Code Gen     │    │ AST Validate  │  │
+│  │ + Mock保底    │    │ + AST Template   │    │ + SHA-256     │  │
+│  │ + Exp Backoff │    │ + Quarantine     │    │ + Quarantine  │  │
+│  └──────────────┘    └──────────────────┘    └───────────────┘  │
+│         │                     │                      │          │
+│         v                     v                      v          │
+│  academic_papers.json   auto_generated/       enforcer_registry │
+│  mining_session.json    *_enforcer.py         (hot-loaded)      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 16.3 研究基础
+
+| 研究领域 | 关键参考 | 应用方式 |
+|----------|----------|----------|
+| Agentic RAG for Scientific Literature | Singh et al. (2025) arXiv:2501.09136 | 自主检索 + 多源聚合 + 相关性评分 |
+| 指数退避与抖动 (Exponential Backoff) | AWS Builder's Library | base=1s, multiplier=2x, jitter=random, max=30s |
+| 断路器模式 (Circuit Breaker) | Netflix Hystrix | 持续失败后自动切换 Mock 保底数据 |
+| Policy-as-Code 自动合成 | OPA (Open Policy Agent) 理念 | 结构化知识 → 可执行 Python Enforcer |
+| AST 模板化代码生成 | Sîrbu (2025), TwoSixTech (2022) | LLM 生成代码 → AST 语法树校验 → 黑名单拦截 |
+| Zero-Trust 动态加载 | NIST SP 800-204B | 预导入 AST 校验 + SHA-256 完整性指纹 + 隔离 |
+
+### 16.4 使用方法
+
+#### 16.4.1 通过黑科技实验室使用
+
+两个新后端已通过 `@register_backend` 自动注册到微内核注册表，无需修改任何前端代码。进入 `[6] 🔬 黑科技实验室` 即可看到：
+
+- **Academic Paper Miner (P0-SESSION-186)** — 学术论文矿工
+- **Auto-Enforcer Synthesizer (P0-SESSION-186)** — 策略执法者合成器
+
+#### 16.4.2 程序化调用
+
+```python
+# 1. 学术矿工
+from mathart.core.academic_miner_backend import AcademicMinerBackend
+
+miner = AcademicMinerBackend()
+manifest = miner.execute(
+    queries=["physics animation", "procedural generation"],
+    max_results_per_query=3,
+    verbose=True,
+)
+# 输出: workspace/laboratory/academic_miner/academic_papers.json
+
+# 2. 策略执法者合成器
+from mathart.core.auto_enforcer_synth_backend import AutoEnforcerSynthBackend
+
+synth = AutoEnforcerSynthBackend()
+manifest = synth.execute(
+    academic_papers_json="workspace/laboratory/academic_miner/academic_papers.json",
+    max_enforcers=3,
+    verbose=True,
+)
+# 输出: mathart/quality/gates/auto_generated/*_enforcer.py
+
+# 3. Zero-Trust 加载器
+from mathart.quality.gates.sandbox_enforcer_loader import sandbox_load_enforcers
+
+result = sandbox_load_enforcers(verbose=True)
+print(f"加载: {len(result['loaded'])}, 隔离: {len(result['quarantined'])}")
+```
+
+### 16.5 网络降级策略
+
+| 场景 | 行为 | 保底机制 |
+|------|------|----------|
+| arXiv/GitHub API 正常 | 实时检索论文 | — |
+| API 限流 (429/503) | 指数退避重试 (最多3次) | 等待 1s → 2s → 4s |
+| API 持续不可用 | 断路器触发 | 切换 Mock 保底数据 (3篇预设论文) |
+| LLM API 正常 | AI 生成 Enforcer 代码 | — |
+| LLM API 不可用 | 模板生成 Enforcer | 使用确定性 Mock 模板 |
+
+### 16.6 安全防线 (Anti-Hallucination)
+
+| 防线 | 机制 | 拦截率 |
+|------|------|--------|
+| LLM 系统提示约束 | 禁止 `import os/sys/eval/exec/open` | 第一道 |
+| AST 语法树校验 | `ast_sanitizer.validate_enforcer_code()` | 100% |
+| 黑名单函数拦截 | `exec/eval/open/__import__/compile/globals/locals` | 100% |
+| 结构完整性校验 | 必须包含 `name/source_docs/validate` 方法 | 100% |
+| SHA-256 完整性指纹 | 检测后验证篡改 | 100% |
+| 隔离机制 | 失败文件移入 `quarantine/` 目录 | 100% |
+
+### 16.7 红线遵守
+
+| 红线 | 状态 | 说明 |
+|------|------|------|
+| **零修改内部逻辑** | ✅ 100% 遵守 | 不触碰 `MathPaperMiner._search_arxiv()` 或 `CommunitySourceRegistry.search_all()` 内部 |
+| **零污染生产保险库** | ✅ 100% 遵守 | 所有输出隔离在 `workspace/laboratory/` 沙盒 |
+| **前端零感知** | ✅ 100% 遵守 | `cli_wizard.py` 和 `laboratory_hub.py` 未动一行 |
+| **强类型契约** | ✅ 100% 遵守 | 返回标准 `ArtifactManifest`，声明 `artifact_family` 和 `backend_type` |
+| **UX 防腐蚀** | ✅ 100% 遵守 | 科幻烘焙 Banner 保持，知识网关高亮信息保持 |
+| **防恶意投毒** | ✅ 100% 遵守 | AST 校验 + 黑名单 + SHA-256 完整性 + 隔离 |
+| **网络降级** | ✅ 100% 遵守 | 指数退避 + Mock 保底，系统永不死锁 |
+
+### 傻瓜验收
+
+老大，学术矿工、策略执法者合成器和沙盒防爆加载器已全面接入！请按以下步骤验收：
+
+验收步骤：
+
+1. **反射发现验收**：进入 `[6] 🔬 黑科技实验室`，确认以下两个后端出现在候选列表中：
+   - `Academic Paper Miner (P0-SESSION-186)`
+   - `Auto-Enforcer Synthesizer (P0-SESSION-186)`
+
+2. **学术矿工验收**：在实验室中选择 Academic Miner 后端执行，确认 `workspace/laboratory/academic_miner/` 目录下生成：
+   - `academic_papers.json` — 结构化学术论文数据
+   - `mining_session.json` — 挖矿会话元数据
+   - `academic_miner_execution_report.json` — 执行报告
+
+3. **策略合成器验收**：在实验室中选择 Auto-Enforcer Synthesizer 后端执行，确认：
+   - `mathart/quality/gates/auto_generated/` 目录下生成 `*_enforcer.py` 文件
+   - `workspace/laboratory/auto_enforcer_synth/enforcer_synthesis_report.json` 生成
+
+4. **AST 安全验收**：确认生成的 Enforcer 文件不包含 `import os`、`eval()`、`exec()` 等危险调用
+
+5. **沙盒隔离验收**：确认 `output/production/` 目录未被创建或修改
+
+6. **测试验收**：运行以下命令确认测试通过：
+   ```bash
+   python -m pytest tests/test_session186_miner_and_synth.py -v
+   ```

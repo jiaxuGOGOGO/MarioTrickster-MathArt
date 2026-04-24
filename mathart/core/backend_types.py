@@ -121,6 +121,18 @@ class BackendType(str, Enum):
     # and hydrates the pipeline context with renamed AI-rendered outputs.
     AI_RENDER_STREAM = "ai_render_stream"
 
+    # SESSION-186 (P0-SESSION-186-AUTONOMOUS-MINER-AND-POLICY-SYNTHESIZER):
+    # Academic paper miner backend — wraps the dormant 1226-line paper_miner.py
+    # and 610-line community_sources.py as a first-class microkernel plugin.
+    # Produces EVOLUTION_REPORT artifacts with structured academic JSON.
+    ACADEMIC_MINER = "academic_miner"
+
+    # SESSION-186 (P0-SESSION-186-AUTONOMOUS-MINER-AND-POLICY-SYNTHESIZER):
+    # Auto-enforcer synthesizer backend — reads distilled academic JSON,
+    # invokes LLM to generate BaseEnforcer subclasses, validates via AST
+    # sandbox, and hot-loads into the enforcer registry.
+    AUTO_ENFORCER_SYNTH = "auto_enforcer_synth"
+
 
 _BACKEND_ALIASES: dict[str, str] = {
     # Canonical values
@@ -275,6 +287,18 @@ _BACKEND_ALIASES: dict[str, str] = {
     "render_stream": BackendType.AI_RENDER_STREAM.value,
     "artifact_hydration": BackendType.AI_RENDER_STREAM.value,
     "full_array_render": BackendType.AI_RENDER_STREAM.value,
+    # SESSION-186 (P0-SESSION-186-AUTONOMOUS-MINER-AND-POLICY-SYNTHESIZER): Academic miner backend aliases
+    BackendType.ACADEMIC_MINER.value: BackendType.ACADEMIC_MINER.value,
+    "paper_miner": BackendType.ACADEMIC_MINER.value,
+    "academic_paper_miner": BackendType.ACADEMIC_MINER.value,
+    "community_miner": BackendType.ACADEMIC_MINER.value,
+    "literature_miner": BackendType.ACADEMIC_MINER.value,
+    # SESSION-186 (P0-SESSION-186-AUTONOMOUS-MINER-AND-POLICY-SYNTHESIZER): Auto-enforcer synth backend aliases
+    BackendType.AUTO_ENFORCER_SYNTH.value: BackendType.AUTO_ENFORCER_SYNTH.value,
+    "enforcer_synthesizer": BackendType.AUTO_ENFORCER_SYNTH.value,
+    "auto_enforcer": BackendType.AUTO_ENFORCER_SYNTH.value,
+    "policy_synthesizer": BackendType.AUTO_ENFORCER_SYNTH.value,
+    "knowledge_compiler": BackendType.AUTO_ENFORCER_SYNTH.value,
 }
 
 

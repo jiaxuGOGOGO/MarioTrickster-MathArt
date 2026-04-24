@@ -813,6 +813,24 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.fluid_momentum_backend")
         except Exception as e:
             logger.debug("Failed to auto-load fluid momentum backend: %s", e)
+        # SESSION-186 (P0-SESSION-186-AUTONOMOUS-MINER-AND-POLICY-SYNTHESIZER):
+        # auto-register the Academic Paper Miner backend so the microkernel
+        # can discover the autonomous knowledge mining lane without any
+        # trunk modification.  Design: Agentic RAG + Exponential Backoff
+        # + Mock Fallback (Netflix Hystrix Circuit Breaker).
+        try:
+            importlib.import_module("mathart.core.academic_miner_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load academic miner backend: %s", e)
+        # SESSION-186 (P0-SESSION-186-AUTONOMOUS-MINER-AND-POLICY-SYNTHESIZER):
+        # auto-register the Auto-Enforcer Synthesizer backend so the
+        # microkernel can discover the policy-as-code synthesis lane
+        # without any trunk modification.  Design: LLM code generation
+        # + AST validation + Zero-Trust dynamic loading.
+        try:
+            importlib.import_module("mathart.core.auto_enforcer_synth_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load auto enforcer synth backend: %s", e)
     return registry
 
 
