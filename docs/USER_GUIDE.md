@@ -134,6 +134,7 @@ freeze_locks:
   [1] 🏭 阵列量产：纯 CPU 算力，一键遍历烘焙【全套动作阵列】(包含跑/跳/攻击等) 的高清工业贴图，跳过 AI 画皮。(极度适合无显卡环境)
   [2] 🎨 终极降维：烘焙全套阵列贴图后，立刻推流至后台 ComfyUI 进行 3A 级 AI 批量渲染。(需后台就绪显卡)
   [3] 🔍 真理查账：打印全链路溯源体检表。
+  [4] ⚡ 单一动作打样：仅选择 1 个动作进行极速 AI 渲染测试 (强力推荐!)
   [0] 🏠 暂存并退回主菜单
 ```
 
@@ -191,6 +192,12 @@ freeze_locks:
   > 资产大管家基于工业级 Artifact Lifecycle Management 理论（JFrog Artifactory GC 2022, Schlegel & Sattler 2023）实现元数据驱动的自动分诊；
   > 金库提纯基于 Autodesk Vault Flat Copy 模式实现扁平化交付物提取；
   > 安全清理基于 Blast Radius Containment（Medium 2026）实现路径沙盒隔离和防呆异常处理。
+
+- **[4] ⚡ 单一动作极速打样 (SESSION-190: LookDev Rapid Prototyping)**：
+  **强力推荐！** 在全阵列量产前，先挑选一个动作（如 `jump`）进行极速打样。系统会列出所有已注册的动作（idle / walk / run / jump / fall / hit），你只需输入编号或名称，即可仅对该动作进行烘焙 + AI 渲染测试。
+  > **工业参考**：Foundry Katana LookDev Workflows — 单资产迭代预览，无需渲染完整场景。Unreal Engine Animation Blueprint — 状态机允许单独测试单个动画状态。
+  > **使用场景**：当你想快速验证某个动作的 AI 渲染效果是否满意时，无需等待全部 6 个动作的完整烘焙。选 [4] 后输入 `jump`，几秒内即可看到跳跃动作的渲染结果。满意后再选 [1] 或 [2] 进行全量产。
+  > **技术说明**：LookDev 模式通过 `action_filter` 参数注入到生产管线，仅解算并推流选定的单一动作，极大节省算力和等待时间。
 
 - **[0] 暂存并退回**：
   将当前参数暂存，安全返回最顶层的主菜单。
@@ -1866,3 +1873,100 @@ PYTHONPATH=. python3.11 -m pytest tests/test_session189_latent_healing_and_anime
 - **不用节点 ID 硬编码**：所有 ComfyUI workflow 编辑必须通过 `class_type` 语义扫描。
 - **不破坏三条硬锚常量**：`MAX_FRAMES / LATENT_EDGE / NORMAL_MATTE_RGB` 若需调整，必须同步测试文件并在 `SESSION_HANDOFF.md` 以新 SESSION 条目公告。
 
+
+---
+
+## 20. SESSION-190：模态解耦 + LookDev 极速打样 + 双引号粉碎机（Modal Decoupling & LookDev & I/O Sanitization）
+
+### 20.1 任务全貌
+
+SESSION-190 的 P0 使命是解决三个在实际使用中暴露的致命问题：
+
+1. **模态解耦（Appearance-Motion Decoupling）**：当物理引导退化为 Dummy Cylinder Mesh（`pseudo_3d_shell` 白模）时，其 Albedo 色块会对 SparseCtrl RGB 引导产生毁灭性的"模态污染"，导致扩散模型锁定在圆柱体色块上，生成对称的方块怪物。解决方案：检测到假人时强行将 RGB 引导 strength 归零、denoise 强制 1.0、仅保留 Depth/Normal 骨架引导。
+2. **LookDev 单一动作极速打样**：在全阵列量产前，允许用户仅挑选单一动作（如 jump）进行极速渲染打样，避免强迫执行全状态机阵列导致的算力浪费。
+3. **双引号粉碎机（I/O Sanitization）**：Windows 终端复制路径天然附带双引号，必须在所有路径输入处强制执行 `.strip('"').strip("'").strip()` 净化。路径无效时绝对禁止静默降级，必须红字警告并要求重新输入。
+
+### 20.2 模态解耦三条硬锚常量
+
+```python
+from mathart.core.anti_flicker_runtime import (
+    DECOUPLED_DEPTH_NORMAL_STRENGTH,
+    DECOUPLED_RGB_STRENGTH,
+    DECOUPLED_DENOISE,
+    SEMANTIC_HYDRATION_POSITIVE,
+    SEMANTIC_HYDRATION_NEGATIVE,
+)
+assert DECOUPLED_DEPTH_NORMAL_STRENGTH == 0.45  # Depth/Normal 降强保骨架
+assert DECOUPLED_RGB_STRENGTH          == 0.0   # RGB 引导彻底归零
+assert DECOUPLED_DENOISE               == 1.0   # 全噪声，忽略输入色彩
+```
+
+### 20.3 API 一览
+
+```python
+from mathart.core.anti_flicker_runtime import (
+    detect_dummy_mesh,                  # dict -> bool，检测假人白模
+    hydrate_prompt,                     # dict -> dict，语义兜底注入
+    force_decouple_dummy_mesh_payload,  # 对 ComfyUI 工作流做模态解耦
+)
+```
+
+### 20.4 LookDev 极速打样使用方法
+
+在黄金连招 V2 菜单中选择 `[4]`，系统会列出所有已注册动作：
+
+```text
+═══════════════════════════════════════════════════════════════
+[⚡ SESSION-190 LookDev 极速打样] 请选择要测试的单一动作：
+    [1] idle
+    [2] walk
+    [3] run
+    [4] jump
+    [5] fall
+    [6] hit
+═══════════════════════════════════════════════════════════════
+输入动作名称或编号 [默认: idle]:
+```
+
+输入编号或名称后，系统仅对该动作进行烘焙 + AI 渲染测试，极大节省等待时间。
+
+### 20.5 双引号粉碎机
+
+所有路径输入处（视觉临摹 GIF 路径、蓝图路径等）现在都会自动执行：
+
+```python
+ref_path = raw_input.strip('"').strip("'").strip()
+```
+
+路径无效时系统会红字警告并要求重新输入，绝对禁止静默降级。
+
+### 20.6 外网参考研究
+
+| 参考 | 用途 |
+|---|---|
+| MoSA (Wang et al., 2025) arXiv:2508.17404 | 结构-外观解耦理论基础 |
+| MCM (NeurIPS 2024) | 运动-外观解耦蒸馏方法 |
+| DC-ControlNet (2025) arXiv:2502.14779 | 多条件解耦控制 |
+| SparseCtrl (Guo et al., 2023) arXiv:2311.16933 | 稀疏控制信号引导 |
+| ComfyUI-AnimateDiff-Evolved #245 | SparseCtrl 强度控制实践 |
+| ComfyUI #1077 | denoise=1.0 行为验证 |
+| OWASP Input Validation Cheat Sheet | 输入净化最佳实践 |
+| Foundry Katana LookDev Workflows | 工业级单资产迭代 |
+| Unreal Engine Animation Blueprint | 动画状态机单状态测试 |
+| Michael Nygard "Release It!" | Fail-Fast 原则 |
+
+完整论证见 `docs/RESEARCH_NOTES_SESSION_190.md`。
+
+### 20.7 测试验收
+
+```bash
+PYTHONPATH=. python3.11 -m pytest tests/test_session190_modal_decoupling_and_lookdev.py -v
+# 预期结果：全部通过
+```
+
+### 20.8 红线
+
+- **不碰 SESSION-189 三条硬锚常量**：`MAX_FRAMES / LATENT_EDGE / NORMAL_MATTE_RGB` 不变。
+- **不用节点 ID 硬编码**：所有 ComfyUI workflow 编辑必须通过 `class_type` 语义扫描。
+- **路径净化不可绕过**：所有用户路径输入必须经过双引号粉碎机，无例外。
+- **语义兜底不可关闭**：当检测到假人白模且用户 Prompt 为空时，必须注入 3A 角色提示词。

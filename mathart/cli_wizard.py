@@ -186,6 +186,17 @@ GOLDEN_HANDOFF_OPTION_AUDIT = (
 GOLDEN_HANDOFF_OPTION_HOME = (
     "[0] 🏠 暂存并退回主菜单"
 )
+
+# ---------------------------------------------------------------------------
+# SESSION-190: LookDev Single-Action Rapid Prototyping Mode.
+#
+# Industrial Reference: Foundry Katana LookDev Workflows — single-asset
+# iteration without full-scene rendering.  Unreal Engine Animation Blueprint
+# allows testing individual animation states in isolation.
+# ---------------------------------------------------------------------------
+GOLDEN_HANDOFF_OPTION_LOOKDEV = (
+    "[4] ⚡ 单一动作打样：仅选择 1 个动作进行极速 AI 渲染测试 (强力推荐!)"
+)
 # Backward-compat alias so SESSION-153 smoke tests that import the old name
 # still resolve.  The old [1] label is now split into [1]+[2].
 GOLDEN_HANDOFF_OPTION_PRODUCE = GOLDEN_HANDOFF_OPTION_FULL_RENDER
@@ -764,6 +775,7 @@ def _golden_handoff_menu(
         output_fn(f"  {GOLDEN_HANDOFF_OPTION_MASS_BAKE}")
         output_fn(f"  {GOLDEN_HANDOFF_OPTION_FULL_RENDER}")
         output_fn(f"  {GOLDEN_HANDOFF_OPTION_AUDIT}")
+        output_fn(f"  {GOLDEN_HANDOFF_OPTION_LOOKDEV}")
         output_fn(f"  {GOLDEN_HANDOFF_OPTION_HOME}")
 
         try:
@@ -862,7 +874,72 @@ def _golden_handoff_menu(
                 }, ensure_ascii=False, indent=2))
             continue
 
-        output_fn("[提示] 请输入 1 / 2 / 3 / 0 中的一个数字。")
+        # --- [4] ⚡ SESSION-190: LookDev 单一动作极速打样 ----------------
+        if choice in {"4", "lookdev", "single", "quick"}:
+            logger.info("[CLI] Golden Handoff V2: user chose [4] LookDev single-action rapid prototyping (SESSION-190)")
+            try:
+                from mathart.animation.unified_gait_blender import get_motion_lane_registry
+                _lookdev_registry = get_motion_lane_registry()
+                _lookdev_states = _lookdev_registry.names()
+            except Exception as _lookdev_reg_err:
+                logger.warning("[CLI] LookDev: motion registry unreachable: %s", _lookdev_reg_err)
+                _lookdev_states = ("idle", "walk", "run", "jump", "fall", "hit")
+            output_fn("")
+            output_fn("\033[1;33m" + "═" * 60 + "\033[0m")
+            output_fn(
+                "\033[1;33m[⚡ SESSION-190 LookDev 极速打样] "
+                "请选择要测试的单一动作：\033[0m"
+            )
+            for _ldi, _ldn in enumerate(_lookdev_states, 1):
+                output_fn(f"\033[1;33m    [{_ldi}] {_ldn}\033[0m")
+            output_fn("\033[1;33m" + "═" * 60 + "\033[0m")
+            try:
+                _lookdev_input = standard_text_prompt(
+                    "输入动作名称或编号",
+                    input_fn=input_fn,
+                    output_fn=output_fn,
+                    default=_lookdev_states[0] if _lookdev_states else "idle",
+                ).strip()
+            except (EOFError, KeyboardInterrupt):
+                output_fn("\n已取消 LookDev 打样，返回黄金连招菜单。")
+                continue
+            # Resolve numeric input to action name
+            if _lookdev_input.isdigit():
+                _lookdev_idx = int(_lookdev_input) - 1
+                if 0 <= _lookdev_idx < len(_lookdev_states):
+                    _lookdev_action = _lookdev_states[_lookdev_idx]
+                else:
+                    output_fn("\033[1;31m[❌ 编号超出范围，请重试]\033[0m")
+                    continue
+            elif _lookdev_input in _lookdev_states:
+                _lookdev_action = _lookdev_input
+            else:
+                output_fn(f"\033[1;31m[❌ 未知动作 '{_lookdev_input}'，请重试]\033[0m")
+                continue
+            output_fn(
+                f"\033[1;32m[⚡ LookDev] 已锁定动作: {_lookdev_action} — "
+                f"正在启动极速单动作打样...\033[0m"
+            )
+            # ── SESSION-190: UX 科幻流转展示 ──
+            output_fn("")
+            output_fn("\033[1;36m" + "═" * 60 + "\033[0m")
+            output_fn(
+                "\033[1;36m[⚙️  工业烘焙网关] 正在通过 Catmull-Rom 样条插值，"
+                "纯 CPU 解算高精度工业级贴图动作序列...\033[0m"
+            )
+            output_fn("\033[1;36m" + "═" * 60 + "\033[0m")
+            _dispatch_mass_production(
+                project_root=project_root,
+                dispatcher=dispatcher,
+                spec=spec,
+                final_genotype=final_genotype,
+                skip_ai_render=True,
+                output_fn=output_fn,
+                input_fn=input_fn,
+                action_filter=[_lookdev_action],
+            )
+            continue
+        output_fn("[提示] 请输入 1 / 2 / 3 / 4 / 0 中的一个数字。")
 
 
 def _dispatch_mass_production(
@@ -874,8 +951,12 @@ def _dispatch_mass_production(
     skip_ai_render: bool,
     output_fn: Callable[[str], None],
     input_fn: Callable[[str], str],
+    action_filter: list[str] | None = None,
 ) -> None:
     """SESSION-164: Unified mass-production dispatch with sci-fi telemetry.
+    SESSION-190 upgrade: Added ``action_filter`` parameter for LookDev
+    single-action rapid prototyping.  When provided, only the specified
+    action(s) are dispatched to the production pipeline.
 
     Upgraded from SESSION-159 with:
     - Dynamic progress telemetry bound to the real ActionRegistry (SESSION-162)
@@ -1037,6 +1118,8 @@ def _dispatch_mass_production(
                 "vibe": _vibe_str,
                 # [SESSION-187 VFX 缝合] 注入 VFX 产物
                 "vfx_artifacts": _vfx_artifacts,
+                # [SESSION-190 LookDev 极速打样] 动作过滤器
+                "action_filter": action_filter,
             },
             execute=True,
         )
@@ -1275,10 +1358,31 @@ def _run_director_studio(
     if creation_mode == "D":
         try:
             from mathart.workspace.visual_distillation import distill_physics_from_reference
-            ref_path = standard_text_prompt(
-                "请输入参考动图路径 (GIF 文件或图片文件夹)",
-                input_fn=input_fn, output_fn=output_fn,
-            )
+            # ── SESSION-190: 双引号粉碎机 (I/O Sanitization) ──────────────
+            # Windows 终端复制路径天然附带双引号，必须强制净化。
+            # 路径无效时绝对禁止静默降级，必须红字警告并要求重新输入。
+            # Industrial Reference: OWASP Input Validation Cheat Sheet.
+            while True:
+                _raw_ref_path = standard_text_prompt(
+                    "请输入参考动图路径 (GIF 文件或图片文件夹)",
+                    input_fn=input_fn, output_fn=output_fn,
+                )
+                # SESSION-190: 双引号粉碎机 — strip Windows terminal quotes
+                ref_path = _raw_ref_path.strip('"').strip("'").strip()
+                if not ref_path:
+                    output_fn("\033[1;31m[❌ 路径无效，请检查] 输入不能为空！\033[0m")
+                    continue
+                _ref_p = Path(ref_path)
+                if _ref_p.exists():
+                    break
+                output_fn(
+                    f"\033[1;31m[❌ 路径无效，请检查] "
+                    f"文件或目录不存在: {ref_path}\033[0m"
+                )
+                output_fn(
+                    "\033[90m    ↳ 提示: 请确认路径正确，"
+                    "Windows 用户请注意去除路径两端的引号。\033[0m"
+                )
             output_fn("")
             output_fn("[1;36m" + "═" * 60 + "[0m")
             output_fn(
@@ -1311,10 +1415,12 @@ def _run_director_studio(
             )
 
     if creation_mode in ("B", "C"):
-        bp_path = standard_text_prompt(
+        # SESSION-190: 双引号粉碎机 — 蓝图路径净化
+        _raw_bp_path = standard_text_prompt(
             "请输入蓝图文件路径 (如 workspace/blueprints/hero_v1.yaml)",
             input_fn=input_fn, output_fn=output_fn,
         )
+        bp_path = _raw_bp_path.strip('"').strip("'").strip()
         raw_intent["base_blueprint"] = bp_path
         # ── SESSION-179/180: Style Retargeting (无缝动静解耦换皮) ──────────
         # 加载已有动作骨架后，允许用户输入全新的画风 Prompt，
@@ -1520,6 +1626,7 @@ __all__ = [
     "GOLDEN_HANDOFF_OPTION_PRODUCE",
     "GOLDEN_HANDOFF_OPTION_AUDIT",
     "GOLDEN_HANDOFF_OPTION_HOME",
+    "GOLDEN_HANDOFF_OPTION_LOOKDEV",
     "_dispatch_mass_production",
     "_run_director_studio",
     "_run_interactive",

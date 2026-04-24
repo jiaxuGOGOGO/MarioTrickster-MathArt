@@ -162,3 +162,43 @@ Closed **P0-SESSION-189-LATENT-HEALING-AND-ANIME-RHYTHM**. Added a cosine Kan-Ky
 1. Surface `session189_*_report` in ArtifactManifest + 资产大管家 真理查账 view.
 2. Add `rhythm_profile` ("kan_kyu" | "linear" | "on_threes") to `CreatorIntentSpec`.
 3. Extend matte-and-upscale to `mask_maps` once rim-light ControlNet is wired.
+
+## SESSION-190 (2026-04-24) — Modal Decoupling + LookDev Rapid Prototyping + I/O Sanitization
+
+### Summary
+Closed **P0-SESSION-190-MODAL-DECOUPLING-LOOKDEV-IO-SANITIZATION**. Three P0 fixes: (1) Appearance-Motion Decoupling — when `pseudo_3d_shell` dummy mesh detected, force `denoise=1.0`, kill RGB ControlNet strength to `0.0`, reduce Depth/Normal to `0.45`, inject 3A character semantic hydration prompt. (2) LookDev single-action rapid prototyping — new option `[4]` in Golden Handoff V2 menu allows selecting a single action (e.g., `jump`) for instant render test via `action_filter` injection. (3) Double-quote crusher — all path inputs sanitized with `.strip('"').strip("'").strip()`, invalid paths get red warning instead of silent degradation.
+
+### Hard Anchors Locked (SESSION-190 New)
+- `DECOUPLED_DEPTH_NORMAL_STRENGTH = 0.45`
+- `DECOUPLED_RGB_STRENGTH = 0.0`
+- `DECOUPLED_DENOISE = 1.0`
+- SESSION-189 anchors preserved: `MAX_FRAMES=16`, `LATENT_EDGE=512`, `NORMAL_MATTE_RGB=(128,128,255)`
+
+### New Public API (`mathart.core.anti_flicker_runtime`)
+- `detect_dummy_mesh(context: dict) -> bool`
+- `hydrate_prompt(context: dict) -> dict`
+- `force_decouple_dummy_mesh_payload(workflow: dict) -> dict`
+
+### New CLI Feature (`mathart/cli_wizard.py`)
+- Golden Handoff V2 option `[4] ⚡ 单一动作打样` with `action_filter` parameter injection
+- Double-quote crusher on all path inputs (visual distillation GIF path, blueprint path)
+
+### External References (10 sources)
+- MoSA (Wang et al., 2025), MCM (NeurIPS 2024), DC-ControlNet (2025)
+- SparseCtrl (Guo et al., 2023), ComfyUI-AnimateDiff-Evolved #245, ComfyUI #1077
+- OWASP Input Validation, Foundry Katana LookDev, UE Animation Blueprint, "Release It!"
+
+### Test Results
+- `tests/test_session190_modal_decoupling_and_lookdev.py` — all PASS
+
+### Artifacts
+- `docs/RESEARCH_NOTES_SESSION_190.md` (external reference notes)
+- `docs/USER_GUIDE.md` §20 (operator-facing docs)
+- `SESSION_HANDOFF.md` (closed)
+- `PROJECT_BRAIN.json` (version → v0.99.27, red_lines +3, session_log +1, modal_decoupling_contract added)
+
+### Next Priorities
+1. End-to-end integration test of `force_decouple_dummy_mesh_payload` in real ComfyUI environment.
+2. Extend LookDev to A/B comparison mode for rapid iteration.
+3. Configurable `SEMANTIC_HYDRATION_POSITIVE` template library for different art styles.
+4. Path tab-completion in CLI for further input error reduction.

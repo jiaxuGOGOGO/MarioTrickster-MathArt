@@ -1,6 +1,6 @@
 {
-  "version": "v0.99.26",
-  "last_session_id": "SESSION-189",
+  "version": "v0.99.27",
+  "last_session_id": "SESSION-190",
   "last_updated": "2026-04-24",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -540,7 +540,7 @@
   },
   "best_quality_score": 0.892,
   "validation_pass_rate": "SESSION-138 audit: 100% PASS across tests/test_sandbox_validator.py. Landed P0-SESSION-135-KNOWLEDGE-QA-GATE four-dimensional anti-hallucination funnel: source_quote provenance contract, AST-safe expression firewall, canonical math fuzzing, and 100-step physics dry-run with hard timeout. Implemented quarantine/active dual-track directory discipline and GitOps proposal-branch enforcement (refusing direct push to main/master).",
-  "total_iterations": 751,
+  "total_iterations": 752,
   "total_code_lines": 168500,
   "distill_session_id": "DISTILL-012",
   "mine_session_id": "MINE-001",
@@ -585,7 +585,7 @@
     "engineering_automation": 95,
     "animation_physics_realism": 58
   },
-  "current_focus": "Latent healing (512x512 LANCZOS + tangent-space matte) and cosine Kan-Kyu anime-rhythm subsampling for AnimateDiff/SD1.5 pipeline.",
+  "current_focus": "Modal Decoupling (Appearance-Motion separation for dummy mesh), LookDev single-action rapid prototyping, I/O Sanitization (double-quote crusher for Windows paths)",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "docs/RESEARCH_NOTES_SESSION_166.md",
@@ -3397,6 +3397,16 @@
         "Updated USER_GUIDE.md with SESSION-160 section 8.1",
         "Rewrote SESSION_HANDOFF.md for SESSION-160"
       ]
+    },
+    {
+      "session": "SESSION-190",
+      "items": [
+        "Modal Decoupling: detect_dummy_mesh(), hydrate_prompt(), force_decouple_dummy_mesh_payload()",
+        "LookDev: Golden Handoff option [4] with action_filter injection",
+        "I/O Sanitization: Double-quote crusher on all path inputs",
+        "USER_GUIDE.md §20 documentation sync",
+        "RESEARCH_NOTES_SESSION_190.md with 10 external references"
+      ]
     }
   ],
   "session_summaries": [
@@ -3745,10 +3755,10 @@
     "session111_p1_b3_5_strangler_fig": "SESSION-111 executed the final Strangler-Fig takeover for P1-B3-5. `mathart/animation/gait_blend.py` and `mathart/animation/transition_synthesizer.py` are physically deleted. Seven source files were rewritten to import from `mathart.animation.unified_gait_blender` directly; the public `mathart.animation` package now also re-exports `UnifiedGaitBlender`. `tests/test_gait_blend.py` renamed to `tests/test_unified_gait_blender.py` and extended with three red-line test classes: TestRetiredShimExtermination (Anti-Zombie-Reference), TestQuinticInertializationDecay / TestInertializeTransitionAPI (Anti-C0/C1-Regression at joint seam, tolerance 1e-5 C0 + bounded C1), TestUnifiedGaitBlenderDeterminism (Anti-PRNG-Bleed). Root-level `test_session039.py` removed — its 12 transition-synth assertions were migrated verbatim. Bridge module `evolution/gait_blend_bridge.py` now tracks `unified_gait_blender.py` as the canonical module. Full regression: 1834 PASS / 5 pre-existing FAIL / 8 SKIP (baseline-confirmed)."
   },
   "recent_focus_snapshot": {
-    "session_id": "SESSION-160",
-    "focus": "P0-ACTION-REGISTRY-TEMPORAL-WIRING-VARIANCE-GATE",
-    "status": "CLOSED",
-    "updated_at": "2026-04-23T18:00:00Z"
+    "session_id": "SESSION-190",
+    "focus": "Modal Decoupling + LookDev + I/O Sanitization",
+    "status": "LANDED",
+    "updated_at": "2026-04-24"
   },
   "recent_sessions": [
     {
@@ -3851,6 +3861,12 @@
       "date": "2026-04-24",
       "task": "P0-SESSION-185-PROCEDURAL-VFX-AND-TEXTURE-REVIVAL",
       "status": "CLOSED"
+    },
+    {
+      "id": "SESSION-190",
+      "focus": "Modal Decoupling + LookDev + I/O Sanitization",
+      "status": "LANDED",
+      "date": "2026-04-24"
     }
   ],
   "closed_tasks_archive": [
@@ -4364,7 +4380,11 @@
     "SESSION-188: SemanticOrchestrator V2 — skeleton_topology inference (biped/quadruped)",
     "SESSION-188: CreatorIntentSpec.skeleton_topology field added",
     "SESSION-188: 18 quadruped trigger keywords in SEMANTIC_VFX_TRIGGER_MAP",
-    "SESSION-188: reshape_positions_for_vat() cross-topology dimension alignment"
+    "SESSION-188: reshape_positions_for_vat() cross-topology dimension alignment",
+    {
+      "session": "SESSION-190",
+      "landing": "Appearance-Motion Decoupling for dummy mesh, LookDev single-action rapid prototyping [4] in Golden Handoff V2, Double-quote crusher for all path inputs"
+    }
   ],
   "session_log": [
     {
@@ -5314,6 +5334,34 @@
         "PROJECT_BRAIN.json",
         "SESSION_TRACKER.md"
       ]
+    },
+    {
+      "session": "SESSION-190",
+      "date": "2026-04-24",
+      "title": "Modal Decoupling + LookDev Rapid Prototyping + I/O Sanitization",
+      "status": "LANDED",
+      "summary": "Three P0 fixes: (1) Appearance-Motion Decoupling — when pseudo_3d_shell dummy mesh detected, force denoise=1.0, kill RGB ControlNet strength to 0.0, reduce Depth/Normal to 0.45, inject 3A character semantic hydration prompt. (2) LookDev single-action rapid prototyping — new option [4] in Golden Handoff V2 menu allows selecting a single action (e.g., jump) for instant render test. (3) Double-quote crusher — all path inputs sanitized with .strip('\"').strip(\"'\").strip(), invalid paths get red warning instead of silent degradation.",
+      "files_changed": [
+        "mathart/cli_wizard.py",
+        "mathart/core/anti_flicker_runtime.py",
+        "docs/USER_GUIDE.md",
+        "docs/RESEARCH_NOTES_SESSION_190.md",
+        "tests/test_session190_modal_decoupling_and_lookdev.py",
+        "PROJECT_BRAIN.json",
+        "SESSION_HANDOFF.md"
+      ],
+      "references": [
+        "MoSA (Wang et al., 2025) — Structure-Appearance Decoupling",
+        "MCM (NeurIPS 2024) — Motion-Appearance Disentanglement",
+        "DC-ControlNet (2025) — Multi-condition Decoupling",
+        "SparseCtrl (Guo et al., 2023) — Sparse Control Signal",
+        "ComfyUI-AnimateDiff-Evolved #245 — SparseCtrl strength control",
+        "ComfyUI #1077 — denoise=1.0 behavior",
+        "OWASP Input Validation Cheat Sheet",
+        "Foundry Katana LookDev Workflows",
+        "Unreal Engine Animation Blueprint",
+        "Michael Nygard 'Release It!' — Fail-Fast Principle"
+      ]
     }
   ],
   "resolved_issues": [
@@ -5679,7 +5727,7 @@
       "implication": "This classification schema provides the exact granularity needed for targeted fix campaigns. Each dead-zone parameter has a clear remediation path: add the corresponding constraint to the knowledge directory and verify via re-running the audit. The six-level schema is extensible — future sources (e.g., A/B test results, user analytics) can be added as new ProvenanceSourceType enum values without breaking existing records."
     }
   ],
-  "current_session": "SESSION-189",
+  "current_session": "SESSION-190",
   "red_lines": [
     "SESSION-162: NEVER use hardcoded string lists for motion states; ALWAYS query unified_gait_blender.get_motion_lane_registry().names().",
     "SESSION-162: NEVER bypass assert_nonzero_temporal_variance in guide baking; fail fast on frozen sequences.",
@@ -5744,7 +5792,10 @@
       "session": "SESSION-189",
       "rule": "anime_rhythmic_subsample MUST return a strictly ascending, duplicate-free index list with exactly min(total, MAX_FRAMES) entries.",
       "enforced_by": "test_exact_length_when_oversupply + test_strictly_ascending_unique + test_endpoints_locked"
-    }
+    },
+    "SESSION-190: All user path inputs MUST pass through double-quote crusher — no exceptions",
+    "SESSION-190: When dummy mesh detected AND user prompt empty, semantic hydration MUST inject 3A prompt",
+    "SESSION-190: RGB ControlNet strength MUST be 0.0 when dummy mesh detected"
   ],
   "latent_healing_contract": {
     "session": "SESSION-189",
@@ -5784,5 +5835,27 @@
     "reference_notes": "docs/RESEARCH_NOTES_SESSION_189.md",
     "knowledge_doc": "knowledge/anime_frame_rhythm.md",
     "tests": "tests/test_session189_latent_healing_and_anime_rhythm.py"
+  },
+  "modal_decoupling_contract": {
+    "session": "SESSION-190",
+    "module": "mathart.core.anti_flicker_runtime",
+    "hard_anchors": {
+      "DECOUPLED_DEPTH_NORMAL_STRENGTH": 0.45,
+      "DECOUPLED_RGB_STRENGTH": 0.0,
+      "DECOUPLED_DENOISE": 1.0
+    },
+    "public_api": [
+      "detect_dummy_mesh",
+      "hydrate_prompt",
+      "force_decouple_dummy_mesh_payload"
+    ],
+    "invariants": [
+      "RGB ControlNet strength MUST be 0.0 when dummy mesh detected",
+      "denoise MUST be 1.0 when dummy mesh detected",
+      "Depth/Normal strength MUST be reduced to 0.45",
+      "Semantic hydration MUST inject 3A character prompt when user prompt empty"
+    ],
+    "reference_notes": "docs/RESEARCH_NOTES_SESSION_190.md",
+    "tests": "tests/test_session190_modal_decoupling_and_lookdev.py"
   }
 }

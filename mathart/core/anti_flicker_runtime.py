@@ -783,6 +783,256 @@ def force_override_workflow_payload(
     }
 
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  SESSION-190: Modal Decoupling + Semantic Hydration
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Industrial References:
+#    - MoSA (Wang et al., 2025) — Structure-Appearance Decoupling
+#    - MCM (NeurIPS 2024) — Motion-Appearance Disentanglement
+#    - DC-ControlNet (2025) — Multi-condition Decoupling
+#    - ComfyUI #1077 — denoise=1.0 behavior verification
+#    - ComfyUI-AnimateDiff-Evolved #245 — SparseCtrl strength control
+#    - OWASP Input Validation Cheat Sheet — Robust I/O Sanitization
+#
+#  When the physics layer degrades to a Dummy Cylinder Mesh (pseudo_3d_shell),
+#  the generated Albedo (flat cylinder colors) catastrophically pollutes
+#  the RGB guidance channel (SparseCtrl RGB).  The diffusion model locks
+#  onto the cylinder's color blocks and produces symmetric blocky monsters.
+#
+#  Solution: Absolute Appearance-Motion Decoupling:
+#    1. Detect dummy mesh → force denoise=1.0 (full noise, ignore input)
+#    2. Kill all RGB/Color ControlNet strength → 0.0
+#    3. Keep only Depth/Normal at reduced strength (0.45) for skeleton
+#    4. Inject high-quality 3A character prompt as semantic hydration
+# ═══════════════════════════════════════════════════════════════════════════
+
+# SESSION-190: Semantic Hydration — 3A character fallback prompt
+SEMANTIC_HYDRATION_POSITIVE = (
+    "(masterpiece, best quality, ultra-detailed:1.2), 1boy, "
+    "handsome cyber-ninja superhero, dynamic action pose, "
+    "vivid colors, clear background"
+)
+SEMANTIC_HYDRATION_NEGATIVE = (
+    "abstract, symmetric, geometric, cylinder, blocky, dummy, "
+    "deformed, blurry, low quality, distorted"
+)
+
+# SESSION-190: Decoupled ControlNet strength for Depth/Normal when dummy mesh detected
+DECOUPLED_DEPTH_NORMAL_STRENGTH: float = 0.45
+DECOUPLED_RGB_STRENGTH: float = 0.0
+DECOUPLED_DENOISE: float = 1.0
+
+
+def detect_dummy_mesh(context: dict) -> bool:
+    """Detect whether the current render context uses a pseudo_3d_shell
+    generated dummy cylinder mesh.
+
+    SESSION-190: This is the first gate in the Modal Decoupling pipeline.
+    When True, the downstream payload assembly MUST:
+      - Force denoise=1.0 (ignore input image colors)
+      - Kill RGB/SparseCtrl strength to 0.0
+      - Reduce Depth/Normal strength to 0.45
+      - Inject semantic hydration prompt
+
+    Detection heuristics (any match triggers):
+      1. context["backend_type"] == "pseudo_3d_shell"
+      2. context["_idle_bake_bypassed"] is False and no external guides
+      3. context contains cylinder_* parameters
+    """
+    if not isinstance(context, dict):
+        return False
+    # Direct backend type check
+    if str(context.get("backend_type", "")).lower() == "pseudo_3d_shell":
+        return True
+    # Check for cylinder parameters (signature of dummy mesh)
+    if any(k.startswith("cylinder_") for k in context):
+        return True
+    # Check for pseudo_3d_shell in nested dicts
+    for v in context.values():
+        if isinstance(v, dict):
+            if str(v.get("backend", "")).lower() == "pseudo_3d_shell":
+                return True
+            if str(v.get("backend_type", "")).lower() == "pseudo_3d_shell":
+                return True
+    return False
+
+
+def hydrate_prompt(context: dict) -> dict:
+    """SESSION-190: Semantic Hydration — inject high-quality 3A character
+    prompt when the user's prompt is empty/short AND the system has
+    degraded to a dummy mesh.
+
+    This prevents the diffusion model from being directionless when
+    confronted with a featureless cylinder albedo.
+
+    Returns a new dict with hydrated prompt fields.
+    """
+    result = dict(context)
+    vibe = str(result.get("vibe", "") or "").strip()
+    style_prompt = str(result.get("style_prompt", "") or "").strip()
+
+    # Trigger hydration if prompt is empty or extremely short (< 10 chars)
+    needs_hydration = (not vibe or len(vibe) < 10) and (not style_prompt or len(style_prompt) < 10)
+
+    if needs_hydration:
+        result["vibe"] = SEMANTIC_HYDRATION_POSITIVE
+        result["style_prompt"] = SEMANTIC_HYDRATION_POSITIVE
+        result["negative_prompt"] = SEMANTIC_HYDRATION_NEGATIVE
+        result["_session190_semantic_hydration"] = True
+        result["_session190_hydration_reason"] = (
+            f"Original vibe='{vibe}' (len={len(vibe)}), "
+            f"style_prompt='{style_prompt}' (len={len(style_prompt)}) — "
+            "both below threshold, injected 3A character fallback"
+        )
+    else:
+        result["_session190_semantic_hydration"] = False
+
+    return result
+
+
+def force_decouple_dummy_mesh_payload(
+    workflow: dict,
+    *,
+    denoise_override: float = DECOUPLED_DENOISE,
+    rgb_strength_override: float = DECOUPLED_RGB_STRENGTH,
+    depth_normal_strength_override: float = DECOUPLED_DEPTH_NORMAL_STRENGTH,
+    positive_prompt: str = SEMANTIC_HYDRATION_POSITIVE,
+    negative_prompt: str = SEMANTIC_HYDRATION_NEGATIVE,
+) -> dict:
+    """SESSION-190: Force Modal Decoupling on a ComfyUI workflow payload.
+
+    When a dummy cylinder mesh (pseudo_3d_shell) is detected, this function
+    performs surgical modifications to the workflow:
+
+    1. **KSampler*.denoise → 1.0**: Full denoising ignores input image
+       colors, breaking the albedo lock from the cylinder.
+    2. **SparseCtrl RGB / Color ControlNet strength → 0.0**: Completely
+       disables RGB guidance to prevent color block pollution.
+    3. **Depth/Normal ControlNet strength → 0.45**: Reduced but preserved
+       to maintain skeleton/motion guidance.
+    4. **Prompt injection**: Overrides positive/negative prompts with
+       high-quality 3A character descriptions.
+
+    Industrial References:
+      - MoSA (Wang et al., 2025): Structure-Appearance Decoupling
+      - ComfyUI #1077: denoise=1.0 behavior
+      - SparseCtrl (Guo et al., 2023): RGB strength control
+
+    Returns a report dict describing all modifications made.
+    """
+    if not isinstance(workflow, dict):
+        raise TypeError("workflow must be a dict (ComfyUI workflow_api_json).")
+
+    touched = []
+
+    for node_id, node in workflow.items():
+        if not isinstance(node, dict):
+            continue
+        class_type = str(node.get("class_type", ""))
+        inputs = node.get("inputs")
+        if not isinstance(inputs, dict):
+            continue
+
+        # ── Force denoise=1.0 on all KSampler variants ──
+        if class_type in ("KSampler", "KSamplerAdvanced", "SamplerCustomAdvanced"):
+            changed = {"node_id": node_id, "class_type": class_type, "operation": "denoise_override"}
+            if "denoise" in inputs:
+                prev = inputs["denoise"]
+                inputs["denoise"] = float(denoise_override)
+                changed["denoise"] = [prev, float(denoise_override)]
+            else:
+                inputs["denoise"] = float(denoise_override)
+                changed["denoise"] = [None, float(denoise_override)]
+            touched.append(changed)
+
+        # ── Kill RGB/SparseCtrl strength → 0.0 ──
+        # SparseCtrl RGB nodes contain "SparseCtrl" and "RGB" in class_type
+        # or have _meta.title containing "rgb" or "sparsectrl rgb"
+        elif class_type.startswith("ACN_SparseCtrl"):
+            changed = {
+                "node_id": node_id,
+                "class_type": class_type,
+                "operation": "rgb_strength_kill",
+            }
+            for key in ("strength", "motion_strength"):
+                if key in inputs:
+                    prev = inputs[key]
+                    inputs[key] = float(rgb_strength_override)
+                    changed[key] = [prev, float(rgb_strength_override)]
+            touched.append(changed)
+
+        # ── ControlNetApply* — differentiate RGB vs Depth/Normal ──
+        elif class_type.startswith("ControlNetApply"):
+            meta = node.get("_meta", {})
+            title = str(meta.get("title", "")).lower()
+            # Determine if this is an RGB/color control or Depth/Normal
+            is_rgb = any(kw in title for kw in ("rgb", "color", "sparsectrl", "sparse"))
+            if is_rgb:
+                # Kill RGB strength
+                changed = {
+                    "node_id": node_id,
+                    "class_type": class_type,
+                    "operation": "rgb_controlnet_kill",
+                }
+                for key in ("strength",):
+                    if key in inputs:
+                        prev = inputs[key]
+                        inputs[key] = float(rgb_strength_override)
+                        changed[key] = [prev, float(rgb_strength_override)]
+                touched.append(changed)
+            else:
+                # Reduce Depth/Normal strength to 0.45
+                changed = {
+                    "node_id": node_id,
+                    "class_type": class_type,
+                    "operation": "depth_normal_strength_reduce",
+                }
+                for key in ("strength",):
+                    if key in inputs:
+                        prev = inputs[key]
+                        inputs[key] = float(depth_normal_strength_override)
+                        changed[key] = [prev, float(depth_normal_strength_override)]
+                touched.append(changed)
+
+        # ── Inject prompts into CLIPTextEncode nodes ──
+        elif class_type == "CLIPTextEncode":
+            meta = node.get("_meta", {})
+            title = str(meta.get("title", "")).lower()
+            if "negative" in title:
+                if "text" in inputs:
+                    prev = inputs["text"]
+                    inputs["text"] = negative_prompt
+                    touched.append({
+                        "node_id": node_id,
+                        "class_type": class_type,
+                        "operation": "negative_prompt_hydration",
+                        "text": [prev, negative_prompt],
+                    })
+            elif "positive" in title or "prompt" in title:
+                if "text" in inputs:
+                    prev = inputs["text"]
+                    inputs["text"] = positive_prompt
+                    touched.append({
+                        "node_id": node_id,
+                        "class_type": class_type,
+                        "operation": "positive_prompt_hydration",
+                        "text": [prev, positive_prompt],
+                    })
+
+    return {
+        "session": "SESSION-190",
+        "feature": "force_decouple_dummy_mesh_payload",
+        "denoise_override": float(denoise_override),
+        "rgb_strength_override": float(rgb_strength_override),
+        "depth_normal_strength_override": float(depth_normal_strength_override),
+        "positive_prompt": positive_prompt,
+        "negative_prompt": negative_prompt,
+        "touched_nodes": touched,
+    }
+
+
 __all__ = [
     "AntiFlickerChunk",
     "RGBSequenceExportResult",
@@ -808,4 +1058,13 @@ __all__ = [
     "jit_matte_and_upscale",
     "heal_guide_sequences",
     "force_override_workflow_payload",
+    # SESSION-190 additions
+    "SEMANTIC_HYDRATION_POSITIVE",
+    "SEMANTIC_HYDRATION_NEGATIVE",
+    "DECOUPLED_DEPTH_NORMAL_STRENGTH",
+    "DECOUPLED_RGB_STRENGTH",
+    "DECOUPLED_DENOISE",
+    "detect_dummy_mesh",
+    "hydrate_prompt",
+    "force_decouple_dummy_mesh_payload",
 ]
