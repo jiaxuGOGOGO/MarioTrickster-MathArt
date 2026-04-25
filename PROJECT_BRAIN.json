@@ -1,7 +1,7 @@
 {
   "version": "v1.0.6",
-  "last_session_id": "SESSION-195",
-  "last_updated": "2026-04-25",
+  "last_session_id": "SESSION-197",
+  "last_updated": "2026-04-25T04:03:20Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -791,7 +791,7 @@
     "engineering_automation": 95,
     "animation_physics_realism": 58
   },
-  "current_focus": "Modal Decoupling (Appearance-Motion separation for dummy mesh), LookDev single-action rapid prototyping, I/O Sanitization (double-quote crusher for Windows paths)",
+  "current_focus": "P0-SESSION-197-PHYSICS-DATA-BUS-UNIFICATION (COMPLETE)",
   "next_reference_entrypoint": "SESSION_HANDOFF.md",
   "reference_notes_priority": [
     "docs/RESEARCH_NOTES_SESSION_166.md",
@@ -3419,7 +3419,8 @@
       "date": "2026-04-24",
       "description": "Revived two dormant core modules: CPPN Texture Evolution Engine (667-line cppn.py adapter) and Fluid Momentum VFX Controller (461-line fluid_momentum_controller.py adapter). Both registered via @register_backend, auto-discovered by laboratory_hub reflection. Research grounded in Stanley 2007 CPPN, Jos Stam 1999 Stable Fluids, GPU Gems 3 Ch.30, CFL stability, Netflix Hystrix degradation."
     },
-    "P0-SESSION-188-QUADRUPED-AWAKENING-AND-VAT-BRIDGE: Quadruped Physics Engine Awakening & VAT Real-Data Bridge (32 tests passed)"
+    "P0-SESSION-188-QUADRUPED-AWAKENING-AND-VAT-BRIDGE: Quadruped Physics Engine Awakening & VAT Real-Data Bridge (32 tests passed)",
+    "P0-SESSION-197-PHYSICS-DATA-BUS-UNIFICATION"
   ],
   "capability_gaps": [
     "RESOLVED-S018: Evaluator too lenient -> 12-metric evaluator with strict thresholds",
@@ -5568,6 +5569,29 @@
         "Unreal Engine Animation Blueprint",
         "Michael Nygard 'Release It!' — Fail-Fast Principle"
       ]
+    },
+    {
+      "session": "SESSION-197",
+      "title": "P0-PHYSICS-DATA-BUS-UNIFICATION",
+      "status": "COMPLETE",
+      "date": "2026-04-25",
+      "summary": "Unified physics/fluid computation data bus with ComfyUI ControlNet pipeline. New VFX Topology Hydrator (ECS-style) dynamically injects Fluid and Physics ControlNet chains in serial daisy-chain topology. Extended arbitrator with VFX weight bands. 48 interception tests all pass.",
+      "files_changed": [
+        "mathart/core/vfx_topology_hydrator.py (NEW)",
+        "mathart/core/openpose_skeleton_renderer.py (MODIFIED)",
+        "mathart/core/builtin_backends.py (MODIFIED)",
+        "tests/test_session197_physics_bus_unification.py (NEW)",
+        "docs/RESEARCH_NOTES_SESSION_197.md (NEW)",
+        "docs/USER_GUIDE.md (APPENDED)",
+        "SESSION_HANDOFF.md (REWRITTEN)",
+        "PROJECT_BRAIN.json (UPDATED)"
+      ],
+      "research_references": [
+        "Houdini PDG (Procedural Dependency Graph)",
+        "Entity Component System (ECS) — Data-Oriented Design",
+        "ONNX/TensorRT Computation Graph Multi-Path Fusion Topology",
+        "ComfyUI Multi-ControlNet Stacking Guidelines"
+      ]
     }
   ],
   "resolved_issues": [
@@ -5716,7 +5740,23 @@
       "resolution": "Created fluid_momentum_backend.py Adapter layer with @register_backend, auto-discovered by laboratory_hub reflection"
     }
   ],
-  "backlog": [],
+  "backlog": [
+    {
+      "id": "P1-SESSION-198-PHYSICS-3D-PLUGIN-REGISTRATION",
+      "priority": "P1",
+      "description": "Register physics_3d in SemanticOrchestrator plugin registry to fix 4 pre-existing SESSION-196 test failures"
+    },
+    {
+      "id": "P1-SESSION-198-PHYSICS-RENDER-SEQUENCE-EXPORT",
+      "priority": "P1",
+      "description": "Add render-ready sequence exporter for Physics3D UMR motion clips → visual maps for ControlNet"
+    },
+    {
+      "id": "P2-ADAPTIVE-WEIGHT-SCHEDULING",
+      "priority": "P2",
+      "description": "Dynamic ControlNet weight scheduling based on artifact quality metrics"
+    }
+  ],
   "notes": {
     "session099_rng_refactor_status": "HIGH-2.7 CLOSED. All 43 bare np.random calls eliminated from mathart/. Pattern: production functions accept optional rng: Generator | None with default_rng() fallback. Deterministic projection matrices use cached instance-level _get_projection_matrix(). Legacy RandomState replaced with default_rng throughout. Three red-line constraints strictly enforced.",
     "session100_perf1_status": "PERF-1-EVOLUTION-LOOP-OOM CLOSED. Root cause: scan_internal_todos() recursively read 110.7 MB of generated CYCLE JSON from evolution_reports/ (34 files, largest 71 MB), causing 445.6 MB peak RSS and exponential report JSON growth. Fix: exclude_dirs DI (frozenset, 11 excluded dirs), max_file_size DI (1 MiB threshold), streaming line-by-line read, proposal_limit DI (500 cap), streaming json.dump(). Peak RSS: 445.6 MB -> 59.4 MB (87% reduction). 16 new regression tests with tracemalloc guards (<50 MB scan, <100 MB cycle). Public API fully backward-compatible.",
@@ -5933,7 +5973,32 @@
       "implication": "This classification schema provides the exact granularity needed for targeted fix campaigns. Each dead-zone parameter has a clear remediation path: add the corresponding constraint to the knowledge directory and verify via re-running the audit. The six-level schema is extensible — future sources (e.g., A/B test results, user analytics) can be added as new ProvenanceSourceType enum values without breaking existing records."
     }
   ],
-  "current_session": "SESSION-191",
+  "current_session": {
+    "id": "SESSION-197",
+    "title": "P0-PHYSICS-DATA-BUS-UNIFICATION",
+    "status": "COMPLETE",
+    "parent_commit": "b188115",
+    "deliverables": [
+      "mathart/core/vfx_topology_hydrator.py",
+      "mathart/core/openpose_skeleton_renderer.py (extended)",
+      "mathart/core/builtin_backends.py (extended)",
+      "tests/test_session197_physics_bus_unification.py",
+      "docs/RESEARCH_NOTES_SESSION_197.md",
+      "docs/USER_GUIDE.md (Section 26 appended)",
+      "SESSION_HANDOFF.md (rewritten)"
+    ],
+    "test_results": {
+      "session197_tests": "48 passed",
+      "regressions": "0 (4 pre-existing SESSION-196 failures unrelated)"
+    },
+    "red_lines_preserved": [
+      "SESSION-189 anchors",
+      "SESSION-190 force_decouple",
+      "SESSION-193 arbitrator base logic",
+      "SESSION-194 OpenPose IoC",
+      "SESSION-195 IPAdapter late-binding"
+    ]
+  },
   "red_lines": [
     "SESSION-162: NEVER use hardcoded string lists for motion states; ALWAYS query unified_gait_blender.get_motion_lane_registry().names().",
     "SESSION-162: NEVER bypass assert_nonzero_temporal_variance in guide baking; fail fast on frozen sequences.",
@@ -6187,5 +6252,21 @@
   },
   "architecture_constraints": [
     "SESSION-196: The intent_gateway module acts as the Kubernetes Admission Webhook. No deep module (e.g. _execute_live_pipeline) should ever add a new formal parameter for CLI intent fields; they must extract them from the Redux-style context dict."
-  ]
+  ],
+  "vfx_topology_hydration_contract": {
+    "session": "SESSION-197",
+    "description": "Physics/Fluid VFX artifacts are dynamically injected into ControlNet chain",
+    "chain_order": "CLIP → Normal → Depth → OpenPose → Fluid → Physics → KSampler",
+    "fluid_weight": 0.35,
+    "physics_weight": 0.3,
+    "fluid_weight_dummy_mesh": 0.3,
+    "physics_weight_dummy_mesh": 0.25,
+    "max_combined_strength": 3.5,
+    "injection_pattern": "ECS component scan → os.path.exists() → AST node injection → DAG closure",
+    "red_lines": [
+      "反空投送幻觉红线: os.path.exists() on every artifact path",
+      "反图谱污染红线: DAG closure validation after injection",
+      "反静态死板红线: Zero modification to base JSON presets"
+    ]
+  }
 }

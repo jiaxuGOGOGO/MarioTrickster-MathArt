@@ -310,6 +310,17 @@ DUMMY_MESH_DEPTH_NORMAL_STRENGTH: float = 0.45
 # Depth/Normal to the research-recommended 0.40–0.45 band and delegates
 # motion authority to OpenPose at 1.0.
 
+# SESSION-197: Physics & Fluid VFX ControlNet weight bands.
+# When physics/fluid artifacts are injected, these weights provide
+# appropriate perturbation force without overwhelming the base structure.
+# Research basis: ComfyUI multi-ControlNet stacking guidelines —
+# auxiliary ControlNets should stay in the 0.25–0.40 band to avoid
+# Latent Space overfitting when combined with primary structural nets.
+FLUID_VFX_CONTROLNET_STRENGTH: float = 0.35
+PHYSICS_VFX_CONTROLNET_STRENGTH: float = 0.30
+# Maximum combined ControlNet strength ceiling — prevents multi-modal
+# overfitting when all ControlNets are active simultaneously.
+MAX_COMBINED_CONTROLNET_STRENGTH: float = 3.50
 
 def arbitrate_controlnet_strengths(
     workflow: dict[str, Any],
@@ -385,9 +396,55 @@ def arbitrate_controlnet_strengths(
                         "strength": [prev, float(depth_normal_strength)],
                     })
 
+    # ── SESSION-197: Fluid/Physics VFX ControlNet weight arbitration ──
+    # When physics/fluid VFX artifacts are injected into the chain,
+    # their strengths must be calibrated to provide perturbation without
+    # overwhelming the base structural ControlNets (Depth/Normal/OpenPose).
+    # The arbitrator scans for SESSION-197 titled nodes and applies the
+    # research-recommended weight bands.
+    for node_id, node in workflow.items():
+        if not isinstance(node, dict):
+            continue
+        class_type = node.get("class_type", "")
+        inputs = node.get("inputs", {})
+        meta = node.get("_meta", {})
+        title = str(meta.get("title", "")).lower()
+        if not class_type.startswith("ControlNetApply"):
+            continue
+        # ── Fluid VFX ControlNet → strength 0.35 (perturbation band) ──
+        if "fluid" in title and "session197" in title:
+            if "strength" in inputs:
+                prev = inputs["strength"]
+                target = float(FLUID_VFX_CONTROLNET_STRENGTH)
+                if is_dummy_mesh:
+                    # Slightly reduce fluid influence on dummy meshes
+                    target = min(target, 0.30)
+                inputs["strength"] = target
+                report["touched_nodes"].append({
+                    "node_id": node_id,
+                    "class_type": class_type,
+                    "operation": "session197_fluid_vfx_strength_calibrate",
+                    "strength": [prev, target],
+                })
+        # ── Physics VFX ControlNet → strength 0.30 (deformation hint) ──
+        elif "physics" in title and "session197" in title:
+            if "strength" in inputs:
+                prev = inputs["strength"]
+                target = float(PHYSICS_VFX_CONTROLNET_STRENGTH)
+                if is_dummy_mesh:
+                    target = min(target, 0.25)
+                inputs["strength"] = target
+                report["touched_nodes"].append({
+                    "node_id": node_id,
+                    "class_type": class_type,
+                    "operation": "session197_physics_vfx_strength_calibrate",
+                    "strength": [prev, target],
+                })
     report["action"] = "arbitrated"
     report["openpose_strength"] = float(openpose_strength)
     report["depth_normal_strength"] = float(depth_normal_strength)
+    report["session197_fluid_vfx_strength"] = float(FLUID_VFX_CONTROLNET_STRENGTH)
+    report["session197_physics_vfx_strength"] = float(PHYSICS_VFX_CONTROLNET_STRENGTH)
     return report
 
 
@@ -398,6 +455,9 @@ __all__ = [
     "COCO_18_KEYPOINT_COLORS",
     "OPENPOSE_CONTROLNET_STRENGTH",
     "DUMMY_MESH_DEPTH_NORMAL_STRENGTH",
+    "FLUID_VFX_CONTROLNET_STRENGTH",
+    "PHYSICS_VFX_CONTROLNET_STRENGTH",
+    "MAX_COMBINED_CONTROLNET_STRENGTH",
     "skeleton_joints_to_coco18",
     "render_openpose_frame",
     "render_openpose_sequence",

@@ -1440,6 +1440,60 @@ class AntiFlickerRenderBackend:
                         "error": str(_s195_ipa_exc),
                     }
 
+                # ── SESSION-197 P0: Physics/Fluid VFX Topology Hydration ──
+                # ECS-style system: scan context for physics/fluid artifact
+                # components and inject ControlNet chains in serial daisy-chain
+                # topology. Follows Houdini PDG model where physics artifacts
+                # are work items transformed into conditioning streams.
+                try:
+                    from mathart.core.vfx_topology_hydrator import (
+                        hydrate_vfx_topology as _hydrate_vfx,
+                        emit_vfx_hydration_banner as _emit_vfx_banner,
+                    )
+                    _vfx_report = _hydrate_vfx(
+                        payload,
+                        initial_context,
+                        strict=False,
+                    )
+                    payload.setdefault("mathart_lock_manifest", {})
+                    payload["mathart_lock_manifest"]["session197_vfx_topology_report"] = _vfx_report
+                    _vfx_injected = _vfx_report.get("artifacts_injected", [])
+                    if _vfx_injected:
+                        logger.info(
+                            "[anti_flicker_render] SESSION-197 VFX topology hydration: %s",
+                            _vfx_injected,
+                        )
+                        # Re-run arbitration after VFX injection to calibrate new weights
+                        try:
+                            from mathart.core.openpose_skeleton_renderer import (
+                                arbitrate_controlnet_strengths as _arb_s197,
+                            )
+                            _arb_s197(
+                                payload,
+                                is_dummy_mesh=initial_context.get("is_dummy_mesh", False),
+                            )
+                        except Exception:
+                            pass  # Non-critical: weights already set at injection time
+                        _banner = _emit_vfx_banner(_vfx_injected)
+                        if _banner:
+                            import sys as _sys197
+                            try:
+                                _sys197.stderr.write("\033[1;35m" + _banner + "\033[0m\n")
+                                _sys197.stderr.flush()
+                            except Exception:
+                                pass
+                except Exception as _s197_vfx_exc:
+                    logger.warning(
+                        "[anti_flicker_render] SESSION-197 VFX topology hydration non-critical skip: %s",
+                        _s197_vfx_exc,
+                    )
+                    payload.setdefault("mathart_lock_manifest", {})
+                    payload["mathart_lock_manifest"]["session197_vfx_topology_report"] = {
+                        "injected": False,
+                        "mode": "error_degradation",
+                        "error": str(_s197_vfx_exc),
+                    }
+
             except Exception as _s194_runtime_exc:  # noqa: BLE001
                 # Pipeline integrity is FAIL-FAST per SESSION-194 ¶2.
                 from mathart.core.preset_topology_hydrator import PipelineIntegrityError
