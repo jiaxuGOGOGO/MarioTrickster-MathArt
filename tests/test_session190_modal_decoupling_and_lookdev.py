@@ -43,14 +43,15 @@ class TestHardAnchors:
     """Verify SESSION-190 hard anchor constants are correct."""
 
     def test_decoupled_depth_normal_strength(self):
-        # SESSION-192 hard upgrade: the SESSION-190 baseline of 0.45 was
-        # too gentle and let blocky cylinder geometry leak through. The
-        # director ordered Depth/Normal ControlNet strength to be ramped
-        # up into the 0.85 - 1.0 band so the diffusion model is forced
-        # to obey the math-derived skeleton tensor and ignore the
-        # pseudo_3d_shell pixel albedo. The previous == 0.45 anchor is
-        # therefore relaxed into a >= 0.85 lower-bound contract.
-        assert DECOUPLED_DEPTH_NORMAL_STRENGTH >= 0.85
+        # SESSION-195 alignment: SESSION-193 reverted Depth/Normal strength
+        # to 0.45 because OpenPose ControlNet now takes over motion control
+        # at strength=1.0. With OpenPose carrying the skeletal signal,
+        # Depth/Normal only needs to provide supplementary geometric hints,
+        # so the contract is softened to >= 0.40 (the SESSION-193 min floor).
+        # This is the Fowler "evolving contract" pattern: when the upstream
+        # arbitration red line changes, downstream test assertions MUST
+        # evolve in lockstep — never skip, never comment out.
+        assert DECOUPLED_DEPTH_NORMAL_STRENGTH >= 0.40
         assert DECOUPLED_DEPTH_NORMAL_STRENGTH <= 1.0
 
     def test_decoupled_rgb_strength(self):

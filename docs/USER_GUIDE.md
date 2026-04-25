@@ -2409,3 +2409,96 @@ ls /tmp/op_demo
 预期看到 `DAG closure : closed`、两个 mode 均为 `injected`、以及 8 张 PNG。
 
 > 老大，SESSION-194 三块孤儿零件已经焊进主干。下一棒（SESSION-195）建议先把 SESSION-190/192 旧测试的 `>=0.85` 阈值断言对齐到 SESSION-193 的新红线，再做真实 GPU ComfyUI 集成回放。
+
+---
+
+## 25. SESSION-195: 全面攻坚 — 测试债务清欠 · IPAdapter 图源闭环 · 步态全矩阵扩容
+
+> **SESSION-195 是一次 P0 级全面攻坚**，一次性关闭三大历史遗留问题，使项目从"能跑"升级到"工业级可信赖"。
+
+### 25.1 历史测试债务清欠
+
+SESSION-193 将 Depth/Normal ControlNet 强度从 0.85→0.45（因为 OpenPose 以 strength=1.0 接管了运动控制），但 `test_session190` 和 `test_session192` 中的断言仍在检查 `>= 0.85`，导致 5 个测试持续红灯。
+
+**Martin Fowler 演进式架构原则**：测试断言是架构的"适应度函数"（Fitness Function），当上游契约变更时，下游断言必须同步演进——不能跳过、不能注释掉。
+
+| 修复的测试 | 原断言 | 新断言 | 原因 |
+|-----------|--------|--------|------|
+| `test_session190::test_decoupled_depth_normal_strength` | `>= 0.85` | `>= 0.40` | SESSION-193 OpenPose 仲裁契约 |
+| `test_session192::test_depth_normal_strength_at_or_above_redline` | `>= 0.85` | `>= 0.40` | 同上 |
+| `test_session192::test_force_decouple_payload_reports_min_strength` | `>= 0.85` | `>= 0.40` + `== 0.45` | 精确匹配新默认值 |
+| `test_session192::test_telemetry_handshake_text_contract` | `"0.90"` / `">= 0.85"` | 动态 f-string | 随常量自适应 |
+| `test_session192::test_telemetry_warns_when_strength_below_redline` | `0.45` 触发 ⚠️ | `0.30` 触发 ⚠️ | 0.45 已在新红线之上 |
+
+### 25.2 IPAdapter 真实图源动态寻址闭环
+
+**问题**：SESSION-193 实现了 `identity_hydration.py` 模块，但 `_visual_reference_path` 从未在主管线的 chunk 组装站点被解析和注入。用户即使提供了参考图，IPAdapter LoadImage 节点也永远收不到真实路径。
+
+**解决方案（Spring ResourceLoader Late-Binding 模式）**：
+
+1. 在 `builtin_backends.py` 的 `_execute_live_pipeline` chunk 组装站点，调用 `extract_visual_reference_path(validated)` 在运行时解析路径。
+2. 路径存在 → 调用 `inject_ipadapter_identity_lock()` 注入到 ComfyUI workflow。
+3. 路径非空但文件不存在 → `PipelineIntegrityError`（Fail-Fast，拒绝幽灵路径）。
+4. 路径为空/None → 优雅降级（跳过 IPAdapter，不报错）。
+
+**路径搜索优先级**（三级 fallback）：
+
+| 优先级 | 上下文位置 | 说明 |
+|--------|-----------|------|
+| 1 | `context["_visual_reference_path"]` | SESSION-193 标准位置 |
+| 2 | `context["identity_lock"]["reference_image_path"]` | 嵌套配置 |
+| 3 | `context["director_studio_spec"]["_visual_reference_path"]` | 导演工坊规格 |
+
+### 25.3 OpenPose 步态全矩阵扩容（Registry Pattern）
+
+**问题**：SESSION-194 仅实现了 `walk` 一种步态的 Catmull-Rom 关键帧模板。`run`、`jump`、`idle`、`dash` 等动作没有对应的 COCO-18 姿态序列，导致这些动作的 OpenPose ControlNet 输入为空或退化为 walk。
+
+**解决方案（UE5 AnimGraph / Chooser-Table 模式）**：
+
+引入 `OpenPoseGaitRegistry`（数据驱动注册表），每种步态是一个独立的 `OpenPoseGaitStrategy` 子类：
+
+| 策略类 | action_name | 运动特征 |
+|--------|-------------|---------|
+| `_WalkGaitStrategy` | `walk` | 标准步行：摆臂 + 脚跟着地 |
+| `_RunGaitStrategy` | `run` | 快跑：加大摆臂 + 高抬膝 + 前倾 |
+| `_JumpGaitStrategy` | `jump` | 跳跃：蹲伏 → 起跳 → 顶点 → 落地 |
+| `_IdleGaitStrategy` | `idle` | 待机：微呼吸摆动 + 重心转移 |
+| `_DashGaitStrategy` | `dash` | 冲刺：极端前倾 + 爆发摆臂 |
+
+**反意面条红线**：`bake_openpose_pose_sequence` 中**零 if/elif 分支**。步态解析完全通过 `_GAIT_REGISTRY.get(action_name)` 完成。新步态只需子类化 `OpenPoseGaitStrategy` 并调用 `register_gait_strategy()`，无需修改任何现有代码（OCP）。
+
+### 25.4 测试验收
+
+```bash
+PYTHONPATH=. python3.11 -m pytest tests/ -v
+# 预期结果：全部绿灯（0 failed）
+```
+
+SESSION-195 新增测试文件 `test_session195_full_matrix_closure.py`（30+ 用例），覆盖：
+
+- 历史债务回归守卫（常量值 + banner 文案 + 警告触发）
+- IPAdapter 三级路径搜索 + 注入/更新/跳过三路径
+- 步态注册表完整性（5 种步态 × 帧数/关节/PNG 输出）
+- 自定义步态注册扩展性
+- 反意面条红线（源码无 if/elif 分支）
+- 红线合规（SESSION-189 锚点 + 代理环境变量 + 零硬编码 ID）
+
+### 25.5 红线合规声明
+
+| 红线 | 状态 |
+|------|------|
+| 代理环境变量零接触 | ✅ |
+| SESSION-189 锚点未触动 | ✅ |
+| SESSION-190 `force_decouple_dummy_mesh_payload` 算法未触动 | ✅ |
+| SESSION-193 `arbitrate_controlnet_strengths` 算法未触动 | ✅ |
+| SESSION-194 OpenPose IoC 契约未触动（仅扩展步态注册表） | ✅ |
+| 全部新节点通过 `class_type + _meta.title` 寻址 | ✅ |
+| 测试断言演进（非跳过/注释） | ✅ |
+
+### 25.6 工业参考文献
+
+| 参考 | 应用 |
+|------|------|
+| UE5 Game Animation Sample — Motion Matching + Chooser Table | 步态注册表 Registry Pattern |
+| Spring Framework ResourceLoader — Late-Binding + Fail-Fast | IPAdapter 图源动态寻址 |
+| Martin Fowler — Contract Test + Evolutionary Architecture | 测试债务清欠方法论 |

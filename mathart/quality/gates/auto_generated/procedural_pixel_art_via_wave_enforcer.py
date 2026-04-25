@@ -21,7 +21,10 @@ class ProceduralPixelArtViaWaveEnforcer(EnforcerBase):
 
     @property
     def source_docs(self) -> list[str]:
-        return ["Procedural Pixel Art via Wave Function Collapse - Academic Paper"]
+        return [
+            "Procedural Pixel Art via Wave Function Collapse",
+            "https://example.com/wfc_paper"
+        ]
 
     def validate(self, params: dict) -> EnforcerResult:
         violations = []
@@ -29,84 +32,39 @@ class ProceduralPixelArtViaWaveEnforcer(EnforcerBase):
 
         # Validate 'tile_size'
         tile_size = params.get("tile_size")
-        if isinstance(tile_size, dict):
+        if tile_size is not None:
             min_tile_size, max_tile_size = 8, 64
-            if "range" in tile_size:
-                range_vals = tile_size["range"]
-                if isinstance(range_vals, list) and len(range_vals) == 2:
-                    min_range, max_range = range_vals
-                    # Clamp tile_size within range
-                    if min_range < min_tile_size:
-                        min_range = min_tile_size
-                    if max_range > max_tile_size:
-                        max_range = max_tile_size
-                    corrected_params["tile_size"]["range"] = [min_range, max_range]
-                    # Check for violations
-                    if min_range < min_tile_size:
-                        violations.append(EnforcerViolation(
-                            message=f"tile_size.range minimum adjusted to {min_tile_size}",
-                            severity=EnforcerSeverity.WARNING
-                        ))
-                    if max_range > max_tile_size:
-                        violations.append(EnforcerViolation(
-                            message=f"tile_size.range maximum adjusted to {max_tile_size}",
-                            severity=EnforcerSeverity.WARNING
-                        ))
-                else:
-                    violations.append(EnforcerViolation(
-                        message="tile_size.range should be a list of two numbers",
+            if not isinstance(tile_size, (int, float)):
+                violations.append(
+                    EnforcerViolation(
+                        message=f"'tile_size' should be a number.",
                         severity=EnforcerSeverity.ERROR
-                    ))
+                    )
+                )
             else:
-                violations.append(EnforcerViolation(
-                    message="tile_size.range missing in parameters",
-                    severity=EnforcerSeverity.ERROR
-                ))
-        else:
-            violations.append(EnforcerViolation(
-                message="tile_size should be a dictionary with 'range' key",
-                severity=EnforcerSeverity.ERROR
-            ))
+                if tile_size < min_tile_size:
+                    corrected_params["tile_size"] = min_tile_size
+                elif tile_size > max_tile_size:
+                    corrected_params["tile_size"] = max_tile_size
 
         # Validate 'overlap'
         overlap = params.get("overlap")
-        if isinstance(overlap, dict):
+        if overlap is not None:
             min_overlap, max_overlap = 1, 5
-            if "range" in overlap:
-                range_vals = overlap["range"]
-                if isinstance(range_vals, list) and len(range_vals) == 2:
-                    min_range, max_range = range_vals
-                    # Clamp overlap within range
-                    if min_range < min_overlap:
-                        min_range = min_overlap
-                    if max_range > max_overlap:
-                        max_range = max_overlap
-                    corrected_params["overlap"]["range"] = [min_range, max_range]
-                    # Check for violations
-                    if min_range < min_overlap:
-                        violations.append(EnforcerViolation(
-                            message=f"overlap.range minimum adjusted to {min_overlap}",
-                            severity=EnforcerSeverity.WARNING
-                        ))
-                    if max_range > max_overlap:
-                        violations.append(EnforcerViolation(
-                            message=f"overlap.range maximum adjusted to {max_overlap}",
-                            severity=EnforcerSeverity.WARNING
-                        ))
-                else:
-                    violations.append(EnforcerViolation(
-                        message="overlap.range should be a list of two numbers",
+            if not isinstance(overlap, (int, float)):
+                violations.append(
+                    EnforcerViolation(
+                        message=f"'overlap' should be a number.",
                         severity=EnforcerSeverity.ERROR
-                    ))
+                    )
+                )
             else:
-                violations.append(EnforcerViolation(
-                    message="overlap.range missing in parameters",
-                    severity=EnforcerSeverity.ERROR
-                ))
-        else:
-            violations.append(EnforcerViolation(
-                message="overlap should be a dictionary with 'range' key",
-                severity=EnforcerSeverity.ERROR
-            ))
+                if overlap < min_overlap:
+                    corrected_params["overlap"] = min_overlap
+                elif overlap > max_overlap:
+                    corrected_params["overlap"] = max_overlap
 
-        return EnforcerResult(params=corrected_params, violations=violations)
+        return EnforcerResult(
+            corrected_params=corrected_params,
+            violations=violations
+        )

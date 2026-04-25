@@ -1,35 +1,36 @@
-"""SESSION-194: OpenPose Pose Sequence Provider — IoC Payload Hook.
+"""SESSION-194/195: OpenPose Pose Sequence Provider — IoC Payload Hook.
 
-This module is the **Provider** half of the SESSION-194 IoC contract that
-finally connects the previously orphan ``openpose_skeleton_renderer``
-module to the live anti-flicker render pipeline. Following Spring's IoC
-pattern, this module exposes a single high-level entry point —
-:func:`bake_openpose_pose_sequence` — which:
+SESSION-194 established this module as the Provider half of the IoC contract
+that connects the previously orphan ``openpose_skeleton_renderer`` to the
+live anti-flicker render pipeline.
 
-1. Maps the project's internal humanoid skeleton joints onto the COCO-18
-   keypoint layout consumed by the OpenPose ControlNet.
-2. Optionally derives a per-frame walk/jump cycle (a deterministic
-   Catmull-Rom-spline-driven gait) so the on-disk sequence carries a
-   *real* industrial-quality motion signal, never a static T-pose.
-3. Uses the existing :func:`render_openpose_sequence` to produce
-   COCO-18 PNG frames.
-4. **Physically writes** the PNG sequence to a stable on-disk directory
-   under the chunk's runtime tree.
-5. Returns a *strongly-typed contract* dict declaring its
-   ``artifact_family="openpose_pose_sequence"`` and ``backend_type``,
-   so the trunk pipeline picks it up via duck-typed iteration without
-   any ``if enable_openpose:`` branching.
+SESSION-195 UPGRADE — Gait Registry Expansion (P0):
+  Refactored from a single hardcoded ``derive_industrial_walk_cycle`` to a
+  **data-driven OpenPose Gait Registry** following the UE5 AnimGraph /
+  Chooser-Table pattern (see docs/RESEARCH_NOTES_SESSION_195.md §1).
 
-UX zero-degradation: the helper emits the official
-``[⚙️ 工业烘焙网关]`` Catmull-Rom banner before producing pose frames,
-honouring the SESSION-192 UX contract and the SESSION-194 ¶1
-``强制附加条款`` requirement.
+  Each gait template (walk, run, jump, idle, dash) is an independent
+  **strategy class** registered into ``OpenPoseGaitRegistry``. The public
+  ``bake_openpose_pose_sequence`` resolves the correct gait generator at
+  runtime via the registry, never through if/elif chains (OCP red line).
+
+  This mirrors the existing ``MotionStateLaneRegistry`` in
+  ``mathart.animation.unified_gait_blender`` and honours the project's
+  IoC / Registry Pattern architecture discipline.
+
+Architecture Discipline:
+  - NEVER uses if/elif to dispatch gait actions (anti-spaghetti red line).
+  - Each gait is a self-contained strategy with its own Catmull-Rom keyframes.
+  - New gaits are added by subclassing ``OpenPoseGaitStrategy`` and calling
+    ``register_gait_strategy(instance)`` — zero modification to this file.
+  - All node addressing uses ``class_type + _meta.title`` semantic selectors.
 """
 from __future__ import annotations
 
+import abc
 import logging
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -83,9 +84,6 @@ class OpenPoseSequenceArtifact:
 # ═══════════════════════════════════════════════════════════════════════════
 #  Project skeleton ↔ COCO-18 mapping
 # ═══════════════════════════════════════════════════════════════════════════
-# Project joint names (see Skeleton.create_humanoid) → COCO-18 indices.
-# Joints not present in the project skeleton (eyes / ears) get mapped to
-# the nose with a small horizontal offset for visual fidelity.
 _PROJECT_TO_COCO18: dict[str, int] = {
     "head": 0,         # nose
     "neck": 1,         # neck
@@ -102,8 +100,6 @@ _PROJECT_TO_COCO18: dict[str, int] = {
     "l_knee": 12,
     "l_foot": 13,      # l_ankle
 }
-# Pseudo positions for missing eyes/ears (offsets relative to nose, in
-# normalised-pose-space units).
 _NOSE_OFFSETS_FOR_FACE: dict[int, tuple[float, float]] = {
     14: (-0.020, -0.020),  # r_eye
     15: (+0.020, -0.020),  # l_eye
@@ -115,20 +111,14 @@ _NOSE_OFFSETS_FOR_FACE: dict[int, tuple[float, float]] = {
 def _project_joints_to_coco18_array(
     joint_positions: dict[str, tuple[float, float]],
 ) -> np.ndarray:
-    """Convert a ``{joint_name: (x, y)}`` dict to a ``(18, 3)`` array.
-
-    Coordinates are normalised so feet ≈ 0.95, head ≈ 0.10 (image space:
-    Y grows downward). The OpenPose renderer expects ``(x, y, conf)``.
-    """
+    """Convert a ``{joint_name: (x, y)}`` dict to a ``(18, 3)`` array."""
     arr = np.zeros((18, 3), dtype=np.float64)
     nose_xy: tuple[float, float] | None = None
     for joint_name, coco_idx in _PROJECT_TO_COCO18.items():
         if joint_name not in joint_positions:
             continue
         x, y = joint_positions[joint_name]
-        # Project: feet at y≈0, head at y≈1; image: y grows downward.
-        # Map [0, 1] world-y → normalised image-y in [0.10, 0.95] inverted.
-        img_x = 0.5 + float(x)  # centre at 0.5
+        img_x = 0.5 + float(x)
         img_y = 0.95 - float(y) * 0.85
         arr[coco_idx, 0] = img_x
         arr[coco_idx, 1] = img_y
@@ -145,7 +135,7 @@ def _project_joints_to_coco18_array(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  Catmull-Rom spline gait — deterministic, CPU-only
+#  Catmull-Rom spline helpers — deterministic, CPU-only
 # ═══════════════════════════════════════════════════════════════════════════
 def _catmull_rom_segment(p0: float, p1: float, p2: float, p3: float, t: float) -> float:
     """Standard Catmull-Rom interpolation (alpha = 0.5, centripetal-flavoured)."""
@@ -175,57 +165,351 @@ def _catmull_rom_along(values: list[float], samples: int) -> list[float]:
     return out
 
 
-def derive_industrial_walk_cycle(frame_count: int) -> list[dict[str, tuple[float, float]]]:
-    """Deterministic industrial walk-cycle pose sequence in project-skeleton space.
+# ═══════════════════════════════════════════════════════════════════════════
+#  SESSION-195: OpenPose Gait Strategy (Abstract Base) + Registry
+#  UE5 AnimGraph / Chooser-Table pattern — data-driven, zero if/elif.
+# ═══════════════════════════════════════════════════════════════════════════
 
-    Uses Catmull-Rom interpolation between hand-authored keyframes (heel
-    strike, mid-stance, toe-off, mid-swing) so the resulting motion is
-    professional rather than the dreaded "扭动果冻" T-pose-jiggle.
+class OpenPoseGaitStrategy(abc.ABC):
+    """Abstract base for a COCO-18 gait template generator.
+
+    Each concrete strategy encapsulates one motion type (walk, run, jump,
+    idle, dash, etc.) as an independent data-driven asset — mirroring
+    UE5's Pose Search Database pattern where each animation state is a
+    separate queryable asset, not a branch in a switch statement.
     """
-    # 4 keyframes per limb cycle; values are y-offsets and x-offsets
-    # relative to the rest pose. Authored from typical biped gait curves.
-    l_hand_y_keys = [1.30, 1.20, 1.30, 1.40]  # swing
-    r_hand_y_keys = [1.40, 1.30, 1.20, 1.30]
-    l_foot_y_keys = [0.00, 0.05, 0.00, 0.10]  # heel-strike → mid → toe-off → swing
-    r_foot_y_keys = [0.05, 0.00, 0.10, 0.00]
-    l_knee_y_keys = [0.50, 0.45, 0.55, 0.60]
-    r_knee_y_keys = [0.55, 0.60, 0.50, 0.45]
-    head_y_keys   = [2.80, 2.85, 2.80, 2.78]
-    spine_x_keys  = [0.00, 0.02, 0.00, -0.02]
 
-    hu = 1.0 / 3.0
-    l_hand_y = _catmull_rom_along(l_hand_y_keys, frame_count)
-    r_hand_y = _catmull_rom_along(r_hand_y_keys, frame_count)
-    l_foot_y = _catmull_rom_along(l_foot_y_keys, frame_count)
-    r_foot_y = _catmull_rom_along(r_foot_y_keys, frame_count)
-    l_knee_y = _catmull_rom_along(l_knee_y_keys, frame_count)
-    r_knee_y = _catmull_rom_along(r_knee_y_keys, frame_count)
-    head_y   = _catmull_rom_along(head_y_keys,   frame_count)
-    spine_x  = _catmull_rom_along(spine_x_keys,  frame_count)
+    @property
+    @abc.abstractmethod
+    def action_name(self) -> str:
+        """Canonical action name (e.g., 'walk', 'run', 'jump')."""
+        ...
 
-    frames: list[dict[str, tuple[float, float]]] = []
-    for i in range(frame_count):
-        sx = spine_x[i]
-        frames.append({
-            "head":       (sx + 0.0, head_y[i] * hu),
-            "neck":       (sx + 0.0, hu * 2.5),
-            "chest":      (sx + 0.0, hu * 2.0),
-            "spine":      (sx + 0.0, hu * 1.5),
-            "hip":        (sx + 0.0, hu * 1.0),
-            "l_shoulder": (sx - 0.6 * hu, hu * 2.3),
-            "r_shoulder": (sx + 0.6 * hu, hu * 2.3),
-            "l_elbow":    (sx - 1.0 * hu, hu * 1.8),
-            "r_elbow":    (sx + 1.0 * hu, hu * 1.8),
-            "l_hand":     (sx - 1.2 * hu, l_hand_y[i] * hu),
-            "r_hand":     (sx + 1.2 * hu, r_hand_y[i] * hu),
-            "l_hip":      (sx - 0.3 * hu, hu * 1.0),
-            "r_hip":      (sx + 0.3 * hu, hu * 1.0),
-            "l_knee":     (sx - 0.3 * hu, l_knee_y[i] * hu),
-            "r_knee":     (sx + 0.3 * hu, r_knee_y[i] * hu),
-            "l_foot":     (sx - 0.3 * hu, l_foot_y[i] * hu),
-            "r_foot":     (sx + 0.3 * hu, r_foot_y[i] * hu),
-        })
-    return frames
+    @abc.abstractmethod
+    def generate(self, frame_count: int) -> list[dict[str, tuple[float, float]]]:
+        """Produce ``frame_count`` pose frames in project-skeleton space."""
+        ...
+
+
+class OpenPoseGaitRegistry:
+    """Central registry for OpenPose gait strategies (Chooser Table).
+
+    Mirrors ``MotionStateLaneRegistry`` from ``unified_gait_blender.py``.
+    Strategies register themselves; the bake API resolves by action name.
+    """
+
+    def __init__(self) -> None:
+        self._strategies: dict[str, OpenPoseGaitStrategy] = {}
+
+    def register(self, strategy: OpenPoseGaitStrategy) -> None:
+        self._strategies[strategy.action_name] = strategy
+
+    def get(self, action_name: str) -> OpenPoseGaitStrategy | None:
+        return self._strategies.get(action_name)
+
+    def names(self) -> list[str]:
+        return sorted(self._strategies.keys())
+
+    def __contains__(self, action_name: str) -> bool:
+        return action_name in self._strategies
+
+    def __len__(self) -> int:
+        return len(self._strategies)
+
+
+# Module-level singleton registry
+_GAIT_REGISTRY = OpenPoseGaitRegistry()
+
+
+def register_gait_strategy(strategy: OpenPoseGaitStrategy) -> None:
+    """Register a gait strategy into the global OpenPose gait registry."""
+    _GAIT_REGISTRY.register(strategy)
+
+
+def get_gait_registry() -> OpenPoseGaitRegistry:
+    """Return the global OpenPose gait registry singleton."""
+    return _GAIT_REGISTRY
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Built-in Gait Strategies — COCO-18 industrial keyframe templates
+#  Each is a self-contained Strategy class with hand-authored Catmull-Rom
+#  keyframes. No if/elif dispatch anywhere.
+# ═══════════════════════════════════════════════════════════════════════════
+
+class _WalkGaitStrategy(OpenPoseGaitStrategy):
+    """Industrial walk cycle — heel strike / mid-stance / toe-off / mid-swing."""
+
+    @property
+    def action_name(self) -> str:
+        return "walk"
+
+    def generate(self, frame_count: int) -> list[dict[str, tuple[float, float]]]:
+        l_hand_y_keys = [1.30, 1.20, 1.30, 1.40]
+        r_hand_y_keys = [1.40, 1.30, 1.20, 1.30]
+        l_foot_y_keys = [0.00, 0.05, 0.00, 0.10]
+        r_foot_y_keys = [0.05, 0.00, 0.10, 0.00]
+        l_knee_y_keys = [0.50, 0.45, 0.55, 0.60]
+        r_knee_y_keys = [0.55, 0.60, 0.50, 0.45]
+        head_y_keys   = [2.80, 2.85, 2.80, 2.78]
+        spine_x_keys  = [0.00, 0.02, 0.00, -0.02]
+
+        hu = 1.0 / 3.0
+        l_hand_y = _catmull_rom_along(l_hand_y_keys, frame_count)
+        r_hand_y = _catmull_rom_along(r_hand_y_keys, frame_count)
+        l_foot_y = _catmull_rom_along(l_foot_y_keys, frame_count)
+        r_foot_y = _catmull_rom_along(r_foot_y_keys, frame_count)
+        l_knee_y = _catmull_rom_along(l_knee_y_keys, frame_count)
+        r_knee_y = _catmull_rom_along(r_knee_y_keys, frame_count)
+        head_y   = _catmull_rom_along(head_y_keys,   frame_count)
+        spine_x  = _catmull_rom_along(spine_x_keys,  frame_count)
+
+        frames: list[dict[str, tuple[float, float]]] = []
+        for i in range(frame_count):
+            sx = spine_x[i]
+            frames.append({
+                "head":       (sx + 0.0, head_y[i] * hu),
+                "neck":       (sx + 0.0, hu * 2.5),
+                "chest":      (sx + 0.0, hu * 2.0),
+                "spine":      (sx + 0.0, hu * 1.5),
+                "hip":        (sx + 0.0, hu * 1.0),
+                "l_shoulder": (sx - 0.6 * hu, hu * 2.3),
+                "r_shoulder": (sx + 0.6 * hu, hu * 2.3),
+                "l_elbow":    (sx - 1.0 * hu, hu * 1.8),
+                "r_elbow":    (sx + 1.0 * hu, hu * 1.8),
+                "l_hand":     (sx - 1.2 * hu, l_hand_y[i] * hu),
+                "r_hand":     (sx + 1.2 * hu, r_hand_y[i] * hu),
+                "l_hip":      (sx - 0.3 * hu, hu * 1.0),
+                "r_hip":      (sx + 0.3 * hu, hu * 1.0),
+                "l_knee":     (sx - 0.3 * hu, l_knee_y[i] * hu),
+                "r_knee":     (sx + 0.3 * hu, r_knee_y[i] * hu),
+                "l_foot":     (sx - 0.3 * hu, l_foot_y[i] * hu),
+                "r_foot":     (sx + 0.3 * hu, r_foot_y[i] * hu),
+            })
+        return frames
+
+
+class _RunGaitStrategy(OpenPoseGaitStrategy):
+    """Industrial run cycle — faster cadence, higher knee lift, arm pump."""
+
+    @property
+    def action_name(self) -> str:
+        return "run"
+
+    def generate(self, frame_count: int) -> list[dict[str, tuple[float, float]]]:
+        # Run: wider arm swing, higher knee lift, forward lean
+        l_hand_y_keys = [1.50, 1.10, 1.50, 1.60]
+        r_hand_y_keys = [1.60, 1.50, 1.10, 1.50]
+        l_foot_y_keys = [0.00, 0.15, 0.00, 0.20]
+        r_foot_y_keys = [0.15, 0.00, 0.20, 0.00]
+        l_knee_y_keys = [0.45, 0.35, 0.60, 0.70]
+        r_knee_y_keys = [0.60, 0.70, 0.45, 0.35]
+        head_y_keys   = [2.75, 2.82, 2.75, 2.70]
+        spine_x_keys  = [0.03, 0.05, 0.03, 0.00]  # forward lean
+
+        hu = 1.0 / 3.0
+        l_hand_y = _catmull_rom_along(l_hand_y_keys, frame_count)
+        r_hand_y = _catmull_rom_along(r_hand_y_keys, frame_count)
+        l_foot_y = _catmull_rom_along(l_foot_y_keys, frame_count)
+        r_foot_y = _catmull_rom_along(r_foot_y_keys, frame_count)
+        l_knee_y = _catmull_rom_along(l_knee_y_keys, frame_count)
+        r_knee_y = _catmull_rom_along(r_knee_y_keys, frame_count)
+        head_y   = _catmull_rom_along(head_y_keys,   frame_count)
+        spine_x  = _catmull_rom_along(spine_x_keys,  frame_count)
+
+        frames: list[dict[str, tuple[float, float]]] = []
+        for i in range(frame_count):
+            sx = spine_x[i]
+            frames.append({
+                "head":       (sx + 0.0, head_y[i] * hu),
+                "neck":       (sx + 0.0, hu * 2.5),
+                "chest":      (sx + 0.0, hu * 2.0),
+                "spine":      (sx + 0.0, hu * 1.5),
+                "hip":        (sx + 0.0, hu * 1.0),
+                "l_shoulder": (sx - 0.55 * hu, hu * 2.3),
+                "r_shoulder": (sx + 0.55 * hu, hu * 2.3),
+                "l_elbow":    (sx - 0.9 * hu, hu * 1.9),
+                "r_elbow":    (sx + 0.9 * hu, hu * 1.9),
+                "l_hand":     (sx - 1.1 * hu, l_hand_y[i] * hu),
+                "r_hand":     (sx + 1.1 * hu, r_hand_y[i] * hu),
+                "l_hip":      (sx - 0.3 * hu, hu * 1.0),
+                "r_hip":      (sx + 0.3 * hu, hu * 1.0),
+                "l_knee":     (sx - 0.3 * hu, l_knee_y[i] * hu),
+                "r_knee":     (sx + 0.3 * hu, r_knee_y[i] * hu),
+                "l_foot":     (sx - 0.3 * hu, l_foot_y[i] * hu),
+                "r_foot":     (sx + 0.3 * hu, r_foot_y[i] * hu),
+            })
+        return frames
+
+
+class _JumpGaitStrategy(OpenPoseGaitStrategy):
+    """Industrial jump cycle — anticipation / launch / apex / landing."""
+
+    @property
+    def action_name(self) -> str:
+        return "jump"
+
+    def generate(self, frame_count: int) -> list[dict[str, tuple[float, float]]]:
+        # Jump: crouch → launch → apex (arms up) → landing
+        head_y_keys   = [2.60, 2.50, 3.20, 3.30, 2.80, 2.60]
+        l_hand_y_keys = [1.20, 1.00, 1.80, 2.00, 1.40, 1.20]
+        r_hand_y_keys = [1.20, 1.00, 1.80, 2.00, 1.40, 1.20]
+        l_foot_y_keys = [0.00, 0.00, 0.30, 0.35, 0.10, 0.00]
+        r_foot_y_keys = [0.00, 0.00, 0.30, 0.35, 0.10, 0.00]
+        l_knee_y_keys = [0.35, 0.30, 0.65, 0.70, 0.45, 0.35]
+        r_knee_y_keys = [0.35, 0.30, 0.65, 0.70, 0.45, 0.35]
+        spine_x_keys  = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+
+        hu = 1.0 / 3.0
+        l_hand_y = _catmull_rom_along(l_hand_y_keys, frame_count)
+        r_hand_y = _catmull_rom_along(r_hand_y_keys, frame_count)
+        l_foot_y = _catmull_rom_along(l_foot_y_keys, frame_count)
+        r_foot_y = _catmull_rom_along(r_foot_y_keys, frame_count)
+        l_knee_y = _catmull_rom_along(l_knee_y_keys, frame_count)
+        r_knee_y = _catmull_rom_along(r_knee_y_keys, frame_count)
+        head_y   = _catmull_rom_along(head_y_keys,   frame_count)
+        spine_x  = _catmull_rom_along(spine_x_keys,  frame_count)
+
+        frames: list[dict[str, tuple[float, float]]] = []
+        for i in range(frame_count):
+            sx = spine_x[i]
+            frames.append({
+                "head":       (sx + 0.0, head_y[i] * hu),
+                "neck":       (sx + 0.0, hu * 2.5),
+                "chest":      (sx + 0.0, hu * 2.0),
+                "spine":      (sx + 0.0, hu * 1.5),
+                "hip":        (sx + 0.0, hu * 1.0),
+                "l_shoulder": (sx - 0.6 * hu, hu * 2.3),
+                "r_shoulder": (sx + 0.6 * hu, hu * 2.3),
+                "l_elbow":    (sx - 0.8 * hu, hu * 2.0),
+                "r_elbow":    (sx + 0.8 * hu, hu * 2.0),
+                "l_hand":     (sx - 0.9 * hu, l_hand_y[i] * hu),
+                "r_hand":     (sx + 0.9 * hu, r_hand_y[i] * hu),
+                "l_hip":      (sx - 0.3 * hu, hu * 1.0),
+                "r_hip":      (sx + 0.3 * hu, hu * 1.0),
+                "l_knee":     (sx - 0.3 * hu, l_knee_y[i] * hu),
+                "r_knee":     (sx + 0.3 * hu, r_knee_y[i] * hu),
+                "l_foot":     (sx - 0.3 * hu, l_foot_y[i] * hu),
+                "r_foot":     (sx + 0.3 * hu, r_foot_y[i] * hu),
+            })
+        return frames
+
+
+class _IdleGaitStrategy(OpenPoseGaitStrategy):
+    """Industrial idle / breathing cycle — subtle weight shift."""
+
+    @property
+    def action_name(self) -> str:
+        return "idle"
+
+    def generate(self, frame_count: int) -> list[dict[str, tuple[float, float]]]:
+        # Idle: very subtle breathing sway, weight shift
+        head_y_keys   = [2.80, 2.82, 2.80, 2.78]
+        l_hand_y_keys = [1.25, 1.26, 1.25, 1.24]
+        r_hand_y_keys = [1.25, 1.24, 1.25, 1.26]
+        spine_x_keys  = [0.00, 0.005, 0.00, -0.005]
+
+        hu = 1.0 / 3.0
+        head_y   = _catmull_rom_along(head_y_keys,   frame_count)
+        l_hand_y = _catmull_rom_along(l_hand_y_keys, frame_count)
+        r_hand_y = _catmull_rom_along(r_hand_y_keys, frame_count)
+        spine_x  = _catmull_rom_along(spine_x_keys,  frame_count)
+
+        frames: list[dict[str, tuple[float, float]]] = []
+        for i in range(frame_count):
+            sx = spine_x[i]
+            frames.append({
+                "head":       (sx + 0.0, head_y[i] * hu),
+                "neck":       (sx + 0.0, hu * 2.5),
+                "chest":      (sx + 0.0, hu * 2.0),
+                "spine":      (sx + 0.0, hu * 1.5),
+                "hip":        (sx + 0.0, hu * 1.0),
+                "l_shoulder": (sx - 0.6 * hu, hu * 2.3),
+                "r_shoulder": (sx + 0.6 * hu, hu * 2.3),
+                "l_elbow":    (sx - 1.0 * hu, hu * 1.8),
+                "r_elbow":    (sx + 1.0 * hu, hu * 1.8),
+                "l_hand":     (sx - 1.2 * hu, l_hand_y[i] * hu),
+                "r_hand":     (sx + 1.2 * hu, r_hand_y[i] * hu),
+                "l_hip":      (sx - 0.3 * hu, hu * 1.0),
+                "r_hip":      (sx + 0.3 * hu, hu * 1.0),
+                "l_knee":     (sx - 0.3 * hu, hu * 0.50),
+                "r_knee":     (sx + 0.3 * hu, hu * 0.50),
+                "l_foot":     (sx - 0.3 * hu, hu * 0.00),
+                "r_foot":     (sx + 0.3 * hu, hu * 0.00),
+            })
+        return frames
+
+
+class _DashGaitStrategy(OpenPoseGaitStrategy):
+    """Industrial dash / sprint burst — extreme forward lean, explosive."""
+
+    @property
+    def action_name(self) -> str:
+        return "dash"
+
+    def generate(self, frame_count: int) -> list[dict[str, tuple[float, float]]]:
+        # Dash: extreme forward lean, explosive arm pump, high knee drive
+        l_hand_y_keys = [1.60, 1.00, 1.70, 1.80]
+        r_hand_y_keys = [1.80, 1.60, 1.00, 1.70]
+        l_foot_y_keys = [0.00, 0.20, 0.00, 0.25]
+        r_foot_y_keys = [0.20, 0.00, 0.25, 0.00]
+        l_knee_y_keys = [0.40, 0.30, 0.65, 0.75]
+        r_knee_y_keys = [0.65, 0.75, 0.40, 0.30]
+        head_y_keys   = [2.65, 2.72, 2.65, 2.60]
+        spine_x_keys  = [0.06, 0.08, 0.06, 0.04]  # strong forward lean
+
+        hu = 1.0 / 3.0
+        l_hand_y = _catmull_rom_along(l_hand_y_keys, frame_count)
+        r_hand_y = _catmull_rom_along(r_hand_y_keys, frame_count)
+        l_foot_y = _catmull_rom_along(l_foot_y_keys, frame_count)
+        r_foot_y = _catmull_rom_along(r_foot_y_keys, frame_count)
+        l_knee_y = _catmull_rom_along(l_knee_y_keys, frame_count)
+        r_knee_y = _catmull_rom_along(r_knee_y_keys, frame_count)
+        head_y   = _catmull_rom_along(head_y_keys,   frame_count)
+        spine_x  = _catmull_rom_along(spine_x_keys,  frame_count)
+
+        frames: list[dict[str, tuple[float, float]]] = []
+        for i in range(frame_count):
+            sx = spine_x[i]
+            frames.append({
+                "head":       (sx + 0.0, head_y[i] * hu),
+                "neck":       (sx + 0.0, hu * 2.5),
+                "chest":      (sx + 0.0, hu * 2.0),
+                "spine":      (sx + 0.0, hu * 1.5),
+                "hip":        (sx + 0.0, hu * 1.0),
+                "l_shoulder": (sx - 0.5 * hu, hu * 2.3),
+                "r_shoulder": (sx + 0.5 * hu, hu * 2.3),
+                "l_elbow":    (sx - 0.85 * hu, hu * 1.95),
+                "r_elbow":    (sx + 0.85 * hu, hu * 1.95),
+                "l_hand":     (sx - 1.0 * hu, l_hand_y[i] * hu),
+                "r_hand":     (sx + 1.0 * hu, r_hand_y[i] * hu),
+                "l_hip":      (sx - 0.3 * hu, hu * 1.0),
+                "r_hip":      (sx + 0.3 * hu, hu * 1.0),
+                "l_knee":     (sx - 0.3 * hu, l_knee_y[i] * hu),
+                "r_knee":     (sx + 0.3 * hu, r_knee_y[i] * hu),
+                "l_foot":     (sx - 0.3 * hu, l_foot_y[i] * hu),
+                "r_foot":     (sx + 0.3 * hu, r_foot_y[i] * hu),
+            })
+        return frames
+
+
+# ── Auto-register built-in gait strategies at import time ──
+register_gait_strategy(_WalkGaitStrategy())
+register_gait_strategy(_RunGaitStrategy())
+register_gait_strategy(_JumpGaitStrategy())
+register_gait_strategy(_IdleGaitStrategy())
+register_gait_strategy(_DashGaitStrategy())
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Legacy compatibility wrapper
+# ═══════════════════════════════════════════════════════════════════════════
+def derive_industrial_walk_cycle(frame_count: int) -> list[dict[str, tuple[float, float]]]:
+    """Legacy compatibility: delegates to the walk strategy in the registry."""
+    strategy = _GAIT_REGISTRY.get("walk")
+    if strategy is None:
+        raise RuntimeError("Walk gait strategy not registered")
+    return strategy.generate(frame_count)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -238,15 +522,15 @@ def bake_openpose_pose_sequence(
     width: int = 512,
     height: int = 512,
     pose_frames: list[dict[str, tuple[float, float]]] | None = None,
+    action_name: str = "walk",
     sequence_name: str = "openpose_pose",
     emit_banner: bool = True,
 ) -> OpenPoseSequenceArtifact:
     """Bake a real OpenPose COCO-18 pose sequence to disk.
 
-    This is the SESSION-194 hook the trunk pipeline calls instead of
-    leaving the on-disk pose directory empty (the previous "假集成"
-    failure mode). It always writes ``frame_count`` PNGs and returns an
-    immutable artifact contract.
+    SESSION-195 upgrade: now accepts ``action_name`` to resolve the correct
+    gait strategy from the registry. Falls back to ``walk`` if the requested
+    action is not registered (graceful degradation, not crash).
     """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -255,17 +539,28 @@ def bake_openpose_pose_sequence(
         raise ValueError(f"frame_count must be positive, got {frame_count}")
 
     if emit_banner:
-        # SESSION-194 § ¶1 (UX zero-degradation): industrial-render banner.
         try:
             from mathart.core.anti_flicker_runtime import emit_industrial_baking_banner
             emit_industrial_baking_banner(stream=sys.stdout)
-        except Exception as exc:  # pragma: no cover — log only, never block bake
+        except Exception as exc:  # pragma: no cover
             logger.debug("[openpose_pose_provider] banner emit skipped: %s", exc)
 
     if pose_frames is None:
-        pose_frames = derive_industrial_walk_cycle(frame_count)
+        # SESSION-195: resolve gait from registry by action_name
+        strategy = _GAIT_REGISTRY.get(action_name)
+        if strategy is None:
+            logger.warning(
+                "[openpose_pose_provider] action '%s' not in gait registry, "
+                "falling back to 'walk'. Registered: %s",
+                action_name, _GAIT_REGISTRY.names(),
+            )
+            strategy = _GAIT_REGISTRY.get("walk")
+        if strategy is not None:
+            pose_frames = strategy.generate(frame_count)
+        else:
+            # Ultimate fallback: should never happen with built-in registration
+            pose_frames = _WalkGaitStrategy().generate(frame_count)
     elif len(pose_frames) != frame_count:
-        # Resample / clip to match the requested frame count.
         if len(pose_frames) > frame_count:
             pose_frames = pose_frames[:frame_count]
         else:
@@ -286,7 +581,6 @@ def bake_openpose_pose_sequence(
         written_paths.append(target.resolve())
 
     if not written_paths:
-        # Fail fast — see SESSION-194 ¶2 (反静默降级红线).
         raise RuntimeError(
             f"bake_openpose_pose_sequence wrote zero frames to {output_path}; "
             "downstream OpenPose ControlNet would silently degrade."
@@ -301,8 +595,8 @@ def bake_openpose_pose_sequence(
         height=height,
     )
     logger.info(
-        "[openpose_pose_provider] SESSION-194 baked %d OpenPose frames at %s",
-        artifact.frame_count, artifact.sequence_directory,
+        "[openpose_pose_provider] SESSION-195 baked %d OpenPose frames (%s) at %s",
+        artifact.frame_count, action_name, artifact.sequence_directory,
     )
     return artifact
 
@@ -311,6 +605,10 @@ __all__ = [
     "ARTIFACT_FAMILY",
     "BACKEND_TYPE",
     "OpenPoseSequenceArtifact",
+    "OpenPoseGaitStrategy",
+    "OpenPoseGaitRegistry",
+    "register_gait_strategy",
+    "get_gait_registry",
     "derive_industrial_walk_cycle",
     "bake_openpose_pose_sequence",
 ]

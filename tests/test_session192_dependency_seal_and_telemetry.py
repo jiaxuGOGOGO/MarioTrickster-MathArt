@@ -100,12 +100,17 @@ def test_session192_depth_normal_strength_at_or_above_redline() -> None:
         DECOUPLED_RGB_STRENGTH,
     )
 
-    assert DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH >= 0.85, (
-        "SESSION-192 directive: Depth/Normal lower bound must be >= 0.85."
+    # SESSION-195 alignment: SESSION-193 reverted the arbitration contract.
+    # OpenPose ControlNet now carries motion at strength=1.0, so Depth/Normal
+    # is softened to 0.45 with a floor of 0.40.  The old 0.85 red line is
+    # superseded by the SESSION-193 contract (Fowler: evolving fitness fn).
+    assert DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH >= 0.40, (
+        "SESSION-195 aligned: Depth/Normal lower bound must be >= 0.40 "
+        "(SESSION-193 OpenPose arbitration contract)."
     )
     assert DECOUPLED_DEPTH_NORMAL_STRENGTH >= DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH, (
-        "SESSION-192 directive: default Depth/Normal strength must satisfy "
-        "the >= 0.85 red line so the diffusion model obeys the math skeleton."
+        "SESSION-195 aligned: default Depth/Normal strength must satisfy "
+        "the >= 0.40 floor so supplementary geometric hints are preserved."
     )
     assert DECOUPLED_RGB_STRENGTH == 0.0, (
         "SESSION-192 directive: RGB ControlNet strength must stay at 0.0 "
@@ -116,6 +121,7 @@ def test_session192_depth_normal_strength_at_or_above_redline() -> None:
 def test_session192_force_decouple_payload_reports_min_strength() -> None:
     from mathart.core.anti_flicker_runtime import (
         DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH,
+        DECOUPLED_DEPTH_NORMAL_STRENGTH,
         force_decouple_dummy_mesh_payload,
     )
 
@@ -142,8 +148,10 @@ def test_session192_force_decouple_payload_reports_min_strength() -> None:
     )
     # KSampler denoise must be slammed to 1.0.
     assert workflow["1"]["inputs"]["denoise"] == pytest.approx(1.0)
-    # Depth ControlNet strength must hit the >= 0.85 band.
-    assert workflow["2"]["inputs"]["strength"] >= 0.85
+    # SESSION-195 aligned: Depth ControlNet strength follows SESSION-193
+    # contract (0.45 default, 0.40 floor). OpenPose carries motion at 1.0.
+    assert workflow["2"]["inputs"]["strength"] >= 0.40
+    assert workflow["2"]["inputs"]["strength"] == pytest.approx(DECOUPLED_DEPTH_NORMAL_STRENGTH)
     # RGB ControlNet strength must be killed to 0.0.
     assert workflow["3"]["inputs"]["strength"] == pytest.approx(0.0)
 
@@ -157,6 +165,7 @@ def test_session192_telemetry_handshake_text_contract() -> None:
     from mathart.core.anti_flicker_runtime import (
         emit_physics_telemetry_handshake,
         DECOUPLED_DEPTH_NORMAL_STRENGTH,
+        DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH,
     )
 
     text = emit_physics_telemetry_handshake(
@@ -172,8 +181,9 @@ def test_session192_telemetry_handshake_text_contract() -> None:
     assert "16帧日漫抽帧机制已激活" in text
     assert "捕捉到纯数学骨骼位移张量" in text
     assert "空间控制网强度拉升至" in text
-    assert "0.90" in text  # default depth_normal strength formatted
-    assert ">= 0.85" in text
+    # SESSION-195 aligned: strength is now 0.45 per SESSION-193 contract.
+    assert f"{DECOUPLED_DEPTH_NORMAL_STRENGTH:.2f}" in text
+    assert f">= {DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH:.2f}" in text
     assert "AI 渲染器已被数学骨架彻底接管" in text
 
 
@@ -197,9 +207,12 @@ def test_session192_telemetry_handshake_writes_ansi_to_stream() -> None:
 def test_session192_telemetry_warns_when_strength_below_redline() -> None:
     from mathart.core.anti_flicker_runtime import emit_physics_telemetry_handshake
 
+    # SESSION-195 aligned: the red line is now 0.40 (SESSION-193 contract).
+    # 0.45 is ABOVE the new floor, so it should show ✅ not ⚠️.
+    # To trigger the warning, we must go below 0.40.
     text = emit_physics_telemetry_handshake(
         action_name="idle",
-        depth_normal_strength=0.45,  # deliberately below the 0.85 red line
+        depth_normal_strength=0.30,  # deliberately below the 0.40 red line
         rgb_strength=0.0,
         frames=16,
     )

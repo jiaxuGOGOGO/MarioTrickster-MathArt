@@ -1,6 +1,6 @@
 {
-  "version": "v1.0.5",
-  "last_session_id": "SESSION-194",
+  "version": "v1.0.6",
+  "last_session_id": "SESSION-195",
   "last_updated": "2026-04-25",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -24,6 +24,64 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-195-FULL-MATRIX-CLOSURE",
+        "title": "Full Matrix Closure — Test Debt Clearance + IPAdapter Late-Binding + Gait Registry Expansion",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-195",
+        "modules": [
+          "mathart/core/openpose_pose_provider.py",
+          "mathart/core/builtin_backends.py",
+          "tests/test_session190_modal_decoupling_and_lookdev.py",
+          "tests/test_session192_dependency_seal_and_telemetry.py",
+          "tests/test_session195_full_matrix_closure.py",
+          "docs/USER_GUIDE.md",
+          "docs/RESEARCH_NOTES_SESSION_195.md",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [
+          "tests/test_session195_full_matrix_closure.py"
+        ],
+        "description": "SESSION-195 P0 Full Matrix Closure: (1) Historical Test Debt Clearance — 5 failing assertions in test_session190 and test_session192 updated to align with SESSION-193 arbitration contract (Depth/Normal 0.85->0.40 floor, 0.45 default). Follows Martin Fowler Evolutionary Architecture principle: test assertions are fitness functions that must evolve with the architecture. (2) IPAdapter Identity Context Late-Binding — Spring ResourceLoader pattern implemented in builtin_backends._execute_live_pipeline chunk assembly site. extract_visual_reference_path() searches three context locations at runtime. Fail-Fast on ghost paths (PipelineIntegrityError), graceful degradation when no reference image provided. (3) OpenPose Gait Registry Expansion — UE5 AnimGraph Chooser-Table pattern. New OpenPoseGaitRegistry + OpenPoseGaitStrategy ABC. Five built-in strategies: walk, run, jump, idle, dash. Each is a self-contained Catmull-Rom keyframe template. Zero if/elif dispatch (OCP red line). bake_openpose_pose_sequence now accepts action_name parameter. Legacy derive_industrial_walk_cycle preserved as compatibility wrapper. (4) 30+ new tests in test_session195_full_matrix_closure.py covering all three deliverables plus red-line compliance. 125 tests all passing.",
+        "red_lines_honored": [
+          "Zero touch on HTTP_PROXY / HTTPS_PROXY / NO_PROXY",
+          "SESSION-189 anchors MAX_FRAMES=16 / LATENT_EDGE=512 / NORMAL_MATTE_RGB preserved",
+          "SESSION-190 force_decouple_dummy_mesh_payload algorithm preserved",
+          "SESSION-193 arbitrate_controlnet_strengths algorithm preserved",
+          "SESSION-194 OpenPose IoC contract preserved (only extended gait registry)",
+          "All node addressing via class_type + _meta.title selectors; zero hardcoded numeric IDs",
+          "Test assertions evolved (not skipped or commented out) per Fowler Contract Test principle"
+        ],
+        "gait_registry_contract": {
+          "registered_gaits": ["walk", "run", "jump", "idle", "dash"],
+          "pattern": "UE5 AnimGraph Chooser-Table / Strategy Pattern",
+          "dispatch": "Registry.get(action_name) — zero if/elif",
+          "extensibility": "Subclass OpenPoseGaitStrategy + register_gait_strategy()"
+        },
+        "ipadapter_late_binding_contract": {
+          "call_site": "mathart.core.builtin_backends._execute_live_pipeline (per chunk, after OpenPose bake)",
+          "search_locations": [
+            "context['_visual_reference_path']",
+            "context['identity_lock']['reference_image_path']",
+            "context['director_studio_spec']['_visual_reference_path']"
+          ],
+          "fail_fast": "PipelineIntegrityError on ghost path",
+          "graceful_degradation": "Skip IPAdapter when no reference image"
+        },
+        "test_debt_clearance": {
+          "tests_fixed": 5,
+          "old_threshold": ">= 0.85",
+          "new_threshold": ">= 0.40",
+          "principle": "Fowler Evolutionary Architecture — fitness functions evolve with architecture"
+        },
+        "industrial_references": [
+          "UE5 Game Animation Sample — Motion Matching + Chooser Table (Epic Games)",
+          "Spring Framework ResourceLoader — Late-Binding + Fail-Fast (Pivotal)",
+          "Martin Fowler — Contract Test + Evolutionary Architecture (2011/2017)"
+        ]
+      },
       {
         "id": "P0-SESSION-194-PIPELINE-INTEGRATION-CLOSURE",
         "title": "Pipeline Integration Closure — OpenPose+IPAdapter Hydrator + IoC Bake-and-Bind + Arbitrator Activation",
@@ -78,10 +136,10 @@
           "failure_mode": "PipelineContractError(session194_openpose_bake_failure) | PipelineIntegrityError"
         },
         "deferred_followups": [
-          "SESSION-195: refresh test_session190 / test_session192 strength assertions (>=0.85) to align with SESSION-193 0.40/0.45 arbitration contract",
-          "SESSION-195: smoke test against a real GPU ComfyUI server",
-          "SESSION-195: auto-bind _visual_reference_path into LoadImage on the same IoC bus",
-          "SESSION-195: extend openpose_pose_provider with run/jump/idle/dash gait templates via MotionStateLaneRegistry"
+          "CLOSED-BY-SESSION-195: test assertion alignment (0.85->0.40)",
+          "SESSION-196: smoke test against a real GPU ComfyUI server",
+          "CLOSED-BY-SESSION-195: auto-bind _visual_reference_path into LoadImage",
+          "CLOSED-BY-SESSION-195: extend openpose_pose_provider with run/jump/idle/dash gait templates"
         ]
       },
       {

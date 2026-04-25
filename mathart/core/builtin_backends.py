@@ -1373,6 +1373,56 @@ class AntiFlickerRenderBackend:
                     _openpose_artifact.to_payload_dict()
                 )
                 payload["mathart_lock_manifest"]["session194_arbitration_report"] = _arbitration_report
+
+                # ─────────────────────────────────────────────────────────
+                # SESSION-195 P0: IPAdapter Identity Context Late-Binding
+                # Spring ResourceLoader pattern: resolve _visual_reference_path
+                # at the chunk assembly site (runtime), not at config time.
+                # If path exists → inject into LoadImage node.
+                # If path is non-empty but file missing → PipelineIntegrityError.
+                # If path is None/empty → graceful degradation (skip).
+                # ─────────────────────────────────────────────────────────
+                try:
+                    from mathart.core.identity_hydration import (
+                        extract_visual_reference_path as _extract_ref,
+                        inject_ipadapter_identity_lock as _inject_ipa,
+                    )
+                    _ref_path = _extract_ref(validated)
+                    if _ref_path is not None:
+                        import os as _os
+                        if not _os.path.exists(_ref_path):
+                            raise PipelineIntegrityError(
+                                f"SESSION-195 IPAdapter identity lock: "
+                                f"_visual_reference_path='{_ref_path}' does not exist on disk. "
+                                f"Refusing to inject a ghost path into ComfyUI LoadImage node."
+                            )
+                        _ipa_report = _inject_ipa(_wf, _ref_path)
+                        payload["mathart_lock_manifest"]["session195_ipadapter_identity_report"] = _ipa_report
+                        logger.info(
+                            "[anti_flicker_render] SESSION-195 IPAdapter identity lock injected: %s",
+                            _ref_path,
+                        )
+                    else:
+                        payload.setdefault("mathart_lock_manifest", {})
+                        payload["mathart_lock_manifest"]["session195_ipadapter_identity_report"] = {
+                            "injected": False,
+                            "mode": "graceful_degradation",
+                            "reason": "No _visual_reference_path in context or file not found",
+                        }
+                except PipelineIntegrityError:
+                    raise
+                except Exception as _s195_ipa_exc:
+                    logger.warning(
+                        "[anti_flicker_render] SESSION-195 IPAdapter late-binding non-critical skip: %s",
+                        _s195_ipa_exc,
+                    )
+                    payload.setdefault("mathart_lock_manifest", {})
+                    payload["mathart_lock_manifest"]["session195_ipadapter_identity_report"] = {
+                        "injected": False,
+                        "mode": "error_degradation",
+                        "error": str(_s195_ipa_exc),
+                    }
+
             except Exception as _s194_runtime_exc:  # noqa: BLE001
                 # Pipeline integrity is FAIL-FAST per SESSION-194 ¶2.
                 from mathart.core.preset_topology_hydrator import PipelineIntegrityError

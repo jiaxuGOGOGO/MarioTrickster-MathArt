@@ -934,3 +934,9 @@ mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_d
 2026-04-24 06:19:44 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
 2026-04-24 06:19:48 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
 2026-04-24 06:19:49 | WARNING  | mathart.core.builtin_backends | [industrial_sprite] config warning: render.height=7 too small; clamping to 8
+2026-04-24 22:40:22 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 22:40:26 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 22:40:26 | WARNING  | mathart.core.builtin_backends | [industrial_sprite] config warning: render.height=7 too small; clamping to 8
+2026-04-24 22:42:46 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 22:42:50 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-24 22:42:50 | WARNING  | mathart.core.builtin_backends | [industrial_sprite] config warning: render.height=7 too small; clamping to 8

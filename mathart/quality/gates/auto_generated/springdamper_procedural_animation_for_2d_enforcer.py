@@ -23,68 +23,104 @@ class SpringdamperProceduralAnimationFor2dEnforcer(EnforcerBase):
     def source_docs(self) -> list[str]:
         return [
             "Spring-Damper Procedural Animation for 2D Characters",
-            "https://example.com/spring-damper-paper"
+            "https://example.com/spring-damper-paper"  # Placeholder URL
         ]
 
     def validate(self, params: dict) -> EnforcerResult:
         violations = []
         corrected_params = params.copy()
 
-        # Validate 'stiffness' parameter
-        stiffness = params.get("stiffness")
-        if stiffness is not None:
+        # Validate 'stiffness' (k)
+        if 'stiffness' in params:
+            k = params['stiffness']
             min_k, max_k = 10.0, 1000.0
-            if stiffness < min_k:
-                violations.append(EnforcerViolation(
-                    property_name="stiffness",
-                    message=f"stiffness {stiffness} below minimum {min_k}",
-                    severity=EnforcerSeverity.WARNING
-                ))
-                corrected_params["stiffness"] = min_k
-            elif stiffness > max_k:
-                violations.append(EnforcerViolation(
-                    property_name="stiffness",
-                    message=f"stiffness {stiffness} above maximum {max_k}",
-                    severity=EnforcerSeverity.WARNING
-                ))
-                corrected_params["stiffness"] = max_k
+            if k < min_k:
+                violations.append(
+                    EnforcerViolation(
+                        parameter='stiffness',
+                        message=f"stiffness {k} below minimum {min_k}",
+                        severity=EnforcerSeverity.WARNING
+                    )
+                )
+                corrected_params['stiffness'] = min_k
+            elif k > max_k:
+                violations.append(
+                    EnforcerViolation(
+                        parameter='stiffness',
+                        message=f"stiffness {k} above maximum {max_k}",
+                        severity=EnforcerSeverity.WARNING
+                    )
+                )
+                corrected_params['stiffness'] = max_k
+        else:
+            violations.append(
+                EnforcerViolation(
+                    parameter='stiffness',
+                    message="stiffness parameter missing",
+                    severity=EnforcerSeverity.ERROR
+                )
+            )
 
-        # Validate 'damping' parameter
-        damping = params.get("damping")
-        if damping is not None:
+        # Validate 'damping' (c)
+        if 'damping' in params:
+            c = params['damping']
             min_c, max_c = 0.1, 10.0
-            if damping < min_c:
-                violations.append(EnforcerViolation(
-                    property_name="damping",
-                    message=f"damping {damping} below minimum {min_c}",
-                    severity=EnforcerSeverity.WARNING
-                ))
-                corrected_params["damping"] = min_c
-            elif damping > max_c:
-                violations.append(EnforcerViolation(
-                    property_name="damping",
-                    message=f"damping {damping} above maximum {max_c}",
-                    severity=EnforcerSeverity.WARNING
-                ))
-                corrected_params["damping"] = max_c
+            if c < min_c:
+                violations.append(
+                    EnforcerViolation(
+                        parameter='damping',
+                        message=f"damping {c} below minimum {min_c}",
+                        severity=EnforcerSeverity.WARNING
+                    )
+                )
+                corrected_params['damping'] = min_c
+            elif c > max_c:
+                violations.append(
+                    EnforcerViolation(
+                        parameter='damping',
+                        message=f"damping {c} above maximum {max_c}",
+                        severity=EnforcerSeverity.WARNING
+                    )
+                )
+                corrected_params['damping'] = max_c
+        else:
+            violations.append(
+                EnforcerViolation(
+                    parameter='damping',
+                    message="damping parameter missing",
+                    severity=EnforcerSeverity.ERROR
+                )
+            )
 
-        # Validate 'mass' parameter
-        mass = params.get("mass")
-        if mass is not None:
+        # Validate 'mass' (m)
+        if 'mass' in params:
+            m = params['mass']
             min_m, max_m = 0.01, 1.0
-            if mass < min_m:
-                violations.append(EnforcerViolation(
-                    property_name="mass",
-                    message=f"mass {mass} below minimum {min_m}",
-                    severity=EnforcerSeverity.WARNING
-                ))
-                corrected_params["mass"] = min_m
-            elif mass > max_m:
-                violations.append(EnforcerViolation(
-                    property_name="mass",
-                    message=f"mass {mass} above maximum {max_m}",
-                    severity=EnforcerSeverity.WARNING
-                ))
-                corrected_params["mass"] = max_m
+            if m < min_m:
+                violations.append(
+                    EnforcerViolation(
+                        parameter='mass',
+                        message=f"mass {m} below minimum {min_m}",
+                        severity=EnforcerSeverity.WARNING
+                    )
+                )
+                corrected_params['mass'] = min_m
+            elif m > max_m:
+                violations.append(
+                    EnforcerViolation(
+                        parameter='mass',
+                        message=f"mass {m} above maximum {max_m}",
+                        severity=EnforcerSeverity.WARNING
+                    )
+                )
+                corrected_params['mass'] = max_m
+        else:
+            violations.append(
+                EnforcerViolation(
+                    parameter='mass',
+                    message="mass parameter missing",
+                    severity=EnforcerSeverity.ERROR
+                )
+            )
 
         return EnforcerResult(params=corrected_params, violations=violations)
