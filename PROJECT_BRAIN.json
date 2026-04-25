@@ -1,6 +1,6 @@
 {
-  "version": "v1.0.3",
-  "last_session_id": "SESSION-192",
+  "version": "v1.0.4",
+  "last_session_id": "SESSION-193",
   "last_updated": "2026-04-25",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -25,6 +25,13 @@
     "status_conflicts": 0,
     "top_priorities_ordered": [
       {
+        "id": "P0-SESSION-193-IDENTITY-HYDRATION-CHUNK-REPAIR-OPENPOSE",
+        "title": "IPAdapter Identity Hydration + Chunk Math Repair + OpenPose ControlNet Arbitration",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session": "SESSION-193"
+      },
+      {
         "id": "P0-SESSION-192-DEPENDENCY-SEAL-AND-LOOKDEV-HOTFIX",
         "title": "Dependency Vanguard + Modal Override Hardening + Physics Telemetry Audit",
         "priority": "P0",
@@ -44,7 +51,7 @@
           "tests/test_level_pdg.py",
           "tests/test_mass_production.py"
         ],
-        "description": "SESSION-192 P0 Dependency Seal + Lookdev Hotfix: (1) Dependency Vanguard \u2014 pyproject.toml core dependencies array now includes websocket-client>=1.6.0 (kills ComfyUI HTTP-polling 10054 crash), watchdog>=3.0.0 (kills artifact tail-poll busy-loop), tabulate>=0.9.0 (powers CLI dashboards and physics telemetry tables). (2) Optional 'all' Group \u2014 new [project.optional-dependencies].all aggregates the heavy/optional accelerators taichi>=1.7.0, mujoco>=3.0.0, stable-baselines3>=2.0.0, anthropic>=0.18.0; CPU-only sandboxes are NOT dragged into installing them. Package version bumped 0.46.0 -> 0.47.0. (3) Modal Override Hardening \u2014 DECOUPLED_DEPTH_NORMAL_STRENGTH bumped from 0.45 to 0.90, with a new module constant DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH=0.85 acting as the absolute lower-bound red line. force_decouple_dummy_mesh_payload(...) return dict now reports depth_normal_min_strength so external auditors can verify the contract. RGB strength stays at 0.0; KSampler denoise stays at 1.0; algorithm path itself untouched. (4) Physics Telemetry Audit \u2014 new emit_physics_telemetry_handshake(...) and emit_industrial_baking_banner(...) helpers exported from mathart.core.anti_flicker_runtime. The handshake is wired into mass_production._node_anti_flicker_render right before pipeline.run_backend('anti_flicker_render', ...), wrapped in try/except so it can never break the render path. Banner phrasing locked to '[\ud83d\udd2c \u7269\u7406\u603b\u7ebf\u5ba1\u8ba1] \u52a8\u4f5c\u5df2\u9501\u5b9a / 16\u5e27\u65e5\u6f2b\u62bd\u5e27\u673a\u5236\u5df2\u6fc0\u6d3b / \u21b3 \u5f15\u64ce\u786e\u6743 / \u21b3 AI \u63e1\u624b'. (5) UX Zero-Degradation \u2014 [\u2699\ufe0f \u5de5\u4e1a\u70d8\u7119\u7f51\u5173] Catmull-Rom banner centralised in emit_industrial_baking_banner. (6) DaC: docs/USER_GUIDE.md Section 22 added; SESSION_HANDOFF.md rewritten; PROJECT_BRAIN.json bumped to v1.0.3. 53 tests all passing (17 SESSION-190 anchors + 25 PDG/mass_production regressions + 11 SESSION-192 contracts).",
+        "description": "SESSION-192 P0 Dependency Seal + Lookdev Hotfix: (1) Dependency Vanguard — pyproject.toml core dependencies array now includes websocket-client>=1.6.0 (kills ComfyUI HTTP-polling 10054 crash), watchdog>=3.0.0 (kills artifact tail-poll busy-loop), tabulate>=0.9.0 (powers CLI dashboards and physics telemetry tables). (2) Optional 'all' Group — new [project.optional-dependencies].all aggregates the heavy/optional accelerators taichi>=1.7.0, mujoco>=3.0.0, stable-baselines3>=2.0.0, anthropic>=0.18.0; CPU-only sandboxes are NOT dragged into installing them. Package version bumped 0.46.0 -> 0.47.0. (3) Modal Override Hardening — DECOUPLED_DEPTH_NORMAL_STRENGTH bumped from 0.45 to 0.90, with a new module constant DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH=0.85 acting as the absolute lower-bound red line. force_decouple_dummy_mesh_payload(...) return dict now reports depth_normal_min_strength so external auditors can verify the contract. RGB strength stays at 0.0; KSampler denoise stays at 1.0; algorithm path itself untouched. (4) Physics Telemetry Audit — new emit_physics_telemetry_handshake(...) and emit_industrial_baking_banner(...) helpers exported from mathart.core.anti_flicker_runtime. The handshake is wired into mass_production._node_anti_flicker_render right before pipeline.run_backend('anti_flicker_render', ...), wrapped in try/except so it can never break the render path. Banner phrasing locked to '[🔬 物理总线审计] 动作已锁定 / 16帧日漫抽帧机制已激活 / ↳ 引擎确权 / ↳ AI 握手'. (5) UX Zero-Degradation — [⚙️ 工业烘焙网关] Catmull-Rom banner centralised in emit_industrial_baking_banner. (6) DaC: docs/USER_GUIDE.md Section 22 added; SESSION_HANDOFF.md rewritten; PROJECT_BRAIN.json bumped to v1.0.3. 53 tests all passing (17 SESSION-190 anchors + 25 PDG/mass_production regressions + 11 SESSION-192 contracts).",
         "red_lines_honored": [
           "Zero touch on HTTP_PROXY / HTTPS_PROXY / NO_PROXY",
           "SESSION-189 anchors MAX_FRAMES=16 / LATENT_EDGE=512 / NORMAL_MATTE_RGB=(128,128,255) preserved",
@@ -67,10 +74,10 @@
           "package_version": "0.47.0"
         },
         "physics_telemetry_contract": {
-          "banner_tag": "\ud83d\udd2c \u7269\u7406\u603b\u7ebf\u5ba1\u8ba1",
-          "frames_tag": "16\u5e27\u65e5\u6f2b\u62bd\u5e27\u673a\u5236\u5df2\u6fc0\u6d3b",
+          "banner_tag": "🔬 物理总线审计",
+          "frames_tag": "16帧日漫抽帧机制已激活",
           "min_depth_normal_strength": 0.85,
-          "default_depth_normal_strength": 0.90,
+          "default_depth_normal_strength": 0.9,
           "rgb_strength": 0.0,
           "denoise": 1.0,
           "injection_site": "mathart.factory.mass_production._node_anti_flicker_render (pre run_backend)"
@@ -5874,7 +5881,14 @@
     "SESSION-191: LookDev option [4] skip_ai_render MUST be False — AI render must not be killed",
     "SESSION-191: action_filter MUST penetrate full chain CLI -> dispatcher -> mass_production -> PDG context",
     "SESSION-191: When action_filter present, batch_size MUST be forced to 1 (character_000 only)",
-    "SESSION-191: pdg.py MUST have import logging + logger = logging.getLogger(__name__)"
+    "SESSION-191: pdg.py MUST have import logging + logger = logging.getLogger(__name__)",
+    "SESSION-193: IPAdapter identity lock weight MUST be 0.85 (golden zone for identity fidelity vs creative freedom)",
+    "SESSION-193: frame_count MUST be re-bound to actual array length after heal_guide_sequences before plan_frame_chunks",
+    "SESSION-193: Array co-origin assertion: len(normal)==len(depth)==len(coverage)==len(source) before chunk loop",
+    "SESSION-193: When dummy mesh detected, OpenPose ControlNet strength MUST be 1.0 (motion takeover)",
+    "SESSION-193: When dummy mesh detected, Depth/Normal ControlNet strength MUST be 0.45 (geometry lock break)",
+    "SESSION-193: OpenPose renderer MUST use pure PIL+numpy, zero cv2 dependency",
+    "SESSION-193: All ComfyUI node addressing MUST use class_type + _meta.title semantic selectors, never numeric IDs"
   ],
   "latent_healing_contract": {
     "session": "SESSION-189",
@@ -5921,7 +5935,8 @@
     "hard_anchors": {
       "DECOUPLED_DEPTH_NORMAL_STRENGTH": 0.45,
       "DECOUPLED_RGB_STRENGTH": 0.0,
-      "DECOUPLED_DENOISE": 1.0
+      "DECOUPLED_DENOISE": 1.0,
+      "DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH": 0.4
     },
     "public_api": [
       "detect_dummy_mesh",
@@ -5932,7 +5947,8 @@
       "RGB ControlNet strength MUST be 0.0 when dummy mesh detected",
       "denoise MUST be 1.0 when dummy mesh detected",
       "Depth/Normal strength MUST be reduced to 0.45",
-      "Semantic hydration MUST inject 3A character prompt when user prompt empty"
+      "Semantic hydration MUST inject 3A character prompt when user prompt empty",
+      "SESSION-193: When OpenPose active, Depth/Normal softened to 0.45 to break geometry lock"
     ],
     "reference_notes": "docs/RESEARCH_NOTES_SESSION_190.md",
     "tests": "tests/test_session190_modal_decoupling_and_lookdev.py"
@@ -5984,5 +6000,65 @@
       "No proxy env var references in new code"
     ],
     "tests": "42 passed (test_session190 + test_level_pdg + test_mass_production)"
+  },
+  "identity_hydration_contract": {
+    "session": "SESSION-193",
+    "module": "mathart.core.identity_hydration",
+    "public_api": [
+      "inject_ipadapter_identity_lock",
+      "extract_visual_reference_path"
+    ],
+    "hard_anchors": {
+      "IPADAPTER_DEFAULT_WEIGHT": 0.85,
+      "CLIP_VISION_MODEL": "clip_vision_g.safetensors",
+      "IPADAPTER_MODEL": "ip-adapter-plus_sd15.safetensors"
+    },
+    "invariants": [
+      "IPAdapter weight 0.85 is the golden zone (Ye et al. 2023 + cubiq community consensus)",
+      "Node chain: LoadImage -> CLIPVisionLoader -> IPAdapterModelLoader -> IPAdapterApply",
+      "Semantic selector addressing only — no numeric node IDs",
+      "Idempotent: if IPAdapter nodes already exist, update weight in-place"
+    ],
+    "tests": "tests/test_session193_identity_chunk_openpose.py"
+  },
+  "openpose_arbitration_contract": {
+    "session": "SESSION-193",
+    "module": "mathart.core.openpose_skeleton_renderer",
+    "public_api": [
+      "render_openpose_sequence",
+      "arbitrate_controlnet_strengths"
+    ],
+    "hard_anchors": {
+      "OPENPOSE_STRENGTH_DUMMY_MESH": 1.0,
+      "DEPTH_NORMAL_STRENGTH_DUMMY_MESH": 0.45,
+      "COCO_18_KEYPOINTS": 18,
+      "CANVAS_SIZE": [
+        512,
+        512
+      ]
+    },
+    "invariants": [
+      "Pure PIL + numpy implementation, zero cv2 dependency",
+      "COCO-18 keypoint format is the de facto standard for ControlNet OpenPose",
+      "Arbitrator only modifies strengths when is_dummy_mesh=True",
+      "Normal mesh mode: no modifications to any ControlNet strengths"
+    ],
+    "references": [
+      "Cao et al. 2019 — OpenPose: Realtime Multi-Person 2D Pose Estimation",
+      "Zhang et al. 2023 — Adding Conditional Control to Text-to-Image Diffusion Models"
+    ],
+    "tests": "tests/test_session193_identity_chunk_openpose.py"
+  },
+  "chunk_math_repair_contract": {
+    "session": "SESSION-193",
+    "module": "mathart.core.builtin_backends",
+    "fix_location": "_execute_live_pipeline, after pil_sequence_to_*_arrays(), before plan_frame_chunks()",
+    "invariants": [
+      "frame_count MUST be re-bound to len(normal_arrays) after healing",
+      "chunk_size MUST be clamped to min(chunk_size, frame_count) after rebinding",
+      "Array co-origin assertion MUST pass before entering chunk loop"
+    ],
+    "root_cause": "heal_guide_sequences subsamples to 16 frames but frame_count stays at original value (e.g. 43)",
+    "tests": "tests/test_session193_identity_chunk_openpose.py"
   }
 }

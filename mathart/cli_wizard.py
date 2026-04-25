@@ -1396,6 +1396,10 @@ def _run_director_studio(
             # Inject distilled params into raw_intent as physics overrides
             raw_intent["vibe"] = "AI 视觉临摹逆向推导"
             raw_intent["_distilled_physics"] = distilled_params
+            # ── SESSION-193: Identity Hydration ── preserve visual reference
+            # path so downstream IPAdapter + CLIP Vision nodes can lock
+            # the character appearance via Zero-Shot feature transfer.
+            raw_intent["_visual_reference_path"] = str(Path(ref_path).resolve())
             output_fn("")
             output_fn("[1;32m[✅ 视觉临摹] 逆向推导参数预览：[0m")
             for k, v in distilled_params.items():

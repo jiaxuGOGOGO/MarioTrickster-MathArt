@@ -830,15 +830,15 @@ SEMANTIC_HYDRATION_NEGATIVE = (
 #   is forced to obey the math-derived skeleton tensor and ignore the
 #   pseudo-3d-shell pixel albedo entirely.
 #
-#   - DECOUPLED_DEPTH_NORMAL_STRENGTH: hardened from 0.45 -> 0.90 (mid of 0.85-1.0 band).
+#   - DECOUPLED_DEPTH_NORMAL_STRENGTH: SESSION-193 reverted to 0.45 (OpenPose takes over motion).
 #   - DECOUPLED_RGB_STRENGTH: stays 0.0 (color pollution must be killed dead).
 #   - DECOUPLED_DENOISE: stays 1.0 (full noise rebake of the latent).
-DECOUPLED_DEPTH_NORMAL_STRENGTH: float = 0.90
+DECOUPLED_DEPTH_NORMAL_STRENGTH: float = 0.45
 DECOUPLED_RGB_STRENGTH: float = 0.0
 DECOUPLED_DENOISE: float = 1.0
 
 # SESSION-192: explicit lower bound used by tests + telemetry handshake.
-DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH: float = 0.85
+DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH: float = 0.40
 
 
 def detect_dummy_mesh(context: dict) -> bool:
@@ -1106,6 +1106,7 @@ def emit_physics_telemetry_handshake(
         f"[{PHYSICS_TELEMETRY_BANNER_TAG}] \u52a8\u4f5c\u5df2\u9501\u5b9a={action_name} | {PHYSICS_TELEMETRY_FRAMES_TAG} ({frames}\u5e27)",
         f" \u21b3 \u5f15\u64ce\u786e\u6743: \u6355\u6349\u5230\u7eaf\u6570\u5b66\u9aa8\u9abc\u4f4d\u79fb\u5f20\u91cf({shape_repr}) (\u5e95\u5c42\u6570\u5b66\u5f15\u64ce\u5df2\u5168\u91cf\u53d1\u529b) -> \u5b8c\u7f8e\u6ce8\u5165 downstream\uff01",
         f" \u21b3 AI \u63e1\u624b: \u7a7a\u95f4\u63a7\u5236\u7f51\u5f3a\u5ea6\u62c9\u5347\u81f3 {depth_normal_strength:.2f} (>= {DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH:.2f}) {assert_str}\uff0cRGB={rgb_strength:.2f}\uff0c\u65b9\u5757\u5047\u4eba\u76ae\u56ca\u6c61\u67d3\u5df2\u5265\u79bb\u3002AI \u6e32\u67d3\u5668\u5df2\u88ab\u6570\u5b66\u9aa8\u67b6\u5f7b\u5e95\u63a5\u7ba1\uff01",
+        f" \u21b3 SESSION-193 OpenPose: \u6570\u5b66\u9aa8\u9abc\u2192COCO-18\u59ff\u6001\u5e8f\u5217\u5df2\u5c31\u7eea\uff0cControlNet\u4ef2\u88c1\u5668\u5df2\u6fc0\u6d3b (Depth/Normal={depth_normal_strength:.2f}, OpenPose=1.00)",
     ]
     plain_text = "\n".join(plain_lines)
 

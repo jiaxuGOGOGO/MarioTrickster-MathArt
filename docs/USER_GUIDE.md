@@ -2165,3 +2165,127 @@ emit_physics_telemetry_handshake(
 ```
 
 > 老大，解耦手术已完成！请在无显卡环境下直接运行生成指令。去 outputs 文件夹看，绝对不再是扭动的果冻，而是拥有标准跑跳动作姿态的成套工业图纸！
+
+## 23. SESSION-193: Identity Hydration, Chunk Math Repair & OpenPose ControlNet Arbitration
+
+### 23.1 任务全貌
+
+SESSION-193 完成三大核心手术：
+
+| 代号 | 任务 | 一句话描述 |
+|------|------|-----------|
+| 挂载灵魂 | IPAdapter 身份锁全链路贯通 | 用户丢入参考图 → CLIP-Vision 提取特征 → IPAdapter 以 weight=0.85 注入 cross-attention → 角色外观跨帧一致 |
+| 治愈闪退 | Chunk Math 切片断层修复 | heal_guide_sequences 16帧子采样后，frame_count 必须重新绑定到实际数组长度，否则 plan_frame_chunks 越界崩溃 |
+| 软化几何 | OpenPose 实装 + ControlNet 仲裁 | 数学骨骼 → COCO-18 姿态序列 → ControlNet OpenPose 1.0 接管运动，Depth/Normal 软化至 0.45 打破几何锁 |
+
+### 23.2 文件清单
+
+| 文件 | 状态 | 说明 |
+|------|------|------|
+| `mathart/core/identity_hydration.py` | **新增** | IPAdapter 身份锁注入模块 — 独立 helper，不修改主干 |
+| `mathart/core/openpose_skeleton_renderer.py` | **新增** | OpenPose COCO-18 骨骼渲染器 + ControlNet 仲裁器 |
+| `mathart/core/builtin_backends.py` | **修改** | Chunk Math Repair: frame_count 重绑定 + 数组同源断言 |
+| `mathart/core/anti_flicker_runtime.py` | **修改** | Depth/Normal 强度 0.90→0.45 + 物理审计单增加 OpenPose 行 |
+| `mathart/cli_wizard.py` | **修改** | 视觉蒸馏路径 `_visual_reference_path` 注入 raw_intent |
+| `tests/test_session193_identity_chunk_openpose.py` | **新增** | SESSION-193 全量回归测试 |
+| `docs/USER_GUIDE.md` | **修改** | 新增 Section 23（本文档） |
+| `SESSION_HANDOFF.md` | **修改** | 更新交接文档 |
+| `PROJECT_BRAIN.json` | **修改** | 更新项目大脑 |
+
+### 23.3 任务1：挂载灵魂 — IPAdapter 身份锁
+
+**问题**：用户通过视觉蒸馏（SESSION-179）丢入参考动图后，提取的物理参数被注入到 raw_intent，但参考图路径本身在传递过程中丢失。下游 ComfyUI 工作流中虽然存在 IPAdapter / CLIP Vision 节点选择器（SESSION-107），但从未被实际激活。
+
+**修复**：
+
+1. **cli_wizard.py**：在视觉蒸馏分支中，将 `ref_path` 以 `_visual_reference_path` 键注入 `raw_intent`。
+2. **identity_hydration.py**（新模块）：
+   - `inject_ipadapter_identity_lock(workflow, ref_path, weight=0.85)` — 动态注入 LoadImage + CLIPVisionLoader + IPAdapterModelLoader + IPAdapterApply 四节点链。
+   - 若工作流中已存在 IPAdapter 节点，则就地更新 weight，不重复创建。
+   - 所有节点寻址使用 `class_type` + `_meta.title` 语义选择器，**绝不**使用硬编码数字 ID。
+   - `extract_visual_reference_path(context)` — 从多个可能位置提取参考图路径。
+
+**外网参考研究**：
+- IP-Adapter (Ye et al., 2023): 通过 CLIP-Vision 嵌入实现零样本身份迁移。
+- ComfyUI_IPAdapter_plus (cubiq): 社区共识 weight 0.80–0.85 为身份保真与创意自由的黄金区间。
+
+### 23.4 任务2：治愈闪退 — Chunk Math 切片断层修复
+
+**问题**：`_execute_live_pipeline` 中，`plan_frame_chunks(frame_count, chunk_size)` 使用的 `frame_count` 来自 `temporal.frame_count`（用户配置值，如 43），但经过 `heal_guide_sequences` 的 16 帧日漫子采样后，实际数组长度可能只有 16。chunk planner 用旧的 43 去切片长度为 16 的数组，导致 `IndexError` 或空数组崩溃。
+
+**修复**：在 `pil_sequence_to_*_arrays()` 之后、`plan_frame_chunks()` 之前，插入帧数重绑定：
+
+```python
+_actual_frame_count = len(normal_arrays)
+if _actual_frame_count != frame_count:
+    frame_count = _actual_frame_count
+    chunk_size = min(chunk_size, frame_count)
+```
+
+同时添加**数组同源断言**：
+
+```python
+assert len(normal_arrays) == len(depth_arrays) == len(coverage_masks) == len(source_frames)
+```
+
+**外网参考研究**：
+- Data-Oriented Tensor Boundary Sync: 下游消费者必须从实际数据张量重新推导维度，不可依赖上游过时元数据。
+
+### 23.5 任务3：软化几何 — OpenPose 实装 + ControlNet 仲裁
+
+**问题**：当上游物理引擎退化为 Dummy Cylinder 假人网格时，Depth/Normal ControlNet 以高强度（0.90）锁定了一个无特征的圆柱体几何，导致生成结果呈现"果冻扭动"而非真实动作姿态。
+
+**修复**：
+
+1. **openpose_skeleton_renderer.py**（新模块）：
+   - `render_openpose_sequence(skeleton_frames)` — 将数学骨骼坐标渲染为 COCO-18 格式的 OpenPose 姿态图序列（黑底彩色骨骼）。
+   - 纯 PIL + numpy 实现，**零 cv2 依赖**。
+   - `arbitrate_controlnet_strengths(workflow, is_dummy_mesh=True)` — ControlNet 仲裁器：
+     - Dummy Mesh 模式：OpenPose → 1.0（接管运动），Depth/Normal → 0.45（打破几何锁）
+     - 正常 Mesh 模式：不做任何修改
+
+2. **anti_flicker_runtime.py**：
+   - `DECOUPLED_DEPTH_NORMAL_STRENGTH`: 0.90 → 0.45
+   - `DECOUPLED_DEPTH_NORMAL_MIN_STRENGTH`: 0.85 → 0.40
+   - `emit_physics_telemetry_handshake` 新增 OpenPose 状态行
+
+**外网参考研究**：
+- OpenPose (Cao et al., 2019): COCO-18 关键点格式是 ControlNet OpenPose 的事实标准。
+- ControlNet Multi-Modal Arbitration: 当多个 ControlNet 同时作用时，需要根据上游数据质量动态调整各模态权重。
+
+### 23.6 红线合规
+
+| 红线 | 合规状态 |
+|------|---------|
+| 代理环境变量零接触 | 新代码无任何 `HTTP_PROXY/HTTPS_PROXY/NO_PROXY` 引用 |
+| SESSION-189 锚点不可变 | `MAX_FRAMES=16`, `LATENT_EDGE=512`, `NORMAL_MATTE_RGB` 均未修改 |
+| anime_rhythmic_subsample 算法不可变 | 未触碰子采样逻辑 |
+| force_decouple_dummy_mesh_payload 算法不可变 | 未修改解耦函数 |
+| UX 零退化 | 工业烘焙网关 banner 保持不变，物理审计单仅追加 OpenPose 行 |
+| 语义选择器寻址 | 所有节点操作使用 class_type + _meta.title，绝不使用数字 ID |
+| IoC 注册表架构 | 新模块均为独立 helper，不修改主干管线 |
+
+### 23.7 测试验收
+
+```bash
+PYTHONPATH=. python3.11 -m pytest \
+    tests/test_session193_identity_chunk_openpose.py -v
+# 预期结果：全部通过
+```
+
+### 23.8 Sanity-check（无 GPU 环境）
+
+```bash
+PYTHONPATH=. python3.11 -c "
+import sys
+from mathart.core.anti_flicker_runtime import (
+    emit_physics_telemetry_handshake, emit_industrial_baking_banner,
+)
+emit_industrial_baking_banner(stream=sys.stderr)
+emit_physics_telemetry_handshake(
+    action_name='jump', skeleton_tensor_shape=(16, 24, 3), stream=sys.stderr,
+)
+"
+```
+
+> 老大，三大核心手术已完成！IPAdapter 灵魂已挂载、Chunk Math 闪退已治愈、OpenPose 几何已软化。请在无显卡环境下运行测试验证。

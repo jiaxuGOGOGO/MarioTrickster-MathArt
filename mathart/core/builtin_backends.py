@@ -1215,6 +1215,35 @@ class AntiFlickerRenderBackend:
         coverage_masks = pil_sequence_to_alpha_masks(source_frames)
         normal_arrays = pil_sequence_to_normal_arrays(normal_maps)
         depth_arrays = pil_sequence_to_depth_arrays(depth_maps)
+        # ── SESSION-193: Chunk Math Repair ─────────────────────────────
+        # After SESSION-189 heal_guide_sequences (anime 16-frame subsampler)
+        # the actual array lengths may be smaller than the original
+        # frame_count from temporal config. We MUST rebind frame_count to
+        # the real post-healing length before plan_frame_chunks, otherwise
+        # the chunk planner will slice beyond array bounds (IndexError)
+        # or produce empty sub-arrays ("frames must not be empty").
+        # Industrial Reference: Data-Oriented Tensor Boundary Sync —
+        # downstream consumers must re-derive dimensions from the actual
+        # data tensor, never from stale upstream metadata.
+        _actual_frame_count = len(normal_arrays)
+        if _actual_frame_count != frame_count:
+            logger.info(
+                "[anti_flicker_render] SESSION-193 Chunk Math Repair: "
+                "frame_count rebind %d -> %d (post-healing sync)",
+                frame_count, _actual_frame_count,
+            )
+            frame_count = _actual_frame_count
+            chunk_size = min(chunk_size, frame_count)
+        # ── SESSION-193: Array Co-Origin Assertion ──────────────────
+        # All guide arrays MUST have identical length after healing.
+        # This is the "single source of truth" invariant: if any array
+        # diverges, the chunk loop will produce misaligned slices.
+        assert len(normal_arrays) == len(depth_arrays) == len(coverage_masks) == len(source_frames), (
+            f"SESSION-193 Array Co-Origin Violation: "
+            f"normal={len(normal_arrays)}, depth={len(depth_arrays)}, "
+            f"coverage={len(coverage_masks)}, source={len(source_frames)} — "
+            f"all must be equal after healing"
+        )
         chunk_plan = plan_frame_chunks(frame_count, chunk_size)
         chunk_payload_paths: list[str] = []
         chunk_report_paths: list[str] = []
