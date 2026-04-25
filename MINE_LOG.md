@@ -126,3 +126,14 @@ Accepted papers:
   - [0.79] pmndrs/react-spring
   - [0.78] Wave Function Collapse - An Algorithm for Procedural Tilemap Generation
 
+
+## MINE-013 — 2026-04-25 03:21:11 UTC
+
+MiningSession MINE-013: found=4, accepted=4, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+  - [0.73] Wave Function Collapse
+

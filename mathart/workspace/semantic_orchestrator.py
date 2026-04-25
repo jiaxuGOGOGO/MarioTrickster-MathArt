@@ -135,10 +135,46 @@ SEMANTIC_VFX_TRIGGER_MAP: Dict[str, List[str]] = {
     "creature": ["quadruped_physics"],
     "mech dog": ["quadruped_physics"],
     "cyber dog": ["quadruped_physics"],
+    # ── SESSION-196 P0-CLI-INTENT-THREADING-AND-ORPHAN-RESCUE ──────────
+    # Phase 2 of the Orphan Rescue programme (the “high-order physics”
+    # cohort).  These keywords route the user’s vibe to backends that
+    # were already self-registered via ``@register_backend`` in
+    # SESSION-071/185 but had **no semantic onboarding** — meaning the
+    # CLI Director Studio would never wake them even when the user
+    # explicitly asked for “三维物理” / “溝多量可控流体”.
+    # The mapping is intentionally narrow: each token must already exist
+    # in the live registry (validated by the hallucination guard below);
+    # otherwise it is filtered with a WARNING.  This satisfies the
+    # ROS 2 lifecycle pattern — the registry is the single source of
+    # truth for what is actually “on the bus”.
+    "三维物理": ["physics_3d"],
+    "3d物理": ["physics_3d"],
+    "3d 物理": ["physics_3d"],
+    "xpbd": ["physics_3d"],
+    "软体": ["physics_3d"],
+    "软体物理": ["physics_3d"],
+    "布料": ["physics_3d"],
+    "布料物理": ["physics_3d"],
+    "碰撞": ["physics_3d"],
+    "physics3d": ["physics_3d"],
+    "physics_3d": ["physics_3d"],
+    "3d_physics": ["physics_3d"],
+    "softbody": ["physics_3d"],
+    "cloth": ["physics_3d"],
+    "collision": ["physics_3d"],
+    "ccd": ["physics_3d"],
+    # — extra fluid_momentum onboarding keywords (broaden coverage so
+    # “魔法浪涌 / mana surge” style vibes also wake the controller).
+    "魔法浪涌": ["fluid_momentum_controller"],
+    "能量流": ["fluid_momentum_controller"],
+    "冲击波": ["fluid_momentum_controller"],
+    "mana_surge": ["fluid_momentum_controller"],
+    "shockwave": ["fluid_momentum_controller"],
+    "vortex": ["fluid_momentum_controller"],
     # Combined triggers
-    "全特效": ["cppn_texture_evolution", "fluid_momentum_controller", "high_precision_vat", "quadruped_physics"],
-    "黑科技全开": ["cppn_texture_evolution", "fluid_momentum_controller", "high_precision_vat", "quadruped_physics"],
-    "max_vfx": ["cppn_texture_evolution", "fluid_momentum_controller", "high_precision_vat", "quadruped_physics"],
+    "全特效": ["cppn_texture_evolution", "fluid_momentum_controller", "high_precision_vat", "quadruped_physics", "physics_3d"],
+    "黑科技全开": ["cppn_texture_evolution", "fluid_momentum_controller", "high_precision_vat", "quadruped_physics", "physics_3d"],
+    "max_vfx": ["cppn_texture_evolution", "fluid_momentum_controller", "high_precision_vat", "quadruped_physics", "physics_3d"],
 }
 
 
@@ -185,6 +221,19 @@ VFX_PLUGIN_CAPABILITIES: Dict[str, Dict[str, str]] = {
             "wolf, beast, creature, four-legged."
         ),
         "artifact_type": "QUADRUPED_MOTION (positions + contact sequence)",
+    },
+    # SESSION-196 Phase 2 Orphan Rescue — onboard the SESSION-071
+    # Physics3DBackend into the Director Studio LLM system prompt so it
+    # is no longer invisible to natural-language intent.
+    "physics_3d": {
+        "display_name": "3D XPBD Physics Microkernel (SESSION-071)",
+        "description": (
+            "Tensorized XPBD soft-body / cloth / collision microkernel "
+            "with continuous collision detection (CCD) sweep telemetry. "
+            "Activate when the user mentions: 三维物理, 3d physics, 软体, "
+            "布料, cloth, soft-body, ccd, xpbd, collision sweep."
+        ),
+        "artifact_type": "PHYSICS_3D (deformed mesh + CCD sweep telemetry)",
     },
 }
 

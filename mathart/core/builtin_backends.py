@@ -1348,6 +1348,22 @@ class AntiFlickerRenderBackend:
                 from mathart.core.anti_flicker_runtime import (
                     detect_dummy_mesh as _detect_dummy_mesh,
                 )
+                # SESSION-196 P0-CLI-INTENT-THREADING: resolve the
+                # admission-validated action_name from the validated dict
+                # via a tiny pure helper.  No new formal parameter on
+                # ``_execute_live_pipeline`` — the function signature
+                # stays exactly as it was when SESSION-194 closed.
+                try:
+                    from mathart.workspace.intent_gateway import (
+                        extract_action_name as _extract_action_name,
+                    )
+                    _resolved_action_name = _extract_action_name(validated) or "walk"
+                except Exception as _action_extract_exc:  # pragma: no cover
+                    logger.debug(
+                        "[anti_flicker_render] SESSION-196 action extractor unavailable: %s",
+                        _action_extract_exc,
+                    )
+                    _resolved_action_name = "walk"
                 _openpose_dir = chunk_root / "openpose_pose"
                 _openpose_artifact = _bake_openpose(
                     output_dir=_openpose_dir,
@@ -1355,6 +1371,7 @@ class AntiFlickerRenderBackend:
                     width=int(rgb_result.padded_width),
                     height=int(rgb_result.padded_height),
                     sequence_name=f"{stem}_{chunk_label}_openpose",
+                    action_name=_resolved_action_name,
                 )
                 _wf = payload["prompt"]
                 for _nid, _node in _wf.items():

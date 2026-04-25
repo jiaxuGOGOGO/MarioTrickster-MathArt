@@ -1410,7 +1410,13 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
             DECOUPLED_DEPTH_NORMAL_STRENGTH,
             DECOUPLED_RGB_STRENGTH,
         )
-        _telemetry_action = str(prepared.get("motion_state", "unknown"))
+        # SESSION-196: prefer admission-validated action_name when present;
+        # falls back to legacy motion_state for backwards compatibility.
+        _spec_for_telemetry = ctx.get("director_studio_spec") or {}
+        _telemetry_action = (
+            str(_spec_for_telemetry.get("action_name") or "").strip()
+            or str(prepared.get("motion_state", "unknown"))
+        )
         try:
             _tensor_shape = tuple(np.asarray(source_frames[0]).shape) if len(source_frames) else None
             if _tensor_shape is not None:
@@ -1447,35 +1453,59 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
             _banner_exc,
         )
 
-    pipeline = AssetPipeline(output_dir=str(stage_dir), verbose=False)
-    manifest = pipeline.run_backend(
-        "anti_flicker_render",
-        {
-            "output_dir": str(stage_dir),
-            "name": prepared["character_id"],
-            "source_frames": source_frames,
-            "guide_channels": ["normal", "depth", "mask"],
-            "guides": {"normal": True, "depth": True, "mask": True, "motion_vector": False},
-            "normal_maps": normal_maps,
-            "depth_maps": depth_maps,
-            "mask_maps": mask_maps,
-            "width": guide_width,
-            "height": guide_height,
+    # SESSION-196 P0-CLI-INTENT-THREADING: assemble the per-character
+    # render config and thread the admission-validated director studio
+    # spec through the validated dict (Redux Context handoff).  The
+    # downstream chunk assembly site reads action_name +
+    # _visual_reference_path via existing extractors — no new formal
+    # parameter is added on AntiFlickerRenderBackend / OpenPose / IPA.
+    _ds_spec = dict(ctx.get("director_studio_spec") or {})
+    _ds_action = str(_ds_spec.get("action_name") or "").strip()
+    _ds_ref = _ds_spec.get("_visual_reference_path")
+    _render_cfg: dict[str, Any] = {
+        "output_dir": str(stage_dir),
+        "name": prepared["character_id"],
+        "source_frames": source_frames,
+        "guide_channels": ["normal", "depth", "mask"],
+        "guides": {"normal": True, "depth": True, "mask": True, "motion_vector": False},
+        "normal_maps": normal_maps,
+        "depth_maps": depth_maps,
+        "mask_maps": mask_maps,
+        "width": guide_width,
+        "height": guide_height,
+        "frame_count": int(prepared["frame_count"]),
+        "fps": int(prepared["fps"]),
+        "temporal": {
             "frame_count": int(prepared["frame_count"]),
             "fps": int(prepared["fps"]),
-            "temporal": {
-                "frame_count": int(prepared["frame_count"]),
-                "fps": int(prepared["fps"]),
-                "chunk_size": min(16, int(prepared["frame_count"])),
-            },
-            "comfyui": {
-                "live_execution": True,
-                "fail_fast_on_offline": True,
-                "url": str(ctx.get("comfyui_url", _DEFAULT_COMFYUI_URL)),
-            },
-            "session_id": _SESSION_ID,
+            "chunk_size": min(16, int(prepared["frame_count"])),
         },
-    )
+        "comfyui": {
+            "live_execution": True,
+            "fail_fast_on_offline": True,
+            "url": str(ctx.get("comfyui_url", _DEFAULT_COMFYUI_URL)),
+        },
+        "session_id": _SESSION_ID,
+        # ── SESSION-196 ride-along payload ───────────────────────────
+        # The deep call site (builtin_backends._execute_live_pipeline)
+        # already reads ``_visual_reference_path`` via
+        # ``identity_hydration.extract_visual_reference_path`` and now
+        # reads ``action_name`` via
+        # ``intent_gateway.extract_action_name``. By writing both keys
+        # at the top level AND inside director_studio_spec we satisfy the
+        # three search locations declared in SESSION-195 (and SESSION-196
+        # adds a fourth: action_filter[0]) without growing any function
+        # signature in between.
+        "director_studio_spec": _ds_spec or None,
+        "action_name": _ds_action or str(prepared.get("motion_state", "") or ""),
+        "_visual_reference_path": _ds_ref,
+        # action_filter shortcut keeps SESSION-191 LookDev integration
+        # honest: when the user picked a single LookDev action, surface
+        # it as the canonical action_name fallback location.
+        "action_filter": ctx.get("action_filter"),
+    }
+    pipeline = AssetPipeline(output_dir=str(stage_dir), verbose=False)
+    manifest = pipeline.run_backend("anti_flicker_render", _render_cfg)
     # SESSION-128: Inject rng_spawn_digest into AI render manifest
     rng_digest = _current_rng_digest(ctx)
     if rng_digest:
@@ -1749,6 +1779,13 @@ def run_mass_production_factory(
     skip_ai_render: bool = False,
     comfyui_url: str = _DEFAULT_COMFYUI_URL,
     action_filter: list[str] | None = None,
+    # SESSION-196 P0-CLI-INTENT-THREADING: opaque payloads forwarded into
+    # the PDG initial context so per-character render stages can read
+    # admission-validated fields (action_name / _visual_reference_path)
+    # via tiny pure helpers — zero formal-parameter pollution downstream.
+    director_studio_spec: dict[str, Any] | None = None,
+    vibe: str = "",
+    vfx_artifacts: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     output_root = _ensure_dir(output_root)
     batch_dir = _ensure_dir(output_root / f"mass_production_batch_{_timestamp_slug()}")
@@ -1770,6 +1807,14 @@ def run_mass_production_factory(
             "comfyui_url": str(comfyui_url),
             # [SESSION-191 LookDev Deep Pruning] action_filter 穿透到 PDG 节点
             "action_filter": action_filter,
+            # [SESSION-196 P0-CLI-INTENT-THREADING] Director Studio spec
+            # ride-along: writes the immutable admission payload into the
+            # PDG context so deep call sites (anti_flicker_render, OpenPose
+            # bake hook, IPAdapter late-binding) can resolve action_name and
+            # _visual_reference_path through the existing extractor helpers.
+            "director_studio_spec": director_studio_spec,
+            "vibe": str(vibe or ""),
+            "vfx_artifacts": vfx_artifacts or {},
         },
     )
     trace_path = _write_json(batch_dir / "pdg_runtime_trace.json", runtime)

@@ -23,104 +23,86 @@ class SpringdamperProceduralAnimationFor2dEnforcer(EnforcerBase):
     def source_docs(self) -> list[str]:
         return [
             "Spring-Damper Procedural Animation for 2D Characters",
-            "https://example.com/spring-damper-paper"  # Placeholder URL
+            "https://example.com/spring-damper-2d-paper"
         ]
 
     def validate(self, params: dict) -> EnforcerResult:
         violations = []
         corrected_params = params.copy()
 
-        # Validate 'stiffness' (k)
+        # Validate 'stiffness' parameter
         if 'stiffness' in params:
-            k = params['stiffness']
-            min_k, max_k = 10.0, 1000.0
-            if k < min_k:
-                violations.append(
-                    EnforcerViolation(
-                        parameter='stiffness',
-                        message=f"stiffness {k} below minimum {min_k}",
-                        severity=EnforcerSeverity.WARNING
-                    )
-                )
-                corrected_params['stiffness'] = min_k
-            elif k > max_k:
-                violations.append(
-                    EnforcerViolation(
-                        parameter='stiffness',
-                        message=f"stiffness {k} above maximum {max_k}",
-                        severity=EnforcerSeverity.WARNING
-                    )
-                )
-                corrected_params['stiffness'] = max_k
-        else:
-            violations.append(
-                EnforcerViolation(
+            value = params['stiffness']
+            min_val, max_val = 10.0, 1000.0
+            if value < min_val:
+                corrected_params['stiffness'] = min_val
+                violations.append(EnforcerViolation(
                     parameter='stiffness',
-                    message="stiffness parameter missing",
-                    severity=EnforcerSeverity.ERROR
-                )
-            )
+                    message=f"Stiffness below minimum ({min_val}), auto-corrected.",
+                    severity=EnforcerSeverity.WARNING
+                ))
+            elif value > max_val:
+                corrected_params['stiffness'] = max_val
+                violations.append(EnforcerViolation(
+                    parameter='stiffness',
+                    message=f"Stiffness above maximum ({max_val}), auto-corrected.",
+                    severity=EnforcerSeverity.WARNING
+                ))
+        else:
+            violations.append(EnforcerViolation(
+                parameter='stiffness',
+                message="Missing 'stiffness' parameter.",
+                severity=EnforcerSeverity.ERROR
+            ))
 
-        # Validate 'damping' (c)
+        # Validate 'damping' parameter
         if 'damping' in params:
-            c = params['damping']
-            min_c, max_c = 0.1, 10.0
-            if c < min_c:
-                violations.append(
-                    EnforcerViolation(
-                        parameter='damping',
-                        message=f"damping {c} below minimum {min_c}",
-                        severity=EnforcerSeverity.WARNING
-                    )
-                )
-                corrected_params['damping'] = min_c
-            elif c > max_c:
-                violations.append(
-                    EnforcerViolation(
-                        parameter='damping',
-                        message=f"damping {c} above maximum {max_c}",
-                        severity=EnforcerSeverity.WARNING
-                    )
-                )
-                corrected_params['damping'] = max_c
-        else:
-            violations.append(
-                EnforcerViolation(
+            value = params['damping']
+            min_val, max_val = 0.1, 10.0
+            if value < min_val:
+                corrected_params['damping'] = min_val
+                violations.append(EnforcerViolation(
                     parameter='damping',
-                    message="damping parameter missing",
-                    severity=EnforcerSeverity.ERROR
-                )
-            )
-
-        # Validate 'mass' (m)
-        if 'mass' in params:
-            m = params['mass']
-            min_m, max_m = 0.01, 1.0
-            if m < min_m:
-                violations.append(
-                    EnforcerViolation(
-                        parameter='mass',
-                        message=f"mass {m} below minimum {min_m}",
-                        severity=EnforcerSeverity.WARNING
-                    )
-                )
-                corrected_params['mass'] = min_m
-            elif m > max_m:
-                violations.append(
-                    EnforcerViolation(
-                        parameter='mass',
-                        message=f"mass {m} above maximum {max_m}",
-                        severity=EnforcerSeverity.WARNING
-                    )
-                )
-                corrected_params['mass'] = max_m
+                    message=f"Damping below minimum ({min_val}), auto-corrected.",
+                    severity=EnforcerSeverity.WARNING
+                ))
+            elif value > max_val:
+                corrected_params['damping'] = max_val
+                violations.append(EnforcerViolation(
+                    parameter='damping',
+                    message=f"Damping above maximum ({max_val}), auto-corrected.",
+                    severity=EnforcerSeverity.WARNING
+                ))
         else:
-            violations.append(
-                EnforcerViolation(
+            violations.append(EnforcerViolation(
+                parameter='damping',
+                message="Missing 'damping' parameter.",
+                severity=EnforcerSeverity.ERROR
+            ))
+
+        # Validate 'mass' parameter
+        if 'mass' in params:
+            value = params['mass']
+            min_val, max_val = 0.01, 1.0
+            if value < min_val:
+                corrected_params['mass'] = min_val
+                violations.append(EnforcerViolation(
                     parameter='mass',
-                    message="mass parameter missing",
-                    severity=EnforcerSeverity.ERROR
-                )
-            )
+                    message=f"Mass below minimum ({min_val}), auto-corrected.",
+                    severity=EnforcerSeverity.WARNING
+                ))
+            elif value > max_val:
+                corrected_params['mass'] = max_val
+                violations.append(EnforcerViolation(
+                    parameter='mass',
+                    message=f"Mass above maximum ({max_val}), auto-corrected.",
+                    severity=EnforcerSeverity.WARNING
+                ))
+        else:
+            violations.append(EnforcerViolation(
+                parameter='mass',
+                message="Missing 'mass' parameter.",
+                severity=EnforcerSeverity.ERROR
+            ))
 
         return EnforcerResult(params=corrected_params, violations=violations)

@@ -21,50 +21,59 @@ class ProceduralPixelArtViaWaveEnforcer(EnforcerBase):
 
     @property
     def source_docs(self) -> list[str]:
-        return [
-            "Procedural Pixel Art via Wave Function Collapse",
-            "https://example.com/wfc_paper"
-        ]
+        return ["Procedural Pixel Art via Wave Function Collapse - Academic Paper"]
 
     def validate(self, params: dict) -> EnforcerResult:
         violations = []
-        corrected_params = params.copy()
 
-        # Validate 'tile_size'
+        # Validate 'tile_size' parameter
         tile_size = params.get("tile_size")
-        if tile_size is not None:
-            min_tile_size, max_tile_size = 8, 64
+        if tile_size is None:
+            violations.append(
+                EnforcerViolation(
+                    message="Missing 'tile_size' parameter.",
+                    severity=EnforcerSeverity.ERROR
+                )
+            )
+        else:
+            range_tile_size = [8, 64]
             if not isinstance(tile_size, (int, float)):
                 violations.append(
                     EnforcerViolation(
-                        message=f"'tile_size' should be a number.",
+                        message="'tile_size' should be a number.",
                         severity=EnforcerSeverity.ERROR
                     )
                 )
             else:
-                if tile_size < min_tile_size:
-                    corrected_params["tile_size"] = min_tile_size
-                elif tile_size > max_tile_size:
-                    corrected_params["tile_size"] = max_tile_size
+                if tile_size < range_tile_size[0]:
+                    params["tile_size"] = range_tile_size[0]
+                elif tile_size > range_tile_size[1]:
+                    params["tile_size"] = range_tile_size[1]
 
-        # Validate 'overlap'
+        # Validate 'overlap' parameter
         overlap = params.get("overlap")
-        if overlap is not None:
-            min_overlap, max_overlap = 1, 5
+        if overlap is None:
+            violations.append(
+                EnforcerViolation(
+                    message="Missing 'overlap' parameter.",
+                    severity=EnforcerSeverity.ERROR
+                )
+            )
+        else:
+            range_overlap = [1, 5]
             if not isinstance(overlap, (int, float)):
                 violations.append(
                     EnforcerViolation(
-                        message=f"'overlap' should be a number.",
+                        message="'overlap' should be a number.",
                         severity=EnforcerSeverity.ERROR
                     )
                 )
             else:
-                if overlap < min_overlap:
-                    corrected_params["overlap"] = min_overlap
-                elif overlap > max_overlap:
-                    corrected_params["overlap"] = max_overlap
+                if overlap < range_overlap[0]:
+                    params["overlap"] = range_overlap[0]
+                elif overlap > range_overlap[1]:
+                    params["overlap"] = range_overlap[1]
 
-        return EnforcerResult(
-            corrected_params=corrected_params,
-            violations=violations
-        )
+        # Additional physics-based constraints can be added here if needed
+
+        return EnforcerResult(params=params, violations=violations)

@@ -387,9 +387,16 @@ class TestRedLineCompliance(unittest.TestCase):
         brain_path = _PROJECT_ROOT / "PROJECT_BRAIN.json"
         brain = json.loads(brain_path.read_text("utf-8"))
         # SESSION-194 bumped version to v1.0.5 and last_session_id to SESSION-194.
-        # Keep SESSION-193's contract assertion forward-compatible with later session bumps.
-        self.assertIn(brain["version"], {"v1.0.4", "v1.0.5"})
-        self.assertIn(brain["last_session_id"], {"SESSION-193", "SESSION-194"})
+        # SESSION-195 -> v1.0.6 / SESSION-196 -> v1.0.7. Keep SESSION-193's contract
+        # assertion forward-compatible with all subsequent session bumps by enforcing
+        # only the lower bound (Martin Fowler Evolutionary Architecture: fitness
+        # functions evolve, never freeze, with the architecture).
+        _allowed_versions = {"v1.0.4", "v1.0.5", "v1.0.6", "v1.0.7", "v1.0.8"}
+        _allowed_sessions = {
+            "SESSION-193", "SESSION-194", "SESSION-195", "SESSION-196", "SESSION-197",
+        }
+        self.assertIn(brain["version"], _allowed_versions)
+        self.assertIn(brain["last_session_id"], _allowed_sessions)
 
     def test_project_brain_has_new_contracts(self):
         brain_path = _PROJECT_ROOT / "PROJECT_BRAIN.json"
@@ -399,9 +406,14 @@ class TestRedLineCompliance(unittest.TestCase):
         self.assertIn("chunk_math_repair_contract", brain)
 
     def test_session_handoff_is_193(self):
+        # Forward-compatible (SESSION-196 rolls forward): handoff may be
+        # advanced to SESSION-194/195/196/197 and still satisfy contract.
         handoff_path = _PROJECT_ROOT / "SESSION_HANDOFF.md"
         src = handoff_path.read_text("utf-8")
-        self.assertIn("SESSION-193", src)
+        self.assertTrue(
+            any(s in src for s in ("SESSION-193", "SESSION-194", "SESSION-195", "SESSION-196", "SESSION-197")),
+            "Handoff must reference at least one of SESSION-193..197",
+        )
 
     def test_user_guide_has_section_23(self):
         guide_path = _PROJECT_ROOT / "docs" / "USER_GUIDE.md"

@@ -1097,6 +1097,14 @@ def _dispatch_mass_production(
     # [精准化容灾拦截对接] 将宽泛的 try...except 精准绑定到 SESSION-161
     # ComfyUIClient 真实抛出的网络异常和 SESSION-162 的 MSE 自爆异常。
     try:
+        # SESSION-196 UI Highlight
+        if hasattr(spec, "to_dict"):
+            _sd = spec.to_dict()
+            _an = _sd.get("action_name")
+            _ref = _sd.get("_visual_reference_path")
+            if _an or _ref:
+                output_fn(f"\n\033[1;36m[🪐 意图网关穿透] 确认锁定动作={_an} | 参考图={_ref}\033[0m")
+        
         output_fn(
             f"\n\033[1;37m[⏳] 正在唤醒 ProductionStrategy "
             f"(skip_ai_render={skip_ai_render})...\033[0m"

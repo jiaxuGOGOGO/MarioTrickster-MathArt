@@ -498,3 +498,48 @@ Accepted: 4 / 4
 - **Abstract**: Wave Function Collapse (WFC) is a constraint-solving algorithm inspired by quantum mechanics that generates tilemaps and pixel art patterns by propagating constraints derived from input samples. It is widely used for procedural generation of textures, levels, and pixel-art style assets, ensuring loc
 - **Implementation**: LLM-suggested technique. Verify before implementing.
 
+
+## MINE-013 — 2026-04-25
+Query: physics animation
+Accepted: 4 / 4
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29077 stars.
+
+### Wave Function Collapse
+- **Source**: [github](https://github.com/mxgmn/WaveFunctionCollapse)
+- **Year**: 2016
+- **Relevance**: 0.73
+- **Capabilities**: WFC tilemap generation, procedural generation, pixel art
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: An algorithm for procedural generation of tilemaps and textures by propagating constraints to produce locally consistent global patterns. Widely used for generating pixel art levels and textures with minimal input samples.
+- **Implementation**: LLM-suggested technique. Verify before implementing.
+

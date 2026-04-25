@@ -55,7 +55,13 @@
           "Test assertions evolved (not skipped or commented out) per Fowler Contract Test principle"
         ],
         "gait_registry_contract": {
-          "registered_gaits": ["walk", "run", "jump", "idle", "dash"],
+          "registered_gaits": [
+            "walk",
+            "run",
+            "jump",
+            "idle",
+            "dash"
+          ],
           "pattern": "UE5 AnimGraph Chooser-Table / Strategy Pattern",
           "dispatch": "Registry.get(action_name) — zero if/elif",
           "extensibility": "Subclass OpenPoseGaitStrategy + register_gait_strategy()"
@@ -6178,5 +6184,8 @@
     ],
     "root_cause": "heal_guide_sequences subsamples to 16 frames but frame_count stays at original value (e.g. 43)",
     "tests": "tests/test_session193_identity_chunk_openpose.py"
-  }
+  },
+  "architecture_constraints": [
+    "SESSION-196: The intent_gateway module acts as the Kubernetes Admission Webhook. No deep module (e.g. _execute_live_pipeline) should ever add a new formal parameter for CLI intent fields; they must extract them from the Redux-style context dict."
+  ]
 }

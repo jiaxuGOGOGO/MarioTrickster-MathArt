@@ -187,6 +187,15 @@ class ProductionStrategy(SessionStrategy):
                 "seed": int(options.get("seed", 20260422)),
                 # [SESSION-191 LookDev Deep Pruning] action_filter 穿透
                 "action_filter": options.get("action_filter"),
+                # [SESSION-196 P0-CLI-INTENT-THREADING] Surface the
+                # immutable director studio spec + companion fields so the
+                # PDG mass production layer can republish them into per
+                # character pipeline contexts (Redux Context pattern —
+                # avoid prop-drilling through every intermediate function).
+                "director_studio_spec": options.get("director_studio_spec"),
+                "director_studio_flat_params": options.get("director_studio_flat_params"),
+                "vibe": options.get("vibe", ""),
+                "vfx_artifacts": options.get("vfx_artifacts"),
             },
         )
 
@@ -269,7 +278,6 @@ class ProductionStrategy(SessionStrategy):
                 else:
                     return payload
         from mathart.factory.mass_production import run_mass_production_factory
-
         output_root = Path(context.output_dir or self.project_root / "output" / "production")
         output_root.mkdir(parents=True, exist_ok=True)
         payload = run_mass_production_factory(
@@ -282,6 +290,14 @@ class ProductionStrategy(SessionStrategy):
             comfyui_url=str(context.extra.get("comfyui_url", "http://localhost:8188")),
             # [SESSION-191 LookDev Deep Pruning] action_filter 穿透到工厂层
             action_filter=context.extra.get("action_filter"),
+            # [SESSION-196 P0-CLI-INTENT-THREADING] director_studio_spec
+            # rides through the dispatcher, into the PDG initial_context,
+            # and finally lands in the per-character pipeline payload —
+            # without any intermediate function growing a new formal
+            # parameter (K8s Mutating Webhook + Redux Context pattern).
+            director_studio_spec=context.extra.get("director_studio_spec"),
+            vibe=str(context.extra.get("vibe") or ""),
+            vfx_artifacts=context.extra.get("vfx_artifacts"),
         )
         payload["knowledge_write_mode"] = "read_only"
         return payload

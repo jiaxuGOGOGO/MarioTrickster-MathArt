@@ -2037,6 +2037,35 @@ PYTHONPATH=. python3.11 -m pytest tests/ -v
 
 ---
 
+
+## 23. [SESSION-196] CLI 意图全链路穿透与孤立模块发现 (CLI Intent Threading & Orphan Rescue)
+
+### 23.1 核心价值
+在 SESSION-196 中，我们彻底解决了**CLI 意图断层**问题（即用户在 `intent.yaml` 中配置了 `action` 或 `reference_image`，但在深度流水线中由于层层签名污染导致参数丢失，只能 fallback 到默认值）。同时，完成了 **Orphan Rescue Phase 2**，让原先"隐身"的高阶物理模块能够被自然语言唤醒。
+
+### 23.2 黄金连招 V5：带视觉参考的动作指定
+现在你可以直接在 `intent.yaml` 中指定参考图与明确动作：
+
+```yaml
+vibe: "夸张弹性 dash 角色"
+action: "dash"
+reference_image: "/absolute/path/to/hero.png"
+```
+
+当运行 `python3 -m mathart.cli_wizard run --intent intent.yaml` 时，系统将：
+1. **意图网关 (Intent Gateway)**：在入口处 Fail-Fast 校验动作是否合法（必须在 `walk, run, jump, idle, dash` 注册表中），以及参考图是否存在。
+2. **Redux 穿透**：将校验后的 `director_studio_spec` 压入上下文字典，**零污染**地穿透 `ProductionStrategy`、`PDG Context` 直达最深处的 `AntiFlickerRenderBackend`。
+3. **按需提取**：深层模块通过微型纯函数 `extract_action_name(validated)` 取值，再喂给 OpenPose 与 IPAdapter。
+
+### 23.3 高阶物理模块的自然语言唤醒
+你现在可以通过纯自然语言（vibe）触发以下原先隐身的黑科技模块：
+- **3D XPBD 软体物理**：在 vibe 中提及 `三维物理`, `3d物理`, `软体`, `布料`, `ccd` 等。
+- **流体动量控制 (Fluid Momentum)**：在 vibe 中提及 `水花`, `流体`, `魔法浪涌`, `冲击波` 等。
+- **一键全开**：使用 `黑科技全开` 或 `全特效`，将同时唤醒 CPPN纹理、流体、高精度VAT、四足引擎与3D物理。
+
+### 23.4 幻觉防呆红线
+系统对 LLM 的输出执行**严格交集过滤**。如果 LLM 幻想了不存在的插件名，系统将直接丢弃并打印 WARNING，确保不会因为拼写错误导致流水线崩溃。
+
 ## 22. SESSION-192: Dependency Vanguard, Modal Override Hardening & Physics Telemetry Audit
 
 **Status:** LANDED · v1.0.3 · 2026-04-25
@@ -2047,7 +2076,36 @@ SESSION-191 (PDG logger crash fix + Deep Pruning) without breaking any of
 their hard anchors, and adds three brand-new contracts that the previous
 sessions left implicit.
 
-### 22.1 What changed
+#
+## 23. [SESSION-196] CLI 意图全链路穿透与孤立模块发现 (CLI Intent Threading & Orphan Rescue)
+
+### 23.1 核心价值
+在 SESSION-196 中，我们彻底解决了**CLI 意图断层**问题（即用户在 `intent.yaml` 中配置了 `action` 或 `reference_image`，但在深度流水线中由于层层签名污染导致参数丢失，只能 fallback 到默认值）。同时，完成了 **Orphan Rescue Phase 2**，让原先"隐身"的高阶物理模块能够被自然语言唤醒。
+
+### 23.2 黄金连招 V5：带视觉参考的动作指定
+现在你可以直接在 `intent.yaml` 中指定参考图与明确动作：
+
+```yaml
+vibe: "夸张弹性 dash 角色"
+action: "dash"
+reference_image: "/absolute/path/to/hero.png"
+```
+
+当运行 `python3 -m mathart.cli_wizard run --intent intent.yaml` 时，系统将：
+1. **意图网关 (Intent Gateway)**：在入口处 Fail-Fast 校验动作是否合法（必须在 `walk, run, jump, idle, dash` 注册表中），以及参考图是否存在。
+2. **Redux 穿透**：将校验后的 `director_studio_spec` 压入上下文字典，**零污染**地穿透 `ProductionStrategy`、`PDG Context` 直达最深处的 `AntiFlickerRenderBackend`。
+3. **按需提取**：深层模块通过微型纯函数 `extract_action_name(validated)` 取值，再喂给 OpenPose 与 IPAdapter。
+
+### 23.3 高阶物理模块的自然语言唤醒
+你现在可以通过纯自然语言（vibe）触发以下原先隐身的黑科技模块：
+- **3D XPBD 软体物理**：在 vibe 中提及 `三维物理`, `3d物理`, `软体`, `布料`, `ccd` 等。
+- **流体动量控制 (Fluid Momentum)**：在 vibe 中提及 `水花`, `流体`, `魔法浪涌`, `冲击波` 等。
+- **一键全开**：使用 `黑科技全开` 或 `全特效`，将同时唤醒 CPPN纹理、流体、高精度VAT、四足引擎与3D物理。
+
+### 23.4 幻觉防呆红线
+系统对 LLM 的输出执行**严格交集过滤**。如果 LLM 幻想了不存在的插件名，系统将直接丢弃并打印 WARNING，确保不会因为拼写错误导致流水线崩溃。
+
+## 22.1 What changed
 
 | Area | Change |
 |------|--------|
@@ -2059,7 +2117,36 @@ sessions left implicit.
 | `tests/test_session192_dependency_seal_and_telemetry.py` | New 11-test regression suite — pyproject contract, strength red line, telemetry phrasing, UX banner contract. |
 | `tests/test_session190_modal_decoupling_and_lookdev.py` | Single anchor test relaxed from `== 0.45` to `>= 0.85` to track the new hardening. |
 
-### 22.2 Why the Dependency Vanguard matters
+#
+## 23. [SESSION-196] CLI 意图全链路穿透与孤立模块发现 (CLI Intent Threading & Orphan Rescue)
+
+### 23.1 核心价值
+在 SESSION-196 中，我们彻底解决了**CLI 意图断层**问题（即用户在 `intent.yaml` 中配置了 `action` 或 `reference_image`，但在深度流水线中由于层层签名污染导致参数丢失，只能 fallback 到默认值）。同时，完成了 **Orphan Rescue Phase 2**，让原先"隐身"的高阶物理模块能够被自然语言唤醒。
+
+### 23.2 黄金连招 V5：带视觉参考的动作指定
+现在你可以直接在 `intent.yaml` 中指定参考图与明确动作：
+
+```yaml
+vibe: "夸张弹性 dash 角色"
+action: "dash"
+reference_image: "/absolute/path/to/hero.png"
+```
+
+当运行 `python3 -m mathart.cli_wizard run --intent intent.yaml` 时，系统将：
+1. **意图网关 (Intent Gateway)**：在入口处 Fail-Fast 校验动作是否合法（必须在 `walk, run, jump, idle, dash` 注册表中），以及参考图是否存在。
+2. **Redux 穿透**：将校验后的 `director_studio_spec` 压入上下文字典，**零污染**地穿透 `ProductionStrategy`、`PDG Context` 直达最深处的 `AntiFlickerRenderBackend`。
+3. **按需提取**：深层模块通过微型纯函数 `extract_action_name(validated)` 取值，再喂给 OpenPose 与 IPAdapter。
+
+### 23.3 高阶物理模块的自然语言唤醒
+你现在可以通过纯自然语言（vibe）触发以下原先隐身的黑科技模块：
+- **3D XPBD 软体物理**：在 vibe 中提及 `三维物理`, `3d物理`, `软体`, `布料`, `ccd` 等。
+- **流体动量控制 (Fluid Momentum)**：在 vibe 中提及 `水花`, `流体`, `魔法浪涌`, `冲击波` 等。
+- **一键全开**：使用 `黑科技全开` 或 `全特效`，将同时唤醒 CPPN纹理、流体、高精度VAT、四足引擎与3D物理。
+
+### 23.4 幻觉防呆红线
+系统对 LLM 的输出执行**严格交集过滤**。如果 LLM 幻想了不存在的插件名，系统将直接丢弃并打印 WARNING，确保不会因为拼写错误导致流水线崩溃。
+
+## 22.2 Why the Dependency Vanguard matters
 
 > Without `websocket-client`, the ComfyUI driver silently degrades to HTTP
 > polling, which has been observed to crash with `WinError 10054 — connection
@@ -2077,7 +2164,36 @@ tens to hundreds of MB. Power users opt in with:
 pip install -e ".[all]"
 ```
 
-### 22.3 Modal Override hardening (Depth/Normal ≥ 0.85)
+#
+## 23. [SESSION-196] CLI 意图全链路穿透与孤立模块发现 (CLI Intent Threading & Orphan Rescue)
+
+### 23.1 核心价值
+在 SESSION-196 中，我们彻底解决了**CLI 意图断层**问题（即用户在 `intent.yaml` 中配置了 `action` 或 `reference_image`，但在深度流水线中由于层层签名污染导致参数丢失，只能 fallback 到默认值）。同时，完成了 **Orphan Rescue Phase 2**，让原先"隐身"的高阶物理模块能够被自然语言唤醒。
+
+### 23.2 黄金连招 V5：带视觉参考的动作指定
+现在你可以直接在 `intent.yaml` 中指定参考图与明确动作：
+
+```yaml
+vibe: "夸张弹性 dash 角色"
+action: "dash"
+reference_image: "/absolute/path/to/hero.png"
+```
+
+当运行 `python3 -m mathart.cli_wizard run --intent intent.yaml` 时，系统将：
+1. **意图网关 (Intent Gateway)**：在入口处 Fail-Fast 校验动作是否合法（必须在 `walk, run, jump, idle, dash` 注册表中），以及参考图是否存在。
+2. **Redux 穿透**：将校验后的 `director_studio_spec` 压入上下文字典，**零污染**地穿透 `ProductionStrategy`、`PDG Context` 直达最深处的 `AntiFlickerRenderBackend`。
+3. **按需提取**：深层模块通过微型纯函数 `extract_action_name(validated)` 取值，再喂给 OpenPose 与 IPAdapter。
+
+### 23.3 高阶物理模块的自然语言唤醒
+你现在可以通过纯自然语言（vibe）触发以下原先隐身的黑科技模块：
+- **3D XPBD 软体物理**：在 vibe 中提及 `三维物理`, `3d物理`, `软体`, `布料`, `ccd` 等。
+- **流体动量控制 (Fluid Momentum)**：在 vibe 中提及 `水花`, `流体`, `魔法浪涌`, `冲击波` 等。
+- **一键全开**：使用 `黑科技全开` 或 `全特效`，将同时唤醒 CPPN纹理、流体、高精度VAT、四足引擎与3D物理。
+
+### 23.4 幻觉防呆红线
+系统对 LLM 的输出执行**严格交集过滤**。如果 LLM 幻想了不存在的插件名，系统将直接丢弃并打印 WARNING，确保不会因为拼写错误导致流水线崩溃。
+
+## 22.3 Modal Override hardening (Depth/Normal ≥ 0.85)
 
 When the physics layer degrades to a Dummy Cylinder Mesh
 (`pseudo_3d_shell`), the new contract is:
@@ -2094,7 +2210,36 @@ The lower bound is exposed as the new module constant
 `force_decouple_dummy_mesh_payload(...)` return dict as
 `depth_normal_min_strength`.
 
-### 22.4 Physics Telemetry Audit handshake
+#
+## 23. [SESSION-196] CLI 意图全链路穿透与孤立模块发现 (CLI Intent Threading & Orphan Rescue)
+
+### 23.1 核心价值
+在 SESSION-196 中，我们彻底解决了**CLI 意图断层**问题（即用户在 `intent.yaml` 中配置了 `action` 或 `reference_image`，但在深度流水线中由于层层签名污染导致参数丢失，只能 fallback 到默认值）。同时，完成了 **Orphan Rescue Phase 2**，让原先"隐身"的高阶物理模块能够被自然语言唤醒。
+
+### 23.2 黄金连招 V5：带视觉参考的动作指定
+现在你可以直接在 `intent.yaml` 中指定参考图与明确动作：
+
+```yaml
+vibe: "夸张弹性 dash 角色"
+action: "dash"
+reference_image: "/absolute/path/to/hero.png"
+```
+
+当运行 `python3 -m mathart.cli_wizard run --intent intent.yaml` 时，系统将：
+1. **意图网关 (Intent Gateway)**：在入口处 Fail-Fast 校验动作是否合法（必须在 `walk, run, jump, idle, dash` 注册表中），以及参考图是否存在。
+2. **Redux 穿透**：将校验后的 `director_studio_spec` 压入上下文字典，**零污染**地穿透 `ProductionStrategy`、`PDG Context` 直达最深处的 `AntiFlickerRenderBackend`。
+3. **按需提取**：深层模块通过微型纯函数 `extract_action_name(validated)` 取值，再喂给 OpenPose 与 IPAdapter。
+
+### 23.3 高阶物理模块的自然语言唤醒
+你现在可以通过纯自然语言（vibe）触发以下原先隐身的黑科技模块：
+- **3D XPBD 软体物理**：在 vibe 中提及 `三维物理`, `3d物理`, `软体`, `布料`, `ccd` 等。
+- **流体动量控制 (Fluid Momentum)**：在 vibe 中提及 `水花`, `流体`, `魔法浪涌`, `冲击波` 等。
+- **一键全开**：使用 `黑科技全开` 或 `全特效`，将同时唤醒 CPPN纹理、流体、高精度VAT、四足引擎与3D物理。
+
+### 23.4 幻觉防呆红线
+系统对 LLM 的输出执行**严格交集过滤**。如果 LLM 幻想了不存在的插件名，系统将直接丢弃并打印 WARNING，确保不会因为拼写错误导致流水线崩溃。
+
+## 22.4 Physics Telemetry Audit handshake
 
 Every time the LookDev (or full mass-production) pipeline is about to ship
 the math-derived skeleton tensor to the GPU, the operator now sees a
@@ -2119,14 +2264,72 @@ The function is exported as
 designed to be **completely silent** when its `stream` argument is `None` —
 unit tests can call it freely without polluting stdout.
 
-### 22.5 UX zero-degradation — `[⚙️ 工业烘焙网关]` banner
+#
+## 23. [SESSION-196] CLI 意图全链路穿透与孤立模块发现 (CLI Intent Threading & Orphan Rescue)
+
+### 23.1 核心价值
+在 SESSION-196 中，我们彻底解决了**CLI 意图断层**问题（即用户在 `intent.yaml` 中配置了 `action` 或 `reference_image`，但在深度流水线中由于层层签名污染导致参数丢失，只能 fallback 到默认值）。同时，完成了 **Orphan Rescue Phase 2**，让原先"隐身"的高阶物理模块能够被自然语言唤醒。
+
+### 23.2 黄金连招 V5：带视觉参考的动作指定
+现在你可以直接在 `intent.yaml` 中指定参考图与明确动作：
+
+```yaml
+vibe: "夸张弹性 dash 角色"
+action: "dash"
+reference_image: "/absolute/path/to/hero.png"
+```
+
+当运行 `python3 -m mathart.cli_wizard run --intent intent.yaml` 时，系统将：
+1. **意图网关 (Intent Gateway)**：在入口处 Fail-Fast 校验动作是否合法（必须在 `walk, run, jump, idle, dash` 注册表中），以及参考图是否存在。
+2. **Redux 穿透**：将校验后的 `director_studio_spec` 压入上下文字典，**零污染**地穿透 `ProductionStrategy`、`PDG Context` 直达最深处的 `AntiFlickerRenderBackend`。
+3. **按需提取**：深层模块通过微型纯函数 `extract_action_name(validated)` 取值，再喂给 OpenPose 与 IPAdapter。
+
+### 23.3 高阶物理模块的自然语言唤醒
+你现在可以通过纯自然语言（vibe）触发以下原先隐身的黑科技模块：
+- **3D XPBD 软体物理**：在 vibe 中提及 `三维物理`, `3d物理`, `软体`, `布料`, `ccd` 等。
+- **流体动量控制 (Fluid Momentum)**：在 vibe 中提及 `水花`, `流体`, `魔法浪涌`, `冲击波` 等。
+- **一键全开**：使用 `黑科技全开` 或 `全特效`，将同时唤醒 CPPN纹理、流体、高精度VAT、四足引擎与3D物理。
+
+### 23.4 幻觉防呆红线
+系统对 LLM 的输出执行**严格交集过滤**。如果 LLM 幻想了不存在的插件名，系统将直接丢弃并打印 WARNING，确保不会因为拼写错误导致流水线崩溃。
+
+## 22.5 UX zero-degradation — `[⚙️ 工业烘焙网关]` banner
 
 The SESSION-191 `[⚙️ 工业烘焙网关] 正在通过 Catmull-Rom 样条插值，纯 CPU 解算高精度工业级贴图动作序列...` UX banner is now centralised in
 `emit_industrial_baking_banner(...)` so every backend that performs
 CPU Catmull-Rom interpolation can emit the *same* string without copy-pasting
 ANSI envelopes around the codebase.
 
-### 22.6 Red Line Compliance
+#
+## 23. [SESSION-196] CLI 意图全链路穿透与孤立模块发现 (CLI Intent Threading & Orphan Rescue)
+
+### 23.1 核心价值
+在 SESSION-196 中，我们彻底解决了**CLI 意图断层**问题（即用户在 `intent.yaml` 中配置了 `action` 或 `reference_image`，但在深度流水线中由于层层签名污染导致参数丢失，只能 fallback 到默认值）。同时，完成了 **Orphan Rescue Phase 2**，让原先"隐身"的高阶物理模块能够被自然语言唤醒。
+
+### 23.2 黄金连招 V5：带视觉参考的动作指定
+现在你可以直接在 `intent.yaml` 中指定参考图与明确动作：
+
+```yaml
+vibe: "夸张弹性 dash 角色"
+action: "dash"
+reference_image: "/absolute/path/to/hero.png"
+```
+
+当运行 `python3 -m mathart.cli_wizard run --intent intent.yaml` 时，系统将：
+1. **意图网关 (Intent Gateway)**：在入口处 Fail-Fast 校验动作是否合法（必须在 `walk, run, jump, idle, dash` 注册表中），以及参考图是否存在。
+2. **Redux 穿透**：将校验后的 `director_studio_spec` 压入上下文字典，**零污染**地穿透 `ProductionStrategy`、`PDG Context` 直达最深处的 `AntiFlickerRenderBackend`。
+3. **按需提取**：深层模块通过微型纯函数 `extract_action_name(validated)` 取值，再喂给 OpenPose 与 IPAdapter。
+
+### 23.3 高阶物理模块的自然语言唤醒
+你现在可以通过纯自然语言（vibe）触发以下原先隐身的黑科技模块：
+- **3D XPBD 软体物理**：在 vibe 中提及 `三维物理`, `3d物理`, `软体`, `布料`, `ccd` 等。
+- **流体动量控制 (Fluid Momentum)**：在 vibe 中提及 `水花`, `流体`, `魔法浪涌`, `冲击波` 等。
+- **一键全开**：使用 `黑科技全开` 或 `全特效`，将同时唤醒 CPPN纹理、流体、高精度VAT、四足引擎与3D物理。
+
+### 23.4 幻觉防呆红线
+系统对 LLM 的输出执行**严格交集过滤**。如果 LLM 幻想了不存在的插件名，系统将直接丢弃并打印 WARNING，确保不会因为拼写错误导致流水线崩溃。
+
+## 22.6 Red Line Compliance
 
 | Red Line | Evidence |
 |----------|---------|
@@ -2138,7 +2341,36 @@ ANSI envelopes around the codebase.
 | Proxy env vars untouched | New code has zero references to `HTTP_PROXY/HTTPS_PROXY/NO_PROXY` |
 | Telemetry never breaks render path | Handshake call is wrapped in `try/except`; failure silently no-ops |
 
-### 22.7 Test Verification
+#
+## 23. [SESSION-196] CLI 意图全链路穿透与孤立模块发现 (CLI Intent Threading & Orphan Rescue)
+
+### 23.1 核心价值
+在 SESSION-196 中，我们彻底解决了**CLI 意图断层**问题（即用户在 `intent.yaml` 中配置了 `action` 或 `reference_image`，但在深度流水线中由于层层签名污染导致参数丢失，只能 fallback 到默认值）。同时，完成了 **Orphan Rescue Phase 2**，让原先"隐身"的高阶物理模块能够被自然语言唤醒。
+
+### 23.2 黄金连招 V5：带视觉参考的动作指定
+现在你可以直接在 `intent.yaml` 中指定参考图与明确动作：
+
+```yaml
+vibe: "夸张弹性 dash 角色"
+action: "dash"
+reference_image: "/absolute/path/to/hero.png"
+```
+
+当运行 `python3 -m mathart.cli_wizard run --intent intent.yaml` 时，系统将：
+1. **意图网关 (Intent Gateway)**：在入口处 Fail-Fast 校验动作是否合法（必须在 `walk, run, jump, idle, dash` 注册表中），以及参考图是否存在。
+2. **Redux 穿透**：将校验后的 `director_studio_spec` 压入上下文字典，**零污染**地穿透 `ProductionStrategy`、`PDG Context` 直达最深处的 `AntiFlickerRenderBackend`。
+3. **按需提取**：深层模块通过微型纯函数 `extract_action_name(validated)` 取值，再喂给 OpenPose 与 IPAdapter。
+
+### 23.3 高阶物理模块的自然语言唤醒
+你现在可以通过纯自然语言（vibe）触发以下原先隐身的黑科技模块：
+- **3D XPBD 软体物理**：在 vibe 中提及 `三维物理`, `3d物理`, `软体`, `布料`, `ccd` 等。
+- **流体动量控制 (Fluid Momentum)**：在 vibe 中提及 `水花`, `流体`, `魔法浪涌`, `冲击波` 等。
+- **一键全开**：使用 `黑科技全开` 或 `全特效`，将同时唤醒 CPPN纹理、流体、高精度VAT、四足引擎与3D物理。
+
+### 23.4 幻觉防呆红线
+系统对 LLM 的输出执行**严格交集过滤**。如果 LLM 幻想了不存在的插件名，系统将直接丢弃并打印 WARNING，确保不会因为拼写错误导致流水线崩溃。
+
+## 22.7 Test Verification
 
 ```bash
 PYTHONPATH=. python3.11 -m pytest \
@@ -2149,7 +2381,36 @@ PYTHONPATH=. python3.11 -m pytest \
 # Expected: 53 passed
 ```
 
-### 22.8 Sanity-check the new banner without GPU
+#
+## 23. [SESSION-196] CLI 意图全链路穿透与孤立模块发现 (CLI Intent Threading & Orphan Rescue)
+
+### 23.1 核心价值
+在 SESSION-196 中，我们彻底解决了**CLI 意图断层**问题（即用户在 `intent.yaml` 中配置了 `action` 或 `reference_image`，但在深度流水线中由于层层签名污染导致参数丢失，只能 fallback 到默认值）。同时，完成了 **Orphan Rescue Phase 2**，让原先"隐身"的高阶物理模块能够被自然语言唤醒。
+
+### 23.2 黄金连招 V5：带视觉参考的动作指定
+现在你可以直接在 `intent.yaml` 中指定参考图与明确动作：
+
+```yaml
+vibe: "夸张弹性 dash 角色"
+action: "dash"
+reference_image: "/absolute/path/to/hero.png"
+```
+
+当运行 `python3 -m mathart.cli_wizard run --intent intent.yaml` 时，系统将：
+1. **意图网关 (Intent Gateway)**：在入口处 Fail-Fast 校验动作是否合法（必须在 `walk, run, jump, idle, dash` 注册表中），以及参考图是否存在。
+2. **Redux 穿透**：将校验后的 `director_studio_spec` 压入上下文字典，**零污染**地穿透 `ProductionStrategy`、`PDG Context` 直达最深处的 `AntiFlickerRenderBackend`。
+3. **按需提取**：深层模块通过微型纯函数 `extract_action_name(validated)` 取值，再喂给 OpenPose 与 IPAdapter。
+
+### 23.3 高阶物理模块的自然语言唤醒
+你现在可以通过纯自然语言（vibe）触发以下原先隐身的黑科技模块：
+- **3D XPBD 软体物理**：在 vibe 中提及 `三维物理`, `3d物理`, `软体`, `布料`, `ccd` 等。
+- **流体动量控制 (Fluid Momentum)**：在 vibe 中提及 `水花`, `流体`, `魔法浪涌`, `冲击波` 等。
+- **一键全开**：使用 `黑科技全开` 或 `全特效`，将同时唤醒 CPPN纹理、流体、高精度VAT、四足引擎与3D物理。
+
+### 23.4 幻觉防呆红线
+系统对 LLM 的输出执行**严格交集过滤**。如果 LLM 幻想了不存在的插件名，系统将直接丢弃并打印 WARNING，确保不会因为拼写错误导致流水线崩溃。
+
+## 22.8 Sanity-check the new banner without GPU
 
 ```bash
 PYTHONPATH=. python3.11 -c "

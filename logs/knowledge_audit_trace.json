@@ -1,11 +1,11 @@
 {
   "audit_version": "1.0.0",
   "session_id": "SESSION-152",
-  "run_id": "de282c4b-0e4",
-  "timestamp": "2026-04-24T22:41:46",
+  "run_id": "781c518b-f59",
+  "timestamp": "2026-04-24T23:21:32",
   "generator": "ProvenanceReportGenerator (SESSION-152)",
   "knowledge_snapshot": {
-    "snapshot_time": "2026-04-24T22:41:46",
+    "snapshot_time": "2026-04-24T23:21:32",
     "knowledge_dir": "",
     "knowledge_files_found": [],
     "compiled_modules": [],

@@ -478,6 +478,17 @@ class CreatorIntentSpec:
     # [隐式切换红线] This field is additive — ZERO modification to biped logic.
     skeleton_topology: str = "biped"
 
+    # SESSION-196 P0-CLI-INTENT-THREADING: gait + reference image admission.
+    # Both fields are populated by ``intent_gateway.IntentGateway.admit`` and
+    # then read back at the deep call site through tiny pure helpers — the
+    # extractors NEVER widen any existing function signature (Redux Context
+    # pattern: avoid prop-drilling, take values from the immutable spec).
+    # ``action_name`` is the validated gait registry key (empty string when
+    # the user did not request a specific gait); ``visual_reference_path`` is
+    # the absolute file path to the IPAdapter reference image, if any.
+    action_name: str = ""
+    visual_reference_path: str = ""
+
     def to_dict(self) -> dict:
         _genotype = getattr(self, "genotype", None)
         _rules = getattr(self, "applied_knowledge_rules", None) or []
@@ -496,6 +507,14 @@ class CreatorIntentSpec:
             "knowledge_grounded": getattr(self, "knowledge_grounded", False),
             "active_vfx_plugins": list(_vfx),
             "skeleton_topology": getattr(self, "skeleton_topology", "biped"),
+            # SESSION-196: surface admission-validated fields so downstream
+            # consumers (cli_wizard / mass_production / builtin_backends)
+            # can read them via dictionary lookup without a new formal
+            # parameter on any intermediate function.
+            "action_name": getattr(self, "action_name", "") or "",
+            "_visual_reference_path": (
+                getattr(self, "visual_reference_path", "") or ""
+            ) or None,
         }
 
     @classmethod
@@ -515,6 +534,12 @@ class CreatorIntentSpec:
             knowledge_grounded=d.get("knowledge_grounded", False),
             active_vfx_plugins=list(d.get("active_vfx_plugins", [])),
             skeleton_topology=d.get("skeleton_topology", "biped"),
+            action_name=str(d.get("action_name", "") or ""),
+            visual_reference_path=str(
+                d.get("visual_reference_path")
+                or d.get("_visual_reference_path", "")
+                or ""
+            ),
         )
 
 
@@ -586,6 +611,30 @@ class DirectorIntentParser:
         # Step 5: Derivation controls
         spec.evolve_variants = int(raw.get("evolve_variants", 0))
         spec.freeze_locks = list(raw.get("freeze_locks", []))
+
+        # ── SESSION-196 P0-CLI-INTENT-THREADING ─────────────────────────
+        # Run the IntentGateway (Validating + Mutating Admission Webhook)
+        # so unknown gaits / ghost reference images Fail-Fast at the
+        # parser boundary instead of leaking into the chunk assembly
+        # site half a pipeline later.  IntentValidationError is allowed
+        # to propagate — cli_wizard already wraps parse_dict in a typed
+        # try/except that paints the message red and bounces back to
+        # the menu without a crash.
+        try:
+            from .intent_gateway import IntentGateway
+            _gateway = IntentGateway()
+            _admission = _gateway.admit(raw)
+            if _admission.action_name:
+                spec.action_name = _admission.action_name
+            if _admission.reference_image_path:
+                spec.visual_reference_path = _admission.reference_image_path
+            for _w in _admission.warnings:
+                logger.debug("[DirectorIntent] SESSION-196 admission soft warning: %s", _w)
+        except ImportError as _gw_imp_err:  # pragma: no cover — defensive
+            logger.warning(
+                "[DirectorIntent] SESSION-196 IntentGateway import failed (graceful degradation): %s",
+                _gw_imp_err,
+            )
 
         # Step 6 (SESSION-187): Semantic VFX Plugin Resolution
         # Resolve which VFX plugins should be activated based on the user's
