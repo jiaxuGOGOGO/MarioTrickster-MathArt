@@ -57,8 +57,16 @@ def _json_default(value: Any) -> Any:
     if hasattr(value, "to_dict") and callable(value.to_dict):
         try:
             return value.to_dict()
-        except Exception:
-            pass
+        except Exception as _to_dict_exc:  # noqa: BLE001
+            # SESSION-194: never silently swallow — log and fall through to
+            # repr() so the JSON encoder still completes, but the diagnostic
+            # surfaces in the logs (Jim Gray fail-loud principle).
+            import logging as _logging
+            _logging.getLogger(__name__).warning(
+                "[mass_production] _json_default: %s.to_dict() raised %s; "
+                "falling back to repr().",
+                type(value).__name__, _to_dict_exc,
+            )
     return repr(value)
 
 
@@ -1417,11 +1425,27 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
             skeleton_tensor_shape=_tensor_shape,
             stream=sys.stderr,
         )
-    except Exception:
-        # Telemetry must never break the render path. If anything goes
-        # wrong we silently skip — the SESSION-189 hard anchors and the
-        # SESSION-190 decoupling are still in force regardless.
-        pass
+    except Exception as _telemetry_exc:  # noqa: BLE001
+        # SESSION-194: telemetry must never break the render path, but the
+        # failure must be logged loud so production operators see it.
+        # SESSION-189 hard anchors and SESSION-190 decoupling are still
+        # in force regardless of telemetry health.
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "[mass_production] SESSION-192 physics telemetry handshake skipped: %s",
+            _telemetry_exc,
+        )
+
+    # SESSION-194 P0-PIPELINE-INTEGRATION-CLOSURE: industrial-baking banner
+    try:
+        from mathart.core.anti_flicker_runtime import emit_industrial_baking_banner as _emit_bake_banner
+        _emit_bake_banner(stream=sys.stderr)
+    except Exception as _banner_exc:  # noqa: BLE001
+        import logging as _logging
+        _logging.getLogger(__name__).debug(
+            "[mass_production] SESSION-194 industrial baking banner skipped: %s",
+            _banner_exc,
+        )
 
     pipeline = AssetPipeline(output_dir=str(stage_dir), verbose=False)
     manifest = pipeline.run_backend(

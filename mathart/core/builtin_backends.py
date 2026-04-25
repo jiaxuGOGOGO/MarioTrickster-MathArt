@@ -1326,6 +1326,67 @@ class AntiFlickerRenderBackend:
                 depth_weight=float(comfyui_cfg.get("controlnet_depth_weight", 1.0)),
                 filename_prefix=f"{stem}_{chunk_label}",
             )
+
+            # ───────────────────────────────────────────────────────────────
+            # SESSION-194 P0-PIPELINE-INTEGRATION-CLOSURE
+            # IoC trunk hand-off (Spring DI): bake the real OpenPose pose
+            # sequence to disk via openpose_pose_provider, rebind the
+            # sentinel directory in the just-assembled workflow, and run
+            # the SESSION-193 arbitrator with `is_dummy_mesh` derived from
+            # the existing dummy_mesh detector.
+            # ───────────────────────────────────────────────────────────────
+            try:
+                from mathart.core.openpose_pose_provider import (
+                    bake_openpose_pose_sequence as _bake_openpose,
+                )
+                from mathart.core.preset_topology_hydrator import (
+                    OPENPOSE_SEQUENCE_DIR_SENTINEL as _OP_SENTINEL,
+                )
+                from mathart.core.openpose_skeleton_renderer import (
+                    arbitrate_controlnet_strengths as _arbitrate_strengths,
+                )
+                from mathart.core.anti_flicker_runtime import (
+                    detect_dummy_mesh as _detect_dummy_mesh,
+                )
+                _openpose_dir = chunk_root / "openpose_pose"
+                _openpose_artifact = _bake_openpose(
+                    output_dir=_openpose_dir,
+                    frame_count=chunk.frame_count,
+                    width=int(rgb_result.padded_width),
+                    height=int(rgb_result.padded_height),
+                    sequence_name=f"{stem}_{chunk_label}_openpose",
+                )
+                _wf = payload["prompt"]
+                for _nid, _node in _wf.items():
+                    if not isinstance(_node, dict):
+                        continue
+                    if _node.get("class_type") == "VHS_LoadImagesPath":
+                        _ins = _node.setdefault("inputs", {})
+                        if _ins.get("directory") == _OP_SENTINEL:
+                            _ins["directory"] = _openpose_artifact.sequence_directory
+                _is_dummy = bool(_detect_dummy_mesh({**validated, **comfyui_cfg}))
+                _arbitration_report = _arbitrate_strengths(
+                    _wf, is_dummy_mesh=_is_dummy,
+                )
+                payload.setdefault("mathart_lock_manifest", {})
+                payload["mathart_lock_manifest"]["session194_openpose_artifact"] = (
+                    _openpose_artifact.to_payload_dict()
+                )
+                payload["mathart_lock_manifest"]["session194_arbitration_report"] = _arbitration_report
+            except Exception as _s194_runtime_exc:  # noqa: BLE001
+                # Pipeline integrity is FAIL-FAST per SESSION-194 ¶2.
+                from mathart.core.preset_topology_hydrator import PipelineIntegrityError
+                if isinstance(_s194_runtime_exc, PipelineIntegrityError):
+                    raise
+                logger.exception(
+                    "[anti_flicker_render] SESSION-194 OpenPose bake / arbitration failed at chunk %s: %s",
+                    chunk_label, _s194_runtime_exc,
+                )
+                raise PipelineContractError(
+                    "session194_openpose_bake_failure",
+                    f"chunk={chunk_label}: {_s194_runtime_exc!r}",
+                ) from _s194_runtime_exc
+
             payload_path = payload_dir / f"{chunk_label}_workflow_payload.json"
             payload_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             chunk_payload_paths.append(str(payload_path.resolve()))

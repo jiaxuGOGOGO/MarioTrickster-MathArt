@@ -386,8 +386,10 @@ class TestRedLineCompliance(unittest.TestCase):
     def test_project_brain_version(self):
         brain_path = _PROJECT_ROOT / "PROJECT_BRAIN.json"
         brain = json.loads(brain_path.read_text("utf-8"))
-        self.assertEqual(brain["version"], "v1.0.4")
-        self.assertEqual(brain["last_session_id"], "SESSION-193")
+        # SESSION-194 bumped version to v1.0.5 and last_session_id to SESSION-194.
+        # Keep SESSION-193's contract assertion forward-compatible with later session bumps.
+        self.assertIn(brain["version"], {"v1.0.4", "v1.0.5"})
+        self.assertIn(brain["last_session_id"], {"SESSION-193", "SESSION-194"})
 
     def test_project_brain_has_new_contracts(self):
         brain_path = _PROJECT_ROOT / "PROJECT_BRAIN.json"

@@ -2289,3 +2289,123 @@ emit_physics_telemetry_handshake(
 ```
 
 > 老大，三大核心手术已完成！IPAdapter 灵魂已挂载、Chunk Math 闪退已治愈、OpenPose 几何已软化。请在无显卡环境下运行测试验证。
+
+
+## 24. SESSION-194: Pipeline Integration Closure（管线整合闭环）
+
+> **核心一句话**：把 SESSION-193 交付的三块"精密零件"——身份锁、OpenPose 渲染器、ControlNet 仲裁器——通过 IoC 数据总线**真正焊进**主干管线，使其在每一次 ComfyUI Payload 装配与每一次 chunk 渲染中被强制激活、强制断言、强制落盘。
+
+### 24.1 工业级三明治：拓扑水化 + IoC 落盘 + 动态仲裁
+
+SESSION-194 严格对齐三大顶级工程范式：
+
+| 范式 | 来源 | 在本期的体现 |
+|------|------|------|
+| **AnimGraph ↔ SkeletalMeshComponent 解耦** | Unreal Engine 5 | 骨骼控制流（OpenPose Pose Buffer）与渲染器（Depth/Normal Apply）通过强类型契约（节点 ID + ControlNetApplyAdvanced 边）通信，而非反向硬引用 |
+| **DAG Strict Edge Closure** | Apache Airflow | 新插入节点的 `inputs` 全部按节点 ID 端到端解析，幽灵边一律 fail-fast（`PipelineIntegrityError`） |
+| **Inversion of Control / Dependency Injection** | Spring Framework / Martin Fowler | 水化器只声明依赖，由 `assemble_sequence_payload` 与 `_execute_live_pipeline` 这两个总线在调用现场注入 |
+
+### 24.2 三个新文件、两个改造点
+
+| 路径 | 角色 |
+|------|------|
+| `mathart/core/preset_topology_hydrator.py` | 新增。AST 风格 OpenPose+IPAdapter 水化器；含 `PipelineIntegrityError` 与 Airflow 风格 `validate_preset_topology_closure` |
+| `mathart/core/openpose_pose_provider.py` | 新增。IoC 风格 OpenPose 物理烘焙提供者；产出 `OpenPosePoseSequenceArtifact`（24 关键点工业步态 PNG） |
+| `mathart/animation/comfyui_preset_manager.py` | 改造。`assemble_sequence_payload` 收尾处强制调用三大水化器 |
+| `mathart/core/builtin_backends.py` | 改造。chunk 循环新增物理烘焙→哨兵替换→仲裁器调用 |
+| `mathart/factory/mass_production.py` | 改造。清剿 `except Exception: pass`；新增 `emit_industrial_baking_banner` 调用点 |
+
+### 24.3 哨兵替换协议（IoC Lazy Binding）
+
+`hydrate_openpose_controlnet_chain` 注入 `VHS_LoadImagesPath` 时，`directory` 字段先填一个常量哨兵 `__OPENPOSE_SEQUENCE_DIR__`。`_execute_live_pipeline` 烘焙完真实 PNG 后，按以下确定性算法替换：
+
+```python
+for nid, node in workflow.items():
+    if isinstance(node, dict) and node.get("class_type") == "VHS_LoadImagesPath":
+        ins = node.setdefault("inputs", {})
+        if ins.get("directory") == OPENPOSE_SEQUENCE_DIR_SENTINEL:
+            ins["directory"] = openpose_artifact.sequence_directory
+```
+
+### 24.4 动态仲裁触发规则
+
+```python
+is_dummy = bool(detect_dummy_mesh({**validated, **comfyui_cfg}))
+arbitrate_controlnet_strengths(workflow, is_dummy_mesh=is_dummy)
+```
+
+| 检测结果 | OpenPose Strength | Depth/Normal Strength | RGB Strength |
+|----------|---------------------|---------------------------|----------------|
+| `is_dummy_mesh=True` | **1.00**（数学骨骼接管运动） | **0.45**（打破圆柱体几何锁） | 0.00（颜色污染杀死） |
+| `is_dummy_mesh=False` | 维持预设值 | 维持预设值 | 维持预设值 |
+
+仲裁报告写入 `mathart_lock_manifest.session194_arbitration_report`，外部审计可见。
+
+### 24.5 Fail-Fast 异常族
+
+```
+mathart.pipeline_contract.PipelineContractError
+└── mathart.core.preset_topology_hydrator.PipelineIntegrityError
+```
+
+下列违规一律抛 `PipelineIntegrityError`：
+
+- workflow 不是 `dict`
+- 找不到上游 `ControlNetApply*` 节点（无法接 OpenPose）
+- 找不到 `CheckpointLoaderSimple`（无法接 IPAdapter）
+- 找不到 `KSampler*`（DAG 无终端采样器）
+- 找不到 `SaveImage` / `VHS_VideoCombine` 等 sink（DAG 无落地节点）
+- 任何节点 `inputs` 引用了未存在的节点 ID（"幽灵边"）
+
+### 24.6 红线合规声明
+
+| 红线 | 状态 |
+|------|------|
+| 代理环境变量零接触 | ✅ |
+| SESSION-189 锚点（MAX_FRAMES=16/LATENT_EDGE=512/NORMAL_MATTE_RGB/anime_rhythmic_subsample）未触动 | ✅ |
+| SESSION-190 `force_decouple_dummy_mesh_payload` 算法未触动 | ✅ |
+| SESSION-191 action_filter Deep Pruning 链未触动 | ✅ |
+| SESSION-192 物理审计 banner 文案未触动（仅在其后追加 industrial baking banner） | ✅ |
+| SESSION-193 `arbitrate_controlnet_strengths` 算法未触动（仅由 SESSION-194 激活） | ✅ |
+| 全部新节点通过 `class_type + _meta.title` 寻址，零硬编码数字 ID | ✅ |
+| 全部 SESSION-194 拦截测试 100% 离线（无 ComfyUI HTTP） | ✅ |
+
+### 24.7 测试验收
+
+```bash
+PYTHONPATH=. python3.11 -m pytest \
+    tests/test_session194_pipeline_integration_closure.py -v
+# 预期结果：15 passed
+```
+
+测试矩阵（15 用例）覆盖：OpenPose 节点存在性 / strength=1.0；OpenPose Loader+VHS+Apply 三件套；session194_pipeline_integration_closure 锁印；二次水化幂等；IPAdapter Apply 接进 KSampler.model；物理烘焙 ≥ frame_count 张 PNG；步态时间变化非零；trunk 哨兵替换；仲裁器 dummy/non-dummy 双路径；DAG 闭合 fail-fast。
+
+### 24.8 Sanity-check（无 GPU 环境，30 秒）
+
+```bash
+PYTHONPATH=. python3.11 - <<'PY'
+import sys
+from mathart.animation.comfyui_preset_manager import (
+    ComfyUIPresetManager, _SPARSECTRL_PRESET_NAME,
+)
+from mathart.core.openpose_pose_provider import bake_openpose_pose_sequence
+
+m = ComfyUIPresetManager()
+payload = m.assemble_sequence_payload(
+    preset_name=_SPARSECTRL_PRESET_NAME,
+    normal_sequence_dir="/tmp/n", depth_sequence_dir="/tmp/d", rgb_sequence_dir="/tmp/r",
+    prompt="a high quality 3a hero", frame_count=8,
+)
+print("DAG closure  :", payload["mathart_lock_manifest"]["session194_dag_closure"]["status"])
+print("OpenPose mode:", payload["mathart_lock_manifest"]["session194_openpose_chain"]["mode"])
+print("IPAdapter mode:", payload["mathart_lock_manifest"]["session194_ipadapter_chain"]["mode"])
+
+art = bake_openpose_pose_sequence(output_dir="/tmp/op_demo", frame_count=8, width=512, height=512)
+print("Baked OpenPose dir:", art.sequence_directory)
+PY
+ls /tmp/op_demo
+```
+
+预期看到 `DAG closure : closed`、两个 mode 均为 `injected`、以及 8 张 PNG。
+
+> 老大，SESSION-194 三块孤儿零件已经焊进主干。下一棒（SESSION-195）建议先把 SESSION-190/192 旧测试的 `>=0.85` 阈值断言对齐到 SESSION-193 的新红线，再做真实 GPU ComfyUI 集成回放。

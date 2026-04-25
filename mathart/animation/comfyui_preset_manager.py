@@ -607,7 +607,50 @@ class ComfyUIPresetManager:
             )
             lock_manifest["session189_override_report"] = _override_report
         except Exception as _override_exc:  # pragma: no cover
+            # SESSION-194: log loud — the SESSION-189 override is a hard
+            # SLA, silently dropping it leaves a half-locked workflow.
+            import logging as _logging
+            _logging.getLogger(__name__).error(
+                "[comfyui_preset_manager] SESSION-189 force_override failed: %s",
+                _override_exc,
+            )
             lock_manifest["session189_override_error"] = str(_override_exc)
+
+        # ─────────────────────────────────────────────────────────────
+        # SESSION-194 P0-PIPELINE-INTEGRATION-CLOSURE
+        # AST-inject the OpenPose ControlNet chain + IPAdapter quartet so
+        # that every assembled payload exits this function topologically
+        # complete (Airflow DAG closure) and IoC-wired (Spring DI).
+        # The OpenPose VHS_LoadImagesPath.directory carries a sentinel
+        # placeholder (`__OPENPOSE_SEQUENCE_DIR__`); the trunk pipeline
+        # (`builtin_backends._execute_live_pipeline`) bakes the real pose
+        # PNGs and rebinds the directory before dispatch.
+        # ─────────────────────────────────────────────────────────────
+        try:
+            from mathart.core.preset_topology_hydrator import (
+                hydrate_openpose_controlnet_chain as _hydrate_openpose,
+                hydrate_ipadapter_quartet as _hydrate_ipadapter,
+                validate_preset_topology_closure as _validate_closure,
+                OPENPOSE_SEQUENCE_DIR_SENTINEL as _OP_SENTINEL,
+                PipelineIntegrityError as _PipelineIntegrityError,
+            )
+            _openpose_report = _hydrate_openpose(
+                workflow,
+                openpose_sequence_directory=_OP_SENTINEL,
+            )
+            _ipa_report = _hydrate_ipadapter(workflow)
+            _closure_report = _validate_closure(workflow)
+            lock_manifest["session194_openpose_chain"] = _openpose_report
+            lock_manifest["session194_ipadapter_chain"] = _ipa_report
+            lock_manifest["session194_dag_closure"] = _closure_report
+            lock_manifest["session194_pipeline_integration_closure"] = True
+        except _PipelineIntegrityError:
+            # Topology integrity violations are FAIL-FAST; do not silently
+            # degrade and emit a half-wired payload.
+            raise
+        except Exception as _s194_exc:  # pragma: no cover
+            lock_manifest["session194_integration_error"] = str(_s194_exc)
+            lock_manifest["session194_pipeline_integration_closure"] = False
 
         return {
             "client_id": client_id or str(uuid.uuid4()),

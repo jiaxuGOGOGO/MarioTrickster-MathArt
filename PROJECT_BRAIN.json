@@ -1,6 +1,6 @@
 {
-  "version": "v1.0.4",
-  "last_session_id": "SESSION-193",
+  "version": "v1.0.5",
+  "last_session_id": "SESSION-194",
   "last_updated": "2026-04-25",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
@@ -24,6 +24,66 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-194-PIPELINE-INTEGRATION-CLOSURE",
+        "title": "Pipeline Integration Closure — OpenPose+IPAdapter Hydrator + IoC Bake-and-Bind + Arbitrator Activation",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-194",
+        "modules": [
+          "mathart/core/preset_topology_hydrator.py",
+          "mathart/core/openpose_pose_provider.py",
+          "mathart/animation/comfyui_preset_manager.py",
+          "mathart/core/builtin_backends.py",
+          "mathart/factory/mass_production.py",
+          "docs/USER_GUIDE.md",
+          "research_notes_session194_pipeline_integration.md",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [
+          "tests/test_session194_pipeline_integration_closure.py"
+        ],
+        "description": "SESSION-194 P0 Pipeline Integration Closure: SESSION-193 delivered three new modules (identity_hydration, openpose_skeleton_renderer, arbitrate_controlnet_strengths) but they were never imported by the trunk, leaving them as orphan workshop parts. SESSION-194 welds them into the trunk via three industrial patterns: (1) AST-level preset topology hydration — new mathart/core/preset_topology_hydrator.py provides hydrate_openpose_controlnet_chain (injects VHS_LoadImagesPath + ControlNetLoader + ControlNetApplyAdvanced via class_type+title selectors, splices conditioning, idempotent on second call) and hydrate_ipadapter_quartet (injects LoadImage + CLIPVisionLoader + IPAdapterModelLoader + IPAdapterApply, splices between AnimateDiffLoader and KSampler.model). ComfyUIPresetManager.assemble_sequence_payload now calls both hydrators plus validate_preset_topology_closure (Airflow-style ghost-edge sweep) at every assembly. (2) IoC physical asset bake-and-bind — new mathart/core/openpose_pose_provider.py defines bake_openpose_pose_sequence which physically writes COCO-18 PNG frames to chunk_root/openpose_pose/. builtin_backends._execute_live_pipeline chunk loop runs the bake post-assembly, then replaces the OPENPOSE_SEQUENCE_DIR_SENTINEL placeholder in the just-built workflow with the real on-disk directory. Failure raises PipelineContractError (Spring DI fail-fast). (3) Dynamic arbitrator activation — same chunk site now invokes arbitrate_controlnet_strengths(workflow, is_dummy_mesh=detect_dummy_mesh(ctx)); arbitration report saved to mathart_lock_manifest.session194_arbitration_report. (4) Exception-swallowing eradication — mass_production._json_default and physics-telemetry block, plus comfyui_preset_manager session189 force_override block, all stop being silent: now log+degrade for non-critical paths and raise PipelineIntegrityError (subclass of PipelineContractError) for topology violations. (5) UX zero-degradation — emit_industrial_baking_banner (⊙ 工业烘焙网关 / Catmull-Rom) wired in after physics telemetry banner. (6) 15 end-to-end intercept tests in tests/test_session194_pipeline_integration_closure.py, all passing offline.",
+        "red_lines_honored": [
+          "Zero touch on HTTP_PROXY / HTTPS_PROXY / NO_PROXY",
+          "SESSION-189 anchors MAX_FRAMES=16 / LATENT_EDGE=512 / NORMAL_MATTE_RGB / anime_rhythmic_subsample preserved",
+          "SESSION-190 force_decouple_dummy_mesh_payload algorithm preserved",
+          "SESSION-191 action_filter Deep Pruning chain preserved",
+          "SESSION-192 physics-telemetry banner text preserved (only appended industrial baking banner after it)",
+          "SESSION-193 arbitrate_controlnet_strengths algorithm preserved (only activated by SESSION-194 call site)",
+          "All node addressing via class_type + _meta.title selectors; zero hardcoded numeric IDs",
+          "All SESSION-194 intercept tests are 100% offline (no live ComfyUI HTTP)",
+          "DAG topology violations are FAIL-FAST via PipelineIntegrityError"
+        ],
+        "hydrator_contract": {
+          "openpose_apply_strength": 1.0,
+          "openpose_controlnet_model": "control_v11p_sd15_openpose.pth",
+          "openpose_sequence_dir_sentinel": "__OPENPOSE_SEQUENCE_DIR__",
+          "ipadapter_model": "ip-adapter-plus_sd15.safetensors",
+          "clip_vision_model": "clip-vit-h-14-laion2B-s32B-b79K.safetensors",
+          "ipadapter_weight": 0.85,
+          "validation": "validate_preset_topology_closure (Airflow-style)",
+          "closure_failures": [
+            "ghost_edge_unresolved_node_id",
+            "missing_ksampler",
+            "missing_sink_save_image_or_video_combine"
+          ]
+        },
+        "ioc_bake_contract": {
+          "call_site": "mathart.core.builtin_backends._execute_live_pipeline (per chunk)",
+          "sentinel": "__OPENPOSE_SEQUENCE_DIR__",
+          "output_subdir": "chunk_root/openpose_pose/",
+          "frame_format": "PNG (COCO-18)",
+          "failure_mode": "PipelineContractError(session194_openpose_bake_failure) | PipelineIntegrityError"
+        },
+        "deferred_followups": [
+          "SESSION-195: refresh test_session190 / test_session192 strength assertions (>=0.85) to align with SESSION-193 0.40/0.45 arbitration contract",
+          "SESSION-195: smoke test against a real GPU ComfyUI server",
+          "SESSION-195: auto-bind _visual_reference_path into LoadImage on the same IoC bus",
+          "SESSION-195: extend openpose_pose_provider with run/jump/idle/dash gait templates via MotionStateLaneRegistry"
+        ]
+      },
       {
         "id": "P0-SESSION-193-IDENTITY-HYDRATION-CHUNK-REPAIR-OPENPOSE",
         "title": "IPAdapter Identity Hydration + Chunk Math Repair + OpenPose ControlNet Arbitration",
