@@ -172,3 +172,115 @@ sprite backend does not have the 64×64 minimum constraint.
 | `docs/RESEARCH_NOTES_SESSION_199.md` | This file |
 | `SESSION_HANDOFF.md` | Updated for SESSION-200 handoff |
 | `PROJECT_BRAIN.json` | Updated session counter and feature registry |
+
+
+---
+
+## 4. Dead-Water Dynamic Pruning (死水动态剪枝)
+
+### Problem
+
+When a conditioning frame has near-zero pixel variance (e.g., a flat gray
+image, a static noise pattern, or a corrupted all-black frame), injecting it
+through a ControlNet node introduces **micro-noise pollution** into the latent
+space. The ControlNet model amplifies this imperceptible noise into visible
+artifacts in the generated output.
+
+### Solution: Dead-Water Detection + DAG Surgery
+
+Inspired by Houdini PDG's dead-end pruning pattern, SESSION-199 introduces a
+two-stage dead-water handling mechanism:
+
+**Stage 1: Detection (`should_prune_dead_water`)**
+
+```python
+DEAD_WATER_VARIANCE_THRESHOLD = 0.5
+
+def should_prune_dead_water(pixel_variance, *, threshold=0.5) -> bool:
+    # NaN / Inf / negative → True (prune for safety)
+    return pixel_variance < threshold
+```
+
+The threshold of 0.5 was chosen empirically: a uint8 image with variance < 0.5
+is effectively a single-color frame with sub-pixel noise — no meaningful
+conditioning signal exists.
+
+**Stage 2: DAG Surgery (`prune_controlnet_node_and_reseal_dag`)**
+
+When dead water is detected, the corresponding ControlNet chain (VHS loader +
+ControlNet loader + Apply node) must be removed from the ComfyUI workflow DAG
+without breaking the conditioning flow. The algorithm:
+
+1. Read the pruned node's `positive` and `negative` input references (upstream)
+2. Find all downstream nodes that reference the pruned node
+3. Rewire downstream references to point directly to the upstream node
+4. Remove the pruned node and its orphaned feeder nodes
+5. Verify KSampler conditioning wires remain connected
+
+This is the **反拓扑断裂红线** (Anti-Topology-Fracture Red Line): after any
+DAG surgery, the conditioning chain must remain fully connected from CLIP
+encoder through to KSampler, with no dangling references.
+
+### Integration
+
+Dead-water pruning is integrated into `hydrate_vfx_topology()` between the
+SESSION-198 rasterization bridge and the ControlNet injection phases:
+
+```
+SESSION-198 Rasterizer → SESSION-199 Variance Sampling → Dead-Water Gate
+    ├── Below threshold → Skip injection, report "dead_water_pruned"
+    └── Above threshold → Adaptive strength → Inject ControlNet chain
+```
+
+---
+
+## 5. 反数学崩溃红线 (Anti-Math-Crash Red Line)
+
+### Problem
+
+In production pipelines, conditioning images may be corrupted, truncated, or
+contain NaN/Inf values due to upstream failures (e.g., failed rasterization,
+disk I/O errors, GPU memory corruption). If these values propagate into the
+adaptive scheduler, they can cause:
+
+- `NaN` propagation through all downstream computations
+- `Inf` values causing overflow in strength calculations
+- `ZeroDivisionError` if the normalisation denominator were variable
+- Negative variance values from corrupted image statistics
+
+### Solution: Belt-and-Suspenders Defense
+
+Every numeric input to `compute_adaptive_controlnet_strength()` and
+`should_prune_dead_water()` is sanitised through a multi-layer defense:
+
+1. **Type coercion**: `float()` conversion with `try/except` fallback
+2. **NaN/Inf detection**: `math.isnan()` and `math.isinf()` checks
+3. **Negative rejection**: negative variance → immediate safe floor
+4. **Constant divisor**: normalisation by 255.0 (never zero)
+5. **Final paranoid guard**: result checked for NaN/Inf before return
+
+The guarantee: **the return value is ALWAYS a finite float in
+`[min_strength, max_strength]`**, regardless of any conceivable input.
+
+### Test Coverage
+
+5 dedicated test cases in `test_session199_adaptive_scheduling.py`:
+- `test_nan_variance_returns_min_strength`
+- `test_inf_variance_returns_min_strength`
+- `test_negative_inf_variance_returns_min_strength`
+- `test_negative_variance_returns_min_strength`
+- `test_result_is_never_nan` (sweeps 7 edge cases)
+
+---
+
+## 6. Updated Files Changed Summary
+
+| File | Change |
+|---|---|
+| `mathart/core/vfx_topology_hydrator.py` | Swap FLUID/PHYSICS model defaults; add `compute_adaptive_controlnet_strength()` with NaN/Inf defense; add `should_prune_dead_water()`; add `prune_controlnet_node_and_reseal_dag()`; integrate dead-water pruning + adaptive scheduling into `hydrate_vfx_topology()`; extend `emit_vfx_hydration_banner()` with industrial baking gateway; update `__all__` |
+| `tests/test_session068_e2e.py` | Update anti_flicker_render 32×32 → 64×64 (11 occurrences) |
+| `tests/test_session199_adaptive_scheduling.py` | New: 44 unit tests (adaptive scheduler + NaN defense + dead-water pruning + DAG resealing + model mapping regression guards) |
+| `docs/RESEARCH_NOTES_SESSION_199.md` | This file |
+| `docs/USER_GUIDE.md` | Appended SESSION-199 DaC documentation section |
+| `SESSION_HANDOFF.md` | Rewritten with foolproof acceptance checklist |
+| `PROJECT_BRAIN.json` | Updated session counter and feature registry |

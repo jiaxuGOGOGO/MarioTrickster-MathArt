@@ -2887,3 +2887,108 @@ SESSION-197 新增测试文件 `test_session197_physics_bus_unification.py`（48
 - **纯 CPU 光栅化**：完全摒弃重型渲染库，使用 NumPy 和 PIL 将 JSON 格式的 3D XPBD 软体形变与流体动力学矢量，精准降维映射为 512x512 的 2D 特征图像序列（例如 RGB 色彩映射动量，灰度梯度映射深度）。
 - **反假图糊弄红线**：生成的每一帧图像都必须保留真实的数学物理扰动视觉特征，系统会强制进行图像矩阵方差探活检查（`np.var(img) > 0`），彻底杜绝生成全黑或全白的占位图。
 - **工业级烘焙网关**：运行至烘焙阶段时，系统会高亮播报：`[⚙️ 工业烘焙网关] 正在通过 Catmull-Rom 样条插值，纯 CPU 解算高精度工业级贴图动作序列...`
+
+## 28. SESSION-199: 自适应方差调度 + 死水剪枝 + 安全模型映射重构 (Adaptive Variance Scheduling & Dead-Water Pruning)
+
+> **SESSION-199 新增** — ControlNet 注入管线现已具备自适应增益调度能力。系统会根据条件帧的像素方差动态缩放注入强度，并自动剪除"死水"（近零方差）通道，防止微噪声污染潜空间。
+
+### 28.1 安全模型映射重构（反臆想模型注入红线）
+
+SESSION-199 纠正了 ControlNet 模型映射方向，确保物理语义与模型能力精确匹配：
+
+| 通道 | 旧映射（错误） | 新映射（正确） | 理论依据 |
+|------|----------------|----------------|----------|
+| 流体动量场 (fluid_flowmap) | `control_v11f1p_sd15_depth.pth` | `control_v11p_sd15_normalbae.pth` | Woodham 1980 光度立体法：流体动量场编码方向性表面流动，映射到表面法线扰动 |
+| 3D 物理形变 (physics_3d) | `control_v11p_sd15_normalbae.pth` | `control_v11f1p_sd15_depth.pth` | Z 轴位移 ≈ 深度图梯度，3D 刚体形变自然映射到深度拓扑 |
+
+### 28.2 自适应方差权重调度器
+
+`compute_adaptive_controlnet_strength()` 基于 PID 自适应增益调度原理（Åström & Hägglund 1995），根据条件帧的像素方差动态缩放 ControlNet 注入强度：
+
+```
+normalised = pixel_variance / 255.0
+raw = base_strength + variance_scale * normalised
+strength = clamp(raw, min_strength, max_strength)
+```
+
+**安全保证（反数学崩溃红线）**：
+- `np.nan` / `np.inf` / 负方差 → 立即返回 `min_strength`（安全下限）
+- 除零不可能发生（除数为常量 255.0）
+- 返回值**始终**为有限浮点数，在 `[min_strength, max_strength]` 区间内
+
+### 28.3 死水动态剪枝（反拓扑断裂红线）
+
+当条件帧的像素方差低于死水阈值（`DEAD_WATER_VARIANCE_THRESHOLD = 0.5`）时，对应的 ControlNet 节点将被从 DAG 中短路跳过：
+
+1. **`should_prune_dead_water()`** — 死水检测门：判断方差是否低于阈值
+2. **`prune_controlnet_node_and_reseal_dag()`** — DAG 手术刀：
+   - 读取被剪枝节点的上游 positive/negative 引用
+   - 找到所有下游消费者节点
+   - 将下游引用重新指向上游节点（绕过被剪枝节点）
+   - 删除被剪枝节点及其孤立的 VHS_LoadImagesPath 和 ControlNetLoader 馈送节点
+   - **KSampler 条件线路始终保持完整连通**
+
+### 28.4 UX 横幅
+
+SESSION-199 扩展了 VFX 注入横幅，包含自适应调度和死水剪枝状态：
+
+```
+[⚡ SESSION-197 VFX 拓扑注入] 物理/流体计算产物已动态织入 ControlNet 串联链路 (fluid_flowmap + physics_3d) → DAG 闭合验证通过
+[🎯 SESSION-199 自适应调度] fluid ControlNet 强度已动态调整 → 0.450
+[⚙️ 工业烘焙网关] SESSION-199 VFX 拓扑注入完成 → 自适应方差调度 + 死水剪枝 + DAG 闭合验证 → 管道就绪
+```
+
+当死水剪枝触发时：
+```
+[💧 SESSION-199 死水剪枝] physics_3d 方差低于阈值 → 已从 DAG 剪除以防止潜空间污染
+```
+
+### 28.5 新增/修改文件清单
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `mathart/core/vfx_topology_hydrator.py` | **修改** | 模型映射对调 + 自适应调度器 + 死水剪枝 + DAG 缝合 + UX 横幅 |
+| `tests/test_session068_e2e.py` | **修改** | 历史红灯清理：11 处 anti_flicker_render 32×32 → 64×64 |
+| `tests/test_session199_adaptive_scheduling.py` | **新增** | 44 个单元测试（自适应调度 + 死水剪枝 + DAG 闭合 + NaN 防御 + 模型映射回归守卫） |
+| `docs/RESEARCH_NOTES_SESSION_199.md` | **新增** | 外网参考研究笔记 |
+| `docs/USER_GUIDE.md` | **追加** | 本节内容 |
+| `SESSION_HANDOFF.md` | **重写** | 交接文档 |
+| `PROJECT_BRAIN.json` | **更新** | 任务状态 |
+
+### 28.6 测试覆盖
+
+SESSION-199 新增测试文件 `test_session199_adaptive_scheduling.py`（44 个用例），分为 6 个测试组：
+
+1. **自适应强度计算** — 16 个用例（边界值 + 中间值 + 返回类型 + 钳制不变量）
+2. **反数学崩溃红线** — 5 个用例（NaN / Inf / 负值 / 负无穷 / 全输入防御）
+3. **模型映射回归守卫** — 3 个用例（fluid→normalbae / physics→depth / 不相同）
+4. **死水检测门** — 9 个用例（零方差 / 阈值边界 / NaN / Inf / 自定义阈值）
+5. **DAG 剪枝与缝合** — 7 个用例（节点删除 / KSampler 重连 / 上游保留 / 连通性断言）
+6. **集成测试** — 4 个用例（高方差注入 / 死水剪枝 / 完整流程 / 节点计数）
+
+### 28.7 红线合规声明
+
+| 红线 | 状态 |
+|------|------|
+| 代理环境变量零接触 | ✅ |
+| SESSION-189 锚点未触动 | ✅ |
+| SESSION-190 `force_decouple_dummy_mesh_payload` 算法未触动 | ✅ |
+| SESSION-193 `arbitrate_controlnet_strengths` 基础逻辑未触动 | ✅ |
+| SESSION-194 OpenPose IoC 契约未触动 | ✅ |
+| SESSION-195 IPAdapter 晚绑定契约未触动 | ✅ |
+| SESSION-197 VFX 拓扑注入核心逻辑未破坏（仅扩展） | ✅ |
+| SESSION-198 光栅化桥接未触动 | ✅ |
+| 反臆想模型注入红线（fluid→normalbae, physics→depth） | ✅ |
+| 反数学崩溃红线（NaN/Inf/除零全防御） | ✅ |
+| 反拓扑断裂红线（剪枝后 DAG 完整连通） | ✅ |
+| 测试断言演进（非跳过/注释） | ✅ |
+
+### 28.8 工业参考文献
+
+| 参考 | 应用 |
+|------|------|
+| Woodham 1980 Photometric Stereo | 流体动量场 → normalbae 模型映射理论基础 |
+| Åström & Hägglund 1995 PID Controllers | 自适应增益调度：基于方差的动态强度缩放 |
+| ComfyUI ControlNet Stacking Guidelines | 辅助 ControlNet 权重安全窗口 0.10–0.90 |
+| Houdini PDG Dead-End Pruning | 死水剪枝：零方差通道自动短路跳过 |
+| DAG Closure Validation (反图谱污染红线) | 剪枝后 DAG 闭合验证确保无悬空引用 |

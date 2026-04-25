@@ -97,7 +97,16 @@ TITLE_PHYSICS_APPLY: str = "session197 apply physics controlnet"
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  SESSION-199: Adaptive Variance-Based ControlNet Strength Scheduler
+#  + Dead-Water Dynamic Pruning + Anti-Math-Crash Red Line
 # ═══════════════════════════════════════════════════════════════════════════
+
+import math
+
+# Dead-water variance threshold: below this, the conditioning frame is
+# considered flat/static noise and the ControlNet node should be pruned
+# from the DAG to prevent latent-space pollution.
+DEAD_WATER_VARIANCE_THRESHOLD: float = 0.5
+
 
 def compute_adaptive_controlnet_strength(
     pixel_variance: float,
@@ -114,6 +123,11 @@ def compute_adaptive_controlnet_strength(
     normalised pixel variance of the conditioning image frame, then
     clamps the result to the safe operating window ``[min_strength,
     max_strength]``.
+
+    **反数学崩溃红线 (Anti-Math-Crash Red Line)**:
+    - ``np.nan`` / ``np.inf`` / negative variance → returns ``min_strength``
+    - ``ZeroDivisionError`` impossible (divisor is constant 255.0)
+    - Result is **always** a finite float in ``[min_strength, max_strength]``
 
     The formula is::
 
@@ -141,6 +155,7 @@ def compute_adaptive_controlnet_strength(
     -------
     float
         Adaptive ControlNet strength in ``[min_strength, max_strength]``.
+        Guaranteed finite, non-NaN, non-Inf.
 
     Examples
     --------
@@ -150,10 +165,192 @@ def compute_adaptive_controlnet_strength(
     0.375
     >>> compute_adaptive_controlnet_strength(65025.0)  # max variance
     0.85
+    >>> compute_adaptive_controlnet_strength(float('nan'))  # NaN → safe floor
+    0.1
+    >>> compute_adaptive_controlnet_strength(float('inf'))  # Inf → safe floor
+    0.1
     """
-    normalised = float(pixel_variance) / 255.0
-    raw = float(base_strength) + float(variance_scale) * normalised
-    return float(max(float(min_strength), min(float(max_strength), raw)))
+    # ── 反数学崩溃红线: sanitise all inputs ──────────────────────────────
+    try:
+        pv = float(pixel_variance)
+    except (TypeError, ValueError):
+        pv = 0.0
+    try:
+        bs = float(base_strength)
+    except (TypeError, ValueError):
+        bs = 0.35
+    try:
+        vs = float(variance_scale)
+    except (TypeError, ValueError):
+        vs = 0.5
+    try:
+        lo = float(min_strength)
+    except (TypeError, ValueError):
+        lo = 0.10
+    try:
+        hi = float(max_strength)
+    except (TypeError, ValueError):
+        hi = 0.90
+
+    # NaN / Inf / negative variance → collapse to safe floor immediately
+    if math.isnan(pv) or math.isinf(pv) or pv < 0.0:
+        return lo
+    if math.isnan(bs) or math.isinf(bs):
+        bs = 0.35
+    if math.isnan(vs) or math.isinf(vs):
+        vs = 0.5
+    if math.isnan(lo) or math.isinf(lo):
+        lo = 0.10
+    if math.isnan(hi) or math.isinf(hi):
+        hi = 0.90
+
+    normalised = pv / 255.0  # constant divisor — ZeroDivisionError impossible
+    raw = bs + vs * normalised
+
+    # Final clamp — guarantees finite result in [lo, hi]
+    result = max(lo, min(hi, raw))
+
+    # Paranoid final NaN/Inf guard (belt-and-suspenders)
+    if math.isnan(result) or math.isinf(result):
+        return lo
+    return result
+
+
+def should_prune_dead_water(
+    pixel_variance: float,
+    *,
+    threshold: float = DEAD_WATER_VARIANCE_THRESHOLD,
+) -> bool:
+    """Determine if a conditioning frame should be pruned (dead-water detection).
+
+    SESSION-199 Dynamic Pruning Gate:
+    If the pixel variance of a conditioning frame is below the dead-water
+    threshold, the corresponding ControlNet node should be short-circuited
+    (pruned) from the DAG to prevent micro-noise from polluting the latent
+    space.
+
+    Parameters
+    ----------
+    pixel_variance : float
+        Raw pixel variance of the conditioning frame.
+    threshold : float
+        Dead-water variance threshold. Default 0.5.
+
+    Returns
+    -------
+    bool
+        True if the frame should be pruned (dead water), False otherwise.
+    """
+    try:
+        pv = float(pixel_variance)
+    except (TypeError, ValueError):
+        return True  # unparseable → prune for safety
+    if math.isnan(pv) or math.isinf(pv) or pv < 0.0:
+        return True  # anomalous → prune for safety
+    return pv < threshold
+
+
+def prune_controlnet_node_and_reseal_dag(
+    workflow: dict[str, Any],
+    apply_node_id: str,
+) -> dict[str, Any]:
+    """Prune a ControlNetApplyAdvanced node and reseal the DAG.
+
+    SESSION-199 反拓扑断裂红线 (Anti-Topology-Fracture Red Line):
+    When dead-water detection triggers dynamic pruning of a VFX ControlNet
+    node, the upstream positive/negative conditioning wires must be
+    seamlessly reconnected to all downstream consumers. This ensures the
+    KSampler (or next ControlNet in the daisy-chain) continues to receive
+    its conditioning flow without interruption.
+
+    Algorithm:
+    1. Read the pruned node's ``positive`` and ``negative`` input references
+       (these point to the upstream node).
+    2. Find all downstream nodes that reference ``apply_node_id`` in their
+       ``positive`` or ``negative`` inputs.
+    3. Rewire those downstream references to point directly to the upstream
+       node (bypass the pruned node).
+    4. Also remove the associated VHS_LoadImagesPath and ControlNetLoader
+       nodes that fed exclusively into the pruned apply node.
+    5. Delete the pruned nodes from the workflow.
+
+    Parameters
+    ----------
+    workflow : dict
+        The ComfyUI workflow JSON (mutable, modified in-place).
+    apply_node_id : str
+        The node ID of the ControlNetApplyAdvanced to prune.
+
+    Returns
+    -------
+    dict
+        Pruning report with details of rewired and removed nodes.
+    """
+    report: dict[str, Any] = {
+        "session": "SESSION-199",
+        "operation": "dead_water_prune_and_reseal",
+        "pruned_node_id": apply_node_id,
+        "rewired": [],
+        "removed_nodes": [],
+    }
+
+    apply_node = workflow.get(str(apply_node_id))
+    if apply_node is None:
+        report["status"] = "node_not_found"
+        return report
+
+    apply_inputs = apply_node.get("inputs", {})
+
+    # ── Step 1: Identify upstream conditioning source ─────────────────
+    upstream_positive = apply_inputs.get("positive")  # e.g. ["42", 0]
+    upstream_negative = apply_inputs.get("negative")  # e.g. ["42", 1]
+
+    if not isinstance(upstream_positive, list) or not isinstance(upstream_negative, list):
+        report["status"] = "upstream_refs_missing"
+        return report
+
+    # ── Step 2: Find and rewire all downstream consumers ──────────────
+    apply_id_str = str(apply_node_id)
+    for nid, node in list(workflow.items()):
+        if not isinstance(node, dict) or str(nid) == apply_id_str:
+            continue
+        ins = node.get("inputs", {})
+        if not isinstance(ins, dict):
+            continue
+        for key in ("positive", "negative"):
+            ref = ins.get(key)
+            if isinstance(ref, list) and len(ref) >= 2 and str(ref[0]) == apply_id_str:
+                # Rewire: point to the upstream node instead
+                if key == "positive":
+                    ins[key] = list(upstream_positive)
+                else:
+                    ins[key] = list(upstream_negative)
+                report["rewired"].append({
+                    "downstream_node_id": str(nid),
+                    "input_key": key,
+                    "old_ref": ref,
+                    "new_ref": ins[key],
+                })
+
+    # ── Step 3: Identify and remove orphaned feeder nodes ─────────────
+    # The ControlNetLoader and VHS_LoadImagesPath that fed into this apply
+    control_net_ref = apply_inputs.get("control_net")
+    image_ref = apply_inputs.get("image")
+
+    nodes_to_remove = [apply_id_str]
+    for ref in (control_net_ref, image_ref):
+        if isinstance(ref, list) and len(ref) >= 1:
+            feeder_id = str(ref[0])
+            if feeder_id in workflow:
+                nodes_to_remove.append(feeder_id)
+
+    for nid in nodes_to_remove:
+        if nid in workflow:
+            del workflow[nid]
+            report["removed_nodes"].append(nid)
+
+    report["status"] = "pruned_and_resealed"
+    return report
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -657,8 +854,64 @@ def hydrate_vfx_topology(
         if strict:
             raise
 
-    # ── Phase 2: Fluid ControlNet Injection ────────────────────────────
-    if fluid_dir:
+    # ── SESSION-199 Phase 1.5: Variance-based Adaptive Scheduling ──────
+    # Sample PNG frames to compute pixel variance for dynamic gain + pruning.
+    import numpy as np
+
+    def _sample_variance_from_dir(artifact_dir: str) -> float:
+        """Sample pixel variance from the first PNG in a directory."""
+        try:
+            from PIL import Image as _PILImage
+            p = Path(artifact_dir)
+            pngs = sorted(p.glob("*.png"))
+            if not pngs:
+                return 0.0
+            img = _PILImage.open(pngs[0]).convert("RGB")
+            arr = np.asarray(img, dtype=np.float64)
+            v = float(np.var(arr))
+            # 反数学崩溃红线: guard against NaN/Inf from corrupted images
+            if math.isnan(v) or math.isinf(v):
+                return 0.0
+            return v
+        except Exception:
+            return 0.0
+
+    fluid_variance = _sample_variance_from_dir(fluid_dir) if fluid_dir else 0.0
+    physics_variance = _sample_variance_from_dir(physics_dir) if physics_dir else 0.0
+
+    report["fluid_pixel_variance"] = fluid_variance
+    report["physics_pixel_variance"] = physics_variance
+
+    # Dead-water detection: if variance is below threshold, prune this channel
+    fluid_is_dead_water = should_prune_dead_water(fluid_variance) if fluid_dir else False
+    physics_is_dead_water = should_prune_dead_water(physics_variance) if physics_dir else False
+
+    report["fluid_dead_water"] = fluid_is_dead_water
+    report["physics_dead_water"] = physics_is_dead_water
+
+    # Adaptive strength scheduling (only for non-dead-water channels)
+    if fluid_dir and not fluid_is_dead_water:
+        fluid_strength = compute_adaptive_controlnet_strength(
+            fluid_variance, base_strength=fluid_strength,
+        )
+    if physics_dir and not physics_is_dead_water:
+        physics_strength = compute_adaptive_controlnet_strength(
+            physics_variance, base_strength=physics_strength,
+        )
+
+    report["fluid_adaptive_strength"] = fluid_strength if (fluid_dir and not fluid_is_dead_water) else None
+    report["physics_adaptive_strength"] = physics_strength if (physics_dir and not physics_is_dead_water) else None
+
+    # ── SESSION-199 UX: Emit industrial baking gateway banner ──────────
+    import sys as _sys
+    try:
+        from mathart.core.anti_flicker_runtime import emit_industrial_baking_banner
+        emit_industrial_baking_banner(stream=_sys.stderr)
+    except Exception:
+        pass  # UX banner is non-critical; never block the pipeline
+
+    # ── Phase 2: Fluid ControlNet Injection ────────────────────
+    if fluid_dir and not fluid_is_dead_water:
         try:
             _validate_artifact_dir(fluid_dir, "fluid_flowmap")
             fluid_report = hydrate_fluid_controlnet_chain(
@@ -669,8 +922,8 @@ def hydrate_vfx_topology(
             report["fluid_report"] = fluid_report
             report["artifacts_injected"].append("fluid_flowmap")
             logger.info(
-                "[SESSION-197 VFX Hydrator] Fluid ControlNet chain %s: %s",
-                fluid_report.get("mode"), fluid_dir,
+                "[SESSION-199 VFX Hydrator] Fluid ControlNet chain %s (adaptive strength=%.3f): %s",
+                fluid_report.get("mode"), fluid_strength, fluid_dir,
             )
         except PipelineIntegrityError:
             if strict:
@@ -683,9 +936,21 @@ def hydrate_vfx_topology(
                 "mode": "graceful_degradation",
                 "reason": f"Directory not found: {fluid_dir}",
             }
+    elif fluid_dir and fluid_is_dead_water:
+        logger.info(
+            "[SESSION-199 Dead-Water Pruning] Fluid channel variance %.4f < threshold %.4f — "
+            "pruning fluid ControlNet node to prevent latent-space pollution.",
+            fluid_variance, DEAD_WATER_VARIANCE_THRESHOLD,
+        )
+        report["fluid_report"] = {
+            "mode": "dead_water_pruned",
+            "pixel_variance": fluid_variance,
+            "threshold": DEAD_WATER_VARIANCE_THRESHOLD,
+            "reason": "Variance below dead-water threshold; node pruned to prevent latent pollution.",
+        }
 
-    # ── Phase 3: Physics ControlNet Injection ──────────────────────────
-    if physics_dir:
+    # ── Phase 3: Physics ControlNet Injection ────────────────────
+    if physics_dir and not physics_is_dead_water:
         try:
             _validate_artifact_dir(physics_dir, "physics_3d")
             physics_report = hydrate_physics_controlnet_chain(
@@ -696,8 +961,8 @@ def hydrate_vfx_topology(
             report["physics_report"] = physics_report
             report["artifacts_injected"].append("physics_3d")
             logger.info(
-                "[SESSION-197 VFX Hydrator] Physics ControlNet chain %s: %s",
-                physics_report.get("mode"), physics_dir,
+                "[SESSION-199 VFX Hydrator] Physics ControlNet chain %s (adaptive strength=%.3f): %s",
+                physics_report.get("mode"), physics_strength, physics_dir,
             )
         except PipelineIntegrityError:
             if strict:
@@ -710,6 +975,18 @@ def hydrate_vfx_topology(
                 "mode": "graceful_degradation",
                 "reason": f"Directory not found: {physics_dir}",
             }
+    elif physics_dir and physics_is_dead_water:
+        logger.info(
+            "[SESSION-199 Dead-Water Pruning] Physics channel variance %.4f < threshold %.4f — "
+            "pruning physics ControlNet node to prevent latent-space pollution.",
+            physics_variance, DEAD_WATER_VARIANCE_THRESHOLD,
+        )
+        report["physics_report"] = {
+            "mode": "dead_water_pruned",
+            "pixel_variance": physics_variance,
+            "threshold": DEAD_WATER_VARIANCE_THRESHOLD,
+            "reason": "Variance below dead-water threshold; node pruned to prevent latent pollution.",
+        }
 
     # ── Phase 4: DAG Closure Validation (反图谱污染红线) ─────────────
     try:
@@ -730,24 +1007,67 @@ def hydrate_vfx_topology(
 
 def emit_vfx_hydration_banner(
     artifacts_injected: list[str],
+    *,
+    dead_water_pruned: list[str] | None = None,
+    adaptive_strengths: dict[str, float] | None = None,
     stream=None,
 ) -> str:
     """Emit a sci-fi UX banner when VFX topology hydration completes.
 
     SESSION-197 UX contract: high-visibility telemetry during the bake phase.
+    SESSION-199 extension: includes dead-water pruning status and adaptive
+    strength scheduling info, plus industrial baking gateway highlight.
     """
-    if not artifacts_injected:
+    if not artifacts_injected and not dead_water_pruned:
         return ""
 
-    artifact_names = " + ".join(artifacts_injected)
-    plain = (
-        f"[\u26a1 SESSION-197 VFX \u62d3\u6251\u6ce8\u5165] "
-        f"\u7269\u7406/\u6d41\u4f53\u8ba1\u7b97\u4ea7\u7269\u5df2\u52a8\u6001\u7ec7\u5165 ControlNet \u4e32\u8054\u94fe\u8def "
-        f"({artifact_names}) \u2192 DAG \u95ed\u5408\u9a8c\u8bc1\u901a\u8fc7"
+    lines: list[str] = []
+
+    # ── SESSION-197 original banner ────────────────────────────────────
+    if artifacts_injected:
+        artifact_names = " + ".join(artifacts_injected)
+        lines.append(
+            f"[\u26a1 SESSION-197 VFX \u62d3\u6251\u6ce8\u5165] "
+            f"\u7269\u7406/\u6d41\u4f53\u8ba1\u7b97\u4ea7\u7269\u5df2\u52a8\u6001\u7ec7\u5165 ControlNet \u4e32\u8054\u94fe\u8def "
+            f"({artifact_names}) \u2192 DAG \u95ed\u5408\u9a8c\u8bc1\u901a\u8fc7"
+        )
+
+    # ── SESSION-199 adaptive scheduling banner ─────────────────────────
+    if adaptive_strengths:
+        for channel, strength in adaptive_strengths.items():
+            lines.append(
+                f"[\U0001f3af SESSION-199 \u81ea\u9002\u5e94\u8c03\u5ea6] {channel} ControlNet "
+                f"\u5f3a\u5ea6\u5df2\u52a8\u6001\u8c03\u6574 \u2192 {strength:.3f}"
+            )
+
+    # ── SESSION-199 dead-water pruning banner ──────────────────────────
+    if dead_water_pruned:
+        pruned_names = " + ".join(dead_water_pruned)
+        lines.append(
+            f"[\U0001f4a7 SESSION-199 \u6b7b\u6c34\u526a\u679d] "
+            f"{pruned_names} \u65b9\u5dee\u4f4e\u4e8e\u9608\u503c \u2192 \u5df2\u4ece DAG \u526a\u9664\u4ee5\u9632\u6b62\u6f5c\u7a7a\u95f4\u6c61\u67d3"
+        )
+
+    # ── SESSION-199 industrial baking gateway highlight ────────────────
+    lines.append(
+        "[\u2699\ufe0f \u5de5\u4e1a\u70d8\u7119\u7f51\u5173] SESSION-199 VFX \u62d3\u6251\u6ce8\u5165\u5b8c\u6210 \u2192 "
+        "\u81ea\u9002\u5e94\u65b9\u5dee\u8c03\u5ea6 + \u6b7b\u6c34\u526a\u679d + DAG \u95ed\u5408\u9a8c\u8bc1 \u2192 \u7ba1\u9053\u5c31\u7eea"
     )
+
+    plain = "\n".join(lines)
+
     if stream is not None:
         try:
-            stream.write("\033[1;35m" + plain + "\033[0m\n")
+            # Magenta for VFX injection, Cyan for industrial gateway
+            for i, line in enumerate(lines):
+                if "\u5de5\u4e1a\u70d8\u7119\u7f51\u5173" in line:
+                    stream.write("\033[1;36m" + line + "\033[0m\n")  # Cyan
+                elif "\u6b7b\u6c34\u526a\u679d" in line:
+                    stream.write("\033[1;33m" + line + "\033[0m\n")  # Yellow
+                elif "\u81ea\u9002\u5e94\u8c03\u5ea6" in line:
+                    stream.write("\033[1;32m" + line + "\033[0m\n")  # Green
+                else:
+                    stream.write("\033[1;35m" + line + "\033[0m\n")  # Magenta
             stream.flush()
         except Exception:
             pass
@@ -760,6 +1080,7 @@ __all__ = [
     "FLUID_CONTROLNET_STRENGTH_DEFAULT",
     "PHYSICS_CONTROLNET_MODEL_DEFAULT",
     "PHYSICS_CONTROLNET_STRENGTH_DEFAULT",
+    "DEAD_WATER_VARIANCE_THRESHOLD",
     "TITLE_FLUID_VHS_LOADER",
     "TITLE_FLUID_CONTROLNET_LOADER",
     "TITLE_FLUID_APPLY",
@@ -773,4 +1094,6 @@ __all__ = [
     "hydrate_vfx_topology",
     "emit_vfx_hydration_banner",
     "compute_adaptive_controlnet_strength",
+    "should_prune_dead_water",
+    "prune_controlnet_node_and_reseal_dag",
 ]

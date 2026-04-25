@@ -26,7 +26,7 @@
     "top_priorities_ordered": [
       {
         "id": "P1-SESSION-199-SAFE-MODEL-MAPPING-ADAPTIVE-SCHEDULING",
-        "title": "Safe ControlNet Model Mapping (反臆想模型注入红线) + Adaptive Variance Scheduling + SESSION-068 Red Light Clearance",
+        "title": "Safe ControlNet Model Mapping (反臆想模型注入红线) + Adaptive Variance Scheduling + Dead-Water Pruning + Anti-Math-Crash + SESSION-068 Red Light Clearance",
         "priority": "P1",
         "status": "CLOSED",
         "session_landed": "SESSION-199",
@@ -35,19 +35,22 @@
           "tests/test_session068_e2e.py",
           "tests/test_session199_adaptive_scheduling.py",
           "docs/RESEARCH_NOTES_SESSION_199.md",
+          "docs/USER_GUIDE.md",
           "SESSION_HANDOFF.md",
           "PROJECT_BRAIN.json"
         ],
         "tests": [
           "tests/test_session199_adaptive_scheduling.py"
         ],
-        "description": "SESSION-199 three-part delivery: (1) 反臆想模型注入红线 — Corrected inverted fluid/physics ControlNet model mapping. FLUID_CONTROLNET_MODEL_DEFAULT changed from depth.pth to normalbae.pth (fluid momentum field ≈ surface normal perturbation per Woodham 1980 photometric stereo). PHYSICS_CONTROLNET_MODEL_DEFAULT changed from normalbae.pth to depth.pth (physics 3D deformation ≈ Z-axis depth displacement). (2) PID 自适应增益调度 — New compute_adaptive_controlnet_strength() function: scales ControlNet strength proportionally to normalised pixel variance (pixel_variance/255.0), clamped to [min_strength, max_strength] safety window. Pure function, no side effects. (3) 历史红灯清理 — Fixed test_session068_e2e.py: all anti_flicker_render invocations updated from 32×32 to 64×64 (11 occurrences) to satisfy SESSION-198 minimum dimension constraint. 16 new tests in test_session199_adaptive_scheduling.py all passing.",
+        "description": "SESSION-199 five-part delivery: (1) 反臆想模型注入红线 — Corrected inverted fluid/physics ControlNet model mapping (fluid→normalbae, physics→depth). (2) PID 自适应增益调度 — compute_adaptive_controlnet_strength() with NaN/Inf/negative defense (反数学崩溃红线). (3) 死水动态剪枝 — should_prune_dead_water() + prune_controlnet_node_and_reseal_dag() with DAG resealing (反拓扑断裂红线). (4) UX横幅扩展 — emit_vfx_hydration_banner() with adaptive scheduling + dead-water pruning + industrial baking gateway highlight. (5) 历史红灯清理 — test_session068_e2e.py 32×32→64×64 (11 occurrences). 44 new tests in test_session199_adaptive_scheduling.py all passing.",
         "red_lines_honored": [
           "反臆想模型注入红线: fluid→normalbae, physics→depth (research-justified)",
+          "反数学崩溃红线: NaN/Inf/negative/ZeroDivision all defended",
+          "反拓扑断裂红线: DAG resealing after dead-water pruning",
           "反空投送幻觉红线: os.path.exists on every artifact path preserved",
           "反图谱污染红线: DAG closure validation preserved",
           "SESSION-198 Anti-Fake-Image Red Line (np.var > 0) preserved",
-          "SESSION-197 VFX Topology Hydration daisy-chain preserved",
+          "SESSION-197 VFX Topology Hydration daisy-chain preserved (extended)",
           "_execute_live_pipeline signature untouched",
           "compute_adaptive_controlnet_strength is a pure function (no side effects)"
         ],
