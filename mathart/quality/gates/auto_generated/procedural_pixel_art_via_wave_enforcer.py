@@ -21,7 +21,10 @@ class ProceduralPixelArtViaWaveEnforcer(EnforcerBase):
 
     @property
     def source_docs(self) -> list[str]:
-        return ["Procedural Pixel Art via Wave Function Collapse - Academic Paper"]
+        return [
+            "Procedural Pixel Art via Wave Function Collapse",
+            "https://example.com/wfc_paper"
+        ]
 
     def validate(self, params: dict) -> EnforcerResult:
         violations = []
@@ -36,7 +39,7 @@ class ProceduralPixelArtViaWaveEnforcer(EnforcerBase):
                 )
             )
         else:
-            range_tile_size = [8, 64]
+            min_tile_size, max_tile_size = 8, 64
             if not isinstance(tile_size, (int, float)):
                 violations.append(
                     EnforcerViolation(
@@ -45,10 +48,10 @@ class ProceduralPixelArtViaWaveEnforcer(EnforcerBase):
                     )
                 )
             else:
-                if tile_size < range_tile_size[0]:
-                    params["tile_size"] = range_tile_size[0]
-                elif tile_size > range_tile_size[1]:
-                    params["tile_size"] = range_tile_size[1]
+                if tile_size < min_tile_size:
+                    params["tile_size"] = min_tile_size
+                elif tile_size > max_tile_size:
+                    params["tile_size"] = max_tile_size
 
         # Validate 'overlap' parameter
         overlap = params.get("overlap")
@@ -60,7 +63,7 @@ class ProceduralPixelArtViaWaveEnforcer(EnforcerBase):
                 )
             )
         else:
-            range_overlap = [1, 5]
+            min_overlap, max_overlap = 1, 5
             if not isinstance(overlap, (int, float)):
                 violations.append(
                     EnforcerViolation(
@@ -69,11 +72,9 @@ class ProceduralPixelArtViaWaveEnforcer(EnforcerBase):
                     )
                 )
             else:
-                if overlap < range_overlap[0]:
-                    params["overlap"] = range_overlap[0]
-                elif overlap > range_overlap[1]:
-                    params["overlap"] = range_overlap[1]
-
-        # Additional physics-based constraints can be added here if needed
+                if overlap < min_overlap:
+                    params["overlap"] = min_overlap
+                elif overlap > max_overlap:
+                    params["overlap"] = max_overlap
 
         return EnforcerResult(params=params, violations=violations)

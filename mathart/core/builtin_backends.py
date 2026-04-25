@@ -1452,7 +1452,7 @@ class AntiFlickerRenderBackend:
                     )
                     _vfx_report = _hydrate_vfx(
                         payload,
-                        initial_context,
+                        validated,
                         strict=False,
                     )
                     payload.setdefault("mathart_lock_manifest", {})
@@ -1470,7 +1470,7 @@ class AntiFlickerRenderBackend:
                             )
                             _arb_s197(
                                 payload,
-                                is_dummy_mesh=initial_context.get("is_dummy_mesh", False),
+                                is_dummy_mesh=validated.get("is_dummy_mesh", False),
                             )
                         except Exception:
                             pass  # Non-critical: weights already set at injection time

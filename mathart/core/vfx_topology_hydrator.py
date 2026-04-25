@@ -564,6 +564,32 @@ def hydrate_vfx_topology(
         )
         return report
 
+    # ── SESSION-198 P0: Math-to-Pixel Rasterization Bridge ─────────────
+    # Convert JSON math features into PNG visual features before injecting.
+    try:
+        from mathart.animation.physics_sequence_exporter import PhysicsRasterizerAdapter
+        import os
+        
+        if fluid_dir:
+            fluid_path = Path(fluid_dir)
+            json_files = list(fluid_path.glob("*.json"))
+            if json_files and not list(fluid_path.glob("*.png")):
+                logger.info(f"[SESSION-198 Rasterizer] Rasterizing fluid math features in {fluid_dir}")
+                adapter = PhysicsRasterizerAdapter(fluid_path, resolution=512)
+                adapter.rasterize_fluid_momentum(json_files[0])
+                
+        if physics_dir:
+            physics_path = Path(physics_dir)
+            json_files = list(physics_path.glob("*.json"))
+            if json_files and not list(physics_path.glob("*.png")):
+                logger.info(f"[SESSION-198 Rasterizer] Rasterizing physics math features in {physics_dir}")
+                adapter = PhysicsRasterizerAdapter(physics_path, resolution=512)
+                adapter.rasterize_physics_clip(json_files[0])
+    except Exception as e:
+        logger.warning(f"[SESSION-198 Rasterizer] Rasterization failed: {e}")
+        if strict:
+            raise
+
     # ── Phase 2: Fluid ControlNet Injection ────────────────────────────
     if fluid_dir:
         try:

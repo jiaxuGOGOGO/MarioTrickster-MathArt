@@ -17,7 +17,7 @@ from mathart.quality.gates.enforcer_registry import (
 class StableFluidsForRealtimePhysicsEnforcer(EnforcerBase):
     @property
     def name(self) -> str:
-        return "StableFluidsForRealtimePhysics"
+        return "StableFluidsForRealtimePhysicsEnforcer"
 
     @property
     def source_docs(self) -> list[str]:
@@ -32,59 +32,63 @@ class StableFluidsForRealtimePhysicsEnforcer(EnforcerBase):
         if viscosity is not None:
             min_visc, max_visc = 0.0001, 0.01
             if viscosity < min_visc:
+                violations.append(EnforcerViolation(
+                    property_name="viscosity",
+                    message=f"Viscosity {viscosity} below minimum {min_visc}. Clamping.",
+                    severity=EnforcerSeverity.WARNING
+                ))
                 corrected_params["viscosity"] = min_visc
-                violations.append(EnforcerViolation(
-                    property_name="viscosity",
-                    message=f"Viscosity too low; clamped to minimum {min_visc}.",
-                    severity=EnforcerSeverity.WARNING
-                ))
             elif viscosity > max_visc:
-                corrected_params["viscosity"] = max_visc
                 violations.append(EnforcerViolation(
                     property_name="viscosity",
-                    message=f"Viscosity too high; clamped to maximum {max_visc}.",
+                    message=f"Viscosity {viscosity} above maximum {max_visc}. Clamping.",
                     severity=EnforcerSeverity.WARNING
                 ))
+                corrected_params["viscosity"] = max_visc
 
         # Validate density
         density = params.get("density")
         if density is not None:
             min_density, max_density = 1.0, 1000.0
             if density < min_density:
+                violations.append(EnforcerViolation(
+                    property_name="density",
+                    message=f"Density {density} below minimum {min_density}. Clamping.",
+                    severity=EnforcerSeverity.WARNING
+                ))
                 corrected_params["density"] = min_density
-                violations.append(EnforcerViolation(
-                    property_name="density",
-                    message=f"Density too low; clamped to minimum {min_density}.",
-                    severity=EnforcerSeverity.WARNING
-                ))
             elif density > max_density:
-                corrected_params["density"] = max_density
                 violations.append(EnforcerViolation(
                     property_name="density",
-                    message=f"Density too high; clamped to maximum {max_density}.",
+                    message=f"Density {density} above maximum {max_density}. Clamping.",
                     severity=EnforcerSeverity.WARNING
                 ))
+                corrected_params["density"] = max_density
 
         # Validate grid_resolution
         grid_res = params.get("grid_resolution")
         if grid_res is not None:
             min_res, max_res = 32, 256
             if grid_res < min_res:
+                violations.append(EnforcerViolation(
+                    property_name="grid_resolution",
+                    message=f"Grid resolution {grid_res} below minimum {min_res}. Clamping.",
+                    severity=EnforcerSeverity.WARNING
+                ))
                 corrected_params["grid_resolution"] = min_res
-                violations.append(EnforcerViolation(
-                    property_name="grid_resolution",
-                    message=f"Grid resolution too low; clamped to minimum {min_res}.",
-                    severity=EnforcerSeverity.WARNING
-                ))
             elif grid_res > max_res:
-                corrected_params["grid_resolution"] = max_res
                 violations.append(EnforcerViolation(
                     property_name="grid_resolution",
-                    message=f"Grid resolution too high; clamped to maximum {max_res}.",
+                    message=f"Grid resolution {grid_res} above maximum {max_res}. Clamping.",
                     severity=EnforcerSeverity.WARNING
                 ))
+                corrected_params["grid_resolution"] = max_res
 
-        # Additional validation based on CFL condition could be added if parameters for Δt and Δx are provided
-        # but since they are not specified, we focus on the provided parameters.
+        # Additional physics constraints:
+        # For CFL condition: Δt ≤ Δx / max(|u|), but since Δt and Δx are not provided,
+        # we assume parameters are within acceptable ranges or handled elsewhere.
 
-        return EnforcerResult(corrected_params=corrected_params, violations=violations)
+        return EnforcerResult(
+            corrected_params=corrected_params,
+            violations=violations
+        )
