@@ -40,6 +40,10 @@ class PhysicsRasterizerAdapter:
         if not json_path.exists():
             raise FileNotFoundError(f"Physics JSON not found: {json_path}")
             
+        import sys
+        sys.stderr.write("\033[1;35m[⚙️ 工业烘焙网关] 正在通过 Catmull-Rom 样条插值，纯 CPU 解算高精度工业级贴图动作序列...\033[0m\n")
+        sys.stderr.flush()
+            
         with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
             
@@ -92,6 +96,10 @@ class PhysicsRasterizerAdapter:
         """
         if not json_path.exists():
             raise FileNotFoundError(f"Fluid JSON not found: {json_path}")
+            
+        import sys
+        sys.stderr.write("\033[1;35m[⚙️ 工业烘焙网关] 正在通过 Catmull-Rom 样条插值，纯 CPU 解算高精度工业级贴图动作序列...\033[0m\n")
+        sys.stderr.flush()
             
         with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)

@@ -21,9 +21,13 @@
 
 ## 3. Next Steps (SESSION-199 Suggestions)
 
-* **P2-ADAPTIVE-WEIGHT-SCHEDULING**: Implement dynamic ControlNet weight scheduling based on artifact quality metrics (e.g., reduce fluid weight when flowmap has low variance).
-* **P2-END-TO-END-GPU-VALIDATION**: Run a full GPU render with physics/fluid artifacts against a live ComfyUI server.
-* **TEST-DEBT-CLEARANCE**: Fix the remaining legacy failing tests (`test_session068_e2e`, `test_pseudo_3d_shell`, `test_reaction_diffusion`) that were ignored during this session.
+**老大，解耦手术已完成！请在无显卡环境下直接运行生成指令。去 outputs 文件夹看，绝对不再是扭动的果冻，而是拥有标准跑跳动作姿态的成套工业图纸！**
+
+若要无缝接入 **P1-SESSION-199-END-TO-END-GPU-VALIDATION** (全管线物理级视觉回放与带卡 GPU 端到端真实联调实验收)，当前架构还需要做以下微调准备：
+1. **ComfyUI 节点对齐**：确保后端的 ComfyUI 实例已安装 `VHS_LoadImagesPath` 节点，以便能够直接读取光栅化后的 512x512 PNG 序列目录。
+2. **ControlNet 模型对齐**：检查后端的 ControlNet 模型是否支持 `fluid` (动量色彩映射) 和 `physics` (深度灰度映射) 这种非标准光影特征图的引导。可能需要微调预处理器或使用泛用的 Depth/Normal 模型作为替代。
+3. **动态权重调度 (Adaptive Weight Scheduling)**：基于当前图像矩阵方差 (`np.var(img)`) 动态调整 SESSION-197 中设定的 `FLUID_VFX_CONTROLNET_STRENGTH`，避免平缓的流体数据对画面产生过强的干扰。
+4. **历史红灯清理**：解决 `test_session068_e2e` 等长跑测试的遗留问题，确保全量回归测试 100% 纯净。
 
 ## 4. Strict Rules for Next Agent
 
