@@ -1142,6 +1142,41 @@ def emit_industrial_baking_banner(stream=None) -> str:
     return plain
 
 
+# ---------------------------------------------------------------------------
+# SESSION-200: Epic Ignition UX Banner
+# ---------------------------------------------------------------------------
+
+EPIC_IGNITION_BANNER_TAG = "[\U0001f680 SESSION-200 \u53f2\u8bd7\u7ea7\u70b9\u706b]"
+
+
+def emit_epic_ignition_banner(stream=None) -> str:
+    """SESSION-200 UX zero-degradation: the [\U0001f680 SESSION-200 \u53f2\u8bd7\u7ea7\u70b9\u706b] banner.
+
+    Centralised here so the ignition launchpad and all backend paths
+    can emit the *same* banner without copy-pasting ANSI strings.
+    This keeps the UX contract intact and gives the test suite one
+    stable string to assert against.
+
+    The banner announces the full SESSION-200 upgrade chain:
+    - Golden Payload Pre-flight Dump (SpaceX F9 Protocol)
+    - WebSocket Dual-Channel Telemetry (900s hard deadline)
+    - Streaming Artifact Fetch (iter_content 8192)
+    - Circuit Breaker Fail-Fast (execution_error \u2192 Poison Pill)
+    """
+    plain = (
+        "[\U0001f680 SESSION-200 \u53f2\u8bd7\u7ea7\u70b9\u706b] "
+        "\u5e26\u5361\u70b9\u706b\u5168\u94fe\u8def\u901a\u8f66 | "
+        "\u9ec4\u91d1\u8f7d\u8377\u5feb\u7167 \u2192 WS\u9065\u6d4b \u2192 \u6d41\u5f0f\u62c9\u53d6 \u2192 \u7194\u65ad\u5b88\u62a4"
+    )
+    if stream is not None:
+        try:
+            stream.write("\033[1;93m" + plain + "\033[0m\n")
+            stream.flush()
+        except Exception:
+            pass
+    return plain
+
+
 __all__ = [
     "AntiFlickerChunk",
     "RGBSequenceExportResult",
@@ -1182,4 +1217,7 @@ __all__ = [
     "PHYSICS_TELEMETRY_FRAMES_TAG",
     "emit_physics_telemetry_handshake",
     "emit_industrial_baking_banner",
+    # SESSION-200 additions
+    "EPIC_IGNITION_BANNER_TAG",
+    "emit_epic_ignition_banner",
 ]

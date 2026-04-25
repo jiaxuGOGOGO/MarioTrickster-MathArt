@@ -2992,3 +2992,143 @@ SESSION-199 新增测试文件 `test_session199_adaptive_scheduling.py`（44 个
 | ComfyUI ControlNet Stacking Guidelines | 辅助 ControlNet 权重安全窗口 0.10–0.90 |
 | Houdini PDG Dead-End Pruning | 死水剪枝：零方差通道自动短路跳过 |
 | DAG Closure Validation (反图谱污染红线) | 剪枝后 DAG 闭合验证确保无悬空引用 |
+
+---
+
+## 29. SESSION-200：史诗级带卡点火全链路通车
+
+SESSION-200 是 MarioTrickster-MathArt 项目的里程碑升级，实现了从"黄金载荷快照"到"WebSocket 双向遥测"再到"流式资产拉取"的完整端到端链路通车。本次升级以 SpaceX Falcon 9 发射协议为工业隐喻，确保每一帧渲染都有完整的飞行记录。
+
+### 29.1 黄金载荷快照（Golden Payload Pre-flight Dump）
+
+在向 ComfyUI GPU 后端推送载荷之前，系统会自动拦截最终装配完成的 `payload`，以 `json.dump(indent=4)` 美化格式写入 `outputs/session200_golden_payloads/` 目录。这是 SpaceX F9 发射前数据转储（Pre-flight Dump）的工业映射：
+
+- **触发位置**：`builtin_backends.py` → `_execute_live_pipeline()` 中，在 `client.execute_workflow()` 调用之前
+- **输出路径**：`outputs/<run>/session200_golden_payloads/session200_epic_ignition_payload_<chunk>.json`
+- **规范快照**：第一个 chunk 的载荷同时写入 `outputs/session200_epic_ignition_payload.json`
+
+> **为什么需要黄金载荷？** 当 GPU 渲染出现异常（模型缺失、OOM、色彩偏移）时，黄金载荷是唯一的绝对真相源。你可以直接将该 JSON 文件拖入 ComfyUI 网页界面进行手动复现和调试。
+
+### 29.2 WebSocket 双向遥测（Dual-Channel Telemetry）
+
+SESSION-200 重构了 `comfy_client.py` 的 `_ws_wait()` 方法，实现了完整的 WebSocket 双向遥测通道：
+
+| 事件类型 | 终端反馈 | 说明 |
+|----------|----------|------|
+| `execution_start` | `[🛰️  点火启动] 远端 GPU 引擎已点火` | 确认 ComfyUI 已开始处理 |
+| `executing` | `[🚀 节点执行中] 正在执行节点: <node_id>` | 逐节点实时追踪 |
+| `progress` | `[📊 渲染进度] |████████░░░░| 8/20 (40.0%)` | 采样步骤进度条 |
+| `executed` | _(日志记录)_ | 节点完成，输出键枚举 |
+| `execution_error` | `[❌ 致命崩溃] 远端 GPU 爆燃!` | Fail-Fast 毒丸，立即中止 |
+
+**硬性红线**：
+- 超时截止时间 = **900 秒**（15 分钟），绝不允许无限等待
+- `execution_error` 事件触发 `ComfyUIExecutionError` 异常，立即熔断
+- 所有遥测事件记录到 `telemetry_log` 列表，可用于事后分析
+
+### 29.3 流式资产拉取（Streaming Artifact Fetch）
+
+GPU 渲染完毕后，所有视觉资产通过 `_download_file_streaming()` 方法以流式分块方式拉取：
+
+```python
+# SESSION-200 RED LINE: 绝对禁止使用 response.content 全量读取
+# 必须使用 iter_content(chunk_size=8192) 流式分块写入
+resp = requests.get(url, stream=True, timeout=timeout)
+with open(local_path, "wb") as f:
+    for chunk in resp.iter_content(chunk_size=8192):
+        if chunk:
+            f.write(chunk)
+```
+
+- **下载目标**：`outputs/final_renders/`
+- **支持格式**：PNG、JPEG、GIF、MP4 等所有 ComfyUI 输出格式
+- **双重后备**：优先使用 `requests` 库，不可用时回退到 `urllib` 分块读取
+- **连接中断保护**：`ConnectionResetError` 触发 `ComfyUIExecutionError` 毒丸
+
+### 29.4 独立点火脚本
+
+SESSION-200 提供了独立的一键点火脚本，用于验证完整升级链路：
+
+```bash
+# 基本用法（ComfyUI 运行在本地 8188 端口）
+python tools/session200_epic_ignition.py
+
+# 自定义参数
+python tools/session200_epic_ignition.py \
+    --server 192.168.1.100:8188 \
+    --payload path/to/custom_payload.json \
+    --output-dir outputs/my_test/ \
+    --timeout 600
+
+# 仅测试 Pre-flight Dump（不执行渲染）
+python tools/session200_epic_ignition.py --skip-render
+```
+
+点火脚本执行流程：
+1. **Pre-flight 配置** → 解析参数，生成/加载载荷
+2. **健康检查** → 探测 ComfyUI 服务器状态和 VRAM
+3. **黄金载荷落盘** → 写入 `session200_epic_ignition_payload.json`
+4. **点火执行** → 提交到 ComfyUI，全程 WS 遥测监控
+5. **飞行报告** → 写入 `session200_ignition_report.json`
+
+### 29.5 UX 横幅
+
+SESSION-200 新增了集中式 UX 横幅函数 `emit_epic_ignition_banner()`：
+
+```
+[🚀 SESSION-200 史诗级点火] 带卡点火全链路通车 | 黄金载荷快照 → WS遥测 → 流式拉取 → 熔断守护
+```
+
+### 29.6 新增/修改文件清单
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `mathart/backend/comfy_client.py` | **修改** | WS 双向遥测 + 流式资产拉取 + 熔断机制升级 |
+| `mathart/core/builtin_backends.py` | **修改** | 黄金载荷 Pre-flight Dump 注入 |
+| `mathart/core/anti_flicker_runtime.py` | **修改** | 新增 `emit_epic_ignition_banner()` UX 横幅 |
+| `tools/session200_epic_ignition.py` | **新增** | 独立一键点火脚本 |
+| `tests/test_session200_ws_telemetry.py` | **新增** | 26+ 个 Mock 测试用例 |
+| `docs/RESEARCH_NOTES_SESSION_200.md` | **新增** | 外网参考研究笔记 |
+| `docs/USER_GUIDE.md` | **追加** | 本节内容 |
+| `SESSION_HANDOFF.md` | **重写** | 交接文档 |
+| `PROJECT_BRAIN.json` | **更新** | 任务状态 |
+
+### 29.7 测试覆盖
+
+SESSION-200 新增测试文件 `test_session200_ws_telemetry.py`，分为 8 个测试组：
+
+1. **遥测常量** — 6 个用例（超时值 + 前缀字符串存在性）
+2. **WS 完整事件序列** — 3 个用例（全流程 + execution_start 日志 + executed 输出键）
+3. **执行错误 Fail-Fast** — 2 个用例（立即抛出 + 不穿透）
+4. **超时熔断器** — 2 个用例（超时抛出 + 900s 常量）
+5. **流式下载** — 3 个用例（正确写入 + 零字节 + 连接中断）
+6. **资产收割** — 3 个用例（图片 + 视频 + 空历史）
+7. **黄金载荷落盘** — 3 个用例（诊断载荷 + 写入磁盘 + 美化格式）
+8. **点火脚本** — 2 个用例（模块可导入 + 离线健康检查）
+
+### 29.8 红线合规声明
+
+| 红线 | 状态 |
+|------|------|
+| 代理环境变量零接触 | ✅ |
+| SESSION-168 Fail-Fast Poison Pill 保留 | ✅ |
+| SESSION-169 精确异常阶梯保留 | ✅ |
+| SESSION-172 JIT Resolution Hydration 未触动 | ✅ |
+| SESSION-175 Hard-Drop Download 保护保留 | ✅ |
+| SESSION-189 锚点未触动 | ✅ |
+| SESSION-194 OpenPose IoC 契约未触动 | ✅ |
+| SESSION-195 IPAdapter 晚绑定契约未触动 | ✅ |
+| SESSION-197 VFX 拓扑注入核心逻辑未破坏 | ✅ |
+| 反死锁阻塞红线（900s 硬截止） | ✅ |
+| 反内存炸弹红线（流式分块下载） | ✅ |
+| 测试断言演进（非跳过/注释） | ✅ |
+
+### 29.9 工业参考文献
+
+| 参考 | 应用 |
+|------|------|
+| SpaceX Falcon 9 Payload User's Guide | 黄金载荷 Pre-flight Dump 协议映射 |
+| Michael T. Nygard, "Release It!" (Circuit Breaker) | 超时熔断 + Fail-Fast 异常传播 |
+| Microsoft Azure Circuit Breaker Pattern | 三态熔断器（Closed/Open/Half-Open）设计 |
+| Python Requests Advanced Usage (requests.readthedocs.io) | 流式分块下载 iter_content(8192) |
+| danielfm/pybreaker (GitHub) | Python 熔断器参考实现 |

@@ -1,7 +1,7 @@
 {
-  "version": "v1.0.7",
-  "last_session_id": "SESSION-199",
-  "last_updated": "2026-04-25T10:00:00Z",
+  "version": "v1.0.8",
+  "last_session_id": "SESSION-200",
+  "last_updated": "2026-04-25T18:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -24,6 +24,78 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-200-EPIC-IGNITION-AND-LIVE-TELEMETRY",
+        "title": "Epic Ignition Full-Stack Telemetry — Golden Payload Snapshot + WS Dual-Channel Telemetry + Streaming Artifact Fetch + Circuit Breaker Hardening",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-200",
+        "modules": [
+          "mathart/backend/comfy_client.py",
+          "mathart/core/builtin_backends.py",
+          "mathart/core/anti_flicker_runtime.py",
+          "tools/session200_epic_ignition.py",
+          "tests/test_session200_ws_telemetry.py",
+          "docs/RESEARCH_NOTES_SESSION_200.md",
+          "docs/USER_GUIDE.md",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [
+          "tests/test_session200_ws_telemetry.py"
+        ],
+        "description": "SESSION-200 Epic Ignition Full-Stack Telemetry: (1) Golden Payload Pre-flight Dump — SpaceX F9 protocol mapping, json.dump(indent=4) to outputs/session200_golden_payloads/ before GPU ignition. (2) WS Dual-Channel Telemetry — _ws_wait() full rewrite with execution_start/executing/progress/executed/execution_error real-time terminal feedback, 900s hard deadline (NEVER infinite wait), telemetry_log recording. (3) Streaming Artifact Fetch — _download_file_streaming() with iter_content(chunk_size=8192), NEVER response.content full-load. harvest_final_artifacts() scans history for images/gifs/videos. (4) Circuit Breaker Hardening — 900s _TELEMETRY_TIMEOUT, execution_error Fail-Fast Poison Pill (SESSION-168 preserved), ConnectionResetError → ComfyUIExecutionError. (5) Independent Ignition Launchpad — tools/session200_epic_ignition.py 5-phase script (config→health→golden dump→ignition→report). (6) UX Banner — emit_epic_ignition_banner() + EPIC_IGNITION_BANNER_TAG. (7) 24+ Mock tests in test_session200_ws_telemetry.py across 8 groups. (8) Research notes: SpaceX F9 Pre-flight Dump, Circuit Breaker Pattern (Nygard 'Release It!'), Python streaming download best practices.",
+        "red_lines_honored": [
+          "SESSION-168 Fail-Fast Poison Pill preserved and enhanced",
+          "SESSION-169 precision exception ladder preserved",
+          "SESSION-172 JIT Resolution Hydration untouched",
+          "SESSION-175 Hard-Drop Download preserved (new streaming method added alongside)",
+          "SESSION-189 anchors untouched",
+          "SESSION-194 OpenPose IoC contract untouched",
+          "SESSION-195 IPAdapter late-binding untouched",
+          "SESSION-197 VFX topology injection core logic preserved",
+          "SESSION-199 adaptive scheduling + dead-water pruning untouched",
+          "反死锁阻塞红线: 900s hard deadline, NEVER while True",
+          "反内存炸弹红线: iter_content(8192), NEVER .content",
+          "_execute_live_pipeline signature untouched",
+          "代理环境变量零接触"
+        ],
+        "telemetry_contract": {
+          "_TELEMETRY_TIMEOUT": 900.0,
+          "_TELEMETRY_PREFIX_EXEC": "[🚀 节点执行中]",
+          "_TELEMETRY_PREFIX_PROGRESS": "[📊 渲染进度]",
+          "_TELEMETRY_PREFIX_START": "[🛰️  点火启动]",
+          "_TELEMETRY_PREFIX_DONE": "[✅ 执行完成]",
+          "_TELEMETRY_PREFIX_ERROR": "[❌ 致命崩溃]",
+          "events_monitored": [
+            "execution_start",
+            "executing",
+            "progress",
+            "executed",
+            "execution_error"
+          ]
+        },
+        "streaming_download_contract": {
+          "method": "_download_file_streaming",
+          "chunk_size": 8192,
+          "primary_library": "requests (stream=True + iter_content)",
+          "fallback_library": "urllib (chunked read loop)",
+          "red_line": "NEVER use response.content or resp.read() for full content"
+        },
+        "golden_payload_contract": {
+          "dump_location": "outputs/<run>/session200_golden_payloads/",
+          "canonical_location": "outputs/session200_epic_ignition_payload.json",
+          "format": "json.dump(indent=4)",
+          "trigger": "Before client.execute_workflow() in _execute_live_pipeline"
+        },
+        "industrial_references": [
+          "SpaceX Falcon 9 Payload User's Guide — Pre-flight Dump protocol mapping",
+          "Michael T. Nygard, 'Release It!' — Circuit Breaker Pattern (Fail-Fast)",
+          "Microsoft Azure Architecture Center — Circuit Breaker Pattern",
+          "Python Requests Advanced Usage (requests.readthedocs.io) — Streaming fetch",
+          "danielfm/pybreaker (GitHub) — Python circuit breaker reference"
+        ]
+      },
       {
         "id": "P1-SESSION-199-SAFE-MODEL-MAPPING-ADAPTIVE-SCHEDULING",
         "title": "Safe ControlNet Model Mapping (反臆想模型注入红线) + Adaptive Variance Scheduling + Dead-Water Pruning + Anti-Math-Crash + SESSION-068 Red Light Clearance",

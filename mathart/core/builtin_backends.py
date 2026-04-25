@@ -1512,6 +1512,40 @@ class AntiFlickerRenderBackend:
             payload_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             chunk_payload_paths.append(str(payload_path.resolve()))
 
+            # ─────────────────────────────────────────────────────────────
+            # SESSION-200 P0: Golden Payload Pre-flight Dump
+            # SpaceX F9 Protocol: Before ignition (pushing to GPU backend),
+            # intercept the final assembled payload and force-dump it as a
+            # beautified JSON snapshot to outputs/ for post-mortem tracing.
+            # This is the absolute truth source for real-machine debugging.
+            # ─────────────────────────────────────────────────────────────
+            try:
+                _s200_golden_dir = output_dir / "session200_golden_payloads"
+                _s200_golden_dir.mkdir(parents=True, exist_ok=True)
+                _s200_golden_path = _s200_golden_dir / f"session200_epic_ignition_payload_{chunk_label}.json"
+                with open(_s200_golden_path, "w", encoding="utf-8") as _s200_fp:
+                    json.dump(payload, _s200_fp, ensure_ascii=False, indent=4)
+                    _s200_fp.write("\n")
+                logger.info(
+                    "[anti_flicker_render] SESSION-200 Golden Payload Pre-flight Dump: %s",
+                    _s200_golden_path,
+                )
+                # Also write the canonical single-file snapshot for the first chunk
+                if chunk.chunk_index == 0:
+                    _s200_canonical = output_dir.parent / "session200_epic_ignition_payload.json"
+                    with open(_s200_canonical, "w", encoding="utf-8") as _s200_cfp:
+                        json.dump(payload, _s200_cfp, ensure_ascii=False, indent=4)
+                        _s200_cfp.write("\n")
+                    logger.info(
+                        "[anti_flicker_render] SESSION-200 Canonical Golden Payload: %s",
+                        _s200_canonical,
+                    )
+            except Exception as _s200_dump_exc:
+                logger.warning(
+                    "[anti_flicker_render] SESSION-200 Golden Payload dump non-critical skip: %s",
+                    _s200_dump_exc,
+                )
+
             def chunk_progress(event: dict[str, Any], *, _chunk=chunk) -> None:
                 emit_backend_progress({
                     **event,
