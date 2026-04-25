@@ -875,13 +875,29 @@ def detect_dummy_mesh(context: dict) -> bool:
     return False
 
 
+def _contains_non_ascii(text: str) -> bool:
+    """SESSION-208: Detect non-ASCII characters (Chinese, Japanese, Korean, etc.).
+
+    SD1.5's CLIP tokenizer is English-only.  Any non-ASCII content in the
+    prompt produces zero semantic signal, so we must detect and translate.
+    """
+    return any(ord(c) > 127 for c in text)
+
+
 def hydrate_prompt(context: dict) -> dict:
-    """SESSION-190: Semantic Hydration — inject high-quality 3A character
-    prompt when the user's prompt is empty/short AND the system has
-    degraded to a dummy mesh.
+    """SESSION-190 + SESSION-208: Semantic Hydration — inject high-quality
+    3A character prompt when the user's prompt is empty/short, OR when the
+    prompt contains non-ASCII characters that SD1.5 CLIP cannot parse.
+
+    SESSION-208 enhancement:
+      - Detects non-ASCII (Chinese/Japanese/Korean) vibes regardless of length
+      - Translates Chinese vibes to English via SESSION-173 offline dictionary
+      - Wraps translated text with SESSION-172 base quality tags
+      - Falls back to SEMANTIC_HYDRATION_POSITIVE if translation unavailable
 
     This prevents the diffusion model from being directionless when
-    confronted with a featureless cylinder albedo.
+    confronted with a featureless cylinder albedo or a Chinese prompt
+    that CLIP cannot understand.
 
     Returns a new dict with hydrated prompt fields.
     """
@@ -889,21 +905,56 @@ def hydrate_prompt(context: dict) -> dict:
     vibe = str(result.get("vibe", "") or "").strip()
     style_prompt = str(result.get("style_prompt", "") or "").strip()
 
-    # Trigger hydration if prompt is empty or extremely short (< 10 chars)
-    needs_hydration = (not vibe or len(vibe) < 10) and (not style_prompt or len(style_prompt) < 10)
+    # ── SESSION-208: Detect non-ASCII vibes (Chinese, etc.) ──────────
+    vibe_has_non_ascii = bool(vibe) and _contains_non_ascii(vibe)
+    style_has_non_ascii = bool(style_prompt) and _contains_non_ascii(style_prompt)
+
+    # Trigger hydration if:
+    #   1. Both vibe and style_prompt are empty/short (original SESSION-190), OR
+    #   2. Vibe contains non-ASCII chars that CLIP cannot parse (SESSION-208)
+    needs_hydration = (
+        (not vibe or len(vibe) < 10) and (not style_prompt or len(style_prompt) < 10)
+    ) or vibe_has_non_ascii or style_has_non_ascii
 
     if needs_hydration:
-        result["vibe"] = SEMANTIC_HYDRATION_POSITIVE
-        result["style_prompt"] = SEMANTIC_HYDRATION_POSITIVE
-        result["negative_prompt"] = SEMANTIC_HYDRATION_NEGATIVE
-        result["_session190_semantic_hydration"] = True
-        result["_session190_hydration_reason"] = (
-            f"Original vibe='{vibe}' (len={len(vibe)}), "
-            f"style_prompt='{style_prompt}' (len={len(style_prompt)}) — "
-            "both below threshold, injected 3A character fallback"
-        )
+        # ── SESSION-208: Try to translate non-ASCII vibes to English ──
+        _translated_positive = ""
+        if vibe_has_non_ascii or style_has_non_ascii:
+            _source_text = vibe if vibe else style_prompt
+            try:
+                from mathart.backend.ai_render_stream_backend import (
+                    _armor_prompt as _s208_armor,
+                )
+                _translated_positive = _s208_armor(_source_text)
+            except Exception:  # pragma: no cover
+                pass  # Fall through to SEMANTIC_HYDRATION_POSITIVE
+
+        if _translated_positive and not _contains_non_ascii(_translated_positive):
+            # Successfully translated — use the user's creative intent
+            result["vibe"] = _translated_positive
+            result["style_prompt"] = _translated_positive
+            result["negative_prompt"] = SEMANTIC_HYDRATION_NEGATIVE
+            result["_session190_semantic_hydration"] = True
+            result["_session208_vibe_translated"] = True
+            result["_session190_hydration_reason"] = (
+                f"Original vibe='{vibe}' contained non-ASCII — "
+                f"translated to English: '{_translated_positive[:80]}...'"
+            )
+        else:
+            # Translation failed or unavailable — use 3A character fallback
+            result["vibe"] = SEMANTIC_HYDRATION_POSITIVE
+            result["style_prompt"] = SEMANTIC_HYDRATION_POSITIVE
+            result["negative_prompt"] = SEMANTIC_HYDRATION_NEGATIVE
+            result["_session190_semantic_hydration"] = True
+            result["_session208_vibe_translated"] = False
+            result["_session190_hydration_reason"] = (
+                f"Original vibe='{vibe}' (len={len(vibe)}), "
+                f"style_prompt='{style_prompt}' (len={len(style_prompt)}) — "
+                "below threshold or non-ASCII, injected 3A character fallback"
+            )
     else:
         result["_session190_semantic_hydration"] = False
+        result["_session208_vibe_translated"] = False
 
     return result
 
@@ -1220,4 +1271,6 @@ __all__ = [
     # SESSION-200 additions
     "EPIC_IGNITION_BANNER_TAG",
     "emit_epic_ignition_banner",
+    # SESSION-208 additions
+    "_contains_non_ascii",
 ]

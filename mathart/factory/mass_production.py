@@ -1462,6 +1462,35 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
     _ds_spec = dict(ctx.get("director_studio_spec") or {})
     _ds_action = str(_ds_spec.get("action_name") or "").strip()
     _ds_ref = _ds_spec.get("_visual_reference_path")
+    # ── SESSION-208 P0: Thread user vibe into ComfyUI style_prompt ──────
+    # Root cause fix: the user's vibe was NEVER injected into
+    # _render_cfg["comfyui"]["style_prompt"].  The downstream
+    # validate_config() defaulted to a generic English placeholder,
+    # and when the dummy-mesh Modal Decoupling path activated,
+    # force_decouple_dummy_mesh_payload() overwrote with a fixed
+    # SEMANTIC_HYDRATION_POSITIVE constant — the user's creative
+    # intent was completely lost.
+    #
+    # Fix: translate the Chinese vibe to English via the SESSION-173
+    # offline dictionary (_translate_vibe) and wrap it with the
+    # SESSION-172 base quality tags (_armor_prompt).  This produces
+    # a pure-English, CLIP-comprehensible prompt that carries the
+    # user's semantic intent.
+    # ───────────────────────────────────────────────────────────────
+    _raw_vibe = str(ctx.get("vibe", "") or "").strip()
+    try:
+        from mathart.backend.ai_render_stream_backend import (
+            _translate_vibe as _s208_translate,
+            _armor_prompt as _s208_armor,
+        )
+        _s208_style_prompt = _s208_armor(_raw_vibe) if _raw_vibe else ""
+    except Exception as _s208_import_exc:  # pragma: no cover
+        import logging as _s208_log
+        _s208_log.getLogger(__name__).warning(
+            "[mass_production] SESSION-208 vibe translator import failed: %s",
+            _s208_import_exc,
+        )
+        _s208_style_prompt = ""
     _render_cfg: dict[str, Any] = {
         "output_dir": str(stage_dir),
         "name": prepared["character_id"],
@@ -1484,7 +1513,16 @@ def _node_ai_render(ctx: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any]
             "live_execution": True,
             "fail_fast_on_offline": True,
             "url": str(ctx.get("comfyui_url", _DEFAULT_COMFYUI_URL)),
+            # SESSION-208: inject translated vibe as style_prompt so
+            # downstream assemble_sequence_payload receives a real
+            # English prompt instead of the generic default.
+            **({
+                "style_prompt": _s208_style_prompt,
+            } if _s208_style_prompt else {}),
         },
+        # SESSION-208: preserve raw vibe for downstream hydration/logging
+        "_raw_vibe": _raw_vibe,
+        "_translated_style_prompt": _s208_style_prompt,
         "session_id": _SESSION_ID,
         # ── SESSION-196 ride-along payload ───────────────────────────
         # The deep call site (builtin_backends._execute_live_pipeline)

@@ -1386,6 +1386,53 @@ class AntiFlickerRenderBackend:
                 _arbitration_report = _arbitrate_strengths(
                     _wf, is_dummy_mesh=_is_dummy,
                 )
+
+                # ─────────────────────────────────────────────────────────
+                # SESSION-208 P0: Modal Decoupling with User Vibe Prompt
+                #
+                # Root cause fix: when is_dummy_mesh=True, the diffusion
+                # model was running with ZERO semantic guidance because:
+                #   1. force_decouple_dummy_mesh_payload() was never called
+                #   2. The user's Chinese vibe was passed raw to CLIP
+                #   3. CLIP (English-only) produced zero semantic signal
+                #
+                # Fix: when dummy mesh is detected, call force_decouple
+                # with the translated English vibe from SESSION-208 so
+                # the user's creative intent survives Modal Decoupling.
+                # The translated prompt was already injected into
+                # comfyui_cfg["style_prompt"] by mass_production.py.
+                # ─────────────────────────────────────────────────────────
+                if _is_dummy:
+                    from mathart.core.anti_flicker_runtime import (
+                        force_decouple_dummy_mesh_payload as _force_decouple,
+                        _contains_non_ascii as _s208_non_ascii,
+                    )
+                    # Resolve the best available positive prompt:
+                    # 1. Use _translated_style_prompt from SESSION-208 if available
+                    # 2. Use comfyui_cfg style_prompt if it's pure English
+                    # 3. Fall back to SEMANTIC_HYDRATION_POSITIVE (default)
+                    _s208_translated = str(validated.get("_translated_style_prompt", "") or "").strip()
+                    _s208_current_style = str(comfyui_cfg.get("style_prompt", "") or "").strip()
+                    _s208_positive_override = None
+                    if _s208_translated and not _s208_non_ascii(_s208_translated):
+                        _s208_positive_override = _s208_translated
+                    elif _s208_current_style and not _s208_non_ascii(_s208_current_style):
+                        _s208_positive_override = _s208_current_style
+                    # else: use default SEMANTIC_HYDRATION_POSITIVE
+
+                    _decouple_kwargs = {}
+                    if _s208_positive_override:
+                        _decouple_kwargs["positive_prompt"] = _s208_positive_override
+                    _decouple_report = _force_decouple(_wf, **_decouple_kwargs)
+                    logger.info(
+                        "[anti_flicker_render] SESSION-208 force_decouple applied: "
+                        "positive_prompt='%s', touched=%d nodes",
+                        _decouple_kwargs.get("positive_prompt", "<default_hydration>")[:60],
+                        len(_decouple_report.get("touched_nodes", [])),
+                    )
+                    payload.setdefault("mathart_lock_manifest", {})
+                    payload["mathart_lock_manifest"]["session208_decouple_report"] = _decouple_report
+
                 payload.setdefault("mathart_lock_manifest", {})
                 payload["mathart_lock_manifest"]["session194_openpose_artifact"] = (
                     _openpose_artifact.to_payload_dict()

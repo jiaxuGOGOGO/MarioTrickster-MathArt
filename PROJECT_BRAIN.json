@@ -1,7 +1,7 @@
 {
-  "version": "v1.0.14",
-  "last_session_id": "SESSION-207",
-  "last_updated": "2026-04-26T00:15:00Z",
+  "version": "v1.0.15",
+  "last_session_id": "SESSION-208",
+  "last_updated": "2026-04-26T02:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -2606,6 +2606,56 @@
       "fix_pattern": {
         "null_safe_output": "isinstance(output, dict) guard before .keys() — aligned with comfy_client.py SESSION-200",
         "exception_ladder": "except ComfyUIExecutionError: raise — before except Exception — aligned with comfy_client.py SESSION-169"
+      },
+      "next_session_handoff": "P0-SESSION-208-VIBE-TRANSLATION-PIPELINE"
+    },
+    {
+      "id": "P0-SESSION-208-VIBE-TRANSLATION-PIPELINE",
+      "title": "Vibe Translation Pipeline + Modal Decouple Prompt Injection + Extended Translation Dictionary — Fix 5-step cascade failure causing zero semantic guidance",
+      "priority": "P0",
+      "status": "CLOSED",
+      "session_landed": "SESSION-208",
+      "modules": [
+        "mathart/factory/mass_production.py",
+        "mathart/core/anti_flicker_runtime.py",
+        "mathart/core/builtin_backends.py",
+        "mathart/backend/ai_render_stream_backend.py",
+        "tests/test_session173_vibe_translator.py",
+        "tests/test_session190_modal_decoupling_and_lookdev.py",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "tests": [
+        "tests/test_session173_vibe_translator.py",
+        "tests/test_session190_modal_decoupling_and_lookdev.py"
+      ],
+      "description": "SESSION-208 fixes a 5-step cascade failure that caused the diffusion model to run with ZERO semantic guidance: (1) User Chinese vibe was NEVER threaded into comfyui_cfg.style_prompt — mass_production._node_ai_render() built _render_cfg without vibe. (2) hydrate_prompt() len(vibe)<10 threshold failed for Chinese text (13 chars). (3) force_decouple_dummy_mesh_payload() was never called in the live pipeline despite being defined. (4) Chinese text passed raw to SD1.5 CLIP which has near-zero Chinese comprehension. (5) Combined with denoise=1.0 and RGB=0.0 from Modal Decoupling, the model had zero guidance. Fixes: (A) mass_production.py: translate vibe via _translate_vibe()+_armor_prompt() and inject into _render_cfg['comfyui']['style_prompt']. (B) anti_flicker_runtime.py: new _contains_non_ascii() detector; hydrate_prompt() now detects non-ASCII vibes regardless of length and translates them. (C) builtin_backends.py: when is_dummy_mesh=True, explicitly call force_decouple_dummy_mesh_payload() with translated English vibe as positive_prompt. (D) ai_render_stream_backend.py: VIBE_TRANSLATION_MAP expanded with 77+ new entries covering style/scene/character/action/mood descriptors including exact match for the bug-triggering phrase. 54 tests all green.",
+      "industry_references": [
+        "AltCLIP (ACL Findings 2023): CLIP ViT-L/14 has near-zero Chinese token comprehension",
+        "MuLan (OpenReview 2025): SD1.5 has strong English language bias",
+        "Chain-of-Dictionary Prompting (EMNLP 2024): offline dictionary lookup for multilingual translation",
+        "MoSA (Wang et al., 2025): Structure-Appearance Decoupling in diffusion models",
+        "SparseCtrl (Guo et al., 2023): RGB strength control for ControlNet"
+      ],
+      "red_lines_honored": [
+        "Refuse-to-Degrade: user creative intent MUST reach CLIP in English",
+        "SESSION-189/190/193 tuned parameters untouched",
+        "DECOUPLED_DENOISE/RGB_STRENGTH/DEPTH_NORMAL_STRENGTH constants unchanged",
+        "SESSION-168 Fail-Fast Poison Pill preserved",
+        "SESSION-172 base prompt armor preserved",
+        "SESSION-173 offline translator preserved and extended",
+        "SESSION-190 Modal Decoupling logic preserved and hardened",
+        "SESSION-207 null-safe + exception ladder preserved",
+        "_execute_live_pipeline signature untouched",
+        "Proxy environment variables untouched",
+        "54 tests all green"
+      ],
+      "root_cause": "5-step cascade: (1) vibe never threaded into comfyui.style_prompt, (2) hydrate_prompt len<10 threshold too short for Chinese, (3) force_decouple never called in live pipeline, (4) Chinese text unintelligible to CLIP, (5) denoise=1.0+RGB=0.0 left zero guidance.",
+      "fix_pattern": {
+        "vibe_translation_pipeline": "_translate_vibe()+_armor_prompt() in mass_production._node_ai_render() → comfyui.style_prompt",
+        "non_ascii_detection": "_contains_non_ascii() in hydrate_prompt() triggers translation for Chinese vibes regardless of length",
+        "force_decouple_activation": "Explicit force_decouple_dummy_mesh_payload() call in builtin_backends.py when is_dummy_mesh=True",
+        "dictionary_expansion": "77+ new VIBE_TRANSLATION_MAP entries covering style/scene/character/action/mood"
       },
       "next_session_handoff": "AWAITING-FEEDBACK"
     }

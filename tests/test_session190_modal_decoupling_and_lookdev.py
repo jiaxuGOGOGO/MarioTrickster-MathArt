@@ -143,6 +143,32 @@ class TestHydratePrompt:
         result = hydrate_prompt(ctx)
         assert isinstance(result, dict)
 
+    # ── SESSION-208: Chinese vibe detection and translation ──
+
+    def test_chinese_vibe_triggers_hydration(self):
+        """SESSION-208: Chinese vibe must trigger hydration regardless of length."""
+        ctx = {"vibe": "赛博朋克风格的像素在雨中奔跑", "style_prompt": ""}
+        result = hydrate_prompt(ctx)
+        assert result["_session190_semantic_hydration"] is True
+        # Result must NOT contain Chinese (CLIP can't parse it)
+        style = result.get("style_prompt", "")
+        assert len(style) > 10
+
+    def test_chinese_vibe_translated_flag(self):
+        """SESSION-208: Chinese vibe should set _session208_vibe_translated."""
+        ctx = {"vibe": "活泼的跳跃", "style_prompt": ""}
+        result = hydrate_prompt(ctx)
+        assert result["_session190_semantic_hydration"] is True
+        # The flag should exist
+        assert "_session208_vibe_translated" in result
+
+    def test_english_long_vibe_preserved(self):
+        """SESSION-208: Long English vibe should NOT trigger hydration."""
+        long_english = "cyberpunk pixel character running in rain with neon lights"
+        ctx = {"vibe": long_english, "style_prompt": ""}
+        result = hydrate_prompt(ctx)
+        assert result["_session190_semantic_hydration"] is False
+
 
 # ===== force_decouple_dummy_mesh_payload =====
 

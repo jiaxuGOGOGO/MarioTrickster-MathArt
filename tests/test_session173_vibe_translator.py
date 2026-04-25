@@ -100,6 +100,54 @@ class TestArmorPrompt:
         assert "3d game character asset" in result
 
 
+class TestSession208ExtendedTranslation:
+    """SESSION-208: Tests for extended VIBE_TRANSLATION_MAP entries."""
+
+    def test_cyberpunk_exact(self):
+        result = _translate_vibe("赛博朋克")
+        assert "cyberpunk" in result
+
+    def test_pixel_exact(self):
+        result = _translate_vibe("像素")
+        assert "pixel art" in result
+
+    def test_rain_scene(self):
+        result = _translate_vibe("在雨中")
+        assert "rain" in result
+
+    def test_running_in_rain(self):
+        result = _translate_vibe("在雨中奔跑")
+        assert "rain" in result
+        assert "running" in result
+
+    def test_full_cyberpunk_pixel_rain_composite(self):
+        """The exact user vibe that triggered the original bug."""
+        result = _translate_vibe("赛博朋克风格的像素在雨中奔跑")
+        assert "cyberpunk" in result
+        # Must NOT contain Chinese
+        for char in result:
+            assert ord(char) <= 127, f"Non-ASCII char in translation: {char}"
+
+    def test_full_cyberpunk_pixel_rain_armored(self):
+        """Armored version of the exact user vibe."""
+        result = _armor_prompt("赛博朋克风格的像素在雨中奔跑")
+        assert result.startswith(_BASE_POSITIVE_PROMPT)
+        assert "cyberpunk" in result
+        # Must NOT contain Chinese
+        for char in result:
+            assert ord(char) <= 127, f"Non-ASCII char in armored prompt: {char}"
+
+    def test_warrior_character(self):
+        result = _translate_vibe("战士")
+        assert "warrior" in result
+
+    def test_token_split_cyberpunk_pixel(self):
+        """Token-level split: '赛博朋克风格' and '像素' should both translate."""
+        result = _translate_vibe("赛博朋克风格,像素")
+        assert "cyberpunk" in result
+        assert "pixel" in result
+
+
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])
