@@ -17,6 +17,10 @@ Industrial References:
 - Gradio Reactive State Management (Blocks API + event listeners)
 - Event-Driven UI Update (yield/generator streaming)
 - Registry Pattern (IoC dynamic dropdown population)
+
+SESSION-203-HOTFIX:
+- Moved ``theme`` and ``css`` from ``gr.Blocks()`` constructor to ``app.launch()``
+  to resolve Gradio 6.0 UserWarning about parameter migration.
 """
 
 from __future__ import annotations
@@ -41,11 +45,38 @@ def _import_gradio():
     return _gr
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  CSS Theme (extracted for reuse in launch())
+# ═══════════════════════════════════════════════════════════════════════════
+
+_CUSTOM_CSS = """
+.main-title {
+    text-align: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: 2em;
+    font-weight: bold;
+    margin-bottom: 0.5em;
+}
+.subtitle {
+    text-align: center;
+    color: #666;
+    margin-bottom: 1em;
+}
+"""
+
+
 def create_app() -> "gradio.Blocks":
     """Create and return the Gradio Blocks application.
 
     This is the main factory function. Call ``app = create_app()`` and then
     ``app.launch()`` to start the Web UI server.
+
+    SESSION-203-HOTFIX: ``theme`` and ``css`` are no longer passed to the
+    ``gr.Blocks()`` constructor.  In Gradio >= 6.0 these parameters have
+    been moved to ``launch()``.  We store them as module-level constants
+    and apply them in ``main()`` → ``app.launch(theme=..., css=...)``.
 
     Returns
     -------
@@ -60,27 +91,12 @@ def create_app() -> "gradio.Blocks":
 
     # ═══════════════════════════════════════════════════════════════════
     #  Gradio Blocks Layout
+    #  SESSION-203-HOTFIX: theme/css removed from gr.Blocks() constructor
+    #  and moved to launch() to silence Gradio 6.0 UserWarning.
     # ═══════════════════════════════════════════════════════════════════
 
     with gr.Blocks(
         title="MarioTrickster MathArt — 核动力渲染操作台",
-        theme=gr.themes.Soft(),
-        css="""
-        .main-title {
-            text-align: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-size: 2em;
-            font-weight: bold;
-            margin-bottom: 0.5em;
-        }
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 1em;
-        }
-        """,
     ) as app:
 
         # ── Header ───────────────────────────────────────────────────
@@ -267,7 +283,12 @@ def create_app() -> "gradio.Blocks":
 # ═══════════════════════════════════════════════════════════════════════════
 
 def main() -> None:
-    """Launch the Web UI server."""
+    """Launch the Web UI server.
+
+    SESSION-203-HOTFIX: ``theme`` and ``css`` are now passed to ``launch()``
+    instead of ``gr.Blocks()`` to comply with Gradio >= 6.0 API changes.
+    """
+    gr = _import_gradio()
     logging.basicConfig(level=logging.INFO)
     logger.info("[SESSION-202] Starting MathArt Web UI...")
     app = create_app()
@@ -276,6 +297,10 @@ def main() -> None:
         server_port=7860,
         share=False,
         show_error=True,
+        # SESSION-203-HOTFIX: theme/css moved from gr.Blocks() to launch()
+        # per Gradio 6.0 migration guide.
+        theme=gr.themes.Soft(),
+        css=_CUSTOM_CSS,
     )
 
 

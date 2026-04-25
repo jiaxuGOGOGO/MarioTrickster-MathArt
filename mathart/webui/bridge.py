@@ -1,5 +1,5 @@
 """
-SESSION-202 Headless Dispatcher Bridge — Web UI → Pipeline Adapter.
+SESSION-202 → SESSION-203-HOTFIX Headless Dispatcher Bridge — Web UI → Pipeline Adapter.
 
 This module implements the **Headless Dispatcher Bridge** that translates
 Gradio UI parameters into the strongly-typed ``CreatorIntentSpec`` dictionary
@@ -10,12 +10,22 @@ Key responsibilities:
 2. Persist drag-and-drop images from Gradio temp to ``workspace/inputs/``
    (反幽灵路径红线: shutil.copy to prevent temp cleanup crashes).
 3. Invoke ``IntentGateway.admit()`` for Fail-Closed validation.
-4. Trigger pipeline dispatch and yield real-time telemetry events.
+4. Thread admission result into ``director_studio_spec`` (K8s Mutating Webhook pattern).
+5. Dispatch through ``ModeDispatcher`` for real pipeline execution.
+6. Yield real-time telemetry events back to the Gradio frontend.
 
 Architecture discipline:
 - This bridge is an independent adapter — it NEVER modifies core pipeline code.
 - All pipeline interaction goes through existing public APIs.
 - Follows the IoC Registry Pattern: no if/else in the trunk.
+
+SESSION-203-HOTFIX changes:
+- Fixed Gateway key mapping: ``action`` / ``reference_image`` (not ``action_name`` / ``visual_reference_path``).
+- Fixed ``_execute_pipeline()``: now threads admission into ``director_studio_spec`` and
+  dispatches through ``ModeDispatcher.dispatch("production", ...)`` for real rendering.
+- ``assemble_creator_intent()`` now produces a dict with **both** Gateway-compatible keys
+  (``action`` / ``reference_image``) AND downstream-compatible keys (``action_name`` /
+  ``visual_reference_path``) so the same dict can be used for admission AND spec construction.
 """
 
 from __future__ import annotations
@@ -112,8 +122,16 @@ def assemble_creator_intent(
     """Assemble a ``CreatorIntentSpec``-compatible dictionary from UI inputs.
 
     This is the core translation layer between the Web UI and the pipeline.
-    The returned dictionary matches the contract expected by
-    ``CreatorIntentSpec.to_dict()`` and ``IntentGateway.admit()``.
+    The returned dictionary contains **both**:
+
+    - **Gateway-compatible keys** (``action`` / ``reference_image``) for
+      ``IntentGateway.admit()`` consumption.
+    - **Downstream-compatible keys** (``action_name`` / ``visual_reference_path``)
+      for ``CreatorIntentSpec`` construction and ``director_studio_spec`` threading.
+
+    SESSION-203-HOTFIX: Fixed key mapping so Gateway receives the keys it
+    actually reads (``action`` / ``reference_image``), resolving the root cause
+    of ``action_name=''`` and ``reference_image_path=None`` in admission results.
 
     Parameters
     ----------
@@ -135,7 +153,8 @@ def assemble_creator_intent(
     Returns
     -------
     dict
-        A dictionary conforming to the ``CreatorIntentSpec`` contract.
+        A dictionary conforming to the ``CreatorIntentSpec`` contract,
+        with additional Gateway-compatible keys for admission.
     """
     vfx_overrides: dict[str, bool] = {}
     if force_fluid:
@@ -148,8 +167,13 @@ def assemble_creator_intent(
         vfx_overrides["force_particles"] = True
 
     intent_dict: dict[str, Any] = {
+        # ── Gateway-compatible keys (IntentGateway.admit() reads these) ──
+        "action": action_name or "",
+        "reference_image": reference_image_path or "",
+        # ── Downstream-compatible keys (CreatorIntentSpec / director_studio_spec) ──
         "action_name": action_name or "",
         "visual_reference_path": reference_image_path or "",
+        # ── Shared keys ──
         "vfx_overrides": vfx_overrides,
         "raw_vibe": raw_vibe,
         "skeleton_topology": "biped",
@@ -274,8 +298,12 @@ class WebUIBridge:
             "error": None,
         }
 
+        admission = None
         try:
-            from mathart.workspace.intent_gateway import IntentGateway
+            from mathart.workspace.intent_gateway import (
+                IntentGateway,
+                thread_admission_into_director_spec,
+            )
             gateway = IntentGateway()
             admission = gateway.admit(intent_dict)
             logger.info("[SESSION-202 Bridge] Gateway admission: %s", admission)
@@ -285,7 +313,31 @@ class WebUIBridge:
             )
             # Non-fatal: proceed with raw intent if gateway is unavailable
 
-        # ── Step 4: Industrial baking banner ─────────────────────────
+        # ── Step 4: Build director_studio_spec with admission threading ──
+        director_studio_spec: dict[str, Any] = {
+            "action_name": intent_dict.get("action_name", ""),
+            "visual_reference_path": intent_dict.get("visual_reference_path", ""),
+            "_visual_reference_path": intent_dict.get("visual_reference_path", ""),
+            "vfx_overrides": intent_dict.get("vfx_overrides", {}),
+            "raw_vibe": intent_dict.get("raw_vibe", ""),
+        }
+
+        # Thread admission result into director_studio_spec (K8s Mutating Webhook pattern)
+        if admission is not None:
+            try:
+                thread_admission_into_director_spec(director_studio_spec, admission)
+                logger.info(
+                    "[SESSION-202 Bridge] Admission threaded into director_studio_spec: "
+                    "action_name=%s, ref=%s",
+                    director_studio_spec.get("action_name"),
+                    bool(director_studio_spec.get("_visual_reference_path")),
+                )
+            except Exception as e:
+                logger.warning(
+                    "[SESSION-202 Bridge] Admission threading failed (non-fatal): %s", e
+                )
+
+        # ── Step 5: Industrial baking banner ─────────────────────────
         yield {
             "stage": "baking",
             "progress": 0.3,
@@ -298,13 +350,32 @@ class WebUIBridge:
             "error": None,
         }
 
-        # ── Step 5: Pipeline execution (simulated progress) ──────────
+        # ── Step 6: Pipeline execution via ModeDispatcher ────────────
+        yield {
+            "stage": "pipeline_dispatch",
+            "progress": 0.4,
+            "message": "[🚀 管线调度] 正在通过 ModeDispatcher 调度 Production 管线...",
+            "gallery": [],
+            "video": None,
+            "error": None,
+        }
+
+        pipeline_error = None
+        try:
+            self._execute_pipeline(intent_dict, director_studio_spec)
+        except Exception as e:
+            pipeline_error = str(e)
+            logger.warning(
+                "[SESSION-202 Bridge] Pipeline execution error: %s", e
+            )
+
+        # ── Step 7: Simulated progress stages (CPU baking visualization) ──
         stages = [
-            (0.4, "baking_openpose", "[⚙️ 工业量产] 正在解算 OpenPose 骨骼序列..."),
-            (0.5, "baking_albedo", "[⚙️ 工业量产] 正在烘焙 Albedo 贴图序列..."),
-            (0.6, "baking_normal", "[⚙️ 工业量产] 正在烘焙 Normal 法线贴图..."),
-            (0.7, "baking_depth", "[⚙️ 工业量产] 正在烘焙 Depth 深度贴图..."),
-            (0.8, "vfx_hydration", "[⚙️ VFX 注水] 正在注入流体/物理 ControlNet 拓扑..."),
+            (0.5, "baking_openpose", "[⚙️ 工业量产] 正在解算 OpenPose 骨骼序列..."),
+            (0.6, "baking_albedo", "[⚙️ 工业量产] 正在烘焙 Albedo 贴图序列..."),
+            (0.7, "baking_normal", "[⚙️ 工业量产] 正在烘焙 Normal 法线贴图..."),
+            (0.8, "baking_depth", "[⚙️ 工业量产] 正在烘焙 Depth 深度贴图..."),
+            (0.85, "vfx_hydration", "[⚙️ VFX 注水] 正在注入流体/物理 ControlNet 拓扑..."),
             (0.9, "dag_closure", "[⚙️ DAG 闭合] 正在验证工作流拓扑完整性..."),
         ]
 
@@ -317,54 +388,83 @@ class WebUIBridge:
                 "video": None,
                 "error": None,
             }
-            # Attempt actual pipeline dispatch at the baking stage
-            if stage == "baking_openpose":
-                try:
-                    self._execute_pipeline(intent_dict)
-                except Exception as e:
-                    logger.warning(
-                        "[SESSION-202 Bridge] Pipeline execution: %s", e
-                    )
 
-        # ── Step 6: Collect outputs ──────────────────────────────────
+        # ── Step 8: Collect outputs ──────────────────────────────────
         gallery_files = self._collect_output_gallery()
         video_file = self._find_output_video()
+
+        completion_msg = (
+            f"[✅ SESSION-202] 核动力渲染完成！"
+            f"共生成 {len(gallery_files)} 张序列帧"
+            + (f"，视频已就绪" if video_file else "")
+        )
+        if pipeline_error:
+            completion_msg += f"\n⚠️ 管线提示: {pipeline_error}"
 
         yield {
             "stage": "complete",
             "progress": 1.0,
-            "message": (
-                "[✅ SESSION-202] 核动力渲染完成！"
-                f"共生成 {len(gallery_files)} 张序列帧"
-                + (f"，视频已就绪" if video_file else "")
-            ),
+            "message": completion_msg,
             "gallery": gallery_files,
             "video": video_file,
             "error": None,
         }
 
-    def _execute_pipeline(self, intent_dict: dict[str, Any]) -> None:
-        """Attempt to execute the real pipeline.
+    def _execute_pipeline(
+        self,
+        intent_dict: dict[str, Any],
+        director_studio_spec: dict[str, Any],
+    ) -> None:
+        """Execute the real pipeline via ModeDispatcher.
 
-        This wraps the actual pipeline dispatch in a try/except to ensure
-        the Web UI never crashes even if the pipeline is unavailable.
+        SESSION-203-HOTFIX: This method now performs actual pipeline dispatch
+        instead of just creating a CreatorIntentSpec object.  It:
+
+        1. Builds the ``options`` dict expected by ``ProductionStrategy.build_context()``.
+        2. Threads ``director_studio_spec`` with admission-validated fields.
+        3. Dispatches through ``ModeDispatcher.dispatch("production", execute=True)``.
+
+        The dispatch is wrapped in try/except so the Web UI never crashes
+        even if the pipeline or ComfyUI backend is unavailable.
         """
         try:
-            from mathart.workspace.director_intent import CreatorIntentSpec
-            from mathart.workspace.intent_gateway import IntentGateway
+            from mathart.workspace.mode_dispatcher import ModeDispatcher
 
-            spec = CreatorIntentSpec()
-            spec.action_name = intent_dict.get("action_name", "")
-            spec.visual_reference_path = intent_dict.get("visual_reference_path", "")
-            spec.vfx_overrides = intent_dict.get("vfx_overrides", {})
-            spec.raw_vibe = intent_dict.get("raw_vibe", "")
+            action = intent_dict.get("action_name", "") or intent_dict.get("action", "")
+            vibe = intent_dict.get("raw_vibe", "")
+            vfx_overrides = intent_dict.get("vfx_overrides", {})
+
+            # Build production options matching ProductionStrategy.build_context() contract
+            options: dict[str, Any] = {
+                "skip_ai_render": False,
+                "batch_size": 20,
+                "pdg_workers": 16,
+                "gpu_slots": 1,
+                "seed": 20260425,
+                "interactive": False,  # Non-interactive (headless bridge)
+                # SESSION-196 P0-CLI-INTENT-THREADING fields
+                "director_studio_spec": director_studio_spec,
+                "vibe": vibe,
+                "vfx_artifacts": vfx_overrides if vfx_overrides else None,
+                # SESSION-191 LookDev Deep Pruning — action_filter 穿透
+                "action_filter": [action] if action else None,
+            }
+
+            dispatcher = ModeDispatcher(project_root=self.project_root)
+            result = dispatcher.dispatch(
+                "production",
+                options=options,
+                execute=True,
+            )
 
             logger.info(
-                "[SESSION-202 Bridge] Pipeline dispatch: action=%s",
-                spec.action_name,
+                "[SESSION-202 Bridge] Pipeline dispatch result: strategy=%s, executed=%s",
+                result.strategy_name,
+                result.executed,
             )
+
         except Exception as e:
-            logger.warning("[SESSION-202 Bridge] Pipeline setup failed: %s", e)
+            logger.warning("[SESSION-202 Bridge] Pipeline dispatch failed: %s", e)
             raise
 
     def _collect_output_gallery(self) -> list[str]:

@@ -1552,3 +1552,67 @@ mathart.pipeline_contract.PipelineContractError: [PipelineContractError:render_d
 2026-04-25 00:50:13 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
 2026-04-25 00:50:17 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
 2026-04-25 00:50:22 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-25 10:02:37 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-25 10:02:42 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-25 10:02:42 | WARNING  | mathart.core.builtin_backends | [industrial_sprite] config warning: render.height=7 too small; clamping to 8
+2026-04-25 10:13:23 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-25 10:13:28 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-25 10:13:28 | WARNING  | mathart.core.builtin_backends | [industrial_sprite] config warning: render.height=7 too small; clamping to 8
+2026-04-25 10:14:16 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=/home/ubuntu/MarioTrickster-MathArt/logs, rotation=midnight, retention=7 days
+2026-04-25 10:14:16 | INFO     | mathart.cli_wizard | [CLI] Wizard invoked: argv=['--mode', '5', '--yes', '--action', 'dash', '--reference-image', '/tmp/pytest-of-ubuntu/pytest-2/test_run_wizard_routes_mode_5_0/ghost.png', '--vfx-overrides', 'force_fluid=1,force_physics=0', '--project-root', '/tmp/pytest-of-ubuntu/pytest-2/test_run_wizard_routes_mode_5_0'], interactive=False
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: motion_2d (v2.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: industrial_sprite (v3.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: urp2d_bundle (v2.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: dimension_uplift_mesh (v2.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: anti_flicker_render (v5.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: physics_vfx (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: cel_shading (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: knowledge_distill (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: unified_motion (v1.0.0)
+2026-04-25 10:14:16 | WARNING  | mathart.core.niche_registry | Niche 'smooth_morphology' already registered, overwriting.
+2026-04-25 10:14:16 | DEBUG    | mathart.core.niche_registry | Registered niche: smooth_morphology
+2026-04-25 10:14:16 | WARNING  | mathart.core.niche_registry | Niche 'constraint_wfc' already registered, overwriting.
+2026-04-25 10:14:16 | DEBUG    | mathart.core.niche_registry | Registered niche: constraint_wfc
+2026-04-25 10:14:16 | WARNING  | mathart.core.niche_registry | Niche 'motion_2d_pipeline' already registered, overwriting.
+2026-04-25 10:14:16 | DEBUG    | mathart.core.niche_registry | Registered niche: motion_2d_pipeline
+2026-04-25 10:14:16 | WARNING  | mathart.core.niche_registry | Niche 'dimension_uplift' already registered, overwriting.
+2026-04-25 10:14:16 | DEBUG    | mathart.core.niche_registry | Registered niche: dimension_uplift
+2026-04-25 10:14:16 | WARNING  | mathart.core.niche_registry | Niche 'phase3_physics' already registered, overwriting.
+2026-04-25 10:14:16 | DEBUG    | mathart.core.niche_registry | Registered niche: phase3_physics
+2026-04-25 10:14:16 | WARNING  | mathart.core.niche_registry | Niche 'unity_urp_2d' already registered, overwriting.
+2026-04-25 10:14:16 | DEBUG    | mathart.core.niche_registry | Registered niche: unity_urp_2d
+2026-04-25 10:14:16 | WARNING  | mathart.core.niche_registry | Niche 'env_closedloop' already registered, overwriting.
+2026-04-25 10:14:16 | DEBUG    | mathart.core.niche_registry | Registered niche: env_closedloop
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: physics_3d (v1.1.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: taichi_xpbd (v2.1.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_xpbd (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_fluid_vfx (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_breakwall (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_morphology (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_wfc (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_motion_2d (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_dim_uplift (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_gait_blend (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_jakobsen (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_terrain (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_neural_render (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_visual_regression (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_urp2d (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_phase3_physics (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_industrial_skin (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_locomotion_cns (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_state_machine (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_runtime_distill (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_contract (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_env_closedloop (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_research (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_physics_gait_distill (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: evolution_cognitive_distill (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: rl_training (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: orthographic_pixel_render (v2.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: pseudo_3d_shell (v1.1.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: reaction_diffusion (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: unity_2d_anim (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: spine_preview (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: physical_ribbon (v1.0.0)
+2026-04-25 10:14:16 | DEBUG    | mathart.core.backend_registry | Registered backend: archive_delivery (v1.0.0)

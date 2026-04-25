@@ -7,7 +7,8 @@ layer and asserts:
 
 1. **Intent Assembly**: The bridge correctly assembles UI parameters into a
    ``CreatorIntentSpec``-compatible dictionary with proper ``vfx_overrides``,
-   ``action_name``, and ``visual_reference_path`` fields.
+   ``action_name``, ``visual_reference_path``, AND Gateway-compatible
+   ``action`` / ``reference_image`` keys.
 2. **Image Persistence (反幽灵路径红线)**: Drag-and-drop images are safely
    ``shutil.copy``-ed from Gradio temp to ``workspace/inputs/`` and the
    persisted file actually exists on disk.
@@ -22,6 +23,12 @@ Industrial References:
 - Adapter Pattern unit testing (mock external dependencies)
 - Contract testing (assert dictionary schema compliance)
 - File system isolation (tempfile for test artifacts)
+
+SESSION-203-HOTFIX:
+- Updated intent assembly tests to verify both Gateway-compatible keys
+  (``action`` / ``reference_image``) and downstream keys (``action_name`` /
+  ``visual_reference_path``).
+- Updated dispatch tests to account for the new ``pipeline_dispatch`` stage.
 """
 
 from __future__ import annotations
@@ -70,8 +77,13 @@ class TestIntentAssembly:
             force_cloth=False,
             force_particles=False,
         )
+        # Downstream-compatible keys
         assert intent["action_name"] == "walk"
         assert intent["visual_reference_path"] == ""
+        # Gateway-compatible keys (SESSION-203-HOTFIX)
+        assert intent["action"] == "walk"
+        assert intent["reference_image"] == ""
+        # Shared keys
         assert intent["vfx_overrides"] == {}
         assert intent["skeleton_topology"] == "biped"
 
@@ -86,8 +98,13 @@ class TestIntentAssembly:
             force_particles=True,
             raw_vibe="cyberpunk rain",
         )
+        # Downstream keys
         assert intent["action_name"] == "dash"
         assert intent["visual_reference_path"] == "/path/to/ref.png"
+        # Gateway keys (SESSION-203-HOTFIX)
+        assert intent["action"] == "dash"
+        assert intent["reference_image"] == "/path/to/ref.png"
+        # VFX overrides
         assert intent["vfx_overrides"]["force_fluid"] is True
         assert intent["vfx_overrides"]["force_physics"] is True
         assert intent["vfx_overrides"]["force_cloth"] is True
@@ -120,6 +137,7 @@ class TestIntentAssembly:
             force_particles=False,
         )
         assert intent["action_name"] == ""
+        assert intent["action"] == ""
 
     def test_intent_none_action_coerced(self):
         """None action should be coerced to empty string."""
@@ -133,6 +151,21 @@ class TestIntentAssembly:
         )
         # Should not crash; action_name may be None or ""
         assert intent["action_name"] is None or intent["action_name"] == ""
+        assert intent["action"] is None or intent["action"] == ""
+
+    def test_intent_gateway_key_consistency(self):
+        """Gateway keys must always match downstream keys (SESSION-203-HOTFIX)."""
+        intent = assemble_creator_intent(
+            action_name="jump",
+            reference_image_path="/some/path.png",
+            force_fluid=False,
+            force_physics=False,
+            force_cloth=False,
+            force_particles=False,
+        )
+        # Gateway key == downstream key
+        assert intent["action"] == intent["action_name"]
+        assert intent["reference_image"] == intent["visual_reference_path"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -278,6 +311,22 @@ class TestBridgeDispatch:
             assert required_keys.issubset(event.keys()), (
                 f"Event missing keys: {required_keys - event.keys()}"
             )
+
+    def test_bridge_dispatch_includes_pipeline_dispatch_stage(self):
+        """SESSION-203-HOTFIX: Dispatch must include a pipeline_dispatch stage."""
+        bridge = WebUIBridge()
+        events = list(bridge.dispatch_render(
+            action_name="run",
+            reference_image=None,
+            force_fluid=False,
+            force_physics=False,
+            force_cloth=False,
+            force_particles=False,
+        ))
+        stages = [e["stage"] for e in events]
+        assert "pipeline_dispatch" in stages, (
+            "Missing pipeline_dispatch stage — bridge must attempt real dispatch"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -425,6 +474,7 @@ class TestBridgeIntegration:
                 raw_vibe="test vibe",
             )
             assert intent["action_name"] == "dash"
+            assert intent["action"] == "dash"  # SESSION-203-HOTFIX
             assert intent["vfx_overrides"]["force_fluid"] is True
 
             # Step 3: Dispatch (generator)
@@ -443,7 +493,68 @@ class TestBridgeIntegration:
             assert stages[0] == "init"
             assert stages[-1] == "complete"
             assert all(0.0 <= e["progress"] <= 1.0 for e in events)
+            # SESSION-203-HOTFIX: pipeline_dispatch stage must be present
+            assert "pipeline_dispatch" in stages
         finally:
             os.unlink(tmp_path)
             if persisted and os.path.exists(persisted):
                 os.unlink(persisted)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Test Group 7: Gateway Key Mapping Contract (SESSION-203-HOTFIX)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestGatewayKeyMapping:
+    """Verify that the bridge produces Gateway-compatible keys for admission."""
+
+    def test_intent_dict_has_gateway_keys(self):
+        """Intent dict must contain 'action' and 'reference_image' keys
+        that IntentGateway.admit() reads via raw_intent.get()."""
+        intent = assemble_creator_intent(
+            action_name="run",
+            reference_image_path="/some/ref.png",
+            force_fluid=False,
+            force_physics=False,
+            force_cloth=False,
+            force_particles=False,
+        )
+        # These are the keys IntentGateway.admit() reads
+        assert "action" in intent, "Missing 'action' key for Gateway admission"
+        assert "reference_image" in intent, "Missing 'reference_image' key for Gateway admission"
+        assert intent["action"] == "run"
+        assert intent["reference_image"] == "/some/ref.png"
+
+    def test_gateway_admit_receives_correct_values(self):
+        """IntentGateway.admit() should receive non-empty action from bridge dict."""
+        from mathart.workspace.intent_gateway import IntentGateway
+        intent = assemble_creator_intent(
+            action_name="dash",
+            reference_image_path="",
+            force_fluid=False,
+            force_physics=False,
+            force_cloth=False,
+            force_particles=False,
+        )
+        gateway = IntentGateway()
+        admission = gateway.admit(intent)
+        # With the fixed keys, Gateway should now see the action
+        assert admission.action_name == "dash", (
+            f"Gateway should see action='dash', got '{admission.action_name}'"
+        )
+
+    def test_gateway_admit_with_vfx_overrides(self):
+        """IntentGateway.admit() should validate VFX overrides from bridge dict."""
+        from mathart.workspace.intent_gateway import IntentGateway
+        intent = assemble_creator_intent(
+            action_name="idle",
+            reference_image_path="",
+            force_fluid=True,
+            force_physics=True,
+            force_cloth=False,
+            force_particles=False,
+        )
+        gateway = IntentGateway()
+        admission = gateway.admit(intent)
+        assert admission.vfx_overrides.get("force_fluid") is True
+        assert admission.vfx_overrides.get("force_physics") is True

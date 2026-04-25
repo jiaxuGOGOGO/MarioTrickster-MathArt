@@ -1,7 +1,7 @@
 {
-  "version": "v1.0.10",
-  "last_session_id": "SESSION-202",
-  "last_updated": "2026-04-25T12:56:45Z",
+  "version": "v1.0.11",
+  "last_session_id": "SESSION-203-HOTFIX",
+  "last_updated": "2026-04-25T18:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -65,6 +65,37 @@
           "严禁前端硬编码列表：动作下拉框动态读取 OpenPoseGaitRegistry",
           "UX 零退化：工业烘焙网关 banner 保留",
           "继承红线（SESSION-194/195/197/199/200/201 完整保留）"
+        ],
+        "next_session_handoff": "P1-SESSION-203-POST-RENDER-ANALYSIS-AND-VIBRATION-FILTERING"
+      },
+      {
+        "id": "P0-SESSION-203-HOTFIX-BRIDGE-GATEWAY-KEY-FIX",
+        "title": "Bridge→Gateway Key Fix + Real Pipeline Dispatch + Gradio 6.0 Compat",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-203-HOTFIX",
+        "modules": [
+          "mathart/webui/bridge.py",
+          "mathart/webui/app.py",
+          "tests/test_session202_webui_bridge.py",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [
+          "tests/test_session202_webui_bridge.py"
+        ],
+        "description": "SESSION-203-HOTFIX fixes three critical bugs in SESSION-202 Web UI: (1) Bridge→Gateway dictionary key mismatch — assemble_creator_intent() used action_name/visual_reference_path but IntentGateway.admit() reads action/reference_image, causing Gateway pass-through mode with empty action_name. Fixed by producing dual-key dict with both Gateway-compatible and downstream-compatible keys. (2) Pipeline never dispatched — _execute_pipeline() only created CreatorIntentSpec without calling ModeDispatcher. Fixed by implementing real dispatch through ModeDispatcher.dispatch('production', options=..., execute=True) with director_studio_spec threading and action_filter injection. (3) Gradio 6.0 UserWarning — theme/css params moved from gr.Blocks() to launch(). 5 new tests added, 32 total Bridge tests passing.",
+        "industry_references": [
+          "K8s Mutating Admission Webhook — Intent validation and mutation pattern",
+          "Gradio 6.0 Migration Guide — Parameter location changes",
+          "Adapter Pattern dual-key dictionary — Gateway/downstream compatibility"
+        ],
+        "red_lines_observed": [
+          "Gateway 准入不再 pass-through：action key 正确传递",
+          "管线真实调度：ModeDispatcher.dispatch() 被实际调用",
+          "Gradio 6.0 兼容：theme/css 在 launch() 中传递",
+          "反自欺测试：32 个 Mock 测试全绿",
+          "继承红线（SESSION-194/195/196/197/199/200/201/202 完整保留）"
         ],
         "next_session_handoff": "P1-SESSION-203-POST-RENDER-ANALYSIS-AND-VIBRATION-FILTERING"
       },
