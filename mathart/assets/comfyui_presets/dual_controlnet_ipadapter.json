@@ -224,7 +224,7 @@
     }
   },
   "18": {
-    "class_type": "IPAdapterApply",
+    "class_type": "IPAdapterAdvanced",
     "inputs": {
       "model": [
         "1",
@@ -242,7 +242,12 @@
         "16",
         0
       ],
-      "weight": 0.85
+      "weight": 0.85,
+      "weight_type": "linear",
+      "combine_embeds": "concat",
+      "start_at": 0.0,
+      "end_at": 1.0,
+      "embeds_scaling": "V only"
     },
     "_meta": {
       "title": "Apply IP-Adapter"

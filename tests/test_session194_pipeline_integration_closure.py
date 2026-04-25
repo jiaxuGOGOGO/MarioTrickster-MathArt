@@ -148,14 +148,14 @@ class OpenPoseChainAssemblyTests(unittest.TestCase):
     def test_ipadapter_apply_present_and_wired_into_ksampler(self):
         payload = _assemble_default_payload()
         workflow = payload["prompt"]
-        # Find the IPAdapterApply node we injected
+        # Find the IPAdapterAdvanced node we injected
         ipa = None
         for nid, node in workflow.items():
-            if isinstance(node, dict) and node.get("class_type") == "IPAdapterApply":
+            if isinstance(node, dict) and node.get("class_type") == "IPAdapterAdvanced":
                 ipa = (nid, node)
                 break
-        self.assertIsNotNone(ipa, "SESSION-194 IPAdapterApply node missing")
-        # KSampler.model must be wired through the IPAdapterApply output
+        self.assertIsNotNone(ipa, "SESSION-194 IPAdapterAdvanced node missing")
+        # KSampler.model must be wired through the IPAdapterAdvanced output
         ks = None
         for nid, node in workflow.items():
             if isinstance(node, dict) and str(node.get("class_type", "")).startswith("KSampler"):
@@ -314,7 +314,9 @@ class IPAdapterIdempotencyTests(unittest.TestCase):
         self.assertEqual(len(workflow), nodes_before)
         # Verify weight was refreshed
         for node in workflow.values():
-            if isinstance(node, dict) and node.get("class_type") == "IPAdapterApply":
+            if isinstance(node, dict) and node.get("class_type") in {
+                "IPAdapterAdvanced", "IPAdapterApply", "IPAdapter",
+            }:
                 self.assertEqual(node["inputs"]["weight"], 0.5)
                 break
 

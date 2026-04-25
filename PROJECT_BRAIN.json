@@ -1,7 +1,7 @@
 {
-  "version": "v1.0.11",
-  "last_session_id": "SESSION-203-HOTFIX",
-  "last_updated": "2026-04-25T18:00:00Z",
+  "version": "v1.0.12",
+  "last_session_id": "SESSION-204-HOTFIX",
+  "last_updated": "2026-04-25T19:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -97,7 +97,45 @@
           "反自欺测试：32 个 Mock 测试全绿",
           "继承红线（SESSION-194/195/196/197/199/200/201/202 完整保留）"
         ],
-        "next_session_handoff": "P1-SESSION-203-POST-RENDER-ANALYSIS-AND-VIBRATION-FILTERING"
+        "next_session_handoff": "P0-SESSION-204-HOTFIX-IPADAPTER-NODE-MIGRATION"
+      },
+      {
+        "id": "P0-SESSION-204-HOTFIX-IPADAPTER-NODE-MIGRATION",
+        "title": "IPAdapterApply → IPAdapterAdvanced Node Migration + Artifact Schema Fix",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-204-HOTFIX",
+        "modules": [
+          "mathart/core/preset_topology_hydrator.py",
+          "mathart/core/identity_hydration.py",
+          "mathart/animation/comfyui_preset_manager.py",
+          "mathart/assets/comfyui_presets/dual_controlnet_ipadapter.json",
+          "mathart/core/builtin_backends.py",
+          "tests/test_p1_ai_2d_preset_injection.py",
+          "tests/test_session193_identity_chunk_openpose.py",
+          "tests/test_session194_pipeline_integration_closure.py",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [
+          "tests/test_p1_ai_2d_preset_injection.py",
+          "tests/test_session193_identity_chunk_openpose.py",
+          "tests/test_session194_pipeline_integration_closure.py"
+        ],
+        "description": "SESSION-204-HOTFIX migrates all IPAdapterApply references to IPAdapterAdvanced across the entire project. The cubiq/ComfyUI_IPAdapter_plus plugin has removed IPAdapterApply; the official drop-in replacement is IPAdapterAdvanced. Changes: (1) preset_topology_hydrator.py hydrate_ipadapter_quartet() — class_type IPAdapterApply→IPAdapterAdvanced, removed noise param, weight_type original→linear, added combine_embeds/embeds_scaling. (2) identity_hydration.py inject_ipadapter_identity_lock() — same migration. (3) comfyui_preset_manager.py _PRESET_SELECTORS — NodeSelector class_type updated. (4) dual_controlnet_ipadapter.json static workflow template — node 18 migrated. (5) builtin_backends.py _execute_offline_pipeline() — added missing keyframe_count to quality_metrics. (6) Three test files updated for new class_type assertions and forward-compatible version sets. 140 tests all green.",
+        "industry_references": [
+          "cubiq/ComfyUI_IPAdapter_plus NODES.md — IPAdapter Advanced is drop-in replacement for removed IPAdapter Apply",
+          "Ye et al. 2023 — IP-Adapter: Text Compatible Image Prompt Adapter",
+          "ComfyUI NODE_CLASS_MAPPINGS registry pattern"
+        ],
+        "red_lines_observed": [
+          "IPAdapter weight 0.85 golden zone preserved",
+          "Semantic selector addressing only — no numeric node IDs",
+          "identity_hydration IPADAPTER_APPLY_CLASS_TYPES frozenset retains all 4 variants for backward-compat detection",
+          "preset_topology_hydrator idempotent detection retains all 4 variants",
+          "140 tests all green, zero regressions"
+        ],
+        "next_session_handoff": "P1-SESSION-204-POST-RENDER-ANALYSIS-AND-VIBRATION-FILTERING"
       },
       {
         "id": "P0-SESSION-201-DIRECTOR-CLI-AND-INTENT-OVERHAUL",
@@ -6449,7 +6487,7 @@
     },
     "invariants": [
       "IPAdapter weight 0.85 is the golden zone (Ye et al. 2023 + cubiq community consensus)",
-      "Node chain: LoadImage -> CLIPVisionLoader -> IPAdapterModelLoader -> IPAdapterApply",
+      "Node chain: LoadImage -> CLIPVisionLoader -> IPAdapterModelLoader -> IPAdapterAdvanced",
       "Semantic selector addressing only — no numeric node IDs",
       "Idempotent: if IPAdapter nodes already exist, update weight in-place"
     ],

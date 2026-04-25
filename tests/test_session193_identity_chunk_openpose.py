@@ -86,7 +86,7 @@ class TestIdentityHydration(unittest.TestCase):
         self.assertIn("LoadImage", class_types)
         self.assertIn("CLIPVisionLoader", class_types)
         self.assertIn("IPAdapterModelLoader", class_types)
-        self.assertIn("IPAdapterApply", class_types)
+        self.assertIn("IPAdapterAdvanced", class_types)
 
     def test_inject_preserves_existing_nodes(self):
         mod = self._get_module()
@@ -136,9 +136,9 @@ class TestIdentityHydration(unittest.TestCase):
             },
         }
         report = mod.inject_ipadapter_identity_lock(workflow, "/tmp/ref.png", weight=0.70)
-        # Find IPAdapterApply node and check weight
+        # Find IPAdapterAdvanced node and check weight
         for node in workflow.values():
-            if isinstance(node, dict) and node.get("class_type") == "IPAdapterApply":
+            if isinstance(node, dict) and node.get("class_type") == "IPAdapterAdvanced":
                 self.assertAlmostEqual(node["inputs"]["weight"], 0.70, places=2)
                 break
 
@@ -391,9 +391,12 @@ class TestRedLineCompliance(unittest.TestCase):
         # assertion forward-compatible with all subsequent session bumps by enforcing
         # only the lower bound (Martin Fowler Evolutionary Architecture: fitness
         # functions evolve, never freeze, with the architecture).
-        _allowed_versions = {"v1.0.4", "v1.0.5", "v1.0.6", "v1.0.7", "v1.0.8"}
+        _allowed_versions = {"v1.0.4", "v1.0.5", "v1.0.6", "v1.0.7", "v1.0.8",
+                            "v1.0.9", "v1.0.10", "v1.0.11", "v1.0.12"}
         _allowed_sessions = {
             "SESSION-193", "SESSION-194", "SESSION-195", "SESSION-196", "SESSION-197",
+            "SESSION-198", "SESSION-199", "SESSION-200", "SESSION-201", "SESSION-202",
+            "SESSION-203-HOTFIX", "SESSION-204-HOTFIX",
         }
         self.assertIn(brain["version"], _allowed_versions)
         self.assertIn(brain["last_session_id"], _allowed_sessions)
@@ -411,8 +414,12 @@ class TestRedLineCompliance(unittest.TestCase):
         handoff_path = _PROJECT_ROOT / "SESSION_HANDOFF.md"
         src = handoff_path.read_text("utf-8")
         self.assertTrue(
-            any(s in src for s in ("SESSION-193", "SESSION-194", "SESSION-195", "SESSION-196", "SESSION-197")),
-            "Handoff must reference at least one of SESSION-193..197",
+            any(s in src for s in (
+                "SESSION-193", "SESSION-194", "SESSION-195", "SESSION-196", "SESSION-197",
+                "SESSION-198", "SESSION-199", "SESSION-200", "SESSION-201", "SESSION-202",
+                "SESSION-203-HOTFIX", "SESSION-204-HOTFIX",
+            )),
+            "Handoff must reference at least one of SESSION-193..204",
         )
 
     def test_user_guide_has_section_23(self):

@@ -78,7 +78,7 @@ _PRESET_SELECTORS: tuple[NodeSelector, ...] = (
     NodeSelector("depth_apply", "ControlNetApply", "depth controlnet", "strength"),
     NodeSelector("clip_vision", "CLIPVisionLoader", "clip vision", "clip_name"),
     NodeSelector("ip_adapter_loader", "IPAdapterModelLoader", "ip-adapter", "ipadapter_file"),
-    NodeSelector("ip_adapter_apply", "IPAdapterApply", "ip-adapter", "weight"),
+    NodeSelector("ip_adapter_apply", "IPAdapterAdvanced", "ip-adapter", "weight"),
     NodeSelector("ksampler_seed", "KSampler", "ksampler", "seed"),
     NodeSelector("ksampler_steps", "KSampler", "ksampler", "steps"),
     NodeSelector("ksampler_cfg", "KSampler", "ksampler", "cfg"),

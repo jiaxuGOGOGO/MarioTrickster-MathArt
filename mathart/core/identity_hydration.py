@@ -6,8 +6,8 @@ Industrial References:
     and injects them into the cross-attention layers, enabling zero-shot
     identity preservation without fine-tuning.
   - ComfyUI_IPAdapter_plus (cubiq): The canonical ComfyUI implementation.
-    Nodes: ``IPAdapterModelLoader``, ``CLIPVisionLoader``, ``IPAdapterApply``
-    (or ``IPAdapterApplyAdvanced``).
+    Nodes: ``IPAdapterModelLoader``, ``CLIPVisionLoader``, ``IPAdapterAdvanced``
+    (replaces deprecated ``IPAdapterApply``).
   - Golden weight band: 0.80–0.85 empirically balances identity fidelity
     with creative freedom. SESSION-193 locks at **0.85**.
 
@@ -124,7 +124,7 @@ def inject_ipadapter_identity_lock(
     1. **LoadImage** — loads the visual reference from ``reference_image_path``.
     2. **CLIPVisionLoader** — loads the CLIP-ViT-H vision encoder.
     3. **IPAdapterModelLoader** — loads the IP-Adapter model weights.
-    4. **IPAdapterApply** — wires reference embedding into the model's
+    4. **IPAdapterAdvanced** — wires reference embedding into the model's
        cross-attention, with ``weight`` set to the golden 0.85.
 
     If IPAdapter nodes already exist in the workflow (detected by
@@ -244,13 +244,14 @@ def inject_ipadapter_identity_lock(
 
     ipadapter_apply_id = _next_free_id(workflow)
     workflow[ipadapter_apply_id] = {
-        "class_type": "IPAdapterApply",
+        "class_type": "IPAdapterAdvanced",
         "inputs": {
             "weight": float(weight),
-            "noise": 0.0,
-            "weight_type": "original",
+            "weight_type": "linear",
+            "combine_embeds": "concat",
             "start_at": 0.0,
             "end_at": 1.0,
+            "embeds_scaling": "V only",
             # Wire connections: [source_node_id, output_index]
             "ipadapter": [ipadapter_loader_id, 0],
             "clip_vision": [clip_vision_id, 0],
@@ -280,7 +281,7 @@ def inject_ipadapter_identity_lock(
         {"node_id": load_image_id, "class_type": "LoadImage", "operation": "created"},
         {"node_id": clip_vision_id, "class_type": "CLIPVisionLoader", "operation": "created"},
         {"node_id": ipadapter_loader_id, "class_type": "IPAdapterModelLoader", "operation": "created"},
-        {"node_id": ipadapter_apply_id, "class_type": "IPAdapterApply", "operation": "created"},
+        {"node_id": ipadapter_apply_id, "class_type": "IPAdapterAdvanced", "operation": "created"},
     ])
 
     logger.info(

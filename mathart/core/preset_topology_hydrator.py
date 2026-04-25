@@ -311,7 +311,7 @@ def hydrate_ipadapter_quartet(
 
     existing_apply = _find_node(
         workflow,
-        class_types={"IPAdapterApply", "IPAdapterApplyAdvanced", "IPAdapter"},
+        class_types={"IPAdapterApply", "IPAdapterAdvanced", "IPAdapterApplyAdvanced", "IPAdapter"},
         title_contains=None,
     )
     if existing_apply is not None:
@@ -369,13 +369,14 @@ def hydrate_ipadapter_quartet(
     }
     ipa_apply_id = _next_free_id(workflow)
     workflow[ipa_apply_id] = {
-        "class_type": "IPAdapterApply",
+        "class_type": "IPAdapterAdvanced",
         "inputs": {
             "weight": float(weight),
-            "noise": 0.0,
-            "weight_type": "original",
+            "weight_type": "linear",
+            "combine_embeds": "concat",
             "start_at": 0.0,
             "end_at": 1.0,
+            "embeds_scaling": "V only",
             "ipadapter": [ipa_loader_id, 0],
             "clip_vision": [clip_vision_id, 0],
             "image": [load_image_id, 0],
@@ -397,7 +398,7 @@ def hydrate_ipadapter_quartet(
         (load_image_id, "create", "LoadImage"),
         (clip_vision_id, "create", "CLIPVisionLoader"),
         (ipa_loader_id, "create", "IPAdapterModelLoader"),
-        (ipa_apply_id, "create", "IPAdapterApply"),
+        (ipa_apply_id, "create", "IPAdapterAdvanced"),
     ]:
         report["touched_nodes"].append({"node_id": nid, "operation": op, "class_type": ct})
 

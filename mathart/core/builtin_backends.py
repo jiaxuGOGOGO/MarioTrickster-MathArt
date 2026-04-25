@@ -1042,6 +1042,7 @@ class AntiFlickerRenderBackend:
                 "temporal_stability_score": float(result.temporal_metrics.get("temporal_stability_score", 0.0)),
                 "mean_warp_error": float(result.temporal_metrics.get("mean_warp_error", 0.0)),
                 "frame_count": float(len(frame_sequence)),
+                "keyframe_count": float(len(result.keyframe_indices)),
             },
             references=[
                 str(workflow_path.resolve()),

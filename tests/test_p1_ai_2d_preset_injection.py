@@ -45,7 +45,7 @@ class TestComfyUIPresetManager:
 
         class_types = {node["class_type"] for node in workflow.values()}
         assert "CheckpointLoaderSimple" in class_types
-        assert "IPAdapterApply" in class_types
+        assert "IPAdapterAdvanced" in class_types
         assert "ControlNetApply" in class_types
         assert "KSampler" in class_types
         assert "VAEEncode" in class_types
@@ -120,8 +120,8 @@ class TestAntiFlickerPresetAssembly:
             "output_dir": str(tmp_path / "anti_flicker"),
             "name": "p1_ai_2d",
             "temporal": {"frame_count": 4, "fps": 12},
-            "width": 32,
-            "height": 32,
+            "width": 64,
+            "height": 64,
             "preset": {"name": PRESET_NAME},
             "identity_lock": {"enabled": True, "weight": 0.88},
             "comfyui": {
