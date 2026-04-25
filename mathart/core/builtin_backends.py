@@ -1509,6 +1509,276 @@ class AntiFlickerRenderBackend:
                     f"chunk={chunk_label}: {_s194_runtime_exc!r}",
                 ) from _s194_runtime_exc
 
+            # ─────────────────────────────────────────────────────────────
+            # SESSION-205 P0: Runtime Model Resolution & Reference Image Upload
+            # Root cause: hardcoded model filenames (CLIPVision, IPAdapter,
+            # OpenPose ControlNet) may not match the user's actual ComfyUI
+            # installation. Also, the reference image was injected by basename
+            # only — never uploaded to ComfyUI's /input directory.
+            #
+            # Fix: query the live ComfyUI server's /object_info endpoint to
+            # discover real model filenames, resolve or gracefully strip
+            # unavailable nodes, and upload the reference image via
+            # POST /upload/image before dispatch.
+            # ─────────────────────────────────────────────────────────────
+            try:
+                from mathart.core.comfyui_model_resolver import (
+                    resolve_clip_vision_model as _resolve_clip,
+                    resolve_ipadapter_model as _resolve_ipa_model,
+                    resolve_controlnet_model as _resolve_cnet,
+                    upload_reference_image as _upload_ref_image,
+                )
+                _wf = payload["prompt"]
+                _s205_report = {"session": "SESSION-205", "actions": []}
+
+                # --- 1. Resolve CLIPVisionLoader model name ---
+                for _nid, _node in list(_wf.items()):
+                    if not isinstance(_node, dict):
+                        continue
+                    if _node.get("class_type") == "CLIPVisionLoader":
+                        _requested_clip = _node.get("inputs", {}).get("clip_name", "")
+                        _resolved_clip = _resolve_clip(server_address, _requested_clip)
+                        if _resolved_clip:
+                            _node["inputs"]["clip_name"] = _resolved_clip
+                            _s205_report["actions"].append({
+                                "node_id": _nid, "type": "clip_vision_resolved",
+                                "from": _requested_clip, "to": _resolved_clip,
+                            })
+                            logger.info(
+                                "[anti_flicker_render] SESSION-205 CLIPVision resolved: %s → %s",
+                                _requested_clip, _resolved_clip,
+                            )
+                        else:
+                            # CLIPVision not available — must strip entire IPAdapter chain
+                            _s205_report["actions"].append({
+                                "node_id": _nid, "type": "clip_vision_unavailable",
+                                "requested": _requested_clip, "action": "strip_ipadapter_chain",
+                            })
+                            logger.warning(
+                                "[anti_flicker_render] SESSION-205 CLIPVision '%s' unavailable — "
+                                "stripping IPAdapter chain for graceful degradation",
+                                _requested_clip,
+                            )
+
+                # --- 2. Resolve IPAdapterModelLoader model name ---
+                for _nid, _node in list(_wf.items()):
+                    if not isinstance(_node, dict):
+                        continue
+                    if _node.get("class_type") == "IPAdapterModelLoader":
+                        _requested_ipa = _node.get("inputs", {}).get("ipadapter_file", "")
+                        _resolved_ipa = _resolve_ipa_model(server_address, _requested_ipa)
+                        if _resolved_ipa:
+                            _node["inputs"]["ipadapter_file"] = _resolved_ipa
+                            _s205_report["actions"].append({
+                                "node_id": _nid, "type": "ipadapter_model_resolved",
+                                "from": _requested_ipa, "to": _resolved_ipa,
+                            })
+                            logger.info(
+                                "[anti_flicker_render] SESSION-205 IPAdapter model resolved: %s → %s",
+                                _requested_ipa, _resolved_ipa,
+                            )
+                        else:
+                            _s205_report["actions"].append({
+                                "node_id": _nid, "type": "ipadapter_model_unavailable",
+                                "requested": _requested_ipa, "action": "strip_ipadapter_chain",
+                            })
+                            logger.warning(
+                                "[anti_flicker_render] SESSION-205 IPAdapter model '%s' unavailable — "
+                                "stripping IPAdapter chain for graceful degradation",
+                                _requested_ipa,
+                            )
+
+                # --- 3. Resolve OpenPose ControlNet model name ---
+                for _nid, _node in list(_wf.items()):
+                    if not isinstance(_node, dict):
+                        continue
+                    if _node.get("class_type") == "ControlNetLoader":
+                        _title = str(_node.get("_meta", {}).get("title", "")).lower()
+                        _requested_cnet = _node.get("inputs", {}).get("control_net_name", "")
+                        if "openpose" in _title or "openpose" in _requested_cnet.lower():
+                            _resolved_cnet = _resolve_cnet(server_address, _requested_cnet)
+                            if _resolved_cnet:
+                                _node["inputs"]["control_net_name"] = _resolved_cnet
+                                _s205_report["actions"].append({
+                                    "node_id": _nid, "type": "openpose_controlnet_resolved",
+                                    "from": _requested_cnet, "to": _resolved_cnet,
+                                })
+                                logger.info(
+                                    "[anti_flicker_render] SESSION-205 OpenPose ControlNet resolved: %s → %s",
+                                    _requested_cnet, _resolved_cnet,
+                                )
+                            else:
+                                _s205_report["actions"].append({
+                                    "node_id": _nid, "type": "openpose_controlnet_unavailable",
+                                    "requested": _requested_cnet, "action": "strip_openpose_chain",
+                                })
+                                logger.warning(
+                                    "[anti_flicker_render] SESSION-205 OpenPose ControlNet '%s' unavailable — "
+                                    "stripping OpenPose chain for graceful degradation",
+                                    _requested_cnet,
+                                )
+
+                # --- 4. Strip unavailable node chains ---
+                # If any critical IPAdapter/OpenPose model is missing, remove
+                # the entire node chain to prevent ComfyUI validation failure.
+                _strip_ipa = any(
+                    a.get("action") == "strip_ipadapter_chain"
+                    for a in _s205_report["actions"]
+                )
+                _strip_openpose = any(
+                    a.get("action") == "strip_openpose_chain"
+                    for a in _s205_report["actions"]
+                )
+
+                if _strip_ipa:
+                    _ipa_class_types = {
+                        "IPAdapterAdvanced", "IPAdapterApply",
+                        "IPAdapterApplyAdvanced", "IPAdapter",
+                        "IPAdapterModelLoader", "CLIPVisionLoader",
+                    }
+                    _ipa_node_ids = set()
+                    _ipa_ref_image_ids = set()
+                    for _nid, _node in list(_wf.items()):
+                        if not isinstance(_node, dict):
+                            continue
+                        _ct = _node.get("class_type", "")
+                        if _ct in _ipa_class_types:
+                            _ipa_node_ids.add(_nid)
+                        # Also find LoadImage nodes that feed into IPAdapter
+                        if _ct == "LoadImage":
+                            _title = str(_node.get("_meta", {}).get("title", "")).lower()
+                            if any(kw in _title for kw in ("session193", "session194", "ip-adapter", "ipadapter", "identity")):
+                                _ipa_ref_image_ids.add(_nid)
+                    _all_ipa_ids = _ipa_node_ids | _ipa_ref_image_ids
+
+                    # Before removing, rewire KSampler model input back to
+                    # the IPAdapter's upstream model source
+                    for _nid in list(_ipa_node_ids):
+                        _node = _wf.get(_nid, {})
+                        if _node.get("class_type") in ("IPAdapterAdvanced", "IPAdapterApply", "IPAdapterApplyAdvanced", "IPAdapter"):
+                            _ipa_model_src = _node.get("inputs", {}).get("model")
+                            if isinstance(_ipa_model_src, list) and len(_ipa_model_src) == 2:
+                                # Find KSampler that references this IPAdapter node
+                                for _ks_nid, _ks_node in _wf.items():
+                                    if not isinstance(_ks_node, dict):
+                                        continue
+                                    if _ks_node.get("class_type") in ("KSampler", "KSamplerAdvanced"):
+                                        _ks_model = _ks_node.get("inputs", {}).get("model")
+                                        if isinstance(_ks_model, list) and str(_ks_model[0]) == _nid:
+                                            _ks_node["inputs"]["model"] = _ipa_model_src
+                                            logger.info(
+                                                "[anti_flicker_render] SESSION-205 KSampler model rewired: %s → %s",
+                                                _nid, _ipa_model_src,
+                                            )
+
+                    for _nid in _all_ipa_ids:
+                        if _nid in _wf:
+                            del _wf[_nid]
+                    _s205_report["ipadapter_chain_stripped"] = True
+                    logger.info(
+                        "[anti_flicker_render] SESSION-205 Stripped %d IPAdapter nodes",
+                        len(_all_ipa_ids),
+                    )
+
+                if _strip_openpose:
+                    _openpose_node_ids = set()
+                    for _nid, _node in list(_wf.items()):
+                        if not isinstance(_node, dict):
+                            continue
+                        _ct = _node.get("class_type", "")
+                        _title = str(_node.get("_meta", {}).get("title", "")).lower()
+                        if ("openpose" in _title) or (
+                            _ct == "ControlNetLoader"
+                            and "openpose" in _node.get("inputs", {}).get("control_net_name", "").lower()
+                        ):
+                            _openpose_node_ids.add(_nid)
+                        if _ct == "VHS_LoadImagesPath" and "openpose" in _title:
+                            _openpose_node_ids.add(_nid)
+                        if _ct == "ControlNetApplyAdvanced" and "openpose" in _title:
+                            _openpose_node_ids.add(_nid)
+
+                    # Rewire downstream conditioning before removing
+                    for _op_nid in list(_openpose_node_ids):
+                        _op_node = _wf.get(_op_nid, {})
+                        if _op_node.get("class_type") == "ControlNetApplyAdvanced":
+                            _op_pos_src = _op_node.get("inputs", {}).get("positive")
+                            _op_neg_src = _op_node.get("inputs", {}).get("negative")
+                            for _ds_nid, _ds_node in _wf.items():
+                                if not isinstance(_ds_node, dict) or _ds_nid in _openpose_node_ids:
+                                    continue
+                                _ds_ins = _ds_node.get("inputs", {})
+                                for _key in ("positive", "negative"):
+                                    _ref = _ds_ins.get(_key)
+                                    if isinstance(_ref, list) and str(_ref[0]) == _op_nid:
+                                        _src = _op_pos_src if _key == "positive" else _op_neg_src
+                                        if isinstance(_src, list):
+                                            _ds_ins[_key] = _src
+                                            logger.info(
+                                                "[anti_flicker_render] SESSION-205 Rewired %s.%s: %s → %s",
+                                                _ds_nid, _key, _op_nid, _src,
+                                            )
+
+                    for _nid in _openpose_node_ids:
+                        if _nid in _wf:
+                            del _wf[_nid]
+                    _s205_report["openpose_chain_stripped"] = True
+                    logger.info(
+                        "[anti_flicker_render] SESSION-205 Stripped %d OpenPose nodes",
+                        len(_openpose_node_ids),
+                    )
+
+                # --- 5. Upload reference image to ComfyUI ---
+                if not _strip_ipa:
+                    for _nid, _node in list(_wf.items()):
+                        if not isinstance(_node, dict):
+                            continue
+                        if _node.get("class_type") == "LoadImage":
+                            _title = str(_node.get("_meta", {}).get("title", "")).lower()
+                            _img_name = _node.get("inputs", {}).get("image", "")
+                            if any(kw in _title for kw in ("session193", "session194", "ip-adapter", "ipadapter", "identity", "reference")):
+                                # Find the actual file on disk
+                                import os as _os205
+                                _ref_path_candidates = [
+                                    validated.get("_visual_reference_path"),
+                                    validated.get("identity_lock", {}).get("reference_image_path") if isinstance(validated.get("identity_lock"), dict) else None,
+                                    validated.get("director_studio_spec", {}).get("_visual_reference_path") if isinstance(validated.get("director_studio_spec"), dict) else None,
+                                ]
+                                _ref_disk_path = None
+                                for _cand in _ref_path_candidates:
+                                    if _cand and _os205.path.exists(str(_cand)):
+                                        _ref_disk_path = str(_cand)
+                                        break
+                                if _ref_disk_path:
+                                    _server_filename = _upload_ref_image(server_address, _ref_disk_path)
+                                    if _server_filename:
+                                        _node["inputs"]["image"] = _server_filename
+                                        _s205_report["actions"].append({
+                                            "node_id": _nid, "type": "reference_image_uploaded",
+                                            "local_path": _ref_disk_path,
+                                            "server_filename": _server_filename,
+                                        })
+                                        logger.info(
+                                            "[anti_flicker_render] SESSION-205 Reference image uploaded: %s → %s",
+                                            _ref_disk_path, _server_filename,
+                                        )
+                                    else:
+                                        logger.warning(
+                                            "[anti_flicker_render] SESSION-205 Reference image upload failed for %s",
+                                            _ref_disk_path,
+                                        )
+
+                payload.setdefault("mathart_lock_manifest", {})
+                payload["mathart_lock_manifest"]["session205_model_resolution_report"] = _s205_report
+            except Exception as _s205_exc:
+                logger.warning(
+                    "[anti_flicker_render] SESSION-205 model resolution non-critical skip: %s",
+                    _s205_exc,
+                )
+                payload.setdefault("mathart_lock_manifest", {})
+                payload["mathart_lock_manifest"]["session205_model_resolution_report"] = {
+                    "error": str(_s205_exc), "mode": "error_degradation",
+                }
+
             payload_path = payload_dir / f"{chunk_label}_workflow_payload.json"
             payload_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             chunk_payload_paths.append(str(payload_path.resolve()))

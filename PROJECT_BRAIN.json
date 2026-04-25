@@ -1,7 +1,7 @@
 {
-  "version": "v1.0.12",
-  "last_session_id": "SESSION-204-HOTFIX",
-  "last_updated": "2026-04-25T19:00:00Z",
+  "version": "v1.0.13",
+  "last_session_id": "SESSION-205-HOTFIX",
+  "last_updated": "2026-04-25T22:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -135,7 +135,37 @@
           "preset_topology_hydrator idempotent detection retains all 4 variants",
           "140 tests all green, zero regressions"
         ],
-        "next_session_handoff": "P1-SESSION-204-POST-RENDER-ANALYSIS-AND-VIBRATION-FILTERING"
+        "next_session_handoff": "P0-SESSION-205-HOTFIX-RUNTIME-MODEL-RESOLUTION"
+      },
+      {
+        "id": "P0-SESSION-205-HOTFIX-RUNTIME-MODEL-RESOLUTION",
+        "title": "Runtime Model Resolution + Reference Image Upload — Dynamic ComfyUI Asset Discovery & Graceful Degradation",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-205-HOTFIX",
+        "modules": [
+          "mathart/core/comfyui_model_resolver.py",
+          "mathart/core/builtin_backends.py",
+          "mathart/workspace/preflight_radar.py",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [],
+        "description": "SESSION-205-HOTFIX fixes 4 production failures in POST /prompt validation: (1) CLIPVisionLoader hardcoded filename mismatch — resolved via /object_info runtime query + fuzzy matching. (2) IPAdapterModelLoader empty directory — resolved via runtime query + graceful chain stripping. (3) ControlNetLoader OpenPose model missing — resolved via runtime query + graceful chain stripping with downstream conditioning rewiring. (4) LoadImage reference image not uploaded — resolved via POST /upload/image API. New module comfyui_model_resolver.py provides resolve_clip_vision_model, resolve_ipadapter_model, resolve_controlnet_model, upload_reference_image. SESSION-205 block in builtin_backends.py runs after SESSION-194/195/197 hydration and before SESSION-200 golden dump, dynamically resolving all model names and stripping unavailable node chains with proper DAG rewiring. preflight_radar.py extended with IPAdapter/CLIP Vision directory checks.",
+        "industry_references": [
+          "ComfyUI /object_info API — Runtime node input enum discovery",
+          "ComfyUI /upload/image API — Server-side image staging for LoadImage nodes",
+          "Graceful Degradation Pattern (Nygard, Release It!) — Strip unavailable features instead of crashing",
+          "Fuzzy String Matching (Levenshtein/token-overlap) — Model filename resolution"
+        ],
+        "red_lines_observed": [
+          "_execute_live_pipeline method signature zero modification",
+          "SESSION-205 block is non-critical try/except — never crashes the pipeline",
+          "Node chain stripping preserves DAG integrity via upstream rewiring",
+          "Reference image upload uses ComfyUI canonical /upload/image API",
+          "All inherited red lines (SESSION-194 through SESSION-204) preserved"
+        ],
+        "next_session_handoff": "P1-SESSION-205-POST-RENDER-ANALYSIS-AND-VIBRATION-FILTERING"
       },
       {
         "id": "P0-SESSION-201-DIRECTOR-CLI-AND-INTENT-OVERHAUL",

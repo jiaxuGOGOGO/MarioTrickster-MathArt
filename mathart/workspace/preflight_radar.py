@@ -143,6 +143,25 @@ REQUIRED_COMFYUI_ASSETS: tuple[dict[str, str], ...] = (
         "kind": "model_file",
         "relpath": "models/animatediff_models/v3_sd15_mm.ckpt",
     },
+    # SESSION-205: IPAdapter custom node (ComfyUI_IPAdapter_plus)
+    {
+        "name": "ipadapter_plus_node",
+        "kind": "custom_node_dir",
+        "relpath": "custom_nodes/ComfyUI_IPAdapter_plus",
+    },
+    # SESSION-205: IPAdapter model directory (advisory — actual model
+    # resolution happens at runtime via /object_info)
+    {
+        "name": "ipadapter_models_dir",
+        "kind": "custom_node_dir",
+        "relpath": "models/ipadapter",
+    },
+    # SESSION-205: CLIP Vision model directory
+    {
+        "name": "clip_vision_models_dir",
+        "kind": "custom_node_dir",
+        "relpath": "models/clip_vision",
+    },
 )
 
 
