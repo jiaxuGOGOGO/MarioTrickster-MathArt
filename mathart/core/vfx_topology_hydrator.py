@@ -65,16 +65,22 @@ logger = logging.getLogger(__name__)
 #  Constants — ControlNet models & node titles for physics/fluid chains
 # ═══════════════════════════════════════════════════════════════════════════
 
-# Fluid flowmap ControlNet (uses depth-style model as the flowmap is a
-# 2D displacement field similar to depth topology).
-FLUID_CONTROLNET_MODEL_DEFAULT: str = "control_v11f1p_sd15_depth.pth"
+# SESSION-199 SAFE MODEL MAPPING (反臆想模型注入红线):
+# Fluid flowmap ControlNet uses normalbae model — the fluid momentum field
+# encodes directional surface flow which photometric stereo theory maps
+# to surface normal perturbations (Lambertian shading gradient ≈ normal delta).
+# Reference: Woodham 1980 photometric stereo; SESSION-199 safe model mapping
+# research notes (docs/RESEARCH_NOTES_SESSION_199.md).
+FLUID_CONTROLNET_MODEL_DEFAULT: str = "control_v11p_sd15_normalbae.pth"
 FLUID_CONTROLNET_STRENGTH_DEFAULT: float = 0.35
 FLUID_START_PERCENT_DEFAULT: float = 0.0
 FLUID_END_PERCENT_DEFAULT: float = 0.80
 
-# Physics 3D ControlNet (uses normal-bae model as the physics output
-# encodes surface deformation similar to normal maps).
-PHYSICS_CONTROLNET_MODEL_DEFAULT: str = "control_v11p_sd15_normalbae.pth"
+# Physics 3D ControlNet uses depth model — the physics simulation output
+# encodes 3D rigid-body deformation fields which map naturally to depth
+# topology (Z-axis displacement ≈ depth map gradient).
+# Reference: SESSION-199 safe model mapping research notes.
+PHYSICS_CONTROLNET_MODEL_DEFAULT: str = "control_v11f1p_sd15_depth.pth"
 PHYSICS_CONTROLNET_STRENGTH_DEFAULT: float = 0.30
 PHYSICS_START_PERCENT_DEFAULT: float = 0.0
 PHYSICS_END_PERCENT_DEFAULT: float = 0.75
@@ -87,6 +93,67 @@ TITLE_FLUID_APPLY: str = "session197 apply fluid controlnet"
 TITLE_PHYSICS_VHS_LOADER: str = "session197 load physics sequence"
 TITLE_PHYSICS_CONTROLNET_LOADER: str = "session197 physics controlnet loader"
 TITLE_PHYSICS_APPLY: str = "session197 apply physics controlnet"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  SESSION-199: Adaptive Variance-Based ControlNet Strength Scheduler
+# ═══════════════════════════════════════════════════════════════════════════
+
+def compute_adaptive_controlnet_strength(
+    pixel_variance: float,
+    base_strength: float = 0.35,
+    *,
+    variance_scale: float = 0.5,
+    min_strength: float = 0.10,
+    max_strength: float = 0.90,
+) -> float:
+    """Compute adaptive ControlNet strength based on pixel-level variance.
+
+    SESSION-199 PID-inspired adaptive gain scheduling:
+    Scales the ControlNet injection strength proportionally to the
+    normalised pixel variance of the conditioning image frame, then
+    clamps the result to the safe operating window ``[min_strength,
+    max_strength]``.
+
+    The formula is::
+
+        raw = base_strength + variance_scale * normalised_variance
+        strength = clamp(raw, min_strength, max_strength)
+
+    where ``normalised_variance = pixel_variance / 255.0`` (assumes
+    uint8 pixel range 0-255).
+
+    Parameters
+    ----------
+    pixel_variance : float
+        Raw pixel variance of the conditioning frame (e.g. ``np.var(frame)``).
+        Expected range: 0.0 – 65025.0 (uint8 max variance = 255²).
+    base_strength : float
+        Baseline ControlNet strength when variance is zero. Default 0.35.
+    variance_scale : float
+        Scaling coefficient applied to the normalised variance. Default 0.5.
+    min_strength : float
+        Safety floor — strength is never below this value. Default 0.10.
+    max_strength : float
+        Safety ceiling — strength is never above this value. Default 0.90.
+
+    Returns
+    -------
+    float
+        Adaptive ControlNet strength in ``[min_strength, max_strength]``.
+
+    Examples
+    --------
+    >>> compute_adaptive_controlnet_strength(0.0)   # flat frame
+    0.35
+    >>> compute_adaptive_controlnet_strength(6502.5)  # 10% of max variance
+    0.375
+    >>> compute_adaptive_controlnet_strength(65025.0)  # max variance
+    0.85
+    """
+    normalised = float(pixel_variance) / 255.0
+    raw = float(base_strength) + float(variance_scale) * normalised
+    return float(max(float(min_strength), min(float(max_strength), raw)))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -705,4 +772,5 @@ __all__ = [
     "hydrate_physics_controlnet_chain",
     "hydrate_vfx_topology",
     "emit_vfx_hydration_banner",
+    "compute_adaptive_controlnet_strength",
 ]

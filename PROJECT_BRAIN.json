@@ -1,7 +1,7 @@
 {
-  "version": "v1.0.6",
-  "last_session_id": "SESSION-198",
-  "last_updated": "2026-04-25T04:58:21Z",
+  "version": "v1.0.7",
+  "last_session_id": "SESSION-199",
+  "last_updated": "2026-04-25T10:00:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -24,6 +24,51 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P1-SESSION-199-SAFE-MODEL-MAPPING-ADAPTIVE-SCHEDULING",
+        "title": "Safe ControlNet Model Mapping (反臆想模型注入红线) + Adaptive Variance Scheduling + SESSION-068 Red Light Clearance",
+        "priority": "P1",
+        "status": "CLOSED",
+        "session_landed": "SESSION-199",
+        "modules": [
+          "mathart/core/vfx_topology_hydrator.py",
+          "tests/test_session068_e2e.py",
+          "tests/test_session199_adaptive_scheduling.py",
+          "docs/RESEARCH_NOTES_SESSION_199.md",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [
+          "tests/test_session199_adaptive_scheduling.py"
+        ],
+        "description": "SESSION-199 three-part delivery: (1) 反臆想模型注入红线 — Corrected inverted fluid/physics ControlNet model mapping. FLUID_CONTROLNET_MODEL_DEFAULT changed from depth.pth to normalbae.pth (fluid momentum field ≈ surface normal perturbation per Woodham 1980 photometric stereo). PHYSICS_CONTROLNET_MODEL_DEFAULT changed from normalbae.pth to depth.pth (physics 3D deformation ≈ Z-axis depth displacement). (2) PID 自适应增益调度 — New compute_adaptive_controlnet_strength() function: scales ControlNet strength proportionally to normalised pixel variance (pixel_variance/255.0), clamped to [min_strength, max_strength] safety window. Pure function, no side effects. (3) 历史红灯清理 — Fixed test_session068_e2e.py: all anti_flicker_render invocations updated from 32×32 to 64×64 (11 occurrences) to satisfy SESSION-198 minimum dimension constraint. 16 new tests in test_session199_adaptive_scheduling.py all passing.",
+        "red_lines_honored": [
+          "反臆想模型注入红线: fluid→normalbae, physics→depth (research-justified)",
+          "反空投送幻觉红线: os.path.exists on every artifact path preserved",
+          "反图谱污染红线: DAG closure validation preserved",
+          "SESSION-198 Anti-Fake-Image Red Line (np.var > 0) preserved",
+          "SESSION-197 VFX Topology Hydration daisy-chain preserved",
+          "_execute_live_pipeline signature untouched",
+          "compute_adaptive_controlnet_strength is a pure function (no side effects)"
+        ],
+        "model_mapping_contract": {
+          "FLUID_CONTROLNET_MODEL_DEFAULT": "control_v11p_sd15_normalbae.pth",
+          "PHYSICS_CONTROLNET_MODEL_DEFAULT": "control_v11f1p_sd15_depth.pth",
+          "rationale_fluid": "Fluid momentum field ≈ surface normal perturbation (Woodham 1980 photometric stereo)",
+          "rationale_physics": "Physics 3D deformation ≈ Z-axis depth displacement"
+        },
+        "adaptive_scheduler_contract": {
+          "function": "compute_adaptive_controlnet_strength(pixel_variance, base_strength=0.35, variance_scale=0.5, min_strength=0.10, max_strength=0.90)",
+          "formula": "clamp(base_strength + variance_scale * (pixel_variance / 255.0), min_strength, max_strength)",
+          "return_type": "float",
+          "side_effects": "none (pure function)"
+        },
+        "industrial_references": [
+          "Woodham 1980 — Photometric method for determining surface orientation (fluid→normalbae rationale)",
+          "Åström & Hägglund 1995 — PID Controllers: Theory, Design, and Tuning (adaptive gain scheduling)",
+          "SESSION-198 minimum dimension constraint (64×64) — test_session068 fix rationale"
+        ]
+      },
       {
         "id": "P0-SESSION-195-FULL-MATRIX-CLOSURE",
         "title": "Full Matrix Closure — Test Debt Clearance + IPAdapter Late-Binding + Gait Registry Expansion",

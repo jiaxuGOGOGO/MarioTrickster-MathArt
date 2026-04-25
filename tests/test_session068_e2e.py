@@ -244,8 +244,8 @@ class TestAntiFlickerRenderE2E:
             "--output-dir", str(output_dir),
             "--name", "e2e_af",
             "--set", "temporal.frame_count=4",
-            "--set", "width=32",
-            "--set", "height=32",
+            "--set", "width=64",
+            "--set", "height=64",
         )
         assert proc.returncode == 0, f"stderr: {proc.stderr}"
         payload = json.loads(proc.stdout)
@@ -260,8 +260,8 @@ class TestAntiFlickerRenderE2E:
             "--output-dir", str(output_dir),
             "--name", "e2e_af_contract",
             "--set", "temporal.frame_count=4",
-            "--set", "width=32",
-            "--set", "height=32",
+            "--set", "width=64",
+            "--set", "height=64",
         )
         assert proc.returncode == 0, f"stderr: {proc.stderr}"
         payload = json.loads(proc.stdout)
@@ -282,8 +282,8 @@ class TestAntiFlickerRenderE2E:
             "--output-dir", str(output_dir),
             "--name", "e2e_af_frames",
             "--set", "temporal.frame_count=4",
-            "--set", "width=32",
-            "--set", "height=32",
+            "--set", "width=64",
+            "--set", "height=64",
         )
         assert proc.returncode == 0, f"stderr: {proc.stderr}"
         payload = json.loads(proc.stdout)
@@ -320,8 +320,8 @@ class TestAntiFlickerRenderE2E:
             "--name", "e2e_af_tr",
             "--set", "temporal.frame_count=4",
             "--set", "temporal.fps=12",
-            "--set", "width=32",
-            "--set", "height=32",
+            "--set", "width=64",
+            "--set", "height=64",
         )
         assert proc.returncode == 0, f"stderr: {proc.stderr}"
         payload = json.loads(proc.stdout)
@@ -342,8 +342,8 @@ class TestAntiFlickerRenderE2E:
             "--output-dir", str(output_dir),
             "--name", "e2e_af_kf",
             "--set", "temporal.frame_count=4",
-            "--set", "width=32",
-            "--set", "height=32",
+            "--set", "width=64",
+            "--set", "height=64",
         )
         assert proc.returncode == 0, f"stderr: {proc.stderr}"
         payload = json.loads(proc.stdout)
@@ -365,8 +365,8 @@ class TestAntiFlickerRenderE2E:
             "--output-dir", str(output_dir),
             "--name", "e2e_af_report",
             "--set", "temporal.frame_count=4",
-            "--set", "width=32",
-            "--set", "height=32",
+            "--set", "width=64",
+            "--set", "height=64",
         )
         assert proc.returncode == 0, f"stderr: {proc.stderr}"
         payload = json.loads(proc.stdout)
@@ -394,8 +394,8 @@ class TestAntiFlickerRenderE2E:
             "--output-dir", str(output_dir),
             "--name", "e2e_af_quality",
             "--set", "temporal.frame_count=4",
-            "--set", "width=32",
-            "--set", "height=32",
+            "--set", "width=64",
+            "--set", "height=64",
         )
         assert proc.returncode == 0, f"stderr: {proc.stderr}"
         payload = json.loads(proc.stdout)
@@ -416,8 +416,8 @@ class TestAntiFlickerRenderE2E:
             "--output-dir", str(output_dir),
             "--name", "e2e_af_alias",
             "--set", "temporal.frame_count=4",
-            "--set", "width=32",
-            "--set", "height=32",
+            "--set", "width=64",
+            "--set", "height=64",
         )
         assert proc.returncode == 0, f"stderr: {proc.stderr}"
         payload = json.loads(proc.stdout)
@@ -435,8 +435,8 @@ class TestAntiFlickerRenderE2E:
             "--set", "comfyui.steps=15",
             "--set", "comfyui.keyframe_interval=2",
             "--set", "identity_lock.weight=0.5",
-            "--set", "width=32",
-            "--set", "height=32",
+            "--set", "width=64",
+            "--set", "height=64",
         )
         assert proc.returncode == 0, f"stderr: {proc.stderr}"
         payload = json.loads(proc.stdout)
@@ -457,7 +457,7 @@ class TestCrossBackendContract:
         """Both high-dimensional backends must emit a top-level 'payload' key."""
         for backend, extra_args in [
             ("industrial_sprite", ["--set", "render.width=32", "--set", "render.height=32"]),
-            ("anti_flicker_render", ["--set", "temporal.frame_count=4", "--set", "width=32", "--set", "height=32"]),
+            ("anti_flicker_render", ["--set", "temporal.frame_count=4", "--set", "width=64", "--set", "height=64"]),
         ]:
             output_dir = tmp_path / f"cross_{backend}"
             proc = _run_cli(
@@ -498,8 +498,8 @@ class TestCrossBackendContract:
             "--output-dir", str(af_dir),
             "--name", "disc_af",
             "--set", "temporal.frame_count=4",
-            "--set", "width=32",
-            "--set", "height=32",
+            "--set", "width=64",
+            "--set", "height=64",
         )
         assert proc_af.returncode == 0
         af_payload = json.loads(proc_af.stdout)
