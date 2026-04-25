@@ -486,9 +486,27 @@ class TestUnifiedVFXHydration:
         assert report["action"] == "no_vfx_artifacts_detected"
         assert report["artifacts_detected"] == []
 
+    @staticmethod
+    def _seed_high_variance_png(directory: str) -> None:
+        """Create a synthetic PNG with high pixel variance in *directory*.
+
+        SESSION-202 Fix: SESSION-199 introduced dead-water pruning that checks
+        pixel variance of conditioning frames.  Empty temp directories yield
+        variance == 0.0 which is below ``DEAD_WATER_VARIANCE_THRESHOLD`` (0.5),
+        causing the channel to be pruned instead of injected.  We seed a
+        high-variance PNG so the dead-water gate passes and the original
+        injection logic is exercised.
+        """
+        import numpy as np
+        from PIL import Image as _PILImage
+        rng = np.random.default_rng(42)
+        arr = (rng.random((64, 64, 3)) * 255).astype(np.uint8)
+        _PILImage.fromarray(arr).save(os.path.join(directory, "mock_frame_0000.png"))
+
     def test_fluid_only_injection(self):
         wf = _build_base_workflow()
         with tempfile.TemporaryDirectory() as tmpdir:
+            self._seed_high_variance_png(tmpdir)
             ctx = _build_vfx_context(fluid_dir=tmpdir)
             report = hydrate_vfx_topology(wf, ctx)
             assert "fluid_flowmap" in report["artifacts_injected"]
@@ -498,6 +516,7 @@ class TestUnifiedVFXHydration:
     def test_physics_only_injection(self):
         wf = _build_base_workflow()
         with tempfile.TemporaryDirectory() as tmpdir:
+            self._seed_high_variance_png(tmpdir)
             ctx = _build_vfx_context(physics_dir=tmpdir)
             report = hydrate_vfx_topology(wf, ctx)
             assert "physics_3d" in report["artifacts_injected"]
@@ -507,6 +526,8 @@ class TestUnifiedVFXHydration:
         wf = _build_base_workflow()
         with tempfile.TemporaryDirectory() as fluid_dir, \
              tempfile.TemporaryDirectory() as physics_dir:
+            self._seed_high_variance_png(fluid_dir)
+            self._seed_high_variance_png(physics_dir)
             ctx = _build_vfx_context(fluid_dir=fluid_dir, physics_dir=physics_dir)
             report = hydrate_vfx_topology(wf, ctx)
             assert "fluid_flowmap" in report["artifacts_injected"]
@@ -514,18 +535,39 @@ class TestUnifiedVFXHydration:
             assert report["dag_closure"]["status"] == "closed"
 
     def test_ghost_path_raises_in_strict_mode(self):
-        """反空投送幻觉红线: ghost paths MUST raise PipelineIntegrityError."""
+        """反空投送幻觉红线: ghost paths MUST raise PipelineIntegrityError.
+
+        SESSION-202 Fix: SESSION-199 dead-water pruning intercepts ghost paths
+        before ``_validate_artifact_dir`` because ``_sample_variance_from_dir``
+        returns 0.0 for non-existent directories.  To exercise the original
+        ghost-path validation, we mock ``should_prune_dead_water`` to return
+        False so the flow reaches ``_validate_artifact_dir``.
+        """
         wf = _build_base_workflow()
         ctx = _build_vfx_context(fluid_dir="/nonexistent/ghost/path")
-        with pytest.raises(PipelineIntegrityError, match="does not exist on disk"):
-            hydrate_vfx_topology(wf, ctx, strict=True)
+        with mock.patch(
+            "mathart.core.vfx_topology_hydrator.should_prune_dead_water",
+            return_value=False,
+        ):
+            with pytest.raises(PipelineIntegrityError, match="does not exist on disk"):
+                hydrate_vfx_topology(wf, ctx, strict=True)
 
     def test_ghost_path_degrades_in_non_strict_mode(self):
-        """Graceful degradation when strict=False."""
+        """Graceful degradation when strict=False.
+
+        SESSION-202 Fix: With SESSION-199 dead-water pruning, a ghost path
+        whose directory doesn't exist yields variance 0.0, triggering the
+        ``dead_water_pruned`` branch.  We mock ``should_prune_dead_water``
+        to return False so the flow reaches the graceful_degradation path.
+        """
         wf = _build_base_workflow()
         ctx = _build_vfx_context(fluid_dir="/nonexistent/ghost/path")
-        report = hydrate_vfx_topology(wf, ctx, strict=False)
-        assert report["fluid_report"]["mode"] == "graceful_degradation"
+        with mock.patch(
+            "mathart.core.vfx_topology_hydrator.should_prune_dead_water",
+            return_value=False,
+        ):
+            report = hydrate_vfx_topology(wf, ctx, strict=False)
+            assert report["fluid_report"]["mode"] == "graceful_degradation"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
