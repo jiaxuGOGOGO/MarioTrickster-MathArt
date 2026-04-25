@@ -86,7 +86,49 @@ def _extract_enum_list(
     return []
 
 
-def _fuzzy_match(requested: str, available: list[str]) -> str | None:
+# SESSION-206: ControlNet model-type identifiers used by the type-safe
+# fuzzy matcher to prevent cross-type misresolution (e.g. openpose → normalbae).
+_CONTROLNET_TYPE_KEYWORDS: dict[str, set[str]] = {
+    "openpose": {"openpose"},
+    "normalbae": {"normalbae", "normal_bae"},
+    "depth": {"depth"},
+    "canny": {"canny"},
+    "scribble": {"scribble"},
+    "lineart": {"lineart"},
+    "softedge": {"softedge", "hed"},
+    "seg": {"seg"},
+    "shuffle": {"shuffle"},
+    "tile": {"tile"},
+    "inpaint": {"inpaint"},
+    "ip2p": {"ip2p", "instruct"},
+    "mlsd": {"mlsd"},
+}
+
+
+def _detect_controlnet_type(filename: str) -> str | None:
+    """Detect the ControlNet model type from a filename.
+
+    SESSION-206: This is the type-safety guard that prevents the fuzzy
+    matcher from resolving ``openpose`` to ``normalbae`` just because
+    they share tokens like ``control``, ``v11p``, ``sd15``.
+
+    Returns the detected type string (e.g. ``"openpose"``) or ``None``
+    if the filename does not match any known ControlNet type.
+    """
+    lower = filename.lower()
+    for type_name, keywords in _CONTROLNET_TYPE_KEYWORDS.items():
+        for kw in keywords:
+            if kw in lower:
+                return type_name
+    return None
+
+
+def _fuzzy_match(
+    requested: str,
+    available: list[str],
+    *,
+    require_same_controlnet_type: bool = False,
+) -> str | None:
     """Fuzzy-match a requested model filename against available filenames.
 
     Match strategy (in priority order):
@@ -94,12 +136,28 @@ def _fuzzy_match(requested: str, available: list[str]) -> str | None:
     2. Substring containment: requested stem is contained in an available name.
     3. Keyword overlap: match by shared significant tokens.
 
+    SESSION-206 Type-Safety Guard:
+    When ``require_same_controlnet_type=True``, the matcher will REJECT any
+    candidate whose ControlNet type differs from the requested filename's
+    type.  This prevents the catastrophic ``openpose → normalbae`` cross-type
+    misresolution that was the root cause of the abstract symmetric output.
+
     Returns the best matching filename, or ``None`` if no match is found.
     """
     if not available:
         return None
 
     req_lower = requested.lower()
+    _req_cnet_type = _detect_controlnet_type(req_lower) if require_same_controlnet_type else None
+
+    def _type_compatible(candidate: str) -> bool:
+        """Return True if the candidate is type-compatible with the request."""
+        if _req_cnet_type is None:
+            return True
+        cand_type = _detect_controlnet_type(candidate)
+        if cand_type is None:
+            return True  # Unknown type — allow (conservative)
+        return cand_type == _req_cnet_type
 
     # 1. Exact match (case-insensitive)
     for name in available:
@@ -124,12 +182,22 @@ def _fuzzy_match(requested: str, available: list[str]) -> str | None:
 
         # Check if the requested stem is a substring of the available name
         if req_stem in name_lower or name_stem in req_lower:
-            return name
+            if _type_compatible(name):
+                return name
+            else:
+                logger.warning(
+                    "[model_resolver] SESSION-206 Type-safety REJECT: "
+                    "'%s' substring-matched '%s' but ControlNet type differs "
+                    "(requested=%s, candidate=%s)",
+                    requested, name, _req_cnet_type,
+                    _detect_controlnet_type(name),
+                )
+                continue
 
         # 3. Token overlap scoring
         overlap = req_tokens & name_tokens
         score = len(overlap)
-        if score > best_score:
+        if score > best_score and _type_compatible(name):
             best_score = score
             best_match = name
 
@@ -212,6 +280,9 @@ def resolve_controlnet_model(
 ) -> str | None:
     """Resolve a ControlNet model filename against the live ComfyUI server.
 
+    SESSION-206: Uses ``require_same_controlnet_type=True`` to prevent
+    cross-type misresolution (e.g. openpose → normalbae).
+
     Returns the server-side filename if found, or ``None`` if unavailable.
     """
     info = _get_object_info(server_address, "ControlNetLoader", timeout=timeout)
@@ -222,7 +293,8 @@ def resolve_controlnet_model(
         )
         return None
 
-    match = _fuzzy_match(requested, available)
+    # SESSION-206: Enable type-safe matching for ControlNet models
+    match = _fuzzy_match(requested, available, require_same_controlnet_type=True)
     if match:
         logger.info(
             "[model_resolver] ControlNetLoader: resolved '%s' → '%s' (available: %s)",
@@ -230,7 +302,8 @@ def resolve_controlnet_model(
         )
     else:
         logger.warning(
-            "[model_resolver] ControlNetLoader: '%s' not found in %s",
+            "[model_resolver] ControlNetLoader: '%s' not found in %s "
+            "(type-safe matching enabled, cross-type candidates rejected)",
             requested, available,
         )
     return match

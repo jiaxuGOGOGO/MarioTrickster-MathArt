@@ -1510,16 +1510,23 @@ class AntiFlickerRenderBackend:
                 ) from _s194_runtime_exc
 
             # ─────────────────────────────────────────────────────────────
-            # SESSION-205 P0: Runtime Model Resolution & Reference Image Upload
-            # Root cause: hardcoded model filenames (CLIPVision, IPAdapter,
-            # OpenPose ControlNet) may not match the user's actual ComfyUI
-            # installation. Also, the reference image was injected by basename
-            # only — never uploaded to ComfyUI's /input directory.
+            # SESSION-205 + SESSION-206 P0: Strict Model Pre-flight Validation
+            # ─────────────────────────────────────────────────────────────
+            # SESSION-206 POLICY: REFUSE TO DEGRADE.
             #
-            # Fix: query the live ComfyUI server's /object_info endpoint to
-            # discover real model filenames, resolve or gracefully strip
-            # unavailable nodes, and upload the reference image via
-            # POST /upload/image before dispatch.
+            # The previous SESSION-205 implementation "gracefully degraded"
+            # by stripping IPAdapter/OpenPose chains when models were missing.
+            # This produced catastrophically bad output (abstract symmetric
+            # blobs) because the diffusion model lost all identity anchoring
+            # and pose control.
+            #
+            # New policy: If ANY required model is missing, the pipeline
+            # MUST halt immediately with a clear, actionable error message
+            # telling the user exactly which model to install and where.
+            # No stripping, no rewiring, no degradation.
+            #
+            # All existing strength/CFG/denoise parameters from SESSION-189,
+            # SESSION-190, SESSION-193 are PRESERVED UNCHANGED.
             # ─────────────────────────────────────────────────────────────
             try:
                 from mathart.core.comfyui_model_resolver import (
@@ -1528,10 +1535,12 @@ class AntiFlickerRenderBackend:
                     resolve_controlnet_model as _resolve_cnet,
                     upload_reference_image as _upload_ref_image,
                 )
+                from mathart.core.preset_topology_hydrator import PipelineIntegrityError
                 _wf = payload["prompt"]
-                _s205_report = {"session": "SESSION-205", "actions": []}
+                _s205_report = {"session": "SESSION-205+206", "policy": "REFUSE_TO_DEGRADE", "actions": []}
+                _missing_models: list[str] = []
 
-                # --- 1. Resolve CLIPVisionLoader model name ---
+                # --- 1. Validate & Resolve CLIPVisionLoader model name ---
                 for _nid, _node in list(_wf.items()):
                     if not isinstance(_node, dict):
                         continue
@@ -1549,18 +1558,19 @@ class AntiFlickerRenderBackend:
                                 _requested_clip, _resolved_clip,
                             )
                         else:
-                            # CLIPVision not available — must strip entire IPAdapter chain
-                            _s205_report["actions"].append({
-                                "node_id": _nid, "type": "clip_vision_unavailable",
-                                "requested": _requested_clip, "action": "strip_ipadapter_chain",
-                            })
-                            logger.warning(
-                                "[anti_flicker_render] SESSION-205 CLIPVision '%s' unavailable — "
-                                "stripping IPAdapter chain for graceful degradation",
+                            _missing_models.append(
+                                f"CLIPVision 模型缺失: '{_requested_clip}' 未在 ComfyUI 服务器上找到\n"
+                                f"  → 请将 CLIP Vision 模型文件放入 ComfyUI/models/clip_vision/ 目录\n"
+                                f"  → 推荐下载: https://huggingface.co/h94/IP-Adapter/resolve/main/models/image_encoder/model.safetensors\n"
+                                f"  → 重命名为: clip-vit-h-14-laion2B-s32B-b79K.safetensors"
+                            )
+                            logger.error(
+                                "[anti_flicker_render] SESSION-206 REFUSE_TO_DEGRADE: "
+                                "CLIPVision '%s' 不可用 — 拒绝降级，管线终止",
                                 _requested_clip,
                             )
 
-                # --- 2. Resolve IPAdapterModelLoader model name ---
+                # --- 2. Validate & Resolve IPAdapterModelLoader model name ---
                 for _nid, _node in list(_wf.items()):
                     if not isinstance(_node, dict):
                         continue
@@ -1578,17 +1588,18 @@ class AntiFlickerRenderBackend:
                                 _requested_ipa, _resolved_ipa,
                             )
                         else:
-                            _s205_report["actions"].append({
-                                "node_id": _nid, "type": "ipadapter_model_unavailable",
-                                "requested": _requested_ipa, "action": "strip_ipadapter_chain",
-                            })
-                            logger.warning(
-                                "[anti_flicker_render] SESSION-205 IPAdapter model '%s' unavailable — "
-                                "stripping IPAdapter chain for graceful degradation",
+                            _missing_models.append(
+                                f"IPAdapter 模型缺失: '{_requested_ipa}' 未在 ComfyUI 服务器上找到\n"
+                                f"  → 请将 IPAdapter 模型文件放入 ComfyUI/models/ipadapter/ 目录\n"
+                                f"  → 推荐下载: https://huggingface.co/h94/IP-Adapter/resolve/main/models/ip-adapter-plus_sd15.safetensors"
+                            )
+                            logger.error(
+                                "[anti_flicker_render] SESSION-206 REFUSE_TO_DEGRADE: "
+                                "IPAdapter model '%s' 不可用 — 拒绝降级，管线终止",
                                 _requested_ipa,
                             )
 
-                # --- 3. Resolve OpenPose ControlNet model name ---
+                # --- 3. Validate & Resolve OpenPose ControlNet model name ---
                 for _nid, _node in list(_wf.items()):
                     if not isinstance(_node, dict):
                         continue
@@ -1608,176 +1619,110 @@ class AntiFlickerRenderBackend:
                                     _requested_cnet, _resolved_cnet,
                                 )
                             else:
-                                _s205_report["actions"].append({
-                                    "node_id": _nid, "type": "openpose_controlnet_unavailable",
-                                    "requested": _requested_cnet, "action": "strip_openpose_chain",
-                                })
-                                logger.warning(
-                                    "[anti_flicker_render] SESSION-205 OpenPose ControlNet '%s' unavailable — "
-                                    "stripping OpenPose chain for graceful degradation",
+                                _missing_models.append(
+                                    f"OpenPose ControlNet 模型缺失: '{_requested_cnet}' 未在 ComfyUI 服务器上找到\n"
+                                    f"  → 请将 OpenPose ControlNet 模型文件放入 ComfyUI/models/controlnet/ 目录\n"
+                                    f"  → 推荐下载: https://huggingface.co/lllyasviel/ControlNet-v1-1/resolve/main/control_v11p_sd15_openpose.pth"
+                                )
+                                logger.error(
+                                    "[anti_flicker_render] SESSION-206 REFUSE_TO_DEGRADE: "
+                                    "OpenPose ControlNet '%s' 不可用 — 拒绝降级，管线终止",
                                     _requested_cnet,
                                 )
 
-                # --- 4. Strip unavailable node chains ---
-                # If any critical IPAdapter/OpenPose model is missing, remove
-                # the entire node chain to prevent ComfyUI validation failure.
-                _strip_ipa = any(
-                    a.get("action") == "strip_ipadapter_chain"
-                    for a in _s205_report["actions"]
-                )
-                _strip_openpose = any(
-                    a.get("action") == "strip_openpose_chain"
-                    for a in _s205_report["actions"]
-                )
-
-                if _strip_ipa:
-                    _ipa_class_types = {
-                        "IPAdapterAdvanced", "IPAdapterApply",
-                        "IPAdapterApplyAdvanced", "IPAdapter",
-                        "IPAdapterModelLoader", "CLIPVisionLoader",
-                    }
-                    _ipa_node_ids = set()
-                    _ipa_ref_image_ids = set()
-                    for _nid, _node in list(_wf.items()):
-                        if not isinstance(_node, dict):
-                            continue
-                        _ct = _node.get("class_type", "")
-                        if _ct in _ipa_class_types:
-                            _ipa_node_ids.add(_nid)
-                        # Also find LoadImage nodes that feed into IPAdapter
-                        if _ct == "LoadImage":
-                            _title = str(_node.get("_meta", {}).get("title", "")).lower()
-                            if any(kw in _title for kw in ("session193", "session194", "ip-adapter", "ipadapter", "identity")):
-                                _ipa_ref_image_ids.add(_nid)
-                    _all_ipa_ids = _ipa_node_ids | _ipa_ref_image_ids
-
-                    # Before removing, rewire KSampler model input back to
-                    # the IPAdapter's upstream model source
-                    for _nid in list(_ipa_node_ids):
-                        _node = _wf.get(_nid, {})
-                        if _node.get("class_type") in ("IPAdapterAdvanced", "IPAdapterApply", "IPAdapterApplyAdvanced", "IPAdapter"):
-                            _ipa_model_src = _node.get("inputs", {}).get("model")
-                            if isinstance(_ipa_model_src, list) and len(_ipa_model_src) == 2:
-                                # Find KSampler that references this IPAdapter node
-                                for _ks_nid, _ks_node in _wf.items():
-                                    if not isinstance(_ks_node, dict):
-                                        continue
-                                    if _ks_node.get("class_type") in ("KSampler", "KSamplerAdvanced"):
-                                        _ks_model = _ks_node.get("inputs", {}).get("model")
-                                        if isinstance(_ks_model, list) and str(_ks_model[0]) == _nid:
-                                            _ks_node["inputs"]["model"] = _ipa_model_src
-                                            logger.info(
-                                                "[anti_flicker_render] SESSION-205 KSampler model rewired: %s → %s",
-                                                _nid, _ipa_model_src,
-                                            )
-
-                    for _nid in _all_ipa_ids:
-                        if _nid in _wf:
-                            del _wf[_nid]
-                    _s205_report["ipadapter_chain_stripped"] = True
-                    logger.info(
-                        "[anti_flicker_render] SESSION-205 Stripped %d IPAdapter nodes",
-                        len(_all_ipa_ids),
+                # --- 4. SESSION-206 HARD GATE: Refuse to proceed if ANY model is missing ---
+                if _missing_models:
+                    _missing_summary = "\n\n".join(_missing_models)
+                    _gate_msg = (
+                        f"\n{'='*72}\n"
+                        f"SESSION-206 模型预检失败 — 拒绝降级\n"
+                        f"{'='*72}\n\n"
+                        f"以下必需模型在 ComfyUI 服务器上不可用:\n\n"
+                        f"{_missing_summary}\n\n"
+                        f"请安装以上模型后重新运行。\n"
+                        f"本管线拒绝在模型不完整的情况下运行，因为降级产出的结果毫无价值。\n"
+                        f"{'='*72}"
                     )
-
-                if _strip_openpose:
-                    _openpose_node_ids = set()
-                    for _nid, _node in list(_wf.items()):
-                        if not isinstance(_node, dict):
-                            continue
-                        _ct = _node.get("class_type", "")
-                        _title = str(_node.get("_meta", {}).get("title", "")).lower()
-                        if ("openpose" in _title) or (
-                            _ct == "ControlNetLoader"
-                            and "openpose" in _node.get("inputs", {}).get("control_net_name", "").lower()
-                        ):
-                            _openpose_node_ids.add(_nid)
-                        if _ct == "VHS_LoadImagesPath" and "openpose" in _title:
-                            _openpose_node_ids.add(_nid)
-                        if _ct == "ControlNetApplyAdvanced" and "openpose" in _title:
-                            _openpose_node_ids.add(_nid)
-
-                    # Rewire downstream conditioning before removing
-                    for _op_nid in list(_openpose_node_ids):
-                        _op_node = _wf.get(_op_nid, {})
-                        if _op_node.get("class_type") == "ControlNetApplyAdvanced":
-                            _op_pos_src = _op_node.get("inputs", {}).get("positive")
-                            _op_neg_src = _op_node.get("inputs", {}).get("negative")
-                            for _ds_nid, _ds_node in _wf.items():
-                                if not isinstance(_ds_node, dict) or _ds_nid in _openpose_node_ids:
-                                    continue
-                                _ds_ins = _ds_node.get("inputs", {})
-                                for _key in ("positive", "negative"):
-                                    _ref = _ds_ins.get(_key)
-                                    if isinstance(_ref, list) and str(_ref[0]) == _op_nid:
-                                        _src = _op_pos_src if _key == "positive" else _op_neg_src
-                                        if isinstance(_src, list):
-                                            _ds_ins[_key] = _src
-                                            logger.info(
-                                                "[anti_flicker_render] SESSION-205 Rewired %s.%s: %s → %s",
-                                                _ds_nid, _key, _op_nid, _src,
-                                            )
-
-                    for _nid in _openpose_node_ids:
-                        if _nid in _wf:
-                            del _wf[_nid]
-                    _s205_report["openpose_chain_stripped"] = True
-                    logger.info(
-                        "[anti_flicker_render] SESSION-205 Stripped %d OpenPose nodes",
-                        len(_openpose_node_ids),
+                    logger.error(_gate_msg)
+                    # Also print to stderr for immediate CLI visibility
+                    import sys as _sys206
+                    try:
+                        _sys206.stderr.write("\033[1;31m" + _gate_msg + "\033[0m\n")
+                        _sys206.stderr.flush()
+                    except Exception:
+                        pass
+                    raise PipelineIntegrityError(
+                        f"SESSION-206 模型预检失败: {len(_missing_models)} 个必需模型缺失 — "
+                        f"拒绝降级。请安装以下模型: {'; '.join(m.split(chr(10))[0] for m in _missing_models)}"
                     )
 
                 # --- 5. Upload reference image to ComfyUI ---
-                if not _strip_ipa:
-                    for _nid, _node in list(_wf.items()):
-                        if not isinstance(_node, dict):
-                            continue
-                        if _node.get("class_type") == "LoadImage":
-                            _title = str(_node.get("_meta", {}).get("title", "")).lower()
-                            _img_name = _node.get("inputs", {}).get("image", "")
-                            if any(kw in _title for kw in ("session193", "session194", "ip-adapter", "ipadapter", "identity", "reference")):
-                                # Find the actual file on disk
-                                import os as _os205
-                                _ref_path_candidates = [
-                                    validated.get("_visual_reference_path"),
-                                    validated.get("identity_lock", {}).get("reference_image_path") if isinstance(validated.get("identity_lock"), dict) else None,
-                                    validated.get("director_studio_spec", {}).get("_visual_reference_path") if isinstance(validated.get("director_studio_spec"), dict) else None,
-                                ]
-                                _ref_disk_path = None
-                                for _cand in _ref_path_candidates:
-                                    if _cand and _os205.path.exists(str(_cand)):
-                                        _ref_disk_path = str(_cand)
-                                        break
-                                if _ref_disk_path:
-                                    _server_filename = _upload_ref_image(server_address, _ref_disk_path)
-                                    if _server_filename:
-                                        _node["inputs"]["image"] = _server_filename
-                                        _s205_report["actions"].append({
-                                            "node_id": _nid, "type": "reference_image_uploaded",
-                                            "local_path": _ref_disk_path,
-                                            "server_filename": _server_filename,
-                                        })
-                                        logger.info(
-                                            "[anti_flicker_render] SESSION-205 Reference image uploaded: %s → %s",
-                                            _ref_disk_path, _server_filename,
-                                        )
-                                    else:
-                                        logger.warning(
-                                            "[anti_flicker_render] SESSION-205 Reference image upload failed for %s",
-                                            _ref_disk_path,
-                                        )
+                for _nid, _node in list(_wf.items()):
+                    if not isinstance(_node, dict):
+                        continue
+                    if _node.get("class_type") == "LoadImage":
+                        _title = str(_node.get("_meta", {}).get("title", "")).lower()
+                        _img_name = _node.get("inputs", {}).get("image", "")
+                        if any(kw in _title for kw in ("session193", "session194", "ip-adapter", "ipadapter", "identity", "reference")):
+                            # Find the actual file on disk
+                            import os as _os205
+                            _ref_path_candidates = [
+                                validated.get("_visual_reference_path"),
+                                validated.get("identity_lock", {}).get("reference_image_path") if isinstance(validated.get("identity_lock"), dict) else None,
+                                validated.get("director_studio_spec", {}).get("_visual_reference_path") if isinstance(validated.get("director_studio_spec"), dict) else None,
+                            ]
+                            _ref_disk_path = None
+                            for _cand in _ref_path_candidates:
+                                if _cand and _os205.path.exists(str(_cand)):
+                                    _ref_disk_path = str(_cand)
+                                    break
+                            if _ref_disk_path:
+                                _server_filename = _upload_ref_image(server_address, _ref_disk_path)
+                                if _server_filename:
+                                    _node["inputs"]["image"] = _server_filename
+                                    _s205_report["actions"].append({
+                                        "node_id": _nid, "type": "reference_image_uploaded",
+                                        "local_path": _ref_disk_path,
+                                        "server_filename": _server_filename,
+                                    })
+                                    logger.info(
+                                        "[anti_flicker_render] SESSION-205 Reference image uploaded: %s → %s",
+                                        _ref_disk_path, _server_filename,
+                                    )
+                                else:
+                                    # Reference image upload failure is also a hard gate
+                                    raise PipelineIntegrityError(
+                                        f"SESSION-206 参考图上传失败: 无法将 '{_ref_disk_path}' "
+                                        f"上传到 ComfyUI 服务器。请检查 ComfyUI 服务器状态和磁盘空间。"
+                                    )
+                            else:
+                                # No reference image found on disk — hard gate
+                                raise PipelineIntegrityError(
+                                    f"SESSION-206 参考图缺失: IPAdapter 节点需要参考图像但未找到。\n"
+                                    f"请在配置中设置 '_visual_reference_path' 或 "
+                                    f"'identity_lock.reference_image_path' 指向有效的参考图像文件。"
+                                )
 
                 payload.setdefault("mathart_lock_manifest", {})
                 payload["mathart_lock_manifest"]["session205_model_resolution_report"] = _s205_report
+                logger.info(
+                    "[anti_flicker_render] SESSION-206 模型预检通过: 所有必需模型均已验证可用",
+                )
+            except PipelineIntegrityError:
+                # SESSION-206: PipelineIntegrityError is FAIL-FAST, re-raise directly
+                raise
             except Exception as _s205_exc:
-                logger.warning(
-                    "[anti_flicker_render] SESSION-205 model resolution non-critical skip: %s",
+                # SESSION-206: Any other exception during model validation is also
+                # a hard failure — we cannot trust the payload if validation itself crashed.
+                logger.error(
+                    "[anti_flicker_render] SESSION-206 模型预检异常崩溃 — 拒绝继续: %s",
                     _s205_exc,
                 )
-                payload.setdefault("mathart_lock_manifest", {})
-                payload["mathart_lock_manifest"]["session205_model_resolution_report"] = {
-                    "error": str(_s205_exc), "mode": "error_degradation",
-                }
+                from mathart.core.preset_topology_hydrator import PipelineIntegrityError as _PIE
+                raise _PIE(
+                    f"SESSION-206 模型预检异常: {_s205_exc!r}\n"
+                    f"请检查 ComfyUI 服务器是否正常运行、网络是否可达。"
+                ) from _s205_exc
 
             payload_path = payload_dir / f"{chunk_label}_workflow_payload.json"
             payload_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
