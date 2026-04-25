@@ -1,7 +1,7 @@
 {
   "version": "v1.0.14",
-  "last_session_id": "SESSION-206",
-  "last_updated": "2026-04-25T23:30:00Z",
+  "last_session_id": "SESSION-207",
+  "last_updated": "2026-04-25T23:45:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -2575,6 +2575,38 @@
         "tests/test_session174_asset_governance.py"
       ],
       "description": "SESSION-174 Asset Governance & Vault Extraction: Deployed industrial-grade asset governance system to solve post-production storage bloat and deliverable extraction pain points. (1) Asset Radar & Triage Engine: scans output/production/ for all mass_production_batch_* directories, reads batch_summary.json metadata and probes for final *.mp4/*.png deliverables to classify batches as Golden (complete) or Junk (aborted/interrupted), with recursive disk usage calculation in MB/GB. (2) Interactive GC Dashboard: replaces old [3] provenance audit in Golden Handoff V2 menu with a powerful storage management terminal featuring health report, one-click junk cleanup, and vault extraction. (3) Safe Nuke with Blast Radius Containment: assert path contains 'output/', Y/N confirmation with red highlighting, PermissionError resilience via shutil.rmtree onerror handler. (4) Gold Master Vault Extraction: flat-copies final MP4/PNG from golden batches into output/export_vault/<batch_id>/ using shutil.copy2 + os.makedirs(exist_ok=True). 22 unit tests added. Research grounding: JFrog Artifactory GC (2022), Schlegel & Sattler 'ML Lifecycle Artifacts' (ACM SIGMOD 2023), Autodesk Vault Flat Copy, Blast Radius Containment (Medium 2026), Michael Nygard 'Release It!' Circuit Breaker. All red lines strictly observed: zero modification to rendering/physics/network code, zero Evolution code touched, path sandbox isolation enforced."
+    },
+    {
+      "id": "P0-SESSION-207-NULL-SAFE-OUTPUT-AND-EXCEPTION-LADDER",
+      "title": "Null-Safe Output Handling + Precision Exception Ladder — WebSocket executed event output:null crash + Poison Pill swallowed by except-all",
+      "priority": "P0",
+      "status": "CLOSED",
+      "session_landed": "SESSION-207",
+      "modules": [
+        "mathart/comfy_client/comfyui_ws_client.py",
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "tests": [],
+      "description": "SESSION-207 Dual Critical Fix: (1) Null-Safe Output Handling — ComfyUI sometimes sends 'output': null in 'executed' WebSocket events for intermediate nodes with no output. data.get('output', {}) returns None (not {}) when the key exists with a null value. list(None.keys()) raised AttributeError, caught by the outer except Exception, silently falling back to HTTP polling — degrading real-time telemetry and destabilizing artifact downloads. FIX: isinstance(output, dict) type guard before .keys(), aligned with comfy_client.py SESSION-200 pattern. (2) Precision Exception Ladder — The outer except Exception block swallowed ComfyUIExecutionError (SESSION-168 Poison Pill), silently falling back to HTTP polling instead of propagating the fatal GPU crash to the orchestrator. FIX: except ComfyUIExecutionError: raise inserted before the generic catch-all, aligned with comfy_client.py SESSION-169 pattern.",
+      "red_lines_honored": [
+        "Refuse-to-Degrade: ComfyUIExecutionError pierces through except-all",
+        "Null-Safe: output MUST be dict before .keys() is called",
+        "SESSION-189/190/193 tuned parameters untouched",
+        "SESSION-168 Fail-Fast Poison Pill preserved and hardened",
+        "SESSION-169 Precision Exception Ladder pattern applied to comfyui_ws_client.py",
+        "SESSION-175 Hard-Drop Download Circuit Breaker preserved",
+        "SESSION-200 Full-Stack Telemetry contract preserved",
+        "SESSION-206 Refuse-to-Degrade + Type-Safe ControlNet preserved",
+        "_execute_live_pipeline signature untouched",
+        "Proxy environment variables untouched"
+      ],
+      "root_cause": "Python dict.get(key, default) returns the default only when the key is absent; when the key exists with value None, it returns None. ComfyUI sends 'output': null for intermediate nodes. The outer except Exception block caught both this AttributeError and ComfyUIExecutionError, silently degrading to HTTP polling in both cases.",
+      "fix_pattern": {
+        "null_safe_output": "isinstance(output, dict) guard before .keys() — aligned with comfy_client.py SESSION-200",
+        "exception_ladder": "except ComfyUIExecutionError: raise — before except Exception — aligned with comfy_client.py SESSION-169"
+      },
+      "next_session_handoff": "AWAITING-FEEDBACK"
     }
   ],
   "completed_tasks": [
@@ -4407,6 +4439,16 @@
       "focus": "Modal Decoupling + LookDev + I/O Sanitization",
       "status": "LANDED",
       "date": "2026-04-24"
+    },
+    {
+      "id": "SESSION-207",
+      "title": "Null-Safe Output + Exception Ladder",
+      "status": "CLOSED",
+      "key_deliverables": [
+        "isinstance(output, dict) guard in executed event handler",
+        "except ComfyUIExecutionError: raise before except Exception",
+        "SESSION-207 docstring in comfyui_ws_client.py header"
+      ]
     }
   ],
   "closed_tasks_archive": [
@@ -5936,6 +5978,18 @@
       "status": "CLOSED",
       "landed_at": "2026-04-25T12:20:50Z",
       "summary": "全息操作台升级：vfx_overrides CRD 字段 + 渐进式 CLI 向导 + 黄金通告单 + --yes / --auto-fire 静默逃生门; 26 新测试 + 81 回归测试全绿."
+    },
+    {
+      "session_id": "SESSION-207",
+      "summary": "Null-Safe Output Handling + Precision Exception Ladder — fixed output:null crash in comfyui_ws_client.py executed event handler + ComfyUIExecutionError now pierces through except-all",
+      "files_changed": [
+        "mathart/comfy_client/comfyui_ws_client.py"
+      ],
+      "files_touched": [
+        "SESSION_HANDOFF.md",
+        "PROJECT_BRAIN.json"
+      ],
+      "validation": "Pattern aligned with comfy_client.py SESSION-200 (null-safe) and SESSION-169 (exception ladder)"
     }
   ],
   "resolved_issues": [
@@ -6318,26 +6372,14 @@
     }
   ],
   "current_session": {
-    "id": "SESSION-198",
-    "title": "P0-MATH-TO-PIXEL-RASTERIZATION-BRIDGE",
-    "status": "COMPLETE",
+    "id": "SESSION-207",
+    "title": "P0-NULL-SAFE-OUTPUT-AND-EXCEPTION-LADDER",
+    "status": "CLOSED",
     "parent_commit": "cf34ef9",
     "deliverables": [
-      "mathart/animation/physics_sequence_exporter.py",
-      "tests/test_session198_physics_rasterization.py",
-      "mathart/core/vfx_topology_hydrator.py (extended)",
-      "mathart/core/builtin_backends.py (fixed)",
-      "mathart/workspace/semantic_orchestrator.py (fixed)"
-    ],
-    "test_results": {
-      "session198_tests": "2 passed",
-      "session197_tests": "48 passed",
-      "session196_tests": "23 passed (fixed 4 pre-existing failures)"
-    },
-    "red_lines_preserved": [
-      "Anti-Fake-Image Red Line (np.var > 0)",
-      "SESSION-197 VFX Hydration",
-      "SESSION-196 Intent Threading"
+      "mathart/comfy_client/comfyui_ws_client.py — null-safe output + exception ladder",
+      "SESSION_HANDOFF.md — rewritten for SESSION-207",
+      "PROJECT_BRAIN.json — updated"
     ]
   },
   "red_lines": [

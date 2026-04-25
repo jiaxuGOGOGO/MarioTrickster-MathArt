@@ -1,5 +1,31 @@
 """ComfyUI WebSocket execution client for production-grade async workflow execution.
 
+SESSION-207 (P0-SESSION-207-NULL-SAFE-OUTPUT-AND-EXCEPTION-LADDER)
+-------------------------------------------------------------------
+Critical dual fix:
+
+1. **Null-Safe Output Handling** — ComfyUI sometimes sends ``"output": null``
+   in ``executed`` events for intermediate nodes with no output.  The old code
+   used ``data.get("output", {})`` which returns ``None`` (not ``{}``) when the
+   key exists with a null value.  ``list(None.keys())`` raised ``AttributeError``,
+   caught by the outer ``except Exception`` and silently fell back to HTTP
+   polling — degrading real-time telemetry and destabilizing artifact downloads.
+   FIX: ``isinstance(output, dict)`` guard before ``.keys()`` (aligned with
+   ``comfy_client.py`` SESSION-200 pattern).
+
+2. **Precision Exception Ladder** — The outer ``except Exception`` block
+   swallowed ``ComfyUIExecutionError`` (the SESSION-168 Poison Pill), silently
+   falling back to HTTP polling instead of propagating the fatal GPU crash to
+   the orchestrator.  FIX: ``except ComfyUIExecutionError: raise`` inserted
+   before the generic catch-all (aligned with ``comfy_client.py`` SESSION-169).
+
+Research grounding (SESSION-207):
+- Python ``dict.get(key, default)`` returns the default only when the key is
+  absent; when the key exists with value ``None``, it returns ``None``.
+- SESSION-169 Precision Exception Ladder: ``ComfyUIExecutionError`` must
+  pierce through all catch-all blocks to reach the orchestrator.
+- Refuse-to-Degrade Principle (SESSION-206): errors MUST surface, not hide.
+
 SESSION-168 (P0-SESSION-168-COMFYUI-CLIENT-DEADLOCK-BREAKER)
 -------------------------------------------------------------
 Critical fix: Deploy Fail-Fast exception propagation for ``execution_error``
@@ -625,19 +651,42 @@ class ComfyUIClient:
                         })
 
                 elif event_type == "executed":
+                    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                    # SESSION-207 CRITICAL FIX: NULL-SAFE OUTPUT HANDLING
+                    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                    # ComfyUI sometimes sends "output": null for intermediate
+                    # nodes that produce no output.  data.get("output", {})
+                    # returns None (not {}) when the key exists with a null
+                    # value.  Calling .keys() on None raises AttributeError,
+                    # which is caught by the outer except-all and triggers a
+                    # spurious fallback from WebSocket to HTTP polling —
+                    # degrading real-time telemetry and destabilizing
+                    # downstream artifact downloads.
+                    #
+                    # FIX: Normalize output to {} when it is None or any
+                    # non-dict type, then derive output_keys safely.
+                    # Pattern aligned with comfy_client.py SESSION-200.
+                    #
+                    # RED LINE: output MUST be a dict before .keys() is
+                    # called.  NEVER trust data.get() default when the key
+                    # can exist with a null value.
+                    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                     node = data.get("node", "")
                     output = data.get("output", {})
+                    if not isinstance(output, dict):
+                        output = {}
+                    output_keys = list(output.keys())
                     progress_data[f"node_{node}"] = output
                     logger.info(
                         "[ComfyUIClient] Node %s executed, output keys: %s",
                         node,
-                        list(output.keys()),
+                        output_keys,
                     )
                     _emit_progress(progress_callback, {
                         "event_type": "executed",
                         "prompt_id": prompt_id,
                         "node": node,
-                        "output_keys": list(output.keys()),
+                        "output_keys": output_keys,
                     })
 
                 elif event_type == "progress":
@@ -718,6 +767,29 @@ class ComfyUIClient:
             ws.close()
             return {"error": f"Execution timed out after {self.max_execution_time}s"}
 
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # SESSION-207: PRECISION EXCEPTION LADDER (aligned with SESSION-169
+        # fix in comfy_client.py)
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # ComfyUIExecutionError is a DETERMINISTIC fatal crash from the
+        # remote GPU — it is NOT a transient network hiccup.  It MUST
+        # propagate to the orchestrator for circuit-breaker cancellation.
+        #
+        # OLD BEHAVIOR (BUG): except Exception caught EVERYTHING,
+        #   including ComfyUIExecutionError and AttributeError from
+        #   output:null, then silently fell back to HTTP polling.
+        #   → Poison Pill was swallowed → orchestrator never knew
+        #   → subsequent characters queued into a dead GPU.
+        #
+        # NEW BEHAVIOR (FIX): ComfyUIExecutionError is re-raised BEFORE
+        #   the generic except-all.  Only true network/transport errors
+        #   trigger HTTP polling fallback.
+        #
+        # RED LINE: NEVER catch ComfyUIExecutionError in this block.
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        except ComfyUIExecutionError:
+            # SESSION-207: Poison Pill MUST pierce through — re-raise
+            raise
         except (
             ConnectionRefusedError,
             OSError,
