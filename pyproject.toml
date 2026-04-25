@@ -62,6 +62,12 @@ dependencies = [
     # session brain inspector). Without it, dashboards fall back to a
     # crude str(dict) dump that is nearly unreadable in the terminal.
     "tabulate>=0.9.0",
+    # SESSION-202 [Zero-Defect Web Workspace]: gradio powers the browser-based
+    # visual production console (mathart/webui/app.py). It provides reactive
+    # Blocks layout, streaming progress via yield/generator, image gallery,
+    # and video playback — all without writing raw HTML/JS. Pinning >=4.0
+    # ensures the Blocks API and gr.Progress are available.
+    "gradio>=4.0",
 ]
 
 [project.optional-dependencies]
