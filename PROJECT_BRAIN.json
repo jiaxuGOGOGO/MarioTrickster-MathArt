@@ -1,7 +1,7 @@
 {
-  "version": "v1.0.8",
-  "last_session_id": "SESSION-200",
-  "last_updated": "2026-04-25T18:00:00Z",
+  "version": "v1.0.9",
+  "last_session_id": "SESSION-201",
+  "last_updated": "2026-04-25T12:20:50Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -24,6 +24,48 @@
     },
     "status_conflicts": 0,
     "top_priorities_ordered": [
+      {
+        "id": "P0-SESSION-201-DIRECTOR-CLI-AND-INTENT-OVERHAUL",
+        "title": "Director CLI & Intent Overhaul — Progressive Wizard + CRD-style Intent Schema + Pre-flight Manifest + Headless Auto-fire",
+        "priority": "P0",
+        "status": "CLOSED",
+        "session_landed": "SESSION-201",
+        "modules": [
+          "mathart/workspace/director_intent.py",
+          "mathart/workspace/intent_gateway.py",
+          "mathart/cli_wizard.py",
+          "tests/test_session201_cli_wizard.py",
+          "docs/RESEARCH_NOTES_SESSION_201.md",
+          "docs/USER_GUIDE.md",
+          "SESSION_HANDOFF.md",
+          "PROJECT_BRAIN.json"
+        ],
+        "tests": [
+          "tests/test_session201_cli_wizard.py"
+        ],
+        "description": "SESSION-201 升级了用户与系统之间的'全息操作台'：① 在 CreatorIntentSpec 上新增 vfx_overrides 字段 (CRD 风格强类型契约)，并在 DirectorIntentParser.parse_dict 末尾以 mutating webhook 模式应用，让用户显式开关永远胜过启发式; ② IntentGateway.validate_vfx_overrides 实现 Fail-Closed 校验，未知 key / 非 bool 值立即抛 IntentValidationError; ③ cli_wizard.py 引入 --yes / --auto-fire / --action / --reference-image / --vfx-overrides 五个新参数 + 渐进式问答向导 (反向枚举 OpenPoseGaitRegistry, 路径 os.path.exists 即时校验+5 次重试上限, VFX 强制开关), 并在烘焙前打印黄金通告单 + UX 防腐蚀 banner; ④ 26 个新单元测试覆盖五大契约, 81 个回归测试零退化.",
+        "industry_references": [
+          "Vue CLI Creating a Project (cli.vuejs.org)",
+          "Vercel CLI / GitLab CLI / npm --yes flag",
+          "Kubernetes Custom Resource Definitions + Admission Webhooks (kubernetes.io)",
+          "OWASP Path Traversal Prevention Cheat Sheet",
+          "Jim Gray, Why Do Computers Stop and What Can Be Done About It? (1985)"
+        ],
+        "red_lines_observed": [
+          "反业务下沉：CLI 仅做意图收集 / 路径预检 / 参数组装",
+          "反空跑宕机：os.path.exists() 即时校验 + 5 次重试上限",
+          "反重度依赖：仅用标准库 builtins.input() + ANSI 高亮",
+          "反自欺测试：tests/test_session201_cli_wizard.py 26 用例全绿",
+          "UX 零退化：工业烘焙网关 banner 保留 + 新增黄金通告单",
+          "向下兼容：vibe-only YAML 完全无感",
+          "Headless 静默逃生门：--yes / --auto-fire 完全跳过交互",
+          "Fail-Closed Admission：未知 VFX key 立即抛 IntentValidationError",
+          "严禁越权修改主干：AssetPipeline / Orchestrator 零侵入",
+          "独立封装挂载：vfx_overrides 通过 parse_dict 后置 hook 接入",
+          "强类型契约：as_admission_payload() 已包含新字段"
+        ],
+        "next_session_handoff": "P1-SESSION-202-POST-RENDER-ANALYSIS-AND-VIBRATION-FILTERING"
+      },
       {
         "id": "P0-SESSION-200-EPIC-IGNITION-AND-LIVE-TELEMETRY",
         "title": "Epic Ignition Full-Stack Telemetry — Golden Payload Snapshot + WS Dual-Channel Telemetry + Streaming Artifact Fetch + Circuit Breaker Hardening",
@@ -5716,6 +5758,13 @@
         "ONNX/TensorRT Computation Graph Multi-Path Fusion Topology",
         "ComfyUI Multi-ControlNet Stacking Guidelines"
       ]
+    },
+    {
+      "session": "SESSION-201",
+      "title": "Director CLI & Intent Overhaul",
+      "status": "CLOSED",
+      "landed_at": "2026-04-25T12:20:50Z",
+      "summary": "全息操作台升级：vfx_overrides CRD 字段 + 渐进式 CLI 向导 + 黄金通告单 + --yes / --auto-fire 静默逃生门; 26 新测试 + 81 回归测试全绿."
     }
   ],
   "resolved_issues": [

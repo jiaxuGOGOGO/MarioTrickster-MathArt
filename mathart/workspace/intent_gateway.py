@@ -98,6 +98,10 @@ class IntentAdmissionResult:
     """
     action_name: str = ""
     reference_image_path: str | None = None
+    # SESSION-201: declarative VFX override map (CRD-style explicit toggles).
+    # Keys are restricted to the SESSION-201 whitelist; values are bool.
+    # Empty dict == "no override" (legacy heuristic path remains in charge).
+    vfx_overrides: dict[str, bool] = field(default_factory=dict)
     warnings: tuple[str, ...] = field(default_factory=tuple)
 
     def as_admission_payload(self) -> dict[str, Any]:
@@ -107,6 +111,8 @@ class IntentAdmissionResult:
             payload["action_name"] = self.action_name
         if self.reference_image_path is not None:
             payload["_visual_reference_path"] = self.reference_image_path
+        if self.vfx_overrides:
+            payload["vfx_overrides"] = dict(self.vfx_overrides)
         return payload
 
 
@@ -248,6 +254,55 @@ class IntentGateway:
         return str(path.resolve())
 
     # -- Aggregate admission ------------------------------------------
+    # SESSION-201: explicit VFX-override whitelist.  Anything outside this
+    # set is rejected (Fail-Closed) so a typo ("force_fluds") cannot silently
+    # turn into "no plugins activated" later in the pipeline.
+    ALLOWED_VFX_OVERRIDE_KEYS: tuple[str, ...] = (
+        "force_fluid",
+        "force_physics",
+        "force_cloth",
+        "force_particles",
+    )
+
+    def validate_vfx_overrides(self, raw: Any) -> dict[str, bool]:
+        """Validate the optional ``vfx_overrides`` field (SESSION-201).
+
+        * ``None`` / missing / empty dict → returns ``{}`` (legacy heuristic path).
+        * Non-mapping value → :class:`IntentValidationError`.
+        * Unknown key → :class:`IntentValidationError` listing the legal whitelist.
+        * Non-bool value → :class:`IntentValidationError`.
+        """
+        if raw is None or raw == "":
+            return {}
+        if not isinstance(raw, Mapping):
+            raise IntentValidationError(
+                f"intent field 'vfx_overrides' must be a mapping, got "
+                f"{type(raw).__name__}",
+                field_name="vfx_overrides",
+                received=raw,
+                expected="mapping[str, bool]",
+            )
+        result: dict[str, bool] = {}
+        for key, value in raw.items():
+            if key not in self.ALLOWED_VFX_OVERRIDE_KEYS:
+                raise IntentValidationError(
+                    f"unknown vfx_overrides key '{key}' — expected one of "
+                    f"{list(self.ALLOWED_VFX_OVERRIDE_KEYS)}.",
+                    field_name="vfx_overrides",
+                    received=key,
+                    expected=self.ALLOWED_VFX_OVERRIDE_KEYS,
+                )
+            if not isinstance(value, bool):
+                raise IntentValidationError(
+                    f"vfx_overrides['{key}'] must be a bool, got "
+                    f"{type(value).__name__} ({value!r}).",
+                    field_name=f"vfx_overrides.{key}",
+                    received=value,
+                    expected="bool",
+                )
+            result[key] = bool(value)
+        return result
+
     def admit(self, raw_intent: Mapping[str, Any]) -> IntentAdmissionResult:
         """Run the full admission pipeline on a raw intent mapping.
 
@@ -258,15 +313,18 @@ class IntentGateway:
         warnings: list[str] = []
         action = self.validate_action(raw_intent.get("action"))
         ref = self.validate_reference_image(raw_intent.get("reference_image"))
-        if not action and not ref:
+        # SESSION-201: declarative VFX overrides (CRD-style explicit field).
+        vfx_overrides = self.validate_vfx_overrides(raw_intent.get("vfx_overrides"))
+        if not action and not ref and not vfx_overrides:
             warnings.append(
-                "no SESSION-196 admission fields supplied (action / "
-                "reference_image both empty) — gateway is in pass-through "
+                "no admission fields supplied (action / reference_image / "
+                "vfx_overrides all empty) — gateway is in pass-through "
                 "mode for this request."
             )
         return IntentAdmissionResult(
             action_name=action,
             reference_image_path=ref,
+            vfx_overrides=vfx_overrides,
             warnings=tuple(warnings),
         )
 

@@ -489,6 +489,23 @@ class CreatorIntentSpec:
     action_name: str = ""
     visual_reference_path: str = ""
 
+    # SESSION-201 P0-DIRECTOR-CLI-AND-INTENT-OVERHAUL: vfx_overrides
+    # ----------------------------------------------------------------
+    # K8s CRD-style explicit, declarative VFX switches.  Replaces the
+    # "vibe-only heuristic guess" path with structured contract fields.
+    # Allowed keys (whitelist enforced by IntentGateway):
+    #   - force_fluid       (bool)  -> activate fluid_momentum_controller
+    #   - force_physics     (bool)  -> activate physics_3d
+    #   - force_cloth       (bool)  -> activate cloth_simulation
+    #   - force_particles   (bool)  -> activate particle_system
+    # When True, the corresponding plugin is *unconditionally* added to
+    # ``active_vfx_plugins`` *after* the SemanticOrchestrator heuristic
+    # pass, ensuring the user's explicit toggle always wins over the LLM.
+    # When False, the corresponding plugin is *unconditionally removed*.
+    # Missing keys are treated as "no override" (defer to heuristics).
+    # [向下兼容红线] empty dict == legacy vibe-only behaviour, untouched.
+    vfx_overrides: dict = field(default_factory=dict)
+
     def to_dict(self) -> dict:
         _genotype = getattr(self, "genotype", None)
         _rules = getattr(self, "applied_knowledge_rules", None) or []
@@ -515,6 +532,10 @@ class CreatorIntentSpec:
             "_visual_reference_path": (
                 getattr(self, "visual_reference_path", "") or ""
             ) or None,
+            # SESSION-201: surface vfx_overrides on every payload so the
+            # downstream PDG / mass_production worker can re-apply the
+            # explicit toggle even after a serialise/deserialise hop.
+            "vfx_overrides": dict(getattr(self, "vfx_overrides", {}) or {}),
         }
 
     @classmethod
@@ -540,6 +561,7 @@ class CreatorIntentSpec:
                 or d.get("_visual_reference_path", "")
                 or ""
             ),
+            vfx_overrides=dict(d.get("vfx_overrides", {}) or {}),
         )
 
 
@@ -660,6 +682,46 @@ class DirectorIntentParser:
                 _vfx_err,
             )
             spec.active_vfx_plugins = []
+
+        # ── SESSION-201: vfx_overrides explicit toggle (CRD declarative) ──
+        # User‘s explicit toggle ALWAYS wins over heuristic / LLM guess.
+        # This is the Mutating Admission Webhook step — it runs *after*
+        # validation (above) and *after* the heuristic pass, so the final
+        # ``active_vfx_plugins`` reflects the user‘s direct intent.
+        try:
+            _overrides = dict(raw.get("vfx_overrides", {}) or {})
+            spec.vfx_overrides = _overrides
+            if _overrides:
+                _override_map = {
+                    "force_fluid":     "fluid_momentum_controller",
+                    "force_physics":   "physics_3d",
+                    "force_cloth":     "cloth_simulation",
+                    "force_particles": "particle_system",
+                }
+                _current = list(spec.active_vfx_plugins or [])
+                for _flag, _plugin_name in _override_map.items():
+                    if _flag not in _overrides:
+                        continue  # user did not toggle this one
+                    if bool(_overrides[_flag]):
+                        if _plugin_name not in _current:
+                            _current.append(_plugin_name)
+                            logger.info(
+                                "[DirectorIntent] SESSION-201 vfx_overrides→force-on: %s",
+                                _plugin_name,
+                            )
+                    else:
+                        if _plugin_name in _current:
+                            _current.remove(_plugin_name)
+                            logger.info(
+                                "[DirectorIntent] SESSION-201 vfx_overrides→force-off: %s",
+                                _plugin_name,
+                            )
+                spec.active_vfx_plugins = _current
+        except Exception as _ovr_err:  # pragma: no cover — defensive
+            logger.warning(
+                "[DirectorIntent] SESSION-201 vfx_overrides apply failed (graceful degradation): %s",
+                _ovr_err,
+            )
 
         return spec
 

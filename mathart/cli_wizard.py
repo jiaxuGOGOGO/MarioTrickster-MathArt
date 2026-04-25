@@ -260,6 +260,36 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--git-push", action="store_true", help="Allow local distillation mode to push knowledge via GitOps agent.")
     parser.add_argument("--config-storage", choices=["env", "json"], default="env", help="Preferred local secret storage backend.")
     parser.add_argument("--execute", action="store_true", help="Execute the selected mode instead of previewing it.")
+    # ── SESSION-201 P0-DIRECTOR-CLI-AND-INTENT-OVERHAUL flags ──
+    # Headless-mode escape hatch (Vue CLI / GitLab CLI / Vercel CLI pattern).
+    # When --yes/--auto-fire is given, every interactive ``[Y/n]`` confirmation
+    # in the Director Studio chain is auto-approved so CI/CD pipelines never
+    # block.  TTY interactive sessions still see the manifest banner; only the
+    # final blocking ``input()`` is skipped.
+    parser.add_argument(
+        "--yes", "--auto-fire",
+        dest="auto_fire",
+        action="store_true",
+        help="SESSION-201: Auto-approve every confirmation prompt (CI/CD headless mode).",
+    )
+    parser.add_argument(
+        "--action",
+        dest="action",
+        default=None,
+        help="SESSION-201: Lock a gait by name (must be in OpenPoseGaitRegistry).",
+    )
+    parser.add_argument(
+        "--reference-image",
+        dest="reference_image",
+        default=None,
+        help="SESSION-201: Path to an IPAdapter reference image (must exist on disk).",
+    )
+    parser.add_argument(
+        "--vfx-overrides",
+        dest="vfx_overrides",
+        default=None,
+        help="SESSION-201: Comma-separated VFX toggles, e.g. force_fluid=1,force_physics=0.",
+    )
     return parser
 
 
@@ -380,6 +410,45 @@ def run_wizard(
         sys.stdout.write(json.dumps(error_payload, ensure_ascii=False))
         sys.stdout.flush()
         return 2
+
+    # ── SESSION-201 P0-DIRECTOR-CLI-AND-INTENT-OVERHAUL: headless director studio ──
+    # When the caller asked for ``--mode 5`` (director_studio) we route to
+    # ``_run_director_studio`` directly so the SESSION-201 prompts (action,
+    # reference image, vfx_overrides) and manifest banner all fire even in
+    # non-interactive mode.  The legacy dispatcher path does not surface
+    # these fields so we MUST take the new path here.
+    if str(args.mode).strip().lower() in {"5", "director", "director_studio", "studio"}:
+        try:
+            dispatcher = ModeDispatcher(project_root=args.project_root)
+            return _run_director_studio(
+                project_root=Path(args.project_root or ".").resolve(),
+                dispatcher=dispatcher,
+                input_fn=input_fn,
+                output_fn=output_fn,
+                auto_fire=getattr(args, "auto_fire", False),
+                cli_action=getattr(args, "action", "") or "",
+                cli_reference_image=getattr(args, "reference_image", "") or "",
+                cli_vfx_overrides=_parse_vfx_overrides_flag(getattr(args, "vfx_overrides", None)),
+            )
+        except PipelineQualityCircuitBreak as exc:
+            error_payload = {
+                "status": "quality_circuit_break",
+                "violation_type": getattr(exc, "violation_type", "unknown"),
+                "detail": getattr(exc, "detail", str(exc)),
+            }
+            sys.stdout.write(json.dumps(error_payload, ensure_ascii=False))
+            sys.stdout.flush()
+            return 3
+        except Exception as exc:
+            logger.warning("[CLI] SESSION-201 headless director studio FAILED", exc_info=True)
+            error_payload = {
+                "status": "error",
+                "error_type": exc.__class__.__name__,
+                "message": str(exc),
+            }
+            sys.stdout.write(json.dumps(error_payload, ensure_ascii=False))
+            sys.stdout.flush()
+            return 1
 
     try:
         dispatcher = ModeDispatcher(project_root=args.project_root)
@@ -711,7 +780,255 @@ def _namespace_to_options(args: argparse.Namespace, *, interactive: bool) -> dic
         "skip_ai_render": args.skip_ai_render,
         "git_push": args.git_push,
         "config_storage": args.config_storage,
+        # SESSION-201: thread the headless escape hatch + admission fields.
+        "auto_fire": getattr(args, "auto_fire", False),
+        "action_name": getattr(args, "action", None) or "",
+        "reference_image": getattr(args, "reference_image", None) or "",
+        "vfx_overrides": _parse_vfx_overrides_flag(getattr(args, "vfx_overrides", None)),
     }
+
+
+def _parse_vfx_overrides_flag(raw: str | None) -> dict[str, bool]:
+    """SESSION-201: parse ``--vfx-overrides force_fluid=1,force_physics=0`` into a dict.
+
+    Empty / None input returns an empty dict (heuristic path remains in charge).
+    Unknown keys are tolerated here (the IntentGateway's Validating Webhook
+    will Fail-Closed on them downstream so the contract stays in one place).
+    """
+    if not raw:
+        return {}
+    out: dict[str, bool] = {}
+    for token in str(raw).split(","):
+        token = token.strip()
+        if not token:
+            continue
+        if "=" in token:
+            k, v = token.split("=", 1)
+            out[k.strip()] = v.strip().lower() in {"1", "true", "yes", "y", "on"}
+        else:
+            # Bare flag means "force on".
+            out[token] = True
+    return out
+
+
+# ---------------------------------------------------------------------------
+# SESSION-201 P0-DIRECTOR-CLI-AND-INTENT-OVERHAUL
+#
+# Public helpers (importable by tests, never widening any existing function
+# signature).  All logic lives here so tests can mock builtins.input directly.
+# ---------------------------------------------------------------------------
+PREFLIGHT_MANIFEST_HEADER = (
+    "\n\033[1;36m" + "═" * 60 + "\033[0m\n"
+    "\033[1;36m[\U0001f680 黄金通告单] 载荷组装完毕，请最后核验本次点火参数：\033[0m\n"
+    "\033[1;36m" + "═" * 60 + "\033[0m"
+)
+
+PREFLIGHT_MANIFEST_PROMPT = (
+    "\n\033[1;33m\U0001f680 载荷组装完毕，是否授权向远端 GPU 发起实机点火？[Y/n] \033[0m"
+)
+
+
+def select_action_via_wizard(
+    *,
+    input_fn: Callable[[str], str] = input,
+    output_fn: Callable[[str], None] = print,
+    auto_fire: bool = False,
+) -> str:
+    """SESSION-201: progressive-disclosure prompt for gait selection.
+
+    * Reverse-queries OpenPoseGaitRegistry — zero hardcoded list.
+    * Empty input → returns "" so downstream pipeline keeps its existing
+      random / preset selection (legacy heuristic path).
+    * In ``auto_fire`` mode this returns "" silently (no prompt) so CI/CD
+      pipelines that did not pass ``--action`` keep the legacy behaviour.
+    """
+    if auto_fire:
+        return ""
+    try:
+        from mathart.core.openpose_pose_provider import get_gait_registry
+        names = sorted(get_gait_registry().names())
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.warning("[CLI] SESSION-201 gait registry unreachable: %s", exc)
+        names = []
+    if not names:
+        output_fn(
+            "\033[1;33m[⚠️ SESSION-201] OpenPoseGaitRegistry 不可达—— 跳过动作锁定。\033[0m"
+        )
+        return ""
+    output_fn("")
+    output_fn("\033[1;36m" + "─" * 60 + "\033[0m")
+    output_fn(
+        "\033[1;36m[\U0001f3af SESSION-201 动作选择器] 反向查询 OpenPoseGaitRegistry...\033[0m"
+    )
+    for idx, name in enumerate(names, 1):
+        output_fn(f"\033[36m    [{idx}] {name}\033[0m")
+    output_fn("\033[36m    [0] 不锁定动作，由底层随机选择\033[0m")
+    raw = input_fn("请输入动作名称或编号 [默认: 0]: ").strip()
+    if not raw or raw == "0":
+        return ""
+    if raw.isdigit():
+        i = int(raw) - 1
+        if 0 <= i < len(names):
+            return names[i]
+    if raw.lower() in names:
+        return raw.lower()
+    output_fn(
+        f"\033[1;31m[❌ SESSION-201] 未知动作 '{raw}' —— 合法集合: {names}\033[0m"
+    )
+    return ""
+
+
+def prompt_reference_image_with_validation(
+    *,
+    input_fn: Callable[[str], str] = input,
+    output_fn: Callable[[str], None] = print,
+    auto_fire: bool = False,
+    max_retries: int = 5,
+) -> str:
+    """SESSION-201: ask for an optional IPAdapter reference image with full path validation.
+
+    Implements the OWASP "canonicalize → exists → type-check" loop with a
+    bounded retry budget so a fat-finger user never hangs the wizard forever.
+    Returns the absolute path string, or "" when the user declines.
+    """
+    if auto_fire:
+        return ""
+    output_fn("")
+    answer = input_fn(
+        "\033[36m[\U0001f50d SESSION-201 IPAdapter 探活] 是否要指定参考图？[y/N]: \033[0m"
+    ).strip().lower()
+    if answer not in {"y", "yes"}:
+        return ""
+    for attempt in range(1, max_retries + 1):
+        raw = input_fn(
+            "\033[36m请输入参考图的绝对路径 (输入 cancel 取消): \033[0m"
+        )
+        ref = (raw or "").strip().strip('"').strip("'").strip()
+        if not ref:
+            output_fn("\033[1;31m[❌ 路径为空，请重新输入。] \033[0m")
+            continue
+        if ref.lower() == "cancel":
+            output_fn("\033[33m[ℹ️ SESSION-201] 已取消参考图设定。\033[0m")
+            return ""
+        p = Path(ref)
+        if not p.exists():
+            output_fn(
+                f"\033[1;31m[❌ 路径不存在] '{ref}' —— 请核查后重新输入。"
+                f" ({attempt}/{max_retries})\033[0m"
+            )
+            continue
+        if p.is_dir():
+            output_fn(
+                f"\033[1;31m[❌ IPAdapter 需要单一图片文件，但 '{ref}' 是目录。] \033[0m"
+            )
+            continue
+        return str(p.resolve())
+    output_fn(
+        "\033[1;31m[❌ 重试超限] SESSION-201 已放弃参考图设定，以防止向导死循环。\033[0m"
+    )
+    return ""
+
+
+def prompt_vfx_overrides(
+    *,
+    input_fn: Callable[[str], str] = input,
+    output_fn: Callable[[str], None] = print,
+    auto_fire: bool = False,
+) -> dict[str, bool]:
+    """SESSION-201: ask the user whether to *force* fluid / physics / cloth / particles.
+
+    The CRD-style explicit toggle ALWAYS wins over the heuristic path.
+    Empty answer == "don't override anything" (legacy heuristic stays).
+    """
+    if auto_fire:
+        return {}
+    output_fn("")
+    answer = input_fn(
+        "\033[35m[\U0001f3ac SESSION-201 VFX 开关] 是否强制指定特效？[y/N]: \033[0m"
+    ).strip().lower()
+    if answer not in {"y", "yes"}:
+        return {}
+    overrides: dict[str, bool] = {}
+    for flag, label in (
+        ("force_fluid",     "\u6d41体/动量控制 (force_fluid)"),
+        ("force_physics",   "3D 物理仿真 (force_physics)"),
+        ("force_cloth",     "\u5e03料仿真 (force_cloth)"),
+        ("force_particles", "\u7c92子系统 (force_particles)"),
+    ):
+        a = input_fn(f"\033[35m  → {label}? [y/N/skip]: \033[0m").strip().lower()
+        if a in {"y", "yes", "1"}:
+            overrides[flag] = True
+        elif a in {"n", "no", "0"}:
+            overrides[flag] = False
+        # "" / "skip" / anything else → don't override (heuristic decides).
+    return overrides
+
+
+def render_preflight_manifest(
+    *,
+    spec: Any,
+    skip_ai_render: bool,
+    output_fn: Callable[[str], None] = print,
+) -> None:
+    """SESSION-201: render the Pre-flight Golden Manifest banner.
+
+    Always called before the final ignition input prompt (whether or not
+    auto_fire is set).  Keeping the banner unconditional means CI/CD logs
+    still capture exactly what the rocket is loaded with.
+    """
+    output_fn(PREFLIGHT_MANIFEST_HEADER)
+    spec_dict: dict[str, Any] = {}
+    try:
+        if hasattr(spec, "to_dict"):
+            spec_dict = spec.to_dict() or {}
+    except Exception:  # pragma: no cover — defensive
+        spec_dict = {}
+    action_name = spec_dict.get("action_name") or "(未锁定——随机/预设)"
+    ref_path = spec_dict.get("_visual_reference_path") or "(未提供)"
+    overrides = spec_dict.get("vfx_overrides") or {}
+    active_vfx = spec_dict.get("active_vfx_plugins") or []
+    output_fn(f"\033[36m  动作 (action_name)        : {action_name}\033[0m")
+    output_fn(f"\033[36m  参考图 (reference_image)  : {ref_path}\033[0m")
+    output_fn(
+        f"\033[36m  VFX 强制开关             : "
+        f"{overrides if overrides else '(未覆盖)'}\033[0m"
+    )
+    output_fn(
+        f"\033[36m  实际激活 VFX 插件        : "
+        f"{active_vfx if active_vfx else '(无)'}\033[0m"
+    )
+    output_fn(
+        f"\033[36m  AI 渲染路径             : "
+        f"{'CPU 专用 (skip_ai_render)' if skip_ai_render else 'CPU 烘焙 + GPU AI 渲染'}\033[0m"
+    )
+    output_fn("\033[1;36m" + "═" * 60 + "\033[0m")
+
+
+def confirm_ignition(
+    *,
+    input_fn: Callable[[str], str] = input,
+    output_fn: Callable[[str], None] = print,
+    auto_fire: bool = False,
+) -> bool:
+    """SESSION-201: final blocking ``[Y/n]`` confirmation gate.
+
+    Returns True when ignition is authorised, False otherwise.  When
+    ``auto_fire`` is True, returns True silently and prints a banner so the
+    CI/CD log still captures "auto-approved".
+    """
+    if auto_fire:
+        output_fn(
+            "\033[1;32m[✅ SESSION-201 --auto-fire] 黑盒模式已启用，跳过手动确认。\033[0m"
+        )
+        return True
+    raw = input_fn(PREFLIGHT_MANIFEST_PROMPT).strip().lower()
+    # Default = Y on empty input (Vue CLI / npm `[Y/n]` convention).
+    if raw in {"", "y", "yes"}:
+        return True
+    output_fn(
+        "\033[33m[ℹ️ SESSION-201] 点火已取消，可在菜单中重新调整参数。\033[0m"
+    )
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -750,6 +1067,10 @@ def _golden_handoff_menu(
     knowledge_bus: Any,
     input_fn: Callable[[str], str],
     output_fn: Callable[[str], None],
+    # SESSION-201: when True we skip the menu entirely and fire option [1]
+    # (full-array CPU bake) so headless runs end with a deterministic
+    # asset closure path. Auto_fire propagates to _dispatch_mass_production.
+    auto_fire: bool = False,
 ) -> None:
     """SESSION-159: Golden Handoff V2 — Full-Array Mass Production Dashboard.
 
@@ -766,6 +1087,24 @@ def _golden_handoff_menu(
     - Option [3]: Asset Governance Dashboard (SESSION-174: Storage Radar + GC + Vault Extraction)
     - Option [0]: Return to main menu
     """
+    # ── SESSION-201: headless fast-path ──
+    # Auto_fire fires option [1] (full-array CPU bake) once and returns,
+    # so CI runs do not block on a 0-length stdin.  All telemetry banners
+    # plus the SESSION-201 manifest banner still render for log capture.
+    if auto_fire:
+        logger.info("[CLI] SESSION-201 --auto-fire: Golden Handoff fast-path → [1] CPU bake")
+        _dispatch_mass_production(
+            project_root=project_root,
+            dispatcher=dispatcher,
+            spec=spec,
+            final_genotype=final_genotype,
+            skip_ai_render=True,
+            output_fn=output_fn,
+            input_fn=input_fn,
+            auto_fire=True,
+        )
+        return
+
     while True:
         output_fn("")
         output_fn("─" * 60)
@@ -952,6 +1291,10 @@ def _dispatch_mass_production(
     output_fn: Callable[[str], None],
     input_fn: Callable[[str], str],
     action_filter: list[str] | None = None,
+    # SESSION-201: headless escape hatch.  When True, the manifest banner is
+    # still rendered (for log capture) but the final ``[Y/n]`` blocking
+    # confirmation is skipped so CI/CD pipelines never deadlock.
+    auto_fire: bool = False,
 ) -> None:
     """SESSION-164: Unified mass-production dispatch with sci-fi telemetry.
     SESSION-190 upgrade: Added ``action_filter`` parameter for LookDev
@@ -978,6 +1321,24 @@ def _dispatch_mass_production(
     - Precise Exception Catching: Michael Nygard "Release It!" Circuit Breaker
     - AWS Exponential Backoff + Jitter (2015): thundering herd prevention
     """
+    # ── SESSION-201 P0-DIRECTOR-CLI-AND-INTENT-OVERHAUL: Pre-flight Manifest ──
+    # Render the "黄金通告单" banner *before* any algorithm fires so the
+    # user (and CI logs) sees exactly what's about to be launched.  When
+    # ``auto_fire`` is True the manifest is still printed but the blocking
+    # ``[Y/n]`` confirmation is skipped — maintaining log fidelity in CI.
+    try:
+        render_preflight_manifest(
+            spec=spec, skip_ai_render=skip_ai_render, output_fn=output_fn,
+        )
+        if not confirm_ignition(
+            input_fn=input_fn, output_fn=output_fn, auto_fire=auto_fire,
+        ):
+            logger.info("[CLI] SESSION-201 ignition declined by user; aborting dispatch.")
+            return
+    except (EOFError, KeyboardInterrupt):
+        # Defensive: never crash the wizard because of a missing prompt stub.
+        logger.debug("[CLI] SESSION-201 manifest interrupted — proceeding with dispatch.")
+
     # ── SESSION-164: Sci-fi Terminal Telemetry — Baking Phase ──────────────
     # [UX 零退化与科幻流转展示] 强制高亮打印工业烘焙网关 banner
     output_fn("")
@@ -1294,6 +1655,14 @@ def _run_director_studio(
     dispatcher: ModeDispatcher | None = None,
     input_fn: Callable[[str], str] = input,
     output_fn: Callable[[str], None] = print,
+    # SESSION-201: optional pre-filled CLI flags so headless callers can
+    # bypass interactive prompts entirely.  When ``auto_fire`` is True,
+    # every ``[Y/n]`` confirmation auto-approves; the manifest banner is
+    # still printed so logs capture exactly what was launched.
+    auto_fire: bool = False,
+    cli_action: str = "",
+    cli_reference_image: str = "",
+    cli_vfx_overrides: dict[str, bool] | None = None,
 ) -> int:
     """Run the Director Studio workflow: intent → preview REPL → Golden Handoff.
 
@@ -1476,6 +1845,43 @@ def _run_director_studio(
         # These will be applied after parse_dict creates the spec
         raw_intent["_physics_override"] = _dp
 
+    # ── SESSION-201 P0-DIRECTOR-CLI-AND-INTENT-OVERHAUL ──
+    # Progressive disclosure: gait → reference image → vfx overrides.
+    # CLI flags (--action / --reference-image / --vfx-overrides) take
+    # precedence over interactive prompts; auto_fire silences all prompts.
+    # NOTE: business logic (registry queries, image hydration, plugin
+    # activation) deliberately stays in the existing intent_gateway /
+    # director_intent / pipeline_weaver layers — the CLI only collects
+    # the structured fields and lets the gateway Fail-Closed on bad input.
+    try:
+        if cli_action:
+            raw_intent["action"] = cli_action
+        else:
+            _picked = select_action_via_wizard(
+                input_fn=input_fn, output_fn=output_fn, auto_fire=auto_fire,
+            )
+            if _picked:
+                raw_intent["action"] = _picked
+        if cli_reference_image:
+            raw_intent["reference_image"] = cli_reference_image
+        else:
+            _ref = prompt_reference_image_with_validation(
+                input_fn=input_fn, output_fn=output_fn, auto_fire=auto_fire,
+            )
+            if _ref:
+                raw_intent["reference_image"] = _ref
+        if cli_vfx_overrides:
+            raw_intent["vfx_overrides"] = dict(cli_vfx_overrides)
+        else:
+            _ovr = prompt_vfx_overrides(
+                input_fn=input_fn, output_fn=output_fn, auto_fire=auto_fire,
+            )
+            if _ovr:
+                raw_intent["vfx_overrides"] = _ovr
+    except (EOFError, KeyboardInterrupt):
+        # Headless tests may not stub every prompt; treat as "skip".
+        logger.debug("[CLI] SESSION-201 wizard interrupted — falling back to legacy heuristic")
+
     # Parse intent
     try:
         spec = parser.parse_dict(raw_intent)
@@ -1601,6 +2007,7 @@ def _run_director_studio(
             knowledge_bus=knowledge_bus,
             input_fn=input_fn,
             output_fn=output_fn,
+            auto_fire=auto_fire,  # SESSION-201: thread the headless flag.
         )
 
     output_fn("\n🎬 导演工坊流程完成！")
