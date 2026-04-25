@@ -1,56 +1,56 @@
 # SESSION HANDOFF
 
-> **SESSION-207 (P0-NULL-SAFE-OUTPUT-AND-EXCEPTION-LADDER)**
-> WebSocket `executed` 事件 `output: null` 导致 AttributeError → 静默降级到 HTTP 轮询 + Poison Pill 被 except-all 吞掉
+> **SESSION-207 (P0-NULL-SAFE-OUTPUT + EXCEPTION-LADDER + FULL-OBSERVABILITY)**
+> WebSocket `executed` 事件 `output: null` 导致 AttributeError → 静默降级到 HTTP 轮询 + Poison Pill 被 except-all 吞掉 + 10 个日志盲区全部补全
 >
-> 状态：✅ 双修复完成，已推送 GitHub。等待老大亲测反馈。
+> 状态：✅ 三重修复完成，已推送 GitHub。等待老大亲测反馈。
 
 ---
 
 ## 1. 一句话总结
 
-> 老大，`comfyui_ws_client.py` 有两个致命缺陷：
-> 1. ComfyUI 发送 `"output": null` 时，`data.get("output", {})` 返回 `None`（不是 `{}`），
->    `list(None.keys())` 抛 AttributeError → 被外层 `except Exception` 捕获 → **静默降级到 HTTP 轮询**。
-> 2. 外层 `except Exception` 同时也会吞掉 SESSION-168 的 `ComfyUIExecutionError` Poison Pill，
->    导致 GPU 崩溃信号被静默降级而非传播到编排器。
+> 老大，`comfyui_ws_client.py` 有两个致命缺陷 + 10 个日志盲区：
+> 1. ComfyUI 发送 `"output": null` 时 → AttributeError → 静默降级到 HTTP 轮询
+> 2. 外层 `except Exception` 吞掉 SESSION-168 Poison Pill → GPU 崩溃信号被静默降级
+> 3. 大量关键事件（GPU 点火、null output、JSON 畸形、HTTP 轮询、下载进度等）在日志中完全不可见
 >
-> 后果链：WebSocket 断开 → 实时遥测丢失 → 2秒间隔 HTTP 轮询 → 文件下载不稳定 → `Hard-drop while downloading`。
+> 本次 SESSION-207 三重修复：bug 修复 + 异常阶梯加固 + 全链路日志可观测性。
 
 ---
 
-## 2. SESSION-207 根因分析
+## 2. SESSION-207 修复内容
 
-### 问题 1：`output: null` → NoneType AttributeError
+### 2.1 Bug 修复（SESSION-207 第一次推送已完成）
 
-```
-ComfyUI 发送: {"type": "executed", "data": {"node": "42", "output": null}}
-Python 代码: output = data.get("output", {})  # key 存在但值为 null → 返回 None
-             list(output.keys())              # → AttributeError: 'NoneType' object has no attribute 'keys'
-→ 被 except Exception 捕获
-→ 日志: "WebSocket connection failed: 'NoneType' object has no attribute 'keys'"
-→ 静默降级到 HTTP 轮询
-```
+| 修复 | 描述 |
+|------|------|
+| Null-Safe Output | `isinstance(output, dict)` 类型守卫，防止 `output: null` 导致 AttributeError |
+| Exception Ladder | `except ComfyUIExecutionError: raise` 插入在 `except Exception` 之前，Poison Pill 穿透 |
 
-### 问题 2：Poison Pill 被 except-all 吞掉
+### 2.2 日志盲区补全（SESSION-207 第二次推送）
 
-```
-execution_error 事件 → raise ComfyUIExecutionError (SESSION-168 Poison Pill)
-→ 被同一个 except Exception 捕获
-→ 日志: "WebSocket connection failed: ComfyUI 端点渲染崩溃..."
-→ 静默降级到 HTTP 轮询（而非传播到编排器触发全局中断）
-→ 后续角色继续排队到死 GPU
-```
+| # | 盲区 | 修复 | 日志级别 |
+|---|------|------|----------|
+| 1 | `execution_start` 事件完全未处理 | 新增 `elif event_type == "execution_start"` 分支 + logger.info | INFO |
+| 2 | null output 场景无 WARNING | 新增 `logger.warning` 显示 type/value | WARNING |
+| 3 | JSON 解析失败静默跳过 | `json.JSONDecodeError` 添加 `logger.warning` | WARNING |
+| 4 | 未知事件类型静默丢弃 | 新增 `else` 分支 + `logger.debug` | DEBUG |
+| 5 | WebSocket 超时截止无 logger | 新增 `logger.error` | ERROR |
+| 6 | HTTP 轮询全程无日志 | 新增开始/每次轮询/成功/失败/超时全链路日志 | INFO/DEBUG/WARNING/ERROR |
+| 7 | HTTP 轮询 error 状态无 logger | 新增 `logger.error` | ERROR |
+| 8 | `_get_history` 成功无日志 | 新增 `logger.info` 含响应大小 | INFO |
+| 9 | `_download_outputs` 开始/结束无日志 | 新增开始（节点数/文件数）+ 完成（图片数/视频数/目录）日志 | INFO |
+| 10 | Poison Pill 穿透路径无日志 | 新增 `logger.critical` 在 re-raise 前 | CRITICAL |
 
-### Python `dict.get()` 陷阱（根因知识点）
+### 2.3 日志级别设计原则
 
-```python
-d = {"output": None}
-d.get("output", {})  # → None（key 存在，返回实际值 None，不是默认值 {}）
-
-d = {}
-d.get("output", {})  # → {}（key 不存在，返回默认值）
-```
+| 级别 | 使用场景 |
+|------|----------|
+| **CRITICAL** | Poison Pill 穿透、execution_error 致命崩溃 |
+| **ERROR** | 超时、HTTP 轮询检测到 error、POST 失败 |
+| **WARNING** | null output 归一化、JSON 畸形、WebSocket 降级、轮询网络错误 |
+| **INFO** | GPU 点火、节点执行、进度、下载开始/完成、history 获取 |
+| **DEBUG** | 未知事件类型、二进制事件、轮询等待 |
 
 ---
 
@@ -58,59 +58,13 @@ d.get("output", {})  # → {}（key 不存在，返回默认值）
 
 | 文件 | 操作 | 修改内容 |
 |------|------|----------|
-| `mathart/comfy_client/comfyui_ws_client.py` | **Edit** | (1) `executed` 事件处理：`isinstance(output, dict)` 类型守卫 + `output_keys` 预计算；(2) 异常阶梯：`except ComfyUIExecutionError: raise` 插入在 `except Exception` 之前；(3) 文件头部 docstring 新增 SESSION-207 说明 |
+| `mathart/comfy_client/comfyui_ws_client.py` | **Edit** | (1) null-safe output + exception ladder；(2) 10 个日志盲区全部补全；(3) 文件头部 docstring 新增 SESSION-207 |
 | `SESSION_HANDOFF.md` | **Rewritten** | This file |
 | `PROJECT_BRAIN.json` | **Updated** | SESSION-207 entry |
 
 ---
 
-## 4. SESSION-207 修复策略
-
-### 4.1 Null-Safe Output Handling（第 627-664 行）
-
-```python
-# BEFORE (BUG):
-output = data.get("output", {})
-list(output.keys())  # 💥 when output is None
-
-# AFTER (FIX):
-output = data.get("output", {})
-if not isinstance(output, dict):
-    output = {}
-output_keys = list(output.keys())  # ✅ always safe
-```
-
-模式对齐 `comfy_client.py` SESSION-200 的已有防御写法。
-
-### 4.2 Precision Exception Ladder（第 764-783 行）
-
-```python
-# BEFORE (BUG):
-except (ConnectionRefusedError, OSError, TimeoutError, Exception) as e:
-    # 吞掉了 ComfyUIExecutionError → 静默降级
-
-# AFTER (FIX):
-except ComfyUIExecutionError:
-    raise  # Poison Pill MUST pierce through
-except (ConnectionRefusedError, OSError, TimeoutError, Exception) as e:
-    # 只有真正的网络/传输错误才触发 HTTP 轮询回退
-```
-
-模式对齐 `comfy_client.py` SESSION-169 的精确异常阶梯。
-
-### 4.3 已有指标零修改
-
-SESSION-189/190/193 等已调好的参数**完全不动**：
-- ControlNet 强度上限 0.55 不变
-- Depth/Normal arbitration 0.45 不变
-- OpenPose arbitration 1.0 不变
-- IPAdapter weight 0.85 不变
-- KSampler CFG 上限 4.5 不变
-- denoise 1.0 不变
-
----
-
-## 5. 强制红线自检表
+## 4. 强制红线自检表
 
 | 红线 | 状态 |
 |------|------|
@@ -122,24 +76,25 @@ SESSION-189/190/193 等已调好的参数**完全不动**：
 | SESSION-206 拒绝降级 + 类型安全匹配完整保留 | ✅ |
 | `_execute_live_pipeline` 方法签名零修改 | ✅ |
 | 代理环境变量零接触 | ✅ |
+| 全链路日志可观测性：44 个 logger 调用覆盖所有路径 | ✅ |
 
 ---
 
-## 6. 傻瓜验收指引（白话）
+## 5. 傻瓜验收指引（白话）
 
-老大，修复后的行为变化：
+老大，修复后你在日志中能看到的新信息：
 
-1. **ComfyUI 发送 `output: null` 时**，WebSocket 连接**不再断开**，正常继续监听后续事件。日志会正常显示 `Node XX executed, output keys: []`。
-
-2. **GPU 崩溃（execution_error）时**，异常**直接穿透**到编排器，触发全局中断。不再被静默降级到 HTTP 轮询。
-
-3. **只有真正的网络故障**（连接拒绝、超时等）才会触发 HTTP 轮询回退。
-
-4. **所有渲染参数不变** — 这是纯传输层修复，不涉及任何渲染指标。
+1. **GPU 点火确认** — `[ComfyUIClient] Execution started (GPU ignition): prompt_id=xxx`
+2. **null output 警告** — `[ComfyUIClient] Node XX executed with non-dict output (type=NoneType, value=None) — normalized to {}`
+3. **JSON 畸形警告** — `[ComfyUIClient] Received malformed JSON from WebSocket, skipping: ...`
+4. **Poison Pill 穿透** — `[ComfyUIClient] ComfyUIExecutionError piercing through WebSocket exception handler`
+5. **HTTP 轮询全过程** — 开始、每次轮询、成功/失败、超时，全部可见
+6. **下载进度** — `Starting artifact download: 3 output nodes, 5 files to download` → `Artifact download complete: 5 images, 0 videos saved to /path/`
+7. **History 获取** — `GET /history/xxx succeeded (1234 bytes)`
 
 ---
 
-## 7. 继承红线（本会话未触动）
+## 6. 继承红线（本会话未触动）
 
 * `_TELEMETRY_TIMEOUT` 仍 = 900s
 * `_download_file_streaming` 仍走 `iter_content(8192)`

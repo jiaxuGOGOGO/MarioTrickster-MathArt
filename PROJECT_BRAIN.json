@@ -1,7 +1,7 @@
 {
   "version": "v1.0.14",
   "last_session_id": "SESSION-207",
-  "last_updated": "2026-04-25T23:45:00Z",
+  "last_updated": "2026-04-26T00:15:00Z",
   "gap_inventory": {
     "document": "docs/gap_analysis_session071.md",
     "recomputed_at": "2026-04-19",
@@ -2578,7 +2578,7 @@
     },
     {
       "id": "P0-SESSION-207-NULL-SAFE-OUTPUT-AND-EXCEPTION-LADDER",
-      "title": "Null-Safe Output Handling + Precision Exception Ladder — WebSocket executed event output:null crash + Poison Pill swallowed by except-all",
+      "title": "Null-Safe Output + Precision Exception Ladder + Full Observability — 10 log blind spots patched",
       "priority": "P0",
       "status": "CLOSED",
       "session_landed": "SESSION-207",
@@ -2588,7 +2588,7 @@
         "PROJECT_BRAIN.json"
       ],
       "tests": [],
-      "description": "SESSION-207 Dual Critical Fix: (1) Null-Safe Output Handling — ComfyUI sometimes sends 'output': null in 'executed' WebSocket events for intermediate nodes with no output. data.get('output', {}) returns None (not {}) when the key exists with a null value. list(None.keys()) raised AttributeError, caught by the outer except Exception, silently falling back to HTTP polling — degrading real-time telemetry and destabilizing artifact downloads. FIX: isinstance(output, dict) type guard before .keys(), aligned with comfy_client.py SESSION-200 pattern. (2) Precision Exception Ladder — The outer except Exception block swallowed ComfyUIExecutionError (SESSION-168 Poison Pill), silently falling back to HTTP polling instead of propagating the fatal GPU crash to the orchestrator. FIX: except ComfyUIExecutionError: raise inserted before the generic catch-all, aligned with comfy_client.py SESSION-169 pattern.",
+      "description": "SESSION-207 Triple Fix: (1) Null-Safe Output — isinstance(output, dict) guard. (2) Exception Ladder — ComfyUIExecutionError pierces except-all. (3) Full Observability — 10 log blind spots patched: execution_start GPU ignition, null output WARNING, malformed JSON WARNING, unknown event type DEBUG, WS timeout ERROR, HTTP poll full lifecycle (start/poll/success/error/timeout), _get_history success INFO, _download_outputs start/complete INFO, Poison Pill pierce-through CRITICAL. Total: 44 logger calls covering all code paths.",
       "red_lines_honored": [
         "Refuse-to-Degrade: ComfyUIExecutionError pierces through except-all",
         "Null-Safe: output MUST be dict before .keys() is called",
@@ -2599,7 +2599,8 @@
         "SESSION-200 Full-Stack Telemetry contract preserved",
         "SESSION-206 Refuse-to-Degrade + Type-Safe ControlNet preserved",
         "_execute_live_pipeline signature untouched",
-        "Proxy environment variables untouched"
+        "Proxy environment variables untouched",
+        "Full Observability: 44 logger calls covering all code paths"
       ],
       "root_cause": "Python dict.get(key, default) returns the default only when the key is absent; when the key exists with value None, it returns None. ComfyUI sends 'output': null for intermediate nodes. The outer except Exception block caught both this AttributeError and ComfyUIExecutionError, silently degrading to HTTP polling in both cases.",
       "fix_pattern": {
@@ -5981,7 +5982,7 @@
     },
     {
       "session_id": "SESSION-207",
-      "summary": "Null-Safe Output Handling + Precision Exception Ladder — fixed output:null crash in comfyui_ws_client.py executed event handler + ComfyUIExecutionError now pierces through except-all",
+      "summary": "Null-Safe Output + Exception Ladder + Full Observability — fixed output:null crash, ComfyUIExecutionError pierces except-all, 10 log blind spots patched (44 total logger calls)",
       "files_changed": [
         "mathart/comfy_client/comfyui_ws_client.py"
       ],
@@ -6377,8 +6378,8 @@
     "status": "CLOSED",
     "parent_commit": "cf34ef9",
     "deliverables": [
-      "mathart/comfy_client/comfyui_ws_client.py — null-safe output + exception ladder",
-      "SESSION_HANDOFF.md — rewritten for SESSION-207",
+      "mathart/comfy_client/comfyui_ws_client.py — null-safe + exception ladder + 10 log blind spots",
+      "SESSION_HANDOFF.md — rewritten for SESSION-207 (triple fix)",
       "PROJECT_BRAIN.json — updated"
     ]
   },

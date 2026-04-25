@@ -604,12 +604,31 @@ class ComfyUIClient:
                 try:
                     msg = json.loads(raw)
                 except json.JSONDecodeError:
+                    logger.warning(
+                        "[ComfyUIClient] Received malformed JSON from WebSocket, "
+                        "skipping: %s",
+                        raw[:200] if isinstance(raw, str) else "(non-string)",
+                    )
                     continue
 
                 event_type = msg.get("type", "")
                 data = msg.get("data", {})
 
-                if event_type == "status":
+                if event_type == "execution_start":
+                    # SESSION-207: GPU ignition confirmation — previously
+                    # this event was silently dropped, invisible in logs.
+                    start_prompt_id = data.get("prompt_id", "")
+                    logger.info(
+                        "[ComfyUIClient] Execution started (GPU ignition): "
+                        "prompt_id=%s",
+                        start_prompt_id,
+                    )
+                    _emit_progress(progress_callback, {
+                        "event_type": "execution_start",
+                        "prompt_id": start_prompt_id,
+                    })
+
+                elif event_type == "status":
                     queue_remaining = (
                         data.get("status", {})
                         .get("exec_info", {})
@@ -672,9 +691,20 @@ class ComfyUIClient:
                     # can exist with a null value.
                     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                     node = data.get("node", "")
-                    output = data.get("output", {})
-                    if not isinstance(output, dict):
+                    raw_output = data.get("output", {})
+                    if not isinstance(raw_output, dict):
+                        # SESSION-207: Log when output is null/non-dict so the
+                        # anomaly is visible in logs for debugging.
+                        logger.warning(
+                            "[ComfyUIClient] Node %s executed with non-dict output "
+                            "(type=%s, value=%r) — normalized to {}",
+                            node,
+                            type(raw_output).__name__,
+                            raw_output,
+                        )
                         output = {}
+                    else:
+                        output = raw_output
                     output_keys = list(output.keys())
                     progress_data[f"node_{node}"] = output
                     logger.info(
@@ -712,7 +742,7 @@ class ComfyUIClient:
                         "max": max_val,
                     })
 
-                elif event_type == "execution_error":
+                elif event_type == "execution_error":  # noqa: E501 — intentionally verbose comment block
                     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                     # SESSION-168 CRITICAL FIX: FAIL-FAST POISON PILL
                     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -758,7 +788,24 @@ class ComfyUIClient:
                         details=error_traceback[:2000] if error_traceback else error_msg,
                     )
 
+                else:
+                    # SESSION-207: Log unknown/unhandled event types so they
+                    # are visible during debugging instead of silently dropped.
+                    if event_type:
+                        logger.debug(
+                            "[ComfyUIClient] Unhandled WS event type: %s "
+                            "(data keys: %s)",
+                            event_type,
+                            list(data.keys()) if isinstance(data, dict) else type(data).__name__,
+                        )
+
             # Deadline exceeded
+            logger.error(
+                "[ComfyUIClient] WebSocket execution timed out after %.0fs "
+                "for prompt %s",
+                self.max_execution_time,
+                prompt_id,
+            )
             _emit_progress(progress_callback, {
                 "event_type": "timeout",
                 "prompt_id": prompt_id,
@@ -788,7 +835,14 @@ class ComfyUIClient:
         # RED LINE: NEVER catch ComfyUIExecutionError in this block.
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         except ComfyUIExecutionError:
-            # SESSION-207: Poison Pill MUST pierce through — re-raise
+            # SESSION-207: Poison Pill MUST pierce through — re-raise.
+            # Log at CRITICAL so the pierce-through is visible in logs.
+            logger.critical(
+                "[ComfyUIClient] ComfyUIExecutionError piercing through "
+                "WebSocket exception handler (Poison Pill propagation) "
+                "for prompt %s",
+                prompt_id,
+            )
             raise
         except (
             ConnectionRefusedError,
@@ -821,8 +875,15 @@ class ComfyUIClient:
         It is NOT the preferred method — WebSocket is always preferred.
         """
         deadline = time.monotonic() + self.max_execution_time
+        poll_count = 0
+        logger.info(
+            "[ComfyUIClient] Starting HTTP poll fallback for prompt %s "
+            "(interval=%.1fs, deadline=%.0fs)",
+            prompt_id, poll_interval, self.max_execution_time,
+        )
 
         while time.monotonic() < deadline:
+            poll_count += 1
             try:
                 url = f"http://{self.server_address}/history/{prompt_id}"
                 req = urllib.request.Request(url, method="GET")
@@ -836,28 +897,52 @@ class ComfyUIClient:
                         )
                         if status in ("success", "error"):
                             if status == "error":
+                                logger.error(
+                                    "[ComfyUIClient] HTTP poll detected execution "
+                                    "error for prompt %s (poll #%d)",
+                                    prompt_id, poll_count,
+                                )
                                 _emit_progress(progress_callback, {
                                     "event_type": "execution_error",
                                     "prompt_id": prompt_id,
                                     "message": "Execution failed (from history poll)",
                                 })
                                 return {"error": "Execution failed (from history poll)"}
+                            logger.info(
+                                "[ComfyUIClient] HTTP poll detected execution "
+                                "complete for prompt %s (poll #%d)",
+                                prompt_id, poll_count,
+                            )
                             _emit_progress(progress_callback, {
                                 "event_type": "complete",
                                 "prompt_id": prompt_id,
                                 "mode": "http_poll",
                             })
                             return {"error": None, "progress": {}}
+                    else:
+                        logger.debug(
+                            "[ComfyUIClient] HTTP poll #%d: prompt %s not "
+                            "yet in history",
+                            poll_count, prompt_id,
+                        )
             except (
                 ConnectionRefusedError,
                 urllib.error.URLError,
                 OSError,
                 TimeoutError,
-            ):
-                pass
+            ) as e:
+                logger.warning(
+                    "[ComfyUIClient] HTTP poll #%d failed for prompt %s: %s",
+                    poll_count, prompt_id, e,
+                )
 
             time.sleep(poll_interval)
 
+        logger.error(
+            "[ComfyUIClient] HTTP polling timed out after %.0fs for "
+            "prompt %s (%d polls attempted)",
+            self.max_execution_time, prompt_id, poll_count,
+        )
         _emit_progress(progress_callback, {
             "event_type": "timeout",
             "prompt_id": prompt_id,
@@ -879,6 +964,12 @@ class ComfyUIClient:
             req = urllib.request.Request(url, method="GET")
             with urllib.request.urlopen(req, timeout=self.connect_timeout) as resp:
                 history = json.loads(resp.read().decode("utf-8"))
+                logger.info(
+                    "[ComfyUIClient] GET /history/%s succeeded "
+                    "(%d bytes)",
+                    prompt_id,
+                    len(json.dumps(history)),
+                )
                 return history
         except (
             ConnectionRefusedError,
@@ -924,6 +1015,19 @@ class ComfyUIClient:
         prompt_history = history.get(prompt_id, {})
         outputs = prompt_history.get("outputs", {})
 
+        # SESSION-207: Log download phase start with node count
+        total_nodes = len(outputs)
+        total_files = sum(
+            len(node_out.get("images", [])) + len(node_out.get("gifs", []))
+            for node_out in outputs.values()
+            if isinstance(node_out, dict)
+        )
+        logger.info(
+            "[ComfyUIClient] Starting artifact download: %d output nodes, "
+            "%d files to download for prompt %s",
+            total_nodes, total_files, prompt_id,
+        )
+
         for node_id, node_output in outputs.items():
             # Handle image outputs
             if "images" in node_output:
@@ -968,6 +1072,15 @@ class ComfyUIClient:
             "output_dir": str(output_dir),
         }
         meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+        # SESSION-207: Log download phase completion
+        logger.info(
+            "[ComfyUIClient] Artifact download complete: %d images, "
+            "%d videos saved to %s",
+            len(downloaded["images"]),
+            len(downloaded["videos"]),
+            output_dir,
+        )
 
         return downloaded
 
