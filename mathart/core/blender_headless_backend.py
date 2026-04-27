@@ -30,6 +30,16 @@ from mathutils import Vector
 def clear_scene():
     bpy.ops.object.select_all(action="SELECT"); bpy.ops.object.delete()
 
+def hex_to_rgba(text):
+    s=str(text).strip()
+    if len(s)==7 and s.startswith("#"):
+        try:
+            r=int(s[1:3],16)/255.0; g=int(s[3:5],16)/255.0; b=int(s[5:7],16)/255.0
+            return (r,g,b,1.0)
+        except ValueError:
+            return None
+    return None
+
 def make_toon_material(style,texture_path=None):
     bands=max(1,int(style.get("toon_bands",3))); hard=float(style.get("shadow_hardness",0.75))
     mat=bpy.data.materials.new("knowledge_toon_shader"); mat.use_nodes=True
@@ -39,11 +49,16 @@ def make_toon_material(style,texture_path=None):
     if texture_path and Path(texture_path).exists():
         tex=nodes.new("ShaderNodeTexImage"); tex.image=bpy.data.images.load(str(texture_path),check_existing=True); tex.interpolation="Closest"; tex.extension="CLIP"
         links.new(tex.outputs["Color"],diff.inputs["Color"])
+    palette=[hex_to_rgba(c) for c in style.get("oklab_color_palette",[]) if hex_to_rgba(c)]
+    target_bands=len(palette) if palette else bands
     ramp.color_ramp.interpolation="CONSTANT"
-    while len(ramp.color_ramp.elements)<bands: ramp.color_ramp.elements.new(0.5)
-    while len(ramp.color_ramp.elements)>bands: ramp.color_ramp.elements.remove(ramp.color_ramp.elements[-1])
+    while len(ramp.color_ramp.elements)<target_bands: ramp.color_ramp.elements.new(0.5)
+    while len(ramp.color_ramp.elements)>target_bands: ramp.color_ramp.elements.remove(ramp.color_ramp.elements[-1])
     for i,e in enumerate(ramp.color_ramp.elements):
-        t=i/max(bands-1,1); v=min(1.0,t*hard+(1.0-hard)*0.25); e.position=t; e.color=(v,v,v,1)
+        t=i/max(target_bands-1,1); e.position=t
+        if palette: e.color=palette[i]
+        else:
+            v=min(1.0,t*hard+(1.0-hard)*0.25); e.color=(v,v,v,1)
     links.new(diff.outputs["BSDF"],s2rgb.inputs["Shader"]); links.new(s2rgb.outputs["Color"],ramp.inputs["Fac"])
     links.new(ramp.outputs["Color"],out.inputs["Surface"]); return mat
 

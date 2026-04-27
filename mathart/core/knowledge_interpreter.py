@@ -50,6 +50,8 @@ DEFAULT_KNOWLEDGE: dict[str, Any] = {
     "cloth_segment_count": 6,
     "cloth_segment_length": 0.126,
     "cloth_enabled": True,
+    "wfc_platform_spacing": 4.5,
+    "vertical_bias": 0.8,
 }
 
 
@@ -123,6 +125,17 @@ class ClothParams:
 
 
 @dataclass(frozen=True)
+class EnvironmentParams:
+    """Book-distilled controls for WFC level spacing and verticality bias."""
+
+    wfc_platform_spacing: float = 4.5
+    vertical_bias: float = 0.8
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
 class EffectActivationParams:
     """Semantic bus switches inferred from vibe and distilled book theory."""
 
@@ -147,9 +160,12 @@ class StyleParams:
     shadow_hardness: float = 0.75
     palette_color_count: int = 16
     color_quantization_enabled: bool = True
+    oklab_color_palette: list[str] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        data["oklab_color_palette"] = list(self.oklab_color_palette or [])
+        return data
 
 
 @dataclass(frozen=True)
@@ -161,6 +177,7 @@ class InterpretedKnowledge:
     style: StyleParams
     fluid: FluidParams
     cloth: ClothParams
+    environment: EnvironmentParams
     effects: EffectActivationParams
     source_path: str = "mock_default"
     raw: dict[str, Any] | None = None
@@ -172,6 +189,7 @@ class InterpretedKnowledge:
             "StyleParams": self.style.to_dict(),
             "FluidParams": self.fluid.to_dict(),
             "ClothParams": self.cloth.to_dict(),
+            "EnvironmentParams": self.environment.to_dict(),
             "EffectActivationParams": self.effects.to_dict(),
             "source_path": self.source_path,
             "raw": dict(self.raw or {}),
@@ -214,6 +232,19 @@ def _coerce_bool(value: Any, default: bool) -> bool:
     return bool(default)
 
 
+def _coerce_hex_palette(value: Any) -> list[str]:
+    if not isinstance(value, (list, tuple)):
+        return []
+    palette: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            continue
+        text = item.strip().upper()
+        if len(text) == 7 and text.startswith("#") and all(ch in "0123456789ABCDEF" for ch in text[1:]):
+            palette.append(text)
+    return palette
+
+
 class KnowledgeInterpreter:
     """Parse local distilled knowledge JSON into engine-level parameters."""
 
@@ -244,17 +275,24 @@ class KnowledgeInterpreter:
 
     def interpret(self) -> InterpretedKnowledge:
         raw, source = self.load_raw()
-        fluid_raw = raw.get("fluid") if isinstance(raw.get("fluid"), Mapping) else {}
-        cloth_raw = raw.get("cloth") if isinstance(raw.get("cloth"), Mapping) else {}
+        timing_raw = raw.get("TimingParams") if isinstance(raw.get("TimingParams"), Mapping) else {}
+        physics_raw = raw.get("PhysicsParams") if isinstance(raw.get("PhysicsParams"), Mapping) else {}
+        style_raw = raw.get("StyleParams") if isinstance(raw.get("StyleParams"), Mapping) else {}
+        fluid_raw = raw.get("FluidParams") if isinstance(raw.get("FluidParams"), Mapping) else raw.get("fluid") if isinstance(raw.get("fluid"), Mapping) else {}
+        cloth_raw = raw.get("ClothParams") if isinstance(raw.get("ClothParams"), Mapping) else raw.get("cloth") if isinstance(raw.get("cloth"), Mapping) else {}
+        environment_raw = raw.get("EnvironmentParams") if isinstance(raw.get("EnvironmentParams"), Mapping) else raw.get("environment") if isinstance(raw.get("environment"), Mapping) else {}
         effects_raw = raw.get("effects") if isinstance(raw.get("effects"), Mapping) else {}
 
         def pick(name: str, nested: Mapping[str, Any], nested_name: str | None = None) -> Any:
             key = nested_name or name
-            return raw.get(name, nested.get(key))
+            return nested.get(key, raw.get(name))
+
+        def pick_from(section: Mapping[str, Any], name: str, default: Any) -> Any:
+            return section.get(name, raw.get(name, default))
 
         timing = TimingParams(
-            hit_stop_frames=_coerce_int(raw.get("hit_stop_frames"), DEFAULT_KNOWLEDGE["hit_stop_frames"], minimum=0, maximum=24),
-            step_rate=_coerce_int(raw.get("step_rate"), DEFAULT_KNOWLEDGE["step_rate"], minimum=1, maximum=6),
+            hit_stop_frames=_coerce_int(pick_from(timing_raw, "hit_stop_frames", DEFAULT_KNOWLEDGE["hit_stop_frames"]), DEFAULT_KNOWLEDGE["hit_stop_frames"], minimum=0, maximum=24),
+            step_rate=_coerce_int(pick_from(timing_raw, "step_rate", DEFAULT_KNOWLEDGE["step_rate"]), DEFAULT_KNOWLEDGE["step_rate"], minimum=1, maximum=6),
             hit_stop_acceleration_drop=_coerce_float(raw.get("hit_stop_acceleration_drop"), DEFAULT_KNOWLEDGE["hit_stop_acceleration_drop"], minimum=0.0),
             hit_stop_min_previous_acceleration=_coerce_float(raw.get("hit_stop_min_previous_acceleration"), DEFAULT_KNOWLEDGE["hit_stop_min_previous_acceleration"], minimum=0.0),
             smooth_motion_velocity_threshold=_coerce_float(raw.get("smooth_motion_velocity_threshold"), DEFAULT_KNOWLEDGE["smooth_motion_velocity_threshold"], minimum=0.0),
@@ -263,26 +301,27 @@ class KnowledgeInterpreter:
         physics = PhysicsParams(
             squash_velocity_threshold=_coerce_float(raw.get("squash_velocity_threshold"), DEFAULT_KNOWLEDGE["squash_velocity_threshold"], minimum=0.0),
             squash_acceleration_threshold=_coerce_float(raw.get("squash_acceleration_threshold"), 0.0, minimum=0.0),
-            squash_max_stretch=_coerce_float(raw.get("squash_max_stretch"), DEFAULT_KNOWLEDGE["squash_max_stretch"], minimum=1.0, maximum=3.0),
+            squash_max_stretch=_coerce_float(pick_from(physics_raw, "squash_max_stretch", DEFAULT_KNOWLEDGE["squash_max_stretch"]), DEFAULT_KNOWLEDGE["squash_max_stretch"], minimum=1.0, maximum=3.0),
             squash_velocity_to_stretch=_coerce_float(raw.get("squash_velocity_to_stretch"), DEFAULT_KNOWLEDGE["squash_velocity_to_stretch"], minimum=0.0),
             squash_acceleration_to_stretch=_coerce_float(raw.get("squash_acceleration_to_stretch"), DEFAULT_KNOWLEDGE["squash_acceleration_to_stretch"], minimum=0.0),
-            anticipation_weight=_coerce_float(raw.get("anticipation_weight"), DEFAULT_KNOWLEDGE["anticipation_weight"], minimum=0.0),
-            impact_reward_weight=_coerce_float(raw.get("impact_reward_weight"), DEFAULT_KNOWLEDGE["impact_reward_weight"], minimum=0.0),
+            anticipation_weight=_coerce_float(pick_from(physics_raw, "anticipation_weight", DEFAULT_KNOWLEDGE["anticipation_weight"]), DEFAULT_KNOWLEDGE["anticipation_weight"], minimum=0.0),
+            impact_reward_weight=_coerce_float(pick_from(physics_raw, "impact_reward_weight", DEFAULT_KNOWLEDGE["impact_reward_weight"]), DEFAULT_KNOWLEDGE["impact_reward_weight"], minimum=0.0),
             fluid_fitness_weight=_coerce_float(raw.get("fluid_fitness_weight"), DEFAULT_KNOWLEDGE["fluid_fitness_weight"], minimum=0.0),
             cloth_fitness_weight=_coerce_float(raw.get("cloth_fitness_weight"), DEFAULT_KNOWLEDGE["cloth_fitness_weight"], minimum=0.0),
         )
         style = StyleParams(
-            toon_bands=_coerce_int(raw.get("toon_bands"), DEFAULT_KNOWLEDGE["toon_bands"], minimum=1, maximum=12),
+            toon_bands=_coerce_int(pick_from(style_raw, "toon_bands", DEFAULT_KNOWLEDGE["toon_bands"]), DEFAULT_KNOWLEDGE["toon_bands"], minimum=1, maximum=12),
             line_width=_coerce_float(raw.get("line_width"), DEFAULT_KNOWLEDGE["line_width"], minimum=0.0),
-            shadow_hardness=_coerce_float(raw.get("shadow_hardness"), DEFAULT_KNOWLEDGE["shadow_hardness"], minimum=0.0, maximum=1.0),
+            shadow_hardness=_coerce_float(pick_from(style_raw, "shadow_hardness", DEFAULT_KNOWLEDGE["shadow_hardness"]), DEFAULT_KNOWLEDGE["shadow_hardness"], minimum=0.0, maximum=1.0),
             palette_color_count=_coerce_int(raw.get("palette_color_count"), DEFAULT_KNOWLEDGE["palette_color_count"], minimum=2, maximum=256),
             color_quantization_enabled=_coerce_bool(raw.get("color_quantization_enabled", True), True),
+            oklab_color_palette=_coerce_hex_palette(style_raw.get("oklab_color_palette", style_raw.get("oklab_palette", raw.get("oklab_color_palette", raw.get("oklab_palette", []))))),
         )
         fluid = FluidParams(
             enabled=_coerce_bool(pick("fluid_enabled", fluid_raw, "enabled"), DEFAULT_KNOWLEDGE["fluid_enabled"]),
-            metaball_resolution=_coerce_float(pick("fluid_metaball_resolution", fluid_raw, "metaball_resolution"), DEFAULT_KNOWLEDGE["fluid_metaball_resolution"], minimum=0.01, maximum=2.0),
+            metaball_resolution=_coerce_float(fluid_raw.get("fluid_resolution", pick("fluid_metaball_resolution", fluid_raw, "resolution")), DEFAULT_KNOWLEDGE["fluid_metaball_resolution"], minimum=0.01, maximum=2.0),
             render_resolution=_coerce_float(pick("fluid_render_resolution", fluid_raw, "render_resolution"), DEFAULT_KNOWLEDGE["fluid_render_resolution"], minimum=0.01, maximum=2.0),
-            glow_intensity=_coerce_float(pick("fluid_glow_intensity", fluid_raw, "glow_intensity"), DEFAULT_KNOWLEDGE["fluid_glow_intensity"], minimum=0.0, maximum=20.0),
+            glow_intensity=_coerce_float(fluid_raw.get("emission_strength", pick("fluid_glow_intensity", fluid_raw, "glow_intensity")), DEFAULT_KNOWLEDGE["fluid_glow_intensity"], minimum=0.0, maximum=20.0),
             particle_radius=_coerce_float(pick("fluid_particle_radius", fluid_raw, "particle_radius"), DEFAULT_KNOWLEDGE["fluid_particle_radius"], minimum=0.005, maximum=1.0),
             splash_spread_target=_coerce_float(pick("fluid_splash_spread_target", fluid_raw, "splash_spread_target"), DEFAULT_KNOWLEDGE["fluid_splash_spread_target"], minimum=0.0, maximum=2.0),
             particle_count_target=_coerce_int(pick("fluid_particle_count_target", fluid_raw, "particle_count_target"), DEFAULT_KNOWLEDGE["fluid_particle_count_target"], minimum=1, maximum=512),
@@ -293,12 +332,16 @@ class KnowledgeInterpreter:
         )
         cloth = ClothParams(
             enabled=_coerce_bool(pick("cloth_enabled", cloth_raw, "enabled"), DEFAULT_KNOWLEDGE["cloth_enabled"]),
-            damping=_coerce_float(pick("cloth_damping", cloth_raw, "damping"), DEFAULT_KNOWLEDGE["cloth_damping"], minimum=0.0, maximum=1.0),
+            damping=_coerce_float(cloth_raw.get("cloth_damping", pick("cloth_damping", cloth_raw, "damping")), DEFAULT_KNOWLEDGE["cloth_damping"], minimum=0.0, maximum=1.0),
             weight=_coerce_float(pick("cloth_weight", cloth_raw, "weight"), DEFAULT_KNOWLEDGE["cloth_weight"], minimum=0.001, maximum=10.0),
-            bend_stiffness=_coerce_float(pick("cloth_bend_stiffness", cloth_raw, "bend_stiffness"), DEFAULT_KNOWLEDGE["cloth_bend_stiffness"], minimum=0.0, maximum=1.0),
+            bend_stiffness=_coerce_float(cloth_raw.get("cloth_stiffness", pick("cloth_bend_stiffness", cloth_raw, "stiffness")), DEFAULT_KNOWLEDGE["cloth_bend_stiffness"], minimum=0.0, maximum=1.0),
             flutter_target=_coerce_float(pick("cloth_flutter_target", cloth_raw, "flutter_target"), DEFAULT_KNOWLEDGE["cloth_flutter_target"], minimum=0.0, maximum=2.0),
             segment_count=_coerce_int(pick("cloth_segment_count", cloth_raw, "segment_count"), DEFAULT_KNOWLEDGE["cloth_segment_count"], minimum=3, maximum=32),
             segment_length=_coerce_float(pick("cloth_segment_length", cloth_raw, "segment_length"), DEFAULT_KNOWLEDGE["cloth_segment_length"], minimum=0.01, maximum=2.0),
+        )
+        environment = EnvironmentParams(
+            wfc_platform_spacing=_coerce_float(environment_raw.get("wfc_platform_spacing", raw.get("wfc_platform_spacing", DEFAULT_KNOWLEDGE["wfc_platform_spacing"])), DEFAULT_KNOWLEDGE["wfc_platform_spacing"], minimum=0.0, maximum=64.0),
+            vertical_bias=_coerce_float(environment_raw.get("vertical_bias", raw.get("vertical_bias", DEFAULT_KNOWLEDGE["vertical_bias"])), DEFAULT_KNOWLEDGE["vertical_bias"], minimum=0.0, maximum=1.0),
         )
         plugins = effects_raw.get("active_vfx_plugins", raw.get("active_vfx_plugins", ()))
         if not isinstance(plugins, (list, tuple)):
@@ -310,7 +353,7 @@ class KnowledgeInterpreter:
             active_vfx_plugins=tuple(str(p) for p in plugins),
             semantic_reason=str(effects_raw.get("semantic_reason", raw.get("semantic_reason", "knowledge_default"))),
         )
-        return InterpretedKnowledge(timing=timing, physics=physics, style=style, fluid=fluid, cloth=cloth, effects=effects, source_path=source, raw=raw)
+        return InterpretedKnowledge(timing=timing, physics=physics, style=style, fluid=fluid, cloth=cloth, environment=environment, effects=effects, source_path=source, raw=raw)
 
 
 def interpret_knowledge(knowledge_path: str | Path | None = None) -> InterpretedKnowledge:
@@ -325,6 +368,7 @@ __all__ = [
     "PhysicsParams",
     "FluidParams",
     "ClothParams",
+    "EnvironmentParams",
     "EffectActivationParams",
     "StyleParams",
     "InterpretedKnowledge",

@@ -19,7 +19,9 @@ import urllib.request
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+
+ProgressCallback = Callable[[dict[str, Any]], None]
 
 from mathart.animation.anime_timing_modifier import apply_to_unified_motion_clip as apply_anime_timing
 from mathart.animation.squash_stretch_modifier import apply_to_unified_motion_clip as apply_squash_stretch
@@ -90,6 +92,14 @@ def _log(message: str) -> None:
         encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
         sys.stdout.write(line.encode(encoding, errors="replace").decode(encoding, errors="replace"))
     sys.stdout.flush()
+
+
+def _emit(callback: ProgressCallback | None, *, stage: str, progress: float, message: str, **extra: Any) -> None:
+    _log(message)
+    if callback is not None:
+        payload: dict[str, Any] = {"stage": stage, "progress": progress, "message": message}
+        payload.update(extra)
+        callback(payload)
 
 
 def _write_json(path: Path, payload: Any) -> Path:
@@ -276,33 +286,33 @@ def render_and_align(
     return manifest.to_dict()
 
 
-def run_pipeline(args: argparse.Namespace) -> V6PipelineResult:
+def run_pipeline(args: argparse.Namespace, event_callback: ProgressCallback | None = None) -> V6PipelineResult:
     started = time.monotonic()
     output_root = Path(args.output_dir).resolve()
     delivery = V6DeliveryDirs.create(output_root, args.asset_name)
     output_dir = delivery.session_dir
 
-    _log("知识同化：拉取/合并外部文献 JSON。")
+    _emit(event_callback, stage="knowledge_ingestion", progress=0.08, message="[注入理论知识] 外部蒸馏 JSON 已接入知识总线。")
     knowledge_path = ingest_external_knowledge(delivery.knowledge_reports, args.knowledge_url, args.knowledge_json)
     knowledge = interpret_knowledge(knowledge_path)
 
-    _log("意图大脑：解析 Vibe 并向知识总线注入物理特效开关。")
+    _emit(event_callback, stage="intent_resolution", progress=0.18, message="[解析主宰意图] 正在把 Vibe 编译成物理与显像开关。")
     knowledge = inject_semantic_effect_switches(knowledge_path, args.vibe, knowledge)
 
-    _log("AI 初始化：ComfyUI 降权为静态表皮贴图初始化器。")
+    _emit(event_callback, stage="static_skin_init", progress=0.28, message="[铸造静态表皮] ComfyUI 已降维为静态初始化器。")
     static_skin_manifest = initialize_static_skin(delivery.engine_intermediates, args.vibe)
 
-    _log(f"遗传进化：以 PhysicsParams 为打分向导干跑 {args.dry_runs} 次。")
+    _emit(event_callback, stage="evolution_sandbox", progress=0.48, message=f"[多进程内存淘汰 {max(args.dry_runs - 1, 0)} 劣质基因] 正在并行干跑 {args.dry_runs} 代。", dry_runs=args.dry_runs)
     best_clip, best_fitness = run_evolution_sandbox(knowledge, args.dry_runs, args.fps, args.frame_count, knowledge_path)
     _write_json(delivery.knowledge_reports / "v6_fitness_report.json", best_fitness)
 
-    _log("时间与空间魔法：注入日式顿帧/抽帧，再叠加 Squash & Stretch。")
+    _emit(event_callback, stage="physics_payload", progress=0.66, message="[锁定王者基因，发送物理 Payload] 正在写入时间、弹性与流体负载。", best_fitness=best_fitness)
     warped_clip = apply_anime_timing(best_clip)
     warped_clip = apply_squash_stretch(warped_clip)
     warped_clip = enrich_clip_with_physics_payload(warped_clip, fluid_params=knowledge.fluid, cloth_params=knowledge.cloth, effects=knowledge.effects)
     _dump_physics_payload(warped_clip, delivery.engine_intermediates / "v6_physics_payload_frames.json")
 
-    _log("降维对齐：生成 Blender Headless 纯 bpy 渲染脚本与 Unity 零后期元数据契约。")
+    _emit(event_callback, stage="blender_render", progress=0.82, message="[唤醒 Blender 融球特效] 正在生成零后期 Unity 对齐资产。")
     blender_manifest = render_and_align(output_dir, args.asset_name, knowledge_path, knowledge, warped_clip, delivery.final_assets, delivery.engine_intermediates, args.run_blender)
     unity_meta_path = blender_manifest.get("outputs", {}).get("unity_meta", "")
 
@@ -322,15 +332,22 @@ def run_pipeline(args: argparse.Namespace) -> V6PipelineResult:
     report_path.write_text(json.dumps(result.to_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     book = str((knowledge.raw or {}).get("source_book", "某某动画书籍"))
-    _log(f"已成功吸收《{book}》理论并具象化。")
-    _log(
-        "✅ V6 工业级管线运转完毕。中间废料已自动隔离隐藏。"
-        f"美术人员请直接打开 {delivery.final_assets} 目录，"
-        "将资产直接拖入 Unity 享受零后期魔法！"
+    _emit(
+        event_callback,
+        stage="cleanup",
+        progress=0.93,
+        message=f"[中间废料已自动销毁] 《{book}》理论已完成具象化并归档。",
+        report_path=str(report_path),
     )
-    _log(f"交付根目录：{output_dir}")
-    _log(f"Unity Meta：{unity_meta_path}")
-    _log(f"总耗时：{time.monotonic() - started:.2f}s")
+    _emit(
+        event_callback,
+        stage="complete",
+        progress=1.0,
+        message="[Unity 零后期对齐契约已生效] 请直接拖入引擎使用。",
+        final_assets_dir=str(delivery.final_assets),
+        unity_meta_path=unity_meta_path,
+        elapsed_seconds=round(time.monotonic() - started, 2),
+    )
     return result
 
 
