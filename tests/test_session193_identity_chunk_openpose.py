@@ -386,20 +386,12 @@ class TestRedLineCompliance(unittest.TestCase):
     def test_project_brain_version(self):
         brain_path = _PROJECT_ROOT / "PROJECT_BRAIN.json"
         brain = json.loads(brain_path.read_text("utf-8"))
-        # SESSION-194 bumped version to v1.0.5 and last_session_id to SESSION-194.
-        # SESSION-195 -> v1.0.6 / SESSION-196 -> v1.0.7. Keep SESSION-193's contract
-        # assertion forward-compatible with all subsequent session bumps by enforcing
-        # only the lower bound (Martin Fowler Evolutionary Architecture: fitness
-        # functions evolve, never freeze, with the architecture).
-        _allowed_versions = {"v1.0.4", "v1.0.5", "v1.0.6", "v1.0.7", "v1.0.8",
-                            "v1.0.9", "v1.0.10", "v1.0.11", "v1.0.12"}
-        _allowed_sessions = {
-            "SESSION-193", "SESSION-194", "SESSION-195", "SESSION-196", "SESSION-197",
-            "SESSION-198", "SESSION-199", "SESSION-200", "SESSION-201", "SESSION-202",
-            "SESSION-203-HOTFIX", "SESSION-204-HOTFIX",
-        }
-        self.assertIn(brain["version"], _allowed_versions)
-        self.assertIn(brain["last_session_id"], _allowed_sessions)
+        version_text = str(brain["version"]).removeprefix("v")
+        version_parts = tuple(int(part) for part in version_text.split("."))
+        session_text = str(brain["last_session_id"])
+        session_number = int(session_text.split("-")[1])
+        self.assertGreaterEqual(version_parts, (1, 0, 4))
+        self.assertGreaterEqual(session_number, 193)
 
     def test_project_brain_has_new_contracts(self):
         brain_path = _PROJECT_ROOT / "PROJECT_BRAIN.json"

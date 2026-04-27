@@ -1,0 +1,86 @@
+{
+  "evolution_cycles": 0,
+  "config": {
+    "sub_steps": 4,
+    "solver_iterations": 8,
+    "gravity": [
+      0.0,
+      -9.81
+    ],
+    "default_compliance": 0.0,
+    "default_damping": 0.0,
+    "velocity_damping": 0.98,
+    "max_velocity": 50.0,
+    "enable_self_collision": true,
+    "self_collision_radius": 0.015,
+    "friction_coefficient": 0.3,
+    "enable_two_way_coupling": true
+  },
+  "knowledge_base": [
+    {
+      "source": "Macklin & M\u00fcller, XPBD (SIGGRAPH 2016)",
+      "topic": "Compliance decouples stiffness from iteration count and time step",
+      "insight": "Replace stiffness k with compliance \u03b1 = 1/k. Normalise as \u03b1\u0303 = \u03b1/\u0394t\u00b2 to make behaviour independent of time step and iteration count.",
+      "parameter_effects": {
+        "compliance_mode": "alpha_tilde"
+      },
+      "applied": true,
+      "timestamp": 1777173679.3172612
+    },
+    {
+      "source": "Macklin & M\u00fcller, XPBD (SIGGRAPH 2016)",
+      "topic": "Lagrange multiplier accumulation for force estimation",
+      "insight": "Accumulate \u0394\u03bb across iterations. The constraint force is estimated as f \u2248 \u03bb/\u0394t, enabling reaction impulse measurement.",
+      "parameter_effects": {
+        "lambda_accumulation": true
+      },
+      "applied": true,
+      "timestamp": 1777173679.3172612
+    },
+    {
+      "source": "M\u00fcller et al., Detailed Rigid Body Simulation (SCA 2020)",
+      "topic": "Two-way rigid-soft coupling via inverse mass weighting",
+      "insight": "Place rigid-body CoM as a particle with w = 1/m_body. Constraint corrections distribute proportionally to inverse masses, automatically producing Newton's Third Law reactions.",
+      "parameter_effects": {
+        "enable_two_way_coupling": true,
+        "rigid_body_mass": 70.0
+      },
+      "applied": true,
+      "timestamp": 1777173679.3172612
+    },
+    {
+      "source": "M\u00fcller et al., Detailed Rigid Body Simulation (SCA 2020)",
+      "topic": "Non-linear Projected Gauss-Seidel (NPGS)",
+      "insight": "Update positions immediately after each constraint solve (not after full iteration). This makes the solver non-linear and avoids freezing constraint directions.",
+      "parameter_effects": {
+        "solver_mode": "npgs"
+      },
+      "applied": true,
+      "timestamp": 1777173679.3172612
+    },
+    {
+      "source": "Matthias M\u00fcller, Ten Minute Physics Tutorial 15",
+      "topic": "Self-collision 5-trick recipe",
+      "insight": "1) Spatial hash table for O(1) queries. 2) rest_length >= 2*radius to avoid constraint fighting. 3) Sub-steps for stability. 4) v_max = 0.2*radius/\u0394t_sub for tunnelling guard. 5) Friction damping after collision response.",
+      "parameter_effects": {
+        "enable_self_collision": true,
+        "self_collision_radius": 0.015,
+        "friction_coefficient": 0.3
+      },
+      "applied": true,
+      "timestamp": 1777173679.3172612
+    },
+    {
+      "source": "Macklin & M\u00fcller, XPBD (SIGGRAPH 2016), Eq 26",
+      "topic": "Rayleigh damping via compliance-like parameter \u03b2",
+      "insight": "Damping is modelled as \u03b3 = \u03b1\u0303\u00b7\u03b2/\u0394t. The modified update \u0394\u03bb = (-C - \u03b1\u0303\u00b7\u03bb - \u03b3\u00b7\u010a\u00b7\u0394t) / ((1+\u03b3)\u00b7\u2207C\u00b7M\u207b\u00b9\u00b7\u2207C\u1d40 + \u03b1\u0303) provides stable energy dissipation without ad-hoc velocity scaling.",
+      "parameter_effects": {
+        "damping_compliance": 0.0001
+      },
+      "applied": true,
+      "timestamp": 1777173679.3172612
+    }
+  ],
+  "evolution_history": [],
+  "test_results": []
+}

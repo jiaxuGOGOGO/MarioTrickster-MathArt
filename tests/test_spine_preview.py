@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import importlib
 import time
 from pathlib import Path
 
@@ -11,7 +12,12 @@ from mathart.animation.spine_preview import (
 )
 from mathart.core.artifact_schema import validate_artifact, validate_artifact_strict
 from mathart.core.backend_registry import get_registry
+from mathart.core import spine_preview_backend as _spine_preview_backend
 from mathart.core.spine_preview_backend import SpinePreviewBackend
+
+
+def _ensure_spine_preview_registered() -> None:
+    importlib.reload(_spine_preview_backend)
 
 
 def test_tensor_solver_builds_world_matrix_tensor(tmp_path):
@@ -83,6 +89,7 @@ def test_backend_self_heals_ci_placeholder_and_returns_valid_manifest(tmp_path):
 
 
 def test_registry_discovers_spine_preview_backend():
+    _ensure_spine_preview_registered()
     reg = get_registry()
     entry = reg.get("spine_preview")
     assert entry is not None

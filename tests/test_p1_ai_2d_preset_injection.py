@@ -153,9 +153,8 @@ class TestAntiFlickerPresetAssembly:
             "class_type",
             "_meta.title",
         ]
-        assert _find_by_title(payload_json, "Source Image")["inputs"]["image"].startswith("/")
-        assert _find_by_title(payload_json, "Normal Guide")["inputs"]["image"].startswith("/")
-        assert _find_by_title(payload_json, "Depth Guide")["inputs"]["image"].startswith("/")
+        for title in ("Source Image", "Normal Guide", "Depth Guide"):
+            assert Path(_find_by_title(payload_json, title)["inputs"]["image"]).is_absolute()
         assert _find_by_title(payload_json, "Apply IP-Adapter")["inputs"]["weight"] == pytest.approx(0.88)
 
         report_json = json.loads(Path(manifest.outputs["temporal_report"]).read_text(encoding="utf-8"))

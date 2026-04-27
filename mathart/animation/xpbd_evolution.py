@@ -436,13 +436,13 @@ class KnowledgeDistiller:
         if target is None:
             return
         data = [e.to_dict() for e in self._entries]
-        target.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+        target.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
     def _load(self) -> None:
         """Load knowledge base from JSON."""
         if self._path is None or not self._path.exists():
             return
-        text = self._path.read_text().strip()
+        text = self._path.read_text(encoding="utf-8").strip()
         if not text:
             return
         data = json.loads(text)
@@ -862,13 +862,16 @@ class XPBDEvolutionOrchestrator:
                 if isinstance(obj, np.ndarray):
                     return obj.tolist()
                 return super().default(obj)
-        path.write_text(json.dumps(state, indent=2, ensure_ascii=False, cls=_NumpyEncoder))
+        path.write_text(
+            json.dumps(state, indent=2, ensure_ascii=True, cls=_NumpyEncoder),
+            encoding="utf-8",
+        )
 
     def load_state(self, path: Path) -> None:
         """Load evolution state from JSON."""
         if not path.exists():
             return
-        state = json.loads(path.read_text())
+        state = json.loads(path.read_text(encoding="utf-8"))
         self._evolution_cycles = state.get("evolution_cycles", 0)
         cfg_data = state.get("config", {})
         if cfg_data:

@@ -328,6 +328,72 @@ class TestBridgeDispatch:
             "Missing pipeline_dispatch stage — bridge must attempt real dispatch"
         )
 
+    def test_bridge_builds_single_action_production_options(self):
+        bridge = WebUIBridge()
+        intent = assemble_creator_intent(
+            action_name="run",
+            reference_image_path="",
+            force_fluid=False,
+            force_physics=False,
+            force_cloth=False,
+            force_particles=False,
+            raw_vibe="pixel art runner",
+        )
+        options = bridge._build_production_options(
+            intent,
+            {"action_name": "run", "_visual_reference_path": ""},
+        )
+        assert options["batch_size"] == 1
+        assert options["pdg_workers"] == 1
+        assert options["action_filter"] == ["run"]
+        assert options["comfyui_url"] == "http://127.0.0.1:8188"
+        assert options["output_dir"].endswith("output\\production") or options["output_dir"].endswith("output/production")
+
+    def test_bridge_pipeline_timeout_returns_complete_event_with_error(self, monkeypatch):
+        bridge = WebUIBridge()
+        bridge.PRODUCTION_TIMEOUT_SECONDS = 0.01
+
+        def _hang(*_args, **_kwargs):
+            import time
+            time.sleep(1.0)
+            return {"status": "unexpected"}
+
+        monkeypatch.setattr(bridge, "_execute_pipeline", _hang)
+        events = list(bridge.dispatch_render(
+            action_name="run",
+            reference_image=None,
+            force_fluid=False,
+            force_physics=False,
+            force_cloth=False,
+            force_particles=False,
+        ))
+        assert events[-1]["stage"] == "complete"
+        assert "timed out" in events[-1]["message"]
+
+    def test_bridge_streams_structured_production_events(self, monkeypatch):
+        bridge = WebUIBridge()
+
+        def _fake_execute(_intent, _spec, event_callback=None):
+            event_callback({
+                "stage": "production_batch_created",
+                "message": "batch ready",
+                "batch_dir": "output/production/demo",
+            })
+            return {"batch_dir": "output/production/demo", "summary_path": "output/production/demo/batch_summary.json"}
+
+        monkeypatch.setattr(bridge, "_execute_pipeline", _fake_execute)
+        events = list(bridge.dispatch_render(
+            action_name="run",
+            reference_image=None,
+            force_fluid=False,
+            force_physics=False,
+            force_cloth=False,
+            force_particles=False,
+        ))
+        streamed = [event for event in events if event["stage"] == "production_batch_created"]
+        assert streamed
+        assert streamed[0]["production_event"]["batch_dir"] == "output/production/demo"
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  Test Group 4: Telemetry Adapter
@@ -558,3 +624,50 @@ class TestGatewayKeyMapping:
         admission = gateway.admit(intent)
         assert admission.vfx_overrides.get("force_fluid") is True
         assert admission.vfx_overrides.get("force_physics") is True
+
+    def test_production_strategy_threads_comfyui_url(self):
+        from mathart.workspace.mode_dispatcher import ProductionStrategy
+        strategy = ProductionStrategy()
+        ctx = strategy.build_context({
+            "skip_ai_render": False,
+            "comfyui_url": "http://127.0.0.1:8188",
+            "batch_size": 1,
+            "pdg_workers": 1,
+        })
+        assert ctx.extra["comfyui_url"] == "http://127.0.0.1:8188"
+        assert ctx.extra["batch_size"] == 1
+        assert ctx.extra["pdg_workers"] == 1
+
+    def test_production_strategy_emits_preflight_blocked_event(self, monkeypatch):
+        from mathart.workspace.mode_dispatcher import ProductionStrategy
+        from mathart.workspace import preflight_radar
+
+        events: list[dict] = []
+
+        class _FakeReport:
+            verdict = preflight_radar.PreflightVerdict.MANUAL_INTERVENTION_REQUIRED
+
+            def to_dict(self):
+                return {"blocking_actions": ["start_comfyui"], "details": {}}
+
+        class _FakeRadar:
+            def __init__(self, require_gpu: bool):
+                self.require_gpu = require_gpu
+
+            def scan(self):
+                return _FakeReport()
+
+        monkeypatch.setattr(preflight_radar, "PreflightRadar", _FakeRadar)
+        strategy = ProductionStrategy()
+        ctx = strategy.build_context({
+            "skip_ai_render": False,
+            "interactive": False,
+            "event_callback": events.append,
+        })
+        payload = strategy.execute(ctx)
+
+        assert payload["status"] == "blocked"
+        stages = [event["stage"] for event in events]
+        assert "production_preflight_started" in stages
+        assert "production_preflight_completed" in stages
+        assert "production_preflight_blocked" in stages

@@ -489,7 +489,7 @@ class TestDimensionUpliftEvolutionBridge:
 
         knowledge_path = tmp_path / "knowledge" / "dimension_uplift_rules.md"
         assert knowledge_path.exists()
-        content = knowledge_path.read_text()
+        content = knowledge_path.read_text(encoding="utf-8")
         assert "Distilled Rules" in content
         assert "Dual Contouring" in content or "dc_resolution" in content
 

@@ -33,6 +33,15 @@ from mathart.core.artifact_schema import ArtifactFamily, ArtifactManifest
 from mathart.core.backend_registry import BackendRegistry, get_registry
 from mathart.core.backend_types import BackendType, backend_type_value
 from mathart.texture import reaction_diffusion as rd
+from mathart.core import reaction_diffusion_backend as _reaction_diffusion_backend
+
+
+@pytest.fixture(autouse=True)
+def _ensure_reaction_diffusion_backend_registered():
+    import importlib
+
+    importlib.reload(_reaction_diffusion_backend)
+
 from mathart.texture.reaction_diffusion import (
     GRAY_SCOTT_LAPLACIAN_KERNEL,
     GRAY_SCOTT_PRESETS,

@@ -1,0 +1,36 @@
+meta:
+  name: mario_test_run
+  version: 1.0.0
+  created_by: director_studio
+  blueprint_id: 7df9e359-8463-4227-9b04-d39a1e4d4580
+  parent_blueprint: ''
+  description: Auto-saved from Director Studio interactive session
+genotype:
+  physics:
+    gravity: 9.81
+    mass: 1.0
+    stiffness: 50.0
+    damping: 0.3
+    bounce: 0.6
+    friction: 0.4
+  proportions:
+    head_ratio: 0.25
+    body_ratio: 0.5
+    limb_ratio: 0.25
+    scale: 1.0
+    squash_stretch: 1.0
+  animation:
+    frame_rate: 12
+    anticipation: 0.15
+    follow_through: 0.2
+    exaggeration: 1.0
+    ease_in: 0.3
+    ease_out: 0.3
+    cycle_frames: 24
+  palette:
+    primary: '#FF6B35'
+    secondary: '#004E89'
+    accent: '#F7C948'
+    shadow: '#1A1A2E'
+    highlight: '#FFFFFF'
+  extra: {}

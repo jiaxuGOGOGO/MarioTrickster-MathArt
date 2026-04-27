@@ -380,7 +380,7 @@ class TestFullPipeline:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             result = bake_high_precision_vat(pos, tmpdir)
-            data = json.loads(result.manifest_path.read_text())
+            data = json.loads(result.manifest_path.read_text(encoding="utf-8"))
 
             assert data["precision"] == "float32"
             assert data["encoding"] == "global_bounds_normalized"
@@ -413,7 +413,7 @@ class TestFullPipeline:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             result = bake_high_precision_vat(pos, tmpdir)
-            shader_text = result.shader_path.read_text()
+            shader_text = result.shader_path.read_text(encoding="utf-8")
 
             assert "DecodeHiLo" in shader_text
             assert "DenormalizePosition" in shader_text
@@ -545,7 +545,7 @@ class TestUnityMaterialPreset:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             result = bake_high_precision_vat(pos, tmpdir)
-            preset = json.loads(result.material_preset_path.read_text())
+            preset = json.loads(result.material_preset_path.read_text(encoding="utf-8"))
 
             for tex_name in ["_VATPositionHi", "_VATPositionLo"]:
                 settings = preset["texture_import_settings"][tex_name]

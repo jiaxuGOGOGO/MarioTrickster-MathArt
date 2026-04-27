@@ -82,6 +82,15 @@ def _make_depth_frame(size: tuple[int, int] = (8, 8), gray: int = 127) -> Image.
     return Image.new("L", size, gray)
 
 
+def _mock_session206_model_preflight(monkeypatch) -> None:
+    from mathart.core import comfyui_model_resolver
+
+    monkeypatch.setattr(comfyui_model_resolver, "resolve_clip_vision_model", lambda server, requested=None: requested or "clip.safetensors")
+    monkeypatch.setattr(comfyui_model_resolver, "resolve_ipadapter_model", lambda server, requested=None: requested or "ipadapter.safetensors")
+    monkeypatch.setattr(comfyui_model_resolver, "resolve_controlnet_model", lambda server, requested=None: requested or "controlnet.pth")
+    monkeypatch.setattr(comfyui_model_resolver, "upload_reference_image", lambda server, image_path: "identity_reference.png")
+
+
 def test_plan_frame_chunks_enforces_16_frame_windows() -> None:
     chunks = plan_frame_chunks(37, 16)
     assert [chunk.to_dict() for chunk in chunks] == [
@@ -176,6 +185,61 @@ def test_external_guide_bypass_inherits_resolution() -> None:
     assert validated["height"] == 192
 
 
+def test_external_guide_paths_are_loaded_and_mode_normalized(tmp_path: Path) -> None:
+    """Path-based guide handoff should be accepted for API/CLI pipeline wiring."""
+    backend = AntiFlickerRenderBackend()
+    src_paths: list[str] = []
+    normal_paths: list[str] = []
+    depth_paths: list[str] = []
+    mask_paths: list[str] = []
+    for index in range(2):
+        src = tmp_path / f"source_{index}.png"
+        normal = tmp_path / f"normal_{index}.png"
+        depth = tmp_path / f"depth_{index}.png"
+        mask = tmp_path / f"mask_{index}.png"
+        _make_rgba_frame((64, 64)).save(src)
+        _make_normal_frame((64, 64)).save(normal)
+        _make_depth_frame((64, 64)).save(depth)
+        Image.new("L", (64, 64), 255).save(mask)
+        src_paths.append(str(src))
+        normal_paths.append(str(normal))
+        depth_paths.append(str(depth))
+        mask_paths.append(str(mask))
+
+    sources = backend._normalize_external_guide_sequence(src_paths, role="source_frames", mode="RGBA")
+    normals = backend._normalize_external_guide_sequence(normal_paths, role="normal_maps", mode="RGB")
+    depths = backend._normalize_external_guide_sequence(depth_paths, role="depth_maps", mode="L")
+    masks = backend._normalize_external_guide_sequence(mask_paths, role="mask_maps", mode="L")
+
+    assert sources is not None and [img.mode for img in sources] == ["RGBA", "RGBA"]
+    assert normals is not None and [img.mode for img in normals] == ["RGB", "RGB"]
+    assert depths is not None and [img.mode for img in depths] == ["L", "L"]
+    assert masks is not None and [img.mode for img in masks] == ["L", "L"]
+    assert sources[0].size == (64, 64)
+
+
+def test_external_guide_path_fail_fast_for_missing_file(tmp_path: Path) -> None:
+    backend = AntiFlickerRenderBackend()
+    missing = tmp_path / "missing.png"
+    try:
+        backend._normalize_external_guide_sequence([str(missing)], role="source_frames", mode="RGBA")
+    except PipelineContractError as exc:
+        assert exc.violation_type == "external_guide_path_not_found"
+        assert "source_frames[0]" in exc.detail
+    else:
+        raise AssertionError("Expected PipelineContractError for missing guide path")
+
+
+def test_external_guide_length_mismatch_fail_fast() -> None:
+    backend = AntiFlickerRenderBackend()
+    try:
+        backend._assert_external_guide_length("normal_maps", [_make_normal_frame()], 2)
+    except PipelineContractError as exc:
+        assert exc.violation_type == "external_guide_length_mismatch"
+    else:
+        raise AssertionError("Expected PipelineContractError for mismatched guide lengths")
+
+
 def test_live_backend_fast_fails_before_render_when_comfyui_is_offline(tmp_path: Path, monkeypatch) -> None:
     _install_gymnasium_stub(monkeypatch)
     from mathart.comfy_client import comfyui_ws_client
@@ -250,12 +314,16 @@ def test_live_backend_chunks_large_sequences_and_materializes_outputs(tmp_path: 
     monkeypatch.setattr(headless_comfy_ebsynth.HeadlessNeuralRenderPipeline, "bake_auxiliary_maps", _fake_bake_auxiliary_maps)
     monkeypatch.setattr(headless_comfy_ebsynth.HeadlessNeuralRenderPipeline, "plan_keyframes", _fake_plan_keyframes)
     monkeypatch.setattr(comfyui_ws_client.ComfyUIClient, "execute_workflow", _fake_execute_workflow)
+    _mock_session206_model_preflight(monkeypatch)
+    ref_path = tmp_path / "identity.png"
+    _make_rgba_frame().save(ref_path)
 
     manifest = backend.execute(
         {
             "output_dir": str(tmp_path),
             "name": "chunked_runtime",
             "session_id": "TEST-108",
+            "_visual_reference_path": str(ref_path),
             "width": 192,
             "height": 192,
             "temporal": {"frame_count": 37, "chunk_size": 16, "fps": 12},
@@ -320,12 +388,16 @@ def test_live_backend_pads_small_sequences_to_comfyui_minimum(tmp_path: Path, mo
     monkeypatch.setattr(headless_comfy_ebsynth.HeadlessNeuralRenderPipeline, "bake_auxiliary_maps", _fake_bake_auxiliary_maps)
     monkeypatch.setattr(headless_comfy_ebsynth.HeadlessNeuralRenderPipeline, "plan_keyframes", _fake_plan_keyframes)
     monkeypatch.setattr(comfyui_ws_client.ComfyUIClient, "execute_workflow", _fake_execute_workflow)
+    _mock_session206_model_preflight(monkeypatch)
+    ref_path = tmp_path / "identity_small.png"
+    _make_rgba_frame().save(ref_path)
 
     manifest = backend.execute(
         {
             "output_dir": str(tmp_path),
             "name": "small_runtime",
             "session_id": "TEST-108",
+            "_visual_reference_path": str(ref_path),
             "width": 192,
             "height": 192,
             "temporal": {"frame_count": 4, "chunk_size": 4, "fps": 12},
@@ -338,7 +410,7 @@ def test_live_backend_pads_small_sequences_to_comfyui_minimum(tmp_path: Path, mo
         }
     )
 
-    assert observed_latent_sizes == [(32, 16)]
+    assert observed_latent_sizes == [(512, 512)]
     assert manifest.metadata["execution_mode"] == "live_comfyui_chunked"
     assert Path(manifest.outputs["frame_directory"]).exists()
     assert manifest.quality_metrics["temporal_stability_score"] == 1.0
@@ -387,7 +459,7 @@ def test_cli_anti_flicker_render_keeps_stdout_json_and_progress_on_stderr(tmp_pa
             tags=["anti_flicker"],
         )
 
-    monkeypatch.setattr(cli_module.AssetPipeline, "run_backend", _fake_run_backend)
+    monkeypatch.setattr(fake_pipeline_module.AssetPipeline, "run_backend", _fake_run_backend)
 
     exit_code = cli_module.main(
         [

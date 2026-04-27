@@ -1,0 +1,55 @@
+{
+  "artifact_family": "image_sequence",
+  "backend_type": "frame_sequence_export",
+  "version": "1.0.0",
+  "session_id": "SESSION-108",
+  "timestamp": 1777189936.6230774,
+  "outputs": {
+    "sequence_dir": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_normal_sequence\\frames",
+    "metadata_json": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_normal_sequence\\sequence_metadata.json",
+    "first_frame": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_normal_sequence\\frames\\frame_00000.png",
+    "last_frame": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_normal_sequence\\frames\\frame_00001.png",
+    "manifest_json": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_normal_sequence\\online_smoke_run_chunk_0000_normal_sequence_manifest.json"
+  },
+  "metadata": {
+    "frame_count": 2,
+    "frame_width": 512,
+    "frame_height": 512,
+    "fps": 8,
+    "frame_kind": "normal",
+    "frame_naming": "frame_%05d.png",
+    "source_resolution": {
+      "width": 512,
+      "height": 512
+    },
+    "padded_resolution": {
+      "width": 512,
+      "height": 512
+    },
+    "lineage": {
+      "backend": "anti_flicker_render",
+      "chunk": {
+        "chunk_index": 0,
+        "start_frame": 0,
+        "end_frame": 1,
+        "frame_count": 2
+      }
+    }
+  },
+  "quality_metrics": {
+    "aligned_to_8px": 1.0,
+    "frame_count": 2.0
+  },
+  "references": [
+    "sha256:cb3dcdd2a1881470",
+    "sha256:d982d2ee3753c5dd"
+  ],
+  "tags": [
+    "vhs",
+    "sequence",
+    "normal",
+    "8px_aligned"
+  ],
+  "schema_hash": "sha256:ef1c2de0f84c589a",
+  "applied_knowledge_rules": []
+}

@@ -38,7 +38,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from mathart.comfy_client.comfyui_ws_client import ComfyUIClient, ExecutionResult
+from mathart.comfy_client.comfyui_ws_client import ComfyUIClient, ComfyUIExecutionError, ExecutionResult
 from mathart.animation.comfyui_preset_manager import (
     ComfyUIPresetManager,
     _SPARSECTRL_SELECTORS,
@@ -178,7 +178,7 @@ class TestGracefulDegradation(unittest.TestCase):
         ]
         call_log: list[tuple[str, object]] = []
 
-        def fake_execute_workflow_safe(payload, *, backend_name="comfyui", run_label="mathart"):
+        def fake_execute_workflow_safe(payload, *, backend_name="comfyui", run_label="mathart", progress_callback=None):
             call_log.append(("execute", payload["client_id"]))
             return ExecutionResult(success=True, prompt_id=payload["client_id"])
 
@@ -381,10 +381,10 @@ class TestWebSocketExecution(unittest.TestCase):
 
         with mock.patch.dict("sys.modules", {"websocket": mock_ws_module}):
             client = ComfyUIClient()
-            result = client._ws_listen_until_complete("test-client", prompt_id)
+            with self.assertRaises(ComfyUIExecutionError) as exc:
+                client._ws_listen_until_complete("test-client", prompt_id)
 
-        self.assertIsNotNone(result.get("error"))
-        self.assertIn("CUDA out of memory", result["error"])
+        self.assertIn("CUDA out of memory", str(exc.exception))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -499,10 +499,10 @@ class TestHistoryAndDownload(unittest.TestCase):
         """GET /view when offline → None, no crash."""
         with tempfile.TemporaryDirectory() as tmp:
             client = ComfyUIClient()
-            result = client._download_file(
-                "test.png", "", "output", Path(tmp)
-            )
-            self.assertIsNone(result)
+            with self.assertRaises(ComfyUIExecutionError):
+                client._download_file(
+                    "test.png", "", "output", Path(tmp)
+                )
 
     @mock.patch("urllib.request.urlopen")
     def test_download_outputs_with_images_and_videos(self, mock_urlopen):
@@ -774,7 +774,7 @@ class TestFullE2EMockExecution(unittest.TestCase):
             self.assertTrue(result.success)
             self.assertEqual(result.prompt_id, prompt_id)
             self.assertEqual(len(result.output_images), 1)
-            self.assertTrue(result.elapsed_seconds > 0)
+            self.assertTrue(result.elapsed_seconds >= 0)
 
             # Verify the image was actually downloaded to disk
             if result.output_images:

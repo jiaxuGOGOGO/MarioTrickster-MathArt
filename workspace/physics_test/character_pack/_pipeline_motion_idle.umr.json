@@ -1,0 +1,423 @@
+{
+  "format": "umr_motion_clip_v1",
+  "clip_id": "_pipeline_motion_idle_umr",
+  "state": "idle",
+  "fps": 12,
+  "frame_count": 4,
+  "metadata": {
+    "generator": "unified_motion_backend",
+    "motion_lane": "idle",
+    "joint_channel_schema": "2d_scalar",
+    "backend_type": "unified_motion",
+    "session_origin": "SESSION-070",
+    "gait_blend_time": 0.2,
+    "gait_phase_weight": 1.0,
+    "gait_param_source": "defaults",
+    "transient_recovery_half_life": 0.12,
+    "transient_impact_damping_weight": 1.0,
+    "transient_landing_anticipation_window": 0.18,
+    "transient_param_source": "defaults",
+    "cognitive_telemetry": {
+      "schema_version": "1.0.0",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 12,
+      "trace_fields": [
+        "frame_index",
+        "time",
+        "phase",
+        "phase_kind",
+        "phase_velocity",
+        "root_position",
+        "root_velocity",
+        "root_speed",
+        "root_acceleration",
+        "root_jerk",
+        "extremity_motion_energy",
+        "joint_angular_velocity",
+        "contact_expectation"
+      ],
+      "summary": {
+        "phase_kinds": [
+          "cyclic"
+        ],
+        "mean_root_speed": 0.0,
+        "mean_root_jerk": 0.0,
+        "peak_root_jerk": 0.0,
+        "mean_extremity_motion_energy": 0.18240211020367014,
+        "contact_transition_count": 0
+      },
+      "traces": [
+        {
+          "frame_index": 0,
+          "time": 0.0,
+          "phase": 0.0,
+          "phase_kind": "cyclic",
+          "phase_velocity": 0.0,
+          "phase_vector": {
+            "sin": 0.0,
+            "cos": 1.0
+          },
+          "root_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": null
+          },
+          "root_velocity": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "root_speed": 0.0,
+          "root_acceleration": 0.0,
+          "root_jerk": 0.0,
+          "extremity_motion_energy": 0.0,
+          "joint_angular_velocity": {},
+          "contact_expectation": {
+            "left_foot": false,
+            "right_foot": false,
+            "desired_contact_state": "",
+            "contact_active_count": 0
+          }
+        },
+        {
+          "frame_index": 1,
+          "time": 0.08333333333333333,
+          "phase": 0.3333333333333333,
+          "phase_kind": "cyclic",
+          "phase_velocity": 4.0,
+          "phase_vector": {
+            "sin": 0.8660254037844387,
+            "cos": -0.4999999999999998
+          },
+          "root_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": null
+          },
+          "root_velocity": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "root_speed": 0.0,
+          "root_acceleration": 0.0,
+          "root_jerk": 0.0,
+          "extremity_motion_energy": 0.009808916306157073,
+          "joint_angular_velocity": {
+            "spine": 0.3117691453623979,
+            "chest": 0.15588457268119896,
+            "neck": -0.09353074360871937,
+            "head": 0.009808916306157073,
+            "l_shoulder": 0.5196152422706632,
+            "r_shoulder": -0.5196152422706632,
+            "l_elbow": 0.15588457268119904,
+            "r_elbow": -0.15588457268119904
+          },
+          "contact_expectation": {
+            "left_foot": false,
+            "right_foot": false,
+            "desired_contact_state": "",
+            "contact_active_count": 0
+          }
+        },
+        {
+          "frame_index": 2,
+          "time": 0.16666666666666666,
+          "phase": 0.6666666666666666,
+          "phase_kind": "cyclic",
+          "phase_velocity": 4.0,
+          "phase_vector": {
+            "sin": -0.8660254037844385,
+            "cos": -0.5000000000000004
+          },
+          "root_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": null
+          },
+          "root_velocity": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "root_speed": 0.0,
+          "root_acceleration": 0.0,
+          "root_jerk": 0.0,
+          "extremity_motion_energy": 0.36480422040734034,
+          "joint_angular_velocity": {
+            "spine": -0.6235382907247958,
+            "chest": -0.3117691453623979,
+            "neck": 0.18706148721743873,
+            "head": -0.36480422040734034,
+            "l_shoulder": 8.326672684688674e-17,
+            "r_shoulder": -8.326672684688674e-17,
+            "l_elbow": 0.0,
+            "r_elbow": 0.0
+          },
+          "contact_expectation": {
+            "left_foot": false,
+            "right_foot": false,
+            "desired_contact_state": "",
+            "contact_active_count": 0
+          }
+        },
+        {
+          "frame_index": 3,
+          "time": 0.25,
+          "phase": 0.0,
+          "phase_kind": "cyclic",
+          "phase_velocity": 4.000000000000001,
+          "phase_vector": {
+            "sin": 0.0,
+            "cos": 1.0
+          },
+          "root_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": null
+          },
+          "root_velocity": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "root_speed": 0.0,
+          "root_acceleration": 0.0,
+          "root_jerk": 0.0,
+          "extremity_motion_energy": 0.35499530410118324,
+          "joint_angular_velocity": {
+            "spine": 0.31176914536239786,
+            "chest": 0.15588457268119893,
+            "neck": -0.09353074360871935,
+            "head": 0.35499530410118324,
+            "l_shoulder": -0.5196152422706634,
+            "r_shoulder": 0.5196152422706634,
+            "l_elbow": -0.15588457268119904,
+            "r_elbow": 0.15588457268119904
+          },
+          "contact_expectation": {
+            "left_foot": false,
+            "right_foot": false,
+            "desired_contact_state": "",
+            "contact_active_count": 0
+          }
+        }
+      ]
+    }
+  },
+  "frames": [
+    {
+      "format": "umr_motion_frame_v1",
+      "time": 0.0,
+      "phase": 0.0,
+      "frame_index": 0,
+      "source_state": "idle",
+      "root_transform": {
+        "x": 0.0,
+        "y": 0.0,
+        "rotation": 0.0,
+        "velocity_x": 0.0,
+        "velocity_y": 0.0,
+        "angular_velocity": 0.0
+      },
+      "joint_local_rotations": {
+        "spine": 0.0,
+        "chest": 0.0,
+        "neck": -0.0,
+        "head": 0.00958851077208406,
+        "l_shoulder": 0.0,
+        "r_shoulder": -0.0,
+        "l_elbow": 0.1,
+        "r_elbow": 0.1
+      },
+      "contact_tags": {
+        "left_foot": false,
+        "right_foot": false,
+        "left_hand": false,
+        "right_hand": false
+      },
+      "metadata": {
+        "generator": "motion_lane_registry",
+        "motion_lane": "idle",
+        "pipeline_source": "unified_motion_backend",
+        "joint_channel_schema": "2d_scalar",
+        "gait_blend_time": 0.2,
+        "gait_phase_weight": 1.0,
+        "gait_param_source": "defaults",
+        "transient_recovery_half_life": 0.12,
+        "transient_impact_damping_weight": 1.0,
+        "transient_landing_anticipation_window": 0.18,
+        "transient_param_source": "defaults",
+        "lane": "idle",
+        "registry": "motion_state_lane",
+        "phase_kind": "cyclic"
+      },
+      "phase_state": {
+        "value": 0.0,
+        "is_cyclic": true,
+        "phase_kind": "cyclic",
+        "amplitude": 1.0
+      }
+    },
+    {
+      "format": "umr_motion_frame_v1",
+      "time": 0.08333333333333333,
+      "phase": 0.3333333333333333,
+      "frame_index": 1,
+      "source_state": "idle",
+      "root_transform": {
+        "x": 0.0,
+        "y": 0.0,
+        "rotation": 0.0,
+        "velocity_x": 0.0,
+        "velocity_y": 0.0,
+        "angular_velocity": 0.0
+      },
+      "joint_local_rotations": {
+        "spine": 0.02598076211353316,
+        "chest": 0.01299038105676658,
+        "neck": -0.007794228634059947,
+        "head": 0.010405920464263816,
+        "l_shoulder": 0.04330127018922193,
+        "r_shoulder": -0.04330127018922193,
+        "l_elbow": 0.11299038105676659,
+        "r_elbow": 0.08700961894323342
+      },
+      "contact_tags": {
+        "left_foot": false,
+        "right_foot": false,
+        "left_hand": false,
+        "right_hand": false
+      },
+      "metadata": {
+        "generator": "motion_lane_registry",
+        "motion_lane": "idle",
+        "pipeline_source": "unified_motion_backend",
+        "joint_channel_schema": "2d_scalar",
+        "gait_blend_time": 0.2,
+        "gait_phase_weight": 1.0,
+        "gait_param_source": "defaults",
+        "transient_recovery_half_life": 0.12,
+        "transient_impact_damping_weight": 1.0,
+        "transient_landing_anticipation_window": 0.18,
+        "transient_param_source": "defaults",
+        "lane": "idle",
+        "registry": "motion_state_lane",
+        "phase_kind": "cyclic"
+      },
+      "phase_state": {
+        "value": 0.3333333333333333,
+        "is_cyclic": true,
+        "phase_kind": "cyclic",
+        "amplitude": 1.0
+      }
+    },
+    {
+      "format": "umr_motion_frame_v1",
+      "time": 0.16666666666666666,
+      "phase": 0.6666666666666666,
+      "frame_index": 2,
+      "source_state": "idle",
+      "root_transform": {
+        "x": 0.0,
+        "y": 0.0,
+        "rotation": 0.0,
+        "velocity_x": 0.0,
+        "velocity_y": 0.0,
+        "angular_velocity": 0.0
+      },
+      "joint_local_rotations": {
+        "spine": -0.025980762113533153,
+        "chest": -0.012990381056766576,
+        "neck": 0.0077942286340599454,
+        "head": -0.019994431236347875,
+        "l_shoulder": 0.04330127018922194,
+        "r_shoulder": -0.04330127018922194,
+        "l_elbow": 0.11299038105676659,
+        "r_elbow": 0.08700961894323342
+      },
+      "contact_tags": {
+        "left_foot": false,
+        "right_foot": false,
+        "left_hand": false,
+        "right_hand": false
+      },
+      "metadata": {
+        "generator": "motion_lane_registry",
+        "motion_lane": "idle",
+        "pipeline_source": "unified_motion_backend",
+        "joint_channel_schema": "2d_scalar",
+        "gait_blend_time": 0.2,
+        "gait_phase_weight": 1.0,
+        "gait_param_source": "defaults",
+        "transient_recovery_half_life": 0.12,
+        "transient_impact_damping_weight": 1.0,
+        "transient_landing_anticipation_window": 0.18,
+        "transient_param_source": "defaults",
+        "lane": "idle",
+        "registry": "motion_state_lane",
+        "phase_kind": "cyclic"
+      },
+      "phase_state": {
+        "value": 0.6666666666666666,
+        "is_cyclic": true,
+        "phase_kind": "cyclic",
+        "amplitude": 1.0
+      }
+    },
+    {
+      "format": "umr_motion_frame_v1",
+      "time": 0.25,
+      "phase": 0.0,
+      "frame_index": 3,
+      "source_state": "idle",
+      "root_transform": {
+        "x": 0.0,
+        "y": 0.0,
+        "rotation": 0.0,
+        "velocity_x": 0.0,
+        "velocity_y": 0.0,
+        "angular_velocity": 0.0
+      },
+      "joint_local_rotations": {
+        "spine": 0.0,
+        "chest": 0.0,
+        "neck": -0.0,
+        "head": 0.00958851077208406,
+        "l_shoulder": 0.0,
+        "r_shoulder": -0.0,
+        "l_elbow": 0.1,
+        "r_elbow": 0.1
+      },
+      "contact_tags": {
+        "left_foot": false,
+        "right_foot": false,
+        "left_hand": false,
+        "right_hand": false
+      },
+      "metadata": {
+        "generator": "motion_lane_registry",
+        "motion_lane": "idle",
+        "pipeline_source": "unified_motion_backend",
+        "joint_channel_schema": "2d_scalar",
+        "gait_blend_time": 0.2,
+        "gait_phase_weight": 1.0,
+        "gait_param_source": "defaults",
+        "transient_recovery_half_life": 0.12,
+        "transient_impact_damping_weight": 1.0,
+        "transient_landing_anticipation_window": 0.18,
+        "transient_param_source": "defaults",
+        "lane": "idle",
+        "registry": "motion_state_lane",
+        "phase_kind": "cyclic"
+      },
+      "phase_state": {
+        "value": 0.0,
+        "is_cyclic": true,
+        "phase_kind": "cyclic",
+        "amplitude": 1.0
+      }
+    }
+  ]
+}

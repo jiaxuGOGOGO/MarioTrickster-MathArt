@@ -1222,7 +1222,7 @@ def _golden_handoff_menu(
                 _lookdev_states = _lookdev_registry.names()
             except Exception as _lookdev_reg_err:
                 logger.warning("[CLI] LookDev: motion registry unreachable: %s", _lookdev_reg_err)
-                _lookdev_states = ("idle", "walk", "run", "jump", "fall", "hit")
+                _lookdev_states = ()
             output_fn("")
             output_fn("\033[1;33m" + "═" * 60 + "\033[0m")
             output_fn(
@@ -1279,6 +1279,102 @@ def _golden_handoff_menu(
             )
             continue
         output_fn("[提示] 请输入 1 / 2 / 3 / 4 / 0 中的一个数字。")
+
+
+def _build_director_vfx_motion_manifest(
+    *,
+    output_dir: Path,
+    spec: Any,
+    action_filter: list[str] | None = None,
+    fps: int = 24,
+    frame_count: int = 24,
+) -> Any:
+    """Build a generic UMR seed for VFX plugins that consume motion context."""
+    from mathart.animation import presets
+    from mathart.animation.unified_motion import (
+        MotionRootTransform,
+        UnifiedMotionClip,
+        infer_contact_tags,
+        pose_to_umr,
+    )
+    from mathart.core.artifact_schema import ArtifactFamily, ArtifactManifest
+    from mathart.core.backend_types import BackendType
+
+    action_name = None
+    if action_filter:
+        action_name = action_filter[0]
+    if not action_name and hasattr(spec, "to_dict"):
+        action_name = (spec.to_dict() or {}).get("action_name")
+    if not action_name:
+        action_name = getattr(spec, "action_name", None)
+    state = str(action_name or "run").strip().lower() or "run"
+
+    preset_fn = getattr(presets, f"{state}_animation", None)
+    if preset_fn is None:
+        preset_fn = presets.run_animation
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    safe_state = "".join(ch if ch.isalnum() or ch in {"_", "-"} else "_" for ch in state)
+    frames = []
+    frame_total = max(1, int(frame_count))
+    frame_fps = max(1, int(fps))
+    for idx in range(frame_total):
+        phase = idx / frame_total
+        pose = preset_fn(phase)
+        root = MotionRootTransform(
+            x=float(idx) / frame_total,
+            y=0.0,
+            rotation=0.0,
+            velocity_x=1.0,
+            velocity_y=0.0,
+        )
+        frames.append(
+            pose_to_umr(
+                pose,
+                time=idx / frame_fps,
+                phase=phase,
+                root_transform=root,
+                contact_tags=infer_contact_tags(phase, state),
+                frame_index=idx,
+                source_state=state,
+                metadata={"director_vfx_seed": True, "source": "director_studio_vfx_context"},
+            )
+        )
+
+    clip = UnifiedMotionClip(
+        clip_id=f"director_vfx_{safe_state}",
+        state=state,
+        fps=frame_fps,
+        frames=frames,
+        metadata={
+            "source": "director_studio_vfx_context",
+            "frame_count": frame_total,
+            "fps": frame_fps,
+            "joint_channel_schema": "2d_scalar",
+        },
+    )
+    clip_path = output_dir / f"director_vfx_{safe_state}.umr.json"
+    clip.save(clip_path)
+
+    manifest = ArtifactManifest(
+        artifact_family=ArtifactFamily.MOTION_UMR.value,
+        backend_type=BackendType.UNIFIED_MOTION,
+        version="1.0.0",
+        session_id="SESSION-187",
+        outputs={"motion_clip_json": str(clip_path)},
+        metadata={
+            "state": state,
+            "frame_count": frame_total,
+            "fps": frame_fps,
+            "joint_channel_schema": "2d_scalar",
+            "source": "director_studio_vfx_context",
+        },
+        tags=["director-studio", "vfx", "motion-seed", state],
+    )
+    manifest_path = output_dir / f"director_vfx_{safe_state}_manifest.json"
+    manifest.save(manifest_path)
+    return manifest
 
 
 def _dispatch_mass_production(
@@ -1410,49 +1506,20 @@ def _dispatch_mass_production(
         _vibe_str = str(spec.to_dict().get("raw_vibe", ""))
 
     # ── SESSION-187: Dynamic Pipeline Weaver (VFX Stitching) ───────────────
-    # [动态渲染总线无缝缝合] 拦截系统确认预演后，进入真实投喂给渲染后端的核心流水线。
-    # 读取 LLM 吐出的 active_vfx_plugins 列表，触发解算，将特效作为特征并入推流。
+    # [动态渲染总线无缝缝合] 拦截系统确认预演后，仅登记 VFX 插件意图。
+    # 真实解算延迟到 PDG unified_motion_stage 产出正式 MOTION_UMR 后执行。
     _vfx_artifacts = {}
     if hasattr(spec, "active_vfx_plugins") and spec.active_vfx_plugins:
+        _active_vfx_plugins = list(spec.active_vfx_plugins)
+        _vfx_artifacts = {
+            "deferred_to_pdg": True,
+            "active_plugins": _active_vfx_plugins,
+            "reason": "motion_dependent_vfx_requires_real_unified_motion_stage_output",
+        }
         output_fn(
-            f"\n\033[1;35m[🎬 SESSION-187 动态缝合器] 正在执行 {len(spec.active_vfx_plugins)} 个 VFX 插件...\033[0m"
+            f"\n\033[1;35m[SESSION-187 VFX Weaver] 已登记 {len(_active_vfx_plugins)} 个 VFX 插件；"
+            "将在 PDG unified_motion_stage 产出真实 MOTION_UMR 后执行\033[0m"
         )
-        try:
-            from mathart.workspace.pipeline_weaver import weave_vfx_pipeline
-            
-            def _on_vfx_start(plugin_name, display_name, index, total):
-                output_fn(f"\033[90m    ↳ [{index}/{total}] 启动 {display_name} ({plugin_name})...\033[0m")
-                
-            def _on_vfx_done(plugin_name, display_name, success, duration_ms):
-                status = "\033[1;32m成功\033[0m" if success else "\033[1;31m失败(已跳过)\033[0m"
-                output_fn(f"\033[90m    ↳ 完成 {display_name} — {status} ({duration_ms:.1f}ms)\033[0m")
-                
-            def _on_vfx_error(plugin_name, display_name, error):
-                output_fn(f"\033[1;33m    ↳ [Warning] {display_name} 异常: {error} (管线继续)\033[0m")
-
-            weaver_result = weave_vfx_pipeline(
-                active_plugins=spec.active_vfx_plugins,
-                output_dir=project_root / "outputs" / "production" / "vfx_cache",
-                extra_context={
-                    "vibe": _vibe_str,
-                    "flat_params": final_genotype.flat_params() if hasattr(final_genotype, "flat_params") else {}
-                },
-                on_plugin_start=_on_vfx_start,
-                on_plugin_done=_on_vfx_done,
-                on_plugin_error=_on_vfx_error,
-            )
-            
-            if weaver_result.executed:
-                output_fn(f"\033[1;32m[✅ VFX 缝合完毕] 成功执行 {len(weaver_result.executed)} 个插件，耗时 {weaver_result.total_ms:.1f}ms\033[0m")
-            if weaver_result.skipped:
-                output_fn(f"\033[1;33m[⚠️ VFX 降级] 跳过 {len(weaver_result.skipped)} 个失败插件\033[0m")
-                
-            # 将 VFX 产物注入到后续的 production context 中
-            _vfx_artifacts = weaver_result.to_dict() if hasattr(weaver_result, "to_dict") else {}
-            
-        except Exception as _vfx_err:
-            logger.warning("[CLI] VFX Weaver failed entirely: %s", _vfx_err, exc_info=True)
-            output_fn(f"\033[1;33m[⚠️ VFX 缝合器异常] {_vfx_err} (主渲染管线将携基础数据继续执行)\033[0m")
 
     # ── SESSION-164: Precise Exception Catching ────────────────────────────
     # [精准化容灾拦截对接] 将宽泛的 try...except 精准绑定到 SESSION-161

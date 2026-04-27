@@ -42,6 +42,53 @@ def test_procedural_dependency_graph_executes_in_dependency_order():
     assert result["target_outputs"]["sum"]["value"] == 9
 
 
+def test_procedural_dependency_graph_emits_node_level_events():
+    events: list[dict] = []
+    graph = ProceduralDependencyGraph(name="telemetry_demo")
+    graph.add_node(PDGNode(name="source", operation=lambda _ctx, _deps: {"value": 2}, cache_enabled=False))
+    graph.add_node(
+        PDGNode(
+            name="double",
+            dependencies=["source"],
+            operation=lambda _ctx, deps: {"value": deps["source"]["value"] * 2},
+            cache_enabled=False,
+        )
+    )
+
+    result = graph.run(["double"], event_callback=events.append)
+
+    assert result["target_outputs"]["double"]["value"] == 4
+    event_pairs = [(event["event_type"], event.get("node_name")) for event in events]
+    assert ("pdg_node_started", "source") in event_pairs
+    assert ("pdg_node_completed", "source") in event_pairs
+    assert ("pdg_node_started", "double") in event_pairs
+    assert ("pdg_node_completed", "double") in event_pairs
+    completed_double = [
+        event for event in events
+        if event["event_type"] == "pdg_node_completed" and event.get("node_name") == "double"
+    ][0]
+    assert completed_double["state"] == "cooked_success"
+    assert completed_double["work_items"] == 1
+
+
+def test_procedural_dependency_graph_exposes_node_progress_callback():
+    events: list[dict] = []
+    graph = ProceduralDependencyGraph(name="node_progress_demo")
+
+    def source(ctx: dict, _deps: dict) -> dict:
+        callback = ctx["_pdg"].get("event_callback")
+        callback({"stage": "inside_source", "value": 42})
+        return {"value": 42}
+
+    graph.add_node(PDGNode(name="source", operation=source, cache_enabled=False))
+    result = graph.run(["source"], event_callback=events.append)
+
+    assert result["target_outputs"]["source"]["value"] == 42
+    progress_events = [event for event in events if event["event_type"] == "pdg_node_progress"]
+    assert progress_events
+    assert progress_events[0]["node_name"] == "source"
+    assert progress_events[0]["progress_event"]["stage"] == "inside_source"
+
 
 def test_pdg_v2_hermetic_cache_short_circuits_recomputation(tmp_path: Path):
     calls = {"source": 0, "expensive": 0}

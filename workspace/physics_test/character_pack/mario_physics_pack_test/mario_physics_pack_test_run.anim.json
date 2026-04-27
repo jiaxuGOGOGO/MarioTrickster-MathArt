@@ -1,0 +1,87 @@
+{
+  "state": "run",
+  "frames": 4,
+  "fps": 12,
+  "loop": true,
+  "frame_size": {
+    "w": 128,
+    "h": 128
+  },
+  "sheet": "mario_physics_pack_test_run_sheet.png",
+  "gif": "mario_physics_pack_test_run.gif",
+  "frame_duration_ms": 83,
+  "score": 0.7475094776100494,
+  "frame_files": [
+    "mario_physics_pack_test_run_frame_00.png",
+    "mario_physics_pack_test_run_frame_01.png",
+    "mario_physics_pack_test_run_frame_02.png",
+    "mario_physics_pack_test_run_frame_03.png"
+  ],
+  "motion_bus": {
+    "format": "umr_motion_clip_v1",
+    "file": "mario_physics_pack_test_run.umr.json",
+    "audit": {
+      "frame_count": 4,
+      "audit_entries": 12,
+      "grounding_guarded_frames": 4,
+      "upper_body_override_flags": 0,
+      "node_order": [
+        "physics_compliance",
+        "secondary_chain_projection",
+        "biomechanics_grounding"
+      ],
+      "stage_order": [
+        "root_motion_to_compliance",
+        "secondary_follow_through",
+        "localized_grounding"
+      ],
+      "contract": "UnifiedMotionFrame"
+    },
+    "contact_coverage": {
+      "left_foot_frames": 3,
+      "right_foot_frames": 1
+    }
+  },
+  "sheet_frames": [
+    {
+      "name": "mario_physics_pack_test_run_0",
+      "rect": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "duration": 83
+    },
+    {
+      "name": "mario_physics_pack_test_run_1",
+      "rect": [
+        128,
+        0,
+        128,
+        128
+      ],
+      "duration": 83
+    },
+    {
+      "name": "mario_physics_pack_test_run_2",
+      "rect": [
+        256,
+        0,
+        128,
+        128
+      ],
+      "duration": 83
+    },
+    {
+      "name": "mario_physics_pack_test_run_3",
+      "rect": [
+        384,
+        0,
+        128,
+        128
+      ],
+      "duration": 83
+    }
+  ]
+}

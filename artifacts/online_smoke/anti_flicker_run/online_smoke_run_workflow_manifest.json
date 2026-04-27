@@ -1,0 +1,23 @@
+{
+  "execution_mode": "live_comfyui_chunked",
+  "server_address": "127.0.0.1:8188",
+  "preset_name": "sparsectrl_animatediff",
+  "chunk_plan": [
+    {
+      "chunk_index": 0,
+      "start_frame": 0,
+      "end_frame": 1,
+      "frame_count": 2
+    }
+  ],
+  "chunk_reports": [
+    "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_runtime\\chunk_reports\\chunk_0000_report.json"
+  ],
+  "payload_paths": [
+    "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_runtime\\payloads\\chunk_0000_workflow_payload.json"
+  ],
+  "frame_count_requested": 2,
+  "frame_count_materialized": 2,
+  "video_count_materialized": 1,
+  "fail_fast_on_offline": true
+}

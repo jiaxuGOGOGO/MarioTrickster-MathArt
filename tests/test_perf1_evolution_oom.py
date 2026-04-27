@@ -231,12 +231,15 @@ class TestSaveReport:
             ],
         )
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
-            path = save_evolution_report(report, f.name)
-            with open(path) as rf:
+            report_path = f.name
+        try:
+            path = save_evolution_report(report, report_path)
+            with open(path, encoding="utf-8") as rf:
                 loaded = json.load(rf)
             assert loaded["cycle_id"] == "TEST-CYCLE"
             assert len(loaded["proposals"]) == 1
-            os.unlink(path)
+        finally:
+            os.unlink(report_path)
 
 
 # ── Memory regression guard ─────────────────────────────────────────────────

@@ -1,0 +1,28 @@
+{
+  "indices": [
+    0,
+    1
+  ],
+  "motion_scores": {
+    "0": 0.0
+  },
+  "silhouette_scores": {
+    "0": 0.0,
+    "1": 0.149528
+  },
+  "priority_scores": {
+    "0": 0.0,
+    "1": 0.044858
+  },
+  "strategy": "motion_adaptive",
+  "max_gap": 1,
+  "density": 1.0,
+  "identity_reference_index": 0,
+  "guides_locked": [
+    "normal",
+    "depth",
+    "motion_vectors",
+    "mask",
+    "ip_adapter_identity"
+  ]
+}

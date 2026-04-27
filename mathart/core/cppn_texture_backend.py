@@ -304,8 +304,11 @@ class CPPNTextureEvolutionBackend:
         for idx, (tex_p, gen_p) in enumerate(zip(texture_paths, genome_paths)):
             outputs[f"texture_{idx:03d}"] = tex_p
             outputs[f"genome_{idx:03d}"] = gen_p
+        if texture_paths:
+            outputs["albedo"] = texture_paths[0]
 
         metadata: dict[str, Any] = {
+            "channels": ["albedo"],
             "num_textures": num_textures,
             "resolution": resolution,
             "seed": seed,

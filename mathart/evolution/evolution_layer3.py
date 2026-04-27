@@ -739,29 +739,7 @@ class PhysicsKnowledgeDistiller:
                 "source": f"Layer3-AutoDistill-{self.rules_generated}",
             })
 
-        # SESSION-034: Industrial rendering & motion matching knowledge distillation
-        # Rule 8: Silhouette quality (Dead Cells GDC 2018)
-        sil_quality = fitness.get("silhouette_quality", None)
-        if sil_quality is not None and sil_quality > 0.5:
-            rules.append({
-                "domain": "rendering_pipeline",
-                "rule_type": "soft_default",
-                "rule_text": (
-                    f"Dead Cells-inspired silhouette readability score={sil_quality:.2f} for "
-                    f"archetype '{archetype}'. At 32x32, silhouette clarity is paramount: "
-                    f"disable anti-aliasing, use hard SDF threshold, boost outline on impact "
-                    f"frames. Extremity spread variation indicates dynamic pose quality."
-                ),
-                "params": {
-                    "silhouette_quality": str(sil_quality),
-                    "render_pipeline": "dead_cells_no_aa",
-                    "archetype": archetype,
-                },
-                "confidence": min(sil_quality + 0.1, 0.95),
-                "source": f"Layer3-AutoDistill-{self.rules_generated}",
-            })
-
-        # Rule 9: Contact consistency (Motion Matching GDC 2016)
+        # Rule 8: Contact consistency (Motion Matching GDC 2016)
         contact_cons = fitness.get("contact_consistency", None)
         if contact_cons is not None and contact_cons > 0.6:
             rules.append({
@@ -1276,8 +1254,9 @@ class PhysicsEvolutionLayer:
                 # SESSION-034: Industrial metrics in strategy record
                 "industrial_metrics": {
                     "contact_consistency": best_fitness.get("contact_consistency", None),
-                    "silhouette_quality": best_fitness.get("silhouette_quality", None),
                     "skating_penalty": best_fitness.get("skating_penalty", None),
+                    "anticipation_score": best_fitness.get("anticipation_score", None),
+                    "impact_sharpness": best_fitness.get("impact_sharpness", None),
                 },
                 # SESSION-039: Transition pipeline metrics in strategy record
                 "transition_metrics": {

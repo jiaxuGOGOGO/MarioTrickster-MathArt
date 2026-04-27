@@ -90,17 +90,16 @@ _DEFAULT_OUTPUT_PREFIX = "final_render"
 
 @register_backend(
     BackendType.COMFYUI_RENDER,
-    display_name="ComfyUI Headless Render (BFF Dynamic Dispatch)",
-    version="1.0.0",
+    display_name="ComfyUI Static Asset Initializer (Vibe → Still Asset)",
+    version="2.0.0",
     artifact_families=(
-        ArtifactFamily.COMFYUI_RENDER_REPORT.value,
+        ArtifactFamily.COMFYUI_STATIC_ASSET.value,
     ),
     capabilities=(
         BackendCapability.COMFYUI_RENDER,
-        BackendCapability.GPU_ACCELERATED,
     ),
-    input_requirements=("workflow_blueprint", "image_path", "prompt"),
-    session_origin="SESSION-151",
+    input_requirements=("vibe",),
+    session_origin="V6-PHASE-1",
 )
 class ComfyUIRenderBackend:
     """ComfyUI headless render backend with BFF payload mutation.
@@ -194,11 +193,23 @@ class ComfyUIRenderBackend:
                 warnings.append(f"image_path {ip} not found")
         validated["image_path"] = str(image_path)
 
-        # --- Prompt ---
-        prompt = str(validated.get("prompt", ""))
-        if not prompt:
-            warnings.append("No prompt provided; using empty string")
-        validated["prompt"] = prompt
+        # --- V6 Static Asset Vibe ---
+        forbidden_temporal_keys = (
+            "frames", "frame_count", "fps", "duration", "video", "sequence",
+            "actions", "motion", "temporal", "animation", "output_videos",
+        )
+        for key in forbidden_temporal_keys:
+            value = validated.get(key)
+            if value not in (None, "", [], {}, False):
+                warnings.append(f"V6 ComfyUI static contract ignores temporal key '{key}'")
+                validated.pop(key, None)
+
+        vibe = str(validated.get("vibe", validated.get("prompt", ""))).strip()
+        if not vibe:
+            warnings.append("No vibe provided; using neutral static asset vibe")
+            vibe = "neutral game character material reference, clean single image"
+        validated["vibe"] = vibe
+        validated["prompt"] = vibe
 
         negative_prompt = str(validated.get("negative_prompt", ""))
         validated["negative_prompt"] = negative_prompt
@@ -255,7 +266,7 @@ class ComfyUIRenderBackend:
         output_dir = Path(validated["output_dir"]) if validated["output_dir"] else None
         blueprint_path = validated["workflow_blueprint"]
         image_path = validated["image_path"]
-        prompt = validated["prompt"]
+        vibe = validated["vibe"]
         negative_prompt = validated["negative_prompt"]
         seed = validated["seed"]
         output_prefix = validated["output_prefix"]
@@ -312,7 +323,7 @@ class ComfyUIRenderBackend:
 
         # --- Build mutated payload (SESSION-172: Prompt Armor + 512 Latent) ---
         # Prompt Armor: wrap user prompt with English anchor tags
-        armored_prompt = _armor_prompt(prompt)
+        armored_prompt = _armor_prompt(vibe)
         armored_negative = _BASE_NEGATIVE_PROMPT
         if negative_prompt and negative_prompt.strip():
             armored_negative = f"{_BASE_NEGATIVE_PROMPT}, {negative_prompt}"
@@ -372,15 +383,14 @@ class ComfyUIRenderBackend:
 
         # --- Build success manifest ---
         outputs: dict[str, Any] = {}
-        for i, img_path in enumerate(result.output_images):
-            outputs[f"render_image_{i}"] = img_path
-        for i, vid_path in enumerate(result.output_videos):
-            outputs[f"render_video_{i}"] = vid_path
+        for i, img_path in enumerate(result.output_images[:1]):
+            outputs[f"static_asset_{i}"] = img_path
+        # V6 forbids ComfyUI video outputs; ignore any legacy video results.
         if result.output_dir:
             outputs["output_dir"] = result.output_dir
 
         return ArtifactManifest(
-            artifact_family=ArtifactFamily.COMFYUI_RENDER_REPORT.value,
+            artifact_family=ArtifactFamily.COMFYUI_STATIC_ASSET.value,
             backend_type=BackendType.COMFYUI_RENDER,
             outputs=outputs,
             metadata={
@@ -393,7 +403,8 @@ class ComfyUIRenderBackend:
                 "blueprint_name": bp_name,
                 "uploaded_filename": uploaded_filename,
                 "seed": seed,
-                "prompt": prompt[:200],
+                "vibe": vibe[:200],
+                "static_asset_only": True,
                 "negative_prompt": negative_prompt[:200],
                 "output_prefix": output_prefix,
                 "session_id": session_id,
@@ -402,8 +413,8 @@ class ComfyUIRenderBackend:
             quality_metrics={
                 "render_success": True,
                 "degraded": False,
-                "images_count": len(result.output_images),
-                "videos_count": len(result.output_videos),
+                "static_assets_count": len(result.output_images[:1]),
+                "videos_ignored": len(result.output_videos),
             },
         )
 
@@ -421,7 +432,7 @@ class ComfyUIRenderBackend:
     ) -> ArtifactManifest:
         """Build a degraded manifest when ComfyUI is offline."""
         return ArtifactManifest(
-            artifact_family=ArtifactFamily.COMFYUI_RENDER_REPORT.value,
+            artifact_family=ArtifactFamily.COMFYUI_STATIC_ASSET.value,
             backend_type=BackendType.COMFYUI_RENDER,
             outputs={},
             metadata={
@@ -432,6 +443,8 @@ class ComfyUIRenderBackend:
                 "vram_freed": False,
                 "mutation_count": 0,
                 "blueprint_name": blueprint_name,
+                "vibe": "",
+                "static_asset_only": True,
                 "degraded": True,
                 "degraded_reason": reason,
             },
@@ -451,7 +464,7 @@ class ComfyUIRenderBackend:
     ) -> ArtifactManifest:
         """Build an error manifest when rendering fails."""
         return ArtifactManifest(
-            artifact_family=ArtifactFamily.COMFYUI_RENDER_REPORT.value,
+            artifact_family=ArtifactFamily.COMFYUI_STATIC_ASSET.value,
             backend_type=BackendType.COMFYUI_RENDER,
             outputs={},
             metadata={
@@ -462,6 +475,8 @@ class ComfyUIRenderBackend:
                 "vram_freed": False,
                 "mutation_count": 0,
                 "blueprint_name": blueprint_name,
+                "vibe": "",
+                "static_asset_only": True,
                 "error": error,
             },
             quality_metrics={

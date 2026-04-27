@@ -1,0 +1,21 @@
+{
+  "gait": "biped_walk",
+  "total_frames": 2,
+  "pipeline_pass": true,
+  "projection_quality": {
+    "depth_ordering_consistency": 1.0,
+    "bone_length_preservation": 1.0,
+    "joint_angle_fidelity": 1.0,
+    "sorting_order_stability": 1.0,
+    "total_frames": 2,
+    "total_bones": 15
+  },
+  "ik_quality": {
+    "foot_terrain_error": 0.2180922137642275,
+    "hip_height_delta": 0.009046106882113741,
+    "knee_angle_validity": 0.0,
+    "convergence_iterations": 2.0,
+    "contact_accuracy": 1.0,
+    "total_chains_solved": 4
+  }
+}

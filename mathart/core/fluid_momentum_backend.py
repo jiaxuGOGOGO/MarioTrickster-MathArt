@@ -681,8 +681,12 @@ class FluidMomentumVFXBackend:
 
         t_elapsed = _time.perf_counter() - t_start
 
-        # ── Build ArtifactManifest (strong-typed contract) ───────
+        if all_outputs:
+            first_flowmap = next(iter(all_outputs.values()))
+            all_outputs.setdefault("flowmap", first_flowmap)
+
         metadata: dict[str, Any] = {
+            "encoding": "rgba_speed_density",
             "grid_size": grid_size,
             "num_frames": num_frames,
             "fps": fps,
@@ -758,6 +762,7 @@ class FluidMomentumVFXBackend:
         metadata: dict[str, Any] = {
             "status": "degraded",
             "reason": "Required dependencies not available",
+            "encoding": "degraded_none",
             "dependency_status": {
                 "fluid_controller": _HAS_FLUID_CONTROLLER,
                 "unified_motion": _HAS_UMR,
@@ -789,6 +794,6 @@ class FluidMomentumVFXBackend:
         return ArtifactManifest(
             artifact_family=ArtifactFamily.VFX_FLOWMAP.value,
             backend_type=_FLUID_BACKEND_TYPE,
-            outputs={},
+            outputs={"flowmap": str(report_path)},
             metadata=metadata,
         )

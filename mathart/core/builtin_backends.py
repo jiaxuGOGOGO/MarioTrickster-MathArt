@@ -720,7 +720,8 @@ class AntiFlickerRenderBackend:
         comfyui.setdefault("context_overlap", 4)
         comfyui.setdefault("sparsectrl_strength", 1.0)
         comfyui.setdefault("sparsectrl_end_percent", 0.5)
-        comfyui.setdefault("model_checkpoint", "v1-5-pruned-emaonly.safetensors")
+        # Allow caller to pass comfyui_checkpoint to use pixel-art specialized models
+        comfyui.setdefault("model_checkpoint", comfyui.get("comfyui_checkpoint") or "v1-5-pruned-emaonly.safetensors")
         comfyui.setdefault("live_execution", False)
         comfyui.setdefault("fail_fast_on_offline", bool(comfyui.get("live_execution", False)))
         comfyui.setdefault("connect_timeout", 5.0)
@@ -2018,6 +2019,83 @@ class AntiFlickerRenderBackend:
             tags=["anti_flicker", "comfyui", "chunked", preset_name, "live"],
         )
 
+    def _normalize_external_guide_sequence(
+        self,
+        value: Any,
+        *,
+        role: str,
+        mode: str,
+    ) -> list[Any] | None:
+        """Normalize external guide inputs from PIL images or filesystem paths."""
+        if value is None:
+            return None
+
+        if isinstance(value, (str, Path)):
+            items = [value]
+        else:
+            try:
+                items = list(value)
+            except TypeError as exc:
+                raise PipelineContractError(
+                    "invalid_external_guide_sequence",
+                    f"{role} must be a sequence of PIL images or image paths; got {type(value).__name__}",
+                ) from exc
+
+        if not items:
+            raise PipelineContractError(
+                "empty_external_guide_sequence",
+                f"{role} must contain at least one frame",
+            )
+
+        normalized: list[Any] = []
+        for index, item in enumerate(items):
+            if hasattr(item, "convert"):
+                normalized.append(item.convert(mode))
+                continue
+
+            if not isinstance(item, (str, Path)):
+                raise PipelineContractError(
+                    "invalid_external_guide_frame",
+                    f"{role}[{index}] must be a PIL image or image path; got {type(item).__name__}",
+                )
+
+            path = Path(item).expanduser()
+            if not path.exists():
+                raise PipelineContractError(
+                    "external_guide_path_not_found",
+                    f"{role}[{index}] image path does not exist: {path}",
+                )
+            if not path.is_file():
+                raise PipelineContractError(
+                    "external_guide_path_not_file",
+                    f"{role}[{index}] must be a file path, not a directory: {path}",
+                )
+
+            try:
+                from PIL import Image
+
+                with Image.open(path) as img:
+                    normalized.append(img.convert(mode).copy())
+            except Exception as exc:
+                raise PipelineContractError(
+                    "external_guide_image_decode_failed",
+                    f"{role}[{index}] could not be decoded as an image: {path}: {exc}",
+                ) from exc
+
+        return normalized
+
+    @staticmethod
+    def _assert_external_guide_length(
+        role: str,
+        frames: list[Any] | None,
+        expected_len: int,
+    ) -> None:
+        if frames is not None and len(frames) != expected_len:
+            raise PipelineContractError(
+                "external_guide_length_mismatch",
+                f"{role} length {len(frames)} does not match source_frames length {expected_len}",
+            )
+
     def execute(self, context: dict[str, Any]) -> ArtifactManifest:
         """Execute anti-flicker rendering.
 
@@ -2035,10 +2113,30 @@ class AntiFlickerRenderBackend:
             logger.warning("[anti_flicker_render] config warning: %s", w)
 
         # SESSION-129: Detect external guide sequences and propagate them
-        external_source = context.get("source_frames")
-        external_normal = context.get("normal_maps")
-        external_depth = context.get("depth_maps")
+        external_source = self._normalize_external_guide_sequence(
+            context.get("source_frames"),
+            role="source_frames",
+            mode="RGBA",
+        )
+        external_normal = self._normalize_external_guide_sequence(
+            context.get("normal_maps"),
+            role="normal_maps",
+            mode="RGB",
+        )
+        external_depth = self._normalize_external_guide_sequence(
+            context.get("depth_maps"),
+            role="depth_maps",
+            mode="L",
+        )
+        external_masks = self._normalize_external_guide_sequence(
+            context.get("mask_maps"),
+            role="mask_maps",
+            mode="L",
+        )
         if external_source is not None and len(external_source) > 0:
+            self._assert_external_guide_length("normal_maps", external_normal, len(external_source))
+            self._assert_external_guide_length("depth_maps", external_depth, len(external_source))
+            self._assert_external_guide_length("mask_maps", external_masks, len(external_source))
             # SESSION-189: Latent Healing & Anime-Rhythm Subsampler.
             # Before stashing the external guide triplets, run them through
             # the cosine-curve (Kan-Kyu) subsampler and JIT alpha-matting +
@@ -2054,7 +2152,7 @@ class AntiFlickerRenderBackend:
                     source_frames=external_source,
                     normal_maps=external_normal or external_source,
                     depth_maps=external_depth or external_source,
-                    mask_maps=context.get("mask_maps"),
+                    mask_maps=external_masks,
                 )
                 external_source = _healed["source_frames"]
                 external_normal = _healed["normal_maps"]
@@ -2083,12 +2181,12 @@ class AntiFlickerRenderBackend:
                     "[anti_flicker_render] SESSION-189 latent healing fell back to "
                     "passthrough due to: %s", _heal_exc,
                 )
-                _healed_masks = context.get("mask_maps")
+                _healed_masks = external_masks
 
             validated["_external_source_frames"] = external_source
             validated["_external_normal_maps"] = external_normal or external_source
             validated["_external_depth_maps"] = external_depth or external_source
-            validated["_external_mask_maps"] = _healed_masks or context.get("mask_maps", external_source)
+            validated["_external_mask_maps"] = _healed_masks or external_masks or external_source
             validated["_idle_bake_bypassed"] = True
             # Inherit resolution from external guides (DbC postcondition).
             # After SESSION-189 healing, the guide canvas is always 512×512.

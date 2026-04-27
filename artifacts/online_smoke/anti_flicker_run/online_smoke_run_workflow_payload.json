@@ -1,0 +1,14 @@
+{
+  "preset_name": "sparsectrl_animatediff",
+  "payload_paths": [
+    "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_runtime\\payloads\\chunk_0000_workflow_payload.json"
+  ],
+  "chunk_plan": [
+    {
+      "chunk_index": 0,
+      "start_frame": 0,
+      "end_frame": 1,
+      "frame_count": 2
+    }
+  ]
+}

@@ -162,6 +162,7 @@ class Clip2D:
     frames: list[Pose2D] = field(default_factory=list)
     skeleton_bones: list[Bone2D] = field(default_factory=list)
     ik_constraints: list[dict[str, Any]] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -283,6 +284,7 @@ class OrthographicProjector:
             fps=clip.fps,
             frames=frames_2d,
             skeleton_bones=bones_2d,
+            metadata=dict(clip.metadata),
         )
 
     def evaluate_quality(
@@ -494,20 +496,35 @@ class SpineJSONExporter:
             }
         }
 
-    def export(self, clip: Clip2D, output_path: str | Path) -> Path:
+    def export(
+        self,
+        clip: Clip2D,
+        output_path: str | Path,
+        *,
+        apply_anime_timing: bool = True,
+        apply_squash_stretch: bool = True,
+    ) -> Path:
         """Export a projected 2D clip to Spine JSON format."""
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
+        export_clip = clip
+        if apply_anime_timing:
+            from mathart.animation.anime_timing_modifier import apply_to_clip2d as apply_anime_timing_to_clip2d
+            export_clip = apply_anime_timing_to_clip2d(export_clip)
+        if apply_squash_stretch:
+            from mathart.animation.squash_stretch_modifier import apply_to_clip2d
+            export_clip = apply_to_clip2d(export_clip)
+
         data: dict[str, Any] = {}
-        data.update(self.build_skeleton_data(clip))
-        data["bones"] = self.build_bones(clip.skeleton_bones)
-        data["slots"] = self.build_slots(clip.skeleton_bones)
+        data.update(self.build_skeleton_data(export_clip))
+        data["bones"] = self.build_bones(export_clip.skeleton_bones)
+        data["slots"] = self.build_slots(export_clip.skeleton_bones)
 
-        if clip.ik_constraints:
-            data["ik"] = self.build_ik_constraints(clip.ik_constraints)
+        if export_clip.ik_constraints:
+            data["ik"] = self.build_ik_constraints(export_clip.ik_constraints)
 
-        data["animations"] = self.build_animation(clip)
+        data["animations"] = self.build_animation(export_clip)
 
         path.write_text(
             json.dumps(data, ensure_ascii=False, indent=2) + "\n",

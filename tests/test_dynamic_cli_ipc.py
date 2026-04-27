@@ -24,6 +24,8 @@ def test_registry_list_is_machine_readable_json() -> None:
         env=_subprocess_env(),
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     assert proc.returncode == 0, proc.stderr
@@ -58,6 +60,8 @@ def test_run_urp2d_bundle_subprocess_stdout_is_pure_json(tmp_path: Path) -> None
         env=_subprocess_env(),
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     assert proc.returncode == 0, proc.stderr

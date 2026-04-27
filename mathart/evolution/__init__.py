@@ -40,11 +40,12 @@ from .evolution_contract_bridge import (
     ContractEvolutionMetrics,
     ContractEvolutionState,
 )
-# SESSION-041: Visual Regression Evolution Bridge
-from .visual_regression_bridge import (
-    VisualRegressionEvolutionBridge,
-    VisualRegressionMetrics,
-    VisualRegressionState,
+from .knowledge_fitness import (
+    MotionSample,
+    BookLawFitnessReport,
+    KnowledgeDrivenFitnessEngine,
+    evaluate_knowledge_fitness,
+    extract_motion_samples,
 )
 # SESSION-043: Active Layer 3 Closed Loop
 from .layer3_closed_loop import (
@@ -209,10 +210,11 @@ __all__ = [
     "ContractEvolutionBridge",
     "ContractEvolutionMetrics",
     "ContractEvolutionState",
-    # SESSION-041: Visual Regression Evolution Bridge
-    "VisualRegressionEvolutionBridge",
-    "VisualRegressionMetrics",
-    "VisualRegressionState",
+    "MotionSample",
+    "BookLawFitnessReport",
+    "KnowledgeDrivenFitnessEngine",
+    "evaluate_knowledge_fitness",
+    "extract_motion_samples",
     # SESSION-043: Active Layer 3 Closed Loop
     "TransitionTuningTarget",
     "TransitionLossWeights",

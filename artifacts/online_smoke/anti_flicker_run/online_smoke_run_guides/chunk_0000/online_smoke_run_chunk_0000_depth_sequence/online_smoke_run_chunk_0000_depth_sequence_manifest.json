@@ -1,0 +1,55 @@
+{
+  "artifact_family": "image_sequence",
+  "backend_type": "frame_sequence_export",
+  "version": "1.0.0",
+  "session_id": "SESSION-108",
+  "timestamp": 1777189936.6758955,
+  "outputs": {
+    "sequence_dir": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\frames",
+    "metadata_json": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\sequence_metadata.json",
+    "first_frame": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\frames\\frame_00000.png",
+    "last_frame": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\frames\\frame_00001.png",
+    "manifest_json": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\online_smoke_run_chunk_0000_depth_sequence_manifest.json"
+  },
+  "metadata": {
+    "frame_count": 2,
+    "frame_width": 512,
+    "frame_height": 512,
+    "fps": 8,
+    "frame_kind": "depth",
+    "frame_naming": "frame_%05d.png",
+    "source_resolution": {
+      "width": 512,
+      "height": 512
+    },
+    "padded_resolution": {
+      "width": 512,
+      "height": 512
+    },
+    "lineage": {
+      "backend": "anti_flicker_render",
+      "chunk": {
+        "chunk_index": 0,
+        "start_frame": 0,
+        "end_frame": 1,
+        "frame_count": 2
+      }
+    }
+  },
+  "quality_metrics": {
+    "aligned_to_8px": 1.0,
+    "frame_count": 2.0
+  },
+  "references": [
+    "sha256:14acb4ca4ea97134",
+    "sha256:757859fb944fabb3"
+  ],
+  "tags": [
+    "vhs",
+    "sequence",
+    "depth",
+    "8px_aligned"
+  ],
+  "schema_hash": "sha256:685aa9e13b0ee9eb",
+  "applied_knowledge_rules": []
+}

@@ -387,7 +387,7 @@ class TestUnityYAMLEmitter:
     def test_no_pyyaml_import(self):
         """🔴 Anti-PyYAML-Overhead: The module must NEVER import yaml."""
         import mathart.animation.unity_2d_anim as mod
-        source = Path(mod.__file__).read_text()
+        source = Path(mod.__file__).read_text(encoding="utf-8")
         assert "import yaml" not in source, "unity_2d_anim.py must NEVER import yaml"
 
     def test_anim_sample_rate(self):

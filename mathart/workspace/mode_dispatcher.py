@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
 from enum import Enum
@@ -196,10 +197,30 @@ class ProductionStrategy(SessionStrategy):
                 "director_studio_flat_params": options.get("director_studio_flat_params"),
                 "vibe": options.get("vibe", ""),
                 "vfx_artifacts": options.get("vfx_artifacts"),
+                "comfyui_url": options.get("comfyui_url", "http://127.0.0.1:8188"),
+                "event_callback": options.get("event_callback"),
+                "ai_render_max_execution_time": float(options.get("ai_render_max_execution_time", 90.0)),
+                "ai_render_ws_timeout": float(options.get("ai_render_ws_timeout", 10.0)),
+                "sprite_asset_mode": bool(options.get("sprite_asset_mode", True)),
+                "sprite_cell_size": int(options.get("sprite_cell_size", 64)),
+                "sprite_background": str(options.get("sprite_background", "transparent_and_black")),
             },
         )
 
     def execute(self, context: SessionContext) -> dict[str, Any]:
+        event_callback = context.extra.get("event_callback")
+
+        def _emit(stage: str, message: str, **payload: Any) -> None:
+            if not event_callback:
+                return
+            event_callback({
+                "stage": stage,
+                "message": message,
+                "strategy": self.mode.value,
+                "timestamp": time.time(),
+                **payload,
+            })
+
         if context.requires_gpu:
             from .preflight_radar import PreflightRadar, PreflightVerdict
             from .comfyui_rescue import (
@@ -207,8 +228,20 @@ class ProductionStrategy(SessionStrategy):
                 prompt_comfyui_path_rescue,
             )
 
+            _emit(
+                "production_preflight_started",
+                "Production preflight radar scan started.",
+                require_gpu=True,
+            )
             report = PreflightRadar(require_gpu=True).scan()
             payload = report.to_dict()
+            _emit(
+                "production_preflight_completed",
+                "Production preflight radar scan completed.",
+                verdict=report.verdict.value,
+                blocking_actions=payload.get("blocking_actions", []),
+                payload=payload,
+            )
             # SESSION-146: Mirror the full radar diagnostic payload into the
             # blackbox log so that post-mortem analysis never depends on
             # terminal scrollback alone.
@@ -226,6 +259,14 @@ class ProductionStrategy(SessionStrategy):
                     "blocking_actions=%s",
                     report.verdict.value,
                     payload.get("blocking_actions", []),
+                )
+                _emit(
+                    "production_preflight_blocked",
+                    "Production mode blocked by preflight radar.",
+                    verdict=report.verdict.value,
+                    reason=payload["reason"],
+                    blocking_actions=payload.get("blocking_actions", []),
+                    payload=payload,
                 )
                 # SESSION-147: When the block is *only* because ComfyUI
                 # was not discovered AND we are running interactively,
@@ -279,6 +320,15 @@ class ProductionStrategy(SessionStrategy):
                     return payload
         from mathart.factory.mass_production import run_mass_production_factory
         output_root = Path(context.output_dir or self.project_root / "output" / "production")
+        _emit(
+            "production_factory_launching",
+            "Production factory launch started.",
+            output_root=str(output_root),
+            batch_size=int(context.extra["batch_size"]),
+            pdg_workers=int(context.extra["pdg_workers"]),
+            gpu_slots=int(context.extra["gpu_slots"]),
+            skip_ai_render=bool(context.extra["skip_ai_render"]),
+        )
         output_root.mkdir(parents=True, exist_ok=True)
         payload = run_mass_production_factory(
             output_root=output_root,
@@ -298,6 +348,12 @@ class ProductionStrategy(SessionStrategy):
             director_studio_spec=context.extra.get("director_studio_spec"),
             vibe=str(context.extra.get("vibe") or ""),
             vfx_artifacts=context.extra.get("vfx_artifacts"),
+            ai_render_max_execution_time=float(context.extra.get("ai_render_max_execution_time", 90.0)),
+            ai_render_ws_timeout=float(context.extra.get("ai_render_ws_timeout", 10.0)),
+            sprite_asset_mode=bool(context.extra.get("sprite_asset_mode", True)),
+            sprite_cell_size=int(context.extra.get("sprite_cell_size", 64)),
+            sprite_background=str(context.extra.get("sprite_background", "transparent_and_black")),
+            event_callback=context.extra.get("event_callback"),
         )
         payload["knowledge_write_mode"] = "read_only"
         return payload

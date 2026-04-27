@@ -1,0 +1,796 @@
+{
+  "format": "umr_motion_clip_v1",
+  "clip_id": "_pipeline_motion_idle_umr",
+  "state": "idle",
+  "fps": 12,
+  "frame_count": 4,
+  "metadata": {
+    "generator": "motion_lane_registry",
+    "motion_lane": "idle",
+    "joint_channel_schema": "2d_scalar",
+    "backend_type": "unified_motion",
+    "session_origin": "SESSION-070",
+    "gait_blend_time": 0.2,
+    "gait_phase_weight": 1.0,
+    "gait_param_source": "defaults",
+    "transient_recovery_half_life": 0.12,
+    "transient_impact_damping_weight": 1.0,
+    "transient_landing_anticipation_window": 0.18,
+    "transient_param_source": "defaults",
+    "cognitive_telemetry": {
+      "schema_version": "1.0.0",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 12,
+      "trace_fields": [
+        "frame_index",
+        "time",
+        "phase",
+        "phase_kind",
+        "phase_velocity",
+        "root_position",
+        "root_velocity",
+        "root_speed",
+        "root_acceleration",
+        "root_jerk",
+        "extremity_motion_energy",
+        "joint_angular_velocity",
+        "contact_expectation"
+      ],
+      "summary": {
+        "phase_kinds": [
+          "cyclic"
+        ],
+        "mean_root_speed": 0.0,
+        "mean_root_jerk": 0.0,
+        "peak_root_jerk": 0.0,
+        "mean_extremity_motion_energy": 0.18240211020367014,
+        "contact_transition_count": 0
+      },
+      "traces": [
+        {
+          "frame_index": 0,
+          "time": 0.0,
+          "phase": 0.0,
+          "phase_kind": "cyclic",
+          "phase_velocity": 0.0,
+          "phase_vector": {
+            "sin": 0.0,
+            "cos": 1.0
+          },
+          "root_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": null
+          },
+          "root_velocity": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "root_speed": 0.0,
+          "root_acceleration": 0.0,
+          "root_jerk": 0.0,
+          "extremity_motion_energy": 0.0,
+          "joint_angular_velocity": {},
+          "contact_expectation": {
+            "left_foot": false,
+            "right_foot": false,
+            "desired_contact_state": "",
+            "contact_active_count": 0
+          }
+        },
+        {
+          "frame_index": 1,
+          "time": 0.08333333333333333,
+          "phase": 0.3333333333333333,
+          "phase_kind": "cyclic",
+          "phase_velocity": 4.0,
+          "phase_vector": {
+            "sin": 0.8660254037844387,
+            "cos": -0.4999999999999998
+          },
+          "root_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": null
+          },
+          "root_velocity": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "root_speed": 0.0,
+          "root_acceleration": 0.0,
+          "root_jerk": 0.0,
+          "extremity_motion_energy": 0.009808916306157073,
+          "joint_angular_velocity": {
+            "spine": 0.3117691453623979,
+            "chest": 0.15588457268119896,
+            "neck": -0.09353074360871937,
+            "head": 0.009808916306157073,
+            "l_shoulder": 0.5196152422706632,
+            "r_shoulder": -0.5196152422706632,
+            "l_elbow": 0.15588457268119904,
+            "r_elbow": -0.15588457268119904
+          },
+          "contact_expectation": {
+            "left_foot": false,
+            "right_foot": false,
+            "desired_contact_state": "",
+            "contact_active_count": 0
+          }
+        },
+        {
+          "frame_index": 2,
+          "time": 0.16666666666666666,
+          "phase": 0.6666666666666666,
+          "phase_kind": "cyclic",
+          "phase_velocity": 4.0,
+          "phase_vector": {
+            "sin": -0.8660254037844385,
+            "cos": -0.5000000000000004
+          },
+          "root_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": null
+          },
+          "root_velocity": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "root_speed": 0.0,
+          "root_acceleration": 0.0,
+          "root_jerk": 0.0,
+          "extremity_motion_energy": 0.36480422040734034,
+          "joint_angular_velocity": {
+            "spine": -0.6235382907247958,
+            "chest": -0.3117691453623979,
+            "neck": 0.18706148721743873,
+            "head": -0.36480422040734034,
+            "l_shoulder": 8.326672684688674e-17,
+            "r_shoulder": -8.326672684688674e-17,
+            "l_elbow": 0.0,
+            "r_elbow": 0.0
+          },
+          "contact_expectation": {
+            "left_foot": false,
+            "right_foot": false,
+            "desired_contact_state": "",
+            "contact_active_count": 0
+          }
+        },
+        {
+          "frame_index": 3,
+          "time": 0.25,
+          "phase": 0.0,
+          "phase_kind": "cyclic",
+          "phase_velocity": 4.000000000000001,
+          "phase_vector": {
+            "sin": 0.0,
+            "cos": 1.0
+          },
+          "root_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": null
+          },
+          "root_velocity": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "root_speed": 0.0,
+          "root_acceleration": 0.0,
+          "root_jerk": 0.0,
+          "extremity_motion_energy": 0.35499530410118324,
+          "joint_angular_velocity": {
+            "spine": 0.31176914536239786,
+            "chest": 0.15588457268119893,
+            "neck": -0.09353074360871935,
+            "head": 0.35499530410118324,
+            "l_shoulder": -0.5196152422706634,
+            "r_shoulder": 0.5196152422706634,
+            "l_elbow": -0.15588457268119904,
+            "r_elbow": 0.15588457268119904
+          },
+          "contact_expectation": {
+            "left_foot": false,
+            "right_foot": false,
+            "desired_contact_state": "",
+            "contact_active_count": 0
+          }
+        }
+      ]
+    },
+    "frame_count": 4,
+    "fps": 12,
+    "microkernel_backend": "unified_motion",
+    "manifest_hash": "sha256:5fa362e0c46f5cbd",
+    "motion_pipeline": {
+      "node_order": [
+        "physics_compliance",
+        "secondary_chain_projection",
+        "biomechanics_grounding"
+      ],
+      "stage_order": [
+        "root_motion_to_compliance",
+        "secondary_follow_through",
+        "localized_grounding"
+      ],
+      "audit_entry_count": 12
+    }
+  },
+  "frames": [
+    {
+      "format": "umr_motion_frame_v1",
+      "time": 0.0,
+      "phase": 0.0,
+      "frame_index": 0,
+      "source_state": "idle",
+      "root_transform": {
+        "x": 0.0,
+        "y": 0.0,
+        "rotation": 0.0,
+        "velocity_x": 0.0,
+        "velocity_y": 0.0,
+        "angular_velocity": 0.0
+      },
+      "joint_local_rotations": {
+        "spine": 0.03,
+        "chest": 0.0,
+        "neck": -0.0005614583333333334,
+        "head": 0.009027052438750726,
+        "l_shoulder": -0.0010208333333333332,
+        "r_shoulder": -0.0010208333333333332,
+        "l_elbow": 0.09755000000000003,
+        "r_elbow": 0.09755000000000003
+      },
+      "contact_tags": {
+        "left_foot": false,
+        "right_foot": false,
+        "left_hand": false,
+        "right_hand": false
+      },
+      "metadata": {
+        "generator": "motion_lane_registry",
+        "motion_lane": "idle",
+        "pipeline_source": "pipeline.idle",
+        "joint_channel_schema": "2d_scalar",
+        "gait_blend_time": 0.2,
+        "gait_phase_weight": 1.0,
+        "gait_param_source": "defaults",
+        "transient_recovery_half_life": 0.12,
+        "transient_impact_damping_weight": 1.0,
+        "transient_landing_anticipation_window": 0.18,
+        "transient_param_source": "defaults",
+        "lane": "idle",
+        "registry": "motion_state_lane",
+        "phase_kind": "cyclic",
+        "generator_mode": "registry_lane",
+        "cns_locomotion_requested": true,
+        "physics_projected": true,
+        "physics_stage": "compliance_filter",
+        "physics_layer_guard": true,
+        "physics_joint_count": 8,
+        "physics_debug": {
+          "squash_stretch_y": 1.0,
+          "squash_stretch_x": 1.0,
+          "velocity_magnitude": 0.0
+        },
+        "secondary_chain_projected": true,
+        "secondary_chain_count": 2,
+        "secondary_chains": {
+          "cape": [
+            [
+              0.0,
+              0.6066666666666667
+            ],
+            [
+              0.0,
+              0.6266666666666667
+            ],
+            [
+              0.0,
+              0.44666666666666666
+            ],
+            [
+              0.0,
+              0.22
+            ],
+            [
+              0.0,
+              0.16441924962961021
+            ],
+            [
+              0.0,
+              0.04322638671423165
+            ]
+          ],
+          "hair": [
+            [
+              -0.0007529729149777217,
+              0.9133297237709346
+            ],
+            [
+              -0.0012687140539304055,
+              0.7599913765551012
+            ],
+            [
+              0.014235470066977651,
+              0.758907994189005
+            ],
+            [
+              -0.08105653146401592,
+              0.7129370656073944
+            ],
+            [
+              -0.05785369682583735,
+              0.593426917385998
+            ]
+          ]
+        },
+        "secondary_chain_debug": {
+          "cape": {
+            "anchor_joint": "chest",
+            "mean_constraint_error": 0.09225217617901045,
+            "max_constraint_error": 0.17573964497041433,
+            "collision_count": 26,
+            "tip_speed": 0.8387166405707792,
+            "tip_lag": 0.5634402799524351,
+            "anchor_speed": 0.0,
+            "stretch_ratio": 0.9528004420301608
+          },
+          "hair": {
+            "anchor_joint": "head",
+            "mean_constraint_error": 0.06041061077265643,
+            "max_constraint_error": 0.09875042424676513,
+            "collision_count": 28,
+            "tip_speed": 0.9368134344828875,
+            "tip_lag": 0.3249589177174593,
+            "anchor_speed": 0.0,
+            "stretch_ratio": 1.4865904390856095
+          }
+        },
+        "biomechanics_projected": true,
+        "biomechanics_stage": "grounding_filter",
+        "biomechanics_layer_guard": true,
+        "biomechanics_frame_count": 1
+      },
+      "phase_state": {
+        "value": 0.0,
+        "is_cyclic": true,
+        "phase_kind": "cyclic",
+        "amplitude": 1.0
+      }
+    },
+    {
+      "format": "umr_motion_frame_v1",
+      "time": 0.08333333333333333,
+      "phase": 0.3333333333333333,
+      "frame_index": 1,
+      "source_state": "idle",
+      "root_transform": {
+        "x": 0.0,
+        "y": 0.0,
+        "rotation": 0.0,
+        "velocity_x": 0.0,
+        "velocity_y": 0.0,
+        "angular_velocity": 0.0
+      },
+      "joint_local_rotations": {
+        "spine": 0.011987516645432576,
+        "chest": 0.013883469754419281,
+        "neck": -0.009555669152842575,
+        "head": 0.008864137363519244,
+        "l_shoulder": 0.00830127018922193,
+        "r_shoulder": -0.00830127018922193,
+        "l_elbow": 0.09810022916666668,
+        "r_elbow": 0.09810022916666668
+      },
+      "contact_tags": {
+        "left_foot": false,
+        "right_foot": false,
+        "left_hand": false,
+        "right_hand": false
+      },
+      "metadata": {
+        "generator": "motion_lane_registry",
+        "motion_lane": "idle",
+        "pipeline_source": "pipeline.idle",
+        "joint_channel_schema": "2d_scalar",
+        "gait_blend_time": 0.2,
+        "gait_phase_weight": 1.0,
+        "gait_param_source": "defaults",
+        "transient_recovery_half_life": 0.12,
+        "transient_impact_damping_weight": 1.0,
+        "transient_landing_anticipation_window": 0.18,
+        "transient_param_source": "defaults",
+        "lane": "idle",
+        "registry": "motion_state_lane",
+        "phase_kind": "cyclic",
+        "generator_mode": "registry_lane",
+        "cns_locomotion_requested": true,
+        "physics_projected": true,
+        "physics_stage": "compliance_filter",
+        "physics_layer_guard": true,
+        "physics_joint_count": 8,
+        "physics_debug": {
+          "squash_stretch_y": 1.0400415209971292,
+          "squash_stretch_x": 0.9615000745751575,
+          "velocity_magnitude": 0.020020760498564563
+        },
+        "secondary_chain_projected": true,
+        "secondary_chain_count": 2,
+        "secondary_chains": {
+          "cape": [
+            [
+              -0.011307308237456421,
+              0.6064667927614189
+            ],
+            [
+              0.1218465310521616,
+              0.5777534618441629
+            ],
+            [
+              0.11275892722015583,
+              0.43729350527079736
+            ],
+            [
+              -0.0678503336743789,
+              0.42411205696789367
+            ],
+            [
+              -0.034903349464330144,
+              0.22550847237531824
+            ],
+            [
+              -0.0017100626471161695,
+              0.1360915403243673
+            ]
+          ],
+          "hair": [
+            [
+              -0.020542539244072032,
+              0.9129710367784453
+            ],
+            [
+              -0.0631536738088675,
+              0.7599973764304617
+            ],
+            [
+              -0.0601858706827737,
+              0.7581858759208262
+            ],
+            [
+              -0.09939102387018936,
+              0.6973272877581448
+            ],
+            [
+              -0.10384818942860799,
+              0.6288869273619369
+            ]
+          ]
+        },
+        "secondary_chain_debug": {
+          "cape": {
+            "anchor_joint": "chest",
+            "mean_constraint_error": 0.03381827709414513,
+            "max_constraint_error": 0.08773791005752174,
+            "collision_count": 21,
+            "tip_speed": 1.1145707666980709,
+            "tip_lag": 0.47047315037963783,
+            "anchor_speed": 0.0,
+            "stretch_ratio": 1.1917181470420652
+          },
+          "hair": {
+            "anchor_joint": "head",
+            "mean_constraint_error": 0.03995088104066782,
+            "max_constraint_error": 0.09184143898347487,
+            "collision_count": 16,
+            "tip_speed": 0.696920665964442,
+            "tip_lag": 0.29604663918990703,
+            "anchor_speed": 0.0,
+            "stretch_ratio": 1.137199819682868
+          }
+        },
+        "biomechanics_projected": true,
+        "biomechanics_stage": "grounding_filter",
+        "biomechanics_layer_guard": true,
+        "biomechanics_frame_count": 2
+      },
+      "phase_state": {
+        "value": 0.3333333333333333,
+        "is_cyclic": true,
+        "phase_kind": "cyclic",
+        "amplitude": 1.0
+      }
+    },
+    {
+      "format": "umr_motion_frame_v1",
+      "time": 0.16666666666666666,
+      "phase": 0.6666666666666666,
+      "frame_index": 2,
+      "source_state": "idle",
+      "root_transform": {
+        "x": 0.0,
+        "y": 0.0,
+        "rotation": 0.0,
+        "velocity_x": 0.0,
+        "velocity_y": 0.0,
+        "angular_velocity": 0.0
+      },
+      "joint_local_rotations": {
+        "spine": -0.03713491244091315,
+        "chest": -0.013885706986712383,
+        "neck": 0.011066027739279014,
+        "head": 0.009669061084746636,
+        "l_shoulder": 0.050672969801300045,
+        "r_shoulder": -0.052329926661311615,
+        "l_elbow": 0.11353558521809475,
+        "r_elbow": 0.08240197195204416
+      },
+      "contact_tags": {
+        "left_foot": false,
+        "right_foot": false,
+        "left_hand": false,
+        "right_hand": false
+      },
+      "metadata": {
+        "generator": "motion_lane_registry",
+        "motion_lane": "idle",
+        "pipeline_source": "pipeline.idle",
+        "joint_channel_schema": "2d_scalar",
+        "gait_blend_time": 0.2,
+        "gait_phase_weight": 1.0,
+        "gait_param_source": "defaults",
+        "transient_recovery_half_life": 0.12,
+        "transient_impact_damping_weight": 1.0,
+        "transient_landing_anticipation_window": 0.18,
+        "transient_param_source": "defaults",
+        "lane": "idle",
+        "registry": "motion_state_lane",
+        "phase_kind": "cyclic",
+        "generator_mode": "registry_lane",
+        "cns_locomotion_requested": true,
+        "physics_projected": true,
+        "physics_stage": "compliance_filter",
+        "physics_layer_guard": true,
+        "physics_joint_count": 8,
+        "physics_debug": {
+          "squash_stretch_y": 1.0309827738273327,
+          "squash_stretch_x": 0.9699483108604086,
+          "velocity_magnitude": 0.015491386913666381
+        },
+        "secondary_chain_projected": true,
+        "secondary_chain_count": 2,
+        "secondary_chains": {
+          "cape": [
+            [
+              0.009690989255497818,
+              0.6065177267428703
+            ],
+            [
+              0.1253727150265156,
+              0.5421436879612718
+            ],
+            [
+              0.08758391861314056,
+              0.4052603911406092
+            ],
+            [
+              -0.08448025817655608,
+              0.4088815326690347
+            ],
+            [
+              -0.12631637639757906,
+              0.2962541335179533
+            ],
+            [
+              -0.023355625637044148,
+              0.20730327810897506
+            ]
+          ],
+          "hair": [
+            [
+              0.01537814975391037,
+              0.9131208196538083
+            ],
+            [
+              -0.07181444482766805,
+              0.819988191113511
+            ],
+            [
+              -0.0751095769157094,
+              0.7910441792288474
+            ],
+            [
+              -0.10655011600697023,
+              0.7245790774328484
+            ],
+            [
+              -0.14420201146439976,
+              0.6689145545975852
+            ]
+          ]
+        },
+        "secondary_chain_debug": {
+          "cape": {
+            "anchor_joint": "chest",
+            "mean_constraint_error": 0.018045556856611654,
+            "max_constraint_error": 0.05043533499664116,
+            "collision_count": 19,
+            "tip_speed": 0.8931452554570689,
+            "tip_lag": 0.4005798980901575,
+            "anchor_speed": 0.0,
+            "stretch_ratio": 1.1095301244428657
+          },
+          "hair": {
+            "anchor_joint": "head",
+            "mean_constraint_error": 0.028565195808786647,
+            "max_constraint_error": 0.06025166625495258,
+            "collision_count": 8,
+            "tip_speed": 0.6820648304096769,
+            "tip_lag": 0.2917233753869788,
+            "anchor_speed": 0.0,
+            "stretch_ratio": 1.1153937669005938
+          }
+        },
+        "biomechanics_projected": true,
+        "biomechanics_stage": "grounding_filter",
+        "biomechanics_layer_guard": true,
+        "biomechanics_frame_count": 3
+      },
+      "phase_state": {
+        "value": 0.6666666666666666,
+        "is_cyclic": true,
+        "phase_kind": "cyclic",
+        "amplitude": 1.0
+      }
+    },
+    {
+      "format": "umr_motion_frame_v1",
+      "time": 0.25,
+      "phase": 0.0,
+      "frame_index": 3,
+      "source_state": "idle",
+      "root_transform": {
+        "x": 0.0,
+        "y": 0.0,
+        "rotation": 0.0,
+        "velocity_x": 0.0,
+        "velocity_y": 0.0,
+        "angular_velocity": 0.0
+      },
+      "joint_local_rotations": {
+        "spine": 0.023673823980330508,
+        "chest": -0.0008144289734150988,
+        "neck": -0.0039747158864019295,
+        "head": -0.025411489227915945,
+        "l_shoulder": 0.035,
+        "r_shoulder": -0.035,
+        "l_elbow": 0.11033952951309758,
+        "r_elbow": 0.08565923083871811
+      },
+      "contact_tags": {
+        "left_foot": false,
+        "right_foot": false,
+        "left_hand": false,
+        "right_hand": false
+      },
+      "metadata": {
+        "generator": "motion_lane_registry",
+        "motion_lane": "idle",
+        "pipeline_source": "pipeline.idle",
+        "joint_channel_schema": "2d_scalar",
+        "gait_blend_time": 0.2,
+        "gait_phase_weight": 1.0,
+        "gait_param_source": "defaults",
+        "transient_recovery_half_life": 0.12,
+        "transient_impact_damping_weight": 1.0,
+        "transient_landing_anticipation_window": 0.18,
+        "transient_param_source": "defaults",
+        "lane": "idle",
+        "registry": "motion_state_lane",
+        "phase_kind": "cyclic",
+        "generator_mode": "registry_lane",
+        "cns_locomotion_requested": true,
+        "physics_projected": true,
+        "physics_stage": "compliance_filter",
+        "physics_layer_guard": true,
+        "physics_joint_count": 8,
+        "physics_debug": {
+          "squash_stretch_y": 1.047232904076192,
+          "squash_stretch_x": 0.9548974216792222,
+          "velocity_magnitude": 0.023616452038096085
+        },
+        "secondary_chain_projected": true,
+        "secondary_chain_count": 2,
+        "secondary_chains": {
+          "cape": [
+            [
+              0.002244446355953721,
+              0.6066590826339517
+            ],
+            [
+              0.12003701614191341,
+              0.5434428494240157
+            ],
+            [
+              0.08601201576091681,
+              0.4071329104946439
+            ],
+            [
+              -0.0856451680606005,
+              0.4075583266463403
+            ],
+            [
+              -0.1667556117578361,
+              0.32902950290053945
+            ],
+            [
+              -0.09660754738571334,
+              0.21274594851608483
+            ]
+          ],
+          "hair": [
+            [
+              0.007748830514469056,
+              0.9132487505674014
+            ],
+            [
+              -0.0823353215382356,
+              0.8269458752789401
+            ],
+            [
+              -0.08756826302695869,
+              0.8160116935556655
+            ],
+            [
+              -0.1193480613916772,
+              0.75567549066583
+            ],
+            [
+              -0.17142263228606414,
+              0.7136425052105516
+            ]
+          ]
+        },
+        "secondary_chain_debug": {
+          "cape": {
+            "anchor_joint": "chest",
+            "mean_constraint_error": 0.016491245885985634,
+            "max_constraint_error": 0.046519820718976285,
+            "collision_count": 21,
+            "tip_speed": 0.8814460873750793,
+            "tip_lag": 0.40612716468769133,
+            "anchor_speed": 0.0,
+            "stretch_ratio": 1.0966331182380535
+          },
+          "hair": {
+            "anchor_joint": "head",
+            "mean_constraint_error": 0.016101715791149548,
+            "max_constraint_error": 0.05480840552449735,
+            "collision_count": 6,
+            "tip_speed": 0.6283179561409986,
+            "tip_lag": 0.2682257748008975,
+            "anchor_speed": 0.0,
+            "stretch_ratio": 1.019965416901731
+          }
+        },
+        "biomechanics_projected": true,
+        "biomechanics_stage": "grounding_filter",
+        "biomechanics_layer_guard": true,
+        "biomechanics_frame_count": 4
+      },
+      "phase_state": {
+        "value": 0.0,
+        "is_cyclic": true,
+        "phase_kind": "cyclic",
+        "amplitude": 1.0
+      }
+    }
+  ]
+}

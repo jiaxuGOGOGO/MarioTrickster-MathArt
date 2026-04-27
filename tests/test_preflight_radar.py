@@ -80,12 +80,20 @@ def _materialize_fake_comfyui(root: Path,
         (root / "custom_nodes" / "comfyui_controlnet_aux").mkdir(
             parents=True, exist_ok=True
         )
+    if "ipadapter_plus_node" not in omit_assets:
+        (root / "custom_nodes" / "ComfyUI_IPAdapter_plus").mkdir(
+            parents=True, exist_ok=True
+        )
 
     # Models directory (potentially symlinked to a separate physical location)
     if symlink_models_to is not None:
         symlink_models_to.mkdir(parents=True, exist_ok=True)
         (symlink_models_to / "controlnet").mkdir(exist_ok=True)
         (symlink_models_to / "animatediff_models").mkdir(exist_ok=True)
+        if "ipadapter_models_dir" not in omit_assets:
+            (symlink_models_to / "ipadapter").mkdir(exist_ok=True)
+        if "clip_vision_models_dir" not in omit_assets:
+            (symlink_models_to / "clip_vision").mkdir(exist_ok=True)
         if "sparsectrl_rgb_model" not in omit_assets:
             (symlink_models_to / "controlnet" / "v3_sd15_sparsectrl_rgb.ckpt").write_bytes(
                 b"\x00" * 32
@@ -102,6 +110,10 @@ def _materialize_fake_comfyui(root: Path,
         models_dir = root / "models"
         (models_dir / "controlnet").mkdir(parents=True, exist_ok=True)
         (models_dir / "animatediff_models").mkdir(parents=True, exist_ok=True)
+        if "ipadapter_models_dir" not in omit_assets:
+            (models_dir / "ipadapter").mkdir(parents=True, exist_ok=True)
+        if "clip_vision_models_dir" not in omit_assets:
+            (models_dir / "clip_vision").mkdir(parents=True, exist_ok=True)
         if "sparsectrl_rgb_model" not in omit_assets:
             (models_dir / "controlnet" / "v3_sd15_sparsectrl_rgb.ckpt").write_bytes(
                 b"\x00" * 32
@@ -445,7 +457,7 @@ class TestVerdictMatrix:
 
 class TestReadOnlyRedLine:
     def test_source_contains_no_banned_side_effects(self):
-        src = Path(radar_mod.__file__).read_text()
+        src = Path(radar_mod.__file__).read_text(encoding="utf-8")
         # Strip docstrings and comments before scanning so that prose
         # discussing the prohibition does not trip the assertion.
         # Conservative pass: drop lines starting with '#' and triple-quote blocks.

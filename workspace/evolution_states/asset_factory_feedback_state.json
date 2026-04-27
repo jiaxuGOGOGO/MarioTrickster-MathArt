@@ -1,0 +1,1930 @@
+{
+  "module": "asset_factory_feedback",
+  "record_count": 33,
+  "records": [
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "walk"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "walk",
+          "frame_count": 44,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "run"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "run",
+          "frame_count": 38,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "idle"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "idle",
+          "frame_count": 29,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "jump"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "jump",
+          "frame_count": 38,
+          "timing_uniformity": 1.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "walk"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "walk",
+          "frame_count": 31,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "run"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "run",
+          "frame_count": 44,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "idle"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [
+            "loop_closure_regression"
+          ],
+          "motion_regression": true,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "idle",
+          "frame_count": 48,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "jump"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "jump",
+          "frame_count": 42,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "walk"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "walk",
+          "frame_count": 27,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "run"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "run",
+          "frame_count": 26,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "idle"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "idle",
+          "frame_count": 44,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "jump"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "jump",
+          "frame_count": 33,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "walk"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "walk",
+          "frame_count": 34,
+          "timing_uniformity": 1.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "run"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "run",
+          "frame_count": 47,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "idle"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "idle",
+          "frame_count": 29,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "jump"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "jump",
+          "frame_count": 37,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "walk"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "walk",
+          "frame_count": 43,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "run"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "run",
+          "frame_count": 35,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "idle"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "idle",
+          "frame_count": 27,
+          "timing_uniformity": 1.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "jump"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "jump",
+          "frame_count": 24,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "walk"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "walk",
+          "frame_count": 33,
+          "timing_uniformity": 1.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "run"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "run",
+          "frame_count": 48,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "idle"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "idle",
+          "frame_count": 32,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "jump"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "jump",
+          "frame_count": 26,
+          "timing_uniformity": 1.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "walk"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "walk",
+          "frame_count": 45,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "run"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "run",
+          "frame_count": 33,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "idle"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "idle",
+          "frame_count": 28,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "jump"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [
+            "loop_closure_regression"
+          ],
+          "motion_regression": true,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "jump",
+          "frame_count": 33,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "walk"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "walk",
+          "frame_count": 48,
+          "timing_uniformity": 1.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "run"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 12,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "run",
+          "frame_count": 47,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "idle"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "idle",
+          "frame_count": 27,
+          "timing_uniformity": 1.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    },
+    {
+      "character_id": "character_000",
+      "knowledge_profile": "project_runtime_distillation_bus",
+      "target_pack": [
+        "jump"
+      ],
+      "quality_summary": {
+        "overall_verdict": "pass",
+        "failed_checks": [],
+        "hard_failures": [],
+        "gate_summary": {
+          "quality_gate_profile": "distilled_quality_audit",
+          "overall_verdict": "pass",
+          "score": 1.0,
+          "check_count": 11,
+          "failed_checks": [],
+          "hard_failures": [],
+          "passed": true,
+          "requires_review": false
+        },
+        "ai_polish_fidelity_report": {
+          "policy_role": "required_controlled_visual_polish",
+          "ai_required": true,
+          "source_kind": "guide_baking_albedo",
+          "ai_attempted": false,
+          "ai_available": false,
+          "source_quality_label": "sprite_asset_pack_frames_raw",
+          "final_quality_label": "sprite_asset_pack_frames_stabilized",
+          "motion_regressions": [],
+          "motion_regression": false,
+          "accept_only_if_no_motion_regression": true,
+          "adoption_verdict": "review_required_ai_not_attempted",
+          "requires_review": true
+        }
+      },
+      "evolution_feedback_seed": {
+        "spec_type": "EvolutionFeedbackSeed",
+        "fitness_score": 1.0,
+        "verdict": "pass",
+        "failure_modes": [],
+        "hard_failures": [],
+        "candidate_knobs": {
+          "max_foot_slide_px": 12.0,
+          "max_bbox_jitter_ratio": 0.08,
+          "max_area_jitter_ratio": 0.18,
+          "max_loop_bbox_delta_ratio": 0.16,
+          "palette_color_count": 18,
+          "allow_shape_change": false
+        },
+        "next_iteration_hints": [
+          "candidate is stable; consider graduating current production settings"
+        ],
+        "motion_summary": {
+          "action": "jump",
+          "frame_count": 44,
+          "timing_uniformity": 0.0,
+          "foot_contact_verdict": "pass"
+        }
+      }
+    }
+  ]
+}

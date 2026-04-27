@@ -431,7 +431,7 @@ class TestEnforcerIntegration:
             params = {"canvas_size": 256}
             enforce_render_params(params, log_to_file=log_path)
             assert log_path.exists()
-            data = json.loads(log_path.read_text())
+            data = json.loads(log_path.read_text(encoding="utf-8"))
             assert "enforcers" in data
             assert data["session"] == "SESSION-154"
 

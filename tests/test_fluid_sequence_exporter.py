@@ -111,10 +111,10 @@ class TestFluidSequenceExporter(unittest.TestCase):
             exporter = FluidSequenceExporter(config)
             result = exporter.export_all(output_dir=tmpdir)
 
-            atlas = Image.open(result.density_atlas_path)
-            cols = config.effective_columns()  # ceil(sqrt(16)) = 4
-            rows = 16 // cols  # 4
-            self.assertEqual(atlas.size, (cols * 32, rows * 32))
+            with Image.open(result.density_atlas_path) as atlas:
+                cols = config.effective_columns()  # ceil(sqrt(16)) = 4
+                rows = 16 // cols  # 4
+                self.assertEqual(atlas.size, (cols * 32, rows * 32))
 
 
 class TestUnityVFXController(unittest.TestCase):
@@ -124,7 +124,7 @@ class TestUnityVFXController(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = generate_fluid_vfx_controller(tmpdir)
             self.assertTrue(os.path.exists(path))
-            content = Path(path).read_text()
+            content = Path(path).read_text(encoding="utf-8")
             self.assertIn("FluidVFXController", content)
             self.assertIn("VisualEffect", content)
             self.assertIn("Rigidbody2D", content)

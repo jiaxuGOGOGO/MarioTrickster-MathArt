@@ -162,7 +162,7 @@ class TestIPAdapterLateBind(unittest.TestCase):
         self.assertIn("LoadImage", class_types)
         self.assertIn("CLIPVisionLoader", class_types)
         self.assertIn("IPAdapterModelLoader", class_types)
-        self.assertIn("IPAdapterApply", class_types)
+        self.assertIn("IPAdapterAdvanced", class_types)
 
     def test_inject_updates_existing_weight(self):
         mod = self._get_module()

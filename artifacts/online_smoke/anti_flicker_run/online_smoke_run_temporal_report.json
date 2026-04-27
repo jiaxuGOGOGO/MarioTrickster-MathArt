@@ -1,0 +1,22 @@
+{
+  "preset_name": "sparsectrl_animatediff",
+  "preset_asset_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_preset.workflow_api.json",
+  "workflow_payload_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_workflow_payload.json",
+  "workflow_manifest_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_workflow_manifest.json",
+  "frame_count_requested": 2,
+  "frame_count_materialized": 2,
+  "fps": 8,
+  "keyframe_indices": [
+    0,
+    1
+  ],
+  "elapsed_seconds": 56.23399999993853,
+  "chunk_count": 1,
+  "chunk_size": 2,
+  "chunk_reports": [
+    "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_runtime\\chunk_reports\\chunk_0000_report.json"
+  ],
+  "execution_mode": "live_comfyui_chunked",
+  "temporal_stability_score": 1.0,
+  "keyframe_count": 2
+}

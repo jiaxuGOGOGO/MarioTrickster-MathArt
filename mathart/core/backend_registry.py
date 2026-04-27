@@ -857,6 +857,13 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.quadruped_physics_backend")
         except Exception as e:
             logger.debug("Failed to auto-load quadruped physics backend: %s", e)
+        # V6 Phase 5: auto-register the Blender headless pixel-art backend.
+        # It emits a standalone pure-bpy render script plus Unity zero-post
+        # sprite metadata driven by KnowledgeInterpreter.StyleParams.
+        try:
+            importlib.import_module("mathart.core.blender_headless_backend")
+        except Exception as e:
+            logger.debug("Failed to auto-load Blender headless backend: %s", e)
     return registry
 
 

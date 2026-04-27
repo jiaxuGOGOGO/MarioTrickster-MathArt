@@ -1,0 +1,259 @@
+{
+  "skeleton": {
+    "hash": "",
+    "spine": "4.2",
+    "x": 0,
+    "y": 0,
+    "width": 256,
+    "height": 256,
+    "fps": 30.0,
+    "images": "",
+    "audio": ""
+  },
+  "bones": [
+    {
+      "name": "root"
+    },
+    {
+      "name": "hip",
+      "parent": "root",
+      "length": 0.15,
+      "y": 0.8
+    },
+    {
+      "name": "spine",
+      "parent": "hip",
+      "length": 0.2,
+      "y": 0.2
+    },
+    {
+      "name": "chest",
+      "parent": "spine",
+      "length": 0.2,
+      "y": 0.2
+    },
+    {
+      "name": "head",
+      "parent": "chest",
+      "length": 0.15,
+      "y": 0.15
+    },
+    {
+      "name": "l_thigh",
+      "parent": "hip",
+      "length": 0.3,
+      "x": -0.1
+    },
+    {
+      "name": "l_shin",
+      "parent": "l_thigh",
+      "length": 0.3,
+      "y": -0.3
+    },
+    {
+      "name": "l_foot",
+      "parent": "l_shin",
+      "length": 0.1,
+      "y": -0.3
+    },
+    {
+      "name": "r_thigh",
+      "parent": "hip",
+      "length": 0.3,
+      "x": 0.1
+    },
+    {
+      "name": "r_shin",
+      "parent": "r_thigh",
+      "length": 0.3,
+      "y": -0.3
+    },
+    {
+      "name": "r_foot",
+      "parent": "r_shin",
+      "length": 0.1,
+      "y": -0.3
+    },
+    {
+      "name": "l_arm",
+      "parent": "chest",
+      "length": 0.2,
+      "x": -0.15,
+      "y": 0.1
+    },
+    {
+      "name": "l_forearm",
+      "parent": "l_arm",
+      "length": 0.2,
+      "y": -0.2
+    },
+    {
+      "name": "r_arm",
+      "parent": "chest",
+      "length": 0.2,
+      "x": 0.15,
+      "y": 0.1
+    },
+    {
+      "name": "r_forearm",
+      "parent": "r_arm",
+      "length": 0.2,
+      "y": -0.2
+    }
+  ],
+  "slots": [
+    {
+      "name": "slot_l_thigh",
+      "bone": "l_thigh",
+      "attachment": "l_thigh"
+    },
+    {
+      "name": "slot_l_arm",
+      "bone": "l_arm",
+      "attachment": "l_arm"
+    },
+    {
+      "name": "slot_root",
+      "bone": "root",
+      "attachment": "root"
+    },
+    {
+      "name": "slot_hip",
+      "bone": "hip",
+      "attachment": "hip"
+    },
+    {
+      "name": "slot_spine",
+      "bone": "spine",
+      "attachment": "spine"
+    },
+    {
+      "name": "slot_chest",
+      "bone": "chest",
+      "attachment": "chest"
+    },
+    {
+      "name": "slot_head",
+      "bone": "head",
+      "attachment": "head"
+    },
+    {
+      "name": "slot_l_shin",
+      "bone": "l_shin",
+      "attachment": "l_shin"
+    },
+    {
+      "name": "slot_l_foot",
+      "bone": "l_foot",
+      "attachment": "l_foot"
+    },
+    {
+      "name": "slot_r_thigh",
+      "bone": "r_thigh",
+      "attachment": "r_thigh"
+    },
+    {
+      "name": "slot_r_shin",
+      "bone": "r_shin",
+      "attachment": "r_shin"
+    },
+    {
+      "name": "slot_r_foot",
+      "bone": "r_foot",
+      "attachment": "r_foot"
+    },
+    {
+      "name": "slot_l_forearm",
+      "bone": "l_forearm",
+      "attachment": "l_forearm"
+    },
+    {
+      "name": "slot_r_arm",
+      "bone": "r_arm",
+      "attachment": "r_arm"
+    },
+    {
+      "name": "slot_r_forearm",
+      "bone": "r_forearm",
+      "attachment": "r_forearm"
+    }
+  ],
+  "ik": [
+    {
+      "name": "left_leg_ik",
+      "order": 0,
+      "bones": [
+        "l_thigh",
+        "l_shin"
+      ],
+      "target": "l_foot",
+      "mix": 1.0,
+      "bendPositive": false
+    },
+    {
+      "name": "right_leg_ik",
+      "order": 1,
+      "bones": [
+        "r_thigh",
+        "r_shin"
+      ],
+      "target": "r_foot",
+      "mix": 1.0,
+      "bendPositive": false
+    }
+  ],
+  "animations": {
+    "biped_walk": {
+      "bones": {
+        "l_thigh": {
+          "rotate": [
+            {
+              "time": 0.0,
+              "angle": 20.0
+            },
+            {
+              "time": 0.0333,
+              "angle": 20.0
+            }
+          ],
+          "translate": [
+            {
+              "time": 0.0,
+              "x": 0.04,
+              "y": 0.0
+            },
+            {
+              "time": 0.0333,
+              "x": 0.04,
+              "y": 0.0
+            }
+          ]
+        },
+        "r_thigh": {
+          "rotate": [
+            {
+              "time": 0.0,
+              "angle": -5.89
+            },
+            {
+              "time": 0.0333,
+              "angle": -5.89
+            }
+          ],
+          "translate": [
+            {
+              "time": 0.0,
+              "x": -0.01,
+              "y": 0.0
+            },
+            {
+              "time": 0.0333,
+              "x": -0.01,
+              "y": 0.0
+            }
+          ]
+        }
+      }
+    }
+  }
+}

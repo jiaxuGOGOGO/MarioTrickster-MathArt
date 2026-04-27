@@ -112,6 +112,7 @@ Architecture Red Lines (SESSION-163)
 """
 from __future__ import annotations
 
+import functools
 import io
 import json
 import logging
@@ -434,6 +435,18 @@ def _jit_upscale_image(image_path: str | Path, *, is_mask: bool = False, matting
     return png_bytes
 
 
+def deprecated(reason: str):
+    """Mark legacy AI temporal helpers without removing compatibility code."""
+    def _decorate(func):
+        @functools.wraps(func)
+        def _wrapped(*args, **kwargs):
+            logger.warning("[deprecated] %s: %s", func.__name__, reason)
+            return func(*args, **kwargs)
+        _wrapped.__deprecated_reason__ = reason
+        return _wrapped
+    return _decorate
+
+
 def _armor_prompt(user_vibe: str) -> str:
     """Wrap user vibe prompt with English anchor tags for CLIP grounding.
 
@@ -459,6 +472,19 @@ def _armor_prompt(user_vibe: str) -> str:
     return _BASE_POSITIVE_PROMPT
 
 
+def deprecated(reason: str):
+    """Mark legacy AI temporal helpers without removing compatibility code."""
+    def _decorate(func):
+        @functools.wraps(func)
+        def _wrapped(*args, **kwargs):
+            logger.warning("[deprecated] %s: %s", func.__name__, reason)
+            return func(*args, **kwargs)
+        _wrapped.__deprecated_reason__ = reason
+        return _wrapped
+    return _decorate
+
+
+@deprecated("V6 forbids AI temporal/video latent batch alignment; mathart.animation owns timing.")
 def _force_latent_canvas_512(workflow: dict, actual_frames: int | None = None, fps: int | None = None) -> None:
     """Force all EmptyLatentImage nodes in the workflow to 512x512 and sync batch_size.
 
@@ -571,6 +597,22 @@ _MAX_RETRY_ATTEMPTS = 5
 _BACKOFF_BASE_SECONDS = 2.0
 _BACKOFF_MAX_SECONDS = 32.0
 _JITTER_MAX_SECONDS = 1.5
+
+
+# ---------------------------------------------------------------------------
+# V6 Deprecation Helpers
+# ---------------------------------------------------------------------------
+
+def deprecated(reason: str):
+    """Mark legacy AI temporal helpers without removing compatibility code."""
+    def _decorate(func):
+        @functools.wraps(func)
+        def _wrapped(*args, **kwargs):
+            logger.warning("[deprecated] %s: %s", func.__name__, reason)
+            return func(*args, **kwargs)
+        _wrapped.__deprecated_reason__ = reason
+        return _wrapped
+    return _decorate
 
 
 # ---------------------------------------------------------------------------
@@ -698,6 +740,7 @@ class ActionRenderResult:
 # Registry-Native Backend Plugin
 # ---------------------------------------------------------------------------
 
+@deprecated("V6 disables AI full-array/frame streaming; keep class only for compatibility.")
 @register_backend(
     BackendType.AI_RENDER_STREAM,
     display_name="AI Render Stream (Full-Array Artifact Hydration)",
@@ -821,6 +864,18 @@ class AIRenderStreamBackend:
             rendered asset paths and per-action status.
         """
         t0 = time.monotonic()
+        logger.warning(
+            "[V6] AI continuous/frame render stream is deprecated and skipped; "
+            "ComfyUI may only initialize one static asset from vibe."
+        )
+        return self._build_degraded_manifest(
+            reason=(
+                "V6 disables AI continuous rendering; mathart.animation owns "
+                "timing and Blender handles deterministic 3D-to-2D reduction"
+            ),
+            actions=[],
+            elapsed=time.monotonic() - t0,
+        )
 
         # Validate config
         validated, warnings = self.validate_config(context)
@@ -1295,6 +1350,10 @@ class AIRenderStreamBackend:
             outputs={},
             metadata={
                 "session_id": "SESSION-163",
+                "server_address": "127.0.0.1:8188",
+                "total_actions": len(actions),
+                "total_rendered": 0,
+                "total_degraded": len(actions),
                 "degraded": True,
                 "degraded_reason": reason,
                 "available_actions": actions,
@@ -1320,6 +1379,10 @@ class AIRenderStreamBackend:
             outputs={},
             metadata={
                 "session_id": "SESSION-163",
+                "server_address": "127.0.0.1:8188",
+                "total_actions": 0,
+                "total_rendered": 0,
+                "total_degraded": 0,
                 "error": error,
                 "render_elapsed_seconds": round(elapsed, 3),
             },
@@ -1343,6 +1406,10 @@ class AIRenderStreamBackend:
             outputs={},
             metadata={
                 "session_id": "SESSION-163",
+                "server_address": "127.0.0.1:8188",
+                "total_actions": 0,
+                "total_rendered": 0,
+                "total_degraded": 0,
                 "empty_reason": reason,
                 "render_elapsed_seconds": round(elapsed, 3),
             },

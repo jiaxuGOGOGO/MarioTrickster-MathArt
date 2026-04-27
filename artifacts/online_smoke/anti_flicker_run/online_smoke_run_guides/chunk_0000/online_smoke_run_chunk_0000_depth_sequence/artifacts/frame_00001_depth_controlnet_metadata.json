@@ -1,0 +1,40 @@
+{
+  "width": 512,
+  "height": 512,
+  "channels": 3,
+  "bit_depth": 8,
+  "artifact_role": "controlnet_depth_map",
+  "color_space": "linear_grayscale_rgb",
+  "depth_semantics": "linear_depth_normalized",
+  "depth_polarity": "near_black_far_white",
+  "flip_image_y_to_opengl": true,
+  "source_depth_range": {
+    "min": 0.5019607843137255,
+    "max": 0.5019607843137255
+  },
+  "padding": {
+    "original_width": 512,
+    "original_height": 512,
+    "padded_width": 512,
+    "padded_height": 512,
+    "pad_right": 0,
+    "pad_bottom": 0,
+    "alignment": 16,
+    "applied": false
+  },
+  "coverage_ratio": 1.0,
+  "lineage": {
+    "backend": "anti_flicker_render",
+    "chunk": {
+      "chunk_index": 0,
+      "start_frame": 0,
+      "end_frame": 1,
+      "frame_count": 2
+    },
+    "sequence_name": "online_smoke_run_chunk_0000",
+    "frame_index": 1,
+    "frame_kind": "depth"
+  },
+  "image_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\artifacts\\frame_00001_depth_controlnet.png",
+  "source_manifest_hash": ""
+}

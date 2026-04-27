@@ -438,10 +438,23 @@ class UnifiedMotionClip:
             "frames": [frame.to_dict() for frame in self.frames],
         }
 
-    def save(self, path: str | Path) -> Path:
+    def save(
+        self,
+        path: str | Path,
+        *,
+        apply_anime_timing: bool = True,
+        apply_squash_stretch: bool = True,
+    ) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(self.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+        export_clip = self
+        if apply_anime_timing:
+            from mathart.animation.anime_timing_modifier import apply_to_unified_motion_clip as apply_anime_timing_to_clip
+            export_clip = apply_anime_timing_to_clip(export_clip)
+        if apply_squash_stretch:
+            from mathart.animation.squash_stretch_modifier import apply_to_unified_motion_clip
+            export_clip = apply_to_unified_motion_clip(export_clip)
+        path.write_text(json.dumps(export_clip.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
         return path
 
     @classmethod

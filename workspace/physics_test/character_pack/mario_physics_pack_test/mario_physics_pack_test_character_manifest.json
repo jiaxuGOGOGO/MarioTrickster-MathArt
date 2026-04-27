@@ -1,0 +1,362 @@
+{
+  "character": {
+    "name": "mario_physics_pack_test",
+    "preset": "mario",
+    "frame_width": 128,
+    "frame_height": 128,
+    "fps": 12,
+    "head_units": 3.0,
+    "palette_size": 6,
+    "palette_colors": [
+      [
+        240,
+        195,
+        155
+      ],
+      [
+        210,
+        45,
+        35
+      ],
+      [
+        210,
+        45,
+        35
+      ],
+      [
+        65,
+        75,
+        195
+      ],
+      [
+        110,
+        65,
+        30
+      ],
+      [
+        28,
+        18,
+        12
+      ]
+    ],
+    "style": {
+      "head_radius": 0.38,
+      "torso_width": 0.26,
+      "torso_height": 0.2,
+      "arm_thickness": 0.07,
+      "leg_thickness": 0.08,
+      "hand_radius": 0.055,
+      "foot_width": 0.09,
+      "foot_height": 0.045,
+      "skin_color_idx": 0,
+      "hair_color_idx": 1,
+      "shirt_color_idx": 2,
+      "pants_color_idx": 3,
+      "shoe_color_idx": 4,
+      "outline_color_idx": 5,
+      "has_hat": true,
+      "hat_style": "cap",
+      "has_mustache": true,
+      "eye_style": "dot",
+      "outline_width": 0.04,
+      "light_angle": -0.7
+    },
+    "render_flags": {
+      "dither": true,
+      "outline": true,
+      "lighting": true,
+      "physics": true,
+      "secondary_chains": true,
+      "biomechanics": true
+    },
+    "physics_config": {
+      "enabled": true,
+      "stiffness_scale": 1.0,
+      "damping_scale": 1.0,
+      "cognitive_strength": 1.0,
+      "engine": "AnglePoseProjector (PhysDiff-inspired)"
+    },
+    "secondary_chain_config": {
+      "enabled": true,
+      "presets": [
+        "cape",
+        "hair"
+      ],
+      "engine": "SecondaryChainProjector (Jakobsen 2001 Verlet + distance constraints)"
+    },
+    "biomechanics_config": {
+      "enabled": true,
+      "zmp_balance": true,
+      "inverted_pendulum_model": true,
+      "skating_cleanup_calculus": true,
+      "zmp_correction_strength": 0.3,
+      "engine": "BiomechanicsProjector (SESSION-029: ZMP/CoM + IPM + SkatingCleanup + FABRIK)",
+      "references": [
+        "Vukobratovic & Borovac, Zero-Moment Point (Humanoids 2001)",
+        "Kajita et al., 3D-LIPM (IEEE IROS 2001)",
+        "Kovar et al., Footskate Cleanup (SCA 2002)",
+        "Aristidou & Lasenby, FABRIK (Graphical Models 2011)"
+      ]
+    },
+    "genotype": null,
+    "shape_latents": null
+  },
+  "evolution": {
+    "enabled": false,
+    "iterations": 0,
+    "population": 0,
+    "variation_strength": 0.0,
+    "history": []
+  },
+  "states": {
+    "idle": {
+      "state": "idle",
+      "frames": 4,
+      "fps": 12,
+      "loop": true,
+      "frame_size": {
+        "w": 128,
+        "h": 128
+      },
+      "sheet": "mario_physics_pack_test_idle_sheet.png",
+      "gif": "mario_physics_pack_test_idle.gif",
+      "frame_duration_ms": 83,
+      "score": 0.7462814557082476,
+      "frame_files": [
+        "mario_physics_pack_test_idle_frame_00.png",
+        "mario_physics_pack_test_idle_frame_01.png",
+        "mario_physics_pack_test_idle_frame_02.png",
+        "mario_physics_pack_test_idle_frame_03.png"
+      ],
+      "motion_bus": {
+        "format": "umr_motion_clip_v1",
+        "file": "mario_physics_pack_test_idle.umr.json",
+        "audit": {
+          "frame_count": 4,
+          "audit_entries": 12,
+          "grounding_guarded_frames": 4,
+          "upper_body_override_flags": 0,
+          "node_order": [
+            "physics_compliance",
+            "secondary_chain_projection",
+            "biomechanics_grounding"
+          ],
+          "stage_order": [
+            "root_motion_to_compliance",
+            "secondary_follow_through",
+            "localized_grounding"
+          ],
+          "contract": "UnifiedMotionFrame"
+        },
+        "contact_coverage": {
+          "left_foot_frames": 0,
+          "right_foot_frames": 0
+        }
+      },
+      "sheet_frames": [
+        {
+          "name": "mario_physics_pack_test_idle_0",
+          "rect": [
+            0,
+            0,
+            128,
+            128
+          ],
+          "duration": 83
+        },
+        {
+          "name": "mario_physics_pack_test_idle_1",
+          "rect": [
+            128,
+            0,
+            128,
+            128
+          ],
+          "duration": 83
+        },
+        {
+          "name": "mario_physics_pack_test_idle_2",
+          "rect": [
+            256,
+            0,
+            128,
+            128
+          ],
+          "duration": 83
+        },
+        {
+          "name": "mario_physics_pack_test_idle_3",
+          "rect": [
+            384,
+            0,
+            128,
+            128
+          ],
+          "duration": 83
+        }
+      ]
+    },
+    "run": {
+      "state": "run",
+      "frames": 4,
+      "fps": 12,
+      "loop": true,
+      "frame_size": {
+        "w": 128,
+        "h": 128
+      },
+      "sheet": "mario_physics_pack_test_run_sheet.png",
+      "gif": "mario_physics_pack_test_run.gif",
+      "frame_duration_ms": 83,
+      "score": 0.7475094776100494,
+      "frame_files": [
+        "mario_physics_pack_test_run_frame_00.png",
+        "mario_physics_pack_test_run_frame_01.png",
+        "mario_physics_pack_test_run_frame_02.png",
+        "mario_physics_pack_test_run_frame_03.png"
+      ],
+      "motion_bus": {
+        "format": "umr_motion_clip_v1",
+        "file": "mario_physics_pack_test_run.umr.json",
+        "audit": {
+          "frame_count": 4,
+          "audit_entries": 12,
+          "grounding_guarded_frames": 4,
+          "upper_body_override_flags": 0,
+          "node_order": [
+            "physics_compliance",
+            "secondary_chain_projection",
+            "biomechanics_grounding"
+          ],
+          "stage_order": [
+            "root_motion_to_compliance",
+            "secondary_follow_through",
+            "localized_grounding"
+          ],
+          "contract": "UnifiedMotionFrame"
+        },
+        "contact_coverage": {
+          "left_foot_frames": 3,
+          "right_foot_frames": 1
+        }
+      },
+      "sheet_frames": [
+        {
+          "name": "mario_physics_pack_test_run_0",
+          "rect": [
+            0,
+            0,
+            128,
+            128
+          ],
+          "duration": 83
+        },
+        {
+          "name": "mario_physics_pack_test_run_1",
+          "rect": [
+            128,
+            0,
+            128,
+            128
+          ],
+          "duration": 83
+        },
+        {
+          "name": "mario_physics_pack_test_run_2",
+          "rect": [
+            256,
+            0,
+            128,
+            128
+          ],
+          "duration": 83
+        },
+        {
+          "name": "mario_physics_pack_test_run_3",
+          "rect": [
+            384,
+            0,
+            128,
+            128
+          ],
+          "duration": 83
+        }
+      ]
+    }
+  },
+  "motion_contract": {
+    "name": "UnifiedMotionFrame",
+    "format": "umr_motion_clip_v1",
+    "pipeline_order": [
+      "intent_state_selection",
+      "phase_driven_base_generation",
+      "phase_aligned_gait_sampling",
+      "root_motion",
+      "inertial_transition_ready",
+      "physics_compliance",
+      "secondary_chain_projection",
+      "localized_grounding",
+      "render_export"
+    ],
+    "required_fields": [
+      "time",
+      "phase",
+      "root_transform",
+      "joint_local_rotations",
+      "contact_tags"
+    ]
+  },
+  "atlas": {
+    "image": "mario_physics_pack_test_character_atlas.png",
+    "size": {
+      "w": 512,
+      "h": 256
+    },
+    "layout": [
+      {
+        "state": "idle",
+        "rect": [
+          0,
+          0,
+          512,
+          128
+        ],
+        "sheet": "mario_physics_pack_test_idle_sheet.png"
+      },
+      {
+        "state": "run",
+        "rect": [
+          0,
+          128,
+          512,
+          128
+        ],
+        "sheet": "mario_physics_pack_test_run_sheet.png"
+      }
+    ]
+  },
+  "summary": {
+    "state_count": 2,
+    "average_state_score": 0.7468954666591485,
+    "best_state_score": 0.7475094776100494,
+    "lowest_state_score": 0.7462814557082476,
+    "evolution_iterations": 0,
+    "evolution_enabled": false,
+    "umr_state_coverage": 2,
+    "umr_contract": "UnifiedMotionFrame",
+    "umr_pipeline_ready_for_layer3": true
+  },
+  "pipeline_contract": {
+    "session": "SESSION-040",
+    "context_hash": "076425e0d44d194fc1fc7efbc5d8ff4da948f1bce804e5b36dfeaf82a62f5a58",
+    "contract_guard": {
+      "context_hash": "076425e0d44d194fc1fc7efbc5d8ff4da948f1bce804e5b36dfeaf82a62f5a58",
+      "violation_count": 0,
+      "violations": [],
+      "contract_version": "SESSION-040",
+      "contract_status": "CLEAN"
+    },
+    "all_states_phase_driven": true,
+    "legacy_bypass_blocked": true
+  }
+}

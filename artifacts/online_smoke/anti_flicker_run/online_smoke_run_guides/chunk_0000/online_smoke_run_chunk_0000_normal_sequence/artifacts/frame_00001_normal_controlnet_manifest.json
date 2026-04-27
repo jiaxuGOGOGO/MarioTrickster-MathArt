@@ -1,0 +1,67 @@
+{
+  "artifact_family": "sprite_single",
+  "backend_type": "controlnet_normal_export",
+  "version": "1.0.0",
+  "session_id": "SESSION-108",
+  "timestamp": 1777189936.6110933,
+  "outputs": {
+    "image": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_normal_sequence\\artifacts\\frame_00001_normal_controlnet.png",
+    "metadata_json": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_normal_sequence\\artifacts\\frame_00001_normal_controlnet_metadata.json",
+    "manifest_json": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_normal_sequence\\artifacts\\frame_00001_normal_controlnet_manifest.json"
+  },
+  "metadata": {
+    "width": 512,
+    "height": 512,
+    "channels": 3,
+    "bit_depth": 8,
+    "artifact_role": "controlnet_normal_map",
+    "color_space": "linear_rgb",
+    "normal_mapping": "(N*0.5+0.5)*255",
+    "normal_basis": {
+      "red": "x",
+      "green": "y",
+      "blue": "z",
+      "reference_phrase": "blue_is_front_red_is_x_green_is_y"
+    },
+    "source_coordinate_convention": "mathart_z_up_worldspace",
+    "target_coordinate_convention": "controlnet_normalbae_opengl_visualization",
+    "flip_image_y_to_opengl": true,
+    "padding": {
+      "original_width": 512,
+      "original_height": 512,
+      "padded_width": 512,
+      "padded_height": 512,
+      "pad_right": 0,
+      "pad_bottom": 0,
+      "alignment": 16,
+      "applied": false
+    },
+    "coverage_ratio": 1.0,
+    "lineage": {
+      "backend": "anti_flicker_render",
+      "chunk": {
+        "chunk_index": 0,
+        "start_frame": 0,
+        "end_frame": 1,
+        "frame_count": 2
+      },
+      "sequence_name": "online_smoke_run_chunk_0000",
+      "frame_index": 1,
+      "frame_kind": "normal"
+    }
+  },
+  "quality_metrics": {
+    "coverage_ratio": 1.0,
+    "aligned_to_8px": 1.0,
+    "normal_z_plus_blue": 0.0
+  },
+  "references": [],
+  "tags": [
+    "controlnet",
+    "normal",
+    "normalbae",
+    "8px_aligned"
+  ],
+  "schema_hash": "sha256:d982d2ee3753c5dd",
+  "applied_knowledge_rules": []
+}

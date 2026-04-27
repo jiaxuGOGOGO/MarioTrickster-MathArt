@@ -519,11 +519,11 @@ class TestPhysicalRibbonBackend:
             assert report_path.exists(), f"Report file not found: {report_path}"
 
             # Verify NPZ contains expected arrays
-            data = np.load(str(mesh_path))
-            assert "vertices" in data
-            assert "normals" in data
-            assert "triangles" in data
-            assert "colors" in data
+            with np.load(str(mesh_path)) as data:
+                assert "vertices" in data
+                assert "normals" in data
+                assert "triangles" in data
+                assert "colors" in data
 
             # Verify report is valid JSON
             report = json.loads(report_path.read_text())

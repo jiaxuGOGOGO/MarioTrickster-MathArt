@@ -112,7 +112,7 @@ class TestSmoothMorphologyBridge:
             bridge.run_full_cycle(resolution=32)
             knowledge_path = Path(tmpdir) / "knowledge" / "smooth_morphology_rules.md"
             assert knowledge_path.exists()
-            content = knowledge_path.read_text()
+            content = knowledge_path.read_text(encoding="utf-8")
             assert "Distilled Rules" in content
 
 
@@ -214,7 +214,7 @@ class TestConstraintWFCBridge:
             bridge.run_full_cycle(n_levels=3, seed=42)
             knowledge_path = Path(tmpdir) / "knowledge" / "constraint_wfc_rules.md"
             assert knowledge_path.exists()
-            content = knowledge_path.read_text()
+            content = knowledge_path.read_text(encoding="utf-8")
             assert "Distilled Rules" in content
 
 

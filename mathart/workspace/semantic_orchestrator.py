@@ -171,6 +171,81 @@ SEMANTIC_VFX_TRIGGER_MAP: Dict[str, List[str]] = {
     "mana_surge": ["fluid_momentum_controller"],
     "shockwave": ["fluid_momentum_controller"],
     "vortex": ["fluid_momentum_controller"],
+    # Unity 2D asset production triggers — reuse existing microkernel backends.
+    "瓦片": ["wfc_tilemap", "level_topology"],
+    "瓦片集": ["wfc_tilemap", "level_topology"],
+    "地形": ["wfc_tilemap", "level_topology"],
+    "关卡": ["wfc_tilemap", "level_topology"],
+    "tile": ["wfc_tilemap", "level_topology"],
+    "tileset": ["wfc_tilemap", "level_topology"],
+    "tilemap": ["wfc_tilemap", "level_topology"],
+    "level": ["wfc_tilemap", "level_topology"],
+    "图标": ["cppn_texture_evolution", "industrial_sprite"],
+    "技能图标": ["cppn_texture_evolution", "industrial_sprite"],
+    "物品图标": ["cppn_texture_evolution", "industrial_sprite"],
+    "ui": ["cppn_texture_evolution", "industrial_sprite"],
+    "icon": ["cppn_texture_evolution", "industrial_sprite"],
+    "道具": ["industrial_sprite", "cppn_texture_evolution"],
+    "物品": ["industrial_sprite", "cppn_texture_evolution"],
+    "武器": ["industrial_sprite", "cppn_texture_evolution", "physical_ribbon"],
+    "装备": ["industrial_sprite", "cppn_texture_evolution"],
+    "prop": ["industrial_sprite", "cppn_texture_evolution"],
+    "item": ["industrial_sprite", "cppn_texture_evolution"],
+    "weapon": ["industrial_sprite", "cppn_texture_evolution", "physical_ribbon"],
+    "背景": ["cppn_texture_evolution", "reaction_diffusion"],
+    "场景背景": ["cppn_texture_evolution", "reaction_diffusion"],
+    "background": ["cppn_texture_evolution", "reaction_diffusion"],
+    "parallax": ["cppn_texture_evolution", "reaction_diffusion"],
+    "动画包": ["unity_2d_anim", "spine_preview", "high_precision_vat"],
+    "动作包": ["unity_2d_anim", "spine_preview", "high_precision_vat"],
+    "角色包": ["industrial_sprite", "unity_2d_anim", "spine_preview", "high_precision_vat"],
+    "sprite_sheet": ["industrial_sprite", "unity_2d_anim"],
+    "spritesheet": ["industrial_sprite", "unity_2d_anim"],
+    "角色": ["industrial_sprite", "motion_2d", "unity_2d_anim", "spine_preview"],
+    "敌人": ["industrial_sprite", "motion_2d", "unity_2d_anim", "spine_preview"],
+    "小怪": ["industrial_sprite", "motion_2d", "unity_2d_anim", "spine_preview"],
+    "boss": ["industrial_sprite", "motion_2d", "unity_2d_anim", "spine_preview", "high_precision_vat"],
+    "npc": ["industrial_sprite", "motion_2d", "unity_2d_anim", "spine_preview"],
+    "enemy": ["industrial_sprite", "motion_2d", "unity_2d_anim", "spine_preview"],
+    "character": ["industrial_sprite", "motion_2d", "unity_2d_anim", "spine_preview"],
+    "投射物": ["industrial_sprite", "physical_ribbon", "fluid_momentum_controller"],
+    "飞弹": ["industrial_sprite", "physical_ribbon", "fluid_momentum_controller"],
+    "子弹": ["industrial_sprite", "physical_ribbon"],
+    "projectile": ["industrial_sprite", "physical_ribbon", "fluid_momentum_controller"],
+    "bullet": ["industrial_sprite", "physical_ribbon"],
+    "陷阱": ["industrial_sprite", "physics_vfx", "wfc_tilemap"],
+    "机关": ["industrial_sprite", "physics_vfx", "wfc_tilemap"],
+    "trap": ["industrial_sprite", "physics_vfx", "wfc_tilemap"],
+    "拾取物": ["industrial_sprite", "cppn_texture_evolution"],
+    "掉落物": ["industrial_sprite", "cppn_texture_evolution"],
+    "pickup": ["industrial_sprite", "cppn_texture_evolution"],
+    "collectible": ["industrial_sprite", "cppn_texture_evolution"],
+    "技能": ["cppn_texture_evolution", "industrial_sprite", "fluid_momentum_controller"],
+    "buff": ["cppn_texture_evolution", "industrial_sprite", "fluid_momentum_controller"],
+    "debuff": ["cppn_texture_evolution", "industrial_sprite", "fluid_momentum_controller"],
+    "aura": ["fluid_momentum_controller", "reaction_diffusion", "cppn_texture_evolution"],
+    "光环": ["fluid_momentum_controller", "reaction_diffusion", "cppn_texture_evolution"],
+    "刀光": ["physical_ribbon", "fluid_momentum_controller", "anti_flicker_render"],
+    "斩击": ["physical_ribbon", "fluid_momentum_controller", "anti_flicker_render"],
+    "slash": ["physical_ribbon", "fluid_momentum_controller", "anti_flicker_render"],
+    "爆炸": ["fluid_momentum_controller", "physics_vfx", "reaction_diffusion"],
+    "explosion": ["fluid_momentum_controller", "physics_vfx", "reaction_diffusion"],
+    "烟雾": ["fluid_momentum_controller", "reaction_diffusion"],
+    "smoke": ["fluid_momentum_controller", "reaction_diffusion"],
+    "火焰": ["fluid_momentum_controller", "reaction_diffusion", "anti_flicker_render"],
+    "fire": ["fluid_momentum_controller", "reaction_diffusion", "anti_flicker_render"],
+    "闪电": ["physical_ribbon", "reaction_diffusion", "anti_flicker_render"],
+    "lightning": ["physical_ribbon", "reaction_diffusion", "anti_flicker_render"],
+    "冰霜": ["reaction_diffusion", "cppn_texture_evolution"],
+    "ice": ["reaction_diffusion", "cppn_texture_evolution"],
+    "毒": ["reaction_diffusion", "fluid_momentum_controller"],
+    "poison": ["reaction_diffusion", "fluid_momentum_controller"],
+    "传送门": ["reaction_diffusion", "fluid_momentum_controller", "anti_flicker_render"],
+    "portal": ["reaction_diffusion", "fluid_momentum_controller", "anti_flicker_render"],
+    "贴花": ["industrial_sprite", "reaction_diffusion", "cppn_texture_evolution"],
+    "decal": ["industrial_sprite", "reaction_diffusion", "cppn_texture_evolution"],
+    "unity": ["urp2d_bundle", "unity_2d_anim", "archive_delivery", "provenance_audit"],
+    "unity2d": ["urp2d_bundle", "unity_2d_anim", "archive_delivery", "provenance_audit"],
     # Combined triggers
     "全特效": ["cppn_texture_evolution", "fluid_momentum_controller", "high_precision_vat", "quadruped_physics", "physics_3d"],
     "黑科技全开": ["cppn_texture_evolution", "fluid_momentum_controller", "high_precision_vat", "quadruped_physics", "physics_3d"],
@@ -234,6 +309,144 @@ VFX_PLUGIN_CAPABILITIES: Dict[str, Dict[str, str]] = {
             "布料, cloth, soft-body, ccd, xpbd, collision sweep."
         ),
         "artifact_type": "PHYSICS_3D (deformed mesh + CCD sweep telemetry)",
+    },
+    "industrial_sprite": {
+        "display_name": "Industrial Sprite Bundle",
+        "description": (
+            "Existing Unity 2D sprite/material production backend. Use for "
+            "角色包, 道具, 武器, 物品, UI/icon, sprite sheets, and engine-ready "
+            "2D art that needs albedo/normal/depth/mask channels."
+        ),
+        "artifact_type": "SPRITE_SHEET / MATERIAL_BUNDLE",
+    },
+    "wfc_tilemap": {
+        "display_name": "WFC Tilemap Backend",
+        "description": (
+            "Existing procedural tilemap backend for Unity 2D tilesets, terrain, "
+            "level layouts, dungeon chunks, platformer maps, and repeatable "
+            "environment patterns."
+        ),
+        "artifact_type": "LEVEL_TILEMAP / LEVEL_WFC",
+    },
+    "level_topology": {
+        "display_name": "Level Topology Extractor",
+        "description": (
+            "Existing topology extractor for tile-id grids. Use alongside WFC "
+            "when the asset needs semantic anchors, traversal lanes, collision "
+            "structure, or Unity navigation/decoration metadata."
+        ),
+        "artifact_type": "LEVEL_TOPOLOGY",
+    },
+    "reaction_diffusion": {
+        "display_name": "Reaction-Diffusion Texture Backend",
+        "description": (
+            "Existing procedural organic material generator. Use for backgrounds, "
+            "biome surfaces, magical materials, decals, masks, and stylized "
+            "Unity 2D texture channels."
+        ),
+        "artifact_type": "MATERIAL_BUNDLE",
+    },
+    "unity_2d_anim": {
+        "display_name": "Unity 2D Native Animation Export",
+        "description": (
+            "Existing Unity-native animation exporter. Use for character/action "
+            "packs that need .anim, .controller, .meta, frame timing, and importable "
+            "Unity animation assets."
+        ),
+        "artifact_type": "UNITY_NATIVE_ANIM",
+    },
+    "spine_preview": {
+        "display_name": "Spine Preview Renderer",
+        "description": (
+            "Existing headless preview lane for Spine/2D animation packages. Use "
+            "to audit animation readability before Unity import."
+        ),
+        "artifact_type": "ANIMATION_PREVIEW",
+    },
+    "physical_ribbon": {
+        "display_name": "Physical Ribbon Mesh Extractor",
+        "description": (
+            "Existing ribbon/secondary-motion backend. Use for weapon trails, "
+            "slash arcs, capes, cloth strips, tails, ribbons, and stylized 2D VFX "
+            "that need physically coherent swept shapes."
+        ),
+        "artifact_type": "MESH_OBJ / VFX support geometry",
+    },
+    "motion_2d": {
+        "display_name": "Motion 2D Sprite Pipeline",
+        "description": (
+            "Existing 2D motion backend for character, enemy, NPC, boss, and "
+            "action-pack animation intent. Use when the asset needs locomotion, "
+            "poses, contact timing, or animation clips before Unity export."
+        ),
+        "artifact_type": "ANIMATION_SPINE / ANIMATION_SPRITESHEET",
+    },
+    "physics_vfx": {
+        "display_name": "Physics VFX Pipeline",
+        "description": (
+            "Existing physics-driven VFX backend for traps, explosions, debris, "
+            "secondary effects, impact bursts, flow maps, and VAT-style VFX data."
+        ),
+        "artifact_type": "VFX_FLIPBOOK / VFX_FLOWMAP / VAT_BUNDLE",
+    },
+    "anti_flicker_render": {
+        "display_name": "Anti-Flicker Render",
+        "description": (
+            "Existing controlled AI/temporal consistency lane. Use only after "
+            "math/physics/procedural guides exist, for slash, fire, portal, and "
+            "sequence polishing that needs anti-flicker evidence."
+        ),
+        "artifact_type": "ANTI_FLICKER_REPORT / VFX_FLIPBOOK",
+    },
+    "orthographic_pixel_render": {
+        "display_name": "Orthographic Pixel Render",
+        "description": (
+            "Existing 3D-to-2D pixel render lane for dimension-reduced characters, "
+            "props, weapons, and readable sprite views from structured geometry."
+        ),
+        "artifact_type": "SPRITE_SHEET / IMAGE_SEQUENCE",
+    },
+    "pseudo_3d_shell": {
+        "display_name": "Pseudo-3D Shell Deformation",
+        "description": (
+            "Existing paper-doll / mesh-shell deformation backend. Use when a "
+            "2D character, enemy, prop, or boss needs controllable 2.5D shape and "
+            "pose structure before sprite rendering."
+        ),
+        "artifact_type": "MESH_OBJ / MATERIAL_BUNDLE",
+    },
+    "urp2d_bundle": {
+        "display_name": "Unity URP 2D Bundle",
+        "description": (
+            "Existing Unity URP 2D export backend for engine-ready materials, "
+            "secondary textures, shaders, VAT players, and Unity package assets."
+        ),
+        "artifact_type": "ENGINE_PLUGIN / MATERIAL_BUNDLE / SHADER_HLSL",
+    },
+    "archive_delivery": {
+        "display_name": "Archive Delivery Backend",
+        "description": (
+            "Existing final delivery backend. Use when the user asks for Unity-ready "
+            "asset packs, batch export, delivery archives, or auditable package output."
+        ),
+        "artifact_type": "META_REPORT / COMPOSITE",
+    },
+    "provenance_audit": {
+        "display_name": "Provenance Audit Backend",
+        "description": (
+            "Existing audit sidecar. Use for production-grade asset packs that need "
+            "traceable parameter flow, backend provenance, and quality evidence."
+        ),
+        "artifact_type": "META_REPORT",
+    },
+    "ai_render_stream": {
+        "display_name": "AI Render Stream Backend",
+        "description": (
+            "Existing controlled AI render stream. Use as an optional visual polish "
+            "layer after guide frames, masks, motion, and structural constraints are "
+            "already produced by deterministic backends."
+        ),
+        "artifact_type": "AI_RENDER_STREAM_REPORT",
     },
 }
 

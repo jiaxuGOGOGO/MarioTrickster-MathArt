@@ -73,6 +73,12 @@ def test_mass_production_factory_dry_run_skip_ai_render(tmp_path: Path) -> None:
         assert record["manifests"]["anti_flicker_render"] is None
         assert Path(record["final_outputs"]["spine_json"]).exists()
 
+        assert Path(record["manifests"]["vfx_weaver"]).exists()
+        vfx_weaver = record["final_outputs"]["vfx_weaver"]
+        assert vfx_weaver["skipped"] is True
+        assert Path(vfx_weaver["report_path"]).exists()
+        assert record["manifests"]["vfx_plugin_manifests"] == {}
+
         # SESSION-158: guide_baking assets MUST exist even with skip_ai_render
         guide_baking = record["final_outputs"]["guide_baking"]
         assert guide_baking["frame_count"] > 0
@@ -112,6 +118,7 @@ def test_mass_production_factory_dry_run_skip_ai_render(tmp_path: Path) -> None:
         assert set(stage_rng) == {
             "prepare_character",
             "unified_motion_stage",
+            "vfx_weaver_stage",
             "pseudo3d_shell_stage",
             "physical_ribbon_stage",
             "orthographic_render_stage",
@@ -119,6 +126,7 @@ def test_mass_production_factory_dry_run_skip_ai_render(tmp_path: Path) -> None:
             "final_delivery_stage",
             "guide_baking_stage",
             "ai_render_stage",
+            "sprite_asset_pack_stage",
         }
         assert all(stage_rng[key] for key in stage_rng)
         assert len(set(stage_rng.values())) == len(stage_rng)
@@ -144,7 +152,53 @@ def test_mass_production_factory_dry_run_skip_ai_render(tmp_path: Path) -> None:
         assert Path(ai_render["report_path"]).exists()
         assert any(path.endswith("anti_flicker_render_skipped.json") for path in ai_render["archived"].values())
 
+        sprite_pack = record["final_outputs"]["sprite_asset_pack"]
+        assert sprite_pack["skipped"] is False
+        assert Path(record["manifests"]["sprite_asset_pack"]).exists()
+        assert Path(sprite_pack["spritesheet_transparent"]).exists()
+        assert Path(sprite_pack["spritesheet_black"]).exists()
+        assert Path(sprite_pack["preview_gif"]).exists()
+        assert Path(sprite_pack["character_pack_manifest_path"]).exists()
+
     assert len(observed_seed_digests) == 2
+
+
+def test_mass_production_vfx_weaver_uses_real_unified_motion_manifest(tmp_path: Path) -> None:
+    payload = run_mass_production_factory(
+        output_root=tmp_path,
+        batch_size=1,
+        pdg_workers=2,
+        gpu_slots=1,
+        seed=20260421,
+        skip_ai_render=True,
+        action_filter=["hit"],
+        director_studio_spec={
+            "action_name": "hit",
+            "active_vfx_plugins": ["physics_3d"],
+        },
+        vfx_artifacts={
+            "deferred_to_pdg": True,
+            "active_plugins": ["physics_3d"],
+        },
+    )
+
+    summary = json.loads(Path(payload["summary_path"]).read_text(encoding="utf-8"))
+    runtime = json.loads(Path(payload["pdg_trace_path"]).read_text(encoding="utf-8"))
+    record = summary["records"][0]
+    vfx = record["final_outputs"]["vfx_weaver"]
+
+    assert runtime["node_states"]["vfx_weaver_stage"] == "cooked_success"
+    assert vfx["skipped"] is False
+    assert vfx["executed"] == ["physics_3d"]
+    assert vfx["failed"] == []
+    assert Path(vfx["report_path"]).exists()
+    assert Path(vfx["plugin_manifests"]["physics_3d"]).exists()
+
+    report = json.loads(Path(vfx["report_path"]).read_text(encoding="utf-8"))
+    assert report["upstream_unified_motion_manifest"] == record["manifests"]["unified_motion"]
+    physics_manifest = ArtifactManifest.load(vfx["plugin_manifests"]["physics_3d"])
+    assert physics_manifest.outputs["upstream_motion_clip_json"]
+    assert Path(physics_manifest.outputs["upstream_motion_clip_json"]).exists()
 
 
 def test_cli_mass_produce_dry_run_skip_ai_render(tmp_path: Path) -> None:

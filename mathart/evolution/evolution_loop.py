@@ -196,6 +196,9 @@ _DEFAULT_EXCLUDE_DIRS: frozenset[str] = frozenset({
     "artifacts",
     "golden",
     "output",
+    ".venv",
+    "venv",
+    "env",
     "node_modules",
     ".mypy_cache",
     ".pytest_cache",
@@ -1003,7 +1006,7 @@ def save_evolution_report(report: EvolutionCycleReport, output_path: str | Path)
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as fh:
-        json.dump(report.to_dict(), fh, indent=2, ensure_ascii=False)
+        json.dump(report.to_dict(), fh, indent=2, ensure_ascii=True)
     return str(path)
 
 

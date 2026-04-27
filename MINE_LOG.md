@@ -212,3 +212,477 @@ Accepted papers:
   - [0.79] pmndrs/react-spring
   - [0.73] Wave Function Collapse - An Algorithm for Procedural Tilemap Generation
 
+
+## MINE-021 — 2026-04-26 02:36:45 UTC
+
+MiningSession MINE-021: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-022 — 2026-04-26 02:38:58 UTC
+
+MiningSession MINE-022: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-023 — 2026-04-26 02:45:38 UTC
+
+MiningSession MINE-023: found=1, accepted=1, rejected=0
+
+Accepted papers:
+  - [0.62] VakinduPhilliam/NodeJS_Clean_Architecture
+
+
+## MINE-024 — 2026-04-26 02:45:43 UTC
+
+MiningSession MINE-024: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-025 — 2026-04-26 02:45:49 UTC
+
+MiningSession MINE-025: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-026 — 2026-04-26 02:46:02 UTC
+
+MiningSession MINE-026: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-027 — 2026-04-26 02:47:43 UTC
+
+MiningSession MINE-027: found=1, accepted=1, rejected=0
+
+Accepted papers:
+  - [0.62] VakinduPhilliam/NodeJS_Clean_Architecture
+
+
+## MINE-028 — 2026-04-26 02:47:49 UTC
+
+MiningSession MINE-028: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-029 — 2026-04-26 02:47:54 UTC
+
+MiningSession MINE-029: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-030 — 2026-04-26 02:57:11 UTC
+
+MiningSession MINE-030: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-031 — 2026-04-26 03:00:47 UTC
+
+MiningSession MINE-031: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-032 — 2026-04-26 03:01:10 UTC
+
+MiningSession MINE-032: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-033 — 2026-04-26 03:01:54 UTC
+
+MiningSession MINE-033: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-034 — 2026-04-26 03:08:10 UTC
+
+MiningSession MINE-034: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-035 — 2026-04-26 03:09:00 UTC
+
+MiningSession MINE-035: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-036 — 2026-04-26 03:12:24 UTC
+
+MiningSession MINE-036: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-037 — 2026-04-26 03:13:29 UTC
+
+MiningSession MINE-037: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-038 — 2026-04-26 03:15:04 UTC
+
+MiningSession MINE-038: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-039 — 2026-04-26 05:07:22 UTC
+
+MiningSession MINE-039: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-040 — 2026-04-26 05:17:19 UTC
+
+MiningSession MINE-040: found=1, accepted=1, rejected=0
+
+Accepted papers:
+  - [0.62] VakinduPhilliam/NodeJS_Clean_Architecture
+
+
+## MINE-041 — 2026-04-26 05:17:26 UTC
+
+MiningSession MINE-041: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-042 — 2026-04-26 05:17:32 UTC
+
+MiningSession MINE-042: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-043 — 2026-04-26 05:34:49 UTC
+
+MiningSession MINE-043: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-044 — 2026-04-26 05:40:14 UTC
+
+MiningSession MINE-044: found=1, accepted=1, rejected=0
+
+Accepted papers:
+  - [0.62] VakinduPhilliam/NodeJS_Clean_Architecture
+
+
+## MINE-045 — 2026-04-26 05:40:21 UTC
+
+MiningSession MINE-045: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-046 — 2026-04-26 05:40:27 UTC
+
+MiningSession MINE-046: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-047 — 2026-04-26 05:46:06 UTC
+
+MiningSession MINE-047: found=1, accepted=1, rejected=0
+
+Accepted papers:
+  - [0.62] VakinduPhilliam/NodeJS_Clean_Architecture
+
+
+## MINE-048 — 2026-04-26 05:46:12 UTC
+
+MiningSession MINE-048: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-049 — 2026-04-26 05:46:18 UTC
+
+MiningSession MINE-049: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-050 — 2026-04-26 05:48:38 UTC
+
+MiningSession MINE-050: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-051 — 2026-04-26 05:58:42 UTC
+
+MiningSession MINE-051: found=1, accepted=1, rejected=0
+
+Accepted papers:
+  - [0.62] VakinduPhilliam/NodeJS_Clean_Architecture
+
+
+## MINE-052 — 2026-04-26 05:58:49 UTC
+
+MiningSession MINE-052: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-053 — 2026-04-26 05:58:56 UTC
+
+MiningSession MINE-053: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-054 — 2026-04-26 06:06:47 UTC
+
+MiningSession MINE-054: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-055 — 2026-04-26 06:30:18 UTC
+
+MiningSession MINE-055: found=1, accepted=1, rejected=0
+
+Accepted papers:
+  - [0.62] VakinduPhilliam/NodeJS_Clean_Architecture
+
+
+## MINE-056 — 2026-04-26 06:30:24 UTC
+
+MiningSession MINE-056: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-057 — 2026-04-26 06:30:30 UTC
+
+MiningSession MINE-057: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-058 — 2026-04-26 06:32:43 UTC
+
+MiningSession MINE-058: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-059 — 2026-04-26 06:34:05 UTC
+
+MiningSession MINE-059: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-060 — 2026-04-26 07:21:23 UTC
+
+MiningSession MINE-060: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-061 — 2026-04-26 07:25:36 UTC
+
+MiningSession MINE-061: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-062 — 2026-04-26 07:26:35 UTC
+
+MiningSession MINE-062: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-063 — 2026-04-26 07:26:41 UTC
+
+MiningSession MINE-063: found=1, accepted=1, rejected=0
+
+Accepted papers:
+  - [0.62] VakinduPhilliam/NodeJS_Clean_Architecture
+
+
+## MINE-064 — 2026-04-26 07:26:47 UTC
+
+MiningSession MINE-064: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-065 — 2026-04-26 07:26:52 UTC
+
+MiningSession MINE-065: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-066 — 2026-04-26 07:34:26 UTC
+
+MiningSession MINE-066: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-067 — 2026-04-26 07:40:32 UTC
+
+MiningSession MINE-067: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-068 — 2026-04-26 15:20:53 UTC
+
+MiningSession MINE-068: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+
+
+## MINE-069 — 2026-04-26 15:32:03 UTC
+
+MiningSession MINE-069: found=3, accepted=3, rejected=0
+
+Accepted papers:
+  - [0.58] Astro-animation - A Case Study of Art and Science Education
+  - [0.70] Animation with Algodoo: a simple tool for teaching and learning Physics
+  - [0.79] pmndrs/react-spring
+

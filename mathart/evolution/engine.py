@@ -52,12 +52,9 @@ from .outer_loop import OuterLoopDistiller
 from .evolution_layer3 import PhysicsEvolutionLayer, PhysicsEvolutionRecord
 # SESSION-040: Pipeline Contract Evolution Bridge
 from .evolution_contract_bridge import ContractEvolutionBridge
-# SESSION-041: Visual Regression Evolution Bridge
-from .visual_regression_bridge import VisualRegressionEvolutionBridge
 from .layer3_closed_loop import Layer3ClosedLoopDistiller, TransitionTuningTarget
 from .evolution_loop import collect_closed_loop_status, collect_analytical_rendering_status
-# SESSION-045: Neural Rendering Evolution Bridge (Gap C3)
-from .neural_rendering_bridge import NeuralRenderingEvolutionBridge, collect_neural_rendering_status
+from .knowledge_fitness import KnowledgeDrivenFitnessEngine, evaluate_knowledge_fitness
 # SESSION-046: Stable Fluids VFX Bridge (Gap C2)
 from .fluid_vfx_bridge import FluidVFXEvolutionBridge, collect_fluid_vfx_status
 # SESSION-047: Jakobsen Secondary Chain Bridge (Gap B1)
@@ -135,17 +132,7 @@ class SelfEvolutionEngine:
             verbose=verbose,
         )
 
-        # SESSION-041: Visual Regression Evolution Bridge
-        self.visual_regression_bridge = VisualRegressionEvolutionBridge(
-            project_root=self.project_root,
-            verbose=verbose,
-        )
-
-        # SESSION-045: Neural Rendering Evolution Bridge (Gap C3)
-        self.neural_rendering_bridge = NeuralRenderingEvolutionBridge(
-            project_root=self.project_root,
-            verbose=verbose,
-        )
+        self.knowledge_fitness = KnowledgeDrivenFitnessEngine()
 
         # SESSION-046: Stable Fluids VFX Bridge (Gap C2)
         self.fluid_vfx_bridge = FluidVFXEvolutionBridge(
@@ -435,94 +422,25 @@ class SelfEvolutionEngine:
                 print(f"[Engine] Layer 3 physics evolution skipped: {e}")
             return None
 
-    # ── SESSION-041: Visual Regression Evaluation ────────────────────────
-
-    def evaluate_visual_regression(
+    def evaluate_knowledge_motion_fitness(
         self,
-        audit_report: dict | None = None,
+        frames: list,
+        fps: float = 60.0,
+        target_joint: str = "root",
     ) -> dict:
-        """Evaluate visual regression and distill knowledge.
+        """Evaluate skeletal motion with V6 book-law physics fitness.
 
-        This is the unified entry point for visual-regression-aware evolution.
-        It runs all three layers of the visual regression cycle:
-        1. Layer 1: Evaluate visual regression (SSIM + structural)
-        2. Layer 2: Distill knowledge from results
-        3. Layer 3: Compute fitness bonus
-
-        Returns
-        -------
-        dict
-            Visual regression evaluation results.
+        This replaces obsolete evolution-time visual collapse / AI temporal
+        consistency scoring. It performs pure mathematical dry-run evaluation
+        against KnowledgeInterpreter.PhysicsParams.
         """
-        metrics = self.visual_regression_bridge.evaluate_visual_regression(
-            audit_report
-        )
-        rules = self.visual_regression_bridge.distill_visual_knowledge(metrics)
-        fitness_bonus = self.visual_regression_bridge.compute_visual_fitness_bonus(
-            metrics
-        )
-
+        report = self.knowledge_fitness.evaluate(frames, fps=fps, target_joint=target_joint)
         if self.verbose:
-            status = "PASS" if metrics.all_pass else "FAIL"
-            ssim_str = f"{metrics.ssim_score:.6f}" if metrics.ssim_score else "N/A"
-            print(f"\n[VISUAL REGRESSION] Evaluation: {status}")
-            print(f"  SSIM: {ssim_str}")
-            print(f"  Levels: L0={metrics.level0_pass}, L1={metrics.level1_pass}, L2={metrics.level2_pass}")
-            print(f"  Knowledge rules: {len(rules)} generated")
-            print(f"  Fitness bonus: {fitness_bonus:+.3f}")
-
-        return {
-            "metrics": metrics.to_dict(),
-            "rules": rules,
-            "fitness_bonus": fitness_bonus,
-            "visual_status": "PASS" if metrics.all_pass else "FAIL",
-        }
-
-    # ── SESSION-045: Temporal Consistency Evaluation ──────────────────────
-
-    def evaluate_temporal_consistency(
-        self,
-        rendered_frames: list | None = None,
-        mv_sequence: Any | None = None,
-        warp_error_threshold: float = 0.15,
-    ) -> dict:
-        """Evaluate temporal consistency and distill knowledge.
-
-        This is the unified entry point for temporal-consistency-aware evolution.
-        It runs all three layers of the neural rendering cycle:
-        1. Layer 1: Evaluate temporal consistency (warp error + flicker)
-        2. Layer 2: Distill knowledge from results
-        3. Layer 3: Compute fitness bonus
-
-        Returns
-        -------
-        dict
-            Temporal consistency evaluation results.
-        """
-        metrics = self.neural_rendering_bridge.evaluate_temporal_consistency(
-            rendered_frames, mv_sequence, warp_error_threshold
-        )
-        rules = self.neural_rendering_bridge.distill_temporal_knowledge(metrics)
-        fitness_bonus = self.neural_rendering_bridge.compute_temporal_fitness_bonus(
-            metrics
-        )
-
-        if self.verbose:
-            status = "PASS" if metrics.temporal_pass else "FAIL"
-            print(f"\n[TEMPORAL CONSISTENCY] Evaluation: {status}")
-            print(f"  Warp error: {metrics.mean_warp_error:.4f} "
-                  f"(threshold: {metrics.warp_error_threshold})")
-            print(f"  Flicker score: {metrics.flicker_score:.4f}")
-            print(f"  Coverage: {metrics.coverage:.2%}")
-            print(f"  Knowledge rules: {len(rules)} generated")
-            print(f"  Fitness bonus: {fitness_bonus:+.3f}")
-
-        return {
-            "metrics": metrics.to_dict(),
-            "rules": rules,
-            "fitness_bonus": fitness_bonus,
-            "temporal_status": "PASS" if metrics.temporal_pass else "FAIL",
-        }
+            print("\n[KNOWLEDGE FITNESS] Book-law motion evaluation")
+            print(f"  Anticipation: {report.anticipation_score:.3f}")
+            print(f"  Impact sharpness: {report.impact_sharpness:.3f}")
+            print(f"  Combined: {report.combined_score:.3f}")
+        return report.to_dict()
 
     def _update_brain(
         self,

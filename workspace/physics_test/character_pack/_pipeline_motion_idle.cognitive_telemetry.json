@@ -1,0 +1,188 @@
+{
+  "schema_version": "1.0.0",
+  "state": "idle",
+  "frame_count": 4,
+  "fps": 12,
+  "trace_fields": [
+    "frame_index",
+    "time",
+    "phase",
+    "phase_kind",
+    "phase_velocity",
+    "root_position",
+    "root_velocity",
+    "root_speed",
+    "root_acceleration",
+    "root_jerk",
+    "extremity_motion_energy",
+    "joint_angular_velocity",
+    "contact_expectation"
+  ],
+  "summary": {
+    "phase_kinds": [
+      "cyclic"
+    ],
+    "mean_root_speed": 0.0,
+    "mean_root_jerk": 0.0,
+    "peak_root_jerk": 0.0,
+    "mean_extremity_motion_energy": 0.18240211020367014,
+    "contact_transition_count": 0
+  },
+  "traces": [
+    {
+      "frame_index": 0,
+      "time": 0.0,
+      "phase": 0.0,
+      "phase_kind": "cyclic",
+      "phase_velocity": 0.0,
+      "phase_vector": {
+        "sin": 0.0,
+        "cos": 1.0
+      },
+      "root_position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": null
+      },
+      "root_velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "root_speed": 0.0,
+      "root_acceleration": 0.0,
+      "root_jerk": 0.0,
+      "extremity_motion_energy": 0.0,
+      "joint_angular_velocity": {},
+      "contact_expectation": {
+        "left_foot": false,
+        "right_foot": false,
+        "desired_contact_state": "",
+        "contact_active_count": 0
+      }
+    },
+    {
+      "frame_index": 1,
+      "time": 0.08333333333333333,
+      "phase": 0.3333333333333333,
+      "phase_kind": "cyclic",
+      "phase_velocity": 4.0,
+      "phase_vector": {
+        "sin": 0.8660254037844387,
+        "cos": -0.4999999999999998
+      },
+      "root_position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": null
+      },
+      "root_velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "root_speed": 0.0,
+      "root_acceleration": 0.0,
+      "root_jerk": 0.0,
+      "extremity_motion_energy": 0.009808916306157073,
+      "joint_angular_velocity": {
+        "spine": 0.3117691453623979,
+        "chest": 0.15588457268119896,
+        "neck": -0.09353074360871937,
+        "head": 0.009808916306157073,
+        "l_shoulder": 0.5196152422706632,
+        "r_shoulder": -0.5196152422706632,
+        "l_elbow": 0.15588457268119904,
+        "r_elbow": -0.15588457268119904
+      },
+      "contact_expectation": {
+        "left_foot": false,
+        "right_foot": false,
+        "desired_contact_state": "",
+        "contact_active_count": 0
+      }
+    },
+    {
+      "frame_index": 2,
+      "time": 0.16666666666666666,
+      "phase": 0.6666666666666666,
+      "phase_kind": "cyclic",
+      "phase_velocity": 4.0,
+      "phase_vector": {
+        "sin": -0.8660254037844385,
+        "cos": -0.5000000000000004
+      },
+      "root_position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": null
+      },
+      "root_velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "root_speed": 0.0,
+      "root_acceleration": 0.0,
+      "root_jerk": 0.0,
+      "extremity_motion_energy": 0.36480422040734034,
+      "joint_angular_velocity": {
+        "spine": -0.6235382907247958,
+        "chest": -0.3117691453623979,
+        "neck": 0.18706148721743873,
+        "head": -0.36480422040734034,
+        "l_shoulder": 8.326672684688674e-17,
+        "r_shoulder": -8.326672684688674e-17,
+        "l_elbow": 0.0,
+        "r_elbow": 0.0
+      },
+      "contact_expectation": {
+        "left_foot": false,
+        "right_foot": false,
+        "desired_contact_state": "",
+        "contact_active_count": 0
+      }
+    },
+    {
+      "frame_index": 3,
+      "time": 0.25,
+      "phase": 0.0,
+      "phase_kind": "cyclic",
+      "phase_velocity": 4.000000000000001,
+      "phase_vector": {
+        "sin": 0.0,
+        "cos": 1.0
+      },
+      "root_position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": null
+      },
+      "root_velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "root_speed": 0.0,
+      "root_acceleration": 0.0,
+      "root_jerk": 0.0,
+      "extremity_motion_energy": 0.35499530410118324,
+      "joint_angular_velocity": {
+        "spine": 0.31176914536239786,
+        "chest": 0.15588457268119893,
+        "neck": -0.09353074360871935,
+        "head": 0.35499530410118324,
+        "l_shoulder": -0.5196152422706634,
+        "r_shoulder": 0.5196152422706634,
+        "l_elbow": -0.15588457268119904,
+        "r_elbow": 0.15588457268119904
+      },
+      "contact_expectation": {
+        "left_foot": false,
+        "right_foot": false,
+        "desired_contact_state": "",
+        "contact_active_count": 0
+      }
+    }
+  ]
+}

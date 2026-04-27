@@ -1,0 +1,53 @@
+{
+  "format": "mathart_bundle",
+  "version": "1.0",
+  "name": "online_smoke_run",
+  "channels": {
+    "albedo": "albedo.png",
+    "normal": "normal.png",
+    "depth": "depth.png",
+    "thickness": "thickness.png",
+    "roughness": "roughness.png",
+    "mask": "mask.png"
+  },
+  "contour_available": true,
+  "contour_point_count": 37,
+  "engine_targets": {
+    "godot_4": {
+      "material_type": "CanvasItemMaterial",
+      "shader": "mathart_material.gdshader",
+      "normal_map_slot": "normal",
+      "light_mode": "Light2D compatible",
+      "sss_channel": "thickness",
+      "rim_light": true,
+      "collider": "PolygonCollider2D from contour.json"
+    },
+    "unity_urp_2d": {
+      "material_type": "Sprite-Lit-Default or custom",
+      "shader": "MathArtLitShader",
+      "normal_map_slot": "_NormalMap",
+      "light_mode": "Light2D (URP)",
+      "sss_channel": "_ThicknessMap",
+      "rim_light": true,
+      "collider": "PolygonCollider2D from contour.json"
+    }
+  },
+  "channel_semantics": {
+    "albedo": "Base color (sRGB, premultiplied alpha)",
+    "normal": "Tangent-space normal map (R=X, G=Y, B=Z, [0,255]→[-1,1])",
+    "depth": "Pseudo-3D depth (grayscale, 0=far, 255=near)",
+    "thickness": "Material thickness for SSS (0=thin/translucent, 255=thick/opaque)",
+    "roughness": "Surface roughness (0=smooth/specular, 255=rough/matte)",
+    "mask": "Alpha mask (255=inside, 0=outside)"
+  },
+  "research_provenance": [
+    "Bénard, Dead Cells 2D Deferred Lighting, GDC 2019",
+    "Vasseur, Dead Cells Art Pipeline, Game Developer 2018",
+    "Moran, Dead Cells Shader Case Study",
+    "MarioTrickster-MathArt analytical SDF mathematics"
+  ],
+  "width": 64,
+  "height": 64,
+  "source": "MarioTrickster-MathArt IndustrialSpriteBackend",
+  "session": "SESSION-068"
+}

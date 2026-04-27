@@ -1,0 +1,14 @@
+{
+  "sequence_name": "online_smoke_run_chunk_0000",
+  "frame_kind": "rgb",
+  "frame_count": 2,
+  "fps": 8,
+  "frame_width": 512,
+  "frame_height": 512,
+  "source_width": 512,
+  "source_height": 512,
+  "frame_naming": "frame_%05d.png",
+  "sequence_dir": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_rgb_sequence\\frames",
+  "alignment": 16,
+  "session_id": "SESSION-108"
+}

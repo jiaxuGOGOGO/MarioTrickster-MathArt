@@ -552,7 +552,10 @@ class ResearchKnowledgeDistiller:
         """Save distilled rules to JSON."""
         data = [r.to_dict() for r in self.rules]
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+        output_path.write_text(
+            json.dumps(data, indent=2, ensure_ascii=True),
+            encoding="utf-8",
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -784,7 +787,10 @@ class Session065ResearchBridge:
         # Save status
         status_path = self.project_root / "evolution_reports" / "session065_research_status.json"
         status_path.parent.mkdir(parents=True, exist_ok=True)
-        status_path.write_text(json.dumps(status.to_dict(), indent=2, ensure_ascii=False))
+        status_path.write_text(
+            json.dumps(status.to_dict(), indent=2, ensure_ascii=True),
+            encoding="utf-8",
+        )
 
         return status
 

@@ -543,12 +543,17 @@ class AcademicMinerBackend:
         # ── Build output manifest ────────────────────────────────────
         t_elapsed = _time.perf_counter() - t_start
 
+        report_path = output_dir / "academic_miner_execution_report.json"
         outputs = {
+            "report_file": str(report_path),
             "academic_papers_json": str(papers_json_path),
             "mining_session_json": str(session_json_path),
         }
 
         metadata = {
+            "cycle_count": 1,
+            "best_fitness": float(len(structured_papers)),
+            "knowledge_rules_distilled": 0,
             "papers_found": len(structured_papers),
             "queries": queries,
             "is_mock_fallback": is_mock,
@@ -582,7 +587,6 @@ class AcademicMinerBackend:
         )
 
         # ── Write execution report ───────────────────────────────────
-        report_path = output_dir / "academic_miner_execution_report.json"
         report_data = {
             "status": "success",
             "backend": _ACADEMIC_MINER_BACKEND_TYPE,

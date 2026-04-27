@@ -1,0 +1,59 @@
+{
+  "sequence_name": "online_smoke_run_chunk_0000",
+  "frame_kind": "depth",
+  "frame_count": 2,
+  "fps": 8,
+  "frame_width": 512,
+  "frame_height": 512,
+  "source_width": 512,
+  "source_height": 512,
+  "frame_naming": "frame_%05d.png",
+  "sequence_dir": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\frames",
+  "sequence_metadata_json": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\sequence_metadata.json",
+  "artifact_family": "image_sequence",
+  "backend_type": "frame_sequence_export",
+  "lineage": {
+    "backend": "anti_flicker_render",
+    "chunk": {
+      "chunk_index": 0,
+      "start_frame": 0,
+      "end_frame": 1,
+      "frame_count": 2
+    }
+  },
+  "source_manifest_hash": "",
+  "frame_artifacts": [
+    {
+      "frame_index": 0,
+      "frame_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\frames\\frame_00000.png",
+      "artifact_manifest_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\artifacts\\frame_00000_depth_controlnet_manifest.json",
+      "padding": {
+        "original_width": 512,
+        "original_height": 512,
+        "padded_width": 512,
+        "padded_height": 512,
+        "pad_right": 0,
+        "pad_bottom": 0,
+        "alignment": 16,
+        "applied": false
+      },
+      "schema_hash": "sha256:14acb4ca4ea97134"
+    },
+    {
+      "frame_index": 1,
+      "frame_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\frames\\frame_00001.png",
+      "artifact_manifest_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\artifacts\\frame_00001_depth_controlnet_manifest.json",
+      "padding": {
+        "original_width": 512,
+        "original_height": 512,
+        "padded_width": 512,
+        "padded_height": 512,
+        "pad_right": 0,
+        "pad_bottom": 0,
+        "alignment": 16,
+        "applied": false
+      },
+      "schema_hash": "sha256:757859fb944fabb3"
+    }
+  ]
+}

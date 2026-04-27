@@ -1,0 +1,38 @@
+{
+  "chunk_index": 0,
+  "start_frame": 0,
+  "end_frame": 1,
+  "frame_count": 2,
+  "chunk_count": 1,
+  "payload_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_runtime\\payloads\\chunk_0000_workflow_payload.json",
+  "preset_name": "sparsectrl_animatediff",
+  "sequence_directories": {
+    "normal": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_normal_sequence\\frames",
+    "depth": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\frames",
+    "rgb": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_rgb_sequence\\frames"
+  },
+  "execution_result": {
+    "success": true,
+    "prompt_id": "4bfb9ff5-d4a6-4e32-b761-471644a0fbb9",
+    "output_images": [
+      "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_comfyui_downloads\\20260426_155313_online_smoke_run_chunk_0000_4bfb9ff5\\online_smoke_run_chunk_0000_frames_00001_.png",
+      "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_comfyui_downloads\\20260426_155313_online_smoke_run_chunk_0000_4bfb9ff5\\online_smoke_run_chunk_0000_frames_00002_.png"
+    ],
+    "output_videos": [
+      "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_comfyui_downloads\\20260426_155313_online_smoke_run_chunk_0000_4bfb9ff5\\online_smoke_run_chunk_0000_00001.mp4"
+    ],
+    "output_dir": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_comfyui_downloads\\20260426_155313_online_smoke_run_chunk_0000_4bfb9ff5",
+    "error_message": "",
+    "degraded": false,
+    "degraded_reason": "",
+    "elapsed_seconds": 56.234
+  },
+  "node_progress": {},
+  "materialized_frame_paths": [
+    "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_frames\\frame_00000.png",
+    "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_frames\\frame_00001.png"
+  ],
+  "materialized_video_paths": [
+    "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_frames\\online_smoke_run_chunk_0000_00001.mp4"
+  ]
+}

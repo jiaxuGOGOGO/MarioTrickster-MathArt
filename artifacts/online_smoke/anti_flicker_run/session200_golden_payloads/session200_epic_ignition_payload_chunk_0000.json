@@ -1,0 +1,957 @@
+{
+    "client_id": "66c3ed50-774e-4c24-8441-ebbf6532871a",
+    "prompt": {
+        "1": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": {
+                "ckpt_name": "v1-5-pruned-emaonly.safetensors"
+            },
+            "_meta": {
+                "title": "Load Checkpoint"
+            }
+        },
+        "2": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+                "text": "pixel art humanoid runner, clean game sprite, side view, consistent character, high quality",
+                "clip": [
+                    "1",
+                    1
+                ]
+            },
+            "_meta": {
+                "title": "Positive Prompt"
+            }
+        },
+        "3": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+                "text": "blurry, low quality, distorted, deformed, text, watermark",
+                "clip": [
+                    "1",
+                    1
+                ]
+            },
+            "_meta": {
+                "title": "Negative Prompt"
+            }
+        },
+        "4": {
+            "class_type": "ADE_AnimateDiffLoaderWithContext",
+            "inputs": {
+                "model": [
+                    "1",
+                    0
+                ],
+                "model_name": "v3_sd15_mm.ckpt",
+                "beta_schedule": "autoselect",
+                "context_options": [
+                    "5",
+                    0
+                ]
+            },
+            "_meta": {
+                "title": "AnimateDiff Loader"
+            }
+        },
+        "5": {
+            "class_type": "ADE_AnimateDiffUniformContextOptions",
+            "inputs": {
+                "context_length": 2,
+                "context_stride": 1,
+                "context_overlap": 0,
+                "context_schedule": "uniform",
+                "closed_loop": false,
+                "fuse_method": "flat",
+                "use_on_equal_length": false
+            },
+            "_meta": {
+                "title": "Context Options"
+            }
+        },
+        "6": {
+            "class_type": "VHS_LoadImagesPath",
+            "inputs": {
+                "directory": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_normal_sequence\\frames",
+                "image_load_cap": 0,
+                "skip_first_images": 0,
+                "select_every_nth": 1
+            },
+            "_meta": {
+                "title": "Load Normal Sequence"
+            }
+        },
+        "7": {
+            "class_type": "VHS_LoadImagesPath",
+            "inputs": {
+                "directory": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\frames",
+                "image_load_cap": 0,
+                "skip_first_images": 0,
+                "select_every_nth": 1
+            },
+            "_meta": {
+                "title": "Load Depth Sequence"
+            }
+        },
+        "8": {
+            "class_type": "ControlNetLoader",
+            "inputs": {
+                "control_net_name": "control_v11p_sd15_normalbae.pth"
+            },
+            "_meta": {
+                "title": "Load Normal ControlNet"
+            }
+        },
+        "9": {
+            "class_type": "ControlNetLoader",
+            "inputs": {
+                "control_net_name": "control_v11f1p_sd15_depth.pth"
+            },
+            "_meta": {
+                "title": "Load Depth ControlNet"
+            }
+        },
+        "10": {
+            "class_type": "ACN_SparseCtrlLoaderAdvanced",
+            "inputs": {
+                "sparsectrl_name": "v3_sd15_sparsectrl_rgb.ckpt",
+                "use_motion": true,
+                "motion_strength": 0.55,
+                "motion_scale": 1.0
+            },
+            "_meta": {
+                "title": "Load SparseCtrl Model"
+            }
+        },
+        "11": {
+            "class_type": "ControlNetApplyAdvanced",
+            "inputs": {
+                "positive": [
+                    "2",
+                    0
+                ],
+                "negative": [
+                    "3",
+                    0
+                ],
+                "control_net": [
+                    "8",
+                    0
+                ],
+                "image": [
+                    "6",
+                    0
+                ],
+                "strength": 0.55,
+                "start_percent": 0.0,
+                "end_percent": 1.0
+            },
+            "_meta": {
+                "title": "Apply Normal ControlNet"
+            }
+        },
+        "12": {
+            "class_type": "ControlNetApplyAdvanced",
+            "inputs": {
+                "positive": [
+                    "11",
+                    0
+                ],
+                "negative": [
+                    "11",
+                    1
+                ],
+                "control_net": [
+                    "9",
+                    0
+                ],
+                "image": [
+                    "7",
+                    0
+                ],
+                "strength": 0.55,
+                "start_percent": 0.0,
+                "end_percent": 1.0
+            },
+            "_meta": {
+                "title": "Apply Depth ControlNet"
+            }
+        },
+        "13": {
+            "class_type": "VHS_LoadImagesPath",
+            "inputs": {
+                "directory": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_rgb_sequence\\frames",
+                "image_load_cap": 0,
+                "skip_first_images": 0,
+                "select_every_nth": 1
+            },
+            "_meta": {
+                "title": "Load RGB Sequence"
+            }
+        },
+        "20": {
+            "class_type": "ACN_SparseCtrlRGBPreprocessor",
+            "inputs": {
+                "image": [
+                    "13",
+                    0
+                ],
+                "vae": [
+                    "1",
+                    2
+                ],
+                "latent_size": [
+                    "15",
+                    0
+                ]
+            },
+            "_meta": {
+                "title": "SparseCtrl RGB Preprocessor"
+            }
+        },
+        "14": {
+            "class_type": "ControlNetApplyAdvanced",
+            "inputs": {
+                "positive": [
+                    "23",
+                    0
+                ],
+                "negative": [
+                    "23",
+                    1
+                ],
+                "control_net": [
+                    "10",
+                    0
+                ],
+                "image": [
+                    "20",
+                    0
+                ],
+                "strength": 0.55,
+                "start_percent": 0.0,
+                "end_percent": 0.5
+            },
+            "_meta": {
+                "title": "Apply SparseCtrl RGB"
+            }
+        },
+        "15": {
+            "class_type": "EmptyLatentImage",
+            "inputs": {
+                "width": 512,
+                "height": 512,
+                "batch_size": 2
+            },
+            "_meta": {
+                "title": "Empty Latent Batch"
+            }
+        },
+        "16": {
+            "class_type": "KSampler",
+            "inputs": {
+                "model": [
+                    "27",
+                    0
+                ],
+                "positive": [
+                    "14",
+                    0
+                ],
+                "negative": [
+                    "14",
+                    1
+                ],
+                "latent_image": [
+                    "15",
+                    0
+                ],
+                "seed": 1542711256,
+                "steps": 1,
+                "cfg": 3.5,
+                "sampler_name": "euler_ancestral",
+                "scheduler": "normal",
+                "denoise": 0.65
+            },
+            "_meta": {
+                "title": "KSampler"
+            }
+        },
+        "17": {
+            "class_type": "VAEDecode",
+            "inputs": {
+                "samples": [
+                    "16",
+                    0
+                ],
+                "vae": [
+                    "1",
+                    2
+                ]
+            },
+            "_meta": {
+                "title": "Decode Image"
+            }
+        },
+        "18": {
+            "class_type": "VHS_VideoCombine",
+            "inputs": {
+                "images": [
+                    "17",
+                    0
+                ],
+                "frame_rate": 8,
+                "loop_count": 0,
+                "filename_prefix": "online_smoke_run_chunk_0000",
+                "format": "video/h264-mp4",
+                "pingpong": false,
+                "save_output": true
+            },
+            "_meta": {
+                "title": "Video Combine Output"
+            }
+        },
+        "19": {
+            "class_type": "SaveImage",
+            "inputs": {
+                "images": [
+                    "17",
+                    0
+                ],
+                "filename_prefix": "online_smoke_run_chunk_0000_frames"
+            },
+            "_meta": {
+                "title": "Save Frame Output"
+            }
+        },
+        "21": {
+            "class_type": "VHS_LoadImagesPath",
+            "inputs": {
+                "directory": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\openpose_pose",
+                "image_load_cap": 0,
+                "skip_first_images": 0,
+                "select_every_nth": 1
+            },
+            "_meta": {
+                "title": "Load OpenPose Sequence"
+            }
+        },
+        "22": {
+            "class_type": "ControlNetLoader",
+            "inputs": {
+                "control_net_name": "control_v11p_sd15_openpose.pth"
+            },
+            "_meta": {
+                "title": "OpenPose ControlNet Loader"
+            }
+        },
+        "23": {
+            "class_type": "ControlNetApplyAdvanced",
+            "inputs": {
+                "positive": [
+                    "12",
+                    0
+                ],
+                "negative": [
+                    "12",
+                    1
+                ],
+                "control_net": [
+                    "22",
+                    0
+                ],
+                "image": [
+                    "21",
+                    0
+                ],
+                "strength": 1.0,
+                "start_percent": 0.0,
+                "end_percent": 1.0
+            },
+            "_meta": {
+                "title": "Apply OpenPose ControlNet"
+            }
+        },
+        "24": {
+            "class_type": "LoadImage",
+            "inputs": {
+                "image": "reference_runner.png"
+            },
+            "_meta": {
+                "title": "SESSION194 IP-Adapter Reference Image"
+            }
+        },
+        "25": {
+            "class_type": "CLIPVisionLoader",
+            "inputs": {
+                "clip_name": "clip_vision_h.safetensors"
+            },
+            "_meta": {
+                "title": "SESSION194 CLIP Vision Loader"
+            }
+        },
+        "26": {
+            "class_type": "IPAdapterModelLoader",
+            "inputs": {
+                "ipadapter_file": "ip-adapter-plus_sd15.safetensors"
+            },
+            "_meta": {
+                "title": "SESSION194 IP-Adapter Loader"
+            }
+        },
+        "27": {
+            "class_type": "IPAdapterAdvanced",
+            "inputs": {
+                "weight": 0.85,
+                "weight_type": "linear",
+                "combine_embeds": "concat",
+                "start_at": 0.0,
+                "end_at": 1.0,
+                "embeds_scaling": "V only",
+                "ipadapter": [
+                    "26",
+                    0
+                ],
+                "clip_vision": [
+                    "25",
+                    0
+                ],
+                "image": [
+                    "24",
+                    0
+                ],
+                "model": [
+                    "4",
+                    0
+                ]
+            },
+            "_meta": {
+                "title": "SESSION194 IP-Adapter Apply"
+            }
+        }
+    },
+    "mathart_lock_manifest": {
+        "preset_name": "sparsectrl_animatediff",
+        "preset_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\mathart\\assets\\comfyui_presets\\sparsectrl_animatediff.json",
+        "controlnet_guides": [
+            "normal",
+            "depth",
+            "sparsectrl_rgb"
+        ],
+        "guides_requested": [
+            "normal",
+            "depth",
+            "sparsectrl_rgb"
+        ],
+        "identity_reference_present": false,
+        "identity_lock_requested": false,
+        "identity_lock_active": false,
+        "seed": 1542711256,
+        "node_count": 20,
+        "semantic_bindings": [
+            {
+                "node_id": "4",
+                "class_type": "ADE_AnimateDiffLoaderWithContext",
+                "title": "AnimateDiff Loader",
+                "input_key": "beta_schedule",
+                "value": "autoselect",
+                "role": "animatediff_beta"
+            },
+            {
+                "node_id": "4",
+                "class_type": "ADE_AnimateDiffLoaderWithContext",
+                "title": "AnimateDiff Loader",
+                "input_key": "model_name",
+                "value": "v3_sd15_mm.ckpt",
+                "role": "animatediff_model"
+            },
+            {
+                "node_id": "1",
+                "class_type": "CheckpointLoaderSimple",
+                "title": "Load Checkpoint",
+                "input_key": "ckpt_name",
+                "value": "v1-5-pruned-emaonly.safetensors",
+                "role": "checkpoint"
+            },
+            {
+                "node_id": "5",
+                "class_type": "ADE_AnimateDiffUniformContextOptions",
+                "title": "Context Options",
+                "input_key": "context_length",
+                "value": 2,
+                "role": "context_length"
+            },
+            {
+                "node_id": "5",
+                "class_type": "ADE_AnimateDiffUniformContextOptions",
+                "title": "Context Options",
+                "input_key": "context_overlap",
+                "value": 0,
+                "role": "context_overlap"
+            },
+            {
+                "node_id": "12",
+                "class_type": "ControlNetApplyAdvanced",
+                "title": "Apply Depth ControlNet",
+                "input_key": "strength",
+                "value": 1.0,
+                "role": "depth_apply"
+            },
+            {
+                "node_id": "9",
+                "class_type": "ControlNetLoader",
+                "title": "Load Depth ControlNet",
+                "input_key": "control_net_name",
+                "value": "control_v11f1p_sd15_depth.pth",
+                "role": "depth_controlnet"
+            },
+            {
+                "node_id": "7",
+                "class_type": "VHS_LoadImagesPath",
+                "title": "Load Depth Sequence",
+                "input_key": "directory",
+                "value": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\frames",
+                "role": "depth_sequence_dir"
+            },
+            {
+                "node_id": "16",
+                "class_type": "KSampler",
+                "title": "KSampler",
+                "input_key": "cfg",
+                "value": 3.5,
+                "role": "ksampler_cfg"
+            },
+            {
+                "node_id": "16",
+                "class_type": "KSampler",
+                "title": "KSampler",
+                "input_key": "denoise",
+                "value": 0.65,
+                "role": "ksampler_denoise"
+            },
+            {
+                "node_id": "16",
+                "class_type": "KSampler",
+                "title": "KSampler",
+                "input_key": "seed",
+                "value": 1542711256,
+                "role": "ksampler_seed"
+            },
+            {
+                "node_id": "16",
+                "class_type": "KSampler",
+                "title": "KSampler",
+                "input_key": "steps",
+                "value": 1,
+                "role": "ksampler_steps"
+            },
+            {
+                "node_id": "15",
+                "class_type": "EmptyLatentImage",
+                "title": "Empty Latent Batch",
+                "input_key": "batch_size",
+                "value": 2,
+                "role": "latent_batch_size"
+            },
+            {
+                "node_id": "15",
+                "class_type": "EmptyLatentImage",
+                "title": "Empty Latent Batch",
+                "input_key": "height",
+                "value": 512,
+                "role": "latent_height"
+            },
+            {
+                "node_id": "15",
+                "class_type": "EmptyLatentImage",
+                "title": "Empty Latent Batch",
+                "input_key": "width",
+                "value": 512,
+                "role": "latent_width"
+            },
+            {
+                "node_id": "3",
+                "class_type": "CLIPTextEncode",
+                "title": "Negative Prompt",
+                "input_key": "text",
+                "value": "blurry, low quality, distorted, deformed, text, watermark",
+                "role": "negative_prompt"
+            },
+            {
+                "node_id": "11",
+                "class_type": "ControlNetApplyAdvanced",
+                "title": "Apply Normal ControlNet",
+                "input_key": "strength",
+                "value": 1.0,
+                "role": "normal_apply"
+            },
+            {
+                "node_id": "8",
+                "class_type": "ControlNetLoader",
+                "title": "Load Normal ControlNet",
+                "input_key": "control_net_name",
+                "value": "control_v11p_sd15_normalbae.pth",
+                "role": "normal_controlnet"
+            },
+            {
+                "node_id": "6",
+                "class_type": "VHS_LoadImagesPath",
+                "title": "Load Normal Sequence",
+                "input_key": "directory",
+                "value": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_normal_sequence\\frames",
+                "role": "normal_sequence_dir"
+            },
+            {
+                "node_id": "2",
+                "class_type": "CLIPTextEncode",
+                "title": "Positive Prompt",
+                "input_key": "text",
+                "value": "pixel art humanoid runner, clean game sprite, side view, consistent character, high quality",
+                "role": "positive_prompt"
+            },
+            {
+                "node_id": "13",
+                "class_type": "VHS_LoadImagesPath",
+                "title": "Load RGB Sequence",
+                "input_key": "directory",
+                "value": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_rgb_sequence\\frames",
+                "role": "rgb_sequence_dir"
+            },
+            {
+                "node_id": "19",
+                "class_type": "SaveImage",
+                "title": "Save Frame Output",
+                "input_key": "filename_prefix",
+                "value": "online_smoke_run_chunk_0000_frames",
+                "role": "save_frame_output"
+            },
+            {
+                "node_id": "14",
+                "class_type": "ControlNetApplyAdvanced",
+                "title": "Apply SparseCtrl RGB",
+                "input_key": "strength",
+                "value": 1.0,
+                "role": "sparsectrl_apply"
+            },
+            {
+                "node_id": "14",
+                "class_type": "ControlNetApplyAdvanced",
+                "title": "Apply SparseCtrl RGB",
+                "input_key": "end_percent",
+                "value": 0.5,
+                "role": "sparsectrl_end_percent"
+            },
+            {
+                "node_id": "10",
+                "class_type": "ACN_SparseCtrlLoaderAdvanced",
+                "title": "Load SparseCtrl Model",
+                "input_key": "sparsectrl_name",
+                "value": "v3_sd15_sparsectrl_rgb.ckpt",
+                "role": "sparsectrl_model"
+            },
+            {
+                "node_id": "10",
+                "class_type": "ACN_SparseCtrlLoaderAdvanced",
+                "title": "Load SparseCtrl Model",
+                "input_key": "motion_strength",
+                "value": 1.0,
+                "role": "sparsectrl_strength"
+            },
+            {
+                "node_id": "18",
+                "class_type": "VHS_VideoCombine",
+                "title": "Video Combine Output",
+                "input_key": "filename_prefix",
+                "value": "online_smoke_run_chunk_0000",
+                "role": "video_filename"
+            },
+            {
+                "node_id": "18",
+                "class_type": "VHS_VideoCombine",
+                "title": "Video Combine Output",
+                "input_key": "frame_rate",
+                "value": 8,
+                "role": "video_frame_rate"
+            }
+        ],
+        "temporal_config": {
+            "frame_count": 2,
+            "context_length": 2,
+            "context_overlap": 0,
+            "frame_rate": 8,
+            "animatediff_model": "v3_sd15_mm.ckpt",
+            "animatediff_beta_schedule": "autoselect",
+            "sparsectrl_model": "v3_sd15_sparsectrl_rgb.ckpt",
+            "sparsectrl_strength": 1.0,
+            "sparsectrl_end_percent": 0.5,
+            "batch_size_synced": true,
+            "uses_sparsectrl": true
+        },
+        "sequence_directories": {
+            "normal": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_normal_sequence\\frames",
+            "depth": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_depth_sequence\\frames",
+            "rgb": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\online_smoke_run_chunk_0000_rgb_sequence\\frames"
+        },
+        "workflow_contract": {
+            "format": "workflow_api_json",
+            "injection_mode": "semantic_selector",
+            "selector_fields": [
+                "class_type",
+                "_meta.title"
+            ],
+            "sequence_aware": true,
+            "vhs_directory_injection": true,
+            "preset_family": "normal_depth_sparsectrl"
+        },
+        "session189_override_report": {
+            "session": "SESSION-189",
+            "feature": "force_override_workflow_payload",
+            "target_edge": 512,
+            "max_frames": 16,
+            "cfg_ceiling": 4.5,
+            "controlnet_strength_ceiling": 0.55,
+            "video_frame_rate": 8,
+            "touched_nodes": [
+                {
+                    "node_id": "10",
+                    "class_type": "ACN_SparseCtrlLoaderAdvanced",
+                    "motion_strength": [
+                        1.0,
+                        0.55
+                    ]
+                },
+                {
+                    "node_id": "11",
+                    "class_type": "ControlNetApplyAdvanced",
+                    "strength": [
+                        1.0,
+                        0.55
+                    ]
+                },
+                {
+                    "node_id": "12",
+                    "class_type": "ControlNetApplyAdvanced",
+                    "strength": [
+                        1.0,
+                        0.55
+                    ]
+                },
+                {
+                    "node_id": "14",
+                    "class_type": "ControlNetApplyAdvanced",
+                    "strength": [
+                        1.0,
+                        0.55
+                    ]
+                },
+                {
+                    "node_id": "15",
+                    "class_type": "EmptyLatentImage",
+                    "width": [
+                        512,
+                        512
+                    ],
+                    "height": [
+                        512,
+                        512
+                    ],
+                    "batch_size": [
+                        2,
+                        2
+                    ]
+                },
+                {
+                    "node_id": "18",
+                    "class_type": "VHS_VideoCombine",
+                    "frame_rate": [
+                        8,
+                        8
+                    ]
+                }
+            ]
+        },
+        "session194_openpose_chain": {
+            "session": "SESSION-194",
+            "feature": "openpose_controlnet_chain_hydration",
+            "openpose_sequence_directory": "__OPENPOSE_SEQUENCE_DIR__",
+            "touched_nodes": [
+                {
+                    "node_id": "21",
+                    "operation": "create",
+                    "class_type": "VHS_LoadImagesPath"
+                },
+                {
+                    "node_id": "22",
+                    "operation": "create",
+                    "class_type": "ControlNetLoader"
+                },
+                {
+                    "node_id": "23",
+                    "operation": "create",
+                    "class_type": "ControlNetApplyAdvanced"
+                },
+                {
+                    "node_id": "14",
+                    "operation": "rewire_conditioning",
+                    "input_key": "positive",
+                    "from": [
+                        "12",
+                        0
+                    ],
+                    "to": [
+                        "23",
+                        0
+                    ]
+                },
+                {
+                    "node_id": "14",
+                    "operation": "rewire_conditioning",
+                    "input_key": "negative",
+                    "from": [
+                        "12",
+                        1
+                    ],
+                    "to": [
+                        "23",
+                        1
+                    ]
+                }
+            ],
+            "mode": "injected",
+            "openpose_apply_node_id": "23",
+            "openpose_loader_node_id": "22",
+            "openpose_vhs_node_id": "21"
+        },
+        "session194_ipadapter_chain": {
+            "session": "SESSION-194",
+            "feature": "ipadapter_quartet_hydration",
+            "touched_nodes": [
+                {
+                    "node_id": "16",
+                    "operation": "rewire_model_to_ipadapter",
+                    "from": [
+                        "4",
+                        0
+                    ],
+                    "to": [
+                        "27",
+                        0
+                    ]
+                },
+                {
+                    "node_id": "24",
+                    "operation": "create",
+                    "class_type": "LoadImage"
+                },
+                {
+                    "node_id": "25",
+                    "operation": "create",
+                    "class_type": "CLIPVisionLoader"
+                },
+                {
+                    "node_id": "26",
+                    "operation": "create",
+                    "class_type": "IPAdapterModelLoader"
+                },
+                {
+                    "node_id": "27",
+                    "operation": "create",
+                    "class_type": "IPAdapterAdvanced"
+                }
+            ],
+            "mode": "injected",
+            "ipadapter_apply_node_id": "27"
+        },
+        "session194_dag_closure": {
+            "session": "SESSION-194",
+            "feature": "validate_preset_topology_closure",
+            "node_count": 27,
+            "ghost_edges": [],
+            "has_sampler": true,
+            "has_sink": true,
+            "status": "closed"
+        },
+        "session194_pipeline_integration_closure": true,
+        "session194_openpose_artifact": {
+            "artifact_family": "openpose_pose_sequence",
+            "backend_type": "openpose_skeleton_render",
+            "sequence_directory": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides\\chunk_0000\\openpose_pose",
+            "frame_count": 2,
+            "width": 512,
+            "height": 512,
+            "keypoint_layout": "coco_18"
+        },
+        "session194_arbitration_report": {
+            "session": "SESSION-193",
+            "feature": "controlnet_arbitration",
+            "is_dummy_mesh": false,
+            "touched_nodes": [],
+            "action": "no_change"
+        },
+        "session195_ipadapter_identity_report": {
+            "session": "SESSION-193",
+            "feature": "ipadapter_identity_lock",
+            "reference_image": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\reference_runner.png",
+            "weight": 0.85,
+            "touched_nodes": [
+                {
+                    "node_id": "27",
+                    "class_type": "IPAdapterAdvanced",
+                    "operation": "weight_update",
+                    "weight": [
+                        0.85,
+                        0.85
+                    ]
+                },
+                {
+                    "node_id": "24",
+                    "class_type": "LoadImage",
+                    "operation": "reference_image_update",
+                    "image": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\reference_runner.png"
+                }
+            ],
+            "mode": "update",
+            "injected": true
+        },
+        "session197_vfx_topology_report": {
+            "session": "SESSION-197",
+            "feature": "vfx_topology_hydration",
+            "fluid_report": null,
+            "physics_report": null,
+            "artifacts_detected": [],
+            "artifacts_injected": [],
+            "dag_closure": null,
+            "action": "no_vfx_artifacts_detected"
+        },
+        "session205_model_resolution_report": {
+            "session": "SESSION-205+206",
+            "policy": "REFUSE_TO_DEGRADE",
+            "actions": [
+                {
+                    "node_id": "25",
+                    "type": "clip_vision_resolved",
+                    "from": "clip-vit-h-14-laion2B-s32B-b79K.safetensors",
+                    "to": "clip_vision_h.safetensors"
+                },
+                {
+                    "node_id": "26",
+                    "type": "ipadapter_model_resolved",
+                    "from": "ip-adapter-plus_sd15.safetensors",
+                    "to": "ip-adapter-plus_sd15.safetensors"
+                },
+                {
+                    "node_id": "22",
+                    "type": "openpose_controlnet_resolved",
+                    "from": "control_v11p_sd15_openpose.pth",
+                    "to": "control_v11p_sd15_openpose.pth"
+                },
+                {
+                    "node_id": "24",
+                    "type": "reference_image_uploaded",
+                    "local_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\reference_runner.png",
+                    "server_filename": "reference_runner.png"
+                }
+            ]
+        }
+    }
+}

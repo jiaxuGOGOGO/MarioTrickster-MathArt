@@ -135,11 +135,10 @@ class ArtifactFamily(Enum):
     # family. Carries preview media paths plus render diagnostics for the
     # tensorized FK visual verification lane.
     ANIMATION_PREVIEW = "animation_preview"
-    # SESSION-151 (P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH): ComfyUI
-    # headless render report artifact family.  Carries rendered image/video
-    # paths, mutation ledger, VRAM GC status, and production telemetry for
-    # the end-to-end BFF dynamic payload injection render lane.
-    COMFYUI_RENDER_REPORT = "comfyui_render_report"
+    # V6: ComfyUI is demoted to a static initializer. It accepts only a
+    # creator vibe and emits one still reference asset; animation timing is
+    # owned exclusively by mathart.animation and Blender reduction lanes.
+    COMFYUI_STATIC_ASSET = "comfyui_static_asset"
     # SESSION-163 (P0-SESSION-161-COMFYUI-API-BRIDGE): Full-array AI render
     # stream report.  Carries per-action render status, hydrated output paths,
     # circuit breaker telemetry, and completion ratio for the streaming
@@ -257,11 +256,9 @@ class ArtifactFamily(Enum):
                 "render_time_ms",
                 "animation_name",
             }),
-            # SESSION-151 (P0-SESSION-147-COMFYUI-API-DYNAMIC-DISPATCH):
-            # Mandatory metadata for ComfyUI render reports so downstream
-            # quality gates and GA fitness evaluators can validate render
-            # provenance without inspecting image files.
-            cls.COMFYUI_RENDER_REPORT.value: frozenset({
+            # V6: Mandatory metadata for ComfyUI static initializer assets.
+            # The schema intentionally contains no frame/video/temporal keys.
+            cls.COMFYUI_STATIC_ASSET.value: frozenset({
                 "prompt_id",
                 "server_address",
                 "render_elapsed_seconds",
@@ -269,6 +266,8 @@ class ArtifactFamily(Enum):
                 "vram_freed",
                 "mutation_count",
                 "blueprint_name",
+                "vibe",
+                "static_asset_only",
             }),
             # SESSION-163 (P0-SESSION-161-COMFYUI-API-BRIDGE):
             # Mandatory metadata for AI render stream reports.

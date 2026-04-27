@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from .backend_registry import register_backend, BackendCapability
+from .artifact_schema import ArtifactFamily, ArtifactManifest
 from .backend_types import BackendType
 from .provenance_tracker import (
     KnowledgeLineageTracker,
@@ -64,6 +65,7 @@ class ProvenanceAuditArtifact:
     knowledge_driven_count: int = 0
     heuristic_fallback_count: int = 0
     dangling_count: int = 0
+    niche_count: int = 0
     health_verdict: str = ""
     dead_zone_params: List[str] = field(default_factory=list)
 
@@ -77,6 +79,7 @@ class ProvenanceAuditArtifact:
             "knowledge_driven_count": self.knowledge_driven_count,
             "heuristic_fallback_count": self.heuristic_fallback_count,
             "dangling_count": self.dangling_count,
+            "niche_count": self.niche_count,
             "health_verdict": self.health_verdict,
             "dead_zone_params": self.dead_zone_params,
         }
@@ -89,7 +92,7 @@ class ProvenanceAuditArtifact:
 @register_backend(
     BackendType.PROVENANCE_AUDIT,
     display_name="Knowledge Provenance Audit (知识血统溯源审计)",
-    artifact_families=("provenance_audit_report", "knowledge_audit_json"),
+    artifact_families=(ArtifactFamily.META_REPORT.value,),
     capabilities=(BackendCapability.KNOWLEDGE_DISTILL,),
     input_requirements=(),
     dependencies=(),
@@ -125,7 +128,7 @@ class ProvenanceAuditBackend:
         self,
         context: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
-    ) -> ProvenanceAuditArtifact:
+    ) -> ArtifactManifest:
         """Execute the provenance audit.
 
         This method accepts a unified ``context`` dict as a positional argument
@@ -262,6 +265,7 @@ class ProvenanceAuditBackend:
             knowledge_driven_count=ctx.knowledge_driven_count,
             heuristic_fallback_count=ctx.heuristic_fallback_count,
             dangling_count=ctx.dangling_count,
+            niche_count=0,
             health_verdict=self._compute_verdict(ctx),
             dead_zone_params=[
                 r.param_key
@@ -275,7 +279,20 @@ class ProvenanceAuditBackend:
             artifact.run_id,
             artifact.health_verdict,
         )
-        return artifact
+        return ArtifactManifest(
+            artifact_family=ArtifactFamily.META_REPORT.value,
+            backend_type=BackendType.PROVENANCE_AUDIT.value,
+            version="1.0.0",
+            session_id=session_id,
+            outputs={"report_file": artifact.json_log_path},
+            metadata=artifact.to_dict(),
+            quality_metrics={
+                "total_params": float(artifact.total_params),
+                "knowledge_driven_count": float(artifact.knowledge_driven_count),
+                "heuristic_fallback_count": float(artifact.heuristic_fallback_count),
+                "dangling_count": float(artifact.dangling_count),
+            },
+        )
 
     @staticmethod
     def _compute_verdict(ctx: ProvenanceAuditContext) -> str:
@@ -356,7 +373,7 @@ def run_standalone_audit(
 
     # Run audit
     backend = ProvenanceAuditBackend(project_root=project_root)
-    artifact = backend.execute(
+    manifest = backend.execute(
         knowledge_bus=knowledge_bus,
         intent_spec=spec,
         raw_vibe=vibe,
@@ -365,7 +382,7 @@ def run_standalone_audit(
         session_id="SESSION-152",
     )
 
-    return artifact
+    return ProvenanceAuditArtifact(**manifest.metadata)
 
 
 # ---------------------------------------------------------------------------

@@ -640,6 +640,16 @@ class ComfyUIPresetManager:
             )
             _ipa_report = _hydrate_ipadapter(workflow)
             _closure_report = _validate_closure(workflow)
+            _post_hydration_override_report = _force_override(
+                workflow,
+                target_edge=_LATENT_EDGE,
+                max_frames=_MAX_FRAMES,
+                cfg_ceiling=4.5,
+                controlnet_strength=0.55,
+                actual_batch_size=int(frame_count),
+                video_frame_rate=int(frame_rate),
+            )
+            lock_manifest["session189_post_hydration_override_report"] = _post_hydration_override_report
             lock_manifest["session194_openpose_chain"] = _openpose_report
             lock_manifest["session194_ipadapter_chain"] = _ipa_report
             lock_manifest["session194_dag_closure"] = _closure_report

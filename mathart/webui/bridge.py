@@ -198,6 +198,8 @@ class WebUIBridge:
     Gradio frontend to consume via generator/yield pattern.
     """
 
+    PRODUCTION_TIMEOUT_SECONDS = 300.0
+
     def __init__(self, project_root: Path | None = None) -> None:
         self.project_root = project_root or _PROJECT_ROOT
         self.outputs_dir = self.project_root / "outputs" / "final_renders"
@@ -361,37 +363,78 @@ class WebUIBridge:
         }
 
         pipeline_error = None
+        dispatch_payload: dict[str, Any] | None = None
         try:
-            self._execute_pipeline(intent_dict, director_studio_spec)
+            import concurrent.futures
+            import queue
+
+            event_queue: queue.Queue[dict[str, Any]] = queue.Queue()
+            deadline = time.monotonic() + self.PRODUCTION_TIMEOUT_SECONDS
+
+            def _on_production_event(event: dict[str, Any]) -> None:
+                event_queue.put(event)
+
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            future = executor.submit(
+                self._execute_pipeline,
+                intent_dict,
+                director_studio_spec,
+                _on_production_event,
+            )
+            try:
+                while not future.done():
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        future.cancel()
+                        pipeline_error = (
+                            f"Production pipeline timed out after {self.PRODUCTION_TIMEOUT_SECONDS:g} seconds "
+                            "at pipeline_dispatch. "
+                            "This indicates the formal user-entry pipeline did not complete or fail loudly."
+                        )
+                        logger.error("[SESSION-202 Bridge] %s", pipeline_error)
+                        break
+                    try:
+                        event = event_queue.get(timeout=min(0.25, remaining))
+                    except queue.Empty:
+                        continue
+                    yield self._production_event_to_ui(event)
+                while not event_queue.empty():
+                    yield self._production_event_to_ui(event_queue.get_nowait())
+                if pipeline_error is None:
+                    dispatch_payload = future.result(timeout=0)
+            finally:
+                executor.shutdown(wait=False, cancel_futures=True)
         except Exception as e:
             pipeline_error = str(e)
             logger.warning(
                 "[SESSION-202 Bridge] Pipeline execution error: %s", e
             )
 
-        # ── Step 7: Simulated progress stages (CPU baking visualization) ──
-        stages = [
-            (0.5, "baking_openpose", "[⚙️ 工业量产] 正在解算 OpenPose 骨骼序列..."),
-            (0.6, "baking_albedo", "[⚙️ 工业量产] 正在烘焙 Albedo 贴图序列..."),
-            (0.7, "baking_normal", "[⚙️ 工业量产] 正在烘焙 Normal 法线贴图..."),
-            (0.8, "baking_depth", "[⚙️ 工业量产] 正在烘焙 Depth 深度贴图..."),
-            (0.85, "vfx_hydration", "[⚙️ VFX 注水] 正在注入流体/物理 ControlNet 拓扑..."),
-            (0.9, "dag_closure", "[⚙️ DAG 闭合] 正在验证工作流拓扑完整性..."),
-        ]
+        # ── Step 7: Legacy progress bridge for UIs expecting baking stages ──
+        if dispatch_payload is None:
+            stages = [
+                (0.5, "baking_openpose", "[⚙️ 工业量产] 正在解算 OpenPose 骨骼序列..."),
+                (0.6, "baking_albedo", "[⚙️ 工业量产] 正在烘焙 Albedo 贴图序列..."),
+                (0.7, "baking_normal", "[⚙️ 工业量产] 正在烘焙 Normal 法线贴图..."),
+                (0.8, "baking_depth", "[⚙️ 工业量产] 正在烘焙 Depth 深度贴图..."),
+                (0.85, "vfx_hydration", "[⚙️ VFX 注水] 正在注入流体/物理 ControlNet 拓扑..."),
+                (0.9, "dag_closure", "[⚙️ DAG 闭合] 正在验证工作流拓扑完整性..."),
+            ]
 
-        for progress, stage, message in stages:
-            yield {
-                "stage": stage,
-                "progress": progress,
-                "message": message,
-                "gallery": [],
-                "video": None,
-                "error": None,
-            }
+            for progress, stage, message in stages:
+                yield {
+                    "stage": stage,
+                    "progress": progress,
+                    "message": message,
+                    "gallery": [],
+                    "video": None,
+                    "error": None,
+                }
 
         # ── Step 8: Collect outputs ──────────────────────────────────
-        gallery_files = self._collect_output_gallery()
-        video_file = self._find_output_video()
+        output_roots = self._resolve_output_roots(dispatch_payload)
+        gallery_files = self._collect_output_gallery(output_roots)
+        video_file = self._find_output_video(output_roots)
 
         completion_msg = (
             f"[✅ SESSION-202] 核动力渲染完成！"
@@ -410,11 +453,70 @@ class WebUIBridge:
             "error": None,
         }
 
+    def _build_production_options(
+        self,
+        intent_dict: dict[str, Any],
+        director_studio_spec: dict[str, Any],
+    ) -> dict[str, Any]:
+        action = intent_dict.get("action_name", "") or intent_dict.get("action", "")
+        vibe = intent_dict.get("raw_vibe", "")
+        vfx_overrides = intent_dict.get("vfx_overrides", {})
+        return {
+            "skip_ai_render": False,
+            "batch_size": 1,
+            "pdg_workers": 1,
+            "gpu_slots": 1,
+            "seed": 20260425,
+            "output_dir": str(self.project_root / "output" / "production"),
+            "comfyui_url": "http://127.0.0.1:8188",
+            "ai_render_max_execution_time": 240.0,
+            "ai_render_ws_timeout": 10.0,
+            "sprite_asset_mode": True,
+            "sprite_cell_size": 64,
+            "sprite_background": "transparent_and_black",
+            "interactive": False,
+            "director_studio_spec": director_studio_spec,
+            "vibe": vibe,
+            "vfx_artifacts": vfx_overrides if vfx_overrides else None,
+            "action_filter": [action] if action else None,
+        }
+
+    def _production_event_to_ui(self, event: dict[str, Any]) -> dict[str, Any]:
+        stage = str(event.get("stage") or "production_event")
+        message = str(event.get("message") or stage)
+        progress_map = {
+            "production_preflight_started": 0.41,
+            "production_preflight_completed": 0.42,
+            "production_preflight_blocked": 0.43,
+            "production_factory_launching": 0.44,
+            "production_output_root_ready": 0.42,
+            "production_batch_created": 0.45,
+            "production_graph_built": 0.48,
+            "production_graph_run_started": 0.5,
+            "pdg_node_started": 0.55,
+            "pdg_node_progress": 0.65,
+            "pdg_node_completed": 0.75,
+            "pdg_node_skipped": 0.75,
+            "pdg_node_failed": 0.75,
+            "production_graph_run_completed": 0.86,
+            "production_result_written": 0.92,
+        }
+        return {
+            "stage": stage,
+            "progress": progress_map.get(stage, 0.5),
+            "message": f"[🏭 Production] {message}",
+            "gallery": [],
+            "video": None,
+            "error": None,
+            "production_event": event,
+        }
+
     def _execute_pipeline(
         self,
         intent_dict: dict[str, Any],
         director_studio_spec: dict[str, Any],
-    ) -> None:
+        event_callback: Any | None = None,
+    ) -> dict[str, Any]:
         """Execute the real pipeline via ModeDispatcher.
 
         SESSION-203-HOTFIX: This method now performs actual pipeline dispatch
@@ -430,25 +532,8 @@ class WebUIBridge:
         try:
             from mathart.workspace.mode_dispatcher import ModeDispatcher
 
-            action = intent_dict.get("action_name", "") or intent_dict.get("action", "")
-            vibe = intent_dict.get("raw_vibe", "")
-            vfx_overrides = intent_dict.get("vfx_overrides", {})
-
-            # Build production options matching ProductionStrategy.build_context() contract
-            options: dict[str, Any] = {
-                "skip_ai_render": False,
-                "batch_size": 20,
-                "pdg_workers": 16,
-                "gpu_slots": 1,
-                "seed": 20260425,
-                "interactive": False,  # Non-interactive (headless bridge)
-                # SESSION-196 P0-CLI-INTENT-THREADING fields
-                "director_studio_spec": director_studio_spec,
-                "vibe": vibe,
-                "vfx_artifacts": vfx_overrides if vfx_overrides else None,
-                # SESSION-191 LookDev Deep Pruning — action_filter 穿透
-                "action_filter": [action] if action else None,
-            }
+            options = self._build_production_options(intent_dict, director_studio_spec)
+            options["event_callback"] = event_callback
 
             dispatcher = ModeDispatcher(project_root=self.project_root)
             result = dispatcher.dispatch(
@@ -462,23 +547,61 @@ class WebUIBridge:
                 result.strategy_name,
                 result.executed,
             )
+            return result.payload
 
         except Exception as e:
             logger.warning("[SESSION-202 Bridge] Pipeline dispatch failed: %s", e)
             raise
 
-    def _collect_output_gallery(self) -> list[str]:
-        """Scan ``outputs/final_renders/`` for image files."""
-        gallery: list[str] = []
-        if self.outputs_dir.exists():
-            for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
-                gallery.extend(str(p) for p in sorted(self.outputs_dir.glob(ext)))
-        return gallery[-50:]  # Cap at 50 most recent
+    def _resolve_output_roots(self, dispatch_payload: dict[str, Any] | None) -> list[Path]:
+        """Resolve UI-visible output roots from a production dispatch payload."""
+        roots: list[Path] = []
+        if dispatch_payload:
+            batch_dir = dispatch_payload.get("batch_dir")
+            if batch_dir:
+                roots.append(Path(str(batch_dir)))
+            summary_path = dispatch_payload.get("summary_path")
+            if summary_path:
+                roots.append(Path(str(summary_path)).parent)
+        roots.append(self.outputs_dir)
+        seen: set[str] = set()
+        unique: list[Path] = []
+        for root in roots:
+            resolved = root.resolve()
+            key = str(resolved)
+            if key not in seen:
+                seen.add(key)
+                unique.append(resolved)
+        return unique
 
-    def _find_output_video(self) -> str | None:
-        """Find the most recent MP4 video in outputs."""
-        if self.outputs_dir.exists():
-            videos = sorted(self.outputs_dir.glob("*.mp4"), key=os.path.getmtime)
-            if videos:
-                return str(videos[-1])
+    def _collect_output_gallery(self, roots: list[Path] | None = None) -> list[str]:
+        """Scan production output roots recursively for UI gallery images."""
+        preferred: list[str] = []
+        gallery: list[str] = []
+        for root in roots or [self.outputs_dir]:
+            if root.exists():
+                preferred.extend(str(p) for p in sorted(root.rglob("*spritesheet_black.png")))
+                preferred.extend(str(p) for p in sorted(root.rglob("*spritesheet_transparent.png")))
+                for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
+                    gallery.extend(str(p) for p in sorted(root.rglob(ext)))
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for item in preferred + gallery:
+            if item not in seen:
+                seen.add(item)
+                ordered.append(item)
+        return ordered[-50:]  # Cap at 50 most recent
+
+    def _find_output_video(self, roots: list[Path] | None = None) -> str | None:
+        """Find the most recent MP4 video in production output roots."""
+        previews: list[Path] = []
+        videos: list[Path] = []
+        for root in roots or [self.outputs_dir]:
+            if root.exists():
+                previews.extend(root.rglob("*rhythmic_preview.gif"))
+                videos.extend(root.rglob("*.mp4"))
+        if previews:
+            return str(sorted(previews, key=os.path.getmtime)[-1])
+        if videos:
+            return str(sorted(videos, key=os.path.getmtime)[-1])
         return None

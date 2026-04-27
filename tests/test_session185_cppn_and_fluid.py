@@ -187,12 +187,12 @@ class TestDocumentation(unittest.TestCase):
         self.assertTrue(os.path.isfile(path),
                         "RESEARCH_NOTES_SESSION_185.md must exist")
 
-    def test_session_handoff_updated(self):
-        path = os.path.join(PROJECT_ROOT, "SESSION_HANDOFF.md")
+    def test_project_brain_retains_session_185_record(self):
+        path = os.path.join(PROJECT_ROOT, "PROJECT_BRAIN.json")
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
         self.assertIn("SESSION-185", content,
-                       "SESSION_HANDOFF.md must reference SESSION-185")
+                       "PROJECT_BRAIN.json must retain SESSION-185 historical record")
 
     def test_project_brain_updated(self):
         path = os.path.join(PROJECT_ROOT, "PROJECT_BRAIN.json")

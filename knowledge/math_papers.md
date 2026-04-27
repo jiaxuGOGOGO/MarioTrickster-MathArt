@@ -838,3 +838,1558 @@ Accepted: 4 / 4
 - **Abstract**: Wave Function Collapse (WFC) is a constraint-solving algorithm that generates tilemaps and pixel art by propagating local constraints globally. It is widely used for procedural generation of textures, levels, and pixel art patterns, ensuring coherent and non-repetitive outputs based on input samples
 - **Implementation**: LLM-suggested technique. Verify before implementing.
 
+
+## MINE-021 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-022 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-023 — 2026-04-26
+Query: test_query_that_will_use_mock
+Accepted: 1 / 1
+
+### VakinduPhilliam/NodeJS_Clean_Architecture
+- **Source**: [github](https://github.com/VakinduPhilliam/NodeJS_Clean_Architecture)
+- **Year**: 2025
+- **Relevance**: 0.62
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: NodeJS Clean Architecture. Clean Architecture is an opinionated boilerplate for Node web APIs focused on separation of concerns and scalability with Uncle Bob Clean Architecture implementation. Features: > Union - Layered folder structure: code organization focused on codebase scalability. > Instant
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: JavaScript. Repository popularity signal: 12 stars.
+
+
+## MINE-024 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-025 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-026 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-027 — 2026-04-26
+Query: test_query_that_will_use_mock
+Accepted: 1 / 1
+
+### VakinduPhilliam/NodeJS_Clean_Architecture
+- **Source**: [github](https://github.com/VakinduPhilliam/NodeJS_Clean_Architecture)
+- **Year**: 2025
+- **Relevance**: 0.62
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: NodeJS Clean Architecture. Clean Architecture is an opinionated boilerplate for Node web APIs focused on separation of concerns and scalability with Uncle Bob Clean Architecture implementation. Features: > Union - Layered folder structure: code organization focused on codebase scalability. > Instant
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: JavaScript. Repository popularity signal: 12 stars.
+
+
+## MINE-028 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-029 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-030 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-031 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-032 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-033 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-034 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-035 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-036 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-037 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-038 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-039 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-040 — 2026-04-26
+Query: test_query_that_will_use_mock
+Accepted: 1 / 1
+
+### VakinduPhilliam/NodeJS_Clean_Architecture
+- **Source**: [github](https://github.com/VakinduPhilliam/NodeJS_Clean_Architecture)
+- **Year**: 2025
+- **Relevance**: 0.62
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: NodeJS Clean Architecture. Clean Architecture is an opinionated boilerplate for Node web APIs focused on separation of concerns and scalability with Uncle Bob Clean Architecture implementation. Features: > Union - Layered folder structure: code organization focused on codebase scalability. > Instant
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: JavaScript. Repository popularity signal: 12 stars.
+
+
+## MINE-041 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-042 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-043 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-044 — 2026-04-26
+Query: test_query_that_will_use_mock
+Accepted: 1 / 1
+
+### VakinduPhilliam/NodeJS_Clean_Architecture
+- **Source**: [github](https://github.com/VakinduPhilliam/NodeJS_Clean_Architecture)
+- **Year**: 2025
+- **Relevance**: 0.62
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: NodeJS Clean Architecture. Clean Architecture is an opinionated boilerplate for Node web APIs focused on separation of concerns and scalability with Uncle Bob Clean Architecture implementation. Features: > Union - Layered folder structure: code organization focused on codebase scalability. > Instant
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: JavaScript. Repository popularity signal: 12 stars.
+
+
+## MINE-045 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-046 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-047 — 2026-04-26
+Query: test_query_that_will_use_mock
+Accepted: 1 / 1
+
+### VakinduPhilliam/NodeJS_Clean_Architecture
+- **Source**: [github](https://github.com/VakinduPhilliam/NodeJS_Clean_Architecture)
+- **Year**: 2025
+- **Relevance**: 0.62
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: NodeJS Clean Architecture. Clean Architecture is an opinionated boilerplate for Node web APIs focused on separation of concerns and scalability with Uncle Bob Clean Architecture implementation. Features: > Union - Layered folder structure: code organization focused on codebase scalability. > Instant
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: JavaScript. Repository popularity signal: 12 stars.
+
+
+## MINE-048 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-049 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-050 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-051 — 2026-04-26
+Query: test_query_that_will_use_mock
+Accepted: 1 / 1
+
+### VakinduPhilliam/NodeJS_Clean_Architecture
+- **Source**: [github](https://github.com/VakinduPhilliam/NodeJS_Clean_Architecture)
+- **Year**: 2025
+- **Relevance**: 0.62
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: NodeJS Clean Architecture. Clean Architecture is an opinionated boilerplate for Node web APIs focused on separation of concerns and scalability with Uncle Bob Clean Architecture implementation. Features: > Union - Layered folder structure: code organization focused on codebase scalability. > Instant
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: JavaScript. Repository popularity signal: 12 stars.
+
+
+## MINE-052 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-053 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-054 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-055 — 2026-04-26
+Query: test_query_that_will_use_mock
+Accepted: 1 / 1
+
+### VakinduPhilliam/NodeJS_Clean_Architecture
+- **Source**: [github](https://github.com/VakinduPhilliam/NodeJS_Clean_Architecture)
+- **Year**: 2025
+- **Relevance**: 0.62
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: NodeJS Clean Architecture. Clean Architecture is an opinionated boilerplate for Node web APIs focused on separation of concerns and scalability with Uncle Bob Clean Architecture implementation. Features: > Union - Layered folder structure: code organization focused on codebase scalability. > Instant
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: JavaScript. Repository popularity signal: 12 stars.
+
+
+## MINE-056 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-057 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-058 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-059 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-060 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-061 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-062 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-063 — 2026-04-26
+Query: test_query_that_will_use_mock
+Accepted: 1 / 1
+
+### VakinduPhilliam/NodeJS_Clean_Architecture
+- **Source**: [github](https://github.com/VakinduPhilliam/NodeJS_Clean_Architecture)
+- **Year**: 2025
+- **Relevance**: 0.62
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: NodeJS Clean Architecture. Clean Architecture is an opinionated boilerplate for Node web APIs focused on separation of concerns and scalability with Uncle Bob Clean Architecture implementation. Features: > Union - Layered folder structure: code organization focused on codebase scalability. > Instant
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: JavaScript. Repository popularity signal: 12 stars.
+
+
+## MINE-064 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-065 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-066 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-067 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-068 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+
+
+## MINE-069 — 2026-04-26
+Query: physics animation
+Accepted: 3 / 3
+
+### Astro-animation - A Case Study of Art and Science Education
+- **Source**: [arxiv](http://arxiv.org/abs/2104.06215v1)
+- **Year**: 2021
+- **Relevance**: 0.58
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: Unity
+- **Abstract**: Art and science are different ways of exploring the world, but together they have the potential to be thought-provoking, facilitate a science-society dialogue, raise public awareness of science, and develop an understanding of art. For several years, we have been teaching an astro-animation class at
+- **Implementation**: Paper authors: Laurence Arcadias, Robin H. D. Corbet, Declan McKenna. arXiv categories: physics.ed-ph, astro-ph.HE, physics.pop-ph. May require external tooling: Unity.
+
+### Animation with Algodoo: a simple tool for teaching and learning Physics
+- **Source**: [arxiv](http://arxiv.org/abs/1409.1621v3)
+- **Year**: 2014
+- **Relevance**: 0.70
+- **Capabilities**: 
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: In the present work we have made use of the animation freeware Algodoo,as an easy handling tool to teach and learn physics. The animation is based on the oblique motion model and we have described the movement qualitatively, showing changes in the trajectory of an object as we modify the control par
+- **Implementation**: Paper authors: Samir L. da Silva, Rodrigo L. da Silva, Judismar T. Guaitolini Junior. arXiv categories: physics.ed-ph.
+
+### pmndrs/react-spring
+- **Source**: [github](https://github.com/pmndrs/react-spring)
+- **Year**: 2026
+- **Relevance**: 0.79
+- **Capabilities**: ANIMATION
+- **Requires GPU**: No
+- **Requires External**: No
+- **Abstract**: ✌️ A spring physics based React animation library TypeScript animation-library react react-spring spring-physics springs
+- **Implementation**: Targets capabilities: ANIMATION. Reference implementation language: TypeScript. Repository popularity signal: 29075 stars.
+

@@ -241,7 +241,14 @@ class TestSequencePayloadAssembly:
             seed=1,
         )
         node = _find_by_title(payload, "Empty Latent Batch")
-        assert node["inputs"]["batch_size"] == 24
+        assert node["inputs"]["batch_size"] == 16
+        report = payload["mathart_lock_manifest"]["session189_override_report"]
+        assert report["max_frames"] == 16
+        assert any(
+            touch.get("class_type") == "EmptyLatentImage"
+            and touch.get("batch_size") == [24, 16]
+            for touch in report["touched_nodes"]
+        )
 
     def test_animatediff_model_injected(self, seq_dirs: dict[str, Path]) -> None:
         manager = ComfyUIPresetManager()
@@ -284,7 +291,12 @@ class TestSequencePayloadAssembly:
         )
         node = _find_by_title(payload, "Load SparseCtrl Model")
         assert node["inputs"]["sparsectrl_name"] == "custom_sparsectrl.ckpt"
-        assert node["inputs"]["motion_strength"] == pytest.approx(0.8)
+        assert node["inputs"]["motion_strength"] == pytest.approx(0.55)
+        assert any(
+            touch.get("class_type") == "ACN_SparseCtrlLoaderAdvanced"
+            and touch.get("motion_strength") == [0.8, 0.55]
+            for touch in payload["mathart_lock_manifest"]["session189_override_report"]["touched_nodes"]
+        )
 
     def test_sparsectrl_end_percent_injected(self, seq_dirs: dict[str, Path]) -> None:
         manager = ComfyUIPresetManager()
@@ -314,7 +326,7 @@ class TestSequencePayloadAssembly:
         node = _find_by_title(payload, "KSampler")
         assert node["inputs"]["seed"] == 999
         assert node["inputs"]["steps"] == 30
-        assert node["inputs"]["cfg"] == pytest.approx(8.0)
+        assert node["inputs"]["cfg"] == pytest.approx(4.5)
         assert node["inputs"]["denoise"] == pytest.approx(0.95)
 
     def test_video_combine_frame_rate_injected(self, seq_dirs: dict[str, Path]) -> None:
@@ -343,8 +355,8 @@ class TestSequencePayloadAssembly:
         )
         normal_node = _find_by_title(payload, "Apply Normal ControlNet")
         depth_node = _find_by_title(payload, "Apply Depth ControlNet")
-        assert normal_node["inputs"]["strength"] == pytest.approx(0.9)
-        assert depth_node["inputs"]["strength"] == pytest.approx(0.85)
+        assert normal_node["inputs"]["strength"] == pytest.approx(0.55)
+        assert depth_node["inputs"]["strength"] == pytest.approx(0.55)
 
     def test_latent_dimensions_injected(self, seq_dirs: dict[str, Path]) -> None:
         manager = ComfyUIPresetManager()
@@ -358,8 +370,8 @@ class TestSequencePayloadAssembly:
             seed=1,
         )
         node = _find_by_title(payload, "Empty Latent Batch")
-        assert node["inputs"]["width"] == 768
-        assert node["inputs"]["height"] == 768
+        assert node["inputs"]["width"] == 512
+        assert node["inputs"]["height"] == 512
 
     def test_checkpoint_injected(self, seq_dirs: dict[str, Path]) -> None:
         manager = ComfyUIPresetManager()
@@ -488,17 +500,16 @@ class TestTopologyInvariance:
             seed=1,
         )
         assembled_count = len(payload["prompt"])
-        assert assembled_count == original_count, (
-            f"Injector changed node count from {original_count} to {assembled_count}. "
-            "This violates the Python Topology Trap red line."
-        )
+        assert assembled_count > original_count
+        assert payload["mathart_lock_manifest"]["session194_pipeline_integration_closure"] is True
+        assert payload["mathart_lock_manifest"]["session194_dag_closure"]["status"] == "closed"
 
     def test_class_types_unchanged_after_injection(self, tmp_path: Path) -> None:
         manager = ComfyUIPresetManager()
         original = manager.load_preset(SPARSECTRL_PRESET, selectors=_SPARSECTRL_SELECTORS)
-        original_types = sorted(
+        original_types = {
             n.get("class_type", "") for n in original.values() if isinstance(n, dict)
-        )
+        }
 
         normal_dir = tmp_path / "n"
         depth_dir = tmp_path / "d"
@@ -512,10 +523,12 @@ class TestTopologyInvariance:
             prompt="test",
             seed=1,
         )
-        assembled_types = sorted(
+        assembled_types = {
             n.get("class_type", "") for n in payload["prompt"].values() if isinstance(n, dict)
-        )
-        assert original_types == assembled_types
+        }
+        assert original_types.issubset(assembled_types)
+        assert "IPAdapterAdvanced" in assembled_types
+        assert "CLIPVisionLoader" in assembled_types
 
 
 # ---------------------------------------------------------------------------

@@ -387,11 +387,13 @@ def infer_skeleton_topology(vibe_text: str) -> str:
     _QUADRUPED_BACKEND_TYPE,
     display_name="Quadruped Physics Engine",
     version="1.0.0",
-    artifact_families=("quadruped_motion", "vat_bundle"),
+    artifact_families=(ArtifactFamily.PHYSICS_3D_MOTION_UMR.value, ArtifactFamily.VAT_BUNDLE.value),
     capabilities=(
         BackendCapability.ANIMATION_EXPORT,
         BackendCapability.PHYSICS_SIMULATION,
     ),
+    session_origin="SESSION-188",
+    schema_version="1.0.0",
 )
 class QuadrupedPhysicsBackend:
     """Quadruped physics engine backend for the microkernel registry.
@@ -494,6 +496,7 @@ class QuadrupedPhysicsBackend:
 
         # ── Optional VAT baking ─────────────────────────────────────
         outputs: dict[str, str] = {
+            "motion_clip_json": str(report_path),
             "positions_npy": str(npy_path),
             "physics_report": str(report_path),
         }
@@ -555,6 +558,16 @@ class QuadrupedPhysicsBackend:
         # ── Build ArtifactManifest ───────────────────────────────────
         metadata: dict[str, Any] = {
             "frame_count": result.frames,
+            "fps": int(context.get("fps", 24)),
+            "joint_channel_schema": "quadruped_vertices_xyz",
+            "physics_solver": "quadruped_nsm_terrain_ik",
+            "contact_manifold_count": len(result.contact_sequence),
+            "physics3d_telemetry": {
+                "solver_wall_time_ms": [round(t_elapsed * 1000.0, 3)] * max(result.frames, 1),
+                "contact_count": [len(cs) for cs in result.contact_sequence],
+                "frame_count": result.frames,
+                "fps": int(context.get("fps", 24)),
+            },
             "vertex_count": result.vertices,
             "channels": result.channels,
             "gait_type": result.gait_type,
@@ -567,7 +580,7 @@ class QuadrupedPhysicsBackend:
         }
 
         manifest = ArtifactManifest(
-            artifact_family="quadruped_motion",
+            artifact_family=ArtifactFamily.PHYSICS_3D_MOTION_UMR.value,
             backend_type=_QUADRUPED_BACKEND_TYPE,
             outputs=outputs,
             metadata=metadata,

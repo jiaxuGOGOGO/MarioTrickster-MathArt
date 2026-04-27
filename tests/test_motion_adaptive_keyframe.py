@@ -924,12 +924,15 @@ class DummyHotBackend:
                 assert v1_class.HOT_RELOAD_VERSION == "v1_result"
 
                 lock = SafePointExecutionLock(reload_timeout=5.0)
-                watcher = BackendFileWatcher(
-                    reg,
-                    extra_watch_paths=[str(pkg_dir)],
-                    debounce_seconds=0.2,
-                    safe_point_lock=lock,
-                )
+                try:
+                    watcher = BackendFileWatcher(
+                        reg,
+                        extra_watch_paths=[str(pkg_dir)],
+                        debounce_seconds=0.2,
+                        safe_point_lock=lock,
+                    )
+                except ImportError as exc:
+                    pytest.skip(str(exc))
                 watcher.start()
 
                 frame_log: list[tuple[str, int, float]] = []

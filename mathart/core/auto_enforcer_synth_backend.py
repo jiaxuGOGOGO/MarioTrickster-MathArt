@@ -583,12 +583,14 @@ class AutoEnforcerSynthBackend:
         )
 
         outputs = {
+            "rules_file": str(report_path),
             "synthesis_report": str(report_path),
         }
         for item in generated:
             outputs[f"enforcer_{item['filename']}"] = item["path"]
 
         metadata = {
+            "rule_count": len(generated),
             "total_papers_processed": len(papers),
             "enforcers_generated": len(generated),
             "enforcers_quarantined": len(quarantined),

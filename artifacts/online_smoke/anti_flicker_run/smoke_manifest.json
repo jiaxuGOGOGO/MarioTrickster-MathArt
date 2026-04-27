@@ -1,0 +1,170 @@
+{
+  "artifact_family": "anti_flicker_report",
+  "backend_type": "anti_flicker_render",
+  "version": "5.0.0",
+  "session_id": "SESSION-108",
+  "timestamp": 1777189993.1331432,
+  "outputs": {
+    "workflow": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_workflow_manifest.json",
+    "workflow_payload": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_workflow_payload.json",
+    "preset_asset": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_preset.workflow_api.json",
+    "keyframe_plan": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_keyframe_plan.json",
+    "temporal_report": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_temporal_report.json",
+    "frame_directory": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_frames",
+    "guide_directory": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_guides",
+    "chunk_reports_directory": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_runtime\\chunk_reports",
+    "frame_0000": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_frames\\frame_00000.png",
+    "frame_0001": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_frames\\frame_00001.png",
+    "video_0000": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_frames\\online_smoke_run_chunk_0000_00001.mp4"
+  },
+  "metadata": {
+    "strategy": "comfyui_client_chunked_sequence_runtime",
+    "execution_mode": "live_comfyui_chunked",
+    "preset_name": "sparsectrl_animatediff",
+    "frame_count": 2,
+    "requested_frame_count": 2,
+    "fps": 8,
+    "keyframe_count": 2,
+    "guides_locked": [
+      "normal",
+      "depth",
+      "sparsectrl_rgb"
+    ],
+    "identity_lock_enabled": true,
+    "guide_channels": [
+      "normal",
+      "depth",
+      "mask",
+      "motion_vector"
+    ],
+    "keyframe_interval": 4,
+    "lane": "temporal_consistency",
+    "preset_asset_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_preset.workflow_api.json",
+    "assembled_workflow_node_count": 0,
+    "temporal_metrics": {
+      "chunk_count": 1,
+      "aggregate_elapsed_seconds": 56.23399999993853,
+      "downloaded_video_count": 1
+    },
+    "keyframe_indices": [
+      0,
+      1
+    ],
+    "identity_lock": {
+      "enabled": true,
+      "weight": 0.65
+    },
+    "time_range": {
+      "start_frame": 0,
+      "end_frame": 1,
+      "fps": 8,
+      "total_frames": 2
+    },
+    "comfyui_server_address": "127.0.0.1:8188",
+    "chunking": {
+      "enabled": false,
+      "chunk_size": 2,
+      "context_window": 2,
+      "context_overlap": 0,
+      "chunk_plan": [
+        {
+          "chunk_index": 0,
+          "start_frame": 0,
+          "end_frame": 1,
+          "frame_count": 2
+        }
+      ]
+    },
+    "payload": {
+      "frame_sequence": [
+        {
+          "frame_index": 0,
+          "path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_frames\\frame_00000.png",
+          "role": "keyframe",
+          "temporal_coherence_score": 1.0
+        },
+        {
+          "frame_index": 1,
+          "path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_frames\\frame_00001.png",
+          "role": "keyframe",
+          "temporal_coherence_score": 1.0
+        }
+      ],
+      "time_range": {
+        "start_frame": 0,
+        "end_frame": 1,
+        "fps": 8,
+        "total_frames": 2
+      },
+      "keyframe_plan": {
+        "indices": [
+          0,
+          1
+        ],
+        "motion_scores": {
+          "0": 0.0
+        },
+        "silhouette_scores": {
+          "0": 0.0,
+          "1": 0.149528
+        },
+        "priority_scores": {
+          "0": 0.0,
+          "1": 0.044858
+        },
+        "strategy": "motion_adaptive",
+        "max_gap": 1,
+        "density": 1.0,
+        "identity_reference_index": 0,
+        "guides_locked": [
+          "normal",
+          "depth",
+          "motion_vectors",
+          "mask",
+          "ip_adapter_identity"
+        ]
+      },
+      "workflow_manifest_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_workflow_manifest.json",
+      "workflow_payload_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_workflow_payload.json",
+      "preset_asset_path": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_preset.workflow_api.json",
+      "lock_manifest": {
+        "controlnet_guides": [
+          "normal",
+          "depth",
+          "sparsectrl_rgb"
+        ],
+        "chunk_plan": [
+          {
+            "chunk_index": 0,
+            "start_frame": 0,
+            "end_frame": 1,
+            "frame_count": 2
+          }
+        ],
+        "payload_paths": [
+          "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_runtime\\payloads\\chunk_0000_workflow_payload.json"
+        ]
+      }
+    }
+  },
+  "quality_metrics": {
+    "temporal_stability_score": 1.0,
+    "frame_count": 2.0,
+    "keyframe_count": 2.0,
+    "chunk_count": 1.0,
+    "chunk_size": 2.0
+  },
+  "references": [
+    "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_runtime\\chunk_reports\\chunk_0000_report.json",
+    "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\artifacts\\online_smoke\\anti_flicker_run\\online_smoke_run_runtime\\payloads\\chunk_0000_workflow_payload.json"
+  ],
+  "tags": [
+    "anti_flicker",
+    "comfyui",
+    "chunked",
+    "sparsectrl_animatediff",
+    "live"
+  ],
+  "schema_hash": "sha256:cb735c9720545719",
+  "applied_knowledge_rules": []
+}

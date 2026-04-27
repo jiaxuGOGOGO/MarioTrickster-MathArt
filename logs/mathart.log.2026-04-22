@@ -1,0 +1,78 @@
+2026-04-22 20:17:10 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=E:\unity project\exercise1\MarioTrickster-MathArt\logs, rotation=midnight, retention=7 days
+2026-04-22 20:17:10 | INFO     | mathart.gc | Cold GC sweep started — root=E:\unity project\exercise1\MarioTrickster-MathArt, ttl=7 days, dry_run=False
+2026-04-22 20:17:12 | INFO     | mathart.gc | Cold GC sweep complete — files=0, dirs=0, freed=0 bytes, errors=0, skips=0
+2026-04-22 20:18:59 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=E:\unity project\exercise1\MarioTrickster-MathArt\logs, rotation=midnight, retention=7 days
+2026-04-22 20:18:59 | INFO     | mathart.gc | Cold GC sweep started — root=E:\unity project\exercise1\MarioTrickster-MathArt, ttl=7 days, dry_run=False
+2026-04-22 20:19:00 | INFO     | mathart.gc | Cold GC sweep complete — files=0, dirs=0, freed=0 bytes, errors=0, skips=0
+2026-04-22 23:15:02 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=E:\unity project\exercise1\MarioTrickster-MathArt\logs, rotation=midnight, retention=7 days
+2026-04-22 23:15:02 | INFO     | mathart.cli_wizard | [CLI] Wizard invoked: argv=[], interactive=True
+2026-04-22 23:15:05 | INFO     | mathart.cli_wizard | [CLI] Interactive mode selection: 5
+2026-04-22 23:15:05 | INFO     | mathart.cli_wizard | [CLI] Routing to Director Studio
+2026-04-22 23:15:11 | INFO     | mathart.cli_wizard | [CLI] Director Studio creation mode: A
+2026-04-22 23:15:19 | INFO     | mathart.workspace.director_intent | Applied vibe '活泼的跳跃' → 18 param adjustments
+2026-04-22 23:15:19 | DEBUG    | mathart.workspace.director_intent | No knowledge bus injected — using heuristic fallback only
+2026-04-22 23:15:19 | INFO     | mathart.cli_wizard | [CLI] Director intent parsed: vibe=活泼的跳跃, evolve_variants=0
+2026-04-22 23:15:19 | INFO     | mathart.quality.interactive_gate | Proxy rendered → E:\unity project\exercise1\MarioTrickster-MathArt\workspace\proxy\proxy_round_1.png
+2026-04-22 23:15:19 | INFO     | mathart.quality.interactive_gate | Proxy rendered successfully: round=1, path=E:\unity project\exercise1\MarioTrickster-MathArt\workspace\proxy\proxy_round_1.png
+2026-04-22 23:15:24 | INFO     | mathart.cli_wizard | [CLI] Director gate decision: approved (rounds=1)
+2026-04-22 23:15:24 | INFO     | mathart.cli_wizard | [CLI] Director Studio workflow completed successfully
+2026-04-22 23:15:29 | INFO     | mathart | Blackbox Flight Recorder installed — log_dir=E:\unity project\exercise1\MarioTrickster-MathArt\logs, rotation=midnight, retention=7 days
+2026-04-22 23:15:29 | INFO     | mathart.cli_wizard | [CLI] Wizard invoked: argv=[], interactive=True
+2026-04-22 23:15:30 | INFO     | mathart.cli_wizard | [CLI] Interactive mode selection: 1
+2026-04-22 23:15:34 | INFO     | mathart.workspace.mode_dispatcher | [CLI] User selected mode: production (strategy=ProductionStrategy, execute=True)
+2026-04-22 23:15:34 | INFO     | mathart.workspace.preflight_radar | [Radar] ComfyUI discovery started
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/PS] Starting process-table walk via psutil
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/PS] Process scan complete: 337 scanned, 2 python, 0 comfy-candidates, 0 hits
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS] COMFYUI_HOME env var not set
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS] Static candidate list size: 41
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS] Current working directory: E:\unity project\exercise1\MarioTrickster-MathArt
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\comfyui -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\Documents\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\code\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\projects\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\dev\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\Desktop\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\Downloads\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\git\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\src\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\workspace\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\AppData\Local\Programs\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\ComfyUI_windows_portable\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\Desktop\ComfyUI_windows_portable\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\Downloads\ComfyUI_windows_portable\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE E:\opt\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE E:\usr\local\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE E:\Applications\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Users\Windows\Library\Application Support\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\AI\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Tools\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\Program Files\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE C:\ComfyUI_windows_portable\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE D:\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE D:\AI\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE D:\Tools\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE D:\ComfyUI_windows_portable\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE E:\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE E:\AI\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE E:\ComfyUI_windows_portable\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE F:\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE F:\AI\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE F:\ComfyUI_windows_portable\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE G:\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE G:\AI\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE H:\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE H:\AI\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE E:\unity project\exercise1\MarioTrickster-MathArt\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE E:\unity project\exercise1\MarioTrickster-MathArt\comfyui -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE E:\unity project\exercise1\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE E:\unity project\exercise1\comfyui -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE E:\unity project\exercise1\ComfyUI_windows_portable\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE E:\unity project\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE E:\unity project\comfyui -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS]   PROBE E:\unity project\ComfyUI_windows_portable\ComfyUI -> miss
+2026-04-22 23:15:34 | DEBUG    | mathart.workspace.preflight_radar | [Radar/FS] Filesystem scan complete: 46 unique paths probed, 0 hits
+2026-04-22 23:15:34 | WARNING  | mathart.workspace.preflight_radar | [Radar] ComfyUI NOT FOUND after exhaustive search. Candidates probed: 0. Set COMFYUI_HOME env var or install ComfyUI in a conventional location. Full probe audit trail available at DEBUG level in logs/mathart.log.
+2026-04-22 23:15:34 | INFO     | mathart.workspace.mode_dispatcher | Radar diagnostic payload (verdict=manual_intervention_required): {"verdict": "manual_intervention_required", "summary": "manual intervention required: 1 blocking issue(s), 0 auto-fixable", "gpu": {"available": true, "status": "ok", "device_count": 1, "device_names": ["NVIDIA GeForce RTX 4070"], "total_vram_mb": [12282], "driver_version": "591.86", "cuda_version": null, "detection_method": "nvidia-smi", "notes": ["torch not importable"]}, "python_env": {"python_version": "3.11.9", "executable": "E:\\unity project\\exercise1\\MarioTrickster-MathArt\\.venv\\Scripts\\python.exe", "platform": "Windows 10 (win-amd64)", "is_virtualenv": true, "required_packages": {"numpy": "2.4.4", "Pillow": "12.2.0", "scipy": "1.17.1", "requests": "2.33.1", "networkx": "3.6.1"}, "missing_packages": [], "status": "ok"}, "comfyui": {"found": false, "root_path": null, "detection_method": null, "candidate_roots": [], "process_pid": null, "status": "missing", "asset_checks": [], "notes": []}, "fixable_actions": [], "blocking_actions": ["comfyui_not_found: scan process table and conventional install locations yielded no candidate; user must specify COMFYUI_HOME or install ComfyUI"], "generated_at": "2026-04-22T15:15:34.643036+00:00", "radar_version": "1.1.0"}
+2026-04-22 23:15:34 | WARNING  | mathart.workspace.mode_dispatcher | Production mode BLOCKED by radar — verdict=manual_intervention_required, blocking_actions=['comfyui_not_found: scan process table and conventional install locations yielded no candidate; user must specify COMFYUI_HOME or install ComfyUI']

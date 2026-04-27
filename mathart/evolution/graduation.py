@@ -51,7 +51,7 @@ class GraduationResult:
         status = "SUCCESS" if self.success else "FAILED"
         lines = [
             f"Graduation [{status}]: {self.model_name}",
-            f"  {self.from_status} → {self.to_status}",
+            f"  {self.from_status} -> {self.to_status}",
             f"  Passed: {len(self.checks_passed)}, Failed: {len(self.checks_failed)}",
         ]
         if self.checks_failed:

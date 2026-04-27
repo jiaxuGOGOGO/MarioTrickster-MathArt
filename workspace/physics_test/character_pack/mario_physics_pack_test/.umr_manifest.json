@@ -1,0 +1,61 @@
+{
+  "seal": {
+    "context_hash": "076425e0d44d194fc1fc7efbc5d8ff4da948f1bce804e5b36dfeaf82a62f5a58",
+    "pipeline_hash": "f8e53ed5c2752f8fc977edd76c5b246319ac8dab8ad981a6f5c8dec614c91809",
+    "state_hashes": {
+      "idle": "ad164b37b61472699e63a9b8b4b8da29c14ec928fdcff8b8ba8209a073a70f47",
+      "run": "1718681da66cbb2dee6eec5b8cf8e08adf3e4ad103b00b0348bb8675c5e6fc06"
+    },
+    "contact_tag_hash": "21f247519a47fe249739fe1cb4099e4a74eaac28abac15b50d00c50530ad9cd0",
+    "node_order": [
+      "physics_compliance",
+      "secondary_chain_projection",
+      "biomechanics_grounding"
+    ],
+    "frame_count": 8,
+    "timestamp": "2026-04-26T03:24:57Z",
+    "pipeline_version": "0.31.0",
+    "session_id": "SESSION-040",
+    "seal_version": "umr_manifest_seal_v1"
+  },
+  "context": {
+    "pipeline_version": "0.31.0",
+    "session_id": "SESSION-040",
+    "random_seed": 42,
+    "character_name": "mario_physics_pack_test",
+    "preset": "mario",
+    "states": [
+      "idle",
+      "run"
+    ],
+    "frame_width": 128,
+    "frame_height": 128,
+    "fps": 12,
+    "head_units": 3.0,
+    "frames_per_state": 4,
+    "state_frames": {},
+    "enable_physics": true,
+    "enable_biomechanics": true,
+    "physics_stiffness": 1.0,
+    "physics_damping": 1.0,
+    "compliance_alpha": 0.6,
+    "biomechanics_zmp_strength": 0.3,
+    "enable_dither": true,
+    "enable_outline": true,
+    "enable_lighting": true,
+    "convergence_bridge": {},
+    "extra": {}
+  },
+  "audit": {
+    "states_registered": [
+      "idle",
+      "run"
+    ],
+    "total_frames": 8,
+    "node_order": [
+      "physics_compliance",
+      "secondary_chain_projection",
+      "biomechanics_grounding"
+    ]
+  }
+}

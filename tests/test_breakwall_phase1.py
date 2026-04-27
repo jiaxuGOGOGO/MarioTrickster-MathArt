@@ -274,7 +274,7 @@ class TestHeadlessNeuralRenderPipeline:
             # Check export
             meta_path = Path(tmpdir) / "pipeline.json"
             assert meta_path.exists()
-            meta = json.loads(meta_path.read_text())
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
             assert meta["format"] == "headless_neural_render"
             assert (Path(tmpdir) / "workflow_manifest.json").exists()
             assert (Path(tmpdir) / "keyframe_plan.json").exists()
@@ -332,6 +332,16 @@ class TestMathArtBundle:
             assert loaded.name == "test_hero"
             assert loaded.albedo is not None
             assert len(loaded.contour_points) == 4
+            for image in (
+                loaded.albedo,
+                loaded.normal_map,
+                loaded.depth_map,
+                loaded.thickness_map,
+                loaded.roughness_map,
+                loaded.mask,
+            ):
+                if image is not None:
+                    image.close()
 
     def test_bundle_manifest_structure(self):
         from mathart.animation.engine_import_plugin import MathArtBundle
@@ -344,7 +354,7 @@ class TestMathArtBundle:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             bundle.save(tmpdir)
-            manifest = json.loads((Path(tmpdir) / "manifest.json").read_text())
+            manifest = json.loads((Path(tmpdir) / "manifest.json").read_text(encoding="utf-8"))
 
             assert manifest["format"] == "mathart_bundle"
             assert manifest["version"] == "1.0"
@@ -352,7 +362,7 @@ class TestMathArtBundle:
             assert "unity_urp_2d" in manifest["engine_targets"]
             assert "albedo" in manifest["channel_semantics"]
             assert "thickness" in manifest["channel_semantics"]
-            assert "Bénard" in str(manifest["research_provenance"])
+            assert "Dead Cells 2D Deferred Lighting" in str(manifest["research_provenance"])
 
 
 class TestSdfContourExtraction:

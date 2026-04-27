@@ -551,8 +551,14 @@ class _InvocationResult:
 class _PDGv2RuntimeFacade:
     """Facade that upgrades legacy PDG graphs to the PDG v2 runtime."""
 
-    def __init__(self, graph: "ProceduralDependencyGraph") -> None:
+    def __init__(
+        self,
+        graph: "ProceduralDependencyGraph",
+        *,
+        event_callback: Optional[Callable[[dict[str, Any]], None]] = None,
+    ) -> None:
         self.graph = graph
+        self._event_callback = event_callback
         cache_root = graph.cache_dir or (Path.cwd() / ".pdg_cache" / graph.name)
         self.cache = _PDGDiskCache(cache_root)
         self._trace: list[PDGTraceEntry] = []
@@ -572,6 +578,37 @@ class _PDGv2RuntimeFacade:
         self._node_states: dict[str, str] = {}
         self._rejections: list[dict[str, Any]] = []
         self._skipped_nodes: list[dict[str, Any]] = []
+
+    def _emit_event(self, event_type: str, node: PDGNode | None = None, **payload: Any) -> None:
+        if not self._event_callback:
+            return
+        event = {
+            "event_type": event_type,
+            "graph_name": self.graph.name,
+            "timestamp": time.time(),
+            **payload,
+        }
+        if node is not None:
+            event.update({
+                "node_name": node.name,
+                "dependencies": list(node.dependencies),
+                "topology": node.topology,
+                "requires_gpu": bool(node.requires_gpu),
+            })
+        self._event_callback(event)
+
+    def _make_node_event_callback(self, node: PDGNode) -> Callable[[dict[str, Any]], None] | None:
+        if not self._event_callback:
+            return None
+
+        def _callback(event: dict[str, Any]) -> None:
+            self._emit_event(
+                "pdg_node_progress",
+                node,
+                progress_event=dict(event),
+            )
+
+        return _callback
 
     def run(
         self,
@@ -593,6 +630,7 @@ class _PDGv2RuntimeFacade:
         downstream_map = self._compute_downstream_map(order)
         for name in order:
             node = self.graph._nodes[name]
+            self._emit_event("pdg_node_started", node)
             # SESSION-120 (P1-NEW-8): honour upstream cancellation — if any
             # dependency was cancelled or already skipped, this node must be
             # marked SKIPPED with ZERO operation invocation.
@@ -602,12 +640,29 @@ class _PDGv2RuntimeFacade:
                 self._results[name] = []
                 self._node_states[name] = WorkItemState.SKIPPED.value
                 self._context[name] = _legacy_context_value([])
+                self._emit_event(
+                    "pdg_node_skipped",
+                    node,
+                    state=WorkItemState.SKIPPED.value,
+                    reason=dict(upstream_block),
+                    work_items=0,
+                )
                 continue
 
-            if node.topology == "collect":
-                self._results[name] = self._execute_collect_node(node)
-            else:
-                self._results[name] = self._execute_task_node(node)
+            try:
+                if node.topology == "collect":
+                    self._results[name] = self._execute_collect_node(node)
+                else:
+                    self._results[name] = self._execute_task_node(node)
+            except Exception as exc:
+                self._emit_event(
+                    "pdg_node_failed",
+                    node,
+                    state=WorkItemState.COOKED_FAIL.value,
+                    error_type=type(exc).__name__,
+                    error=str(exc),
+                )
+                raise
             # Re-read state from trace: if the task node raised
             # EarlyRejectionError, _execute_task_node records COOKED_CANCEL
             # via the trace entry and returns an empty item list.
@@ -615,6 +670,12 @@ class _PDGv2RuntimeFacade:
             if state is None:
                 self._node_states[name] = WorkItemState.COOKED_SUCCESS.value
             self._context[name] = _legacy_context_value(self._results[name])
+            self._emit_event(
+                "pdg_node_completed",
+                node,
+                state=self._node_states[name],
+                work_items=len(self._results[name]),
+            )
 
         requested = targets or order[-1:]
         results = {name: _legacy_context_value(self._results[name]) for name in order}
@@ -887,6 +948,7 @@ class _PDGv2RuntimeFacade:
                     dep_name: [item.item_id for item in items]
                     for dep_name, items in grouped_deps.items()
                 },
+                "event_callback": self._make_node_event_callback(node),
             }
             execution_cache_key = self._build_execution_cache_key(
                 node=node,
@@ -1268,6 +1330,7 @@ class _PDGv2RuntimeFacade:
             **pdg_contract,
             "rng": rng_material.generator,
             "seed_sequence": rng_material.seed_sequence,
+            "event_callback": self._make_node_event_callback(node),
         }
         output, duration_ms, resource_wait_ms = self._execute_operation(
             node,
@@ -1487,6 +1550,7 @@ class ProceduralDependencyGraph:
         targets: Optional[list[str]] = None,
         *,
         initial_context: Optional[dict[str, Any]] = None,
+        event_callback: Optional[Callable[[dict[str, Any]], None]] = None,
     ) -> dict[str, Any]:
         """Execute the requested subgraph and return outputs plus trace.
 
@@ -1496,5 +1560,5 @@ class ProceduralDependencyGraph:
         - Fan-in/collect nodes reduce back to single dictionaries unless they fan
           out again intentionally.
         """
-        facade = _PDGv2RuntimeFacade(self)
+        facade = _PDGv2RuntimeFacade(self, event_callback=event_callback)
         return facade.run(targets, initial_context=initial_context)

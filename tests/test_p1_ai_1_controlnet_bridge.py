@@ -150,4 +150,5 @@ def test_dual_controlnet_sequence_payload_injects_only_normal_and_depth(tmp_path
     assert lock["controlnet_guides"] == ["normal", "depth"]
     assert "rgb" not in lock["sequence_directories"]
     assert lock["workflow_contract"]["preset_family"] == "normal_depth_dual_controlnet"
-    assert len(workflow) == 14
+    assert len(workflow) >= 14
+    assert lock["session194_pipeline_integration_closure"] is True

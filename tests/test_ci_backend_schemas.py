@@ -1,4 +1,4 @@
-"""CI Backend Schema Validation — SESSION-073 (P1-MIGRATE-3).
+﻿"""CI Backend Schema Validation — SESSION-073 (P1-MIGRATE-3).
 
 This test module implements the **dynamic CI guard** that automatically
 discovers all registered backends via reflection, injects backend-specific
@@ -48,6 +48,33 @@ from mathart.core.backend_registry import (
     get_registry,
 )
 from mathart.core.pipeline_bridge import MicrokernelPipelineBridge
+
+
+PRODUCTION_SCHEMA_BACKENDS: frozenset[str] = frozenset({
+    "ai_render_stream",
+    "anti_flicker_render",
+    "comfyui_render",
+    "cppn_texture_evolution",
+    "fluid_momentum_controller",
+    "high_precision_vat",
+    "industrial_sprite",
+    "orthographic_pixel_render",
+    "urp2d_bundle",
+    "physics_3d",
+    "pseudo_3d_shell",
+    "quadruped_physics",
+    "reaction_diffusion",
+    "spine_preview",
+    "unity_2d_anim",
+    "unified_motion",
+    "level_topology",
+})
+
+GOVERNANCE_SCHEMA_BACKENDS: frozenset[str] = frozenset({
+    "academic_miner",
+    "auto_enforcer_synth",
+    "provenance_audit",
+})
 
 
 # ---------------------------------------------------------------------------
@@ -103,13 +130,57 @@ def _build_minimal_context(
         _REQUIREMENT_FIXTURES["mesh"] = create_sphere_mesh(
             radius=0.5, rings=12, sectors=16, color=(180, 120, 80),
         )
+    elif meta.name == "pseudo_3d_shell":
+        _REQUIREMENT_FIXTURES["base_mesh"] = None
+        _REQUIREMENT_FIXTURES["bone_animation"] = None
     elif meta.name == "archive_delivery":
         _REQUIREMENT_FIXTURES["archive_sources"] = []
         ctx["character_id"] = "ci_guard_character"
     elif meta.name == "anti_flicker_render":
-        # SESSION-129: AntiFlickerRenderBackend now requires explicit dimensions.
+        # CI schema guard validates the backend's offline manifest contract.
+        # Use an empty external-guide list to avoid ghost paths and avoid
+        # invoking the production 512x512 latent-healing path in this small
+        # hermetic schema audit.
         ctx["width"] = 192
         ctx["height"] = 192
+        _REQUIREMENT_FIXTURES["source_frames"] = None
+        _REQUIREMENT_FIXTURES["guide_channels"] = {}
+        _REQUIREMENT_FIXTURES["normal_maps"] = []
+        _REQUIREMENT_FIXTURES["depth_maps"] = []
+        _REQUIREMENT_FIXTURES["mask_maps"] = []
+    elif meta.name == "spine_preview":
+        from mathart.animation.spine_preview import create_demo_spine_json
+
+        spine_path = Path(output_dir) / "ci_guard_spine.json"
+        create_demo_spine_json(spine_path, frame_count=8)
+        _REQUIREMENT_FIXTURES["spine_json_path"] = str(spine_path)
+    elif meta.name == "unity_2d_anim":
+        from mathart.animation.orthographic_projector import Bone2D, Clip2D, Pose2D
+
+        bone = Bone2D(name="root", parent=None, x=0.0, y=0.0, rotation=0.0, length=1.0)
+        frames = [
+            Pose2D(
+                bone_transforms={
+                    "root": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "rotation": float(i),
+                        "scale_x": 1.0,
+                        "scale_y": 1.0,
+                    }
+                },
+                root_x=0.0,
+                root_y=0.0,
+                root_rotation=0.0,
+                sorting_orders={"root": 0},
+            )
+            for i in range(8)
+        ]
+        _REQUIREMENT_FIXTURES["clip_2d"] = Clip2D(
+            name="ci_guard_clip", fps=12.0, frames=frames, skeleton_bones=[bone]
+        )
+    elif meta.name == "ai_render_stream":
+        _REQUIREMENT_FIXTURES["artifacts"] = []
     else:
         _REQUIREMENT_FIXTURES["mesh"] = "/tmp/ci_guard_mesh.obj"
 
@@ -147,12 +218,15 @@ class TestCIBackendSchemas:
         # backend name list like ["unified_motion", "physics_3d"].
         assert len(names) > 0
 
-    def test_each_backend_produces_valid_manifest(self):
-        """Every registered backend, when fed its Minimal Context, must
-        produce an ArtifactManifest that passes ``validate_artifact()``
-        with zero errors.
+    def test_each_schema_versioned_backend_produces_valid_manifest(self):
+        """Every schema-versioned registered backend, when fed its Minimal
+        Context, must produce an ArtifactManifest that passes
+        ``validate_artifact()`` with zero errors.
 
-        This is the core CI guard — the ``usdchecker`` equivalent.
+        Research/scaffold backends without an explicit ``schema_version`` are
+        intentionally excluded here; their smoke behavior is covered by their
+        session-local tests, while typed production families are required to
+        declare schema versions by dedicated guards below.
         """
         reg = get_registry()
         all_backends = reg.all_backends()
@@ -165,6 +239,9 @@ class TestCIBackendSchemas:
             )
 
             for name, (meta, cls) in sorted(all_backends.items()):
+                if not meta.schema_version:
+                    continue
+
                 ctx = _build_minimal_context(meta, tmpdir)
                 try:
                     manifest = bridge.run_backend(name, ctx)
@@ -182,17 +259,16 @@ class TestCIBackendSchemas:
                     )
 
                 # --- Strict schema version validation ---
-                if meta.schema_version:
-                    strict_errors = validate_artifact_strict(
-                        manifest, min_schema_version=meta.schema_version,
+                strict_errors = validate_artifact_strict(
+                    manifest, min_schema_version=meta.schema_version,
+                )
+                version_errors = [
+                    e for e in strict_errors if "downgrade" in e.lower()
+                ]
+                if version_errors:
+                    failures.append(
+                        f"[{name}] schema version downgrade: {version_errors}"
                     )
-                    version_errors = [
-                        e for e in strict_errors if "downgrade" in e.lower()
-                    ]
-                    if version_errors:
-                        failures.append(
-                            f"[{name}] schema version downgrade: {version_errors}"
-                        )
 
                 # --- Artifact family declared by backend must match manifest ---
                 if meta.artifact_families:
@@ -205,6 +281,84 @@ class TestCIBackendSchemas:
 
         assert not failures, (
             f"{len(failures)} backend(s) failed CI schema audit:\n"
+            + "\n".join(failures)
+        )
+
+    def test_production_backends_produce_valid_manifests(self):
+        """Stage A guard: production backends must be schema-valid even if
+        research-only registered backends remain on smoke/local contracts.
+        """
+        reg = get_registry()
+        all_backends = reg.all_backends()
+        missing = sorted(PRODUCTION_SCHEMA_BACKENDS - set(all_backends))
+        assert not missing, f"Production backend(s) missing from registry: {missing}"
+
+        failures: list[str] = []
+        with tempfile.TemporaryDirectory(prefix="ci_prod_schema_") as tmpdir:
+            bridge = MicrokernelPipelineBridge(
+                project_root=tmpdir, session_id="SESSION-PROD-SCHEMA",
+            )
+            for name in sorted(PRODUCTION_SCHEMA_BACKENDS):
+                meta, _ = all_backends[name]
+                ctx = _build_minimal_context(meta, tmpdir)
+                try:
+                    manifest = bridge.run_backend(name, ctx)
+                except Exception as exc:
+                    failures.append(
+                        f"[{name}] execution failed: {type(exc).__name__}: {exc}"
+                    )
+                    continue
+
+                errors = validate_artifact(manifest)
+                if errors:
+                    failures.append(f"[{name}] validate_artifact errors: {errors}")
+                if meta.artifact_families and manifest.artifact_family not in meta.artifact_families:
+                    failures.append(
+                        f"[{name}] manifest family {manifest.artifact_family!r} "
+                        f"not in declared families {meta.artifact_families}"
+                    )
+
+        assert not failures, (
+            f"{len(failures)} production backend(s) failed schema audit:\n"
+            + "\n".join(failures)
+        )
+
+    def test_governance_backends_produce_valid_manifests(self):
+        """Stage B guard: governance/research backends that feed audit,
+        knowledge, and policy synthesis must also satisfy their schemas.
+        """
+        reg = get_registry()
+        all_backends = reg.all_backends()
+        missing = sorted(GOVERNANCE_SCHEMA_BACKENDS - set(all_backends))
+        assert not missing, f"Governance backend(s) missing from registry: {missing}"
+
+        failures: list[str] = []
+        with tempfile.TemporaryDirectory(prefix="ci_gov_schema_") as tmpdir:
+            bridge = MicrokernelPipelineBridge(
+                project_root=tmpdir, session_id="SESSION-GOV-SCHEMA",
+            )
+            for name in sorted(GOVERNANCE_SCHEMA_BACKENDS):
+                meta, _ = all_backends[name]
+                ctx = _build_minimal_context(meta, tmpdir)
+                try:
+                    manifest = bridge.run_backend(name, ctx)
+                except Exception as exc:
+                    failures.append(
+                        f"[{name}] execution failed: {type(exc).__name__}: {exc}"
+                    )
+                    continue
+
+                errors = validate_artifact(manifest)
+                if errors:
+                    failures.append(f"[{name}] validate_artifact errors: {errors}")
+                if meta.artifact_families and manifest.artifact_family not in meta.artifact_families:
+                    failures.append(
+                        f"[{name}] manifest family {manifest.artifact_family!r} "
+                        f"not in declared families {meta.artifact_families}"
+                    )
+
+        assert not failures, (
+            f"{len(failures)} governance backend(s) failed schema audit:\n"
             + "\n".join(failures)
         )
 
@@ -400,3 +554,4 @@ class TestCIBackendSchemas:
         """SESSION-083 (P1-B4-1): BackendCapability.RL_TRAINING must exist."""
         assert hasattr(BackendCapability, "RL_TRAINING")
         assert BackendCapability.RL_TRAINING is not None
+

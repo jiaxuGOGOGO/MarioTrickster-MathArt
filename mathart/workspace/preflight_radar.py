@@ -104,15 +104,26 @@ class PreflightVerdict(str, Enum):
 # ---------------------------------------------------------------------------
 # Required ComfyUI assets — declarative manifest
 # ---------------------------------------------------------------------------
-# Each entry describes an asset the project depends on. Paths are *relative*
-# to the discovered ComfyUI root. ``kind`` is informational only.
+
+def deprecated(reason: str):
+    """Mark legacy radar checks without deleting compatibility metadata."""
+    def _decorate(obj):
+        setattr(obj, "__deprecated_reason__", reason)
+        return obj
+    return _decorate
+
+
+@deprecated("V6 no longer requires AI temporal/video ComfyUI nodes; retained for legacy diagnostics only.")
+# Deprecated legacy temporal ComfyUI asset manifest.
+# It is retained for diagnostics but is no longer part of V6 readiness.
 #
-# This list is the single source of truth for "what must exist" — the radar
-# is otherwise asset-agnostic. Future phases (Phase 2 self-healing) will
-# consume the same manifest.
+#
+#
+#
 # ---------------------------------------------------------------------------
 
-REQUIRED_COMFYUI_ASSETS: tuple[dict[str, str], ...] = (
+def _legacy_temporal_comfyui_assets() -> tuple[dict[str, str], ...]:
+    return (
     # AnimateDiff custom node folder (Kosinkadink fork is canonical for this project)
     {
         "name": "animatediff_evolved_node",
@@ -166,6 +177,13 @@ REQUIRED_COMFYUI_ASSETS: tuple[dict[str, str], ...] = (
 
 
 # ---------------------------------------------------------------------------
+LEGACY_TEMPORAL_COMFYUI_ASSETS = _legacy_temporal_comfyui_assets()
+
+# V6 runtime-required ComfyUI assets. Empty by design: static asset
+# initialization no longer depends on AnimateDiff/SparseCtrl video nodes.
+REQUIRED_COMFYUI_ASSETS: tuple[dict[str, str], ...] = ()
+
+
 # Dataclasses — frozen, JSON-serializable contract objects
 # ---------------------------------------------------------------------------
 
@@ -488,6 +506,7 @@ _RUNTIME_CRITICAL_PACKAGES: tuple[str, ...] = (
     "scipy",
     "requests",
     "networkx",
+    "websocket-client",
 )
 
 
@@ -732,7 +751,10 @@ def _scan_filesystem_for_comfyui(extra_candidates: Iterable[Path] = ()) -> list[
     # --- 1. Environment variable ---
     env_home = os.environ.get("COMFYUI_HOME")
     if env_home:
-        p = Path(env_home).expanduser()
+        try:
+            p = Path(env_home).expanduser()
+        except RuntimeError:
+            p = Path(env_home)
         candidates.append(p)
         logger.debug("[Radar/FS] COMFYUI_HOME env var set: %s", p)
     else:
@@ -741,7 +763,10 @@ def _scan_filesystem_for_comfyui(extra_candidates: Iterable[Path] = ()) -> list[
     # --- 2. Static candidate parents ---
     logger.debug("[Radar/FS] Static candidate list size: %d", len(_DEFAULT_CANDIDATE_PARENTS))
     for raw in _DEFAULT_CANDIDATE_PARENTS:
-        candidates.append(Path(raw).expanduser())
+        try:
+            candidates.append(Path(raw).expanduser())
+        except RuntimeError:
+            logger.debug("[Radar/FS]   SKIP (home unavailable): %s", raw)
 
     # --- 3. Relative-to-cwd probes (SESSION-146-B expanded) ---
     cwd = Path.cwd()
@@ -759,7 +784,12 @@ def _scan_filesystem_for_comfyui(extra_candidates: Iterable[Path] = ()) -> list[
     candidates.extend(relative_probes)
 
     # --- 4. Extra caller-supplied candidates ---
-    extra_list = [Path(c).expanduser() for c in extra_candidates]
+    extra_list = []
+    for c in extra_candidates:
+        try:
+            extra_list.append(Path(c).expanduser())
+        except RuntimeError:
+            extra_list.append(Path(c))
     if extra_list:
         logger.debug("[Radar/FS] Extra caller-supplied candidates: %s",
                      [str(c) for c in extra_list])
@@ -891,7 +921,9 @@ def _discover_comfyui(psutil_module: Optional[Any],
     for entry in manifest:
         asset_checks.append(_check_asset(chosen, entry))
 
-    if all(a.exists for a in asset_checks):
+    if not asset_checks:
+        status = HealthStatus.OK
+    elif all(a.exists for a in asset_checks):
         status = HealthStatus.OK
     elif any(a.exists for a in asset_checks):
         status = HealthStatus.DEGRADED

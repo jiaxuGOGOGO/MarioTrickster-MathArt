@@ -56,6 +56,14 @@ from mathart.animation.dqs_engine import (
 from mathart.core.backend_registry import get_registry
 from mathart.core.artifact_schema import ArtifactManifest, ArtifactFamily
 from mathart.core.backend_types import BackendType
+from mathart.core import pseudo3d_shell_backend as _pseudo3d_shell_backend
+
+
+@pytest.fixture(autouse=True)
+def _ensure_pseudo3d_backend_registered():
+    import importlib
+
+    importlib.reload(_pseudo3d_shell_backend)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -502,7 +510,7 @@ class TestPseudo3DShellBackendRegistry:
         reg = get_registry()
         meta, cls = reg.get_or_raise("pseudo_3d_shell")
         assert meta.name == "pseudo_3d_shell"
-        assert meta.version == "1.0.0"
+        assert meta.version == "1.1.0"
         assert ArtifactFamily.MESH_OBJ.value in meta.artifact_families
 
     def test_backend_type_enum(self):
@@ -581,10 +589,10 @@ class TestPseudo3DShellBackendExecution:
             assert mesh_path.exists()
             assert meta_path.exists()
             # Verify NPZ contents
-            data = np.load(str(mesh_path))
-            assert "vertices" in data
-            assert "normals" in data
-            assert "triangles" in data
+            with np.load(str(mesh_path)) as data:
+                assert "vertices" in data
+                assert "normals" in data
+                assert "triangles" in data
             # Verify JSON contents
             meta = json.loads(meta_path.read_text())
             assert meta["backend"] == "pseudo_3d_shell"
