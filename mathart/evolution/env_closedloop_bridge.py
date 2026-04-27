@@ -612,25 +612,14 @@ class FluidSequenceEvolutionBridge:
         return float(max(-0.20, min(0.20, bonus)))
 
     def run_full_cycle(self, driver_mode: str = "smoke") -> dict[str, Any]:
-        """Execute a complete three-layer evolution cycle."""
-        from mathart.animation.fluid_sequence_exporter import export_fluid_vfx_bundle
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            result = export_fluid_vfx_bundle(
-                driver_mode=driver_mode,
-                frame_count=16,
-                canvas_size=48,
-                seed=self.state.total_cycles + 1,
-                output_dir=tmpdir,
-            )
-            metrics = self.evaluate_sequence(result.to_dict())
-            rules = self.distill_sequence_knowledge(metrics)
-            bonus = self.compute_sequence_fitness_bonus(metrics)
-
         return {
-            "metrics": metrics.to_dict(),
-            "rules": rules,
-            "fitness_bonus": bonus,
+            "metrics": {
+                "archived": True,
+                "module": "mathart.animation.fluid_sequence_exporter",
+                "archive": "_legacy_archive_v5",
+            },
+            "rules": [],
+            "fitness_bonus": 0.0,
             "status_report": self.status_report(),
         }
 

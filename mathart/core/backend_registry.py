@@ -795,13 +795,7 @@ def get_registry() -> BackendRegistry:
             importlib.import_module("mathart.core.provenance_audit_backend")
         except Exception as e:
             logger.debug("Failed to auto-load provenance audit backend: %s", e)
-        # SESSION-163 (P0-SESSION-161-COMFYUI-API-BRIDGE):
-        # auto-register the full-array AI render stream backend so the pipeline
-        # can discover artifact hydration streaming without trunk modification.
-        try:
-            importlib.import_module("mathart.backend.ai_render_stream_backend")
-        except Exception as e:
-            logger.debug("Failed to auto-load AI render stream backend: %s", e)
+        # AI render stream backend archived in _legacy_archive_v5; V6 keeps only static Comfy utilities.
         # SESSION-183 (P0-SESSION-183-MICROKERNEL-HUB-AND-VAT-INTEGRATION):
         # auto-register the high-precision float VAT baking backend so the
         # microkernel can discover the industrial-grade HDR VAT export lane

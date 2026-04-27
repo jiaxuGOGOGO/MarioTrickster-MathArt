@@ -7,6 +7,7 @@ StyleParams and exports Unity zero-post metadata: rects, pivots, durations.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -116,23 +117,76 @@ def frame_duration(frames,i,fps):
         if timing.get("hit_stop") or str(timing.get("mode","")).endswith("hold"): return float(timing.get("duration",1/fps))
     return 1/max(fps,1)
 
+def physics_payload(frame):
+    meta=frame.get("metadata",{}) if isinstance(frame,dict) else {}
+    return meta.get("v6_physics_payload") or frame.get("v6_physics_payload") or {}
+
+def make_fluid_material(params, style):
+    mat=bpy.data.materials.new("knowledge_fluid_metaball_emission"); mat.use_nodes=True
+    nodes=mat.node_tree.nodes; links=mat.node_tree.links; nodes.clear()
+    out=nodes.new("ShaderNodeOutputMaterial"); emit=nodes.new("ShaderNodeEmission")
+    emit.inputs["Color"].default_value=(0.25,0.78,1.0,1.0)
+    emit.inputs["Strength"].default_value=float(params.get("glow_intensity",style.get("fluid_glow_intensity",1.8)))
+    links.new(emit.outputs["Emission"],out.inputs["Surface"]); return mat
+
+def create_fluid_metaballs(frames, style):
+    objects=[]
+    for i,frame in enumerate(frames):
+        fluid=physics_payload(frame).get("fluid_vfx",{})
+        particles=fluid.get("particle_samples") or fluid.get("particles") or []
+        params=fluid.get("params",{})
+        if not particles: continue
+        mb=bpy.data.metaballs.new(f"fluid_metaballs_{i:04d}")
+        mb.resolution=float(params.get("metaball_resolution",style.get("fluid_metaball_resolution",0.18)))
+        mb.render_resolution=float(params.get("render_resolution",style.get("fluid_render_resolution",0.08)))
+        obj=bpy.data.objects.new(f"fluid_metaballs_{i:04d}",mb); bpy.context.collection.objects.link(obj)
+        obj.data.materials.append(make_fluid_material(params,style))
+        radius=float(params.get("particle_radius",style.get("fluid_particle_radius",0.055)))
+        for p in particles:
+            elem=mb.elements.new(type="BALL"); elem.radius=max(0.005,float(p.get("size",1.0))*radius)
+            elem.co=(float(p.get("x",0.5))*3.0-1.5,0.03,float(p.get("y",0.5))*2.2)
+        obj.hide_viewport=True; obj.hide_render=True; objects.append((i,obj))
+    return objects
+
+def create_cloth_meshes(frames, style):
+    objects=[]; mat=bpy.data.materials.new("knowledge_cloth_cape_toon"); mat.diffuse_color=(0.82,0.12,0.26,1)
+    for i,frame in enumerate(frames):
+        cloth=physics_payload(frame).get("cloth_xpbd",{})
+        points=cloth.get("points") or []
+        if len(points)<2: continue
+        width=float(cloth.get("params",{}).get("segment_length",0.126))*0.55; verts=[]; faces=[]
+        for n,p in enumerate(points):
+            x=float(p.get("x",0)); z=float(p.get("y",0)); y=float(p.get("z",0)); verts.extend([(x-width,y,z),(x+width,y,z)])
+            if n>0:
+                a=(n-1)*2; faces.append((a,a+1,a+3,a+2))
+        mesh=bpy.data.meshes.new(f"cloth_xpbd_mesh_{i:04d}"); mesh.from_pydata(verts,[],faces); mesh.update()
+        obj=bpy.data.objects.new(f"cloth_xpbd_mesh_{i:04d}",mesh); bpy.context.collection.objects.link(obj); obj.data.materials.append(mat)
+        obj.hide_viewport=True; obj.hide_render=True; objects.append((i,obj))
+    return objects
+
+def show_only(objects, idx):
+    for frame_idx,obj in objects:
+        visible=frame_idx==idx; obj.hide_viewport=not visible; obj.hide_render=not visible
+
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument("--config",required=True); a=ap.parse_args()
     cfg=json.loads(Path(a.config).read_text(encoding="utf-8")); out=Path(cfg["output_dir"]); out.mkdir(parents=True,exist_ok=True)
     style=cfg.get("style_params",{}); res=cfg.get("resolution",[256,256]); fps=float(cfg.get("fps",12)); name=cfg.get("asset_name","pixel_asset")
     frames=list(cfg.get("animation_data") or cfg.get("frames",[])); n=max(1,int(cfg.get("frame_count",len(frames) or 1)))
     clear_scene(); mat=make_toon_material(style,cfg.get("texture_path")); cam=setup_scene(style,res); obj=load_model(cfg,mat); arm=active_armature()
+    fluid_objs=create_fluid_metaballs(frames,style); cloth_objs=create_cloth_meshes(frames,style)
     sprites=[]; durations=[]; pngs=[]
     for i in range(n):
         bpy.context.scene.frame_set(i)
         if i<len(frames):
             apply_animation_frame(obj,arm,frames[i])
+        show_only(fluid_objs,i); show_only(cloth_objs,i)
         png=out/f"{name}_{i:04d}.png"; bpy.context.scene.render.filepath=str(png); bpy.ops.render.render(write_still=True)
         dur=frame_duration(frames,i,fps); piv,pix=project_pivot(bpy.context.scene,cam,obj,res,cfg.get("pivot_world"))
         rect={"x":0,"y":i*int(res[1]),"width":int(res[0]),"height":int(res[1])}
         sprites.append({"name":f"{name}_{i:04d}","png":str(png),"rect":rect,"pivot":piv,"pivot_pixel":pix,"duration":dur})
         durations.append(dur); pngs.append(str(png))
-    meta={"asset_name":name,"unity_import_contract":"zero_post_processing","texture_settings":{"filterMode":"Point","compression":"None","mipmapEnabled":False,"spriteMode":"Multiple"},"style_params":style,"sprite_rects":[s["rect"] for s in sprites],"pivot_points":[s["pivot"] for s in sprites],"frame_durations":durations,"sprites":sprites,"atlas_layout":{"width":int(res[0]),"height":int(res[1])*n,"packing":"vertical_strip_exact_rects"},"timing_contract":{"source":"Phase3 anime_timing_modifier","duration_unit":"seconds","unity_animator_should_hold_each_sprite_for_duration":True}}
+    meta={"asset_name":name,"unity_import_contract":"zero_post_processing","texture_settings":{"filterMode":"Point","compression":"None","mipmapEnabled":False,"spriteMode":"Multiple"},"style_params":style,"v6_physics_render":{"fluid_metaballs":len(fluid_objs),"cloth_meshes":len(cloth_objs)},"sprite_rects":[s["rect"] for s in sprites],"pivot_points":[s["pivot"] for s in sprites],"frame_durations":durations,"sprites":sprites,"atlas_layout":{"width":int(res[0]),"height":int(res[1])*n,"packing":"vertical_strip_exact_rects"},"timing_contract":{"source":"Phase3 anime_timing_modifier","duration_unit":"seconds","unity_animator_should_hold_each_sprite_for_duration":True}}
     meta_path=out/f"{name}_unity_meta.json"; meta_path.write_text(json.dumps(meta,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     (out/f"{name}_render_manifest.json").write_text(json.dumps({"png_paths":pngs,"unity_meta":str(meta_path)},indent=2),encoding="utf-8")
 if __name__=="__main__": main()
@@ -195,10 +249,12 @@ class BlenderHeadlessPixelArtBackend:
         config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return config_path
 
-    def _stitch_spritesheet(self, output_dir: Path, asset_name: str) -> tuple[Path | None, int]:
+    def _stitch_spritesheet(self, output_dir: Path, asset_name: str, final_assets_dir: Path | None = None) -> tuple[Path | None, int]:
         frames = sorted(output_dir.glob(f"{asset_name}_[0-9][0-9][0-9][0-9].png"))
         if not frames:
             return None, 0
+        final_dir = final_assets_dir or output_dir
+        final_dir.mkdir(parents=True, exist_ok=True)
         from PIL import Image
         images = [Image.open(path).convert("RGBA") for path in frames]
         width = max(image.width for image in images)
@@ -208,12 +264,15 @@ class BlenderHeadlessPixelArtBackend:
         for image in images:
             sheet.paste(image, (0, y))
             y += image.height
-        sheet_path = output_dir / f"{asset_name}_spritesheet.png"
+        sheet_path = final_dir / f"{asset_name}_spritesheet.png"
         sheet.save(sheet_path)
         for image in images:
             image.close()
         for path in frames:
-            path.unlink(missing_ok=True)
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                pass
         return sheet_path, len(frames)
 
     def _write_dependency_fallback_frames(self, output_dir: Path, asset_name: str, config_path: Path) -> int:
@@ -247,10 +306,46 @@ class BlenderHeadlessPixelArtBackend:
         (output_dir / f"{asset_name}_unity_meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return frame_count
 
+    def _write_clean_unity_meta(self, unity_meta: Path, asset_name: str, config_path: Path, sheet_path: Path | None, stitched_frames: int) -> None:
+        if unity_meta.exists():
+            return
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        resolution = config.get("resolution", [256, 256])
+        width, height = int(resolution[0]), int(resolution[1])
+        frame_count = max(1, int(config.get("frame_count", 1)))
+        fps = float(config.get("fps", 12.0))
+        durations = [1.0 / max(fps, 1.0) for _ in range(frame_count)]
+        sprites = [
+            {
+                "name": f"{asset_name}_{idx:04d}",
+                "spritesheet": str(sheet_path) if sheet_path else "",
+                "rect": {"x": 0, "y": idx * height, "width": width, "height": height},
+                "pivot": [0.5, 0.0],
+                "pivot_pixel": [width * 0.5, 0.0],
+                "duration": durations[idx],
+            }
+            for idx in range(frame_count)
+        ]
+        meta = {
+            "asset_name": asset_name,
+            "unity_import_contract": "zero_post_processing",
+            "texture_settings": {"filterMode": "Point", "compression": "None", "mipmapEnabled": False, "spriteMode": "Multiple"},
+            "style_params": config.get("style_params", {}),
+            "sprite_rects": [s["rect"] for s in sprites],
+            "pivot_points": [s["pivot"] for s in sprites],
+            "frame_durations": durations,
+            "sprites": sprites,
+            "atlas_layout": {"width": width, "height": height * frame_count, "packing": "vertical_strip_exact_rects", "stitched_frames": stitched_frames},
+            "timing_contract": {"source": "Phase3 anime_timing_modifier", "duration_unit": "seconds", "unity_animator_should_hold_each_sprite_for_duration": True},
+        }
+        unity_meta.write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
     def execute(self, context: dict[str, Any]) -> ArtifactManifest:
         t0 = time.monotonic()
         output_dir = Path(context.get("output_dir", "artifacts/blender_headless"))
         output_dir.mkdir(parents=True, exist_ok=True)
+        final_assets_dir = Path(context.get("final_assets_dir", output_dir))
+        final_assets_dir.mkdir(parents=True, exist_ok=True)
         asset_name = str(context.get("asset_name", context.get("name", "pixel_asset")))
         style = self._style_payload(context)
         script_path = self._write_script(output_dir)
@@ -266,13 +361,26 @@ class BlenderHeadlessPixelArtBackend:
                 (output_dir / f"{asset_name}_blender_stdout.log").write_text(proc.stdout, encoding="utf-8")
                 (output_dir / f"{asset_name}_blender_stderr.log").write_text(proc.stderr, encoding="utf-8")
                 if blender_returncode == 0:
-                    sheet_path, stitched_frames = self._stitch_spritesheet(output_dir, asset_name)
+                    sheet_path, stitched_frames = self._stitch_spritesheet(output_dir, asset_name, final_assets_dir)
+                else:
+                    self._write_dependency_fallback_frames(output_dir, asset_name, config_path)
+                    sheet_path, stitched_frames = self._stitch_spritesheet(output_dir, asset_name, final_assets_dir)
             except FileNotFoundError as exc:
                 blender_returncode = -2
                 (output_dir / f"{asset_name}_blender_stderr.log").write_text(f"Blender executable missing: {exc}\n", encoding="utf-8")
                 self._write_dependency_fallback_frames(output_dir, asset_name, config_path)
-                sheet_path, stitched_frames = self._stitch_spritesheet(output_dir, asset_name)
-        unity_meta = output_dir / f"{asset_name}_unity_meta.json"
+                sheet_path, stitched_frames = self._stitch_spritesheet(output_dir, asset_name, final_assets_dir)
+        else:
+            self._write_dependency_fallback_frames(output_dir, asset_name, config_path)
+            sheet_path, stitched_frames = self._stitch_spritesheet(output_dir, asset_name, final_assets_dir)
+        unity_meta = final_assets_dir / f"{asset_name}_unity_meta.json"
+        intermediate_meta = output_dir / f"{asset_name}_unity_meta.json"
+        if intermediate_meta.exists():
+            try:
+                os.remove(intermediate_meta)
+            except FileNotFoundError:
+                pass
+        self._write_clean_unity_meta(unity_meta, asset_name, config_path, sheet_path, stitched_frames)
         outputs = {"render_script": str(script_path), "render_config": str(config_path), "unity_meta": str(unity_meta)}
         if sheet_path:
             outputs["spritesheet"] = str(sheet_path)

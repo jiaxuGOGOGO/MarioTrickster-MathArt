@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Mapping, Sequence
 
 from mathart.core.knowledge_interpreter import PhysicsParams, interpret_knowledge
+from mathart.utils.core_math import clamp01 as _clamp01, normalize2 as _normalize, vec_dot as _vec_dot, vec_len as _vec_len, vec_scale as _vec_scale, vec_sub as _vec_sub
 
 
 _EPS = 1e-8
@@ -32,39 +33,14 @@ class BookLawFitnessReport:
     anticipation_score: float
     impact_sharpness: float
     physics_prior_score: float
+    fluid_splash_score: float
+    cloth_flutter_score: float
     combined_score: float
     weights: dict[str, float]
     details: dict[str, Any]
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
-
-
-def _clamp01(value: float) -> float:
-    return max(0.0, min(1.0, float(value)))
-
-
-def _vec_sub(a: tuple[float, float], b: tuple[float, float]) -> tuple[float, float]:
-    return (a[0] - b[0], a[1] - b[1])
-
-
-def _vec_scale(v: tuple[float, float], s: float) -> tuple[float, float]:
-    return (v[0] * s, v[1] * s)
-
-
-def _vec_dot(a: tuple[float, float], b: tuple[float, float]) -> float:
-    return a[0] * b[0] + a[1] * b[1]
-
-
-def _vec_len(v: tuple[float, float]) -> float:
-    return math.sqrt(v[0] * v[0] + v[1] * v[1])
-
-
-def _normalize(v: tuple[float, float]) -> tuple[float, float]:
-    length = _vec_len(v)
-    if length <= _EPS:
-        return (0.0, 0.0)
-    return (v[0] / length, v[1] / length)
 
 
 def _position_from_any_frame(frame: Any, joint: str) -> tuple[float, float] | None:
@@ -140,6 +116,8 @@ class KnowledgeDrivenFitnessEngine:
             "anticipation": max(0.0, float(self.physics_params.anticipation_weight)),
             "impact_sharpness": max(0.0, float(self.physics_params.impact_reward_weight)),
             "physics_prior": max(0.0, 0.5 * float(self.physics_params.anticipation_weight + self.physics_params.impact_reward_weight)),
+            "fluid_splash": max(0.0, float(getattr(self.physics_params, "fluid_fitness_weight", 0.0))),
+            "cloth_flutter": max(0.0, float(getattr(self.physics_params, "cloth_fitness_weight", 0.0))),
         }
 
     def evaluate(self, frames: Sequence[Any], *, fps: float = 60.0, target_joint: str = "root") -> BookLawFitnessReport:
@@ -158,6 +136,8 @@ class KnowledgeDrivenFitnessEngine:
                 anticipation_score=0.0,
                 impact_sharpness=0.0,
                 physics_prior_score=0.0,
+                fluid_splash_score=0.0,
+                cloth_flutter_score=0.0,
                 combined_score=0.0,
                 weights=self.weights,
                 details={"reason": "insufficient_motion_samples", "sample_count": len(samples)},
@@ -170,6 +150,8 @@ class KnowledgeDrivenFitnessEngine:
                 anticipation_score=0.0,
                 impact_sharpness=0.0,
                 physics_prior_score=0.0,
+                fluid_splash_score=0.0,
+                cloth_flutter_score=0.0,
                 combined_score=0.0,
                 weights=self.weights,
                 details={"reason": "target_joint_missing", "target_joint": target_joint},
@@ -185,18 +167,24 @@ class KnowledgeDrivenFitnessEngine:
         anticipation = self._anticipation_score(positions, velocities, accelerations, key_idx)
         impact = self._impact_sharpness_score(speeds, accelerations, key_idx, fps=fps)
         prior = self._physics_prior_score()
+        fluid_score = self._fluid_splash_score(samples, positions, speeds)
+        cloth_score = self._cloth_flutter_score(samples)
         weights = self.weights
         total_w = max(sum(weights.values()), _EPS)
         combined = (
             anticipation * weights["anticipation"]
             + impact * weights["impact_sharpness"]
             + prior * weights["physics_prior"]
+            + fluid_score * weights["fluid_splash"]
+            + cloth_score * weights["cloth_flutter"]
         ) / total_w
 
         return BookLawFitnessReport(
             anticipation_score=anticipation,
             impact_sharpness=impact,
             physics_prior_score=prior,
+            fluid_splash_score=fluid_score,
+            cloth_flutter_score=cloth_score,
             combined_score=_clamp01(combined),
             weights=weights,
             details={
@@ -206,6 +194,8 @@ class KnowledgeDrivenFitnessEngine:
                 "max_speed": float(max(speeds) if speeds else 0.0),
                 "knowledge_source": self.knowledge.source_path,
                 "physics_params": self.physics_params.to_dict(),
+                "fluid_splash_target": float(getattr(self.physics_params, "fluid_fitness_weight", 0.0)),
+                "cloth_flutter_target": float(getattr(self.physics_params, "cloth_fitness_weight", 0.0)),
             },
         )
 
@@ -280,6 +270,38 @@ class KnowledgeDrivenFitnessEngine:
         stretch_ok = 1.0 - abs(float(self.physics_params.squash_max_stretch) - 1.35) / 1.35
         velocity_gain_ok = 1.0 - abs(float(self.physics_params.squash_velocity_to_stretch) - 0.18) / 0.18
         return _clamp01(0.5 * stretch_ok + 0.5 * velocity_gain_ok)
+
+    def _fluid_splash_score(
+        self,
+        samples: Sequence[MotionSample],
+        positions: Sequence[tuple[float, float]],
+        speeds: Sequence[float],
+    ) -> float:
+        if len(positions) < 3 or not speeds:
+            return 0.0
+        xs = [p[0] for p in positions]
+        ys = [p[1] for p in positions]
+        spread = math.sqrt((max(xs) - min(xs)) ** 2 + (max(ys) - min(ys)) ** 2)
+        target_spread = float(getattr(self.knowledge.fluid, "splash_spread_target", 0.42))
+        spread_score = 1.0 - abs(spread - target_spread) / max(target_spread, _EPS)
+        speed_score = _clamp01(max(speeds) / max(float(getattr(self.knowledge.fluid, "velocity_scale", 22.0)), 1.0))
+        count_target = max(1.0, float(getattr(self.knowledge.fluid, "particle_count_target", 28)))
+        cadence_score = _clamp01(len(samples) / count_target)
+        return _clamp01(0.45 * spread_score + 0.35 * speed_score + 0.20 * cadence_score)
+
+    def _cloth_flutter_score(self, samples: Sequence[MotionSample]) -> float:
+        if len(samples) < 4:
+            return 0.0
+        roots = [s.positions.get("root") for s in samples if s.positions.get("root") is not None]
+        if len(roots) < 4:
+            return 0.0
+        vertical = [p[1] for p in roots]
+        flutter = sum(abs(vertical[i] - vertical[i - 1]) for i in range(1, len(vertical))) / max(len(vertical) - 1, 1)
+        target = float(getattr(self.knowledge.cloth, "flutter_target", 0.18))
+        damping = float(getattr(self.knowledge.cloth, "damping", 0.72))
+        flutter_match = 1.0 - abs(flutter - target) / max(target, _EPS)
+        damping_match = 1.0 - abs(damping - 0.72) / 0.72
+        return _clamp01(0.65 * flutter_match + 0.35 * damping_match)
 
 
 def evaluate_knowledge_fitness(

@@ -248,12 +248,7 @@ from .nsm_gait import (
     QUADRUPED_TROT_PROFILE,
     QUADRUPED_PACE_PROFILE,
 )
-# SESSION-056: Headless Neural Render Pipeline (Jamriška EbSynth + Zhang ControlNet)
-from .headless_comfy_ebsynth import (
-    NeuralRenderConfig, KeyframePlan, NeuralRenderResult,
-    ComfyUIHeadlessClient, EbSynthPropagationEngine,
-    HeadlessNeuralRenderPipeline,
-)
+# SESSION-056 headless neural render pipeline archived in _legacy_archive_v5 during V6 cleanup.
 # SESSION-107: Math-to-AI ControlNet bridge exporters
 from .controlnet_bridge_exporters import (
     PaddingInfo,
@@ -328,17 +323,7 @@ from .dimension_uplift_engine import (
     AdaptiveSDFNode, AdaptiveSDFCache,
     DimensionUpliftStatus,
 )
-# SESSION-062: Fluid Sequence Exporter & Unity VFX Graph Bridge
-from .fluid_sequence_exporter import (
-    FluidSequenceConfig,
-    FluidSequenceManifest,
-    FluidSequenceExportResult,
-    FlipbookAtlasBuilder,
-    VelocityFieldRenderer,
-    FluidSequenceExporter,
-    generate_fluid_vfx_controller,
-    export_fluid_vfx_bundle,
-)
+# SESSION-062 fluid sequence exporter archived in _legacy_archive_v5 during V6 cleanup.
 # SESSION-106: Physical Ribbon Mesh Extractor (P1-B1-1)
 from .physical_ribbon_extractor import (
     RibbonExtractorConfig,
@@ -627,7 +612,6 @@ __all__ = [
     # SESSION-056: Headless Neural Render Pipeline (EbSynth + ControlNet)
     "NeuralRenderConfig", "NeuralRenderResult",
     "ComfyUIHeadlessClient", "EbSynthPropagationEngine",
-    "HeadlessNeuralRenderPipeline",
     # SESSION-107: Math-to-AI ControlNet bridge exporters
     "PaddingInfo", "ExportResult",
     "NormalMapExportConfig", "NormalMapExporter",

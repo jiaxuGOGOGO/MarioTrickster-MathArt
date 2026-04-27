@@ -922,7 +922,7 @@ def hydrate_prompt(context: dict) -> dict:
         if vibe_has_non_ascii or style_has_non_ascii:
             _source_text = vibe if vibe else style_prompt
             try:
-                from mathart.backend.ai_render_stream_backend import (
+                from mathart.utils.comfy_utils import (
                     _armor_prompt as _s208_armor,
                 )
                 _translated_positive = _s208_armor(_source_text)

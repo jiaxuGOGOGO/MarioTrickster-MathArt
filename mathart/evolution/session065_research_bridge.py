@@ -296,47 +296,12 @@ class ResearchModuleEvaluator:
         return metrics
 
     def evaluate_sparse_ctrl_bridge(self) -> ResearchModuleMetrics:
-        """Evaluate SparseCtrl Bridge module."""
+        """Report SparseCtrl Bridge as archived during V6 cleanup."""
         metrics = ResearchModuleMetrics(
             module_name="sparse_ctrl_bridge",
             paper_ref="Guo et al., SparseCtrl, arXiv:2311.16933, 2023",
+            integration_status="archived",
         )
-        try:
-            from mathart.animation.sparse_ctrl_bridge import (
-                SparseCtrlBridge, MotionVectorConditioner
-            )
-            metrics.test_count = 4
-            t0 = time.time()
-
-            metrics.tests_passed += 1  # Import OK
-
-            # Condition preparation
-            bridge = SparseCtrlBridge()
-            conditions = {"depth": {0: np.zeros((32, 32, 3)), 10: np.ones((32, 32, 3))}}
-            batch = bridge.prepare_sparse_conditions(20, conditions)
-            assert batch.total_frames == 20
-            metrics.tests_passed += 1
-
-            # Workflow generation
-            workflow = bridge.build_comfyui_workflow(batch, prompt="test")
-            assert workflow["sparse_ctrl"]["enabled"] is True
-            metrics.tests_passed += 1
-
-            # Motion vector encoding
-            conditioner = MotionVectorConditioner()
-            mv = self._rng.standard_normal((32, 32, 2)).astype(np.float32)
-            encoded = conditioner.encode_motion_vectors([mv])
-            assert encoded[0].shape == (32, 32, 3)
-            metrics.tests_passed += 1
-
-            metrics.performance_ms = (time.time() - t0) * 1000
-            metrics.quality_score = 1.0
-            metrics.integration_status = "complete"
-        except Exception as e:
-            logger.error(f"SparseCtrl bridge evaluation failed: {e}")
-            metrics.integration_status = "partial"
-
-        metrics.coverage_pct = metrics.pass_rate * 100
         metrics.last_evaluated = datetime.now(timezone.utc).isoformat()
         self._results["sparse_ctrl_bridge"] = metrics
         return metrics
@@ -671,9 +636,7 @@ class ResearchIntegrationTester:
     def test_antiflicker_pipeline(self) -> bool:
         """Test: Keyframes → SparseCtrl Config → Consistency Score."""
         try:
-            from mathart.animation.sparse_ctrl_bridge import (
-                SparseCtrlBridge, MotionVectorConditioner
-            )
+            raise RuntimeError("SparseCtrl bridge archived in _legacy_archive_v5")
 
             # Step 1: Prepare sparse conditions
             bridge = SparseCtrlBridge()

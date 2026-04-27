@@ -883,9 +883,8 @@ def generate_evolution_report(
     from .terrain_sensor_bridge import collect_terrain_sensor_status
     terrain_sensor_status = collect_terrain_sensor_status(root)
 
-    # SESSION-045: Neural rendering bridge status
-    from .neural_rendering_bridge import collect_neural_rendering_status
-    neural_rendering_status = collect_neural_rendering_status(root)
+    # SESSION-045 neural rendering bridge archived in _legacy_archive_v5 during V6 cleanup.
+    neural_rendering_status = None
 
     # SESSION-057: Smooth morphology bridge status (P2)
     from .smooth_morphology_bridge import collect_smooth_morphology_status
@@ -963,12 +962,7 @@ def generate_evolution_report(
         )
     else:
         summary_parts.append("terrain sensor bridge (Gap B2) not yet integrated")
-    if neural_rendering_status.motion_vector_module_exists:
-        summary_parts.append(
-            f"neural rendering bridge exports {len(neural_rendering_status.tracked_exports)} tracked MV hooks"
-        )
-    else:
-        summary_parts.append("neural rendering bridge (Gap C3) not yet integrated")
+    summary_parts.append("neural rendering bridge (Gap C3) archived in _legacy_archive_v5")
     if smooth_morphology_status.module_exists:
         summary_parts.append(
             f"smooth morphology bridge tracks {len(smooth_morphology_status.tracked_exports)} parametric SDF hook(s)"
@@ -1054,7 +1048,6 @@ __all__ = [
     "GAPB2_DISTILLATIONS",
     "GAPC3_DISTILLATIONS",
     "P2_CROSSDIM_DISTILLATIONS",
-    "collect_neural_rendering_status",
     "collect_jakobsen_chain_status",
     "collect_terrain_sensor_status",
     # SESSION-100 (PERF-1): Exported constants for DI override

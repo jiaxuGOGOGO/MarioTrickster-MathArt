@@ -11,87 +11,16 @@ license = {text = "MIT"}
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24",
-    "Pillow>=10.0",
     "scipy>=1.11",
-    "openai>=1.0.0",
-    "requests>=2.31",
-    "optuna>=4.0",
-    "numba>=0.65",
-    "networkx>=3.2",
-    "gymnasium>=0.29,<2",
-    # SESSION-144: white-model proxy renderer (Director Studio REPL) depends on matplotlib.
-    # It is driven head-less via matplotlib.use("Agg"), so no GUI backend is pulled in.
-    "matplotlib>=3.7",
-    "PyYAML>=6.0",
-    # SESSION-145: Spine preview headless MP4/GIF renderer depends on OpenCV.
-    # Uses only cv2.VideoWriter / cv2.line / cv2.circle — zero GUI calls.
-    # The headless variant avoids pulling in Qt/GTK display backends.
-    "opencv-python-headless>=4.8",
-    # SESSION-145: imageio provides a lightweight, Pillow-independent
-    # animated-GIF / APNG writer used by future preview export paths.
-    # Kept minimal — no ffmpeg plugin auto-download at install time.
-    "imageio>=2.31",
-    # SESSION-146: psutil is used by PreflightRadar for process-table
-    # reverse-lookup (ComfyUI sniffer). Without it, the radar degrades
-    # to filesystem-only discovery and logs "psutil not importable".
-    "psutil>=5.9",
-    # SESSION-147: python-dotenv powers the ComfyUI interactive path
-    # rescue gateway (mathart.workspace.comfyui_rescue) — we use its
-    # ``set_key`` helper to persist COMFYUI_HOME into the project-level
-    # .env without clobbering unrelated keys. The module gracefully
-    # degrades to a pure-Python append-or-update implementation when
-    # dotenv is unavailable, so this dependency is a UX improvement
-    # rather than a hard prerequisite.
-    "python-dotenv>=1.0",
-    # SESSION-192 [Dependency Vanguard / 满血入库]: websocket-client is the
-    # native transport for ComfyUI's /ws progress stream. Without it, the
-    # ComfyUI client driver silently degrades to fragile HTTP polling
-    # (which has been observed to crash with WinError 10054 — connection
-    # reset by peer — on long video generations). Pinning >=1.6.0 keeps us
-    # on the modern threaded reconnect API.
-    "websocket-client>=1.6.0",
-    # SESSION-192 [Dependency Vanguard]: watchdog powers the artifact /
-    # ComfyUI output directory live-tailer used by the LookDev rapid
-    # prototyping pipeline and the artifact_manifest auto-refresh. Without
-    # it, the system degrades to polling stat() in a loop which both
-    # spams logs and misses fast-emitted intermediate frames.
-    "watchdog>=3.0.0",
-    # SESSION-192 [Dependency Vanguard]: tabulate is the pretty-print
-    # backend used by the physics telemetry audit handshake banner and
-    # several CLI dashboards (mass-production summary, backend probe,
-    # session brain inspector). Without it, dashboards fall back to a
-    # crude str(dict) dump that is nearly unreadable in the terminal.
-    "tabulate>=0.9.0",
-    # SESSION-202 [Zero-Defect Web Workspace]: gradio powers the browser-based
-    # visual production console (mathart/webui/app.py). It provides reactive
-    # Blocks layout, streaming progress via yield/generator, image gallery,
-    # and video playback — all without writing raw HTML/JS. Pinning >=4.0
-    # ensures the Blocks API and gr.Progress are available.
+    "taichi>=1.7.0",
+    "Pillow>=10.0",
     "gradio>=4.0",
+    "websocket-client>=1.6.0",
+    "requests>=2.31",
+    "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
-# SESSION-192 [Dependency Vanguard]: ``all`` aggregates the heavy /
-# optional accelerators (taichi GPU JIT, MuJoCo physics, RL training
-# stack, Anthropic LLM client). They are intentionally OUT of the core
-# ``dependencies`` array because they each pull in tens to hundreds of
-# MB and would balloon CPU-only sandbox installs. Power users opt in
-# with ``pip install mathart[all]`` (or ``pip install -e .[all]`` from
-# a checkout). Each entry is pinned to a known-compatible major to
-# avoid silent ABI breakage.
-all = [
-    "taichi>=1.7.0",
-    "mujoco>=3.0.0",
-    "stable-baselines3>=2.0.0",
-    "anthropic>=0.18.0",
-]
-gpu = [
-    # SESSION-146: torch is a multi-GB heavy AI runtime. It MUST NOT
-    # appear in default dependencies to protect CPU-sandbox sub-second
-    # startup. Users who need GPU SDF evaluation or neural rendering
-    # install this extra explicitly: `pip install mathart[gpu]`.
-    "torch>=2.0",
-]
 dev = [
     "pytest>=7.4",
     "pytest-cov>=4.1",
@@ -103,8 +32,6 @@ ci = [
     "pytest-cov>=4.1",
     "ruff>=0.1",
     "hypothesis>=6.0",
-    "scikit-image>=0.22",
-    "opencv-python-headless>=4.8",
 ]
 
 [project.scripts]

@@ -60,10 +60,8 @@ from mathart.core.backend_registry import (
 from mathart.core.artifact_schema import ArtifactFamily, ArtifactManifest
 from mathart.core.backend_types import BackendType
 
-# SESSION-172/173: Import JIT upscale + Prompt Armor (with built-in vibe
-# translation) from ai_render_stream_backend.  _armor_prompt() now
-# internally calls _translate_vibe() — no additional import needed.
-from mathart.backend.ai_render_stream_backend import (
+# SESSION-172/173: V6-safe static Comfy utility extraction.
+from mathart.utils.comfy_utils import (
     _jit_upscale_image,
     _armor_prompt,
     _BASE_NEGATIVE_PROMPT,

@@ -411,6 +411,35 @@ def run_wizard(
         sys.stdout.flush()
         return 2
 
+    if str(args.mode).strip().lower() in {"v6", "omniscient", "grand", "phase3"}:
+        try:
+            from mathart.workspace.run_v6_omniscient_pipeline import build_arg_parser, run_pipeline
+
+            v6_args = build_arg_parser().parse_args([])
+            v6_args.output_dir = getattr(args, "output_dir", None) or v6_args.output_dir
+            v6_args.knowledge_json = getattr(args, "source", None) or getattr(args, "knowledge_json", None)
+            v6_args.knowledge_url = None
+            v6_args.vibe = getattr(args, "source_name", None) or "wizard unified V6 facade"
+            v6_args.asset_name = "v6_mario_trickster"
+            v6_args.dry_runs = max(1, int(getattr(args, "iterations", 12)))
+            v6_args.fps = 12
+            v6_args.frame_count = 24
+            v6_args.run_blender = False
+            result = run_pipeline(v6_args)
+            sys.stdout.write(json.dumps({"status": "ok", "pipeline": "v6_omniscient", "result": result.to_dict()}, ensure_ascii=False))
+            sys.stdout.flush()
+            return 0
+        except Exception as exc:
+            logger.warning("[CLI] V6 facade failed", exc_info=True)
+            error_payload = {
+                "status": "error",
+                "error_type": exc.__class__.__name__,
+                "message": str(exc),
+            }
+            sys.stdout.write(json.dumps(error_payload, ensure_ascii=False))
+            sys.stdout.flush()
+            return 1
+
     # ── SESSION-201 P0-DIRECTOR-CLI-AND-INTENT-OVERHAUL: headless director studio ──
     # When the caller asked for ``--mode 5`` (director_studio) we route to
     # ``_run_director_studio`` directly so the SESSION-201 prompts (action,

@@ -231,6 +231,22 @@ def build_parser() -> argparse.ArgumentParser:
     mass_parser.add_argument("--skip-ai-render", action="store_true", help="Skip the anti_flicker_render GPU lane for CPU-only dry runs.")
     mass_parser.add_argument("--comfyui-url", default="http://localhost:8188", help="ComfyUI server URL used when AI rendering is enabled.")
 
+    v6_parser = subparsers.add_parser(
+        "v6",
+        aliases=["omniscient"],
+        help="Run the V6 omniscient living-ecosystem pipeline.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    v6_parser.add_argument("--output-dir", default="outputs/v6_omniscient")
+    v6_parser.add_argument("--asset-name", default="v6_mario_trickster")
+    v6_parser.add_argument("--vibe", default="heroic cel-shaded trickster, clean sprite skin")
+    v6_parser.add_argument("--knowledge-json", default=None)
+    v6_parser.add_argument("--knowledge-url", default=None)
+    v6_parser.add_argument("--dry-runs", type=int, default=128)
+    v6_parser.add_argument("--fps", type=int, default=12)
+    v6_parser.add_argument("--frame-count", type=int, default=24)
+    v6_parser.add_argument("--run-blender", action="store_true")
+
     return parser
 
 
@@ -360,6 +376,14 @@ def _command_mass_produce(args: argparse.Namespace) -> int:
     return 0
 
 
+def _command_v6(args: argparse.Namespace) -> int:
+    from mathart.workspace.run_v6_omniscient_pipeline import run_pipeline
+
+    result = run_pipeline(args)
+    _emit_json({"status": "ok", "pipeline": "v6_omniscient", "result": result.to_dict()})
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     raw_argv = list(sys.argv[1:] if argv is None else argv)
     should_route_to_wizard = (
@@ -389,6 +413,8 @@ def main(argv: list[str] | None = None) -> int:
             return _command_anti_flicker_render(args)
         if args.command in {"mass-produce", "mass_produce"}:
             return _command_mass_produce(args)
+        if args.command in {"v6", "omniscient"}:
+            return _command_v6(args)
         raise ValueError(f"Unsupported command: {args.command!r}")
     except Exception as exc:
         LOGGER.exception("CLI execution failed")

@@ -287,9 +287,9 @@ class AssetFactory:
             idle_animation, walk_animation, run_animation, jump_animation,
         )
         from mathart.export.bridge import AssetExporter, ExportConfig
-        from mathart.quality.visual_fitness import (
-            compute_visual_fitness, VisualFitnessConfig,
-        )
+        # SESSION-055 visual fitness scorer archived in _legacy_archive_v5 during V6 cleanup.
+        compute_visual_fitness = None
+        VisualFitnessConfig = None
 
         report = AssetQualityReport(spec=spec)
 
@@ -341,23 +341,13 @@ class AssetFactory:
             roughness = np.asarray(bundle.roughness_map_image, dtype=np.uint8)
             roughness_maps.append(roughness[:, :, 0] if roughness.ndim == 3 else roughness)
 
-        # Compute visual fitness
-        fitness_result = compute_visual_fitness(
-            frames=frames_rgba,
-            normal_maps=normal_maps,
-            depth_maps=depth_maps,
-            thickness_maps=thickness_maps,
-            roughness_maps=roughness_maps,
-            physics_score=0.85,  # Default physics score
-            config=VisualFitnessConfig(),
-        )
-
-        report.visual_fitness = fitness_result.overall_score
-        report.laplacian_score = fitness_result.laplacian_score
-        report.ssim_score = fitness_result.ssim_temporal_score
-        report.depth_quality = fitness_result.depth_quality_score
-        report.channel_quality = fitness_result.channel_quality_score
-        report.physics_score = fitness_result.physics_score
+        # Visual fitness scorer archived in _legacy_archive_v5; keep the legacy bridge import-safe.
+        report.visual_fitness = 0.0
+        report.laplacian_score = 0.0
+        report.ssim_score = 0.0
+        report.depth_quality = 0.0
+        report.channel_quality = 0.0
+        report.physics_score = 0.85
 
         # Export
         try:

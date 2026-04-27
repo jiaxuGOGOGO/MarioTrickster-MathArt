@@ -39,18 +39,7 @@ from mathart.quality.temporal_quality_gate import (
     compute_warp_ssim_pair,
     sliding_window_warp_ssim,
 )
-# SESSION-055: Multi-modal visual fitness scoring
-from mathart.quality.visual_fitness import (
-    VisualFitnessConfig,
-    VisualFitnessResult,
-    compute_laplacian_sharpness,
-    compute_laplacian_quality,
-    compute_frame_ssim,
-    compute_temporal_consistency,
-    compute_channel_dynamic_range,
-    compute_depth_smoothness,
-    compute_visual_fitness,
-)
+# SESSION-055 multi-modal visual fitness scorer archived in _legacy_archive_v5 during V6 Phase 1 cleanup.
 
 __all__ = [
     "ArtMathQualityController", "QualityCheckpoint", "CheckpointResult",
@@ -62,16 +51,7 @@ __all__ = [
     "QualityCheckpointNode",
     "DEFAULT_SKELETON_PROPORTION_BOUNDS",
     "DEFAULT_PROPORTION_RATIO_GUARDS",
-    # SESSION-055: Multi-modal visual fitness scoring
-    "VisualFitnessConfig",
-    "VisualFitnessResult",
-    "compute_laplacian_sharpness",
-    "compute_laplacian_quality",
-    "compute_frame_ssim",
-    "compute_temporal_consistency",
-    "compute_channel_dynamic_range",
-    "compute_depth_smoothness",
-    "compute_visual_fitness",
+    # SESSION-055 visual fitness scorer archived in _legacy_archive_v5 during V6 cleanup.
     # SESSION-131: Temporal Quality Gate
     "BreakerState",
     "BreakerStatus",

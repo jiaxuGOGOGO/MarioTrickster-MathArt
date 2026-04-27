@@ -13,8 +13,10 @@ import argparse
 import json
 import math
 import os
+import sys
 import time
 import urllib.request
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -22,14 +24,53 @@ from typing import Any
 from mathart.animation.anime_timing_modifier import apply_to_unified_motion_clip as apply_anime_timing
 from mathart.animation.squash_stretch_modifier import apply_to_unified_motion_clip as apply_squash_stretch
 from mathart.animation.unified_motion import MotionRootTransform, UnifiedMotionClip, pose_to_umr
+from mathart.animation.v6_physics_bridge import enrich_clip_with_physics_payload
 from mathart.core.backend_registry import get_registry
 from mathart.core.knowledge_interpreter import DEFAULT_KNOWLEDGE, InterpretedKnowledge, interpret_knowledge
 from mathart.evolution.knowledge_fitness import KnowledgeDrivenFitnessEngine
+from mathart.workspace.semantic_orchestrator import SemanticOrchestrator
+
+
+def _score_candidate_worker(payload: tuple[int, int, int, int, str]) -> tuple[UnifiedMotionClip, dict[str, Any]]:
+    idx, dry_runs, fps, frame_count, knowledge_path = payload
+
+    phase = idx / max(dry_runs - 1, 1)
+    amp = 0.6 + 0.9 * ((idx * 37) % 101) / 100.0
+    anticipation = 0.04 + 0.28 * ((idx * 53) % 97) / 96.0
+    impact = 0.45 + 1.35 * phase
+    clip = _make_candidate_clip(amp, anticipation, impact, fps, frame_count)
+    engine = KnowledgeDrivenFitnessEngine(knowledge_path=knowledge_path)
+    report = engine.evaluate(clip.frames, fps=fps, target_joint="root").to_dict()
+    return clip, report
+
+
+@dataclass(frozen=True)
+class V6DeliveryDirs:
+    session_dir: Path
+    final_assets: Path
+    knowledge_reports: Path
+    engine_intermediates: Path
+
+    @classmethod
+    def create(cls, output_root: Path, asset_name: str) -> "V6DeliveryDirs":
+        session_dir = output_root / asset_name
+        dirs = cls(
+            session_dir=session_dir,
+            final_assets=session_dir / "1_FINAL_UNITY_ASSETS",
+            knowledge_reports=session_dir / "2_Knowledge_And_Reports",
+            engine_intermediates=session_dir / "3_Engine_Intermediates",
+        )
+        for path in (dirs.final_assets, dirs.knowledge_reports, dirs.engine_intermediates):
+            path.mkdir(parents=True, exist_ok=True)
+        return dirs
 
 
 @dataclass(frozen=True)
 class V6PipelineResult:
     output_dir: str
+    final_assets_dir: str
+    knowledge_reports_dir: str
+    engine_intermediates_dir: str
     knowledge_source: str
     static_skin_manifest: dict[str, Any]
     best_fitness: dict[str, Any]
@@ -42,7 +83,30 @@ class V6PipelineResult:
 
 
 def _log(message: str) -> None:
-    print(f"[V6-OMNI] {message}")
+    line = f"[V6-OMNI] {message}\n"
+    try:
+        sys.stdout.write(line)
+    except UnicodeEncodeError:
+        encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+        sys.stdout.write(line.encode(encoding, errors="replace").decode(encoding, errors="replace"))
+    sys.stdout.flush()
+
+
+def _write_json(path: Path, payload: Any) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def _dump_physics_payload(clip: UnifiedMotionClip, output_path: Path) -> Path:
+    payload = []
+    for frame in clip.frames:
+        payload.append({
+            "frame_index": getattr(frame, "frame_index", None),
+            "time": getattr(frame, "time", None),
+            "v6_physics_payload": frame.metadata.get("v6_physics_payload", {}),
+        })
+    return _write_json(output_path, payload)
 
 
 def ingest_external_knowledge(output_dir: Path, source_url: str | None, local_path: str | None) -> Path:
@@ -69,6 +133,27 @@ def ingest_external_knowledge(output_dir: Path, source_url: str | None, local_pa
     knowledge_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     os.environ["MATHART_KNOWLEDGE_JSON"] = str(knowledge_path)
     return knowledge_path
+
+
+def inject_semantic_effect_switches(knowledge_path: Path, vibe: str, knowledge: InterpretedKnowledge) -> InterpretedKnowledge:
+    registry = get_registry()
+    resolved = SemanticOrchestrator().resolve_full_intent({}, vibe, registry)
+    plugins = list(resolved.get("active_vfx_plugins", []))
+    text = vibe.lower()
+    wants_fluid = knowledge.fluid.enabled and ("fluid_momentum_controller" in plugins or any(k in text for k in ("fluid", "water", "splash", "流体", "水花", "魔法", "浪涌")))
+    wants_cloth = knowledge.cloth.enabled and ("physics_3d" in plugins or any(k in text for k in ("cloth", "cape", "布料", "披风", "软体", "xpbd")))
+    payload = json.loads(knowledge_path.read_text(encoding="utf-8"))
+    payload["effects"] = {
+        "fluid_vfx": bool(wants_fluid),
+        "cloth_xpbd": bool(wants_cloth),
+        "terrain_ik": True,
+        "active_vfx_plugins": plugins,
+        "skeleton_topology": resolved.get("skeleton_topology", "biped"),
+        "semantic_reason": f"semantic_orchestrator:{','.join(plugins) if plugins else 'default'}",
+    }
+    knowledge_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.environ["MATHART_KNOWLEDGE_JSON"] = str(knowledge_path)
+    return interpret_knowledge(knowledge_path)
 
 
 def initialize_static_skin(output_dir: Path, vibe: str) -> dict[str, Any]:
@@ -121,22 +206,27 @@ def _make_candidate_clip(amplitude: float, anticipation: float, impact: float, f
     return UnifiedMotionClip(clip_id="v6_candidate", state="attack_jump_burst", fps=fps, frames=frames)
 
 
-def run_evolution_sandbox(knowledge: InterpretedKnowledge, dry_runs: int, fps: int, frame_count: int) -> tuple[UnifiedMotionClip, dict[str, Any]]:
+def run_evolution_sandbox(knowledge: InterpretedKnowledge, dry_runs: int, fps: int, frame_count: int, knowledge_path: Path) -> tuple[UnifiedMotionClip, dict[str, Any]]:
     """Dry-run candidate clips and select the best book-law fitness."""
 
-    engine = KnowledgeDrivenFitnessEngine(physics_params=knowledge.physics)
     best_clip: UnifiedMotionClip | None = None
     best_report: dict[str, Any] | None = None
-    for idx in range(max(1, dry_runs)):
-        phase = idx / max(dry_runs - 1, 1)
-        amp = 0.6 + 0.9 * ((idx * 37) % 101) / 100.0
-        anticipation = 0.04 + 0.28 * ((idx * 53) % 97) / 96.0
-        impact = 0.45 + 1.35 * phase
-        clip = _make_candidate_clip(amp, anticipation, impact, fps, frame_count)
-        report = engine.evaluate(clip.frames, fps=fps, target_joint="root").to_dict()
-        if best_report is None or report["combined_score"] > best_report["combined_score"]:
-            best_clip = clip
-            best_report = report
+    total = max(1, dry_runs)
+    workers = min(os.cpu_count() or 1, total)
+    tasks = [(idx, total, fps, frame_count, str(knowledge_path)) for idx in range(total)]
+    if workers > 1:
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            results = executor.map(_score_candidate_worker, tasks, chunksize=max(1, total // (workers * 4)))
+            for clip, report in results:
+                if best_report is None or report["combined_score"] > best_report["combined_score"]:
+                    best_clip = clip
+                    best_report = report
+    else:
+        for task in tasks:
+            clip, report = _score_candidate_worker(task)
+            if best_report is None or report["combined_score"] > best_report["combined_score"]:
+                best_clip = clip
+                best_report = report
     assert best_clip is not None and best_report is not None
     return best_clip, best_report
 
@@ -158,6 +248,8 @@ def render_and_align(
     knowledge_path: Path,
     knowledge: InterpretedKnowledge,
     clip: UnifiedMotionClip,
+    final_assets_dir: Path,
+    engine_intermediates_dir: Path,
     run_blender: bool,
 ) -> dict[str, Any]:
     registry = get_registry()
@@ -169,9 +261,11 @@ def render_and_align(
     backend = backend_cls()
     manifest = backend.execute({
         "asset_name": asset_name,
-        "output_dir": str(output_dir / "render_aligned"),
+        "output_dir": str(engine_intermediates_dir / "blender_render"),
+        "final_assets_dir": str(final_assets_dir),
+        "engine_intermediates_dir": str(engine_intermediates_dir),
         "knowledge_path": str(knowledge_path),
-        "style_params": knowledge.style.to_dict(),
+        "style_params": {**knowledge.style.to_dict(), **knowledge.fluid.to_dict(), **knowledge.cloth.to_dict(), **knowledge.effects.to_dict()},
         "frames": _frames_for_blender(clip),
         "frame_count": len(clip.frames),
         "fps": clip.fps,
@@ -184,29 +278,39 @@ def render_and_align(
 
 def run_pipeline(args: argparse.Namespace) -> V6PipelineResult:
     started = time.monotonic()
-    output_dir = Path(args.output_dir).resolve()
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_root = Path(args.output_dir).resolve()
+    delivery = V6DeliveryDirs.create(output_root, args.asset_name)
+    output_dir = delivery.session_dir
 
     _log("知识同化：拉取/合并外部文献 JSON。")
-    knowledge_path = ingest_external_knowledge(output_dir, args.knowledge_url, args.knowledge_json)
+    knowledge_path = ingest_external_knowledge(delivery.knowledge_reports, args.knowledge_url, args.knowledge_json)
     knowledge = interpret_knowledge(knowledge_path)
 
+    _log("意图大脑：解析 Vibe 并向知识总线注入物理特效开关。")
+    knowledge = inject_semantic_effect_switches(knowledge_path, args.vibe, knowledge)
+
     _log("AI 初始化：ComfyUI 降权为静态表皮贴图初始化器。")
-    static_skin_manifest = initialize_static_skin(output_dir, args.vibe)
+    static_skin_manifest = initialize_static_skin(delivery.engine_intermediates, args.vibe)
 
     _log(f"遗传进化：以 PhysicsParams 为打分向导干跑 {args.dry_runs} 次。")
-    best_clip, best_fitness = run_evolution_sandbox(knowledge, args.dry_runs, args.fps, args.frame_count)
+    best_clip, best_fitness = run_evolution_sandbox(knowledge, args.dry_runs, args.fps, args.frame_count, knowledge_path)
+    _write_json(delivery.knowledge_reports / "v6_fitness_report.json", best_fitness)
 
     _log("时间与空间魔法：注入日式顿帧/抽帧，再叠加 Squash & Stretch。")
     warped_clip = apply_anime_timing(best_clip)
     warped_clip = apply_squash_stretch(warped_clip)
+    warped_clip = enrich_clip_with_physics_payload(warped_clip, fluid_params=knowledge.fluid, cloth_params=knowledge.cloth, effects=knowledge.effects)
+    _dump_physics_payload(warped_clip, delivery.engine_intermediates / "v6_physics_payload_frames.json")
 
     _log("降维对齐：生成 Blender Headless 纯 bpy 渲染脚本与 Unity 零后期元数据契约。")
-    blender_manifest = render_and_align(output_dir, args.asset_name, knowledge_path, knowledge, warped_clip, args.run_blender)
+    blender_manifest = render_and_align(output_dir, args.asset_name, knowledge_path, knowledge, warped_clip, delivery.final_assets, delivery.engine_intermediates, args.run_blender)
     unity_meta_path = blender_manifest.get("outputs", {}).get("unity_meta", "")
 
     result = V6PipelineResult(
         output_dir=str(output_dir),
+        final_assets_dir=str(delivery.final_assets),
+        knowledge_reports_dir=str(delivery.knowledge_reports),
+        engine_intermediates_dir=str(delivery.engine_intermediates),
         knowledge_source=knowledge.source_path,
         static_skin_manifest=static_skin_manifest,
         best_fitness=best_fitness,
@@ -214,15 +318,17 @@ def run_pipeline(args: argparse.Namespace) -> V6PipelineResult:
         blender_manifest=blender_manifest,
         unity_meta_path=unity_meta_path,
     )
-    report_path = output_dir / "v6_omniscient_pipeline_report.json"
+    report_path = delivery.knowledge_reports / "v6_omniscient_pipeline_report.json"
     report_path.write_text(json.dumps(result.to_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     book = str((knowledge.raw or {}).get("source_book", "某某动画书籍"))
+    _log(f"已成功吸收《{book}》理论并具象化。")
     _log(
-        f"已成功吸收《{book}》理论并具象化。"
-        "自带绝佳顿帧节奏、纯正赛璐璐画风、且免后期 Pivot 对齐的 Unity 资产包已生成！"
+        "✅ V6 工业级管线运转完毕。中间废料已自动隔离隐藏。"
+        f"美术人员请直接打开 {delivery.final_assets} 目录，"
+        "将资产直接拖入 Unity 享受零后期魔法！"
     )
-    _log(f"输出目录：{output_dir}")
+    _log(f"交付根目录：{output_dir}")
     _log(f"Unity Meta：{unity_meta_path}")
     _log(f"总耗时：{time.monotonic() - started:.2f}s")
     return result

@@ -26,8 +26,6 @@ SESSION-203-HOTFIX:
 from __future__ import annotations
 
 import logging
-import os
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +157,15 @@ def create_app() -> "gradio.Blocks":
                         interactive=True,
                     )
 
+                # Knowledge Feed JSON input
+                gr.Markdown("### 📚 知识进食区 (Knowledge Feed)")
+                knowledge_feed = gr.Textbox(
+                    label="书籍/论文提炼 JSON",
+                    placeholder='例如: {"source_book":"Animation + Fluid Notes", "fluid":{"glow_intensity":2.4}, "cloth":{"damping":0.62}}',
+                    lines=8,
+                    interactive=True,
+                )
+
                 # Vibe text input
                 vibe_input = gr.Textbox(
                     label="🎨 氛围描述 (Vibe Description)",
@@ -195,9 +202,16 @@ def create_app() -> "gradio.Blocks":
                     interactive=False,
                 )
 
+                knowledge_summary = gr.Textbox(
+                    label="📚 当前研读理论与干涉权重",
+                    value="等待 Knowledge Feed...",
+                    interactive=False,
+                    lines=14,
+                )
+
                 # Gallery for sequence frames
                 gallery = gr.Gallery(
-                    label="🖼️ 序列帧画廊 (outputs/final_renders/)",
+                    label="🖼️ V6 资产帧画廊 (outputs/v6_webui/)",
                     columns=4,
                     rows=2,
                     height="auto",
@@ -221,6 +235,7 @@ def create_app() -> "gradio.Blocks":
             physics: bool,
             cloth: bool,
             particles: bool,
+            knowledge_json: str,
             vibe: str,
         ):
             """Generator handler for the launch button.
@@ -237,6 +252,7 @@ def create_app() -> "gradio.Blocks":
                 force_cloth=cloth,
                 force_particles=particles,
                 raw_vibe=vibe or "",
+                knowledge_feed=knowledge_json or "",
             ):
                 stage = event.get("stage", "")
                 progress = event.get("progress", 0.0)
@@ -254,6 +270,7 @@ def create_app() -> "gradio.Blocks":
                     progress,
                     gallery_files if gallery_files else None,
                     video_file,
+                    event.get("knowledge_summary", ""),
                 )
 
         launch_btn.click(
@@ -265,6 +282,7 @@ def create_app() -> "gradio.Blocks":
                 force_physics,
                 force_cloth,
                 force_particles,
+                knowledge_feed,
                 vibe_input,
             ],
             outputs=[
@@ -272,6 +290,7 @@ def create_app() -> "gradio.Blocks":
                 progress_bar,
                 gallery,
                 video_output,
+                knowledge_summary,
             ],
         )
 
