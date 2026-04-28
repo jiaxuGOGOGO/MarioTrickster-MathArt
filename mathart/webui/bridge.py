@@ -47,7 +47,7 @@ def persist_uploaded_file(gradio_temp_path: str | None, prefix: str = "knowledge
     return str(dest)
 
 
-def assemble_creator_intent(action_name: str | None, reference_image_path: str, force_fluid: bool, force_physics: bool, force_cloth: bool, force_particles: bool, raw_vibe: str = "") -> dict[str, Any]:
+def assemble_creator_intent(action_name: str | None, reference_image_path: str, force_fluid: bool, force_physics: bool, force_cloth: bool, force_particles: bool, raw_vibe: str = "", base_mesh_path: str = "") -> dict[str, Any]:
     vfx_overrides: dict[str, bool] = {}
     if force_fluid:
         vfx_overrides["force_fluid"] = True
@@ -62,6 +62,8 @@ def assemble_creator_intent(action_name: str | None, reference_image_path: str, 
         "visual_reference_path": reference_image_path,
         "action": action_name,
         "reference_image": reference_image_path,
+        "base_mesh_path": base_mesh_path,
+        "static_model_path": base_mesh_path,
         "vfx_overrides": vfx_overrides,
         "raw_vibe": raw_vibe,
         "skeleton_topology": "biped",
@@ -148,7 +150,7 @@ def build_knowledge_report(summary: dict[str, Any]) -> str:
 
 
 class WebUIBridge:
-    PRODUCTION_TIMEOUT_SECONDS = 120.0
+    PRODUCTION_TIMEOUT_SECONDS = 300.0
 
     def __init__(self, project_root: Path | None = None) -> None:
         self.project_root = project_root or _PROJECT_ROOT
@@ -158,10 +160,11 @@ class WebUIBridge:
     def get_available_actions(self) -> list[str]:
         return ["idle", "walk", "run", "dash", "jump", "attack", "spellcast"]
 
-    def dispatch_render(self, action_name: str, reference_image: str | None, force_fluid: bool, force_physics: bool, force_cloth: bool, force_particles: bool, raw_vibe: str = "", knowledge_feed: str = "", knowledge_file: str | None = None, dry_runs: int = 128) -> Generator[dict[str, Any], None, None]:
+    def dispatch_render(self, action_name: str, reference_image: str | None, force_fluid: bool, force_physics: bool, force_cloth: bool, force_particles: bool, raw_vibe: str = "", knowledge_feed: str = "", knowledge_file: str | None = None, dry_runs: int = 128, base_mesh_file: str | None = None, base_mesh_path: str | None = None, run_blender: bool = False, blender_executable: str | None = None) -> Generator[dict[str, Any], None, None]:
         yield self._ui_event("init", 0.0, "[系统待命] Omniscient Pipeline 已连接。", {}, None, [])
         try:
             persisted_ref = persist_uploaded_image(reference_image)
+            persisted_skin = persist_uploaded_file(base_mesh_file or base_mesh_path, prefix="skin") if (base_mesh_file or base_mesh_path) else ""
             persisted_knowledge = persist_uploaded_file(knowledge_file, prefix="knowledge") if knowledge_file else ""
             output_dir = self.outputs_dir / f"run_{uuid.uuid4().hex[:8]}"
             output_dir.mkdir(parents=True, exist_ok=True)
@@ -169,8 +172,8 @@ class WebUIBridge:
             knowledge_summary = _summarize_knowledge(knowledge_path, raw_knowledge) if knowledge_path else {}
             yield self._ui_event("knowledge_feed", 0.12, "[知识大脑进食槽] 理论 JSON 已被解析并接入。", knowledge_summary, None, [], "知识已同化")
 
-            intent = assemble_creator_intent(action_name or "", persisted_ref, force_fluid, force_physics, force_cloth, force_particles, raw_vibe)
-            spec = {"action_name": action_name or "", "_visual_reference_path": persisted_ref, "knowledge_path": knowledge_path, "output_dir": str(output_dir), "dry_runs": int(max(1, int(dry_runs))), "vibe": self._compose_vibe(intent)}
+            intent = assemble_creator_intent(action_name or "", persisted_ref, force_fluid, force_physics, force_cloth, force_particles, raw_vibe, persisted_skin)
+            spec = {"action_name": action_name or "", "_visual_reference_path": persisted_ref, "base_mesh_path": persisted_skin, "knowledge_path": knowledge_path, "output_dir": str(output_dir), "dry_runs": int(max(1, int(dry_runs))), "run_blender": bool(run_blender), "blender_executable": blender_executable or "", "vibe": self._compose_vibe(intent)}
             yield self._ui_event("pipeline_dispatch", 0.2, "[静默路由] UI 仅作为触发器，已接管至 run_v6_omniscient_pipeline.py。", knowledge_summary, None, [], "路由中")
 
             events: queue.Queue[dict[str, Any]] = queue.Queue()
@@ -193,7 +196,7 @@ class WebUIBridge:
             thread.start()
             thread.join(timeout=self.PRODUCTION_TIMEOUT_SECONDS)
             if thread.is_alive():
-                yield self._ui_event("complete", 1.0, "pipeline timed out", knowledge_summary, None, [], "超时")
+                yield self._ui_event("complete", 1.0, "pipeline timed out before final Unity assets were produced", knowledge_summary, None, [], "超时未交付")
                 return
 
             while True:
@@ -214,7 +217,7 @@ class WebUIBridge:
             final_assets_dir = Path(result_obj.final_assets_dir) if result_obj else Path(str(result.get("batch_dir", output_dir)))
             knowledge_reports_dir = Path(result_obj.knowledge_reports_dir) if result_obj else output_dir
             final_summary = _summarize_knowledge(str(knowledge_reports_dir / "v6_distilled_knowledge.json"), raw_knowledge) if result_obj else knowledge_summary
-            gallery = self._collect_output_gallery([final_assets_dir])
+            gallery = self._collect_output_gallery([final_assets_dir, Path(result_obj.engine_intermediates_dir) if result_obj else output_dir])
             yield self._ui_event("complete", 1.0, "\n".join(terminal_messages[-12:]), final_summary, gallery[0] if gallery else None, gallery, "绿灯常亮")
         except Exception as exc:
             logger.exception("V6 WebUI dispatch failed")
@@ -233,6 +236,12 @@ class WebUIBridge:
         _ = intent
         from mathart.workspace.run_v6_omniscient_pipeline import build_arg_parser, run_pipeline
         argv = ["--output-dir", spec["output_dir"], "--vibe", spec["vibe"], "--dry-runs", str(spec["dry_runs"]), "--frame-count", "12"]
+        if spec.get("base_mesh_path"):
+            argv.extend(["--base-mesh-path", spec["base_mesh_path"]])
+        if spec.get("run_blender"):
+            argv.append("--run-blender")
+        if spec.get("blender_executable"):
+            argv.extend(["--blender-executable", spec["blender_executable"]])
         if spec.get("knowledge_path"):
             argv.extend(["--knowledge-json", spec["knowledge_path"]])
         return run_pipeline(build_arg_parser().parse_args(argv), event_callback=event_callback)
@@ -256,14 +265,31 @@ class WebUIBridge:
 
     def _collect_output_gallery(self, roots: list[Path]) -> list[str]:
         files: list[str] = []
+        search_roots: list[Path] = []
         for root in roots:
             if root and root.exists():
-                for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
-                    files.extend(str(p) for p in sorted(root.rglob(ext)))
+                search_roots.append(root)
+                if root.name == "1_FINAL_UNITY_ASSETS":
+                    sibling_intermediates = root.parent / "3_Engine_Intermediates"
+                    if sibling_intermediates.exists():
+                        search_roots.append(sibling_intermediates)
+        for root in search_roots:
+            for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
+                files.extend(str(path) for path in sorted(root.rglob(ext)))
+
+        def _priority(path: str) -> tuple[int, str]:
+            lower = path.lower()
+            name = Path(path).name.lower()
+            if "spritesheet" in name:
+                return (0, path)
+            if "1_final_unity_assets" in lower:
+                return (1, path)
+            return (2, path)
+
         seen: set[str] = set()
         ordered: list[str] = []
-        for path in files:
+        for path in sorted(files, key=_priority):
             if path not in seen:
                 seen.add(path)
                 ordered.append(path)
-        return ordered[-50:]
+        return ordered[:50]

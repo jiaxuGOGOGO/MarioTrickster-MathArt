@@ -261,6 +261,8 @@ def render_and_align(
     final_assets_dir: Path,
     engine_intermediates_dir: Path,
     run_blender: bool,
+    base_mesh_path: str | None = None,
+    blender_executable: str | None = None,
 ) -> dict[str, Any]:
     registry = get_registry()
     entry = registry.get("blender_headless_pixel_art")
@@ -281,6 +283,9 @@ def render_and_align(
         "fps": clip.fps,
         "resolution": [256, 256],
         "pivot_world": [0.0, 0.0, 0.0],
+        "base_mesh_path": base_mesh_path or "",
+        "blender_executable": blender_executable or "blender",
+        "blender_timeout_seconds": 90.0,
         "run_blender": run_blender,
     })
     return manifest.to_dict()
@@ -313,7 +318,7 @@ def run_pipeline(args: argparse.Namespace, event_callback: ProgressCallback | No
     _dump_physics_payload(warped_clip, delivery.engine_intermediates / "v6_physics_payload_frames.json")
 
     _emit(event_callback, stage="blender_render", progress=0.82, message="[唤醒 Blender 融球特效] 正在生成零后期 Unity 对齐资产。")
-    blender_manifest = render_and_align(output_dir, args.asset_name, knowledge_path, knowledge, warped_clip, delivery.final_assets, delivery.engine_intermediates, args.run_blender)
+    blender_manifest = render_and_align(output_dir, args.asset_name, knowledge_path, knowledge, warped_clip, delivery.final_assets, delivery.engine_intermediates, args.run_blender, args.base_mesh_path, args.blender_executable)
     unity_meta_path = blender_manifest.get("outputs", {}).get("unity_meta", "")
 
     result = V6PipelineResult(
@@ -362,6 +367,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--fps", type=int, default=12)
     parser.add_argument("--frame-count", type=int, default=24)
     parser.add_argument("--run-blender", action="store_true")
+    parser.add_argument("--base-mesh-path", default="")
+    parser.add_argument("--blender-executable", default="blender")
     return parser
 
 

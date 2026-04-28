@@ -174,6 +174,12 @@ def create_app() -> "gradio.Blocks":
                     label="动作语义锚点",
                 )
                 ref_image = gr.Image(label="可选参考图", type="filepath", sources=["upload"])
+                base_mesh_file = gr.File(label="外部静态 3D 皮囊文件（FBX/GLB/GLTF/OBJ）", file_types=[".fbx", ".glb", ".gltf", ".obj"], type="filepath")
+                base_mesh_path = gr.Textbox(
+                    label="或填写本机 3D 模型路径",
+                    placeholder=r"例如：D:\\models\\hero.fbx",
+                    lines=1,
+                )
                 vibe_input = gr.Textbox(
                     label="自然语言 Vibe 意图",
                     placeholder="例如：粘滞流体拖尾的赛博像素骗术师，攻击瞬间卡肉顿帧，Unity 2D 直接可用",
@@ -193,6 +199,12 @@ def create_app() -> "gradio.Blocks":
                 with gr.Row():
                     force_cloth = gr.Checkbox(label="强制布料", value=False)
                     force_particles = gr.Checkbox(label="强制粒子", value=False)
+                run_blender = gr.Checkbox(label="启用真实 Blender Headless（用于 FBX/GLB 骨骼映射试飞）", value=False)
+                blender_executable = gr.Textbox(
+                    label="Blender 可执行文件路径",
+                    value=r"D:\blender\blender.exe",
+                    lines=1,
+                )
                 launch_btn = gr.Button("🚀 启动数字生命孵化", variant="primary", size="lg", elem_id="incubate_btn")
 
         with gr.Row(elem_classes=["omni-section"]):
@@ -205,7 +217,7 @@ def create_app() -> "gradio.Blocks":
                 hero_asset = gr.Image(label="高清精灵图集预览 · 1_FINAL_UNITY_ASSETS", type="filepath", interactive=False)
                 gallery = gr.Gallery(label="最终 Unity 资产区", columns=3, rows=2, object_fit="contain", height="auto")
 
-        def on_launch(action, ref_img, fluid, physics, cloth, particles, knowledge_json, knowledge_json_file, vibe, generations):
+        def on_launch(action, ref_img, fluid, physics, cloth, particles, knowledge_json, knowledge_json_file, vibe, generations, mesh_file, mesh_path, blender_enabled, blender_exe):
             for event in bridge.dispatch_render(
                 action_name=action or "",
                 reference_image=ref_img,
@@ -217,6 +229,10 @@ def create_app() -> "gradio.Blocks":
                 knowledge_feed=knowledge_json or "",
                 knowledge_file=knowledge_json_file,
                 dry_runs=int(generations or 128),
+                base_mesh_file=mesh_file,
+                base_mesh_path=mesh_path,
+                run_blender=bool(blender_enabled),
+                blender_executable=blender_exe,
             ):
                 light = event.get("status_light", "")
                 if event.get("stage") == "complete":
@@ -235,7 +251,7 @@ def create_app() -> "gradio.Blocks":
 
         launch_btn.click(
             fn=on_launch,
-            inputs=[action_dropdown, ref_image, force_fluid, force_physics, force_cloth, force_particles, knowledge_feed, knowledge_file, vibe_input, dry_runs],
+            inputs=[action_dropdown, ref_image, force_fluid, force_physics, force_cloth, force_particles, knowledge_feed, knowledge_file, vibe_input, dry_runs, base_mesh_file, base_mesh_path, run_blender, blender_executable],
             outputs=[progress_text, progress_bar, knowledge_card, knowledge_summary, hero_asset, gallery, status_light],
         )
 

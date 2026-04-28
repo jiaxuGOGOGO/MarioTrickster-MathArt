@@ -277,7 +277,7 @@ class KnowledgeInterpreter:
         raw, source = self.load_raw()
         timing_raw = raw.get("TimingParams") if isinstance(raw.get("TimingParams"), Mapping) else {}
         physics_raw = raw.get("PhysicsParams") if isinstance(raw.get("PhysicsParams"), Mapping) else {}
-        style_raw = raw.get("StyleParams") if isinstance(raw.get("StyleParams"), Mapping) else {}
+        style_raw = raw.get("StyleParams") if isinstance(raw.get("StyleParams"), Mapping) else raw.get("style") if isinstance(raw.get("style"), Mapping) else {}
         fluid_raw = raw.get("FluidParams") if isinstance(raw.get("FluidParams"), Mapping) else raw.get("fluid") if isinstance(raw.get("fluid"), Mapping) else {}
         cloth_raw = raw.get("ClothParams") if isinstance(raw.get("ClothParams"), Mapping) else raw.get("cloth") if isinstance(raw.get("cloth"), Mapping) else {}
         environment_raw = raw.get("EnvironmentParams") if isinstance(raw.get("EnvironmentParams"), Mapping) else raw.get("environment") if isinstance(raw.get("environment"), Mapping) else {}
@@ -311,10 +311,10 @@ class KnowledgeInterpreter:
         )
         style = StyleParams(
             toon_bands=_coerce_int(pick_from(style_raw, "toon_bands", DEFAULT_KNOWLEDGE["toon_bands"]), DEFAULT_KNOWLEDGE["toon_bands"], minimum=1, maximum=12),
-            line_width=_coerce_float(raw.get("line_width"), DEFAULT_KNOWLEDGE["line_width"], minimum=0.0),
+            line_width=_coerce_float(pick_from(style_raw, "line_width", DEFAULT_KNOWLEDGE["line_width"]), DEFAULT_KNOWLEDGE["line_width"], minimum=0.0),
             shadow_hardness=_coerce_float(pick_from(style_raw, "shadow_hardness", DEFAULT_KNOWLEDGE["shadow_hardness"]), DEFAULT_KNOWLEDGE["shadow_hardness"], minimum=0.0, maximum=1.0),
-            palette_color_count=_coerce_int(raw.get("palette_color_count"), DEFAULT_KNOWLEDGE["palette_color_count"], minimum=2, maximum=256),
-            color_quantization_enabled=_coerce_bool(raw.get("color_quantization_enabled", True), True),
+            palette_color_count=_coerce_int(pick_from(style_raw, "palette_color_count", DEFAULT_KNOWLEDGE["palette_color_count"]), DEFAULT_KNOWLEDGE["palette_color_count"], minimum=2, maximum=256),
+            color_quantization_enabled=_coerce_bool(style_raw.get("color_quantization_enabled", raw.get("color_quantization_enabled", True)), True),
             oklab_color_palette=_coerce_hex_palette(style_raw.get("oklab_color_palette", style_raw.get("oklab_palette", raw.get("oklab_color_palette", raw.get("oklab_palette", []))))),
         )
         fluid = FluidParams(
